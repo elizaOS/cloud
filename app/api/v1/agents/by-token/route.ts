@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userCharactersRepository } from "@/db/repositories/characters";
+import { normalizeTokenAddress } from "@/lib/utils/token-address";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
   }
 
   const character = await userCharactersRepository.findByTokenAddress(
-    address,
+    normalizeTokenAddress(address, chain),
     chain,
   );
 

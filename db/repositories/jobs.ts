@@ -136,17 +136,22 @@ export class JobsRepository {
    */
   async claimPendingJobs(filters: {
     type: string;
-    organizationId: string;
+    organizationId?: string;
     limit: number;
   }): Promise<Job[]> {
-    // Use CTE with FOR UPDATE SKIP LOCKED for proper row-level locking
-    // The CTE locks the rows first, then the UPDATE operates on locked rows
+    // Use CTE with FOR UPDATE SKIP LOCKED for proper row-level locking.
+    // The CTE locks the rows first, then the UPDATE operates on locked rows.
+    // organizationId is optional — omit to claim across all orgs (cron use-case).
+    const orgFilter = filters.organizationId
+      ? sql`AND organization_id = ${filters.organizationId}`
+      : sql``;
+
     const result = await dbWrite.execute<Job>(sql`
       WITH claimed AS (
         SELECT id FROM ${jobs}
         WHERE type = ${filters.type}
           AND status = 'pending'
-          AND organization_id = ${filters.organizationId}
+          ${orgFilter}
           AND scheduled_for <= NOW()
         ORDER BY created_at ASC
         LIMIT ${filters.limit}

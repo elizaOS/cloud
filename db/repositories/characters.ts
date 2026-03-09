@@ -7,6 +7,7 @@ import {
 } from "../schemas/user-characters";
 import { elizaRoomCharactersTable } from "../schemas/eliza-room-characters";
 import type { SearchFilters, SortOptions } from "@/lib/types/my-agents";
+import { normalizeTokenAddress } from "@/lib/utils/token-address";
 
 export type { UserCharacter, NewUserCharacter };
 
@@ -148,18 +149,40 @@ export class UserCharactersRepository {
   /**
    * Finds a character by token address (and optionally chain).
    * Returns the canonical agent linked to a specific on-chain token.
+   *
+   * The incoming address is normalised (EVM → lowercase, Solana → untouched)
+   * before comparison.  Write paths apply the same normalisation, so an exact
+   * match is sufficient for new data.
+   *
+   * For backward-compatibility with pre-normalisation rows we also fall back to
+   * `lower(token_address) = $normalised` — but only when the normalised value
+   * is already all-lowercase (i.e. EVM).  This avoids false positives on
+   * case-sensitive chains like Solana where lowering would conflate distinct
+   * base58 addresses.
    */
   async findByTokenAddress(
     tokenAddress: string,
     tokenChain?: string,
   ): Promise<UserCharacter | undefined> {
-    const conditions = [eq(userCharacters.token_address, tokenAddress)];
+    const normalized = normalizeTokenAddress(tokenAddress, tokenChain);
+    const isLowered = normalized === normalized.toLowerCase();
+
+    // Primary: exact match (works for all chains after normalisation on write).
+    // Fallback (EVM only): lower(stored) = normalised catches legacy mixed-case rows.
+    const addressCondition = isLowered
+      ? sql`(${userCharacters.token_address} = ${normalized} OR lower(${userCharacters.token_address}) = ${normalized})`
+      : eq(userCharacters.token_address, normalized);
+
+    const conditions: SQL[] = [addressCondition];
     if (tokenChain) {
       conditions.push(eq(userCharacters.token_chain, tokenChain));
     }
-    return await dbRead.query.userCharacters.findFirst({
-      where: and(...conditions),
-    });
+    const rows = await dbRead
+      .select()
+      .from(userCharacters)
+      .where(and(...conditions))
+      .limit(1);
+    return rows[0];
   }
 
   /**

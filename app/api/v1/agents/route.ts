@@ -5,6 +5,7 @@ import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { charactersService } from "@/lib/services/characters";
+import { normalizeTokenAddress } from "@/lib/utils/token-address";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -85,8 +86,14 @@ export async function POST(request: NextRequest) {
   const sync = request.nextUrl.searchParams.get("sync") === "true";
   const agentName = p.character?.name || p.tokenName;
 
+  // Normalise the token address so EVM checksum variants are treated as equal.
+  const normalizedTokenAddress = normalizeTokenAddress(
+    p.tokenContractAddress,
+    p.chain,
+  );
+
   logger.info("[service-api] Provisioning agent", {
-    token: p.tokenContractAddress,
+    token: normalizedTokenAddress,
     chain: p.chain,
     chainId: p.chainId,
     orgId: identity.organizationId,
@@ -95,7 +102,7 @@ export async function POST(request: NextRequest) {
 
   // 0. Check for existing agent linked to this token (prevent duplicates)
   const existingChar = await userCharactersRepository.findByTokenAddress(
-    p.tokenContractAddress,
+    normalizedTokenAddress,
     p.chain,
   );
   if (existingChar) {
@@ -117,7 +124,7 @@ export async function POST(request: NextRequest) {
     source: "cloud",
     character_data: p.character?.config ?? {},
     avatar_url: p.character?.avatar ?? null,
-    token_address: p.tokenContractAddress,
+    token_address: normalizedTokenAddress,
     token_chain: p.chain,
     token_name: p.tokenName,
     token_ticker: p.tokenTicker,

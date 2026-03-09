@@ -206,9 +206,12 @@ describe("ProvisioningJobService", () => {
     it("processes pending jobs and marks them completed on success", async () => {
       const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
 
-      // findByFilters returns pending jobs, then empty for in_progress recovery
+      // claimPendingJobs returns atomically claimed jobs
+      mockJobsRepository.claimPendingJobs
+        .mockResolvedValueOnce([job]); // milady_provision
+
+      // findByFilters still used for stale-job recovery
       mockJobsRepository.findByFilters
-        .mockResolvedValueOnce([job]) // pending milady_provision
         .mockResolvedValueOnce([]); // in_progress check for recovery
 
       mockJobsRepository.updateStatus.mockResolvedValue(undefined);
@@ -234,11 +237,13 @@ describe("ProvisioningJobService", () => {
         TEST_ORG_ID,
       );
 
-      // Should have marked in_progress then completed
-      expect(mockJobsRepository.updateStatus).toHaveBeenCalledWith(
-        TEST_JOB_ID,
-        "in_progress",
-      );
+      // Should have used claimPendingJobs (atomic FOR UPDATE SKIP LOCKED)
+      expect(mockJobsRepository.claimPendingJobs).toHaveBeenCalledWith({
+        type: JOB_TYPES.MILADY_PROVISION,
+        limit: 5,
+      });
+
+      // Should mark completed (claiming already set in_progress)
       expect(mockJobsRepository.updateStatus).toHaveBeenCalledWith(
         TEST_JOB_ID,
         "completed",
@@ -255,11 +260,10 @@ describe("ProvisioningJobService", () => {
     it("increments attempt on provision failure", async () => {
       const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
 
+      mockJobsRepository.claimPendingJobs
+        .mockResolvedValueOnce([job]);
       mockJobsRepository.findByFilters
-        .mockResolvedValueOnce([job])
         .mockResolvedValueOnce([]);
-
-      mockJobsRepository.updateStatus.mockResolvedValue(undefined);
 
       mockMiladySandboxService.provision.mockResolvedValue({
         success: false,
@@ -285,6 +289,7 @@ describe("ProvisioningJobService", () => {
     });
 
     it("returns empty result when no pending jobs", async () => {
+      mockJobsRepository.claimPendingJobs.mockResolvedValue([]);
       mockJobsRepository.findByFilters.mockResolvedValue([]);
 
       const result = await service.processPendingJobs(5);
@@ -297,11 +302,10 @@ describe("ProvisioningJobService", () => {
     it("stores partial result in job data on failure", async () => {
       const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
 
+      mockJobsRepository.claimPendingJobs
+        .mockResolvedValueOnce([job]);
       mockJobsRepository.findByFilters
-        .mockResolvedValueOnce([job])
         .mockResolvedValueOnce([]);
-
-      mockJobsRepository.updateStatus.mockResolvedValue(undefined);
 
       mockMiladySandboxService.provision.mockResolvedValue({
         success: false,
@@ -324,6 +328,53 @@ describe("ProvisioningJobService", () => {
           }),
         }),
       );
+    });
+
+    it("uses atomic claimPendingJobs instead of read-then-update", async () => {
+      // Verify that processPendingJobs delegates to claimPendingJobs
+      // (FOR UPDATE SKIP LOCKED) rather than findByFilters + updateStatus
+      mockJobsRepository.claimPendingJobs.mockResolvedValue([]);
+      mockJobsRepository.findByFilters.mockResolvedValue([]); // stale recovery
+
+      await service.processPendingJobs(10);
+
+      // Must call claimPendingJobs for each job type
+      expect(mockJobsRepository.claimPendingJobs).toHaveBeenCalledWith({
+        type: JOB_TYPES.MILADY_PROVISION,
+        limit: 10,
+      });
+
+      // Should NOT call findByFilters for pending jobs (only for stale recovery)
+      const findCalls = mockJobsRepository.findByFilters.mock.calls;
+      for (const call of findCalls) {
+        // stale recovery queries in_progress, never pending
+        expect(call[0].status).not.toBe("pending");
+      }
+    });
+
+    it("does not call updateStatus('in_progress') — claiming handles that atomically", async () => {
+      const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
+
+      mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([job]);
+      mockJobsRepository.findByFilters.mockResolvedValueOnce([]);
+      mockJobsRepository.updateStatus.mockResolvedValue(undefined);
+
+      mockMiladySandboxService.provision.mockResolvedValue({
+        success: true,
+        sandboxRecord: { id: TEST_AGENT_ID, status: "running" },
+        bridgeUrl: "http://localhost:31337",
+        healthUrl: "http://localhost:2138",
+      });
+
+      mockJobsRepository.update.mockResolvedValue(undefined);
+
+      await service.processPendingJobs(5);
+
+      // updateStatus should only be called for "completed", never "in_progress"
+      const statusCalls = mockJobsRepository.updateStatus.mock.calls;
+      for (const call of statusCalls) {
+        expect(call[1]).not.toBe("in_progress");
+      }
     });
   });
 
@@ -351,8 +402,9 @@ describe("ProvisioningJobService", () => {
         updated_at: new Date(),
       };
 
+      mockJobsRepository.claimPendingJobs
+        .mockResolvedValueOnce([job]);
       mockJobsRepository.findByFilters
-        .mockResolvedValueOnce([job])
         .mockResolvedValueOnce([]);
 
       mockJobsRepository.updateStatus.mockResolvedValue(undefined);

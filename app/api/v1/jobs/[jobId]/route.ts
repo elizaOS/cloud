@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { validateServiceKey } from "@/lib/auth/service-key";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 
 export const dynamic = "force-dynamic";
@@ -17,14 +18,26 @@ export const dynamic = "force-dynamic";
  * - completed: Job finished successfully (check `result` field)
  * - failed: Job failed after retries exhausted (check `error` field)
  *
- * Auth: Requires user auth or API key. Job must belong to user's organization.
+ * Auth: Accepts X-Service-Key (service-to-service) OR user auth / API key.
+ * Job must belong to the caller's organization.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    // Service-key callers (e.g. waifu.fun) get a jobId from POST /api/v1/agents
+    // and need to poll it here. Try service key first, fall back to user auth.
+    let organizationId: string;
+
+    const serviceIdentity = validateServiceKey(request);
+    if (serviceIdentity) {
+      organizationId = serviceIdentity.organizationId;
+    } else {
+      const { user } = await requireAuthOrApiKeyWithOrg(request);
+      organizationId = user.organization_id;
+    }
+
     const { jobId } = await params;
 
     const job = await provisioningJobService.getJob(jobId);
@@ -36,8 +49,8 @@ export async function GET(
       );
     }
 
-    // Authorization: job must belong to the user's organization
-    if (job.organization_id !== user.organization_id) {
+    // Authorization: job must belong to the caller's organization
+    if (job.organization_id !== organizationId) {
       return NextResponse.json(
         { success: false, error: "Job not found" },
         { status: 404 },

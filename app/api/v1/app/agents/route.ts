@@ -8,6 +8,7 @@ import { dbRead } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { organizations } from "@/db/schemas/organizations";
 import { userCharactersRepository } from "@/db/repositories/characters";
+import { normalizeTokenAddress } from "@/lib/utils/token-address";
 import { eq, and, sql } from "drizzle-orm";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
@@ -110,8 +111,12 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    const { name, bio, tokenAddress, tokenChain, tokenName, tokenTicker } =
+    const { name, bio, tokenChain, tokenName, tokenTicker } =
       validationResult.data;
+    // Normalise so EVM checksum variants are treated as the same address.
+    const tokenAddress = validationResult.data.tokenAddress
+      ? normalizeTokenAddress(validationResult.data.tokenAddress, tokenChain)
+      : undefined;
 
     // Check organization agent quota
     const org = await dbRead.query.organizations.findFirst({

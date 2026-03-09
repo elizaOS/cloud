@@ -165,25 +165,16 @@ export class ProvisioningJobService {
     batchSize: number,
     result: ProcessingResult,
   ): Promise<void> {
-    // Query pending jobs. The updateStatus("in_progress") below acts as
-    // an optimistic claim — if two workers race, only one succeeds.
-    const pendingJobs = await jobsRepository.findByFilters({
+    // Atomically claim pending jobs using FOR UPDATE SKIP LOCKED.
+    // This prevents double-execution when overlapping cron runs race,
+    // and respects scheduled_for so exponential backoff actually works.
+    const claimedJobs = await jobsRepository.claimPendingJobs({
       type: jobType,
-      status: "pending",
       limit: batchSize,
-      orderBy: "asc",
     });
 
-    for (const job of pendingJobs) {
+    for (const job of claimedJobs) {
       result.claimed++;
-
-      // Attempt to claim by transitioning status atomically
-      try {
-        await jobsRepository.updateStatus(job.id, "in_progress");
-      } catch {
-        // Another worker claimed it — skip
-        continue;
-      }
 
       try {
         await this.executeJob(job);

@@ -19,9 +19,14 @@ vi.mock("@/lib/services/provisioning-jobs", () => ({
 }));
 
 const mockRequireAuth = vi.fn();
+const mockValidateServiceKey = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: (...args: unknown[]) => mockRequireAuth(...args),
+}));
+
+vi.mock("@/lib/auth/service-key", () => ({
+  validateServiceKey: (...args: unknown[]) => mockValidateServiceKey(...args),
 }));
 
 vi.mock("@/lib/utils/logger", () => ({
@@ -52,6 +57,8 @@ describe("GET /api/v1/jobs/[jobId]", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: no service key, regular auth succeeds
+    mockValidateServiceKey.mockReturnValue(null);
     mockRequireAuth.mockResolvedValue({
       user: { id: "user-001", organization_id: TEST_ORG_ID },
     });
@@ -184,5 +191,78 @@ describe("GET /api/v1/jobs/[jobId]", () => {
 
     expect(response.status).toBe(401);
     expect(body.error).toBe("Unauthorized");
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // Service-key auth (X-Service-Key)
+  // ─────────────────────────────────────────────────────────────────
+
+  it("allows service-key callers to poll their org's jobs", async () => {
+    const SERVICE_ORG_ID = "service-org-001";
+    mockValidateServiceKey.mockReturnValue({
+      organizationId: SERVICE_ORG_ID,
+      userId: "service-user-001",
+    });
+
+    mockGetJob.mockResolvedValue({
+      id: TEST_JOB_ID,
+      type: "milady_provision",
+      status: "in_progress",
+      organization_id: SERVICE_ORG_ID,
+      attempts: 0,
+      max_attempts: 3,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    const [req, ctx] = makeRequest(TEST_JOB_ID);
+    const response = await GET(req as any, ctx);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.id).toBe(TEST_JOB_ID);
+    // Should NOT have called requireAuthOrApiKeyWithOrg
+    expect(mockRequireAuth).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when service-key caller queries another org's job", async () => {
+    mockValidateServiceKey.mockReturnValue({
+      organizationId: "service-org-001",
+      userId: "service-user-001",
+    });
+
+    mockGetJob.mockResolvedValue({
+      id: TEST_JOB_ID,
+      organization_id: "different-org",
+      status: "completed",
+    });
+
+    const [req, ctx] = makeRequest(TEST_JOB_ID);
+    const response = await GET(req as any, ctx);
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("Job not found");
+  });
+
+  it("falls back to user auth when no service key is present", async () => {
+    mockValidateServiceKey.mockReturnValue(null);
+
+    mockGetJob.mockResolvedValue({
+      id: TEST_JOB_ID,
+      status: "completed",
+      organization_id: TEST_ORG_ID,
+      attempts: 1,
+      max_attempts: 3,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    const [req, ctx] = makeRequest(TEST_JOB_ID);
+    const response = await GET(req as any, ctx);
+
+    expect(response.status).toBe(200);
+    expect(mockRequireAuth).toHaveBeenCalled();
   });
 });
