@@ -160,16 +160,16 @@ describe("blooioAdapter", () => {
         text: "",
         attachments: [
           "https://backend.blooio.com/media/image.jpg",
-          { url: "https://s3.amazonaws.com/bucket/file.pdf", name: "doc" },
+          { url: "https://media.blooio.com/uploads/file.pdf", name: "doc" },
         ],
       });
       const event = await blooioAdapter.extractEvent(JSON.stringify(payload));
       expect(event!.text).toBe(
-        "[media: https://backend.blooio.com/media/image.jpg, https://s3.amazonaws.com/bucket/file.pdf]",
+        "[media: https://backend.blooio.com/media/image.jpg, https://media.blooio.com/uploads/file.pdf]",
       );
       expect(event!.mediaUrls).toEqual([
         "https://backend.blooio.com/media/image.jpg",
-        "https://s3.amazonaws.com/bucket/file.pdf",
+        "https://media.blooio.com/uploads/file.pdf",
       ]);
     });
 

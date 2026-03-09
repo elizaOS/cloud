@@ -65,6 +65,10 @@ spec:
               value: {{ .Values.config.port | quote }}
             - name: KEDA_COOLDOWN_SECONDS
               value: {{ .Values.kedaCooldownSeconds | quote }}
+            {{- if .Values.config.twilioPublicUrl }}
+            - name: TWILIO_PUBLIC_URL
+              value: {{ .Values.config.twilioPublicUrl | quote }}
+            {{- end }}
             {{- if not .Values.envFrom }}
             - name: GATEWAY_BOOTSTRAP_SECRET
               valueFrom:

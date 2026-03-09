@@ -31,7 +31,6 @@ const ALLOWED_MEDIA_DOMAINS = [
   "backend.blooio.com",
   "api.blooio.com",
   "media.blooio.com",
-  "s3.amazonaws.com",
 ];
 
 function isValidMediaUrl(url: string): boolean {

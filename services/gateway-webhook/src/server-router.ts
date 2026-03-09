@@ -9,6 +9,7 @@ const RETRY_ATTEMPTS = 5;
 const RETRY_BASE_DELAY_MS = 2_000;
 const RETRY_INCREMENT_MS = 1_000;
 const IDENTITY_CACHE_TTL_SECONDS = 300;
+const IDENTITY_NEGATIVE_CACHE_TTL_SECONDS = 30;
 
 interface ServerRoute {
   serverName: string;
@@ -43,7 +44,12 @@ export async function resolveIdentity(
       headers: authHeader,
       signal: controller.signal,
     });
-    if (res.status === 404) return null;
+    if (res.status === 404) {
+      await redis.set(cacheKey, JSON.stringify(null), {
+        ex: IDENTITY_NEGATIVE_CACHE_TTL_SECONDS,
+      });
+      return null;
+    }
     if (!res.ok) throw new Error(`Identity resolve failed: ${res.status}`);
 
     const data = (await res.json()) as {

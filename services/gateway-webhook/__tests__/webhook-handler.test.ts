@@ -185,7 +185,11 @@ describe("handleWebhook", () => {
     expect(url).toContain("api.telegram.org/bot123:ABC/sendChatAction");
   });
 
-  test("Twilio flow returns TwiML response", async () => {
+  test("Twilio flow returns TwiML 200 on valid request", async () => {
+    const verifySpy = spyOn(twilioAdapter, "verifyWebhook").mockResolvedValue(
+      true,
+    );
+
     const redis = createFakeRedis();
     const deps = {
       redis: redis as any,
@@ -193,23 +197,18 @@ describe("handleWebhook", () => {
       getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
     };
 
-    // Twilio verification needs real HMAC — skip verification by not setting authToken
-    // Actually the adapter returns false if no authToken, so we need to set it
-    // But the test mock doesn't compute correct HMAC for request URL
-    // Let's remove authToken so it returns false → 401
-    // Instead, let's just test the TwiML ack for the case where we handle verification differently
-
-    // For this test, remove auth token requirement from config
-    mockProjectEnv.set("cloud:TWILIO_AUTH_TOKEN", "");
-
     const res = await handleWebhook(
       makeTwilioRequest(),
       twilioAdapter,
       deps,
       "cloud",
     );
-    // Without auth token → verifyWebhook returns false → 401
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("text/xml");
+    const body = await res.text();
+    expect(body).toContain("<Response>");
+
+    verifySpy.mockRestore();
   });
 
   // ── Dedup ──────────────────────────────────────────────────────

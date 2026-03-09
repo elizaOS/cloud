@@ -78,14 +78,6 @@ export const whatsappAdapter: PlatformAdapter = {
         .update(rawBody)
         .digest("hex");
 
-      logger.debug("WhatsApp HMAC check", {
-        headerPresent: !!signatureHeader,
-        expectedPrefix: expectedSignature.slice(0, 8),
-        computedPrefix: computedSignature.slice(0, 8),
-        secretLen: config.appSecret.length,
-        bodyLen: rawBody.length,
-      });
-
       const expectedBuf = Buffer.from(expectedSignature, "hex");
       const computedBuf = Buffer.from(computedSignature, "hex");
 
@@ -130,6 +122,8 @@ export const whatsappAdapter: PlatformAdapter = {
           }
         }
 
+        // Meta can batch multiple messages per delivery. We intentionally process
+        // only the first text message — each subsequent delivery will be its own webhook.
         for (const msg of value.messages) {
           if (msg.type !== "text" || !msg.text?.body) continue;
 

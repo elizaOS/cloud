@@ -45,6 +45,8 @@ resources:
 config:
   nodeEnv: "production"
   port: "3000"
+  # Public URL for Twilio signature verification (behind ingress/proxy)
+  twilioPublicUrl: ""
 
 # Secrets configuration
 secrets:
@@ -132,11 +134,8 @@ prometheus:
   alerts:
     enabled: true
 
-# Pod annotations for Prometheus scraping (works without Prometheus Operator)
-podAnnotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/port: "3000"
-  prometheus.io/path: "/metrics"
+# Pod annotations (add prometheus.io/scrape when /metrics is instrumented)
+podAnnotations: {}
 
 # Service account configuration
 serviceAccount:

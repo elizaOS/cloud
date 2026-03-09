@@ -21,12 +21,7 @@ const TwilioWebhookEventSchema = z
 
 type TwilioEvent = z.infer<typeof TwilioWebhookEventSchema>;
 
-const ALLOWED_MEDIA_DOMAINS = [
-  "api.twilio.com",
-  "media.twiliocdn.com",
-  "s3.amazonaws.com",
-  "s3-external-1.amazonaws.com",
-];
+const ALLOWED_MEDIA_DOMAINS = ["api.twilio.com", "media.twiliocdn.com"];
 
 function isValidMediaUrl(url: string): boolean {
   try {

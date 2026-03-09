@@ -59,17 +59,6 @@ spec:
             summary: "Gateway Webhook restarting frequently"
             description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} has restarted {{ "{{" }} $value {{ "}}" }} times in the last hour."
 
-        - alert: GatewayWebhookHighErrorRate
-          expr: |
-            rate(gateway_webhook_requests_total{status=~"5.."}[5m])
-            / rate(gateway_webhook_requests_total[5m]) > 0.1
-          for: 5m
-          labels:
-            severity: critical
-          annotations:
-            summary: "Gateway Webhook high error rate"
-            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} has more than 10% error rate on incoming webhooks."
-
         - alert: GatewayWebhookSlowStart
           expr: |
             time() - kube_pod_start_time{pod=~"gateway-webhook.*"} > 300
