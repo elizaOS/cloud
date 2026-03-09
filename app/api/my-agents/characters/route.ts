@@ -133,6 +133,11 @@ export async function GET(request: NextRequest) {
           updatedAt: char.updated_at,
           updated_at: char.updated_at,
           tags: char.tags,
+          // Token linkage (null when not linked)
+          token_address: char.token_address ?? null,
+          token_chain: char.token_chain ?? null,
+          token_name: char.token_name ?? null,
+          token_ticker: char.token_ticker ?? null,
         })),
         pagination: {
           page,

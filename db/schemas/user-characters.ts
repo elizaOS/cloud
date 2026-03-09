@@ -81,6 +81,20 @@ export const userCharacters = pgTable(
     source: text("source").default("cloud").notNull(),
 
     // =========================================================================
+    // Token Linkage
+    // Associates an agent with a specific on-chain token.
+    // First-class columns so thin clients can query/filter without JSONB hacks.
+    // =========================================================================
+    /** On-chain token contract/mint address (e.g. Solana mint or EVM contract). */
+    token_address: text("token_address"),
+    /** Chain identifier (e.g. "solana", "base", "ethereum"). */
+    token_chain: text("token_chain"),
+    /** Human-readable token name (e.g. "MyToken"). */
+    token_name: text("token_name"),
+    /** Token ticker symbol (e.g. "MTK"). */
+    token_ticker: text("token_ticker"),
+
+    // =========================================================================
     // ERC-8004 On-Chain Registration
     // When public agents are registered, they become discoverable by other agents
     // =========================================================================
@@ -165,6 +179,10 @@ export const userCharacters = pgTable(
     ),
     monetization_idx: index("user_characters_monetization_idx").on(
       table.monetization_enabled,
+    ),
+    // Token linkage indexes (partial — only rows with a token_address)
+    token_address_idx: index("user_characters_token_address_idx").on(
+      table.token_address,
     ),
   }),
 );

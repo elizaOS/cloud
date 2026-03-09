@@ -3,6 +3,8 @@ import { logger } from "@/lib/utils/logger";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
+import { userCharactersRepository } from "@/db/repositories/characters";
+import { charactersService } from "@/lib/services/characters";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -91,11 +93,42 @@ export async function POST(request: NextRequest) {
     async: !sync,
   });
 
+  // 0. Check for existing agent linked to this token (prevent duplicates)
+  const existingChar = await userCharactersRepository.findByTokenAddress(
+    p.tokenContractAddress,
+    p.chain,
+  );
+  if (existingChar) {
+    return NextResponse.json(
+      {
+        error: `An agent is already linked to token ${p.tokenContractAddress} on ${p.chain}`,
+        existingAgentId: existingChar.id,
+      },
+      { status: 409 },
+    );
+  }
+
+  // 0b. Create a user_character record with first-class token linkage
+  const character = await charactersService.create({
+    name: agentName,
+    bio: p.character?.bio ? [p.character.bio] : [`Agent for ${p.tokenName}`],
+    user_id: identity.userId,
+    organization_id: identity.organizationId,
+    source: "cloud",
+    character_data: p.character?.config ?? {},
+    avatar_url: p.character?.avatar ?? null,
+    token_address: p.tokenContractAddress,
+    token_chain: p.chain,
+    token_name: p.tokenName,
+    token_ticker: p.tokenTicker,
+  });
+
   // 1. Create sandbox record (always sync — just a DB insert)
   const agent = await miladySandboxService.createAgent({
     organizationId: identity.organizationId,
     userId: identity.userId,
     agentName,
+    characterId: character.id,
     agentConfig: {
       tokenContractAddress: p.tokenContractAddress,
       chain: p.chain,
@@ -145,7 +178,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         cloudAgentId: agent.id,
+        characterId: character.id,
         status: result.sandboxRecord.status,
+        token_address: character.token_address ?? null,
+        token_chain: character.token_chain ?? null,
+        token_name: character.token_name ?? null,
+        token_ticker: character.token_ticker ?? null,
       },
       { status: 201 },
     );
@@ -168,6 +206,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(
     {
       cloudAgentId: agent.id,
+      characterId: character.id,
       status: "pending",
       jobId: job.id,
       polling: {
@@ -175,6 +214,10 @@ export async function POST(request: NextRequest) {
         intervalMs: 5000,
         expectedDurationMs: 90000,
       },
+      token_address: character.token_address ?? null,
+      token_chain: character.token_chain ?? null,
+      token_name: character.token_name ?? null,
+      token_ticker: character.token_ticker ?? null,
     },
     { status: 202 },
   );

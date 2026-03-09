@@ -146,6 +146,51 @@ export class UserCharactersRepository {
   }
 
   /**
+   * Finds a character by token address (and optionally chain).
+   * Returns the canonical agent linked to a specific on-chain token.
+   */
+  async findByTokenAddress(
+    tokenAddress: string,
+    tokenChain?: string,
+  ): Promise<UserCharacter | undefined> {
+    const conditions = [eq(userCharacters.token_address, tokenAddress)];
+    if (tokenChain) {
+      conditions.push(eq(userCharacters.token_chain, tokenChain));
+    }
+    return await dbRead.query.userCharacters.findFirst({
+      where: and(...conditions),
+    });
+  }
+
+  /**
+   * Lists all characters that have a token linkage.
+   * Useful for dashboards that show token-linked agents.
+   */
+  async listTokenLinked(options?: {
+    chain?: string;
+    organizationId?: string;
+    limit?: number;
+  }): Promise<UserCharacter[]> {
+    const conditions: SQL[] = [
+      sql`${userCharacters.token_address} IS NOT NULL`,
+    ];
+    if (options?.chain) {
+      conditions.push(eq(userCharacters.token_chain, options.chain));
+    }
+    if (options?.organizationId) {
+      conditions.push(
+        eq(userCharacters.organization_id, options.organizationId),
+      );
+    }
+    return await dbRead
+      .select()
+      .from(userCharacters)
+      .where(and(...conditions))
+      .orderBy(desc(userCharacters.created_at))
+      .limit(options?.limit ?? 100);
+  }
+
+  /**
    * Finds a character by username.
    */
   async findByUsername(username: string): Promise<UserCharacter | undefined> {

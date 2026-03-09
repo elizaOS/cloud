@@ -20,19 +20,39 @@ export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const agents = await miladySandboxService.listAgents(user.organization_id);
 
+  // Enrich with token linkage from the associated user_character records
+  const { userCharactersRepository } = await import("@/db/repositories/characters");
+  const characterIds = agents
+    .map((a) => a.character_id)
+    .filter((id): id is string => id != null);
+  const characters = characterIds.length > 0
+    ? await Promise.all(characterIds.map((id) => userCharactersRepository.findById(id)))
+    : [];
+  const charMap = new Map(characters.filter(Boolean).map((c) => [c!.id, c!]));
+
   return NextResponse.json({
     success: true,
-    data: agents.map((a) => ({
-      id: a.id,
-      agentName: a.agent_name,
-      status: a.status,
-      databaseStatus: a.database_status,
-      lastBackupAt: a.last_backup_at,
-      lastHeartbeatAt: a.last_heartbeat_at,
-      errorMessage: a.error_message,
-      createdAt: a.created_at,
-      updatedAt: a.updated_at,
-    })),
+    data: agents.map((a) => {
+      const char = a.character_id ? charMap.get(a.character_id) : undefined;
+      // Fallback: extract from agent_config JSONB if character record not linked
+      const cfg = a.agent_config as Record<string, unknown> | null;
+      return {
+        id: a.id,
+        agentName: a.agent_name,
+        status: a.status,
+        databaseStatus: a.database_status,
+        lastBackupAt: a.last_backup_at,
+        lastHeartbeatAt: a.last_heartbeat_at,
+        errorMessage: a.error_message,
+        createdAt: a.created_at,
+        updatedAt: a.updated_at,
+        // Canonical token linkage
+        token_address: char?.token_address ?? (cfg?.tokenContractAddress as string | undefined) ?? null,
+        token_chain: char?.token_chain ?? (cfg?.chain as string | undefined) ?? null,
+        token_name: char?.token_name ?? (cfg?.tokenName as string | undefined) ?? null,
+        token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string | undefined) ?? null,
+      };
+    }),
   });
 }
 

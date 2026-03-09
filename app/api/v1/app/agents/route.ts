@@ -7,6 +7,7 @@ import { z } from "zod";
 import { dbRead } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { organizations } from "@/db/schemas/organizations";
+import { userCharactersRepository } from "@/db/repositories/characters";
 import { eq, and, sql } from "drizzle-orm";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
@@ -22,6 +23,11 @@ const CreateAgentSchema = z.object({
     .string()
     .optional()
     .transform((s) => s?.trim()),
+  // Optional token linkage — associates this agent with an on-chain token
+  tokenAddress: z.string().min(1).max(256).optional(),
+  tokenChain: z.string().min(1).max(64).optional(),
+  tokenName: z.string().min(1).max(128).optional(),
+  tokenTicker: z.string().min(1).max(32).optional(),
 });
 
 // Agent quota limits based on organization credit balance
@@ -104,7 +110,8 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    const { name, bio } = validationResult.data;
+    const { name, bio, tokenAddress, tokenChain, tokenName, tokenTicker } =
+      validationResult.data;
 
     // Check organization agent quota
     const org = await dbRead.query.organizations.findFirst({
@@ -160,6 +167,24 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
+    // If a token is specified, check for existing linkage (unique constraint)
+    if (tokenAddress) {
+      const existing = await userCharactersRepository.findByTokenAddress(
+        tokenAddress,
+        tokenChain,
+      );
+      if (existing) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `An agent is already linked to token ${tokenAddress}${tokenChain ? ` on ${tokenChain}` : ""}`,
+            existingAgentId: existing.id,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     const startTime = Date.now();
     const character = await charactersService.create({
       name,
@@ -168,6 +193,11 @@ async function handlePOST(request: NextRequest) {
       organization_id: user.organization_id,
       source: "cloud",
       character_data: {},
+      // Token linkage (all optional)
+      ...(tokenAddress && { token_address: tokenAddress }),
+      ...(tokenChain && { token_chain: tokenChain }),
+      ...(tokenName && { token_name: tokenName }),
+      ...(tokenTicker && { token_ticker: tokenTicker }),
     });
 
     // Track agent creation in PostHog using internal UUID
@@ -199,6 +229,11 @@ async function handlePOST(request: NextRequest) {
           username: character.username,
           bio: character.bio,
           created_at: character.created_at,
+          // Token linkage (null when not linked)
+          token_address: character.token_address ?? null,
+          token_chain: character.token_chain ?? null,
+          token_name: character.token_name ?? null,
+          token_ticker: character.token_ticker ?? null,
         },
       },
       { status: 201 },
