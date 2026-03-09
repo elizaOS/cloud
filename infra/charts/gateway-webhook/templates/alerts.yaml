@@ -22,7 +22,7 @@ spec:
 
         - alert: GatewayWebhookPodUnhealthy
           expr: |
-            kube_pod_container_status_ready{container="gateway"} == 0
+            kube_pod_container_status_ready{container="gateway", namespace="{{ include "gateway-webhook.namespace" . }}"} == 0
           for: 2m
           labels:
             severity: warning
@@ -32,7 +32,7 @@ spec:
 
         - alert: GatewayWebhookHighMemory
           expr: |
-            container_memory_usage_bytes{container="gateway"} / container_spec_memory_limit_bytes{container="gateway"} > 0.9
+            container_memory_usage_bytes{container="gateway", namespace="{{ include "gateway-webhook.namespace" . }}"} / container_spec_memory_limit_bytes{container="gateway", namespace="{{ include "gateway-webhook.namespace" . }}"} > 0.9
           for: 5m
           labels:
             severity: warning
@@ -42,7 +42,7 @@ spec:
 
         - alert: GatewayWebhookHighCPU
           expr: |
-            rate(container_cpu_usage_seconds_total{container="gateway"}[5m]) / container_spec_cpu_quota{container="gateway"} * 100000 > 90
+            rate(container_cpu_usage_seconds_total{container="gateway", namespace="{{ include "gateway-webhook.namespace" . }}"}[5m]) / container_spec_cpu_quota{container="gateway", namespace="{{ include "gateway-webhook.namespace" . }}"} * 100000 > 90
           for: 5m
           labels:
             severity: warning
@@ -52,7 +52,7 @@ spec:
 
         - alert: GatewayWebhookRestarting
           expr: |
-            increase(kube_pod_container_status_restarts_total{container="gateway"}[1h]) > 3
+            increase(kube_pod_container_status_restarts_total{container="gateway", namespace="{{ include "gateway-webhook.namespace" . }}"}[1h]) > 3
           labels:
             severity: warning
           annotations:
@@ -61,8 +61,8 @@ spec:
 
         - alert: GatewayWebhookSlowStart
           expr: |
-            time() - kube_pod_start_time{pod=~"gateway-webhook.*"} > 300
-            and kube_pod_container_status_ready{container="gateway"} == 0
+            time() - kube_pod_start_time{pod=~"gateway-webhook.*", namespace="{{ include "gateway-webhook.namespace" . }}"} > 300
+            and kube_pod_container_status_ready{container="gateway", namespace="{{ include "gateway-webhook.namespace" . }}"} == 0
           labels:
             severity: warning
           annotations:

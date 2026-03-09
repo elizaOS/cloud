@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import type { PlatformAdapter, ChatEvent, WebhookConfig } from "./types";
 import { logger } from "../logger";
 
@@ -92,8 +93,7 @@ export const telegramAdapter: PlatformAdapter = {
     const received = Buffer.from(headerSecret, "utf8");
     if (expected.length !== received.length) return false;
 
-    const { timingSafeEqual } = await import("crypto");
-    return timingSafeEqual(expected, received);
+    return crypto.timingSafeEqual(expected, received);
   },
 
   async extractEvent(rawBody: string): Promise<ChatEvent | null> {
@@ -143,8 +143,10 @@ export const telegramAdapter: PlatformAdapter = {
           text: chunk,
           parse_mode: "Markdown",
         });
-      } catch {
-        // Markdown parse failed, retry as plain text
+      } catch (err) {
+        logger.warn("Telegram sendMessage failed, retrying without Markdown", {
+          error: err instanceof Error ? err.message : String(err),
+        });
         await telegramApi(config.botToken, "sendMessage", {
           chat_id: event.chatId,
           text: chunk,

@@ -31,8 +31,13 @@ export async function resolveIdentity(
   platformName?: string,
 ): Promise<ResolvedIdentity | null> {
   const cacheKey = `identity:${platform}:${platformId}`;
-  const cached = await redis.get<ResolvedIdentity>(cacheKey);
-  if (cached) return cached;
+  const cached = await redis.get<ResolvedIdentity | { notFound: true }>(
+    cacheKey,
+  );
+  if (cached) {
+    if ("notFound" in cached) return null;
+    return cached;
+  }
 
   let url = `${cloudBaseUrl}/api/internal/identity/resolve?platform=${encodeURIComponent(platform)}&platformId=${encodeURIComponent(platformId)}`;
   if (platformName) url += `&platformName=${encodeURIComponent(platformName)}`;
@@ -45,7 +50,7 @@ export async function resolveIdentity(
       signal: controller.signal,
     });
     if (res.status === 404) {
-      await redis.set(cacheKey, JSON.stringify(null), {
+      await redis.set(cacheKey, JSON.stringify({ notFound: true }), {
         ex: IDENTITY_NEGATIVE_CACHE_TTL_SECONDS,
       });
       return null;
