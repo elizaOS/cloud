@@ -25,74 +25,44 @@ export interface SelectorModel {
 // - Vercel AI Gateway: https://ai-gateway.vercel.sh/v1/models
 // - Groq docs: https://console.groq.com/docs/models
 const OPENAI_TEXT_MODEL_IDS = [
-  "openai/codex-mini",
-  "openai/gpt-3.5-turbo",
-  "openai/gpt-4-turbo",
-  "openai/gpt-4.1",
-  "openai/gpt-4.1-mini",
-  "openai/gpt-4.1-nano",
-  "openai/gpt-4o",
-  "openai/gpt-4o-mini",
-  "openai/gpt-4o-mini-search-preview",
   "openai/gpt-5",
-  "openai/gpt-5-chat",
-  "openai/gpt-5-codex",
+  "openai/gpt-5-pro",
   "openai/gpt-5-mini",
   "openai/gpt-5-nano",
-  "openai/gpt-5-pro",
-  "openai/gpt-5.1-codex",
-  "openai/gpt-5.1-codex-max",
-  "openai/gpt-5.1-codex-mini",
-  "openai/gpt-5.1-instant",
-  "openai/gpt-5.1-thinking",
   "openai/gpt-5.2",
-  "openai/gpt-5.2-chat",
-  "openai/gpt-5.2-codex",
   "openai/gpt-5.2-pro",
   "openai/gpt-5.3-chat",
   "openai/gpt-5.3-codex",
-  "openai/gpt-5.4",
-  "openai/gpt-5.4-pro",
-  "openai/gpt-oss-120b",
-  "openai/gpt-oss-20b",
-  "openai/o1",
-  "openai/o3",
-  "openai/o3-deep-research",
-  "openai/o3-mini",
-  "openai/o3-pro",
   "openai/o4-mini",
+  "openai/o3",
+  "openai/o3-pro",
 ] as const;
 
 const ANTHROPIC_TEXT_MODEL_IDS = [
-  "anthropic/claude-3-haiku",
-  "anthropic/claude-3-opus",
-  "anthropic/claude-3.5-haiku",
-  "anthropic/claude-3.5-sonnet",
-  "anthropic/claude-3.5-sonnet-20240620",
-  "anthropic/claude-3.7-sonnet",
-  "anthropic/claude-haiku-4.5",
-  "anthropic/claude-opus-4",
-  "anthropic/claude-opus-4.1",
-  "anthropic/claude-opus-4.5",
   "anthropic/claude-opus-4.6",
-  "anthropic/claude-sonnet-4",
-  "anthropic/claude-sonnet-4.5",
   "anthropic/claude-sonnet-4.6",
+  "anthropic/claude-opus-4.5",
+  "anthropic/claude-sonnet-4.5",
+  "anthropic/claude-haiku-4.5",
 ] as const;
 
 const GOOGLE_TEXT_MODEL_IDS = [
-  "google/gemini-2.0-flash",
-  "google/gemini-2.0-flash-lite",
-  "google/gemini-2.5-flash",
-  "google/gemini-2.5-flash-lite",
-  "google/gemini-2.5-flash-lite-preview-09-2025",
-  "google/gemini-2.5-flash-preview-09-2025",
-  "google/gemini-2.5-pro",
-  "google/gemini-3-flash",
-  "google/gemini-3-pro-preview",
-  "google/gemini-3.1-flash-lite-preview",
   "google/gemini-3.1-pro-preview",
+  "google/gemini-3.1-flash-lite-preview",
+  "google/gemini-3.1-flash-image-preview",
+  "google/gemini-3-pro-preview",
+  "google/gemini-3-flash",
 ] as const;
+
+const XAI_TEXT_MODEL_IDS = ["xai/grok-4", "xai/grok-4-fast-reasoning", "xai/grok-4.1-fast-reasoning", "xai/grok-3-mini", "xai/grok-3-mini-fast"] as const;
+const MISTRAL_TEXT_MODEL_IDS = ["mistral/magistral-medium", "mistral/magistral-small", "mistral/mistral-large-3", "mistral/ministral-8b"] as const;
+const MINIMAX_TEXT_MODEL_IDS = ["minimax/minimax-m2.5", "minimax/minimax-m2.1-lightning"] as const;
+const QWEN_TEXT_MODEL_IDS = ["alibaba/qwen3-max", "alibaba/qwen3.5-plus", "alibaba/qwen3.5-flash", "alibaba/qwen3-coder-next", "alibaba/qwen-3-14b"] as const;
+const DEEPSEEK_TEXT_MODEL_IDS = ["deepseek/deepseek-v3.2", "deepseek/deepseek-r1"] as const;
+const ZAI_TEXT_MODEL_IDS = ["zai/glm-5", "zai/glm-4.7", "zai/glm-4.7-flashx"] as const;
+const MOONSHOT_TEXT_MODEL_IDS = ["moonshotai/kimi-k2.5", "moonshotai/kimi-k2-turbo"] as const;
+const META_TEXT_MODEL_IDS = ["meta/llama-4-maverick", "meta/llama-4-scout"] as const;
+const BYTEDANCE_TEXT_MODEL_IDS = ["bytedance/seed-1.8"] as const;
 
 function formatProviderLabel(provider: string): string {
   switch (provider) {
@@ -104,6 +74,24 @@ function formatProviderLabel(provider: string): string {
       return "Anthropic";
     case "google":
       return "Google";
+    case "xai":
+      return "X.AI";
+    case "mistral":
+      return "Mistral";
+    case "minimax":
+      return "Minimax";
+    case "alibaba":
+      return "Alibaba (Qwen)";
+    case "deepseek":
+      return "DeepSeek";
+    case "zai":
+      return "Z.AI (Zhipu)";
+    case "moonshotai":
+      return "Moonshot (Kimi)";
+    case "meta":
+      return "Meta (Llama)";
+    case "bytedance":
+      return "ByteDance (Seed)";
     default:
       return provider;
   }
@@ -142,6 +130,14 @@ function titleCase(value: string): string {
       if (part === "haiku") return "Haiku";
       if (part === "chat") return "Chat";
       if (part === "compound") return "Compound";
+      if (part === "grok") return "Grok";
+      if (part === "mistral") return "Mistral";
+      if (part === "minimax") return "Minimax";
+      if (part === "abab6.5") return "abab6.5";
+      if (part === "qwen") return "Qwen";
+      if (part === "deepseek") return "DeepSeek";
+      if (part === "glm") return "GLM";
+      if (part === "kimi") return "Kimi";
       return part.charAt(0).toUpperCase() + part.slice(1);
     })
     .join(" ");
@@ -158,10 +154,6 @@ function buildSelectorName(modelId: string): string {
 
   if (provider === "anthropic") {
     return titleCase(rawName.replace(/^claude-/, "claude-"));
-  }
-
-  if (provider === "google" || provider === "groq" || provider === "openai") {
-    return titleCase(rawName);
   }
 
   return titleCase(rawName);
@@ -237,6 +229,15 @@ const FALLBACK_TEXT_MODELS = [
   ...OPENAI_TEXT_MODEL_IDS,
   ...ANTHROPIC_TEXT_MODEL_IDS,
   ...GOOGLE_TEXT_MODEL_IDS,
+  ...XAI_TEXT_MODEL_IDS,
+  ...MISTRAL_TEXT_MODEL_IDS,
+  ...MINIMAX_TEXT_MODEL_IDS,
+  ...QWEN_TEXT_MODEL_IDS,
+  ...DEEPSEEK_TEXT_MODEL_IDS,
+  ...ZAI_TEXT_MODEL_IDS,
+  ...MOONSHOT_TEXT_MODEL_IDS,
+  ...META_TEXT_MODEL_IDS,
+  ...BYTEDANCE_TEXT_MODEL_IDS,
   ...GROQ_NATIVE_MODELS.map((model) => model.id),
 ].map(buildCatalogModel);
 
@@ -305,6 +306,24 @@ function getProviderSortIndex(provider: string): number {
       return 2;
     case "google":
       return 3;
+    case "deepseek":
+      return 4;
+    case "xai":
+      return 5;
+    case "mistral":
+      return 6;
+    case "alibaba":
+      return 7;
+    case "minimax":
+      return 8;
+    case "zai":
+      return 9;
+    case "moonshotai":
+      return 10;
+    case "meta":
+      return 11;
+    case "bytedance":
+      return 12;
     default:
       return 99;
   }

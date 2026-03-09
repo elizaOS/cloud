@@ -188,25 +188,25 @@ export const IMAGE_TIERS: {
   description: string;
   model: ImageModel;
 }[] = [
-  {
-    id: "fast",
-    name: "Fast",
-    description: "Fastest for quick images",
-    model: IMAGE_MODELS[0],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    description: "Best for everyday images",
-    model: IMAGE_MODELS[1],
-  },
-  {
-    id: "ultra",
-    name: "Ultra",
-    description: "Most capable for complex images",
-    model: IMAGE_MODELS[2],
-  },
-];
+    {
+      id: "fast",
+      name: "Fast",
+      description: "Fastest for quick images",
+      model: IMAGE_MODELS[0],
+    },
+    {
+      id: "pro",
+      name: "Pro",
+      description: "Best for everyday images",
+      model: IMAGE_MODELS[1],
+    },
+    {
+      id: "ultra",
+      name: "Ultra",
+      description: "Most capable for complex images",
+      model: IMAGE_MODELS[2],
+    },
+  ];
 
 /** Additional image models shown in "More models" submenu */
 export const ADDITIONAL_IMAGE_MODELS: ImageModel[] = [
@@ -293,18 +293,82 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   },
   // DeepSeek
   {
-    id: "deepseek-v3",
+    id: "deepseek-v3.2",
     name: "DeepSeek V3.2",
     description: "Open & powerful",
-    modelId: "deepseek/deepseek-v3.2-exp",
+    modelId: "deepseek/deepseek-v3.2",
     provider: "deepseek",
   },
+  // X.AI
   {
-    id: "deepseek-r1",
-    name: "DeepSeek R1",
-    description: "Reasoning model",
-    modelId: "deepseek/deepseek-r1",
-    provider: "deepseek",
+    id: "grok-4",
+    name: "Grok 4",
+    description: "X.AI's most powerful",
+    modelId: "xai/grok-4",
+    provider: "xai",
+  },
+  // Mistral
+  {
+    id: "magistral-medium",
+    name: "Magistral Medium",
+    description: "Mistral's most capable",
+    modelId: "mistral/magistral-medium",
+    provider: "mistral",
+  },
+  // Alibaba (Qwen)
+  {
+    id: "qwen3-max",
+    name: "Qwen 3 Max",
+    description: "Alibaba's most powerful",
+    modelId: "alibaba/qwen3-max",
+    provider: "alibaba",
+  },
+  {
+    id: "qwen3.5-plus",
+    name: "Qwen 3.5 Plus",
+    description: "Latest Qwen generation",
+    modelId: "alibaba/qwen3.5-plus",
+    provider: "alibaba",
+  },
+  // Minimax
+  {
+    id: "minimax-m2.5",
+    name: "Minimax M2.5",
+    description: "Chinese frontier model",
+    modelId: "minimax/minimax-m2.5",
+    provider: "minimax",
+  },
+  // Z.AI (Zhipu)
+  {
+    id: "glm-5",
+    name: "GLM-5",
+    description: "Z.AI (Zhipu) most powerful",
+    modelId: "zai/glm-5",
+    provider: "zai",
+  },
+  // Moonshot (Kimi)
+  {
+    id: "kimi-k2.5",
+    name: "Kimi K2.5",
+    description: "Moonshot's most powerful",
+    modelId: "moonshotai/kimi-k2.5",
+    provider: "moonshotai",
+  },
+  // Meta (Llama)
+  {
+    id: "llama-4-maverick",
+    name: "Llama 4 Maverick",
+    description: "Meta's frontier model",
+    modelId: "meta/llama-4-maverick",
+    provider: "meta",
+  },
+  // ByteDance
+  {
+    id: "seed-1.8",
+    name: "Seed 1.8",
+    description: "ByteDance's frontier model",
+    modelId: "bytedance/seed-1.8",
+    provider: "bytedance",
   },
 ];
 
