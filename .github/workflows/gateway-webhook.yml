@@ -1,0 +1,43 @@
+name: Gateway Webhook
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "services/gateway-webhook/**"
+      - ".github/workflows/gateway-webhook.yml"
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "services/gateway-webhook/**"
+      - ".github/workflows/gateway-webhook.yml"
+
+concurrency:
+  group: gateway-webhook-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: "1.2"
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install root dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install service dependencies
+        run: cd services/gateway-webhook && bun install --frozen-lockfile
+
+      - name: Run service tests
+        run: bun test services/gateway-webhook/__tests__/ --timeout 60000
+        env:
+          SKIP_SERVER_CHECK: "true"
