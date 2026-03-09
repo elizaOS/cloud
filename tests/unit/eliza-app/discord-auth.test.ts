@@ -573,17 +573,30 @@ describe("Discord Config Structure", () => {
     expect(configSource).toContain("ELIZA_APP_DISCORD_CLIENT_SECRET");
   });
 
-  test("config uses requireEnv for secrets", () => {
+  test("config defers Discord secrets to optional runtime envs", () => {
     const configSource = readFileSync(
       join(process.cwd(), "lib/services/eliza-app/config.ts"),
       "utf-8",
     );
-    expect(configSource).toContain('return requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", "")');
     expect(configSource).toContain(
-      'return requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", "")',
+      'botToken: optionalRuntimeEnv("ELIZA_APP_DISCORD_BOT_TOKEN")',
     );
     expect(configSource).toContain(
-      'return requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", "")',
+      'applicationId: optionalRuntimeEnv("ELIZA_APP_DISCORD_APPLICATION_ID")',
+    );
+    expect(configSource).toContain(
+      'clientSecret: optionalRuntimeEnv("ELIZA_APP_DISCORD_CLIENT_SECRET")',
+    );
+  });
+
+  test("config still validates Discord secrets when Discord is enabled", () => {
+    const configSource = readFileSync(
+      join(process.cwd(), "lib/services/eliza-app/config.ts"),
+      "utf-8",
+    );
+    expect(configSource).toContain('process.env.ELIZA_APP_DISCORD_ENABLED === "true"');
+    expect(configSource).toContain(
+      "Discord is enabled but required Discord env vars are not set in production",
     );
   });
 
