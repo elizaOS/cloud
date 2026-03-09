@@ -155,7 +155,6 @@ export class MilaidySandboxService {
     // For docker provider, also persist docker-specific fields from metadata
     if (handle.metadata) {
       if (handle.metadata.nodeId) updateData.node_id = handle.metadata.nodeId as string;
-      if (handle.metadata.hostname) updateData.node_id = handle.metadata.nodeId as string; // node_id is authoritative
       if (handle.metadata.containerName) updateData.container_name = handle.metadata.containerName as string;
       if (handle.metadata.bridgePort) updateData.bridge_port = handle.metadata.bridgePort as number;
       if (handle.metadata.webUiPort) updateData.web_ui_port = handle.metadata.webUiPort as number;
