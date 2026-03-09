@@ -11,6 +11,7 @@
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
 import { logger } from "@/lib/utils/logger";
 import type { SandboxProvider, SandboxHandle, SandboxCreateConfig } from "./sandbox-provider";
+import { headscaleIntegration } from "./headscale-integration";
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -173,7 +174,26 @@ export class DockerSandboxProvider implements SandboxProvider {
     const containerName = getContainerName(agentId);
     const volumePath = getVolumePath(agentId);
 
-    // 4. Build environment flags
+    // 4. Optionally prepare Headscale VPN
+    const headscaleEnabled = !!process.env.HEADSCALE_API_KEY;
+    let headscaleIp: string | null = null;
+
+    if (headscaleEnabled) {
+      try {
+        const vpnSetup = await headscaleIntegration.prepareContainerVPN(agentId);
+        Object.assign(environmentVars, vpnSetup.envVars);
+        logger.info(
+          `[docker-sandbox] Headscale VPN enabled for ${agentId}`,
+        );
+      } catch (err) {
+        logger.warn(
+          `[docker-sandbox] Headscale VPN preparation failed for ${agentId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        // Continue without VPN — not a critical failure
+      }
+    }
+
+    // 5. Build environment flags
     const allEnv: Record<string, string> = {
       ...environmentVars,
       AGENT_NAME: agentName,
@@ -185,7 +205,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       .map(([key, value]) => `-e ${shellQuote(`${key}=${value}`)}`)
       .join(" ");
 
-    // 5. Build docker run command
+    // 6. Build docker run command
     const dockerRunCmd = [
       "docker run -d",
       `--name ${containerName}`,
@@ -199,7 +219,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       DOCKER_IMAGE,
     ].join(" ");
 
-    // 6. SSH to node, ensure volume dir, pull image, run container
+    // 7. SSH to node, ensure volume dir, pull image, run container
     const ssh = DockerSSHClient.getClient(node.hostname);
 
     try {
@@ -233,7 +253,27 @@ export class DockerSandboxProvider implements SandboxProvider {
       );
     }
 
-    // 7. Store metadata
+    // 8. Wait for Headscale VPN registration if enabled
+    if (headscaleEnabled) {
+      try {
+        headscaleIp = await headscaleIntegration.waitForVPNRegistration(agentId, 60_000);
+        if (headscaleIp) {
+          logger.info(
+            `[docker-sandbox] Container ${containerName} registered on VPN: ${headscaleIp}`,
+          );
+        } else {
+          logger.warn(
+            `[docker-sandbox] VPN registration timeout for ${containerName}, continuing without VPN`,
+          );
+        }
+      } catch (err) {
+        logger.warn(
+          `[docker-sandbox] VPN registration failed for ${containerName}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    // 10. Store metadata
     const meta: ContainerMeta = {
       nodeId: node.nodeId,
       hostname: node.hostname,
@@ -244,11 +284,14 @@ export class DockerSandboxProvider implements SandboxProvider {
     };
     this.containers.set(containerName, meta);
 
-    // 8. Return handle
+    // 11. Return handle
+    // If Headscale VPN is available, use the VPN IP for bridge/health URLs
+    const targetHost = headscaleIp || node.hostname;
+
     return {
       sandboxId: containerName,
-      bridgeUrl: `http://${node.hostname}:${bridgePort}`,
-      healthUrl: `http://${node.hostname}:${webUiPort}`,
+      bridgeUrl: `http://${targetHost}:${bridgePort}`,
+      healthUrl: `http://${targetHost}:${webUiPort}`,
       metadata: {
         nodeId: node.nodeId,
         hostname: node.hostname,
@@ -257,6 +300,8 @@ export class DockerSandboxProvider implements SandboxProvider {
         webUiPort,
         agentId,
         volumePath,
+        dockerImage: DOCKER_IMAGE,
+        headscaleIp: headscaleIp || undefined,
       },
     };
   }
@@ -301,6 +346,15 @@ export class DockerSandboxProvider implements SandboxProvider {
       logger.error(
         `[docker-sandbox] docker rm failed for ${meta.containerName}: ${rmErr instanceof Error ? rmErr.message : String(rmErr)}`,
       );
+    }
+
+    // Clean up Headscale VPN registration if enabled
+    if (process.env.HEADSCALE_API_KEY && meta.agentId) {
+      await headscaleIntegration.cleanupContainerVPN(meta.agentId).catch((err) => {
+        logger.warn(
+          `[docker-sandbox] Headscale cleanup failed for ${meta.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
     }
 
     // Remove from in-memory registry

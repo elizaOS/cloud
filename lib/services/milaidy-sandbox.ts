@@ -142,13 +142,30 @@ export class MilaidySandboxService {
     const backup = await milaidySandboxesRepository.getLatestBackup(rec.id);
     if (backup) await this.pushState(handle.bridgeUrl, backup.state_data as MilaidyBackupStateData);
 
-    // 5. Mark running
-    const updated = await milaidySandboxesRepository.update(rec.id, {
-      status: "running", sandbox_id: handle.sandboxId, bridge_url: handle.bridgeUrl,
-      health_url: handle.healthUrl, last_heartbeat_at: new Date(), error_message: null,
-    });
+    // 5. Mark running + persist provider-specific metadata
+    const updateData: Parameters<typeof milaidySandboxesRepository.update>[1] = {
+      status: "running",
+      sandbox_id: handle.sandboxId,
+      bridge_url: handle.bridgeUrl,
+      health_url: handle.healthUrl,
+      last_heartbeat_at: new Date(),
+      error_message: null,
+    };
 
-    logger.info("[milaidy-sandbox] Provisioned", { agentId: rec.id, sandboxId: handle.sandboxId });
+    // For docker provider, also persist docker-specific fields from metadata
+    if (handle.metadata) {
+      if (handle.metadata.nodeId) updateData.node_id = handle.metadata.nodeId as string;
+      if (handle.metadata.hostname) updateData.node_id = handle.metadata.nodeId as string; // node_id is authoritative
+      if (handle.metadata.containerName) updateData.container_name = handle.metadata.containerName as string;
+      if (handle.metadata.bridgePort) updateData.bridge_port = handle.metadata.bridgePort as number;
+      if (handle.metadata.webUiPort) updateData.web_ui_port = handle.metadata.webUiPort as number;
+      if (handle.metadata.headscaleIp) updateData.headscale_ip = handle.metadata.headscaleIp as string;
+      if (handle.metadata.dockerImage) updateData.docker_image = handle.metadata.dockerImage as string;
+    }
+
+    const updated = await milaidySandboxesRepository.update(rec.id, updateData);
+
+    logger.info("[milaidy-sandbox] Provisioned", { agentId: rec.id, sandboxId: handle.sandboxId, provider: handle.metadata ? "docker" : "vercel" });
     return { success: true, sandboxRecord: updated!, bridgeUrl: handle.bridgeUrl, healthUrl: handle.healthUrl };
   }
 
