@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { dbRead } from "@/db/helpers";
-import { miladySandboxes } from "@/db/schemas/milady-sandboxes";
+import { miladySandboxes, type MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
 import { isNotNull, eq, desc, and, type SQL } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
@@ -46,8 +46,15 @@ export async function GET(request: NextRequest) {
     // Build conditions array for combined WHERE clause
     const conditions: SQL[] = [isNotNull(miladySandboxes.node_id)];
 
+    const VALID_STATUSES = new Set<string>(["pending", "provisioning", "running", "stopped", "disconnected", "error"]);
     if (statusFilter) {
-      conditions.push(eq(miladySandboxes.status, statusFilter as any));
+      if (!VALID_STATUSES.has(statusFilter)) {
+        return NextResponse.json(
+          { success: false, error: `Invalid status filter: ${statusFilter}` },
+          { status: 400 },
+        );
+      }
+      conditions.push(eq(miladySandboxes.status, statusFilter as MiladySandboxStatus));
     }
 
     if (nodeFilter) {

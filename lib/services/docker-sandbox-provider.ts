@@ -104,6 +104,12 @@ function getVolumePath(agentId: string): string {
 }
 
 /** Allocate a random port in [min, max) that is not in the excluded set. */
+/**
+ * Pick a random port in [min, max) that is not in the exclusion set.
+ * TOCTOU safety: the DB has a partial UNIQUE index on (node_id, bridge_port)
+ * for active sandboxes, so a duplicate insert will fail and the caller
+ * should retry the entire provisioning flow.
+ */
 function allocatePort(min: number, max: number, excluded: Set<number>): number {
   const range = max - min;
   if (excluded.size >= range) {
@@ -261,9 +267,11 @@ export class DockerSandboxProvider implements SandboxProvider {
       // Increment allocated_count in DB
       await dockerNodesRepository.incrementAllocated(nodeId);
     } else {
-      // Fallback to env-var parsing if DB has no nodes registered
+      // Fallback: seed-only path for initial setup before nodes are registered via Admin API.
+      // Uses random selection (no least-loaded placement or capacity checks).
+      // Operators should register nodes via POST /admin/docker-nodes for production use.
       logger.warn(
-        "[docker-sandbox] No nodes in DB, falling back to MILADY_DOCKER_NODES env var",
+        "[docker-sandbox] No nodes in DB, falling back to MILADY_DOCKER_NODES env var (seed-only, no load balancing)",
       );
       const envNodes = parseDockerNodes();
       const envNode = envNodes[Math.floor(Math.random() * envNodes.length)]!;
@@ -310,8 +318,21 @@ export class DockerSandboxProvider implements SandboxProvider {
       BRIDGE_PORT: "31337",
     };
 
+    // Sensitive env vars that should not appear in logs
+    const SENSITIVE_KEYS = new Set(["TS_AUTHKEY", "DATABASE_URL", "API_KEY", "SECRET"]);
+
     const envFlags = Object.entries(allEnv)
       .map(([key, value]) => `-e ${shellQuote(`${key}=${value}`)}`)
+      .join(" ");
+
+    // Redacted version for logging
+    const envFlagsRedacted = Object.entries(allEnv)
+      .map(([key, value]) => {
+        const redacted = SENSITIVE_KEYS.has(key) || key.includes("SECRET") || key.includes("PASSWORD")
+          ? "[REDACTED]"
+          : value;
+        return `-e ${key}=${redacted}`;
+      })
       .join(" ");
 
     // 6. Build docker run command

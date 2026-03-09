@@ -107,7 +107,7 @@ async function runNodeHealthCheck(node: {
     docker: { ok: false },
   };
 
-  let ssh: DockerSSHClient | null = null;
+  let ssh: DockerSSHClient;
 
   try {
     // 1. SSH connectivity check
@@ -125,7 +125,7 @@ async function runNodeHealthCheck(node: {
 
   try {
     // 2. Docker daemon check
-    const dockerVersion = await ssh!.exec("docker version --format '{{.Server.Version}}'");
+    const dockerVersion = await ssh.exec("docker version --format '{{.Server.Version}}'");
     checks.docker = {
       ok: true,
       version: dockerVersion.trim(),
@@ -142,7 +142,7 @@ async function runNodeHealthCheck(node: {
 
   try {
     // 3. Disk usage check
-    const dfOutput = await ssh!.exec("df -h / | tail -1 | awk '{print $5}'");
+    const dfOutput = await ssh.exec("df -h / | tail -1 | awk '{print $5}'");
     const usedPercent = parseInt(dfOutput.replace("%", "").trim(), 10);
     checks.diskUsage = {
       ok: !isNaN(usedPercent) && usedPercent < 90,
@@ -157,7 +157,7 @@ async function runNodeHealthCheck(node: {
 
   try {
     // 4. Container count
-    const psOutput = await ssh!.exec("docker ps -a --format '{{.State}}' 2>/dev/null || true");
+    const psOutput = await ssh.exec("docker ps -a --format '{{.State}}' 2>/dev/null || true");
     const lines = psOutput.trim().split("\n").filter(Boolean);
     const running = lines.filter((l) => l === "running").length;
     checks.containers = { running, total: lines.length };

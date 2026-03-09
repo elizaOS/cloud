@@ -99,7 +99,7 @@ healthUrl: https://abc123.vercel.sh/health
 
 ## Database Schema
 
-The following columns were added in migration `0034_docker_nodes.sql`:
+The following columns were added in migration `0046_docker_nodes.sql`:
 
 ```sql
 ALTER TABLE milady_sandboxes ADD COLUMN node_id TEXT;

@@ -28,3 +28,9 @@ ALTER TABLE milady_sandboxes ADD COLUMN IF NOT EXISTS headscale_ip TEXT;
 ALTER TABLE milady_sandboxes ADD COLUMN IF NOT EXISTS docker_image TEXT;
 
 CREATE INDEX IF NOT EXISTS milady_sandboxes_node_id_idx ON milady_sandboxes(node_id);
+
+-- Prevent port collisions: unique constraint on (node_id, bridge_port) for active sandboxes
+-- Note: partial unique index so stopped/deleted sandboxes don't block port reuse
+CREATE UNIQUE INDEX IF NOT EXISTS milady_sandboxes_node_bridge_port_uniq
+  ON milady_sandboxes (node_id, bridge_port)
+  WHERE status IN ('running', 'provisioning', 'pending');

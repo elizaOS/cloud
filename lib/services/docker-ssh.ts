@@ -57,6 +57,10 @@ export class DockerSSHClient {
   // ---- Static connection pool ------------------------------------------
 
   private static pool = new Map<string, DockerSSHClient>();
+  private lastActivityMs = 0;
+
+  /** Idle timeout — pooled connections unused for this long are auto-closed. */
+  private static readonly IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
   /**
    * Get (or create) a pooled client for the given hostname.
@@ -70,6 +74,15 @@ export class DockerSSHClient {
     const effectivePort = port ?? DEFAULT_SSH_PORT;
     const poolKey = `${hostname}:${effectivePort}`;
     let client = DockerSSHClient.pool.get(poolKey);
+    if (client) {
+      // Evict stale connections (handles serverless cold-start reconnections)
+      if (client.connected && Date.now() - client.lastActivityMs > DockerSSHClient.IDLE_TIMEOUT_MS) {
+        logger.info(`[docker-ssh] Evicting idle connection for ${poolKey}`);
+        client.disconnect().catch(() => {});
+        DockerSSHClient.pool.delete(poolKey);
+        client = undefined;
+      }
+    }
     if (!client) {
       client = new DockerSSHClient({ hostname, port: effectivePort });
       DockerSSHClient.pool.set(poolKey, client);
@@ -183,6 +196,7 @@ export class DockerSSHClient {
     if (!this.connected || !this.client) {
       await this.connect();
     }
+    this.lastActivityMs = Date.now();
 
     const effectiveTimeout = timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
     const client = this.client!;

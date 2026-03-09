@@ -83,6 +83,7 @@ export class VercelSandboxProvider implements SandboxProvider {
     };
     if (typeof sb.shutdown === "function") await sb.shutdown();
     else if (typeof sb.close === "function") await sb.close();
+    else logger.warn(`[vercel-sandbox] Sandbox ${sandboxId} has no shutdown or close method`);
   }
 
   async checkHealth(healthUrl: string): Promise<boolean> {
