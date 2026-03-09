@@ -38,11 +38,40 @@ const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 // Use a wider request timeout because these E2E tests run against a managed
 // Next dev server that may restart or recompile routes between requests.
 const TIMEOUT = 30000;
-const CACHE_CONFIGURED =
-  !!process.env.KV_REST_API_URL &&
-  !!process.env.KV_REST_API_TOKEN &&
-  !process.env.KV_REST_API_URL.includes("your-redis.upstash.io") &&
-  process.env.KV_REST_API_TOKEN !== "token";
+
+function isPlaceholderCredential(value: string | undefined): boolean {
+  if (!value) return false;
+
+  return (
+    value.includes("your-redis.upstash.io") ||
+    value.includes("default:token@your-redis.upstash.io") ||
+    value === "token" ||
+    value === "unset"
+  );
+}
+
+function hasUsableCacheConfig(): boolean {
+  if (process.env.CACHE_ENABLED === "false") {
+    return false;
+  }
+
+  const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
+  const restUrl = process.env.KV_REST_API_URL;
+  const restToken = process.env.KV_REST_API_TOKEN;
+
+  if (redisUrl && !isPlaceholderCredential(redisUrl)) {
+    return true;
+  }
+
+  return Boolean(
+    restUrl &&
+      restToken &&
+      !isPlaceholderCredential(restUrl) &&
+      !isPlaceholderCredential(restToken),
+  );
+}
+
+const CACHE_CONFIGURED = hasUsableCacheConfig();
 const encryptionService = createEncryptionService();
 let secretsClient: Client | null = null;
 

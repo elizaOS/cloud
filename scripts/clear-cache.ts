@@ -16,8 +16,8 @@ import { resolve } from "path";
 config({ path: resolve(process.cwd(), ".env") });
 config({ path: resolve(process.cwd(), ".env.local"), override: true });
 
-import IORedis from "ioredis";
 import { Redis as UpstashRedis } from "@upstash/redis";
+import { createClient } from "redis";
 
 const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
 const restUrl = process.env.KV_REST_API_URL;
@@ -25,8 +25,9 @@ const restToken = process.env.KV_REST_API_TOKEN;
 
 const pattern = process.argv[2];
 
-async function clearWithIORedis(url: string) {
-  const redis = new IORedis(url);
+async function clearWithNodeRedis(url: string) {
+  const redis = createClient({ url });
+  await redis.connect();
 
   if (pattern) {
     const patterns: Record<string, string[]> = {
@@ -47,23 +48,20 @@ async function clearWithIORedis(url: string) {
       let cursor = "0";
       let deleted = 0;
       do {
-        const [nextCursor, keys] = await redis.scan(
-          cursor,
-          "MATCH",
-          p,
-          "COUNT",
-          100,
-        );
+        const { cursor: nextCursor, keys } = await redis.scan(cursor, {
+          MATCH: p,
+          COUNT: 100,
+        });
         cursor = nextCursor;
         if (keys.length > 0) {
-          await redis.del(...keys);
+          await redis.del(keys);
           deleted += keys.length;
         }
       } while (cursor !== "0");
       console.log(`✓ Deleted ${deleted} keys matching "${p}"`);
     }
   } else {
-    await redis.flushall();
+    await redis.flushAll();
     console.log("✓ Cleared all cache");
   }
 
@@ -91,11 +89,11 @@ async function main() {
 
   // Prioritize native Redis (local development)
   if (redisUrl?.startsWith("redis://")) {
-    console.log("Using local Redis (ioredis)\n");
-    await clearWithIORedis(redisUrl);
+    console.log("Using local Redis (node-redis)\n");
+    await clearWithNodeRedis(redisUrl);
   } else if (redisUrl?.startsWith("rediss://localhost")) {
-    console.log("Using local Redis with TLS (ioredis)\n");
-    await clearWithIORedis(redisUrl);
+    console.log("Using local Redis with TLS (node-redis)\n");
+    await clearWithNodeRedis(redisUrl);
   } else if (restUrl && restToken) {
     console.log("Using Upstash REST API\n");
     await clearWithUpstash(restUrl, restToken);

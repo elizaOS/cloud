@@ -41,6 +41,8 @@ llms-full.txt: https://elizacloud.ai/.well-known/llms-full.txt
   https://elizacloud.ai/docs/api/knowledge
 - MCPs — Model Context Protocol servers on elizaOS Cloud.
   https://elizacloud.ai/docs/api/mcps
+- Messages — Anthropic Messages API-compatible endpoint for Claude Code and Anthropic SDK clients.
+  https://elizacloud.ai/docs/api/messages
 - Models — List and discover available AI models on elizaOS Cloud.
   https://elizacloud.ai/docs/api/models
 - API Explorer — Browse every public Cloud API route (mostly under /api/v1) with a full left-side explorer and OpenAPI-friendly paths.

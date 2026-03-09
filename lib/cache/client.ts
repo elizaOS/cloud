@@ -2,7 +2,8 @@
  * Redis-based cache client with stale-while-revalidate support and circuit breaker.
  */
 
-import { Redis } from "@upstash/redis";
+import { Redis as UpstashRedis } from "@upstash/redis";
+import { createClient } from "redis";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -17,11 +18,142 @@ interface CachedValue<T> {
   staleAt: number;
 }
 
+interface CacheRedisClient {
+  get(key: string): Promise<string | null>;
+  setex(key: string, ttlSeconds: number, value: string): Promise<unknown>;
+  set(
+    key: string,
+    value: string,
+    options?: { nx?: boolean; px?: number },
+  ): Promise<string | null>;
+  incr(key: string): Promise<number>;
+  expire(key: string, ttlSeconds: number): Promise<unknown>;
+  getdel(key: string): Promise<string | null>;
+  del(...keys: string[]): Promise<unknown>;
+  scan(
+    cursor: string | number,
+    options: { match: string; count: number },
+  ): Promise<[string | number, string[]]>;
+  mget(...keys: string[]): Promise<Array<string | null>>;
+}
+
+type NativeRedisClient = ReturnType<typeof createClient>;
+
+class UpstashRedisAdapter implements CacheRedisClient {
+  constructor(private readonly client: UpstashRedis) {}
+
+  get(key: string): Promise<string | null> {
+    return this.client.get<string>(key);
+  }
+
+  setex(key: string, ttlSeconds: number, value: string): Promise<unknown> {
+    return this.client.setex(key, ttlSeconds, value);
+  }
+
+  set(
+    key: string,
+    value: string,
+    options?: { nx?: boolean; px?: number },
+  ): Promise<string | null> {
+    return this.client.set(key, value, options as never) as Promise<string | null>;
+  }
+
+  incr(key: string): Promise<number> {
+    return this.client.incr(key);
+  }
+
+  expire(key: string, ttlSeconds: number): Promise<unknown> {
+    return this.client.expire(key, ttlSeconds);
+  }
+
+  getdel(key: string): Promise<string | null> {
+    return this.client.getdel<string>(key);
+  }
+
+  del(...keys: string[]): Promise<unknown> {
+    return this.client.del(...keys);
+  }
+
+  scan(
+    cursor: string | number,
+    options: { match: string; count: number },
+  ): Promise<[string | number, string[]]> {
+    return this.client.scan(cursor, options);
+  }
+
+  mget(...keys: string[]): Promise<Array<string | null>> {
+    return this.client.mget<string[]>(...keys) as Promise<Array<string | null>>;
+  }
+}
+
+class NodeRedisAdapter implements CacheRedisClient {
+  constructor(private readonly client: NativeRedisClient) {}
+
+  get(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  setex(key: string, ttlSeconds: number, value: string): Promise<unknown> {
+    return this.client.setEx(key, ttlSeconds, value);
+  }
+
+  set(
+    key: string,
+    value: string,
+    options?: { nx?: boolean; px?: number },
+  ): Promise<string | null> {
+    if (options?.nx || options?.px) {
+      return this.client.set(key, value, {
+        ...(options.nx ? { NX: true } : {}),
+        ...(options.px ? { PX: options.px } : {}),
+      });
+    }
+
+    return this.client.set(key, value);
+  }
+
+  incr(key: string): Promise<number> {
+    return this.client.incr(key);
+  }
+
+  expire(key: string, ttlSeconds: number): Promise<unknown> {
+    return this.client.expire(key, ttlSeconds);
+  }
+
+  getdel(key: string): Promise<string | null> {
+    return this.client.getDel(key);
+  }
+
+  del(...keys: string[]): Promise<unknown> {
+    if (keys.length === 1) {
+      return this.client.del(keys[0]);
+    }
+
+    return this.client.del(keys);
+  }
+
+  async scan(
+    cursor: string | number,
+    options: { match: string; count: number },
+  ): Promise<[string | number, string[]]> {
+    const result = await this.client.scan(Number(cursor), {
+      MATCH: options.match,
+      COUNT: options.count,
+    });
+
+    return [result.cursor, result.keys];
+  }
+
+  mget(...keys: string[]): Promise<Array<string | null>> {
+    return this.client.mGet(keys);
+  }
+}
+
 /**
  * Redis cache client with circuit breaker, stale-while-revalidate, and error handling.
  */
 export class CacheClient {
-  private redis: Redis | null = null;
+  private redis: CacheRedisClient | null = null;
   private enabled: boolean | null = null;
   private initialized = false;
   private failureCount = 0;
@@ -32,6 +164,8 @@ export class CacheClient {
   // MEMORY LEAK FIX: Add limits and timeouts to revalidation queue
   private readonly MAX_REVALIDATION_QUEUE_SIZE = 100;
   private readonly REVALIDATION_TIMEOUT_MS = 30000; // 30 seconds
+  private nativeRedisConnectPromise: Promise<void> | null = null;
+  private nativeRedisReady = false;
 
   private isPlaceholderCredential(value: string | undefined): boolean {
     if (!value) return false;
@@ -39,7 +173,8 @@ export class CacheClient {
     return (
       value.includes("your-redis.upstash.io") ||
       value.includes("default:token@your-redis.upstash.io") ||
-      value === "token"
+      value === "token" ||
+      value === "unset"
     );
   }
 
@@ -66,45 +201,98 @@ export class CacheClient {
     const restUrl = process.env.KV_REST_API_URL;
     const restToken = process.env.KV_REST_API_TOKEN;
 
-    const hasPlaceholderConfig =
-      this.isPlaceholderCredential(redisUrl) ||
-      this.isPlaceholderCredential(restUrl) ||
-      this.isPlaceholderCredential(restToken);
+    const hasNativeRedisConfig = Boolean(redisUrl);
+    const hasRestRedisConfig = Boolean(restUrl || restToken);
+    const nativeRedisConfigured =
+      Boolean(redisUrl) && !this.isPlaceholderCredential(redisUrl);
+    const restRedisConfigured =
+      Boolean(restUrl && restToken) &&
+      !this.isPlaceholderCredential(restUrl) &&
+      !this.isPlaceholderCredential(restToken);
 
-    if (hasPlaceholderConfig) {
-      logger.warn(
-        "[Cache] Placeholder Redis credentials detected, disabling cache.",
-      );
-      this.enabled = false;
+    if (nativeRedisConfigured && redisUrl) {
+      const client = createClient({ url: redisUrl });
+
+      client.on("error", (error) => {
+        logger.warn("[Cache] Native Redis client error", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+
+      this.nativeRedisReady = false;
+      this.nativeRedisConnectPromise = client
+        .connect()
+        .then(() => {
+          this.nativeRedisReady = true;
+          logger.info(
+            "[Cache] ✓ Cache client initialized with native Redis protocol",
+          );
+        })
+        .catch((error) => {
+          this.recordFailure();
+          this.enabled = false;
+          this.redis = null;
+          logger.warn("[Cache] Failed to connect to native Redis", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      this.redis = new NodeRedisAdapter(client);
       return;
     }
 
-    if (redisUrl) {
-      this.redis = Redis.fromEnv();
-      logger.info(
-        "[Cache] ✓ Cache client initialized with native Redis protocol",
+    if (hasNativeRedisConfig) {
+      logger.warn(
+        "[Cache] Ignoring placeholder or invalid native Redis credentials.",
       );
-    } else if (restUrl && restToken) {
-      this.redis = new Redis({
-        url: restUrl,
-        token: restToken,
-      });
+    }
+
+    if (restRedisConfigured && restUrl && restToken) {
+      this.nativeRedisConnectPromise = null;
+      this.nativeRedisReady = true;
+      this.redis = new UpstashRedisAdapter(
+        new UpstashRedis({
+          url: restUrl,
+          token: restToken,
+        }),
+      );
       logger.info(
         "[Cache] ✓ Cache client initialized with REST API (consider using native protocol)",
       );
-    } else {
-      if (process.env.NODE_ENV === "production") {
-        logger.error(
-          "🚨 [Cache] CRITICAL: Missing Redis credentials in production! " +
-            "Caching disabled - this will cause severe performance issues. " +
-            "Set REDIS_URL or KV_URL for native protocol, or KV_REST_API_URL + KV_REST_API_TOKEN.",
-        );
-      } else {
-        logger.warn("[Cache] Missing Redis credentials, caching disabled.");
-      }
-      this.enabled = false;
       return;
     }
+
+    if (hasRestRedisConfig) {
+      logger.warn(
+        "[Cache] Ignoring placeholder or incomplete Redis REST credentials.",
+      );
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      logger.error(
+        "🚨 [Cache] CRITICAL: Missing Redis credentials in production! " +
+          "Caching disabled - this will cause severe performance issues. " +
+          "Set REDIS_URL or KV_URL for native protocol, or KV_REST_API_URL + KV_REST_API_TOKEN.",
+      );
+    } else {
+      logger.warn("[Cache] Missing Redis credentials, caching disabled.");
+    }
+    this.enabled = false;
+  }
+
+  private async getRedisClient(): Promise<CacheRedisClient | null> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) {
+      return null;
+    }
+
+    if (this.nativeRedisConnectPromise) {
+      await this.nativeRedisConnectPromise;
+      if (!this.enabled || !this.redis || this.isCircuitOpen()) {
+        return null;
+      }
+    }
+
+    return this.redis;
   }
 
   /**
@@ -122,12 +310,12 @@ export class CacheClient {
    * @returns Cached value or null if not found or invalid.
    */
   async get<T>(key: string): Promise<T | null> {
-    this.initialize();
-    if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
+    const redis = await this.getRedisClient();
+    if (!redis) return null;
 
     try {
       const start = Date.now();
-      const value = await this.redis.get<string>(key);
+      const value = await redis.get(key);
       const duration = Date.now() - start;
 
       if (value === null || value === undefined) {
@@ -184,14 +372,14 @@ export class CacheClient {
     ttl?: number,
   ): Promise<T | null> {
     const effectiveTTL = ttl ?? staleTTL * 2;
-    this.initialize();
-    if (!this.enabled || !this.redis || this.isCircuitOpen()) {
+    const redis = await this.getRedisClient();
+    if (!redis) {
       return await revalidate();
     }
 
     try {
       const start = Date.now();
-      const value = await this.redis.get<string>(key);
+      const value = await redis.get(key);
       const duration = Date.now() - start;
 
       if (value === null || value === undefined) {
@@ -289,8 +477,8 @@ export class CacheClient {
    * @param ttlSeconds - Time to live in seconds.
    */
   async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
-    this.initialize();
-    if (!this.enabled || !this.redis || this.isCircuitOpen()) return;
+    const redis = await this.getRedisClient();
+    if (!redis) return;
 
     if (!this.isValidCacheValue(value)) {
       logger.error(`[Cache] Attempted to cache invalid value for key ${key}`);
@@ -303,7 +491,7 @@ export class CacheClient {
 
     try {
       const start = Date.now();
-      await this.redis.setex(key, ttlSeconds, serialized);
+      await redis.setex(key, ttlSeconds, serialized);
 
       this.resetFailures();
       this.logMetric(key, "set", Date.now() - start);
@@ -326,8 +514,8 @@ export class CacheClient {
    * @returns true if key was set, false if key already existed.
    */
   async setIfNotExists<T>(key: string, value: T, ttlMs: number): Promise<boolean> {
-    this.initialize();
-    if (!this.enabled || !this.redis || this.isCircuitOpen()) {
+    const redis = await this.getRedisClient();
+    if (!redis) {
       throw new Error("Cache unavailable for atomic set-if-not-exists");
     }
 
@@ -339,7 +527,7 @@ export class CacheClient {
       typeof value === "string" ? value : JSON.stringify(value);
 
     const start = Date.now();
-    const result = await this.redis.set(key, serialized, { nx: true, px: ttlMs });
+    const result = await redis.set(key, serialized, { nx: true, px: ttlMs });
     this.resetFailures();
     this.logMetric(key, "setIfNotExists", Date.now() - start);
     return result === "OK";
@@ -353,11 +541,11 @@ export class CacheClient {
    * @returns The new value after incrementing.
    */
   async incr(key: string): Promise<number> {
-    this.initialize();
-    if (!this.enabled || !this.redis || this.isCircuitOpen()) return 1;
+    const redis = await this.getRedisClient();
+    if (!redis) return 1;
 
     try {
-      const result = await this.redis.incr(key);
+      const result = await redis.incr(key);
       this.resetFailures();
       return result;
     } catch (error) {
@@ -377,11 +565,11 @@ export class CacheClient {
    * @param ttlSeconds - Time to live in seconds.
    */
   async expire(key: string, ttlSeconds: number): Promise<void> {
-    this.initialize();
-    if (!this.enabled || !this.redis || this.isCircuitOpen()) return;
+    const redis = await this.getRedisClient();
+    if (!redis) return;
 
     try {
-      await this.redis.expire(key, ttlSeconds);
+      await redis.expire(key, ttlSeconds);
       this.resetFailures();
     } catch (error) {
       this.recordFailure();
@@ -400,12 +588,12 @@ export class CacheClient {
    * @returns The value if present, or null.
    */
   async getAndDelete<T>(key: string): Promise<T | null> {
-    this.initialize();
-    if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
+    const redis = await this.getRedisClient();
+    if (!redis) return null;
     
     try {
       // Use GETDEL for atomic get-and-delete (Redis ≥6.2)
-      const value = await this.redis.getdel<string>(key);
+      const value = await redis.getdel(key);
       if (value === null || value === undefined) return null;
       
       // Check for corrupted cache values
@@ -444,12 +632,12 @@ export class CacheClient {
    * @param key - Cache key to delete.
    */
   async del(key: string): Promise<void> {
-    this.initialize();
-    if (!this.enabled || !this.redis || this.isCircuitOpen()) return;
+    const redis = await this.getRedisClient();
+    if (!redis) return;
 
     try {
       const start = Date.now();
-      await this.redis.del(key);
+      await redis.del(key);
 
       logger.debug(`[Cache] DEL: ${key}`);
       this.resetFailures();
@@ -480,8 +668,8 @@ export class CacheClient {
     batchSize = 100,
     maxIterations = 1000,
   ): Promise<void> {
-    this.initialize();
-    if (!this.enabled || !this.redis) return;
+    const redis = await this.getRedisClient();
+    if (!redis) return;
 
     const start = Date.now();
     let cursor: string | number = 0;
@@ -499,7 +687,7 @@ export class CacheClient {
       }
 
       // Use SCAN instead of KEYS to avoid blocking Redis
-      const result: [string | number, string[]] = await this.redis.scan(
+      const result: [string | number, string[]] = await redis.scan(
         cursor,
         {
           match: pattern,
@@ -516,7 +704,7 @@ export class CacheClient {
       const keys = result[1];
 
       if (keys.length > 0) {
-        await this.redis.del(...keys);
+        await redis.del(...keys);
         totalDeleted += keys.length;
         logger.debug(
           `[Cache] DEL_PATTERN iteration ${++iterations}: deleted ${keys.length} keys (total: ${totalDeleted})`,
@@ -549,14 +737,14 @@ export class CacheClient {
    * @returns Array of cached values (null for misses).
    */
   async mget<T>(keys: string[]): Promise<Array<T | null>> {
-    this.initialize();
-    if (!this.enabled || !this.redis || this.isCircuitOpen()) {
+    const redis = await this.getRedisClient();
+    if (!redis) {
       return keys.map(() => null);
     }
 
     try {
       const start = Date.now();
-      const values = await this.redis.mget<string[]>(...keys);
+      const values = await redis.mget(...keys);
 
       // Parse each JSON string value
       const parsed = await Promise.all(

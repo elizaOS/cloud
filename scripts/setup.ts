@@ -55,6 +55,19 @@ function updateEnvFile(key: string, value: string): void {
   writeFileSync(ENV_FILE, content);
 }
 
+function isPlaceholderValue(value: string | undefined): boolean {
+  if (!value) return false;
+
+  return (
+    value.includes("your-redis.upstash.io") ||
+    value.includes("default:token@your-redis.upstash.io") ||
+    value === "your_upstash_token_here" ||
+    value === "your_readonly_token_here" ||
+    value === "token" ||
+    value === "unset"
+  );
+}
+
 function ensureEnvFile(): Record<string, string> {
   if (!existsSync(ENV_FILE) && existsSync(EXAMPLE_ENV)) {
     console.log("   Creating .env.local from example...");
@@ -184,11 +197,16 @@ async function setupDefaults(env: Record<string, string>): Promise<void> {
     NEXT_PUBLIC_API_URL: "http://localhost:3000",
     X402_NETWORK: "base-sepolia",
     CACHE_ENABLED: "true",
+    REDIS_URL: "redis://localhost:6379",
+    KV_URL: "redis://localhost:6379",
+    KV_REST_API_URL: "",
+    KV_REST_API_TOKEN: "",
+    KV_REST_API_READ_ONLY_TOKEN: "",
     NEXT_PUBLIC_CREDITS_SSE_ENABLED: "true",
   };
 
   for (const [key, value] of Object.entries(defaults)) {
-    if (!env[key]) {
+    if (!env[key] || isPlaceholderValue(env[key])) {
       updateEnvFile(key, value);
       console.log(`   Set ${key}=${value}`);
     }

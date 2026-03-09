@@ -410,6 +410,15 @@ cp .env.example .env.local
 
 Edit `.env.local` with your credentials (see [.env.example](.env.example) for all options).
 
+For local caching, the repo expects the Docker Redis container on `localhost:6379`:
+
+```env
+REDIS_URL=redis://localhost:6379
+KV_URL=redis://localhost:6379
+```
+
+Leave `KV_REST_API_URL` and `KV_REST_API_TOKEN` blank locally unless you are intentionally using Upstash.
+
 **Minimum required variables:**
 
 ```env
@@ -471,6 +480,12 @@ openssl rand -hex 32
 ```
 
 ### 3. Database Setup
+
+If you want the full local infrastructure stack, start Postgres and Redis first:
+
+```bash
+bun run db:local:start
+```
 
 Run migrations to create all tables:
 

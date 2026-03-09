@@ -2,8 +2,10 @@ import type { Subprocess } from "bun";
 
 const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const HEALTH_ENDPOINT = `${SERVER_URL}/api/health`;
-const STARTUP_TIMEOUT_MS = 60_000;
-const HEALTHCHECK_TIMEOUT_MS = 2_000;
+// Cold Next.js webpack boots can take noticeably longer after large test suites
+// or when the first request has to compile the health route.
+const STARTUP_TIMEOUT_MS = 120_000;
+const HEALTHCHECK_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 500;
 const MANAGED_FETCH_RETRIES = 4;
 const TEST_SERVER_SCRIPT = process.env.TEST_SERVER_SCRIPT || "dev:local";
