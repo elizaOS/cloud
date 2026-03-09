@@ -8,6 +8,13 @@
 
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 
+// Import the real `redact` object directly.  Other test files in the batch
+// may call `mock.module("@/lib/utils/logger", ...)` without including `redact`,
+// which poisons the module cache for later dynamic `await import(...)` calls.
+// Importing via the file-system path with a cache-buster query param
+// guarantees we always get the real implementation regardless of mocks.
+import { redact } from "../../lib/utils/logger.ts?_real";
+
 // ---------------------------------------------------------------------------
 // Env helpers — save/restore to avoid cross-test pollution
 // ---------------------------------------------------------------------------
@@ -89,16 +96,20 @@ describe("DockerSSHClient — cloud deploy key resolution", () => {
   });
 
   test("error message does not contain full filesystem path", async () => {
-    delete process.env.MILADY_SSH_KEY;
-    process.env.MILADY_SSH_KEY_PATH = "/very/secret/path/to/my_private_key";
-
     const { DockerSSHClient } = await import("@/lib/services/docker-ssh");
 
+    // Pass privateKeyPath directly via config instead of env var.
+    // (Module-level DEFAULT_SSH_KEY_PATH is captured at import time and
+    // is unaffected by later process.env changes — which makes env-based
+    // overrides unreliable when the module is cached across tests.)
+    let caught = false;
     try {
-      // This will fail because the file doesn't exist
-      new DockerSSHClient({ hostname: "err-test-host" });
-      // If it somehow succeeds, that's unexpected but not a test failure
+      new DockerSSHClient({
+        hostname: "err-test-host",
+        privateKeyPath: "/very/secret/path/to/my_private_key",
+      });
     } catch (err) {
+      caught = true;
       const msg = err instanceof Error ? err.message : String(err);
       // The full path should NOT appear in the error message
       expect(msg).not.toContain("/very/secret/path/to/");
@@ -107,21 +118,26 @@ describe("DockerSSHClient — cloud deploy key resolution", () => {
       // Should suggest the env var alternative
       expect(msg).toContain("MILADY_SSH_KEY");
     }
+    // Ensure the error path was actually exercised
+    expect(caught).toBe(true);
   });
 
   test("error message suggests MILADY_SSH_KEY for serverless", async () => {
-    delete process.env.MILADY_SSH_KEY;
-    delete process.env.MILADY_SSH_KEY_PATH;
-
     const { DockerSSHClient } = await import("@/lib/services/docker-ssh");
 
+    let caught = false;
     try {
-      new DockerSSHClient({ hostname: "suggest-test-host" });
+      new DockerSSHClient({
+        hostname: "suggest-test-host",
+        privateKeyPath: "/nonexistent/serverless/deploy/key",
+      });
     } catch (err) {
+      caught = true;
       const msg = err instanceof Error ? err.message : String(err);
       expect(msg).toContain("MILADY_SSH_KEY");
       expect(msg).toContain("serverless");
     }
+    expect(caught).toBe(true);
   });
 });
 
@@ -130,32 +146,31 @@ describe("DockerSSHClient — cloud deploy key resolution", () => {
 // ---------------------------------------------------------------------------
 
 describe("Logger redact.context — secret field coverage", () => {
-  test("redacts privateKey fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  // All tests use the top-level `redact` import (cache-buster path) to
+  // ensure we always test the real implementation, not a mock from another
+  // test file in the same batch.
+
+  test("redacts privateKey fields", () => {
     const result = redact.context({ privateKey: "super-secret-key-data" });
     expect(result.privateKey).toBe("[REDACTED]");
   });
 
-  test("redacts private_key fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("redacts private_key fields", () => {
     const result = redact.context({ private_key: "pem-data-here" });
     expect(result.private_key).toBe("[REDACTED]");
   });
 
-  test("redacts apiKey fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("redacts apiKey fields", () => {
     const result = redact.context({ apiKey: "sk-1234567890" });
     expect(result.apiKey).toBe("[REDACTED]");
   });
 
-  test("redacts api_key fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("redacts api_key fields", () => {
     const result = redact.context({ api_key: "sk-1234567890" });
     expect(result.api_key).toBe("[REDACTED]");
   });
 
-  test("redacts secret fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("redacts secret fields", () => {
     const result = redact.context({
       webhookSecret: "whsec_abc123",
       appSecret: "secret-value",
@@ -164,15 +179,13 @@ describe("Logger redact.context — secret field coverage", () => {
     expect(result.appSecret).toBe("[REDACTED]");
   });
 
-  test("redacts password fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("redacts password fields", () => {
     const result = redact.context({ password: "hunter2", dbPassword: "p@ss" });
     expect(result.password).toBe("[REDACTED]");
     expect(result.dbPassword).toBe("[REDACTED]");
   });
 
-  test("redacts token fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("redacts token fields", () => {
     const result = redact.context({
       accessToken: "gho_abc123",
       bearerToken: "eyJ...",
@@ -181,8 +194,7 @@ describe("Logger redact.context — secret field coverage", () => {
     expect(result.bearerToken).toBe("[REDACTED]");
   });
 
-  test("redacts authKey / auth_key fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("redacts authKey / auth_key fields", () => {
     const result = redact.context({
       authKey: "tskey-auth-abc",
       ts_auth_key: "tskey-auth-xyz",
@@ -191,8 +203,7 @@ describe("Logger redact.context — secret field coverage", () => {
     expect(result.ts_auth_key).toBe("[REDACTED]");
   });
 
-  test("redacts SSH key fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("redacts SSH key fields", () => {
     const result = redact.context({
       sshKey: "-----BEGIN OPENSSH PRIVATE KEY-----",
       ssh_private_key: "base64data==",
@@ -201,8 +212,7 @@ describe("Logger redact.context — secret field coverage", () => {
     expect(result.ssh_private_key).toBe("[REDACTED]");
   });
 
-  test("redacts signing key fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("redacts signing key fields", () => {
     const result = redact.context({
       signingKey: "base64-pem-data",
       jwt_signing_key: "private-key-data",
@@ -211,8 +221,7 @@ describe("Logger redact.context — secret field coverage", () => {
     expect(result.jwt_signing_key).toBe("[REDACTED]");
   });
 
-  test("does NOT redact non-sensitive fields", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("does NOT redact non-sensitive fields", () => {
     const result = redact.context({
       hostname: "node-1.example.com",
       status: "healthy",
@@ -225,8 +234,7 @@ describe("Logger redact.context — secret field coverage", () => {
     expect(result.tokenId).toBe("tok-123");
   });
 
-  test("handles non-string values without redaction", async () => {
-    const { redact } = await import("@/lib/utils/logger");
+  test("handles non-string values without redaction", () => {
     const result = redact.context({
       count: 42,
       enabled: true,

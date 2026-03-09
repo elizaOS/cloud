@@ -1,4 +1,9 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+// Static import is hoisted and resolved before mock.module() runs, so we
+// capture the real `redact` export and pass it through the mock.  This
+// prevents the logger mock from stripping `redact` out of the module cache
+// for other test files that share this process (e.g. docker-ssh tests).
+import { redact } from "@/lib/utils/logger";
 
 const mockCreateClient = mock();
 const mockUpstashRedis = mock();
@@ -17,7 +22,9 @@ mock.module("@/lib/utils/logger", () => ({
     warn: () => {},
     error: () => {},
     debug: () => {},
+    redact,
   },
+  redact,
 }));
 
 describe("CacheClient native Redis support", () => {

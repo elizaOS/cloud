@@ -37,18 +37,12 @@ const DEFAULT_SSH_PORT = 22;
 const DEFAULT_SSH_USERNAME = process.env.MILADY_SSH_USER || "root";
 
 /**
- * Base64-encoded SSH private key for authenticating to Docker nodes.
- * Preferred over MILADY_SSH_KEY_PATH for serverless / Vercel deployments
- * where the filesystem is ephemeral or read-only.
- *
- * Generate with: base64 -w0 < ~/.ssh/id_ed25519
- */
-const SSH_KEY_ENV = process.env.MILADY_SSH_KEY;
-
-/**
- * Path to the SSH private key for authenticating to Docker nodes.
+ * Default path to the SSH private key for authenticating to Docker nodes.
  * Only used when MILADY_SSH_KEY is not set.
  * Defaults to ~/.ssh/id_ed25519 if neither env var is specified.
+ *
+ * Note: MILADY_SSH_KEY (base64-encoded key) is read at call-time inside
+ * resolvePrivateKey() so that tests can manipulate process.env between calls.
  */
 const DEFAULT_SSH_KEY_PATH =
   process.env.MILADY_SSH_KEY_PATH ||
@@ -178,10 +172,12 @@ export class DockerSSHClient {
    * Never logs or includes the key material in error messages.
    */
   private static resolvePrivateKey(keyPath: string): Buffer {
-    // 1. Try env var first (serverless-friendly)
-    if (SSH_KEY_ENV) {
+    // 1. Try env var first (serverless-friendly).
+    // Read at call-time (not module-level) so runtime env changes are respected.
+    const sshKeyEnv = process.env.MILADY_SSH_KEY;
+    if (sshKeyEnv) {
       try {
-        const decoded = Buffer.from(SSH_KEY_ENV, "base64");
+        const decoded = Buffer.from(sshKeyEnv, "base64");
         if (decoded.length === 0) {
           throw new Error("Decoded key is empty");
         }
@@ -200,12 +196,18 @@ export class DockerSSHClient {
       logger.info("[docker-ssh] SSH key loaded from filesystem");
       return key;
     } catch (err) {
-      // Redact the full path in production — only show the basename
+      // Redact the full path in production — only show the basename.
+      // The inner error (e.g. ENOENT) may also contain the full path,
+      // so we replace it with the redacted form.
       const safePath = keyPath.split("/").pop() ?? "unknown";
+      const innerMsg = err instanceof Error ? err.message : String(err);
+      const safeInnerMsg = keyPath
+        ? innerMsg.replaceAll(keyPath, `.../${safePath}`)
+        : innerMsg;
       throw new Error(
         `[docker-ssh] Failed to load SSH key (file: .../${safePath}). ` +
         `Set MILADY_SSH_KEY env var (base64) for serverless deployments. ` +
-        `(${err instanceof Error ? err.message : String(err)})`,
+        `(${safeInnerMsg})`,
       );
     }
   }
