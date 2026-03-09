@@ -23,6 +23,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/v1/cron/process-provisioning-jobs",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/sample-eliza-price",
       "schedule": "*/5 * * * *"
     },

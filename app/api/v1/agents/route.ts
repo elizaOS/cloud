@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+// Reduced from 120s for async default; sync fallback still needs headroom.
 export const maxDuration = 120;
 
 const provisionSchema = z.object({
@@ -28,6 +30,8 @@ const provisionSchema = z.object({
       initialReserveUsd: z.number().nonnegative().optional(),
     })
     .optional(),
+  /** Optional: webhook URL to receive job completion notifications */
+  webhookUrl: z.string().url().optional(),
 });
 
 /**
@@ -35,6 +39,13 @@ const provisionSchema = z.object({
  *
  * Service-to-service endpoint for waifu.fun to provision a Milady cloud agent.
  * Auth: X-Service-Key header.
+ *
+ * **Default (async):** Creates the agent record + enqueues a provisioning job.
+ * Returns 202 with { cloudAgentId, jobId, polling }.
+ * The cron processor handles Neon DB + Docker sandbox creation.
+ *
+ * **Sync fallback:** Pass `?sync=true` to get the old blocking behaviour.
+ * Returns 201 with { cloudAgentId, status }.
  *
  * Returns { cloudAgentId, status, jobId? }
  */
@@ -46,8 +57,13 @@ export async function POST(request: NextRequest) {
     if (e instanceof ServiceKeyAuthError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    logger.error("[service-api] Service key config error", { error: e instanceof Error ? e.message : String(e) });
-    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
+    logger.error("[service-api] Service key config error", {
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return NextResponse.json(
+      { error: "Service authentication misconfigured" },
+      { status: 500 },
+    );
   }
 
   const body = await request.json().catch(() => null);
@@ -64,6 +80,7 @@ export async function POST(request: NextRequest) {
   }
 
   const p = parsed.data;
+  const sync = request.nextUrl.searchParams.get("sync") === "true";
   const agentName = p.character?.name || p.tokenName;
 
   logger.info("[service-api] Provisioning agent", {
@@ -71,9 +88,10 @@ export async function POST(request: NextRequest) {
     chain: p.chain,
     chainId: p.chainId,
     orgId: identity.organizationId,
+    async: !sync,
   });
 
-  // 1. Create sandbox record
+  // 1. Create sandbox record (always sync — just a DB insert)
   const agent = await miladySandboxService.createAgent({
     organizationId: identity.organizationId,
     userId: identity.userId,
@@ -97,35 +115,67 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // 2. Kick off provisioning (Neon DB + sandbox container)
-  const result = await miladySandboxService.provision(agent.id, identity.organizationId);
+  // ── Sync fallback (legacy) ────────────────────────────────────────
+  if (sync) {
+    const result = await miladySandboxService.provision(
+      agent.id,
+      identity.organizationId,
+    );
 
-  if (!result.success) {
-    logger.error("[service-api] Provision failed", {
+    if (!result.success) {
+      logger.error("[service-api] Provision failed", {
+        agentId: agent.id,
+        error: result.error,
+      });
+      return NextResponse.json(
+        {
+          cloudAgentId: agent.id,
+          status: result.sandboxRecord?.status ?? "error",
+          error: result.error,
+        },
+        { status: 502 },
+      );
+    }
+
+    logger.info("[service-api] Agent provisioned (sync)", {
       agentId: agent.id,
-      error: result.error,
+      status: result.sandboxRecord.status,
     });
 
     return NextResponse.json(
       {
         cloudAgentId: agent.id,
-        status: result.sandboxRecord?.status ?? "error",
-        error: result.error,
+        status: result.sandboxRecord.status,
       },
-      { status: 502 },
+      { status: 201 },
     );
   }
 
-  logger.info("[service-api] Agent provisioned", {
+  // ── Async path (default) ──────────────────────────────────────────
+  const job = await provisioningJobService.enqueueMiladyProvision({
     agentId: agent.id,
-    status: result.sandboxRecord.status,
+    organizationId: identity.organizationId,
+    userId: identity.userId,
+    agentName,
+    webhookUrl: p.webhookUrl,
+  });
+
+  logger.info("[service-api] Agent provisioning job enqueued", {
+    agentId: agent.id,
+    jobId: job.id,
   });
 
   return NextResponse.json(
     {
       cloudAgentId: agent.id,
-      status: result.sandboxRecord.status,
+      status: "pending",
+      jobId: job.id,
+      polling: {
+        endpoint: `/api/v1/jobs/${job.id}`,
+        intervalMs: 5000,
+        expectedDurationMs: 90000,
+      },
     },
-    { status: 201 },
+    { status: 202 },
   );
 }

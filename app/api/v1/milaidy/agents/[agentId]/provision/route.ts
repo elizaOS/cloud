@@ -2,17 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 
 export const dynamic = "force-dynamic";
-// Sandbox provisioning can take up to 60s (Neon DB + Vercel Sandbox + health check)
+// Reduced from 120s — async path returns 202 immediately.
+// Sync fallback (?sync=true) still needs headroom for legacy callers.
 export const maxDuration = 120;
 
 /**
  * POST /api/v1/milady/agents/[agentId]/provision
+ *
  * Provision (or re-provision) the sandbox for a Milady cloud agent.
  *
- * Idempotent: if the sandbox is already running, returns the existing connection info.
- * If the sandbox was stopped or disconnected, re-provisions from the latest backup.
+ * **Default (async):** Creates a provisioning job and returns 202 with a jobId.
+ * Poll GET /api/v1/jobs/{jobId} for status.
+ *
+ * **Sync fallback:** Pass `?sync=true` to get the old blocking behaviour
+ * (useful during migration). Will be removed in a future release.
+ *
+ * Idempotent: if the sandbox is already running, returns 200 with
+ * existing connection info (no job created).
  */
 export async function POST(
   request: NextRequest,
@@ -20,33 +29,94 @@ export async function POST(
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
+  const sync = request.nextUrl.searchParams.get("sync") === "true";
 
   logger.info("[milady-api] Provision requested", {
     agentId,
     orgId: user.organization_id,
+    async: !sync,
   });
 
-  const result = await miladySandboxService.provision(agentId, user.organization_id);
-
-  if (!result.success) {
-    const status = result.error === "Agent not found" ? 404
-      : result.error === "Agent is already being provisioned" ? 409
-      : 500;
-
+  // Fast path: check if already running (no job needed)
+  const existing = await miladySandboxService.getAgent(agentId, user.organization_id!);
+  if (!existing) {
     return NextResponse.json(
-      { success: false, error: result.error },
-      { status },
+      { success: false, error: "Agent not found" },
+      { status: 404 },
     );
   }
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      id: result.sandboxRecord.id,
-      agentName: result.sandboxRecord.agent_name,
-      status: result.sandboxRecord.status,
-      bridgeUrl: result.bridgeUrl,
-      healthUrl: result.healthUrl,
-    },
+  if (existing.status === "running" && existing.bridge_url && existing.health_url) {
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: existing.id,
+        agentName: existing.agent_name,
+        status: existing.status,
+        bridgeUrl: existing.bridge_url,
+        healthUrl: existing.health_url,
+      },
+    });
+  }
+
+  // ── Sync fallback (legacy) ────────────────────────────────────────
+  if (sync) {
+    const result = await miladySandboxService.provision(agentId, user.organization_id!);
+
+    if (!result.success) {
+      const status =
+        result.error === "Agent not found"
+          ? 404
+          : result.error === "Agent is already being provisioned"
+            ? 409
+            : 500;
+      return NextResponse.json(
+        { success: false, error: result.error },
+        { status },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: result.sandboxRecord.id,
+        agentName: result.sandboxRecord.agent_name,
+        status: result.sandboxRecord.status,
+        bridgeUrl: result.bridgeUrl,
+        healthUrl: result.healthUrl,
+      },
+    });
+  }
+
+  // ── Async path (default) ──────────────────────────────────────────
+  const webhookUrl =
+    request.headers.get("x-webhook-url") ?? undefined;
+
+  const job = await provisioningJobService.enqueueMiladyProvision({
+    agentId,
+    organizationId: user.organization_id!,
+    userId: user.id,
+    agentName: existing.agent_name ?? agentId,
+    webhookUrl,
   });
+
+  return NextResponse.json(
+    {
+      success: true,
+      message:
+        "Provisioning job created. Poll the job endpoint for status.",
+      data: {
+        jobId: job.id,
+        agentId,
+        status: "pending",
+        estimatedCompletionAt: job.estimated_completion_at,
+      },
+      polling: {
+        endpoint: `/api/v1/jobs/${job.id}`,
+        intervalMs: 5000,
+        expectedDurationMs: 90000,
+      },
+    },
+    { status: 202 },
+  );
 }
