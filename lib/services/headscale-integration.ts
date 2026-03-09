@@ -55,10 +55,17 @@ export class HeadscaleIntegration {
         aclTags: ["tag:agent"],
       });
 
+      // Sanitize agentId for use as a DNS-safe Tailscale hostname:
+      // replace non-alphanumeric chars with hyphens, strip leading/trailing hyphens, truncate to 63 chars
+      const tsHostname = agentId
+        .replace(/[^a-zA-Z0-9-]/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 63) || "agent";
+
       const envVars: Record<string, string> = {
         HEADSCALE_URL,
         TS_AUTHKEY: preAuthKeyObj.key,
-        TS_HOSTNAME: agentId,
+        TS_HOSTNAME: tsHostname,
         TS_STATE_DIR: "/var/lib/tailscale",
         TS_EXTRA_ARGS: "--accept-routes",
       };
@@ -110,8 +117,19 @@ export class HeadscaleIntegration {
           );
           return ip;
         }
-      } catch {
-        // Headscale may be temporarily unreachable — keep polling
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Distinguish auth errors (401/403) from transient failures
+        if (msg.includes("401") || msg.includes("403")) {
+          logger.error(
+            `[headscale-integration] Auth error polling VPN for ${agentId}: ${msg} — check HEADSCALE_API_KEY`,
+          );
+          return null; // bail early, retrying won't help
+        }
+        // Transient errors (network, timeout) — keep polling
+        logger.debug(
+          `[headscale-integration] Poll error for ${agentId}: ${msg}`,
+        );
       }
 
       // Sleep before next poll

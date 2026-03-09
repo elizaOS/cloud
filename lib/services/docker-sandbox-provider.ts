@@ -23,7 +23,6 @@ import {
   getContainerName,
   getVolumePath,
   parseDockerNodes,
-  SENSITIVE_KEYS,
   BRIDGE_PORT_MIN,
   BRIDGE_PORT_MAX,
   WEBUI_PORT_MIN,
@@ -60,6 +59,9 @@ interface ContainerMeta {
   bridgePort: number;
   webUiPort: number;
   agentId: string;
+  sshPort: number;
+  sshUser: string;
+  hostKeyFingerprint?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +70,12 @@ interface ContainerMeta {
 
 const DOCKER_IMAGE =
   process.env.MILADY_DOCKER_IMAGE || "milady/agent:cloud-full-ui";
+
+/** Default SSH port when not specified by DB node record. */
+const DEFAULT_SSH_PORT = 22;
+
+/** Default SSH user when not specified by DB node record. */
+const DEFAULT_SSH_USERNAME = process.env.MILADY_SSH_USER || "root";
 
 /** Health-check polling: interval between retries (ms). */
 const HEALTH_CHECK_POLL_INTERVAL_MS = 3_000;
@@ -203,6 +211,8 @@ export class DockerSandboxProvider implements SandboxProvider {
 
     let nodeId: string;
     let hostname: string;
+    let sshPort = DEFAULT_SSH_PORT;
+    let sshUser = DEFAULT_SSH_USERNAME;
 
     // host_key_fingerprint from DB node (null for env-var fallback, TOFU applies)
     let hostKeyFingerprint: string | undefined;
@@ -210,6 +220,8 @@ export class DockerSandboxProvider implements SandboxProvider {
     if (dbNode) {
       nodeId = dbNode.node_id;
       hostname = dbNode.hostname;
+      sshPort = dbNode.ssh_port ?? DEFAULT_SSH_PORT;
+      sshUser = dbNode.ssh_user ?? DEFAULT_SSH_USERNAME;
       hostKeyFingerprint = dbNode.host_key_fingerprint ?? undefined;
       // Increment allocated_count in DB
       await dockerNodesRepository.incrementAllocated(nodeId);
@@ -224,6 +236,11 @@ export class DockerSandboxProvider implements SandboxProvider {
       const envNode = envNodes[Math.floor(Math.random() * envNodes.length)]!;
       nodeId = envNode.nodeId;
       hostname = envNode.hostname;
+      // Env-var nodes use defaults for SSH port/user — log a warning since
+      // host key fingerprint is unavailable (TOFU applies)
+      logger.warn(
+        `[docker-sandbox] Env-var fallback node ${nodeId}: using SSH defaults (port ${sshPort}, user ${sshUser}, no fingerprint)`,
+      );
     }
 
     logger.info(
@@ -243,10 +260,12 @@ export class DockerSandboxProvider implements SandboxProvider {
     const headscaleEnabled = !!process.env.HEADSCALE_API_KEY;
     let headscaleIp: string | null = null;
 
+    // Collect VPN env vars separately to avoid mutating the caller's environmentVars
+    let vpnEnvVars: Record<string, string> = {};
     if (headscaleEnabled) {
       try {
         const vpnSetup = await headscaleIntegration.prepareContainerVPN(agentId);
-        Object.assign(environmentVars, vpnSetup.envVars);
+        vpnEnvVars = vpnSetup.envVars;
         logger.info(
           `[docker-sandbox] Headscale VPN enabled for ${agentId}`,
         );
@@ -258,9 +277,10 @@ export class DockerSandboxProvider implements SandboxProvider {
       }
     }
 
-    // 5. Build environment flags
+    // 5. Build environment flags (spread to avoid mutating caller's environmentVars)
     const allEnv: Record<string, string> = {
       ...environmentVars,
+      ...vpnEnvVars,
       AGENT_NAME: agentName,
       PORT: "2138",
       BRIDGE_PORT: "31337",
@@ -281,22 +301,6 @@ export class DockerSandboxProvider implements SandboxProvider {
 
     const envFlags = Object.entries(allEnv)
       .map(([key, value]) => `-e ${shellQuote(`${key}=${value}`)}`)
-      .join(" ");
-
-    // Redacted version for logging (SENSITIVE_KEYS is at module level)
-    const envFlagsRedacted = Object.entries(allEnv)
-      .map(([key, value]) => {
-        const redacted =
-          SENSITIVE_KEYS.has(key) ||
-          key.includes("SECRET") ||
-          key.includes("PASSWORD") ||
-          key.includes("API_KEY") ||
-          key.includes("TOKEN") ||
-          key.includes("PRIVATE_KEY")
-            ? "[REDACTED]"
-            : value;
-        return `-e ${key}=${redacted}`;
-      })
       .join(" ");
 
     // 6. Build docker run command
@@ -380,7 +384,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       }
     }
 
-    // 9. Store metadata in in-memory cache
+    // 9. Store metadata in in-memory cache (includes SSH details for stop/runCommand)
     const meta: ContainerMeta = {
       nodeId,
       hostname,
@@ -388,6 +392,9 @@ export class DockerSandboxProvider implements SandboxProvider {
       bridgePort,
       webUiPort,
       agentId,
+      sshPort,
+      sshUser,
+      hostKeyFingerprint,
     };
     this.containers.set(containerName, meta);
 
@@ -426,7 +433,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       `[docker-sandbox] Stopping container ${meta.containerName} on ${meta.nodeId} (${meta.hostname})`,
     );
 
-    const ssh = DockerSSHClient.getClient(meta.hostname);
+    const ssh = DockerSSHClient.getClient(meta.hostname, meta.sshPort, meta.hostKeyFingerprint);
 
     try {
       // Graceful stop with 10s timeout, then force-remove
@@ -549,7 +556,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       `[docker-sandbox] Executing command in ${meta.containerName}: ${cmd} ${(args ?? []).join(" ").slice(0, 80)}`,
     );
 
-    const ssh = DockerSSHClient.getClient(meta.hostname);
+    const ssh = DockerSSHClient.getClient(meta.hostname, meta.sshPort, meta.hostKeyFingerprint);
     const output = await ssh.exec(
       `docker exec ${shellQuote(meta.containerName)} ${fullCmd}`,
       DOCKER_CMD_TIMEOUT_MS,
@@ -579,11 +586,18 @@ export class DockerSandboxProvider implements SandboxProvider {
     try {
       const sandbox = await miladySandboxesRepository.findBySandboxId(sandboxId);
       if (sandbox && sandbox.node_id && sandbox.container_name) {
-        // Find hostname from DB node record or env var
+        // Find hostname + SSH config from DB node record or env var
         let hostname = "";
+        let sshPort = DEFAULT_SSH_PORT;
+        let sshUser = DEFAULT_SSH_USERNAME;
+        let hostKeyFingerprint: string | undefined;
+
         const dbNode = await dockerNodesRepository.findByNodeId(sandbox.node_id);
         if (dbNode) {
           hostname = dbNode.hostname;
+          sshPort = dbNode.ssh_port ?? DEFAULT_SSH_PORT;
+          sshUser = dbNode.ssh_user ?? DEFAULT_SSH_USERNAME;
+          hostKeyFingerprint = dbNode.host_key_fingerprint ?? undefined;
         } else {
           // Try env var fallback for hostname
           const envNodes = parseDockerNodes();
@@ -607,6 +621,9 @@ export class DockerSandboxProvider implements SandboxProvider {
             bridgePort,
             webUiPort,
             agentId: sandbox.id, // sandbox.id IS the agent ID (PK = agent identifier throughout the system)
+            sshPort,
+            sshUser,
+            hostKeyFingerprint,
           };
 
           // Cache key is sandboxId which equals containerName (set in create() return value)

@@ -205,8 +205,8 @@ export class DockerSSHClient {
         hostVerifier: (key: Buffer) => {
           const fingerprint = crypto.createHash("sha256").update(key).digest("base64");
           if (!this.hostKeyFingerprint) {
-            // No fingerprint configured — accept and log for future pinning
-            logger.info(`[docker-ssh] Host key for ${this.hostname}: SHA256:${fingerprint} (not verified — set hostKeyFingerprint to pin)`);
+            // No fingerprint configured — TOFU: accept and log at warn for operator visibility
+            logger.warn(`[docker-ssh] Host key for ${this.hostname}: SHA256:${fingerprint} (not verified — set hostKeyFingerprint to pin)`);
             return true;
           }
           if (fingerprint !== this.hostKeyFingerprint) {

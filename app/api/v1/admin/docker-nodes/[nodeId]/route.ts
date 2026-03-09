@@ -27,7 +27,13 @@ type RouteParams = { params: Promise<{ nodeId: string }> };
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await requireAdmin(request);
+    const { role } = await requireAdmin(request);
+    if (role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "Super admin access required" },
+        { status: 403 },
+      );
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Admin access required";
@@ -102,10 +108,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 const updateNodeSchema = z
   .object({
+    hostname: z.string().min(1).optional(),
     enabled: z.boolean().optional(),
     capacity: z.number().int().min(1).optional(),
     sshPort: z.number().int().min(1).max(65535).optional(),
     sshUser: z.string().min(1).optional(),
+    hostKeyFingerprint: z.string().min(1).nullable().optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .refine((d) => Object.keys(d).length > 0, {
@@ -114,7 +122,13 @@ const updateNodeSchema = z
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    await requireAdmin(request);
+    const { role } = await requireAdmin(request);
+    if (role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "Super admin access required" },
+        { status: 403 },
+      );
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Admin access required";
@@ -157,13 +171,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { enabled, capacity, sshPort, sshUser, metadata } = parsed.data;
+    const { hostname, enabled, capacity, sshPort, sshUser, hostKeyFingerprint, metadata } = parsed.data;
 
     const updateData: Record<string, unknown> = {};
+    if (hostname !== undefined) updateData.hostname = hostname;
     if (enabled !== undefined) updateData.enabled = enabled;
     if (capacity !== undefined) updateData.capacity = capacity;
     if (sshPort !== undefined) updateData.ssh_port = sshPort;
     if (sshUser !== undefined) updateData.ssh_user = sshUser;
+    if (hostKeyFingerprint !== undefined) updateData.host_key_fingerprint = hostKeyFingerprint;
     if (metadata !== undefined) updateData.metadata = metadata;
 
     const updated = await dockerNodesRepository.update(existing.id, updateData);
@@ -210,7 +226,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    await requireAdmin(request);
+    const { role } = await requireAdmin(request);
+    if (role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "Super admin access required" },
+        { status: 403 },
+      );
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Admin access required";

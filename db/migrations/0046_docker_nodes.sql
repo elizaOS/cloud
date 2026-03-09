@@ -1,3 +1,7 @@
+-- Safety: prevent indefinite lock waits on active tables
+SET lock_timeout = '3s';
+SET statement_timeout = '30s';
+
 -- Docker nodes table for tracking VPS infrastructure
 CREATE TABLE IF NOT EXISTS docker_nodes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
