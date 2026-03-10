@@ -45,11 +45,11 @@ export * from "./app-sandboxes";
 export * from "./webhook-events";
 export * from "./secrets";
 export * from "./app-domains";
-export * from "./social-feed";
+
 export * from "./managed-domains";
-export * from "./domain-moderation-events";
+
 export * from "./platform-credentials";
-export * from "./org-platforms";
+
 export * from "./ad-accounts";
 export * from "./ad-campaigns";
 export * from "./ad-creatives";
@@ -66,6 +66,6 @@ export * from "./affiliates";
 export * from "./agent-server-wallets";
 export * from "./milady-sandboxes";
 export * from "./docker-nodes";
-export * from "./n8n-credential-mappings";
+
 export * from "./daily-metrics";
 export * from "./retention-cohorts";

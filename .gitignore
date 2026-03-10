@@ -73,3 +73,6 @@ ts_errors.log
 
 .prr/
 modelcontextprotocol/
+
+*storybook.log
+storybook-static
