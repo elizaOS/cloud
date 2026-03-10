@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
@@ -8,6 +8,7 @@ const mockLoggerError = mock();
 const mockLoggerInfo = mock();
 const mockLoggerDebug = mock();
 const mockLoggerWarn = mock();
+const originalFetch = globalThis.fetch;
 
 process.env.ALCHEMY_API_KEY = "test-alchemy-key";
 
@@ -43,6 +44,8 @@ import { POST } from "@/app/api/v1/proxy/evm-rpc/[chain]/route";
 
 describe("EVM RPC proxy route", () => {
   beforeEach(() => {
+    globalThis.fetch = fetchMock as typeof fetch;
+
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockDeductCredits.mockReset();
     mockGetProxyCost.mockReset();
@@ -63,6 +66,11 @@ describe("EVM RPC proxy route", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    mock.restore();
   });
 
   test("rejects malformed JSON before billing", async () => {

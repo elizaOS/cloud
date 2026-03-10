@@ -323,6 +323,20 @@
       "when": 1772969400000,
       "tag": "0045_add_redeemable_earnings_breakdown_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1773060000000,
+      "tag": "0046_docker_nodes",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1773061000000,
+      "tag": "0047_add_token_agent_linkage",
+      "breakpoints": true
     }
   ]
 }

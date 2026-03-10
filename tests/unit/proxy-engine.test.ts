@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { AuthenticationError } from "@/lib/api/errors";
 
@@ -111,6 +111,10 @@ describe("proxy engine", () => {
     mockUsageCreate.mockResolvedValue(undefined);
     mockCacheGet.mockResolvedValue(null);
     mockCacheSet.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    mock.restore();
   });
 
   test("returns 400 for malformed JSON bodies", async () => {

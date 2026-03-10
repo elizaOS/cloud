@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockFindByUserId = mock();
 const mockFindById = mock();
@@ -69,6 +69,10 @@ describe("referralsService", () => {
     mockAddQualifiedEarnings.mockReset();
     mockAddCredits.mockReset();
     mockFindUserById.mockReset();
+  });
+
+  afterEach(() => {
+    mock.restore();
   });
 
   test("returns distinct creator and editor roles for multi-tier referrals", async () => {

@@ -136,17 +136,22 @@ export class JobsRepository {
    */
   async claimPendingJobs(filters: {
     type: string;
-    organizationId: string;
+    organizationId?: string;
     limit: number;
   }): Promise<Job[]> {
-    // Use CTE with FOR UPDATE SKIP LOCKED for proper row-level locking
-    // The CTE locks the rows first, then the UPDATE operates on locked rows
+    // Use CTE with FOR UPDATE SKIP LOCKED for proper row-level locking.
+    // The CTE locks the rows first, then the UPDATE operates on locked rows.
+    // organizationId is optional — omit to claim across all orgs (cron use-case).
+    const orgFilter = filters.organizationId
+      ? sql`AND organization_id = ${filters.organizationId}`
+      : sql``;
+
     const result = await dbWrite.execute<Job>(sql`
       WITH claimed AS (
         SELECT id FROM ${jobs}
         WHERE type = ${filters.type}
           AND status = 'pending'
-          AND organization_id = ${filters.organizationId}
+          ${orgFilter}
           AND scheduled_for <= NOW()
         ORDER BY created_at ASC
         LIMIT ${filters.limit}
@@ -177,25 +182,27 @@ export class JobsRepository {
    */
   async recoverStaleJobs(filters: {
     type: string;
-    organizationId: string;
+    organizationId?: string;
     staleThresholdMs: number;
     maxAttempts: number;
   }): Promise<number> {
     const staleThreshold = new Date(Date.now() - filters.staleThresholdMs);
+    const conditions = [
+      eq(jobs.type, filters.type),
+      eq(jobs.status, "in_progress"),
+      sql`${jobs.started_at} IS NOT NULL`,
+      lt(jobs.started_at, staleThreshold),
+    ];
+
+    if (filters.organizationId) {
+      conditions.push(eq(jobs.organization_id, filters.organizationId));
+    }
 
     // First, find all stale jobs - use dbWrite to ensure we get latest data
     const staleJobs = await dbWrite
       .select()
       .from(jobs)
-      .where(
-        and(
-          eq(jobs.type, filters.type),
-          eq(jobs.organization_id, filters.organizationId),
-          eq(jobs.status, "in_progress"),
-          sql`${jobs.started_at} IS NOT NULL`,
-          lt(jobs.started_at, staleThreshold),
-        ),
-      );
+      .where(and(...conditions));
 
     let recoveredCount = 0;
 

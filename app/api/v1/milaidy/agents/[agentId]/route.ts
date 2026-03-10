@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { userCharactersRepository } from "@/db/repositories/characters";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,31 @@ export async function GET(
     );
   }
 
+  // Resolve token linkage from associated character or JSONB fallback
+  let tokenAddress: string | null = null;
+  let tokenChain: string | null = null;
+  let tokenName: string | null = null;
+  let tokenTicker: string | null = null;
+
+  if (agent.character_id) {
+    const char = await userCharactersRepository.findById(agent.character_id);
+    if (char) {
+      tokenAddress = char.token_address ?? null;
+      tokenChain = char.token_chain ?? null;
+      tokenName = char.token_name ?? null;
+      tokenTicker = char.token_ticker ?? null;
+    }
+  }
+
+  // Fallback to agent_config JSONB
+  if (!tokenAddress) {
+    const cfg = agent.agent_config as Record<string, unknown> | null;
+    tokenAddress = (cfg?.tokenContractAddress as string) ?? null;
+    tokenChain = (cfg?.chain as string) ?? null;
+    tokenName = (cfg?.tokenName as string) ?? null;
+    tokenTicker = (cfg?.tokenTicker as string) ?? null;
+  }
+
   return NextResponse.json({
     success: true,
     data: {
@@ -38,6 +64,11 @@ export async function GET(
       errorCount: agent.error_count,
       createdAt: agent.created_at,
       updatedAt: agent.updated_at,
+      // Canonical token linkage
+      token_address: tokenAddress,
+      token_chain: tokenChain,
+      token_name: tokenName,
+      token_ticker: tokenTicker,
     },
   });
 }

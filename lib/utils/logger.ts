@@ -111,7 +111,22 @@ export const redact = {
 
       // Auto-redact based on field name patterns
       const lowerKey = key.toLowerCase();
+
+      // Sensitive credential fields — always fully redacted
       if (
+        lowerKey.includes("privatekey") ||
+        lowerKey.includes("private_key") ||
+        lowerKey.includes("secret") ||
+        lowerKey.includes("password") ||
+        lowerKey.includes("authkey") ||
+        lowerKey.includes("auth_key") ||
+        lowerKey === "apikey" ||
+        lowerKey === "api_key" ||
+        (lowerKey.includes("token") && !lowerKey.includes("tokenid")) ||
+        (lowerKey.includes("key") && (lowerKey.includes("ssh") || lowerKey.includes("api") || lowerKey.includes("signing")))
+      ) {
+        redacted[key] = "[REDACTED]";
+      } else if (
         lowerKey.includes("txhash") ||
         lowerKey.includes("transaction_hash")
       ) {

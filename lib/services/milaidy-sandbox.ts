@@ -20,6 +20,8 @@ export interface CreateAgentParams {
   agentName: string;
   agentConfig?: Record<string, unknown>;
   environmentVars?: Record<string, string>;
+  /** Link to a user_characters record (canonical character with token linkage). */
+  characterId?: string;
 }
 
 export type ProvisionResult =
@@ -78,6 +80,7 @@ export class MiladySandboxService {
       environment_vars: params.environmentVars ?? {},
       status: "pending",
       database_status: "none",
+      ...(params.characterId && { character_id: params.characterId }),
     });
   }
 

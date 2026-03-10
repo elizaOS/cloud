@@ -5,10 +5,24 @@
  * cleanup.  Designed for orchestrating Docker containers on remote Hetzner
  * VPS nodes via SSH.
  *
+ * ## SSH Key Loading (cloud-deployable)
+ *
+ * The client supports two mechanisms for loading SSH private keys, checked
+ * in order of precedence:
+ *
+ * 1. **Environment variable (recommended for Vercel/serverless):**
+ *    `MILADY_SSH_KEY` — base64-encoded private key material.
+ *    Set this in Vercel environment variables or your secrets manager.
+ *    Generate with: `base64 -w0 < ~/.ssh/id_ed25519`
+ *
+ * 2. **Filesystem path (traditional servers):**
+ *    `MILADY_SSH_KEY_PATH` — path to the PEM file on disk.
+ *    Defaults to `~/.ssh/id_ed25519` if neither env var is set.
+ *
  * Reference: milady-cloud/backend/services/container-orchestrator.ts (executeSSH)
  */
 
-import { Client as SSHClient } from "ssh2";
+import { Client as SSHClient, type ClientChannel } from "ssh2";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as os from "os";
@@ -23,9 +37,12 @@ const DEFAULT_SSH_PORT = 22;
 const DEFAULT_SSH_USERNAME = process.env.MILADY_SSH_USER || "root";
 
 /**
- * Path to the SSH private key for authenticating to Docker nodes.
- * Set via MILADY_SSH_KEY_PATH environment variable.
- * Defaults to ~/.ssh/id_ed25519 if not specified.
+ * Default path to the SSH private key for authenticating to Docker nodes.
+ * Only used when MILADY_SSH_KEY is not set.
+ * Defaults to ~/.ssh/id_ed25519 if neither env var is specified.
+ *
+ * Note: MILADY_SSH_KEY (base64-encoded key) is read at call-time inside
+ * resolvePrivateKey() so that tests can manipulate process.env between calls.
  */
 const DEFAULT_SSH_KEY_PATH =
   process.env.MILADY_SSH_KEY_PATH ||
@@ -46,6 +63,8 @@ export interface DockerSSHConfig {
   port?: number;
   username?: string;
   privateKeyPath?: string;
+  /** Raw private key buffer — takes precedence over privateKeyPath when provided. */
+  privateKey?: Buffer;
   /** Expected host key fingerprint (SHA256 base64). If set, connections to hosts with mismatched keys are rejected. */
   hostKeyFingerprint?: string;
 }
@@ -138,11 +157,57 @@ export class DockerSSHClient {
     this.privateKeyPath = config.privateKeyPath ?? DEFAULT_SSH_KEY_PATH;
     this.hostKeyFingerprint = config.hostKeyFingerprint;
 
+    this.privateKey = config.privateKey ?? DockerSSHClient.resolvePrivateKey(this.privateKeyPath);
+  }
+
+  // ---- Private key resolution ------------------------------------------
+
+  /**
+   * Resolve the SSH private key from available sources.
+   *
+   * Priority:
+   * 1. MILADY_SSH_KEY env var (base64-encoded) — works on Vercel/serverless
+   * 2. Filesystem path (MILADY_SSH_KEY_PATH or default ~/.ssh/id_ed25519)
+   *
+   * Never logs or includes the key material in error messages.
+   */
+  private static resolvePrivateKey(keyPath: string): Buffer {
+    // 1. Try env var first (serverless-friendly).
+    // Read at call-time (not module-level) so runtime env changes are respected.
+    const sshKeyEnv = process.env.MILADY_SSH_KEY;
+    if (sshKeyEnv) {
+      try {
+        const decoded = Buffer.from(sshKeyEnv, "base64");
+        if (decoded.length === 0) {
+          throw new Error("Decoded key is empty");
+        }
+        logger.info("[docker-ssh] SSH key loaded from MILADY_SSH_KEY env var");
+        return decoded;
+      } catch (err) {
+        throw new Error(
+          `[docker-ssh] Failed to decode MILADY_SSH_KEY env var (expected base64): ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    // 2. Fall back to filesystem
     try {
-      this.privateKey = fs.readFileSync(this.privateKeyPath);
+      const key = fs.readFileSync(keyPath);
+      logger.info("[docker-ssh] SSH key loaded from filesystem");
+      return key;
     } catch (err) {
+      // Redact the full path in production — only show the basename.
+      // The inner error (e.g. ENOENT) may also contain the full path,
+      // so we replace it with the redacted form.
+      const safePath = keyPath.split("/").pop() ?? "unknown";
+      const innerMsg = err instanceof Error ? err.message : String(err);
+      const safeInnerMsg = keyPath
+        ? innerMsg.replaceAll(keyPath, `.../${safePath}`)
+        : innerMsg;
       throw new Error(
-        `[docker-ssh] Failed to read SSH key at ${this.privateKeyPath}: ${err instanceof Error ? err.message : String(err)}`,
+        `[docker-ssh] Failed to load SSH key (file: .../${safePath}). ` +
+        `Set MILADY_SSH_KEY env var (base64) for serverless deployments. ` +
+        `(${safeInnerMsg})`,
       );
     }
   }
@@ -239,19 +304,32 @@ export class DockerSSHClient {
     return new Promise<string>((resolve, reject) => {
       let output = "";
       let settled = false;
+      // Stream ref captured by the timeout closure so it can signal the
+      // remote process to terminate (prevents leaked server-side processes).
+      let stream: ClientChannel | undefined;
+
+      // Redact command in error messages to avoid leaking secrets
+      // (e.g. env vars passed via `docker run -e`). Show only the first
+      // token (the binary name) for operator diagnostics.
+      const cmdFirstToken = command.split(/\s+/)[0] ?? "unknown";
 
       const timer = setTimeout(() => {
         if (!settled) {
           settled = true;
+          // Close the SSH channel to signal the remote process (SIGHUP)
+          // and prevent orphaned server-side processes after timeout.
+          try { stream?.close(); } catch { /* best-effort */ }
           reject(
             new Error(
-              `[docker-ssh] Command timed out after ${effectiveTimeout}ms on ${this.hostname}: ${command.slice(0, 120)}`,
+              `[docker-ssh] Command timed out after ${effectiveTimeout}ms on ${this.hostname}: ${cmdFirstToken} [redacted]`,
             ),
           );
         }
       }, effectiveTimeout);
 
-      client.exec(command, (err, stream) => {
+      client.exec(command, (err, s) => {
+        stream = s;
+
         if (err) {
           clearTimeout(timer);
           if (!settled) {

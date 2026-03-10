@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
-const mockGetReferrer = mock();
+const mockGetAffiliateCodeById = mock();
+const mockGetUserAffiliate = mock();
 const mockGetMcpById = mock();
 const mockRecordUsageWithoutDeduction = mock();
 const mockReserveAndDeductCredits = mock();
 const mockRefundCredits = mock();
-const mockAssertSafeOutboundUrl = mock();
 const mockLoggerError = mock();
 const mockLoggerWarn = mock();
 const mockLoggerInfo = mock();
@@ -17,9 +17,10 @@ mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
 }));
 
-mock.module("@/lib/services/affiliates", () => ({
-  affiliatesService: {
-    getReferrer: mockGetReferrer,
+mock.module("@/db/repositories/affiliates", () => ({
+  affiliatesRepository: {
+    getAffiliateCodeById: mockGetAffiliateCodeById,
+    getUserAffiliate: mockGetUserAffiliate,
   },
 }));
 
@@ -43,10 +44,6 @@ mock.module("@/lib/services/containers", () => ({
   },
 }));
 
-mock.module("@/lib/security/outbound-url", () => ({
-  assertSafeOutboundUrl: mockAssertSafeOutboundUrl,
-}));
-
 mock.module("@/lib/utils/logger", () => ({
   logger: {
     error: mockLoggerError,
@@ -63,12 +60,12 @@ describe("MCP proxy affiliate pricing", () => {
 
   beforeEach(() => {
     mockRequireAuthOrApiKeyWithOrg.mockReset();
-    mockGetReferrer.mockReset();
+    mockGetAffiliateCodeById.mockReset();
+    mockGetUserAffiliate.mockReset();
     mockGetMcpById.mockReset();
     mockRecordUsageWithoutDeduction.mockReset();
     mockReserveAndDeductCredits.mockReset();
     mockRefundCredits.mockReset();
-    mockAssertSafeOutboundUrl.mockReset();
     mockLoggerError.mockReset();
     mockLoggerWarn.mockReset();
     mockLoggerInfo.mockReset();
@@ -81,7 +78,10 @@ describe("MCP proxy affiliate pricing", () => {
       },
       apiKey: { id: "api-key-1" },
     });
-    mockGetReferrer.mockResolvedValue({
+    mockGetUserAffiliate.mockResolvedValue({
+      affiliate_code_id: "affiliate-code",
+    });
+    mockGetAffiliateCodeById.mockResolvedValue({
       id: "affiliate-code",
       user_id: "affiliate-owner",
       markup_percent: "20.00",
@@ -93,7 +93,7 @@ describe("MCP proxy affiliate pricing", () => {
       status: "live",
       credits_per_request: "100",
       endpoint_type: "external",
-      external_endpoint: "https://example.com/mcp",
+      external_endpoint: "https://93.184.216.34/mcp",
       organization_id: "creator-org",
       creator_share_percentage: "80.00",
       platform_share_percentage: "20.00",
@@ -107,9 +107,6 @@ describe("MCP proxy affiliate pricing", () => {
       success: true,
       usageId: "usage-1",
     });
-    mockAssertSafeOutboundUrl.mockResolvedValue(
-      new URL("https://example.com/mcp"),
-    );
 
     globalThis.fetch = mock(async () =>
       new Response(JSON.stringify({ ok: true }), {
