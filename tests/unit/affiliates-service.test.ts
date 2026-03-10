@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockGetAffiliateCodeByCode = mock();
 const mockGetAffiliateCodeById = mock();
@@ -29,7 +29,11 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { affiliatesService, ERRORS } from "@/lib/services/affiliates";
+async function importAffiliatesService() {
+  return import(
+    new URL(`../../lib/services/affiliates.ts?test=${Date.now()}`, import.meta.url).href
+  );
+}
 
 describe("affiliatesService", () => {
   beforeEach(() => {
@@ -42,7 +46,13 @@ describe("affiliatesService", () => {
     mockUpdateAffiliateCode.mockReset();
   });
 
+  afterEach(() => {
+    mock.restore();
+  });
+
   test("retries affiliate code creation when the generated code collides", async () => {
+    const { affiliatesService } = await importAffiliatesService();
+
     mockGetAffiliateCodeByUserId.mockResolvedValueOnce(null);
     mockCreateAffiliateCodeIfNotExists
       .mockRejectedValueOnce(
@@ -71,6 +81,8 @@ describe("affiliatesService", () => {
   });
 
   test("reuses an existing identical link and normalizes affiliate codes", async () => {
+    const { affiliatesService } = await importAffiliatesService();
+
     mockGetAffiliateCodeByCode.mockResolvedValue({
       id: "affiliate-code-id",
       user_id: "owner-user",
@@ -97,6 +109,8 @@ describe("affiliatesService", () => {
   });
 
   test("rejects inactive affiliate codes", async () => {
+    const { ERRORS, affiliatesService } = await importAffiliatesService();
+
     mockGetAffiliateCodeByCode.mockResolvedValue({
       id: "affiliate-code-id",
       user_id: "owner-user",
@@ -109,6 +123,8 @@ describe("affiliatesService", () => {
   });
 
   test("ignores inactive referrers when resolving affiliate relationships", async () => {
+    const { affiliatesService } = await importAffiliatesService();
+
     mockGetUserAffiliate.mockResolvedValue({
       id: "existing-link",
       user_id: "buyer-user",

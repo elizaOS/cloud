@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 import { jsonRequest } from "./route-test-helpers";
@@ -175,6 +175,10 @@ beforeEach(() => {
   mockGetSafeModelParams.mockImplementation(
     (_model: string, params: Record<string, unknown>) => params,
   );
+});
+
+afterEach(() => {
+  mock.restore();
 });
 
 describe("/api/v1/messages", () => {

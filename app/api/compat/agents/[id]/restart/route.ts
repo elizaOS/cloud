@@ -35,10 +35,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const result = await miladySandboxService.provision(agentId, user.organization_id);
+    const response = envelope(toCompatOpResult(agentId, "restart", result.success));
 
-    return NextResponse.json(
-      envelope(toCompatOpResult(agentId, "restart", result.success)),
-    );
+    if (!result.success) {
+      logger.warn("[compat] Restart failed", {
+        agentId,
+        error: result.error,
+      });
+      return NextResponse.json(response, { status: 502 });
+    }
+
+    return NextResponse.json(response);
   } catch (err) {
     if (err instanceof Error) {
       return NextResponse.json(

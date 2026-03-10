@@ -17,11 +17,13 @@ export interface ServiceJwtPayload {
 const SECRET_ENV_KEY = "MILADY_SERVICE_JWT_SECRET";
 
 let _secret: Uint8Array | null = null;
+let _secretRaw: string | null = null;
 
 function getSecret(): Uint8Array | null {
-  if (_secret) return _secret;
   const raw = process.env[SECRET_ENV_KEY];
   if (!raw) return null;
+  if (_secret && _secretRaw === raw) return _secret;
+  _secretRaw = raw;
   _secret = new TextEncoder().encode(raw);
   return _secret;
 }

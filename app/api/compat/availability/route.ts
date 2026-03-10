@@ -1,15 +1,36 @@
 /**
- * GET /api/compat/availability — public capacity check (no auth)
+ * GET /api/compat/availability — aggregate capacity is public, node topology requires auth
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
+import { validateServiceKey } from "@/lib/auth/service-key";
+import { authenticateWaifuBridge } from "@/lib/auth/waifu-bridge";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function canViewNodeTopology(request: NextRequest): Promise<boolean> {
+  try {
+    if (validateServiceKey(request)) {
+      return true;
+    }
+
+    if (await authenticateWaifuBridge(request)) {
+      return true;
+    }
+
+    await requireAuthOrApiKeyWithOrg(request);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function GET(request: NextRequest) {
   try {
     const nodes = await dockerNodesRepository.findAll();
+    const includeNodeTopology = await canViewNodeTopology(request);
 
     let totalSlots = 0;
     let usedSlots = 0;
@@ -36,7 +57,7 @@ export async function GET() {
         usedSlots,
         availableSlots: Math.max(0, totalSlots - usedSlots),
         acceptingNewAgents: totalSlots > usedSlots,
-        nodes: nodesSummary,
+        ...(includeNodeTopology ? { nodes: nodesSummary } : {}),
       },
     });
   } catch (err) {

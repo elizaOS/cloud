@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
 import type { DockerNodeStatus } from "@/db/schemas/docker-nodes";
+import { isValidDockerLogsSince } from "@/app/api/v1/admin/docker-containers/[id]/logs/route";
 
 describe("Status Consistency", () => {
   const ALL_SANDBOX: MiladySandboxStatus[] = ["pending","provisioning","running","stopped","disconnected","error"];
@@ -22,6 +23,16 @@ describe("Logs Route", () => {
     expect(c).toContain("new DockerSSHClient");
     expect(c).toContain("username: node.ssh_user");
     expect(c).toContain("--since");
+  });
+
+  test("accepts only strict docker logs since formats", () => {
+    expect(isValidDockerLogsSince("2026-03-09T12:00:00Z")).toBe(true);
+    expect(isValidDockerLogsSince("1h")).toBe(true);
+    expect(isValidDockerLogsSince("2d")).toBe(true);
+
+    expect(isValidDockerLogsSince("1h;cat /etc/passwd")).toBe(false);
+    expect(isValidDockerLogsSince("2026-03-09T12:00:00Z && whoami")).toBe(false);
+    expect(isValidDockerLogsSince("yesterday")).toBe(false);
   });
 });
 

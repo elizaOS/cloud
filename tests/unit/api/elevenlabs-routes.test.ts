@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import {
   createFile,
@@ -234,6 +234,10 @@ beforeEach(() => {
   mockUsageCreate.mockResolvedValue({ id: "usage-1" });
   mockCreditsReserve.mockResolvedValue(reservationFactory());
   mockFileTypeFromBuffer.mockResolvedValue({ mime: "audio/mpeg" });
+});
+
+afterEach(() => {
+  mock.restore();
 });
 
 describe("Voice listing APIs", () => {

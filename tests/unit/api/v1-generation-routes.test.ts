@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { jsonRequest } from "./route-test-helpers";
 
@@ -319,6 +319,10 @@ beforeEach(() => {
       timings: { inference: 10 },
     },
   });
+});
+
+afterEach(() => {
+  mock.restore();
 });
 
 describe("Prompt generation APIs", () => {

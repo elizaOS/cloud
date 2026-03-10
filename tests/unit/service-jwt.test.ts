@@ -67,6 +67,28 @@ describe("Service JWT Auth", () => {
       expect(await verifyServiceJwt(`Bearer ${token}`)).toBeNull();
     });
 
+    test("re-reads the secret when the env value changes in-process", async () => {
+      const firstToken = await signToken({ userId: "waifu:first" }, TEST_SECRET);
+      expect(await verifyServiceJwt(`Bearer ${firstToken}`)).toEqual({
+        userId: "waifu:first",
+        email: undefined,
+        tier: undefined,
+      });
+
+      process.env.MILADY_SERVICE_JWT_SECRET = "rotated-secret";
+      const secondToken = await signToken(
+        { userId: "waifu:second" },
+        "rotated-secret",
+      );
+
+      expect(await verifyServiceJwt(`Bearer ${secondToken}`)).toEqual({
+        userId: "waifu:second",
+        email: undefined,
+        tier: undefined,
+      });
+      expect(await verifyServiceJwt(`Bearer ${firstToken}`)).toBeNull();
+    });
+
     test("returns null when userId claim is missing", async () => {
       const token = await signToken({ email: "test@example.com" });
       expect(await verifyServiceJwt(`Bearer ${token}`)).toBeNull();

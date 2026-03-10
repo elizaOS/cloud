@@ -14,6 +14,7 @@
  */
 
 import { jobsRepository, type Job, type NewJob } from "@/db/repositories/jobs";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { logger } from "@/lib/utils/logger";
 
@@ -258,27 +259,15 @@ export class ProvisioningJobService {
   private async recoverStaleJobs(): Promise<number> {
     let totalRecovered = 0;
 
-    // For each job type, recover stale jobs across all organizations.
-    // Since recoverStaleJobs requires orgId, we query distinct orgs with in_progress jobs.
+    // Recover stale jobs per type across all organizations. The repository now
+    // handles org-agnostic recovery, so we can do this in one pass.
     for (const jobType of Object.values(JOB_TYPES)) {
-      const inProgressJobs = await jobsRepository.findByFilters({
+      const recovered = await jobsRepository.recoverStaleJobs({
         type: jobType,
-        status: "in_progress",
-        limit: 100,
+        staleThresholdMs: 5 * 60 * 1000, // 5 minutes
+        maxAttempts: 3,
       });
-
-      // Group by org
-      const orgIds = [...new Set(inProgressJobs.map((j) => j.organization_id))];
-
-      for (const orgId of orgIds) {
-        const recovered = await jobsRepository.recoverStaleJobs({
-          type: jobType,
-          organizationId: orgId,
-          staleThresholdMs: 5 * 60 * 1000, // 5 minutes
-          maxAttempts: 3,
-        });
-        totalRecovered += recovered;
-      }
+      totalRecovered += recovered;
     }
 
     return totalRecovered;
@@ -291,7 +280,9 @@ export class ProvisioningJobService {
     if (!job.webhook_url) return;
 
     try {
-      const response = await fetch(job.webhook_url, {
+      const safeWebhookUrl = await assertSafeOutboundUrl(job.webhook_url);
+
+      const response = await fetch(safeWebhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -312,7 +303,7 @@ export class ProvisioningJobService {
       if (!response.ok) {
         logger.warn("[provisioning-jobs] Webhook delivery failed", {
           jobId: job.id,
-          webhookUrl: job.webhook_url,
+          webhookUrl: safeWebhookUrl.toString(),
           status: response.status,
         });
       }

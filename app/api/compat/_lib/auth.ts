@@ -8,7 +8,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { validateServiceKey } from "@/lib/auth/service-key";
+import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { authenticateWaifuBridge } from "@/lib/auth/waifu-bridge";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import type { Organization } from "@/db/schemas/organizations";
@@ -29,8 +29,14 @@ export async function requireCompatAuth(
   request: NextRequest,
 ): Promise<CompatAuthResult> {
   // 1. X-Service-Key (milady-cloud S2S)
-  const serviceKeyIdentity = validateServiceKey(request);
-  if (serviceKeyIdentity) {
+  const serviceKeyHeader = request.headers.get("X-Service-Key");
+  if (serviceKeyHeader !== null) {
+    let serviceKeyIdentity;
+    try {
+      serviceKeyIdentity = requireServiceKey(request);
+    } catch {
+      throw new ServiceKeyAuthError("Invalid service key");
+    }
     return {
       user: {
         id: serviceKeyIdentity.userId,

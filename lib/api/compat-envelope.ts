@@ -7,6 +7,10 @@
  *
  * Every response is wrapped in: { success: boolean, data?: T, error?: string }
  *
+ * Compat create + job polling is synthesized from the current sandbox row.
+ * There is no separate compat job record, so `jobId` intentionally aliases
+ * the sandbox/agent id in create results, op results, and GET /api/compat/jobs/:jobId.
+ *
  * Status mapping:
  *   eliza-cloud "pending"       → thin-client "queued"
  *   eliza-cloud "provisioning"  → thin-client "provisioning"
@@ -79,6 +83,8 @@ export function toCompatAgent(sandbox: MiladySandbox): CompatAgentShape {
 export interface CompatCreateResultShape {
   agentId: string;
   agentName: string;
+  // Thin clients poll /api/compat/jobs/:jobId, but compat reuses the agent ID
+  // because v2 does not persist a separate async job row for agent creation.
   jobId: string;
   status: string;
   nodeId: string | null;
@@ -87,7 +93,8 @@ export interface CompatCreateResultShape {
 
 /**
  * Translate a newly created sandbox to the CreateResult shape.
- * jobId = agentId (eliza-cloud-v2 has no separate async job queue).
+ * `jobId` intentionally equals `agentId` because compat job polling
+ * synthesizes status from the same sandbox row.
  */
 export function toCompatCreateResult(sandbox: MiladySandbox): CompatCreateResultShape {
   return {
@@ -115,6 +122,7 @@ export interface CompatOpResultShape {
 
 /**
  * Synthesize a result for an operation (restart, delete, suspend, resume).
+ * `jobId` intentionally aliases `agentId` for the same compat polling contract.
  */
 export function toCompatOpResult(
   agentId: string,
@@ -136,6 +144,8 @@ export function toCompatOpResult(
 
 export interface CompatJobShape {
   // milady-cloud Job fields
+  // Compat job polling is synthesized from the agent record, so jobId/id alias
+  // the agent ID instead of a standalone job-table primary key.
   jobId: string;
   type: string;
   status: "queued" | "processing" | "completed" | "failed" | "retrying";
@@ -160,11 +170,12 @@ export interface CompatJobShape {
 export function toCompatJob(sandbox: MiladySandbox): CompatJobShape {
   const jobStatus = mapStatusToJobStatus(sandbox.status);
   const isTerminal = jobStatus === "completed" || jobStatus === "failed";
+  const compatStatus = mapStatus(sandbox.status);
 
   const data = {
     agentId: sandbox.id,
     agentName: sandbox.agent_name,
-    status: mapStatus(sandbox.status),
+    status: compatStatus,
     bridgeUrl: sandbox.bridge_url,
     errorMessage: sandbox.error_message,
   };
@@ -184,10 +195,10 @@ export function toCompatJob(sandbox: MiladySandbox): CompatJobShape {
     status: jobStatus,
     data,
     result: isTerminal
-      ? {
+        ? {
           agentId: sandbox.id,
           agentName: sandbox.agent_name,
-          status: sandbox.status,
+          status: compatStatus,
           bridgeUrl: sandbox.bridge_url,
         }
       : null,
@@ -311,7 +322,7 @@ function mapStatusToJobStatus(
     case "stopped":
       return "completed";
     case "disconnected":
-      return "failed";
+      return "completed";
     case "error":
       return "failed";
     default:

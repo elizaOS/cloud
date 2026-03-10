@@ -5,7 +5,7 @@
  * jobsRepository and miladySandboxService dependencies.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mock setup — must come before importing the service under test
@@ -39,6 +39,8 @@ const mockMiladySandboxService = {
   shutdown: vi.fn(),
 };
 
+const mockAssertSafeOutboundUrl = vi.fn();
+
 vi.mock("@/db/repositories/jobs", () => ({
   jobsRepository: mockJobsRepository,
   JobsRepository: vi.fn(),
@@ -46,6 +48,10 @@ vi.mock("@/db/repositories/jobs", () => ({
 
 vi.mock("@/lib/services/milaidy-sandbox", () => ({
   miladySandboxService: mockMiladySandboxService,
+}));
+
+vi.mock("@/lib/security/outbound-url", () => ({
+  assertSafeOutboundUrl: mockAssertSafeOutboundUrl,
 }));
 
 vi.mock("@/lib/utils/logger", () => ({
@@ -68,6 +74,7 @@ import {
 
 describe("ProvisioningJobService", () => {
   let service: ProvisioningJobService;
+  const originalFetch = globalThis.fetch;
 
   const TEST_ORG_ID = "org-001";
   const TEST_USER_ID = "user-001";
@@ -76,7 +83,14 @@ describe("ProvisioningJobService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    globalThis.fetch = originalFetch;
     service = new ProvisioningJobService();
+    mockAssertSafeOutboundUrl.mockImplementation(async (url: string) => new URL(url));
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
   });
 
   // ─────────────────────────────────────────────────────────────────
@@ -209,10 +223,7 @@ describe("ProvisioningJobService", () => {
       // claimPendingJobs returns atomically claimed jobs
       mockJobsRepository.claimPendingJobs
         .mockResolvedValueOnce([job]); // milady_provision
-
-      // findByFilters still used for stale-job recovery
-      mockJobsRepository.findByFilters
-        .mockResolvedValueOnce([]); // in_progress check for recovery
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       mockJobsRepository.updateStatus.mockResolvedValue(undefined);
 
@@ -262,8 +273,7 @@ describe("ProvisioningJobService", () => {
 
       mockJobsRepository.claimPendingJobs
         .mockResolvedValueOnce([job]);
-      mockJobsRepository.findByFilters
-        .mockResolvedValueOnce([]);
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       mockMiladySandboxService.provision.mockResolvedValue({
         success: false,
@@ -290,7 +300,7 @@ describe("ProvisioningJobService", () => {
 
     it("returns empty result when no pending jobs", async () => {
       mockJobsRepository.claimPendingJobs.mockResolvedValue([]);
-      mockJobsRepository.findByFilters.mockResolvedValue([]);
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       const result = await service.processPendingJobs(5);
 
@@ -304,8 +314,7 @@ describe("ProvisioningJobService", () => {
 
       mockJobsRepository.claimPendingJobs
         .mockResolvedValueOnce([job]);
-      mockJobsRepository.findByFilters
-        .mockResolvedValueOnce([]);
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       mockMiladySandboxService.provision.mockResolvedValue({
         success: false,
@@ -334,7 +343,7 @@ describe("ProvisioningJobService", () => {
       // Verify that processPendingJobs delegates to claimPendingJobs
       // (FOR UPDATE SKIP LOCKED) rather than findByFilters + updateStatus
       mockJobsRepository.claimPendingJobs.mockResolvedValue([]);
-      mockJobsRepository.findByFilters.mockResolvedValue([]); // stale recovery
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       await service.processPendingJobs(10);
 
@@ -344,19 +353,14 @@ describe("ProvisioningJobService", () => {
         limit: 10,
       });
 
-      // Should NOT call findByFilters for pending jobs (only for stale recovery)
-      const findCalls = mockJobsRepository.findByFilters.mock.calls;
-      for (const call of findCalls) {
-        // stale recovery queries in_progress, never pending
-        expect(call[0].status).not.toBe("pending");
-      }
+      expect(mockJobsRepository.findByFilters).not.toHaveBeenCalled();
     });
 
     it("does not call updateStatus('in_progress') — claiming handles that atomically", async () => {
       const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
 
       mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([job]);
-      mockJobsRepository.findByFilters.mockResolvedValueOnce([]);
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
       mockJobsRepository.updateStatus.mockResolvedValue(undefined);
 
       mockMiladySandboxService.provision.mockResolvedValue({
@@ -404,8 +408,7 @@ describe("ProvisioningJobService", () => {
 
       mockJobsRepository.claimPendingJobs
         .mockResolvedValueOnce([job]);
-      mockJobsRepository.findByFilters
-        .mockResolvedValueOnce([]);
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       mockJobsRepository.updateStatus.mockResolvedValue(undefined);
       mockJobsRepository.update.mockResolvedValue(undefined);
@@ -428,7 +431,7 @@ describe("ProvisioningJobService", () => {
 
       // Should have called fetch with webhook URL
       expect(mockFetch).toHaveBeenCalledWith(
-        "https://example.com/hook",
+        new URL("https://example.com/hook"),
         expect.objectContaining({
           method: "POST",
           body: expect.stringContaining('"event":"job.completed"'),
@@ -441,6 +444,52 @@ describe("ProvisioningJobService", () => {
         expect.objectContaining({ webhook_status: "delivered" }),
       );
     });
+
+    it("rejects unsafe webhook destinations before fetch", async () => {
+      const job = {
+        id: TEST_JOB_ID,
+        type: JOB_TYPES.MILADY_PROVISION,
+        status: "pending",
+        data: {
+          agentId: TEST_AGENT_ID,
+          organizationId: TEST_ORG_ID,
+          userId: TEST_USER_ID,
+          agentName: "Agent",
+        },
+        organization_id: TEST_ORG_ID,
+        max_attempts: 3,
+        attempts: 0,
+        webhook_url: "http://127.0.0.1:8080/hook",
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([job]);
+      mockJobsRepository.findByFilters.mockResolvedValueOnce([]);
+      mockJobsRepository.updateStatus.mockResolvedValue(undefined);
+      mockJobsRepository.update.mockResolvedValue(undefined);
+      mockMiladySandboxService.provision.mockResolvedValue({
+        success: true,
+        sandboxRecord: { id: TEST_AGENT_ID, status: "running" },
+        bridgeUrl: "http://localhost:31337",
+        healthUrl: "http://localhost:2138",
+      });
+
+      mockAssertSafeOutboundUrl.mockRejectedValue(
+        new Error("Private or reserved IP addresses are not allowed"),
+      );
+
+      const mockFetch = vi.fn();
+      global.fetch = mockFetch as typeof fetch;
+
+      await service.processPendingJobs(5);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockJobsRepository.update).toHaveBeenCalledWith(
+        TEST_JOB_ID,
+        expect.objectContaining({ webhook_status: "error" }),
+      );
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────
@@ -450,6 +499,27 @@ describe("ProvisioningJobService", () => {
   describe("JOB_TYPES", () => {
     it("has expected type constants", () => {
       expect(JOB_TYPES.MILADY_PROVISION).toBe("milady_provision");
+    });
+  });
+
+  describe("stale recovery", () => {
+    it("recovers stale jobs once per type without per-org scans", async () => {
+      mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([]);
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(2);
+
+      const result = await service.processPendingJobs(5);
+
+      expect(result).toMatchObject({
+        claimed: 0,
+        succeeded: 0,
+        failed: 0,
+      });
+      expect(mockJobsRepository.recoverStaleJobs).toHaveBeenCalledWith({
+        type: JOB_TYPES.MILADY_PROVISION,
+        staleThresholdMs: 5 * 60 * 1000,
+        maxAttempts: 3,
+      });
+      expect(mockJobsRepository.findByFilters).not.toHaveBeenCalled();
     });
   });
 

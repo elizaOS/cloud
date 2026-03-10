@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { userCharactersRepository } from "@/db/repositories/characters";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { z } from "zod";
 
@@ -20,15 +21,15 @@ export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const agents = await miladySandboxService.listAgents(user.organization_id);
 
-  // Enrich with token linkage from the associated user_character records
-  const { userCharactersRepository } = await import("@/db/repositories/characters");
-  const characterIds = agents
-    .map((a) => a.character_id)
-    .filter((id): id is string => id != null);
+  const characterIds = Array.from(new Set(
+    agents
+      .map((a) => a.character_id)
+      .filter((id): id is string => id != null),
+  ));
   const characters = characterIds.length > 0
-    ? await Promise.all(characterIds.map((id) => userCharactersRepository.findById(id)))
+    ? await userCharactersRepository.findByIds(characterIds)
     : [];
-  const charMap = new Map(characters.filter(Boolean).map((c) => [c!.id, c!]));
+  const charMap = new Map(characters.map((c) => [c.id, c]));
 
   return NextResponse.json({
     success: true,

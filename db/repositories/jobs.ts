@@ -182,25 +182,27 @@ export class JobsRepository {
    */
   async recoverStaleJobs(filters: {
     type: string;
-    organizationId: string;
+    organizationId?: string;
     staleThresholdMs: number;
     maxAttempts: number;
   }): Promise<number> {
     const staleThreshold = new Date(Date.now() - filters.staleThresholdMs);
+    const conditions = [
+      eq(jobs.type, filters.type),
+      eq(jobs.status, "in_progress"),
+      sql`${jobs.started_at} IS NOT NULL`,
+      lt(jobs.started_at, staleThreshold),
+    ];
+
+    if (filters.organizationId) {
+      conditions.push(eq(jobs.organization_id, filters.organizationId));
+    }
 
     // First, find all stale jobs - use dbWrite to ensure we get latest data
     const staleJobs = await dbWrite
       .select()
       .from(jobs)
-      .where(
-        and(
-          eq(jobs.type, filters.type),
-          eq(jobs.organization_id, filters.organizationId),
-          eq(jobs.status, "in_progress"),
-          sql`${jobs.started_at} IS NOT NULL`,
-          lt(jobs.started_at, staleThreshold),
-        ),
-      );
+      .where(and(...conditions));
 
     let recoveredCount = 0;
 

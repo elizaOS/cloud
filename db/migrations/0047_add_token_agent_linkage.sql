@@ -25,7 +25,11 @@ CREATE INDEX "user_characters_token_address_idx"
 -- This extracts tokenContractAddress / chain stored during service-to-service provisioning.
 UPDATE "user_characters" uc
 SET
-  token_address = ms.agent_config->>'tokenContractAddress',
+  token_address = CASE
+    WHEN (ms.agent_config->>'tokenContractAddress') ~ '^0x[0-9A-Fa-f]+$'
+      THEN lower(ms.agent_config->>'tokenContractAddress')
+    ELSE ms.agent_config->>'tokenContractAddress'
+  END,
   token_chain   = ms.agent_config->>'chain',
   token_name    = ms.agent_config->>'tokenName',
   token_ticker  = ms.agent_config->>'tokenTicker'

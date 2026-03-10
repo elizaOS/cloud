@@ -9,6 +9,7 @@ import { userCharacters } from "@/db/schemas/user-characters";
 import { organizations } from "@/db/schemas/organizations";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { normalizeTokenAddress } from "@/lib/utils/token-address";
+import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 import { eq, and, sql } from "drizzle-orm";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
@@ -191,19 +192,38 @@ async function handlePOST(request: NextRequest) {
     }
 
     const startTime = Date.now();
-    const character = await charactersService.create({
-      name,
-      bio: bio ? [bio] : [DEFAULT_AGENT_BIO],
-      user_id: user.id,
-      organization_id: user.organization_id,
-      source: "cloud",
-      character_data: {},
-      // Token linkage (all optional)
-      ...(tokenAddress && { token_address: tokenAddress }),
-      ...(tokenChain && { token_chain: tokenChain }),
-      ...(tokenName && { token_name: tokenName }),
-      ...(tokenTicker && { token_ticker: tokenTicker }),
-    });
+    let character;
+    try {
+      character = await charactersService.create({
+        name,
+        bio: bio ? [bio] : [DEFAULT_AGENT_BIO],
+        user_id: user.id,
+        organization_id: user.organization_id,
+        source: "cloud",
+        character_data: {},
+        // Token linkage (all optional)
+        ...(tokenAddress && { token_address: tokenAddress }),
+        ...(tokenChain && { token_chain: tokenChain }),
+        ...(tokenName && { token_name: tokenName }),
+        ...(tokenTicker && { token_ticker: tokenTicker }),
+      });
+    } catch (error) {
+      if (tokenAddress && isUniqueConstraintError(error)) {
+        const existing = await userCharactersRepository.findByTokenAddress(
+          tokenAddress,
+          tokenChain,
+        );
+        return NextResponse.json(
+          {
+            success: false,
+            error: `An agent is already linked to token ${tokenAddress}${tokenChain ? ` on ${tokenChain}` : ""}`,
+            existingAgentId: existing?.id,
+          },
+          { status: 409 },
+        );
+      }
+      throw error;
+    }
 
     // Track agent creation in PostHog using internal UUID
     trackServerEvent(user.id, "agent_create_completed", {

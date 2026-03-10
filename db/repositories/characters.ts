@@ -147,6 +147,20 @@ export class UserCharactersRepository {
   }
 
   /**
+   * Finds characters by ID in a single query.
+   */
+  async findByIds(ids: string[]): Promise<UserCharacter[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return await dbRead
+      .select()
+      .from(userCharacters)
+      .where(inArray(userCharacters.id, ids));
+  }
+
+  /**
    * Finds a character by token address (and optionally chain).
    * Returns the canonical agent linked to a specific on-chain token.
    *

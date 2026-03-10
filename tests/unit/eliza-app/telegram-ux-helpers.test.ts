@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   createInlineKeyboard,
   createMultiRowKeyboard,
@@ -271,27 +271,30 @@ describe("Markdown fallback retry logic", () => {
 });
 
 describe("Markdown fallback with real HTTP server", () => {
-  let server: ReturnType<typeof Bun.serve>;
+  const originalFetch = globalThis.fetch;
   let requestLog: { body: Record<string, unknown>; attempt: number }[];
   let attemptCount: number;
 
-  function startServer(handler: (body: Record<string, unknown>, attempt: number) => Response) {
+  beforeEach(() => {
     attemptCount = 0;
     requestLog = [];
+    globalThis.fetch = originalFetch;
+  });
 
-    server = Bun.serve({
-      port: 0,
-      fetch: async (req) => {
-        const body = (await req.json()) as Record<string, unknown>;
-        attemptCount++;
-        requestLog.push({ body, attempt: attemptCount });
-        return handler(body, attemptCount);
-      },
-    });
-  }
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    mock.restore();
+  });
 
-  function stopServer() {
-    if (server) server.stop(true);
+  function mockTelegramApi(
+    handler: (body: Record<string, unknown>, attempt: number) => Response | Promise<Response>,
+  ) {
+    globalThis.fetch = mock(async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      attemptCount++;
+      requestLog.push({ body, attempt: attemptCount });
+      return await handler(body, attemptCount);
+    }) as typeof globalThis.fetch;
   }
 
   async function sendWithFallback(
@@ -321,22 +324,20 @@ describe("Markdown fallback with real HTTP server", () => {
   }
 
   test("succeeds on first try when markdown is valid", async () => {
-    startServer(() => new Response(JSON.stringify({ ok: true }), { status: 200 }));
-    try {
-      const result = await sendWithFallback(`http://localhost:${server.port}`, {
-        chat_id: 1,
-        text: "Hello",
-        parse_mode: "Markdown",
-      });
-      expect(result).toBe(true);
-      expect(attemptCount).toBe(1);
-    } finally {
-      stopServer();
-    }
+    mockTelegramApi(() => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+
+    const result = await sendWithFallback("https://telegram.example.test", {
+      chat_id: 1,
+      text: "Hello",
+      parse_mode: "Markdown",
+    });
+
+    expect(result).toBe(true);
+    expect(attemptCount).toBe(1);
   });
 
   test("retries without parse_mode on markdown parse failure", async () => {
-    startServer((_body, attempt) => {
+    mockTelegramApi((_body, attempt) => {
       if (attempt === 1) {
         return new Response(
           JSON.stringify({ ok: false, description: "Bad Request: can't parse entities" }),
@@ -346,65 +347,53 @@ describe("Markdown fallback with real HTTP server", () => {
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     });
 
-    try {
-      const result = await sendWithFallback(`http://localhost:${server.port}`, {
-        chat_id: 1,
-        text: "*unclosed bold",
-        parse_mode: "Markdown",
-      });
+    const result = await sendWithFallback("https://telegram.example.test", {
+      chat_id: 1,
+      text: "*unclosed bold",
+      parse_mode: "Markdown",
+    });
 
-      expect(result).toBe(true);
-      expect(attemptCount).toBe(2);
-      expect(requestLog[0].body).toHaveProperty("parse_mode", "Markdown");
-      expect(requestLog[1].body).not.toHaveProperty("parse_mode");
-    } finally {
-      stopServer();
-    }
+    expect(result).toBe(true);
+    expect(attemptCount).toBe(2);
+    expect(requestLog[0].body).toHaveProperty("parse_mode", "Markdown");
+    expect(requestLog[1].body).not.toHaveProperty("parse_mode");
   });
 
   test("returns false on non-markdown error (no retry)", async () => {
-    startServer(() =>
+    mockTelegramApi(() =>
       new Response(JSON.stringify({ ok: false, description: "Forbidden" }), { status: 403 }),
     );
 
-    try {
-      const result = await sendWithFallback(`http://localhost:${server.port}`, {
-        chat_id: 1,
-        text: "test",
-        parse_mode: "Markdown",
-      });
+    const result = await sendWithFallback("https://telegram.example.test", {
+      chat_id: 1,
+      text: "test",
+      parse_mode: "Markdown",
+    });
 
-      expect(result).toBe(false);
-      expect(attemptCount).toBe(1);
-    } finally {
-      stopServer();
-    }
+    expect(result).toBe(false);
+    expect(attemptCount).toBe(1);
   });
 
   test("returns false when both attempts fail", async () => {
-    startServer(() =>
+    mockTelegramApi(() =>
       new Response(
         JSON.stringify({ ok: false, description: "Bad Request: can't parse entities" }),
         { status: 400 },
       ),
     );
 
-    try {
-      const result = await sendWithFallback(`http://localhost:${server.port}`, {
-        chat_id: 1,
-        text: "bad markdown",
-        parse_mode: "Markdown",
-      });
+    const result = await sendWithFallback("https://telegram.example.test", {
+      chat_id: 1,
+      text: "bad markdown",
+      parse_mode: "Markdown",
+    });
 
-      expect(result).toBe(false);
-      expect(attemptCount).toBe(2);
-    } finally {
-      stopServer();
-    }
+    expect(result).toBe(false);
+    expect(attemptCount).toBe(2);
   });
 
   test("retry preserves all non-parse_mode fields in request body", async () => {
-    startServer((_body, attempt) => {
+    mockTelegramApi((_body, attempt) => {
       if (attempt === 1) {
         return new Response(
           JSON.stringify({ ok: false, description: "can't parse entities" }),
@@ -414,38 +403,31 @@ describe("Markdown fallback with real HTTP server", () => {
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     });
 
-    try {
-      await sendWithFallback(`http://localhost:${server.port}`, {
-        chat_id: 42,
-        text: "test *broken",
-        parse_mode: "Markdown",
-        reply_to_message_id: 99,
-      });
+    await sendWithFallback("https://telegram.example.test", {
+      chat_id: 42,
+      text: "test *broken",
+      parse_mode: "Markdown",
+      reply_to_message_id: 99,
+    });
 
-      const retryBody = requestLog[1].body;
-      expect(retryBody.chat_id).toBe(42);
-      expect(retryBody.text).toBe("test *broken");
-      expect(retryBody.reply_to_message_id).toBe(99);
-      expect(retryBody).not.toHaveProperty("parse_mode");
-    } finally {
-      stopServer();
-    }
+    const retryBody = requestLog[1].body;
+    expect(retryBody.chat_id).toBe(42);
+    expect(retryBody.text).toBe("test *broken");
+    expect(retryBody.reply_to_message_id).toBe(99);
+    expect(retryBody).not.toHaveProperty("parse_mode");
   });
 
   test("payload without parse_mode succeeds on first try (no retry needed)", async () => {
-    startServer(() => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    mockTelegramApi(() => new Response(JSON.stringify({ ok: true }), { status: 200 }));
 
-    try {
-      const result = await sendWithFallback(`http://localhost:${server.port}`, {
-        chat_id: 1,
-        text: "No markdown here",
-      });
-      expect(result).toBe(true);
-      expect(attemptCount).toBe(1);
-      expect(requestLog[0].body).not.toHaveProperty("parse_mode");
-    } finally {
-      stopServer();
-    }
+    const result = await sendWithFallback("https://telegram.example.test", {
+      chat_id: 1,
+      text: "No markdown here",
+    });
+
+    expect(result).toBe(true);
+    expect(attemptCount).toBe(1);
+    expect(requestLog[0].body).not.toHaveProperty("parse_mode");
   });
 });
 

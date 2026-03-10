@@ -180,7 +180,9 @@ export const userCharacters = pgTable(
     monetization_idx: index("user_characters_monetization_idx").on(
       table.monetization_enabled,
     ),
-    // Token linkage indexes (partial — only rows with a token_address)
+    // Keep this plain Drizzle index in sync with db/migrations/0047_add_token_agent_linkage.sql.
+    // The partial unique (token_address, token_chain) index is hand-managed in SQL because
+    // Drizzle schema generation cannot represent the WHERE token_address IS NOT NULL predicate.
     token_address_idx: index("user_characters_token_address_idx").on(
       table.token_address,
     ),

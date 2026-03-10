@@ -28,6 +28,18 @@ export const dynamic = "force-dynamic";
 const DEFAULT_LINES = 200;
 const MAX_LINES = 5000;
 const LOG_FETCH_TIMEOUT_MS = 30_000;
+const RELATIVE_SINCE_RE = /^\d+[smhdw]$/;
+
+export function isValidDockerLogsSince(value: string): boolean {
+  if (!value) return false;
+
+  if (RELATIVE_SINCE_RE.test(value)) {
+    return true;
+  }
+
+  const parsed = Date.parse(value);
+  return !Number.isNaN(parsed);
+}
 
 // ---------------------------------------------------------------------------
 // GET — Fetch docker logs for a container
@@ -66,6 +78,17 @@ export async function GET(
   }
   const since = searchParams.get("since") || undefined;
 
+  if (since && !isValidDockerLogsSince(since)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Invalid since parameter. Use an ISO-8601 timestamp or relative duration like 1h.",
+      },
+      { status: 400 },
+    );
+  }
+
   try {
     // Resolve the container record: try UUID PK first (dashboard sends
     // the DB `id`), then fall back to sandbox_id for CLI / direct callers.
@@ -102,9 +125,7 @@ export async function GET(
     // Build docker logs command with proper shell quoting
     let cmd = `docker logs --tail ${lines}`;
     if (since) {
-      // Sanitize the since value (allow alphanumeric, colons, dashes, dots, plus, T, Z)
-      const sanitized = since.replace(/[^a-zA-Z0-9:.\-+TZ]/g, "");
-      cmd += ` --since "${sanitized}"`;
+      cmd += ` --since ${shellQuote(since)}`;
     }
     cmd += ` ${shellQuote(sandbox.container_name)} 2>&1`;
 

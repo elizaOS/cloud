@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { userCharactersRepository } from "@/db/repositories/characters";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,6 @@ export async function GET(
   let tokenTicker: string | null = null;
 
   if (agent.character_id) {
-    const { userCharactersRepository } = await import("@/db/repositories/characters");
     const char = await userCharactersRepository.findById(agent.character_id);
     if (char) {
       tokenAddress = char.token_address ?? null;

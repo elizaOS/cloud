@@ -6,6 +6,7 @@ import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { charactersService } from "@/lib/services/characters";
 import { normalizeTokenAddress } from "@/lib/utils/token-address";
+import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -116,19 +117,37 @@ export async function POST(request: NextRequest) {
   }
 
   // 0b. Create a user_character record with first-class token linkage
-  const character = await charactersService.create({
-    name: agentName,
-    bio: p.character?.bio ? [p.character.bio] : [`Agent for ${p.tokenName}`],
-    user_id: identity.userId,
-    organization_id: identity.organizationId,
-    source: "cloud",
-    character_data: p.character?.config ?? {},
-    avatar_url: p.character?.avatar ?? null,
-    token_address: normalizedTokenAddress,
-    token_chain: p.chain,
-    token_name: p.tokenName,
-    token_ticker: p.tokenTicker,
-  });
+  let character;
+  try {
+    character = await charactersService.create({
+      name: agentName,
+      bio: p.character?.bio ? [p.character.bio] : [`Agent for ${p.tokenName}`],
+      user_id: identity.userId,
+      organization_id: identity.organizationId,
+      source: "cloud",
+      character_data: p.character?.config ?? {},
+      avatar_url: p.character?.avatar ?? null,
+      token_address: normalizedTokenAddress,
+      token_chain: p.chain,
+      token_name: p.tokenName,
+      token_ticker: p.tokenTicker,
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      const existingChar = await userCharactersRepository.findByTokenAddress(
+        normalizedTokenAddress,
+        p.chain,
+      );
+      return NextResponse.json(
+        {
+          error: `An agent is already linked to token ${p.tokenContractAddress} on ${p.chain}`,
+          existingAgentId: existingChar?.id,
+        },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
 
   // 1. Create sandbox record (always sync — just a DB insert)
   const agent = await miladySandboxService.createAgent({

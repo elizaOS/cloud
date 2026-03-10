@@ -113,6 +113,16 @@ describe("toCompatCreateResult", () => {
     expect(result.status).toBe("running");
     expect(result.message).toContain("running");
   });
+
+  test("reuses the agent ID as the compat job ID", () => {
+    const sandbox = makeSandbox({ status: "pending" });
+    const result = toCompatCreateResult(sandbox);
+    const job = toCompatJob(sandbox);
+
+    expect(result.jobId).toBe(sandbox.id);
+    expect(job.jobId).toBe(sandbox.id);
+    expect(job.id).toBe(sandbox.id);
+  });
 });
 
 describe("toCompatOpResult", () => {
@@ -165,6 +175,15 @@ describe("toCompatJob", () => {
     expect(job.startedAt).toBeTruthy();
   });
 
+  test("maps disconnected sandbox to completed job", () => {
+    const job = toCompatJob(makeSandbox({ status: "disconnected" }));
+    expect(job.jobId).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    expect(job.id).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    expect(job.status).toBe("completed");
+    expect(job.state).toBe("completed");
+    expect(job.completedAt).toBeTruthy();
+  });
+
   test("maps error sandbox to failed job", () => {
     const job = toCompatJob(makeSandbox({
       status: "error",
@@ -175,6 +194,14 @@ describe("toCompatJob", () => {
     expect(job.state).toBe("failed");
     expect(job.error).toBe("Container health check timed out");
     expect(job.retryCount).toBe(3);
+  });
+
+  test("maps disconnected sandbox to completed job with stopped compat status", () => {
+    const job = toCompatJob(makeSandbox({ status: "disconnected" }));
+    expect(job.status).toBe("completed");
+    expect(job.state).toBe("completed");
+    expect(job.data.status).toBe("stopped");
+    expect(job.result).toEqual(expect.objectContaining({ status: "stopped" }));
   });
 });
 

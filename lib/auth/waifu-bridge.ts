@@ -67,6 +67,14 @@ function slugFromUserId(userId: string): string {
   return `${base}-${rand}`;
 }
 
+export function canAutoCreateWaifuBridgeOrg(): boolean {
+  if (process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE === "true") {
+    return true;
+  }
+
+  return process.env.NODE_ENV !== "production";
+}
+
 /**
  * Resolve a service JWT userId to an eliza-cloud user with org.
  */
@@ -103,6 +111,12 @@ async function resolveServiceUser(
   let orgId = pinnedOrgId;
 
   if (!orgId) {
+    if (!canAutoCreateWaifuBridgeOrg()) {
+      throw new ForbiddenError(
+        "WAIFU_BRIDGE_ORG_ID must be configured before provisioning waifu bridge users in production",
+      );
+    }
+
     const slug = slugFromUserId(payload.userId);
     const orgName = payload.userId.startsWith("waifu:")
       ? `waifu-${payload.userId.slice(6, 14)}`
