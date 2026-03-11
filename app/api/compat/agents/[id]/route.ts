@@ -11,6 +11,7 @@ import {
   toCompatAgent,
   toCompatOpResult,
   envelope,
+  errorEnvelope,
 } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
@@ -40,10 +41,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const deleted = await miladySandboxService.deleteAgent(agentId, user.organization_id);
     if (!deleted) {
-      return NextResponse.json(
-        { success: false, error: "Agent not found" },
-        { status: 404 },
-      );
+      return NextResponse.json(errorEnvelope("Agent not found"), { status: 404 });
     }
 
     logger.info("[compat] Agent deleted", { agentId, orgId: user.organization_id });

@@ -29,7 +29,7 @@ WITH candidate_links AS (
   SELECT
     uc.id AS character_id,
     CASE
-      WHEN (ms.agent_config->>'tokenContractAddress') ~ '^0x[0-9A-Fa-f]+$'
+      WHEN (ms.agent_config->>'tokenContractAddress') ~ '^0x[0-9A-Fa-f]{40}$'
         THEN lower(ms.agent_config->>'tokenContractAddress')
       ELSE ms.agent_config->>'tokenContractAddress'
     END AS normalized_token_address,
@@ -39,7 +39,7 @@ WITH candidate_links AS (
     row_number() OVER (
       PARTITION BY
         CASE
-          WHEN (ms.agent_config->>'tokenContractAddress') ~ '^0x[0-9A-Fa-f]+$'
+          WHEN (ms.agent_config->>'tokenContractAddress') ~ '^0x[0-9A-Fa-f]{40}$'
             THEN lower(ms.agent_config->>'tokenContractAddress')
           ELSE ms.agent_config->>'tokenContractAddress'
         END,

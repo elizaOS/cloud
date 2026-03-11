@@ -8,6 +8,7 @@ const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockGetAgent = mock();
 const mockSnapshot = mock();
 const mockProvision = mock();
+const mockDeleteAgent = mock();
 
 class MockServiceKeyAuthError extends Error {
   constructor(message: string) {
@@ -32,6 +33,7 @@ mock.module("@/lib/auth", () => ({
 mock.module("@/lib/services/milaidy-sandbox", () => ({
   miladySandboxService: {
     getAgent: mockGetAgent,
+    deleteAgent: mockDeleteAgent,
     snapshot: mockSnapshot,
     provision: mockProvision,
   },
@@ -47,6 +49,10 @@ mock.module("@/lib/utils/logger", () => ({
 }));
 
 import { requireCompatAuth } from "@/app/api/compat/_lib/auth";
+import {
+  GET as getCompatAgent,
+  DELETE as deleteCompatAgent,
+} from "@/app/api/compat/agents/[id]/route";
 import { POST as restartAgent } from "@/app/api/compat/agents/[id]/restart/route";
 
 describe("compat auth", () => {
@@ -55,6 +61,7 @@ describe("compat auth", () => {
     mockAuthenticateWaifuBridge.mockReset();
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockGetAgent.mockReset();
+    mockDeleteAgent.mockReset();
     mockSnapshot.mockReset();
     mockProvision.mockReset();
 
@@ -117,12 +124,65 @@ describe("compat auth", () => {
   });
 });
 
+describe("GET/DELETE /api/compat/agents/[id]", () => {
+  beforeEach(() => {
+    mockRequireServiceKey.mockReset();
+    mockAuthenticateWaifuBridge.mockReset();
+    mockRequireAuthOrApiKeyWithOrg.mockReset();
+    mockGetAgent.mockReset();
+    mockDeleteAgent.mockReset();
+    mockSnapshot.mockReset();
+    mockProvision.mockReset();
+
+    mockAuthenticateWaifuBridge.mockResolvedValue(null);
+    mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
+      user: {
+        id: "user-1",
+        organization_id: "org-1",
+      },
+    });
+  });
+
+  test("GET returns 404 error envelope when agent is missing", async () => {
+    mockGetAgent.mockResolvedValue(null);
+
+    const response = await getCompatAgent(
+      new NextRequest("https://example.com/api/compat/agents/agent-404"),
+      routeParams({ id: "agent-404" }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: "Agent not found",
+    });
+  });
+
+  test("DELETE returns 404 error envelope when agent is missing", async () => {
+    mockDeleteAgent.mockResolvedValue(false);
+
+    const response = await deleteCompatAgent(
+      new NextRequest("https://example.com/api/compat/agents/agent-404", {
+        method: "DELETE",
+      }),
+      routeParams({ id: "agent-404" }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: "Agent not found",
+    });
+  });
+});
+
 describe("POST /api/compat/agents/[id]/restart", () => {
   beforeEach(() => {
     mockRequireServiceKey.mockReset();
     mockAuthenticateWaifuBridge.mockReset();
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockGetAgent.mockReset();
+    mockDeleteAgent.mockReset();
     mockSnapshot.mockReset();
     mockProvision.mockReset();
 

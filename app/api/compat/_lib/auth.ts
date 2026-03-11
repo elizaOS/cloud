@@ -39,7 +39,7 @@ export async function requireCompatAuth(
       // WAIFU_SERVICE_ORG_ID / WAIFU_SERVICE_USER_ID not set) — only
       // auth failures should become ServiceKeyAuthError (→ 401).
       if (err instanceof ServiceKeyAuthError) throw err;
-      if (err instanceof Error && !(err instanceof ServiceKeyAuthError)) throw err;
+      if (err instanceof Error) throw err;
       throw new ServiceKeyAuthError("Invalid service key");
     }
     return {
