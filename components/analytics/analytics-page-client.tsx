@@ -10,12 +10,12 @@
 "use client";
 
 import { format } from "date-fns";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import { UsageChart } from "./usage-chart";
 import { AnalyticsFilters } from "./filters";
-import { ExportButton } from "./export-button";
+import { ExportButton } from "@elizaos/ui";
 import { CostInsightsCard } from "./cost-insights-card";
-import { KeyMetricsGrid } from "./key-metrics-grid";
+import { KeyMetricsGrid } from "@elizaos/ui";
 import { ProviderBreakdown } from "./provider-breakdown";
 import { ModelBreakdown } from "./model-breakdown";
 import { ProjectionsChart } from "./projections-chart";
@@ -36,8 +36,8 @@ import {
   BrandTabsContent,
   BrandCard,
   CornerBrackets,
-} from "@/components/brand";
-import type { TabItem } from "@/components/brand";
+} from "@elizaos/ui";
+import type { TabItem } from "@elizaos/ui";
 
 interface AnalyticsPageClientProps {
   data: EnhancedAnalyticsData;

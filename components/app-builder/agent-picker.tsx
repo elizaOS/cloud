@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Bot, Check, Plus, Search, X, Sparkles, Users } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@elizaos/ui";
 
 export interface Agent {
   id: string;

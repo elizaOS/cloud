@@ -26,8 +26,16 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@elizaos/ui";
+import { Badge, StatusBadge } from "@elizaos/ui";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
@@ -38,6 +46,7 @@ interface AppsTableProps {
 export function AppsTable({ apps }: AppsTableProps) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<App | null>(null);
 
   const handleCopyUrl = async (url: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -50,21 +59,18 @@ export function AppsTable({ apps }: AppsTableProps) {
     }
   };
 
-  const handleDelete = async (app: App, e: React.MouseEvent) => {
+  const handleDeleteClick = (app: App, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setDeleteTarget(app);
+  };
 
-    if (
-      !confirm(
-        `Are you sure you want to delete "${app.name}"? This action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
-
-    setDeletingId(app.id);
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeletingId(deleteTarget.id);
+    setDeleteTarget(null);
     try {
-      const response = await fetch(`/api/v1/apps/${app.id}`, {
+      const response = await fetch(`/api/v1/apps/${deleteTarget.id}`, {
         method: "DELETE",
       });
 
@@ -91,6 +97,7 @@ export function AppsTable({ apps }: AppsTableProps) {
   }
 
   return (
+    <>
     <div className="grid grid-cols-1 gap-2">
       {apps.map((app) => (
         <div
@@ -107,15 +114,11 @@ export function AppsTable({ apps }: AppsTableProps) {
                 >
                   {app.name}
                 </Link>
-                <Badge
-                  className={
-                    app.is_active
-                      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 shrink-0"
-                      : "bg-zinc-500/20 text-zinc-400 border-zinc-500/30 text-[10px] px-1.5 py-0 shrink-0"
-                  }
-                >
-                  {app.is_active ? "Active" : "Inactive"}
-                </Badge>
+                <StatusBadge
+                  status={app.is_active ? "success" : "neutral"}
+                  label={app.is_active ? "Active" : "Inactive"}
+                  className="px-1.5 py-0 text-[10px]"
+                />
                 {app.affiliate_code && (
                   <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px] px-1.5 py-0 shrink-0">
                     Affiliate
@@ -170,7 +173,7 @@ export function AppsTable({ apps }: AppsTableProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="cursor-pointer text-red-500 bg-red-500/10 hover:bg-red-500/20 focus:bg-red-500/20 focus:text-red-500"
-                    onClick={(e) => handleDelete(app, e)}
+                    onClick={(e) => handleDeleteClick(app, e)}
                     disabled={deletingId === app.id}
                   >
                     {deletingId === app.id ? (
@@ -209,5 +212,27 @@ export function AppsTable({ apps }: AppsTableProps) {
         </div>
       ))}
     </div>
+
+    {/* Delete Confirmation */}
+    <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete App</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete <span className="font-semibold text-white">"{deleteTarget?.name}"</span>? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirmDelete}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

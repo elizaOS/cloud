@@ -11,8 +11,8 @@ import {
   type SupportedNetwork,
 } from "./eliza-token-price";
 import { createPublicClient, http, parseAbi, type Address } from "viem";
-import { mainnet, base, bsc } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { ELIZA_DECIMALS, EVM_CHAINS } from "@/lib/config/token-constants";
 
 // ============================================================================
 // TYPES
@@ -39,18 +39,7 @@ export interface PayoutSystemStatus {
 // CONFIGURATION
 // ============================================================================
 
-const EVM_CHAINS = {
-  ethereum: mainnet,
-  base: base,
-  bnb: bsc,
-} as const;
-
-const ELIZA_DECIMALS: Record<SupportedNetwork, number> = {
-  ethereum: 9,
-  base: 9,
-  bnb: 9,
-  solana: 9,
-};
+// Token decimals + EVM chains imported from @/lib/config/token-constants
 
 // Thresholds for warnings
 const LOW_BALANCE_THRESHOLD = 100; // Tokens

@@ -27,10 +27,10 @@ import {
 import { requireAuthWithOrg } from "@/lib/auth";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { adminService } from "@/lib/services/admin";
-import { BrandCard, BrandButton } from "@/components/brand";
-import { Badge } from "@/components/ui/badge";
+import { BrandCard, BrandButton } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
 import { DockerLogsViewer } from "@/components/containers/docker-logs-viewer";
-import { MiladyAgentActions } from "./agent-actions";
+import { MiladyAgentActions } from "@/components/containers/agent-actions";
 
 export const dynamic = "force-dynamic";
 

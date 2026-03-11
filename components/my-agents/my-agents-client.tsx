@@ -10,7 +10,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import { CharacterLibraryGrid, type AgentWithOwnership } from "./character-library-grid";
 import { CharacterFilters } from "./character-filters";
 import type { ElizaCharacter } from "@/lib/types";

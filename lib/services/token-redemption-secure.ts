@@ -46,12 +46,11 @@ import {
   getAddress,
   createPublicClient,
   http,
-  parseAbi,
   type Address,
   verifyTypedData,
 } from "viem";
-import { mainnet, base, bsc } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { ELIZA_DECIMALS, EVM_CHAINS, ERC20_ABI } from "@/lib/config/token-constants";
 import {
   checkKnownAddress,
   getNonEOAWarning,
@@ -94,20 +93,7 @@ const SECURE_CONFIG = {
   MAX_RETRY_ATTEMPTS: 3,
 };
 
-// Token decimals
-const ELIZA_DECIMALS: Record<SupportedNetwork, number> = {
-  ethereum: 18,
-  base: 18,
-  bnb: 18,
-  solana: 9,
-};
-
-// EVM chains
-const EVM_CHAINS = {
-  ethereum: mainnet,
-  base: base,
-  bnb: bsc,
-} as const;
+// Token decimals + EVM chains imported from @/lib/config/token-constants
 
 // ============================================================================
 // EIP-712 SIGNATURE VERIFICATION (Fix #4)

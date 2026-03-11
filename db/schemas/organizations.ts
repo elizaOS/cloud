@@ -2,7 +2,6 @@ import {
   boolean,
   check,
   index,
-  integer,
   jsonb,
   numeric,
   pgTable,
@@ -14,10 +13,16 @@ import { sql } from "drizzle-orm";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
- * Organizations table schema.
+ * Organizations table schema (core).
  *
  * Represents a billing organization that can contain multiple users.
- * Manages credit balance, billing settings, and usage quotas.
+ *
+ * NOTE: `settings` is kept here because it's deeply used across many API routes
+ * and container management. The organization_config table serves as a read-optimized
+ * projection for less-frequently-accessed configuration.
+ *
+ * Billing details → organization_billing table
+ * Extended config → organization_config table
  */
 export const organizations = pgTable(
   "organizations",
@@ -28,55 +33,26 @@ export const organizations = pgTable(
     credit_balance: numeric("credit_balance", { precision: 12, scale: 6 })
       .notNull()
       .default("100.000000"),
-    webhook_url: text("webhook_url"),
-    webhook_secret: text("webhook_secret"),
+
+    // Settings (kept for backward compatibility with container management)
+    settings: jsonb("settings").$type<Record<string, unknown>>().default({}),
+
+    // Billing (kept for backward compatibility with billing/payment routes)
     stripe_customer_id: text("stripe_customer_id"),
     billing_email: text("billing_email"),
-    tax_id_type: text("tax_id_type"),
-    tax_id_value: text("tax_id_value"),
-    billing_address: jsonb("billing_address").$type<Record<string, unknown>>(),
     stripe_payment_method_id: text("stripe_payment_method_id"),
     stripe_default_payment_method: text("stripe_default_payment_method"),
-    auto_top_up_enabled: boolean("auto_top_up_enabled")
-      .default(false)
-      .notNull(),
-    auto_top_up_amount: numeric("auto_top_up_amount", {
-      precision: 12,
-      scale: 6,
-    }),
-    auto_top_up_threshold: numeric("auto_top_up_threshold", {
-      precision: 12,
-      scale: 6,
-    }).default("0.000000"),
-    auto_top_up_subscription_id: text("auto_top_up_subscription_id"),
-    max_api_requests: integer("max_api_requests").default(1000),
-    max_tokens_per_request: integer("max_tokens_per_request"),
-    allowed_models: jsonb("allowed_models")
-      .$type<string[]>()
-      .notNull()
-      .default([]),
-    allowed_providers: jsonb("allowed_providers")
-      .$type<string[]>()
-      .notNull()
-      .default([]),
+    auto_top_up_enabled: boolean("auto_top_up_enabled").default(false),
+    auto_top_up_threshold: numeric("auto_top_up_threshold", { precision: 10, scale: 2 }),
+    auto_top_up_amount: numeric("auto_top_up_amount", { precision: 10, scale: 2 }),
+
     is_active: boolean("is_active").default(true).notNull(),
-    settings: jsonb("settings")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
     slug_idx: index("organizations_slug_idx").on(table.slug),
-    stripe_customer_idx: index("organizations_stripe_customer_idx").on(
-      table.stripe_customer_id,
-    ),
-    auto_top_up_enabled_idx: index("organizations_auto_top_up_enabled_idx").on(
-      table.auto_top_up_enabled,
-    ),
     // CHECK constraint to prevent negative credit balances at database level
-    // This provides a second line of defense against race conditions
     credit_balance_non_negative: check(
       "credit_balance_non_negative",
       sql`${table.credit_balance} >= 0`,

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import {
   Loader2,
   Terminal,

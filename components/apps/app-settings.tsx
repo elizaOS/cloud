@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { App } from "@/db/schemas";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import { Label } from "@elizaos/ui";
+import { Textarea } from "@elizaos/ui";
+import { Switch } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@elizaos/ui";
 import {
   Loader2,
   Trash2,

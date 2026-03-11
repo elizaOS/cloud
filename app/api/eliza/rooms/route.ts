@@ -10,7 +10,7 @@ import { roomsService } from "@/lib/services/agents/rooms";
 import { agentsService } from "@/lib/services/agents/agents";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
-import { charactersService } from "@/lib/services/characters";
+import { charactersService } from "@/lib/services/characters/characters";
 
 // Default agent ID - used when no character is selected
 // This is the ID of the built-in Eliza character

@@ -16,6 +16,8 @@ import { containersService } from "./containers";
 import { redeemableEarningsService } from "./redeemable-earnings";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { logger } from "@/lib/utils/logger";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 // ============================================================================
 // Types
@@ -116,6 +118,18 @@ export interface UseMcpResult {
 
 class UserMcpsService {
   /**
+   * Invalidate cache for an MCP
+   */
+  async invalidateCache(mcp: UserMcp): Promise<void> {
+    const promises = [
+      cache.del(CacheKeys.mcp.byId(mcp.id)),
+      cache.del(CacheKeys.mcp.bySlug(mcp.organization_id, mcp.slug)),
+    ];
+    await Promise.all(promises);
+    logger.debug("[UserMcps] Invalidated cache for MCP:", mcp.id);
+  }
+
+  /**
    * Create a new user MCP
    */
   async create(params: CreateMcpParams): Promise<UserMcp> {
@@ -191,7 +205,15 @@ class UserMcpsService {
    * Get MCP by ID
    */
   async getById(id: string): Promise<UserMcp | null> {
-    return userMcpsRepository.getById(id);
+    const cacheKey = CacheKeys.mcp.byId(id);
+    const cached = await cache.get<UserMcp>(cacheKey);
+    if (cached) return cached;
+
+    const mcp = await userMcpsRepository.getById(id);
+    if (mcp) {
+      await cache.set(cacheKey, mcp, CacheTTL.mcp.data);
+    }
+    return mcp;
   }
 
   /**
@@ -201,7 +223,15 @@ class UserMcpsService {
     slug: string,
     organizationId: string,
   ): Promise<UserMcp | null> {
-    return userMcpsRepository.getBySlug(slug, organizationId);
+    const cacheKey = CacheKeys.mcp.bySlug(organizationId, slug);
+    const cached = await cache.get<UserMcp>(cacheKey);
+    if (cached) return cached;
+
+    const mcp = await userMcpsRepository.getBySlug(slug, organizationId);
+    if (mcp) {
+      await cache.set(cacheKey, mcp, CacheTTL.mcp.data);
+    }
+    return mcp;
   }
 
   /**
@@ -289,6 +319,8 @@ class UserMcpsService {
       throw new Error("Failed to update MCP");
     }
 
+    await this.invalidateCache(updated);
+
     logger.info("[UserMcps] Updated MCP", { id, updates: Object.keys(params) });
 
     return updated;
@@ -328,6 +360,8 @@ class UserMcpsService {
       throw new Error("Failed to publish MCP");
     }
 
+    await this.invalidateCache(updated);
+
     logger.info("[UserMcps] Published MCP", {
       id,
       name: mcp.name,
@@ -353,6 +387,8 @@ class UserMcpsService {
       throw new Error("Failed to unpublish MCP");
     }
 
+    await this.invalidateCache(updated);
+
     logger.info("[UserMcps] Unpublished MCP", { id });
 
     return updated;
@@ -371,6 +407,7 @@ class UserMcpsService {
     }
 
     await userMcpsRepository.delete(id);
+    await this.invalidateCache(mcp);
 
     logger.info("[UserMcps] Deleted MCP", { id });
   }

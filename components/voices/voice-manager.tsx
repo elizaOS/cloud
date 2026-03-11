@@ -14,16 +14,16 @@
 import { useState } from "react";
 import { VoiceCloneForm } from "./voice-clone-form";
 import { VoiceCard } from "./voice-card";
-import { VoiceEmptyState } from "./voice-empty-state";
-import { VoiceAudioPlayer } from "./voice-audio-player";
-import { Button } from "@/components/ui/button";
+import { VoiceEmptyState } from "@elizaos/ui";
+import { VoiceAudioPlayer } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@elizaos/ui";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import type { Voice } from "./types";

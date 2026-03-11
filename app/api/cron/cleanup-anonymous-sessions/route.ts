@@ -23,6 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbRead, dbWrite } from "@/db/client";
 import { users, anonymousSessions, conversations } from "@/db/schemas";
+import { userIdentities } from "@/db/schemas/user-identities";
 import { and, eq, lt } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
@@ -64,16 +65,19 @@ export async function GET(request: NextRequest) {
     let deletedSessions = 0;
     let deletedConversations = 0;
 
-    // Step 1: Find expired anonymous users
-    const expiredUsers = await dbRead
-      .select()
+    // Step 1: Find expired anonymous users (via identity table)
+    const expiredUserRows = await dbRead
+      .select({ id: users.id })
       .from(users)
+      .innerJoin(userIdentities, eq(users.id, userIdentities.user_id))
       .where(
         and(
-          eq(users.is_anonymous, true),
-          lt(users.expires_at!, now), // expires_at < now
+          eq(userIdentities.is_anonymous, true),
+          lt(userIdentities.expires_at!, now),
         ),
       );
+
+    const expiredUsers = expiredUserRows;
 
     logger.info(
       "cleanup-cron",
@@ -128,7 +132,7 @@ export async function GET(request: NextRequest) {
       .from(users)
       .leftJoin(anonymousSessions, eq(anonymousSessions.user_id, users.id))
       .where(
-        and(eq(users.is_anonymous, true), lt(users.created_at, sevenDaysAgo)),
+        and(eq(userIdentities.is_anonymous, true), lt(users.created_at, sevenDaysAgo)),
       );
 
     let deletedInactiveUsers = 0;

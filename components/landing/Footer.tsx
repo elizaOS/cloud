@@ -9,7 +9,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { Copy, Check } from "lucide-react";
-import { ElizaCloudLockup } from "@/components/brand";
+import { ElizaCloudLockup } from "@elizaos/ui";
 
 const TOKEN_ADDRESSES = [
   {

@@ -5,9 +5,9 @@
 
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import { ArrowUpRight, Check } from "lucide-react";
-import { CornerBrackets, SectionLabel, BrandCard } from "@/components/brand";
+import { CornerBrackets, SectionLabel, BrandCard } from "@elizaos/ui";
 import MicropaymentNetwork from "./MicropaymentNetwork";
 import Image from "next/image";
 import { ReactFlowProvider } from "@xyflow/react";

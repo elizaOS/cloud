@@ -6,8 +6,19 @@
  * @param props.users - Array of user usage data
  */
 import { formatDistanceToNowStrict } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
 import type { AnalyticsData } from "@/lib/actions/analytics";
 
 interface TopUsersTableProps {
@@ -34,15 +45,17 @@ export function TopUsersTable({ users }: TopUsersTableProps) {
             No user activity for the current filters.
           </div>
         ) : (
-          <div className="overflow-hidden px-2 pb-2">
-            <div className="hidden border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground md:grid md:grid-cols-[auto_1fr_repeat(3,minmax(0,140px))]">
-              <span className="px-6 py-3">Rank</span>
-              <span className="px-6 py-3">User</span>
-              <span className="px-6 py-3 text-right">Requests</span>
-              <span className="px-6 py-3 text-right">Cost</span>
-              <span className="px-6 py-3 text-right">Tokens</span>
-            </div>
-            <div className="divide-y divide-border/60">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-16">Rank</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead className="text-right">Requests</TableHead>
+                <TableHead className="text-right">Cost</TableHead>
+                <TableHead className="text-right">Tokens</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {users.map((user: (typeof users)[0], index: number) => {
                 const totalTokens = user.inputTokens + user.outputTokens;
                 const lastActiveLabel = user.lastActive
@@ -52,43 +65,42 @@ export function TopUsersTable({ users }: TopUsersTableProps) {
                   : "No activity";
 
                 return (
-                  <div
-                    key={user.userId}
-                    className="grid grid-cols-1 gap-4 px-6 py-5 text-sm transition-colors hover:bg-muted/40 md:grid-cols-[auto_1fr_repeat(3,minmax(0,140px))] md:gap-0 md:py-4"
-                  >
-                    <div className="flex items-center md:justify-center">
+                  <TableRow key={user.userId}>
+                    <TableCell>
                       <Badge
                         variant="outline"
                         className="min-w-[2.25rem] justify-center"
                       >
                         #{index + 1}
                       </Badge>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-foreground">
-                        {user.userName || "Unknown"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {user.userEmail}
-                      </span>
-                      <span className="mt-1 text-xs text-muted-foreground/80">
-                        Last active {lastActiveLabel}
-                      </span>
-                    </div>
-                    <div className="text-right font-mono tabular-nums md:self-center">
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-foreground">
+                          {user.userName || "Unknown"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {user.userEmail}
+                        </span>
+                        <span className="mt-1 text-xs text-muted-foreground/80">
+                          Last active {lastActiveLabel}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
                       {numberFormatter.format(user.totalRequests)}
-                    </div>
-                    <div className="text-right font-mono tabular-nums md:self-center">
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
                       {numberFormatter.format(user.totalCost)}
-                    </div>
-                    <div className="text-right font-mono tabular-nums md:self-center">
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
                       {numberFormatter.format(totalTokens)}
-                    </div>
-                  </div>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </div>
-          </div>
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>

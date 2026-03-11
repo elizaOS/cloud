@@ -25,7 +25,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import type { SettingsTab } from "./settings-page-client";
 

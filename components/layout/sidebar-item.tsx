@@ -18,7 +18,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@elizaos/ui";
 
 interface SidebarNavigationItemProps {
   item: SidebarItem;

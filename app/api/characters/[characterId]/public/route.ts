@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { charactersService } from "@/lib/services/characters";
+import { charactersService } from "@/lib/services/characters/characters";
 import { getCurrentUser } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 

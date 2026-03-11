@@ -17,8 +17,9 @@ import { testResponseAction } from "./actions/test-response";
 import { builderChatAction } from "./actions/builder-chat";
 import { guideOnboardingAction } from "./actions/guide-onboarding";
 import { handleMessage } from "./handler";
-import { roomTitleEvaluator } from "../shared/evaluators";
-import { characterProvider, recentMessagesProvider } from "../shared/providers";
+import { roomTitleEvaluator } from "../shared/evaluators/room-title";
+import { characterProvider } from "../shared/providers/character";
+import { recentMessagesProvider } from "../shared/providers/recent-messages";
 import type { StreamChunkCallback } from "../shared/types";
 
 /**

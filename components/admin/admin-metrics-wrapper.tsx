@@ -1,6 +1,6 @@
 "use client";
 
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import { AdminMetricsClient } from "./admin-metrics-client";
 
 export function AdminMetricsWrapper() {

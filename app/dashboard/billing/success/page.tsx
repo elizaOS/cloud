@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { logger } from "@/lib/utils/logger";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import {
   Card,
   CardContent,
@@ -9,7 +9,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@elizaos/ui";
 import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
 import { requireAuthWithOrg } from "@/lib/auth";

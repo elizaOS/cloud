@@ -6,40 +6,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { PromptInput } from "./prompt-input";
+import { ImagePromptInput as PromptInput, ImageEmptyState as EmptyState, ImageLoadingState as LoadingState, type AspectRatio, type StylePreset } from "@elizaos/ui";
 import { ImageDisplay } from "./image-display";
-import { EmptyState } from "./empty-state";
-import { LoadingState } from "./loading-state";
 
-/**
- * Supported aspect ratios for image generation.
- */
-export type AspectRatio =
-  | "1:1"
-  | "16:9"
-  | "9:16"
-  | "4:3"
-  | "3:4"
-  | "21:9"
-  | "9:21";
+// Re-export types for consumers that still import from this file
+export type { AspectRatio, StylePreset } from "@elizaos/ui";
 
-/**
- * Style presets for image generation.
- */
-export type StylePreset =
-  | "none"
-  | "photographic"
-  | "digital-art"
-  | "comic-book"
-  | "fantasy-art"
-  | "analog-film"
-  | "neon-punk"
-  | "isometric"
-  | "low-poly"
-  | "origami"
-  | "line-art"
-  | "cinematic"
-  | "3d-model";
 
 interface GeneratedImage {
   image: string;
@@ -149,15 +121,15 @@ export function ImageGenerator() {
     <div className="space-y-8 w-full">
       <PromptInput
         prompt={formState.prompt}
-        onPromptChange={(v) => updateForm({ prompt: v })}
+        onPromptChange={(v: string) => updateForm({ prompt: v })}
         onSubmit={handleGenerate}
         isLoading={generationState.isLoading}
         numImages={formState.numImages}
-        onNumImagesChange={(v) => updateForm({ numImages: v })}
+        onNumImagesChange={(v: number) => updateForm({ numImages: v })}
         aspectRatio={formState.aspectRatio}
-        onAspectRatioChange={(v) => updateForm({ aspectRatio: v })}
+        onAspectRatioChange={(v: AspectRatio) => updateForm({ aspectRatio: v })}
         stylePreset={formState.stylePreset}
-        onStylePresetChange={(v) => updateForm({ stylePreset: v })}
+        onStylePresetChange={(v: StylePreset) => updateForm({ stylePreset: v })}
       />
 
       {generationState.error && (

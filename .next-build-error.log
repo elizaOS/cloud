@@ -1,0 +1,1766 @@
+$ bun run generate:llms && NEXT_DIST_DIR=.next-build LOG_LEVEL=error NODE_NO_WARNINGS=1 next build
+$ tsx scripts/generate-llms-txt.ts
+Generated llms.txt + llms-full.txt with 44 pages -> public/{llms.txt,llms-full.txt} and public/.well-known/{llms.txt,llms-full.txt}
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · optimizePackageImports
+  · serverActions
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 43 errors:
+./packages/ui/src/components/ai-elements/branch.tsx:17:1
+Module not found: Can't resolve '../act'
+[0m [90m 15 |[39m [36mimport[39m { [33mChevronLeftIcon[39m[33m,[39m [33mChevronRightIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 16 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mHTMLAttributes[39m[33m,[39m [33mReactElement[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 17 |[39m [36mimport[39m { createContext[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useMemo[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 18 |[39m
+ [90m 19 |[39m type [33mBranchContextType[39m [33m=[39m {
+ [90m 20 |[39m   currentBranch[33m:[39m number[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/branch.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/branch.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/branch.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/chain-of-thought.tsx:21:1
+Module not found: Can't resolve '../act'
+[0m [90m 19 |[39m [36mimport[39m { [33mBrainIcon[39m[33m,[39m [33mChevronDownIcon[39m[33m,[39m [33mDotIcon[39m[33m,[39m type [33mLucideIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 20 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 21 |[39m [36mimport[39m { createContext[33m,[39m memo[33m,[39m useContext[33m,[39m useMemo } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 22 |[39m
+ [90m 23 |[39m type [33mChainOfThoughtContextValue[39m [33m=[39m {
+ [90m 24 |[39m   isOpen[33m:[39m boolean[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/chain-of-thought.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/chain-of-thought.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/chain-of-thought.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/code-block.tsx:7:1
+Module not found: Can't resolve '../act'
+[0m [90m  5 |[39m [36mimport[39m { [33mCheckIcon[39m[33m,[39m [33mCopyIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m  6 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mHTMLAttributes[39m[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m { createContext[33m,[39m useContext[33m,[39m useMemo[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  8 |[39m [36mimport[39m { [33mPrism[39m [36mas[39m [33mSyntaxHighlighter[39m } [36mfrom[39m [32m"../act-syntax-highlighter"[39m[33m;[39m
+ [90m  9 |[39m [36mimport[39m {
+ [90m 10 |[39m   oneDark[33m,[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/code-block.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/code-block.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/code-block.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/context.tsx:21:1
+Module not found: Can't resolve '../act'
+[0m [90m 19 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 20 |[39m [36mimport[39m type { [33mLanguageModelUsage[39m } [36mfrom[39m [32m"ai"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 21 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m createContext[33m,[39m useContext[33m,[39m useMemo } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 22 |[39m [36mimport[39m { estimateCost[33m,[39m type [33mModelId[39m } [36mfrom[39m [32m"../kenlens"[39m[33m;[39m
+ [90m 23 |[39m
+ [90m 24 |[39m [36mconst[39m [33mPERCENT_MAX[39m [33m=[39m [35m100[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/context.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/conversation.tsx:12:1
+Module not found: Can't resolve '../act'
+[0m [90m 10 |[39m [36mimport[39m { [33mArrowDownIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { useCallback } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 13 |[39m [36mimport[39m { [33mStickToBottom[39m[33m,[39m useStickToBottomContext } [36mfrom[39m [32m"../e-stick-to-bottom"[39m[33m;[39m
+ [90m 14 |[39m
+ [90m 15 |[39m [36mexport[39m type [33mConversationProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[36mtypeof[39m [33mStickToBottom[39m[33m>[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/conversation.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/conversation.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/conversation.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/inline-citation.tsx:18:1
+Module not found: Can't resolve '../act'
+[0m [90m 16 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 17 |[39m [36mimport[39m { [33mArrowLeftIcon[39m[33m,[39m [33mArrowRightIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 18 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m createContext[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 19 |[39m
+ [90m 20 |[39m [36mexport[39m type [33mInlineCitationProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[32m"span"[39m[33m>[39m[33m;[39m
+ [90m 21 |[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/account/account-page-client.tsx [Client Component Browser]
+    ./components/account/account-page-client.tsx [Server Component]
+    ./app/dashboard/account/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./components/layout/landing-header.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Server Component]
+    ./app/blog/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/open-in-chat.tsx:11:1
+Module not found: Can't resolve '../act'
+[0m [90m  9 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 10 |[39m [36mimport[39m { [33mChevronDownIcon[39m[33m,[39m [33mExternalLinkIcon[39m[33m,[39m [33mMessageCircleIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 11 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m createContext[33m,[39m useContext[33m,[39m useMemo } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 12 |[39m
+ [90m 13 |[39m [36mconst[39m providers [33m=[39m {
+ [90m 14 |[39m   github[33m:[39m {[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/open-in-chat.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/open-in-chat.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./app/auth/cli-login/page.tsx [Client Component SSR]
+    ./app/auth/cli-login/page.tsx [Server Component]
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/open-in-chat.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/layout/chat-sidebar.tsx [Client Component Browser]
+    ./app/dashboard/(chat-build)/layout.tsx [Client Component Browser]
+    ./app/dashboard/(chat-build)/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/prompt-input.tsx:18:1
+Module not found: Can't resolve '../act'
+[0m [90m 16 |[39m [36mimport[39m { [33mImageIcon[39m[33m,[39m [33mLoader2Icon[39m[33m,[39m [33mMicIcon[39m[33m,[39m [33mPaperclipIcon[39m[33m,[39m [33mPlusIcon[39m[33m,[39m [33mSendIcon[39m[33m,[39m [33mSquareIcon[39m[33m,[39m [33mXIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 17 |[39m [36mimport[39m { nanoid } [36mfrom[39m [32m"../noid"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 18 |[39m [36mimport[39m { type [33mChangeEvent[39m[33m,[39m type [33mChangeEventHandler[39m[33m,[39m [33mChildren[39m[33m,[39m type [33mClipboardEventHandler[39m[33m,[39m type [33mComponentProps[39m[33m,[39m createContext[33m,[39m type [33mFormEvent[39m[33m,[39m type [33mFormEventHandler[39m[33m,[39m [33mFragment[39m[33m,[39m type [33mHTMLAttributes[39m[33m,[39m type [33mKeyboardEventHandler[39m[33m,[39m type [33mPropsWithChildren[39m[33m,[39m type [33mReactNode[39m[33m,[39m type [33mRefObject[39m[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useLayoutEffect[33m,[39m useMemo[33m,[39m useRef[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 19 |[39m [90m// ============================================================================[39m
+ [90m 20 |[39m [90m// Provider Context & Types[39m
+ [90m 21 |[39m [90m// ============================================================================[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/prompt-input.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/prompt-input.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./app/invite/accept/page.tsx [Client Component Browser]
+    ./app/invite/accept/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/prompt-input.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./components/affiliates/affiliates-page-client.tsx [Client Component SSR]
+    ./components/affiliates/affiliates-page-wrapper.tsx [Client Component SSR]
+    ./components/affiliates/affiliates-page-wrapper.tsx [Server Component]
+    ./app/dashboard/affiliates/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/reasoning.tsx:10:1
+Module not found: Can't resolve '../act'
+[0m [90m  8 |[39m [36mimport[39m { [33mBrainIcon[39m[33m,[39m [33mChevronDownIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m  9 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 10 |[39m [36mimport[39m { createContext[33m,[39m memo[33m,[39m useContext[33m,[39m useEffect[33m,[39m useMemo[33m,[39m useRef[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 11 |[39m [36mimport[39m { [33mResponse[39m } [36mfrom[39m [32m"../response"[39m[33m;[39m
+ [90m 12 |[39m
+ [90m 13 |[39m type [33mReasoningContextValue[39m [33m=[39m {[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/reasoning.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/reasoning.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/reasoning.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/response.tsx:8:1
+Module not found: Can't resolve '../act'
+[0m [90m  6 |[39m
+ [90m  7 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  8 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m memo } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  9 |[39m [36mimport[39m { [33mStreamdown[39m } [36mfrom[39m [32m"../reamdown"[39m[33m;[39m
+ [90m 10 |[39m
+ [90m 11 |[39m type [33mResponseProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[36mtypeof[39m [33mStreamdown[39m[33m>[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/response.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/response.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/response.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/tool.tsx:17:1
+Module not found: Can't resolve '../act'
+[0m [90m 15 |[39m [36mimport[39m { [33mCheckCircleIcon[39m[33m,[39m [33mChevronDownIcon[39m[33m,[39m [33mCircleIcon[39m[33m,[39m [33mClockIcon[39m[33m,[39m [33mWrenchIcon[39m[33m,[39m [33mXCircleIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 16 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 17 |[39m [36mimport[39m { isValidElement } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 18 |[39m [36mimport[39m { [33mCodeBlock[39m } [36mfrom[39m [32m"../code-block"[39m[33m;[39m
+ [90m 19 |[39m
+ [90m 20 |[39m [36mexport[39m type [33mToolProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[36mtypeof[39m [33mCollapsible[39m[33m>[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/tool.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/tool.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/tool.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/web-preview.tsx:22:1
+Module not found: Can't resolve '../act'
+[0m [90m 20 |[39m [36mimport[39m { [33mChevronDownIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 21 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 22 |[39m [36mimport[39m { createContext[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useMemo[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 23 |[39m
+ [90m 24 |[39m [36mexport[39m type [33mWebPreviewContextValue[39m [33m=[39m {
+ [90m 25 |[39m   url[33m:[39m string[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/web-preview.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/web-preview.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/web-preview.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/code-block.tsx:8:1
+Module not found: Can't resolve '../act-syntax-highlighter'
+[0m [90m  6 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mHTMLAttributes[39m[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m  7 |[39m [36mimport[39m { createContext[33m,[39m useContext[33m,[39m useMemo[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  8 |[39m [36mimport[39m { [33mPrism[39m [36mas[39m [33mSyntaxHighlighter[39m } [36mfrom[39m [32m"../act-syntax-highlighter"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  9 |[39m [36mimport[39m {
+ [90m 10 |[39m   oneDark[33m,[39m
+ [90m 11 |[39m   oneLight[33m,[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/code-block.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/code-block.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/code-block.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/message.tsx:4:1
+Module not found: Can't resolve '../ass-variance-authority'
+[0m [90m 2 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m type { [33mUIMessage[39m } [36mfrom[39m [32m"ai"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 4 |[39m [36mimport[39m { cva[33m,[39m type [33mVariantProps[39m } [36mfrom[39m [32m"../ass-variance-authority"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 5 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mHTMLAttributes[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 6 |[39m [90m// Native img used for framework agnosticism[39m
+ [90m 7 |[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/message.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/message.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./app/auth/cli-login/page.tsx [Client Component SSR]
+    ./app/auth/cli-login/page.tsx [Server Component]
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/message.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/layout/chat-sidebar.tsx [Client Component Browser]
+    ./app/dashboard/(chat-build)/layout.tsx [Client Component Browser]
+    ./app/dashboard/(chat-build)/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/artifact.tsx:12:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 10 |[39m [36mimport[39m { [33mTooltipProvider[39m } [36mfrom[39m [32m"../tooltipprovider"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { type [33mLucideIcon[39m[33m,[39m [33mXIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 13 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mHTMLAttributes[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 14 |[39m
+ [90m 15 |[39m [36mexport[39m type [33mArtifactProps[39m [33m=[39m [33mHTMLAttributes[39m[33m<[39m[33mHTMLDivElement[39m[33m>[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/artifact.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/artifact.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/artifact.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/branch.tsx:15:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 13 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 14 |[39m [36mimport[39m type { [33mUIMessage[39m } [36mfrom[39m [32m"ai"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 15 |[39m [36mimport[39m { [33mChevronLeftIcon[39m[33m,[39m [33mChevronRightIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 16 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mHTMLAttributes[39m[33m,[39m [33mReactElement[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 17 |[39m [36mimport[39m { createContext[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useMemo[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 18 |[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/branch.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/branch.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/branch.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/chain-of-thought.tsx:19:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 17 |[39m [36mimport[39m { [33mCollapsibleTrigger[39m } [36mfrom[39m [32m"../collapsible"[39m[33m;[39m
+ [90m 18 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 19 |[39m [36mimport[39m { [33mBrainIcon[39m[33m,[39m [33mChevronDownIcon[39m[33m,[39m [33mDotIcon[39m[33m,[39m type [33mLucideIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 20 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 21 |[39m [36mimport[39m { createContext[33m,[39m memo[33m,[39m useContext[33m,[39m useMemo } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 22 |[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/chain-of-thought.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/chain-of-thought.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/chain-of-thought.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/code-block.tsx:5:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 3 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"../button"[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 5 |[39m [36mimport[39m { [33mCheckIcon[39m[33m,[39m [33mCopyIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 6 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mHTMLAttributes[39m[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 7 |[39m [36mimport[39m { createContext[33m,[39m useContext[33m,[39m useMemo[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 8 |[39m [36mimport[39m { [33mPrism[39m [36mas[39m [33mSyntaxHighlighter[39m } [36mfrom[39m [32m"../act-syntax-highlighter"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/code-block.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/code-block.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/code-block.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/conversation.tsx:10:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m  8 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"../button"[39m[33m;[39m
+ [90m  9 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 10 |[39m [36mimport[39m { [33mArrowDownIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 11 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { useCallback } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 13 |[39m [36mimport[39m { [33mStickToBottom[39m[33m,[39m useStickToBottomContext } [36mfrom[39m [32m"../e-stick-to-bottom"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/conversation.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/conversation.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/conversation.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/inline-citation.tsx:17:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 15 |[39m [36mimport[39m { [33mHoverCardTrigger[39m } [36mfrom[39m [32m"../hovercardtrigger"[39m[33m;[39m
+ [90m 16 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 17 |[39m [36mimport[39m { [33mArrowLeftIcon[39m[33m,[39m [33mArrowRightIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 18 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m createContext[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 19 |[39m
+ [90m 20 |[39m [36mexport[39m type [33mInlineCitationProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[32m"span"[39m[33m>[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/account/account-page-client.tsx [Client Component Browser]
+    ./components/account/account-page-client.tsx [Server Component]
+    ./app/dashboard/account/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./components/layout/landing-header.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Server Component]
+    ./app/blog/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/open-in-chat.tsx:10:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m  8 |[39m [36mimport[39m { [33mDropdownMenuLabel[39m } [36mfrom[39m [32m"../dropdownmenulabel"[39m[33m;[39m
+ [90m  9 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 10 |[39m [36mimport[39m { [33mChevronDownIcon[39m[33m,[39m [33mExternalLinkIcon[39m[33m,[39m [33mMessageCircleIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 11 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m createContext[33m,[39m useContext[33m,[39m useMemo } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 12 |[39m
+ [90m 13 |[39m [36mconst[39m providers [33m=[39m {[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/open-in-chat.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/open-in-chat.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./app/auth/cli-login/page.tsx [Client Component SSR]
+    ./app/auth/cli-login/page.tsx [Server Component]
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/open-in-chat.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/layout/chat-sidebar.tsx [Client Component Browser]
+    ./app/dashboard/(chat-build)/layout.tsx [Client Component Browser]
+    ./app/dashboard/(chat-build)/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/prompt-input.tsx:16:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 14 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 15 |[39m [36mimport[39m type { [33mChatStatus[39m[33m,[39m [33mFileUIPart[39m } [36mfrom[39m [32m"ai"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 16 |[39m [36mimport[39m { [33mImageIcon[39m[33m,[39m [33mLoader2Icon[39m[33m,[39m [33mMicIcon[39m[33m,[39m [33mPaperclipIcon[39m[33m,[39m [33mPlusIcon[39m[33m,[39m [33mSendIcon[39m[33m,[39m [33mSquareIcon[39m[33m,[39m [33mXIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 17 |[39m [36mimport[39m { nanoid } [36mfrom[39m [32m"../noid"[39m[33m;[39m
+ [90m 18 |[39m [36mimport[39m { type [33mChangeEvent[39m[33m,[39m type [33mChangeEventHandler[39m[33m,[39m [33mChildren[39m[33m,[39m type [33mClipboardEventHandler[39m[33m,[39m type [33mComponentProps[39m[33m,[39m createContext[33m,[39m type [33mFormEvent[39m[33m,[39m type [33mFormEventHandler[39m[33m,[39m [33mFragment[39m[33m,[39m type [33mHTMLAttributes[39m[33m,[39m type [33mKeyboardEventHandler[39m[33m,[39m type [33mPropsWithChildren[39m[33m,[39m type [33mReactNode[39m[33m,[39m type [33mRefObject[39m[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useLayoutEffect[33m,[39m useMemo[33m,[39m useRef[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 19 |[39m [90m// ============================================================================[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/prompt-input.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/prompt-input.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./app/invite/accept/page.tsx [Client Component Browser]
+    ./app/invite/accept/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/prompt-input.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./components/affiliates/affiliates-page-client.tsx [Client Component SSR]
+    ./components/affiliates/affiliates-page-wrapper.tsx [Client Component SSR]
+    ./components/affiliates/affiliates-page-wrapper.tsx [Server Component]
+    ./app/dashboard/affiliates/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/reasoning.tsx:8:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m  6 |[39m [36mimport[39m { [33mCollapsibleTrigger[39m } [36mfrom[39m [32m"../collapsible"[39m[33m;[39m
+ [90m  7 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  8 |[39m [36mimport[39m { [33mBrainIcon[39m[33m,[39m [33mChevronDownIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  9 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 10 |[39m [36mimport[39m { createContext[33m,[39m memo[33m,[39m useContext[33m,[39m useEffect[33m,[39m useMemo[33m,[39m useRef[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { [33mResponse[39m } [36mfrom[39m [32m"../response"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/reasoning.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/reasoning.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/reasoning.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/sources.tsx:12:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 10 |[39m [36mimport[39m { [33mCollapsibleTrigger[39m } [36mfrom[39m [32m"../collapsible"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { [33mBookIcon[39m[33m,[39m [33mChevronDownIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 13 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 14 |[39m
+ [90m 15 |[39m [36mexport[39m type [33mSourcesProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[32m"div"[39m[33m>[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/sources.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/sources.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/sources.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/task.tsx:12:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 10 |[39m [36mimport[39m { [33mCollapsibleTrigger[39m } [36mfrom[39m [32m"../collapsible"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 12 |[39m [36mimport[39m { [33mChevronDownIcon[39m[33m,[39m [33mSearchIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 13 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 14 |[39m
+ [90m 15 |[39m [36mexport[39m type [33mTaskItemFileProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[32m"div"[39m[33m>[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/task.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/task.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/task.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/tool.tsx:15:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 13 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 14 |[39m [36mimport[39m type { [33mToolUIPart[39m } [36mfrom[39m [32m"ai"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 15 |[39m [36mimport[39m { [33mCheckCircleIcon[39m[33m,[39m [33mChevronDownIcon[39m[33m,[39m [33mCircleIcon[39m[33m,[39m [33mClockIcon[39m[33m,[39m [33mWrenchIcon[39m[33m,[39m [33mXCircleIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 16 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 17 |[39m [36mimport[39m { isValidElement } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 18 |[39m [36mimport[39m { [33mCodeBlock[39m } [36mfrom[39m [32m"../code-block"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/tool.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/tool.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/tool.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/web-preview.tsx:20:1
+Module not found: Can't resolve '../cide-react'
+[0m [90m 18 |[39m [36mimport[39m { [33mTooltipProvider[39m } [36mfrom[39m [32m"../tooltipprovider"[39m[33m;[39m
+ [90m 19 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 20 |[39m [36mimport[39m { [33mChevronDownIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 21 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 22 |[39m [36mimport[39m { createContext[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useMemo[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 23 |[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/web-preview.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/web-preview.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/web-preview.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/tool.tsx:18:1
+Module not found: Can't resolve '../code-block'
+[0m [90m 16 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 17 |[39m [36mimport[39m { isValidElement } [36mfrom[39m [32m"../act"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 18 |[39m [36mimport[39m { [33mCodeBlock[39m } [36mfrom[39m [32m"../code-block"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 19 |[39m
+ [90m 20 |[39m [36mexport[39m type [33mToolProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[36mtypeof[39m [33mCollapsible[39m[33m>[39m[33m;[39m
+ [90m 21 |[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/tool.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/tool.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/tool.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/open-in-chat.tsx:8:1
+Module not found: Can't resolve '../dropdownmenulabel'
+[0m [90m  6 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"../button"[39m[33m;[39m
+ [90m  7 |[39m [36mimport[39m { [33mDropdownMenu[39m[33m,[39m [33mDropdownMenuContent[39m[33m,[39m [33mDropdownMenuItem[39m[33m,[39m [33mDropdownMenuSeparator[39m[33m,[39m [33mDropdownMenuTrigger[39m } [36mfrom[39m [32m"../dropdown-menu"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  8 |[39m [36mimport[39m { [33mDropdownMenuLabel[39m } [36mfrom[39m [32m"../dropdownmenulabel"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  9 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 10 |[39m [36mimport[39m { [33mChevronDownIcon[39m[33m,[39m [33mExternalLinkIcon[39m[33m,[39m [33mMessageCircleIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m createContext[33m,[39m useContext[33m,[39m useMemo } [36mfrom[39m [32m"../act"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/open-in-chat.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/open-in-chat.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./app/auth/cli-login/page.tsx [Client Component SSR]
+    ./app/auth/cli-login/page.tsx [Server Component]
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/open-in-chat.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/layout/chat-sidebar.tsx [Client Component Browser]
+    ./app/dashboard/(chat-build)/layout.tsx [Client Component Browser]
+    ./app/dashboard/(chat-build)/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/conversation.tsx:13:1
+Module not found: Can't resolve '../e-stick-to-bottom'
+[0m [90m 11 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { useCallback } [36mfrom[39m [32m"../act"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 13 |[39m [36mimport[39m { [33mStickToBottom[39m[33m,[39m useStickToBottomContext } [36mfrom[39m [32m"../e-stick-to-bottom"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 14 |[39m
+ [90m 15 |[39m [36mexport[39m type [33mConversationProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[36mtypeof[39m [33mStickToBottom[39m[33m>[39m[33m;[39m
+ [90m 16 |[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/conversation.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/conversation.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/conversation.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/context.tsx:15:1
+Module not found: Can't resolve '../hovercard'
+[0m [90m 13 |[39m
+ [90m 14 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"../button"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 15 |[39m [36mimport[39m { [33mHoverCard[39m } [36mfrom[39m [32m"../hovercard"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 16 |[39m [36mimport[39m { [33mHoverCardContent[39m } [36mfrom[39m [32m"../hovercardcontent"[39m[33m;[39m
+ [90m 17 |[39m [36mimport[39m { [33mHoverCardTrigger[39m } [36mfrom[39m [32m"../hovercardtrigger"[39m[33m;[39m
+ [90m 18 |[39m [36mimport[39m { [33mProgress[39m } [36mfrom[39m [32m"../progress"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/context.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/inline-citation.tsx:13:1
+Module not found: Can't resolve '../hovercard'
+[0m [90m 11 |[39m [36mimport[39m { [33mCarouselContent[39m } [36mfrom[39m [32m"../carousel"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { [33mCarouselItem[39m } [36mfrom[39m [32m"../carousel"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 13 |[39m [36mimport[39m { [33mHoverCard[39m } [36mfrom[39m [32m"../hovercard"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 14 |[39m [36mimport[39m { [33mHoverCardContent[39m } [36mfrom[39m [32m"../hovercardcontent"[39m[33m;[39m
+ [90m 15 |[39m [36mimport[39m { [33mHoverCardTrigger[39m } [36mfrom[39m [32m"../hovercardtrigger"[39m[33m;[39m
+ [90m 16 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/account/account-page-client.tsx [Client Component Browser]
+    ./components/account/account-page-client.tsx [Server Component]
+    ./app/dashboard/account/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./components/layout/landing-header.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Server Component]
+    ./app/blog/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/context.tsx:16:1
+Module not found: Can't resolve '../hovercardcontent'
+[0m [90m 14 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"../button"[39m[33m;[39m
+ [90m 15 |[39m [36mimport[39m { [33mHoverCard[39m } [36mfrom[39m [32m"../hovercard"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 16 |[39m [36mimport[39m { [33mHoverCardContent[39m } [36mfrom[39m [32m"../hovercardcontent"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 17 |[39m [36mimport[39m { [33mHoverCardTrigger[39m } [36mfrom[39m [32m"../hovercardtrigger"[39m[33m;[39m
+ [90m 18 |[39m [36mimport[39m { [33mProgress[39m } [36mfrom[39m [32m"../progress"[39m[33m;[39m
+ [90m 19 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/context.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/inline-citation.tsx:14:1
+Module not found: Can't resolve '../hovercardcontent'
+[0m [90m 12 |[39m [36mimport[39m { [33mCarouselItem[39m } [36mfrom[39m [32m"../carousel"[39m[33m;[39m
+ [90m 13 |[39m [36mimport[39m { [33mHoverCard[39m } [36mfrom[39m [32m"../hovercard"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 14 |[39m [36mimport[39m { [33mHoverCardContent[39m } [36mfrom[39m [32m"../hovercardcontent"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 15 |[39m [36mimport[39m { [33mHoverCardTrigger[39m } [36mfrom[39m [32m"../hovercardtrigger"[39m[33m;[39m
+ [90m 16 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 17 |[39m [36mimport[39m { [33mArrowLeftIcon[39m[33m,[39m [33mArrowRightIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/account/account-page-client.tsx [Client Component Browser]
+    ./components/account/account-page-client.tsx [Server Component]
+    ./app/dashboard/account/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./components/layout/landing-header.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Server Component]
+    ./app/blog/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/context.tsx:17:1
+Module not found: Can't resolve '../hovercardtrigger'
+[0m [90m 15 |[39m [36mimport[39m { [33mHoverCard[39m } [36mfrom[39m [32m"../hovercard"[39m[33m;[39m
+ [90m 16 |[39m [36mimport[39m { [33mHoverCardContent[39m } [36mfrom[39m [32m"../hovercardcontent"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 17 |[39m [36mimport[39m { [33mHoverCardTrigger[39m } [36mfrom[39m [32m"../hovercardtrigger"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 18 |[39m [36mimport[39m { [33mProgress[39m } [36mfrom[39m [32m"../progress"[39m[33m;[39m
+ [90m 19 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 20 |[39m [36mimport[39m type { [33mLanguageModelUsage[39m } [36mfrom[39m [32m"ai"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/context.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/inline-citation.tsx:15:1
+Module not found: Can't resolve '../hovercardtrigger'
+[0m [90m 13 |[39m [36mimport[39m { [33mHoverCard[39m } [36mfrom[39m [32m"../hovercard"[39m[33m;[39m
+ [90m 14 |[39m [36mimport[39m { [33mHoverCardContent[39m } [36mfrom[39m [32m"../hovercardcontent"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 15 |[39m [36mimport[39m { [33mHoverCardTrigger[39m } [36mfrom[39m [32m"../hovercardtrigger"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 16 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 17 |[39m [36mimport[39m { [33mArrowLeftIcon[39m[33m,[39m [33mArrowRightIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 18 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m createContext[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/account/account-page-client.tsx [Client Component Browser]
+    ./components/account/account-page-client.tsx [Server Component]
+    ./app/dashboard/account/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/inline-citation.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./components/layout/landing-header.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Client Component SSR]
+    ./components/landing/blog-page.tsx [Server Component]
+    ./app/blog/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/context.tsx:22:1
+Module not found: Can't resolve '../kenlens'
+[0m [90m 20 |[39m [36mimport[39m type { [33mLanguageModelUsage[39m } [36mfrom[39m [32m"ai"[39m[33m;[39m
+ [90m 21 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m createContext[33m,[39m useContext[33m,[39m useMemo } [36mfrom[39m [32m"../act"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 22 |[39m [36mimport[39m { estimateCost[33m,[39m type [33mModelId[39m } [36mfrom[39m [32m"../kenlens"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 23 |[39m
+ [90m 24 |[39m [36mconst[39m [33mPERCENT_MAX[39m [33m=[39m [35m100[39m[33m;[39m
+ [90m 25 |[39m [36mconst[39m [33mICON_RADIUS[39m [33m=[39m [35m10[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/context.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/context.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/prompt-input.tsx:17:1
+Module not found: Can't resolve '../noid'
+[0m [90m 15 |[39m [36mimport[39m type { [33mChatStatus[39m[33m,[39m [33mFileUIPart[39m } [36mfrom[39m [32m"ai"[39m[33m;[39m
+ [90m 16 |[39m [36mimport[39m { [33mImageIcon[39m[33m,[39m [33mLoader2Icon[39m[33m,[39m [33mMicIcon[39m[33m,[39m [33mPaperclipIcon[39m[33m,[39m [33mPlusIcon[39m[33m,[39m [33mSendIcon[39m[33m,[39m [33mSquareIcon[39m[33m,[39m [33mXIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 17 |[39m [36mimport[39m { nanoid } [36mfrom[39m [32m"../noid"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 18 |[39m [36mimport[39m { type [33mChangeEvent[39m[33m,[39m type [33mChangeEventHandler[39m[33m,[39m [33mChildren[39m[33m,[39m type [33mClipboardEventHandler[39m[33m,[39m type [33mComponentProps[39m[33m,[39m createContext[33m,[39m type [33mFormEvent[39m[33m,[39m type [33mFormEventHandler[39m[33m,[39m [33mFragment[39m[33m,[39m type [33mHTMLAttributes[39m[33m,[39m type [33mKeyboardEventHandler[39m[33m,[39m type [33mPropsWithChildren[39m[33m,[39m type [33mReactNode[39m[33m,[39m type [33mRefObject[39m[33m,[39m useCallback[33m,[39m useContext[33m,[39m useEffect[33m,[39m useLayoutEffect[33m,[39m useMemo[33m,[39m useRef[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+ [90m 19 |[39m [90m// ============================================================================[39m
+ [90m 20 |[39m [90m// Provider Context & Types[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/prompt-input.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/prompt-input.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./app/invite/accept/page.tsx [Client Component Browser]
+    ./app/invite/accept/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/prompt-input.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./components/affiliates/affiliates-page-client.tsx [Client Component SSR]
+    ./components/affiliates/affiliates-page-wrapper.tsx [Client Component SSR]
+    ./components/affiliates/affiliates-page-wrapper.tsx [Server Component]
+    ./app/dashboard/affiliates/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/response.tsx:9:1
+Module not found: Can't resolve '../reamdown'
+[0m [90m  7 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m  8 |[39m [36mimport[39m { type [33mComponentProps[39m[33m,[39m memo } [36mfrom[39m [32m"../act"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m { [33mStreamdown[39m } [36mfrom[39m [32m"../reamdown"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 10 |[39m
+ [90m 11 |[39m type [33mResponseProps[39m [33m=[39m [33mComponentProps[39m[33m<[39m[36mtypeof[39m [33mStreamdown[39m[33m>[39m[33m;[39m
+ [90m 12 |[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/response.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/response.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/response.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/reasoning.tsx:11:1
+Module not found: Can't resolve '../response'
+[0m [90m  9 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 10 |[39m [36mimport[39m { createContext[33m,[39m memo[33m,[39m useContext[33m,[39m useEffect[33m,[39m useMemo[33m,[39m useRef[33m,[39m useState } [36mfrom[39m [32m"../act"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 11 |[39m [36mimport[39m { [33mResponse[39m } [36mfrom[39m [32m"../response"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 12 |[39m
+ [90m 13 |[39m type [33mReasoningContextValue[39m [33m=[39m {
+ [90m 14 |[39m   isStreaming[33m:[39m boolean[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/reasoning.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/reasoning.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/reasoning.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/actions.tsx:10:1
+Module not found: Can't resolve '../tooltipprovider'
+[0m [90m  8 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"../button"[39m[33m;[39m
+ [90m  9 |[39m [36mimport[39m { [33mTooltip[39m[33m,[39m [33mTooltipContent[39m[33m,[39m [33mTooltipTrigger[39m } [36mfrom[39m [32m"../tooltip"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 10 |[39m [36mimport[39m { [33mTooltipProvider[39m } [36mfrom[39m [32m"../tooltipprovider"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 11 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m type { [33mComponentProps[39m } [36mfrom[39m [32m"react"[39m[33m;[39m
+ [90m 13 |[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/actions.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/actions.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/actions.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/artifact.tsx:10:1
+Module not found: Can't resolve '../tooltipprovider'
+[0m [90m  8 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"../button"[39m[33m;[39m
+ [90m  9 |[39m [36mimport[39m { [33mTooltip[39m[33m,[39m [33mTooltipContent[39m[33m,[39m [33mTooltipTrigger[39m } [36mfrom[39m [32m"../tooltip"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 10 |[39m [36mimport[39m { [33mTooltipProvider[39m } [36mfrom[39m [32m"../tooltipprovider"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 11 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { type [33mLucideIcon[39m[33m,[39m [33mXIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 13 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mHTMLAttributes[39m } [36mfrom[39m [32m"react"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/artifact.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/artifact.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/artifact.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./packages/ui/src/components/ai-elements/web-preview.tsx:18:1
+Module not found: Can't resolve '../tooltipprovider'
+[0m [90m 16 |[39m [36mimport[39m { [33mInput[39m } [36mfrom[39m [32m"../input"[39m[33m;[39m
+ [90m 17 |[39m [36mimport[39m { [33mTooltip[39m[33m,[39m [33mTooltipContent[39m[33m,[39m [33mTooltipTrigger[39m } [36mfrom[39m [32m"../tooltip"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 18 |[39m [36mimport[39m { [33mTooltipProvider[39m } [36mfrom[39m [32m"../tooltipprovider"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 19 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 20 |[39m [36mimport[39m { [33mChevronDownIcon[39m } [36mfrom[39m [32m"../cide-react"[39m[33m;[39m
+ [90m 21 |[39m [36mimport[39m type { [33mComponentProps[39m[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m"react"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  Server Component:
+    ./packages/ui/src/components/ai-elements/web-preview.tsx
+    ./packages/ui/src/components/ai-elements/index.ts
+    ./packages/ui/src/index.ts
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./packages/ui/src/components/ai-elements/web-preview.tsx [Client Component Browser]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component Browser]
+    ./packages/ui/src/index.ts [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Client Component Browser]
+    ./components/analytics/analytics-page-client.tsx [Server Component]
+    ./app/dashboard/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/ui/src/components/ai-elements/web-preview.tsx [Client Component SSR]
+    ./packages/ui/src/components/ai-elements/index.ts [Client Component SSR]
+    ./packages/ui/src/index.ts [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Client Component SSR]
+    ./packages/ui/src/components/input-group.tsx [Server Component]
+    ./packages/ui/src/index.ts [Server Component]
+    ./app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./packages/ui/src/components/ai-elements/branch.tsx:17:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/chain-of-thought.tsx:21:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/code-block.tsx:7:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/context.tsx:21:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/conversation.tsx:12:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/inline-citation.tsx:18:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/open-in-chat.tsx:11:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/prompt-input.tsx:18:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/reasoning.tsx:10:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/response.tsx:8:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/tool.tsx:17:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/web-preview.tsx:22:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/code-block.tsx:8:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/message.tsx:4:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/artifact.tsx:12:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/branch.tsx:15:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/chain-of-thought.tsx:19:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/code-block.tsx:5:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/conversation.tsx:10:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/inline-citation.tsx:17:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/open-in-chat.tsx:10:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/prompt-input.tsx:16:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/reasoning.tsx:8:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/sources.tsx:12:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/task.tsx:12:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/tool.tsx:15:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/web-preview.tsx:20:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/tool.tsx:18:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/open-in-chat.tsx:8:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/conversation.tsx:13:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/context.tsx:15:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/inline-citation.tsx:13:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/context.tsx:16:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/inline-citation.tsx:14:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/context.tsx:17:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/inline-citation.tsx:15:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/context.tsx:22:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/prompt-input.tsx:17:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/response.tsx:9:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/reasoning.tsx:11:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/actions.tsx:10:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/artifact.tsx:10:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./packages/ui/src/components/ai-elements/web-preview.tsx:18:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+error: script "build" exited with code 1

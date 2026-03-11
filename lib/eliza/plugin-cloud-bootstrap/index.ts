@@ -12,18 +12,18 @@ import {
 } from "@elizaos/core";
 
 import { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
-import { actionStateProvider, actionsProvider } from "./providers";
-import { generateImageAction } from "./actions";
+import { actionStateProvider } from "./providers/action-state";
+import { actionsProvider } from "./providers/actions";
+import { generateImageAction } from "./actions/image-generation";
 import { finishAction } from "./actions/finish";
-import { recentMessagesProvider, appConfigProvider } from "../shared/providers";
+import { recentMessagesProvider } from "../shared/providers/recent-messages";
+import { appConfigProvider } from "../shared/providers/app-config";
 import { characterProvider } from "./providers/character";
-import {
-  oauthConnectAction,
-  oauthListAction,
-  oauthGetAction,
-  oauthRevokeAction,
-  userAuthStatusProvider,
-} from "../plugin-oauth";
+import { oauthConnectAction } from "../plugin-oauth/actions/oauth-connect";
+import { oauthListAction } from "../plugin-oauth/actions/oauth-list";
+import { oauthGetAction } from "../plugin-oauth/actions/oauth-get";
+import { oauthRevokeAction } from "../plugin-oauth/actions/oauth-revoke";
+import { userAuthStatusProvider } from "../plugin-oauth/providers/user-auth-status";
 // Re-export for external use
 export { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
 export * from "./types";

@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -10,59 +11,32 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 
 /**
- * Users table schema.
+ * Users table schema (core).
  *
- * Stores user accounts with support for both authenticated (Privy) and anonymous users.
- * Anonymous users are tracked via session cookies and have limited functionality.
+ * Stores essential user account information and identity fields.
  *
- * Also supports Eliza App authentication via Telegram and phone number (iMessage).
+ * NOTE: Identity fields are kept here because the auth system (ElizaAppUserService,
+ * Discord/Telegram auth routes, session management) is deeply coupled to having
+ * these fields directly on the User type. The user_identities table serves as a
+ * read-optimized projection for analytics/metrics queries.
+ *
+ * Preferences (nickname, work_function, notification settings) → user_preferences table
  */
 export const users = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
 
-    // Privy authentication - NULLABLE to support anonymous users
-    privy_user_id: text("privy_user_id").unique(), // NULL for anonymous users
-
-    // Anonymous user support
-    is_anonymous: boolean("is_anonymous").notNull().default(false),
-    anonymous_session_id: text("anonymous_session_id").unique(), // Links to session cookie
-
-    // Telegram identity (Eliza App)
-    telegram_id: text("telegram_id").unique(), // Telegram user ID (stored as text for bigint safety)
-    telegram_username: text("telegram_username"), // @username without the @
-    telegram_first_name: text("telegram_first_name"), // Display name from Telegram
-    telegram_photo_url: text("telegram_photo_url"), // Profile photo URL
-
-    // Phone identity (Eliza App - iMessage)
-    phone_number: text("phone_number").unique(), // E.164 format: +1234567890
-    phone_verified: boolean("phone_verified").default(false),
-
-    // Discord identity (Eliza App)
-    discord_id: text("discord_id").unique(), // Discord user ID (snowflake)
-    discord_username: text("discord_username"), // Discord username
-    discord_global_name: text("discord_global_name"), // Discord display name
-    discord_avatar_url: text("discord_avatar_url"), // Discord avatar URL
-
-    // WhatsApp identity (Eliza App)
-    whatsapp_id: text("whatsapp_id").unique(), // WhatsApp user ID (digits only, e.g. "14245074963")
-    whatsapp_name: text("whatsapp_name"), // WhatsApp profile display name
-
-    // User profile
+    // User profile (core)
     email: text("email").unique(),
     email_verified: boolean("email_verified").default(false),
     wallet_address: text("wallet_address").unique(),
     wallet_chain_type: text("wallet_chain_type"),
     wallet_verified: boolean("wallet_verified").default(false).notNull(),
     name: text("name"),
-    nickname: text("nickname"),
-    work_function: text("work_function"),
-    preferences: text("preferences"),
-    response_notifications: boolean("response_notifications").default(true),
-    email_notifications: boolean("email_notifications").default(true),
+    avatar: text("avatar"),
 
-    // Organization - NULLABLE for anonymous users
+    // Organization
     organization_id: uuid("organization_id").references(
       () => organizations.id,
       {
@@ -71,13 +45,38 @@ export const users = pgTable(
     ),
     role: text("role").notNull().default("member"),
 
-    avatar: text("avatar"),
+    // External identities (kept here for auth system compatibility)
+    privy_user_id: text("privy_user_id").unique(),
+    telegram_id: text("telegram_id").unique(),
+    telegram_username: text("telegram_username"),
+    telegram_first_name: text("telegram_first_name"),
+    telegram_photo_url: text("telegram_photo_url"),
+    discord_id: text("discord_id").unique(),
+    discord_username: text("discord_username"),
+    discord_global_name: text("discord_global_name"),
+    discord_avatar_url: text("discord_avatar_url"),
+    whatsapp_id: text("whatsapp_id").unique(),
+    whatsapp_name: text("whatsapp_name"),
+    phone_number: text("phone_number").unique(),
+    phone_verified: boolean("phone_verified").default(false),
+
+    // Anonymous user support
+    is_anonymous: boolean("is_anonymous").default(false).notNull(),
+    anonymous_session_id: text("anonymous_session_id"),
+    expires_at: timestamp("expires_at"),
+
+    // User preferences (kept for user API route & settings UI)
+    nickname: text("nickname"),
+    work_function: text("work_function"),
+    preferences: text("preferences"),
+    email_notifications: boolean("email_notifications").default(true),
+    response_notifications: boolean("response_notifications").default(true),
+
     is_active: boolean("is_active").default(true).notNull(),
 
     // Lifecycle
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
-    expires_at: timestamp("expires_at"), // Auto-cleanup for anonymous users (7 days)
   },
   (table) => ({
     email_idx: index("users_email_idx").on(table.email),
@@ -89,18 +88,11 @@ export const users = pgTable(
     ),
     organization_idx: index("users_organization_idx").on(table.organization_id),
     is_active_idx: index("users_is_active_idx").on(table.is_active),
-    privy_user_id_idx: index("users_privy_user_id_idx").on(table.privy_user_id),
+    privy_idx: index("users_privy_idx").on(table.privy_user_id),
+    telegram_idx: index("users_telegram_idx").on(table.telegram_id),
+    discord_idx: index("users_discord_idx").on(table.discord_id),
+    phone_idx: index("users_phone_idx").on(table.phone_number),
     is_anonymous_idx: index("users_is_anonymous_idx").on(table.is_anonymous),
-    anonymous_session_idx: index("users_anonymous_session_idx").on(
-      table.anonymous_session_id,
-    ),
-    expires_at_idx: index("users_expires_at_idx").on(table.expires_at),
-    work_function_idx: index("users_work_function_idx").on(table.work_function),
-    // Eliza App identity indexes
-    telegram_id_idx: index("users_telegram_id_idx").on(table.telegram_id),
-    phone_number_idx: index("users_phone_number_idx").on(table.phone_number),
-    discord_id_idx: index("users_discord_id_idx").on(table.discord_id),
-    whatsapp_id_idx: index("users_whatsapp_id_idx").on(table.whatsapp_id),
   }),
 );
 

@@ -4,13 +4,11 @@ import {
   type MessagePayload,
   type Plugin,
 } from "@elizaos/core";
-import {
-  characterProvider,
-  recentMessagesProvider,
-  appConfigProvider,
-} from "../shared/providers";
+import { characterProvider } from "../shared/providers/character";
+import { recentMessagesProvider } from "../shared/providers/recent-messages";
+import { appConfigProvider } from "../shared/providers/app-config";
 import { handleMessage } from "./handler";
-import { roomTitleEvaluator } from "../shared/evaluators";
+import { roomTitleEvaluator } from "../shared/evaluators/room-title";
 import type { StreamChunkCallback } from "../shared/types";
 
 export const chatPlaygroundPlugin: Plugin = {

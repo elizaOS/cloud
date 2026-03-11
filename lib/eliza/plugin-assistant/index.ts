@@ -6,15 +6,13 @@ import {
 } from "@elizaos/core";
 import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
-import {
-  characterProvider,
-  recentMessagesProvider,
-  appConfigProvider,
-} from "../shared/providers";
+import { characterProvider } from "../shared/providers/character";
+import { recentMessagesProvider } from "../shared/providers/recent-messages";
+import { appConfigProvider } from "../shared/providers/app-config";
 import { generateImageAction } from "./actions/image-generation";
 import { currentRunContextProvider } from "./providers/current-run-context";
 import { handleMessage } from "./handler";
-import { roomTitleEvaluator } from "../shared/evaluators";
+import { roomTitleEvaluator } from "../shared/evaluators/room-title";
 import type {
   StreamChunkCallback,
   ReasoningChunkCallback,

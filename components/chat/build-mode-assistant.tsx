@@ -20,7 +20,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 import Image from "next/image";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@elizaos/ui";
 import {
   ArrowUp,
   Loader2,
@@ -37,13 +37,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
   DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+} from "@elizaos/ui";
 import { toast } from "sonner";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {

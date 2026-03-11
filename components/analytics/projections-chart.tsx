@@ -19,14 +19,14 @@ import {
   YAxis,
 } from "recharts";
 import { format } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "@/components/ui/chart";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+} from "@elizaos/ui";
+import { Alert, AlertDescription, AlertTitle } from "@elizaos/ui";
 import { AlertTriangle, TrendingUp, Info, Activity } from "lucide-react";
 import type { ProjectionsData } from "@/lib/actions/analytics-enhanced";
 

@@ -16,18 +16,18 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
+} from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
+import { Label } from "@elizaos/ui";
+import { Switch } from "@elizaos/ui";
+import { Slider } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import { Loader2, Bot, Hash, Send, CheckCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";

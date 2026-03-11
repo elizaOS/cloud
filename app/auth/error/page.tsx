@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import { AlertCircle, Loader2, Home, RefreshCw } from "lucide-react";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { useSearchParams } from "next/navigation";

@@ -15,7 +15,17 @@ import { InviteMemberDialog } from "./invite-member-dialog";
 import { MembersList } from "./members-list";
 import { PendingInvitesList } from "./pending-invites-list";
 import { toast } from "sonner";
-import { BrandButton } from "@/components/brand";
+import {
+  BrandButton,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@elizaos/ui";
 
 interface MembersTabProps {
   user: UserWithOrganization;
@@ -50,6 +60,7 @@ export function MembersTab({ user }: MembersTabProps) {
   const [invites, setInvites] = useState<OrganizationInvite[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [isLoadingInvites, setIsLoadingInvites] = useState(true);
+  const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
 
   const fetchMembers = useCallback(async () => {
     setIsLoadingMembers(true);
@@ -124,9 +135,13 @@ export function MembersTab({ user }: MembersTabProps) {
   };
 
   const handleRemoveMember = async (userId: string) => {
-    if (!confirm("Are you sure you want to remove this member?")) {
-      return;
-    }
+    setRemoveMemberId(userId);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!removeMemberId) return;
+    const userId = removeMemberId;
+    setRemoveMemberId(null);
 
     const response = await fetch(`/api/organizations/members/${userId}`, {
       method: "DELETE",
@@ -146,6 +161,7 @@ export function MembersTab({ user }: MembersTabProps) {
   const isOwner = user.role === "owner";
 
   return (
+    <>
     <div className="space-y-4 md:space-y-6">
       {/* Header with Invite Button */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -233,5 +249,27 @@ export function MembersTab({ user }: MembersTabProps) {
         onSuccess={handleInviteSuccess}
       />
     </div>
+
+    {/* Remove Member Confirmation */}
+    <AlertDialog open={removeMemberId !== null} onOpenChange={(open) => !open && setRemoveMemberId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove Member</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to remove this member? They will lose access to the organization.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirmRemove}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

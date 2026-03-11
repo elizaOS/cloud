@@ -1,6 +1,10 @@
 import { eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import { users, type User, type NewUser } from "../schemas/users";
+import {
+  userIdentities,
+  type UserIdentity,
+} from "../schemas/user-identities";
 import { type Organization } from "../schemas/organizations";
 
 export type { User, NewUser };
@@ -42,13 +46,18 @@ export class UsersRepository {
   }
 
   /**
-   * Finds a user by Privy user ID with organization data.
+   * Finds a user by Privy user ID with organization data (via identity table).
    */
   async findByPrivyIdWithOrganization(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
+    const identity = await dbRead.query.userIdentities.findFirst({
+      where: eq(userIdentities.privy_user_id, privyUserId),
+    });
+    if (!identity) return undefined;
+
     const user = await dbRead.query.users.findFirst({
-      where: eq(users.privy_user_id, privyUserId),
+      where: eq(users.id, identity.user_id),
       with: {
         organization: true,
       },
@@ -99,103 +108,99 @@ export class UsersRepository {
   }
 
   /**
-   * Finds a user by Telegram ID.
+   * Finds a user by Telegram ID (via identity table).
    */
   async findByTelegramId(telegramId: string): Promise<User | undefined> {
-    return await dbRead.query.users.findFirst({
-      where: eq(users.telegram_id, telegramId),
+    const identity = await dbRead.query.userIdentities.findFirst({
+      where: eq(userIdentities.telegram_id, telegramId),
     });
+    if (!identity) return undefined;
+    return this.findById(identity.user_id);
   }
 
   /**
-   * Finds a user by Telegram ID with organization data.
+   * Finds a user by Telegram ID with organization data (via identity table).
    */
   async findByTelegramIdWithOrganization(
     telegramId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await dbRead.query.users.findFirst({
-      where: eq(users.telegram_id, telegramId),
-      with: {
-        organization: true,
-      },
+    const identity = await dbRead.query.userIdentities.findFirst({
+      where: eq(userIdentities.telegram_id, telegramId),
     });
-
-    return user as UserWithOrganization | undefined;
+    if (!identity) return undefined;
+    return this.findWithOrganization(identity.user_id);
   }
 
   /**
-   * Finds a user by phone number (E.164 format).
+   * Finds a user by phone number (E.164 format, via identity table).
    */
   async findByPhoneNumber(phoneNumber: string): Promise<User | undefined> {
-    return await dbRead.query.users.findFirst({
-      where: eq(users.phone_number, phoneNumber),
+    const identity = await dbRead.query.userIdentities.findFirst({
+      where: eq(userIdentities.phone_number, phoneNumber),
     });
+    if (!identity) return undefined;
+    return this.findById(identity.user_id);
   }
 
   /**
-   * Finds a user by phone number with organization data.
+   * Finds a user by phone number with organization data (via identity table).
    */
   async findByPhoneNumberWithOrganization(
     phoneNumber: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await dbRead.query.users.findFirst({
-      where: eq(users.phone_number, phoneNumber),
-      with: {
-        organization: true,
-      },
+    const identity = await dbRead.query.userIdentities.findFirst({
+      where: eq(userIdentities.phone_number, phoneNumber),
     });
-
-    return user as UserWithOrganization | undefined;
+    if (!identity) return undefined;
+    return this.findWithOrganization(identity.user_id);
   }
 
   /**
-   * Finds a user by Discord ID.
+   * Finds a user by Discord ID (via identity table).
    */
   async findByDiscordId(discordId: string): Promise<User | undefined> {
-    return await dbRead.query.users.findFirst({
-      where: eq(users.discord_id, discordId),
+    const identity = await dbRead.query.userIdentities.findFirst({
+      where: eq(userIdentities.discord_id, discordId),
     });
+    if (!identity) return undefined;
+    return this.findById(identity.user_id);
   }
 
   /**
-   * Finds a user by Discord ID with organization data.
+   * Finds a user by Discord ID with organization data (via identity table).
    */
   async findByDiscordIdWithOrganization(
     discordId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await dbRead.query.users.findFirst({
-      where: eq(users.discord_id, discordId),
-      with: {
-        organization: true,
-      },
+    const identity = await dbRead.query.userIdentities.findFirst({
+      where: eq(userIdentities.discord_id, discordId),
     });
-
-    return user as UserWithOrganization | undefined;
+    if (!identity) return undefined;
+    return this.findWithOrganization(identity.user_id);
   }
 
   /**
-   * Finds a user by WhatsApp ID.
+   * Finds a user by WhatsApp ID (via identity table).
    */
   async findByWhatsAppId(whatsappId: string): Promise<User | undefined> {
-    return await dbRead.query.users.findFirst({
-      where: eq(users.whatsapp_id, whatsappId),
+    const identity = await dbRead.query.userIdentities.findFirst({
+      where: eq(userIdentities.whatsapp_id, whatsappId),
     });
+    if (!identity) return undefined;
+    return this.findById(identity.user_id);
   }
 
   /**
-   * Finds a user by WhatsApp ID with organization data.
+   * Finds a user by WhatsApp ID with organization data (via identity table).
    */
   async findByWhatsAppIdWithOrganization(
     whatsappId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await dbRead.query.users.findFirst({
-      where: eq(users.whatsapp_id, whatsappId),
-      with: {
-        organization: true,
-      },
+    const identity = await dbRead.query.userIdentities.findFirst({
+      where: eq(userIdentities.whatsapp_id, whatsappId),
     });
-
-    return user as UserWithOrganization | undefined;
+    if (!identity) return undefined;
+    return this.findWithOrganization(identity.user_id);
   }
 
   /**

@@ -7,7 +7,7 @@
 
 import dynamic from "next/dynamic";
 import { ComponentProps } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@elizaos/ui";
 
 const UsageChartComponent = dynamic(
   () =>

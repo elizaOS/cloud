@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import { CreateAppDialog } from "./create-app-dialog";
 
 export function CreateAppButton() {

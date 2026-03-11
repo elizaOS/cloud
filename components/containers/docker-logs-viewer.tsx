@@ -6,18 +6,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BrandCard, BrandButton } from "@/components/brand";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
+import { BrandCard, BrandButton } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import { ScrollArea } from "@elizaos/ui";
+import { Skeleton } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import {
   Download,
   RefreshCw,

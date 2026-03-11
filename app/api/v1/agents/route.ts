@@ -4,7 +4,7 @@ import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { userCharactersRepository } from "@/db/repositories/characters";
-import { charactersService } from "@/lib/services/characters";
+import { charactersService } from "@/lib/services/characters/characters";
 import { normalizeTokenAddress } from "@/lib/utils/token-address";
 import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 import { z } from "zod";

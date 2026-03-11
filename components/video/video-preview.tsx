@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 import type { GeneratedVideo } from "./types";
-import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
+import { BrandCard, BrandButton, CornerBrackets } from "@elizaos/ui";
 
 interface VideoPreviewProps {
   video?: GeneratedVideo | null;

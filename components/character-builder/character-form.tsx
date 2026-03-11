@@ -10,18 +10,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@elizaos/ui";
+import { Textarea } from "@elizaos/ui";
 import { X, Plus, Info, Globe, Lock, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
-import { AvatarGenerator } from "@/components/character-creator/avatar-generator";
-import { BrandButton } from "@/components/brand";
+import { AvatarGenerator } from "@/components/character-builder/avatar-generator";
+import { BrandButton } from "@elizaos/ui";
 import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-} from "@/components/ui/tooltip";
+} from "@elizaos/ui";
 
 export type FormTab = "basics" | "personality" | "style" | "avatar";
 

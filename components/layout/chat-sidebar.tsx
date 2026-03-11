@@ -28,7 +28,7 @@ import {
   PanelLeftClose,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ElizaCloudLockup, LockOnButton, ElizaLogo } from "@/components/brand";
+import { ElizaCloudLockup, LockOnButton, ElizaLogo } from "@elizaos/ui";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
@@ -37,9 +37,9 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
   DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
+} from "@elizaos/ui";
+import { Switch } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import { toast } from "sonner";
 
 interface ChatSidebarProps {

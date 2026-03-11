@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import {
   Loader2,
   Users as UsersIcon,

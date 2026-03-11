@@ -11,6 +11,7 @@ import {
 import { dbRead, dbWrite, type Database } from "../helpers";
 import { containers } from "../schemas/containers";
 import { organizations } from "../schemas/organizations";
+import { organizationConfig } from "../schemas/organization-config";
 import { creditTransactions } from "../schemas/credit-transactions";
 import { getMaxContainersForOrg } from "../../lib/constants/pricing";
 
@@ -143,7 +144,7 @@ export class ContainersRepository {
     // Get organization details
     const org = await dbRead.query.organizations.findFirst({
       where: eq(organizations.id, organizationId),
-      columns: { credit_balance: true, settings: true },
+      columns: { credit_balance: true },
     });
 
     if (!org) {
@@ -154,6 +155,11 @@ export class ContainersRepository {
         error: "Organization not found",
       };
     }
+
+    // Get organization config for settings
+    const config = await dbRead.query.organizationConfig.findFirst({
+      where: eq(organizationConfig.organization_id, organizationId),
+    });
 
     // Count active containers (excluding deleting/deleted status)
     const [{ count }] = await dbRead
@@ -168,7 +174,7 @@ export class ContainersRepository {
 
     const maxContainers = getMaxContainersForOrg(
       Number(org.credit_balance),
-      org.settings as Record<string, unknown> | undefined,
+      config?.settings as Record<string, unknown> | undefined,
     );
 
     const allowed = count < maxContainers;
@@ -297,7 +303,6 @@ export class ContainersRepository {
         .select({
           id: organizations.id,
           credit_balance: organizations.credit_balance,
-          settings: organizations.settings,
         })
         .from(organizations)
         .where(eq(organizations.id, data.organization_id))
@@ -306,6 +311,11 @@ export class ContainersRepository {
       if (!org) {
         throw new Error("Organization not found");
       }
+
+      // Get organization config for settings
+      const config = await tx.query.organizationConfig.findFirst({
+        where: eq(organizationConfig.organization_id, data.organization_id),
+      });
 
       // 2. Count active containers (excluding deleting/deleted status)
       const [{ count }] = await tx
@@ -321,7 +331,7 @@ export class ContainersRepository {
       // 3. Get max allowed containers for this org
       const maxContainers = getMaxContainersForOrg(
         Number(org.credit_balance),
-        org.settings as Record<string, unknown> | undefined,
+        config?.settings as Record<string, unknown> | undefined,
       );
 
       // 4. Check quota

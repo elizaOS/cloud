@@ -94,7 +94,7 @@ export abstract class McpToolCompatibility {
 
     for (const key of ['oneOf', 'anyOf', 'allOf'] as const) {
       if (Array.isArray(schema[key])) {
-        (processed as Record<string, unknown>)[key] = schema[key]!.map(s =>
+        (processed as Record<string, unknown>)[key] = schema[key]!.map((s: any) =>
           typeof s === 'object' ? this.processSchema(s as JSONSchema7) : s
         );
       }

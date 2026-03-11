@@ -57,7 +57,14 @@ export const CacheKeys = {
     pattern: () => `session:*`,
   },
   user: {
+    byId: (id: string) => `user:id:${id}:v1`,
     byEmail: (email: string) => `user:email:${email}:v1`,
+    byPrivyId: (privyId: string) => `user:privy:${privyId}:v1`,
+    withOrg: (id: string) => `user:with-org:${id}:v1`,
+    byEmailWithOrg: (email: string) => `user:email-with-org:${email}:v1`,
+    byPrivyIdWithOrg: (privyId: string) => `user:privy-with-org:${privyId}:v1`,
+    byWalletAddress: (address: string) => `user:wallet:${address}:v1`,
+    byWalletAddressWithOrg: (address: string) => `user:wallet-with-org:${address}:v1`,
     pattern: () => `user:*`,
   },
   memory: {
@@ -156,6 +163,24 @@ export const CacheKeys = {
       `gallery:*:${orgId}:${userId}:*`,
   },
   /**
+   * MCP cache keys
+   */
+  mcp: {
+    byId: (id: string) => `mcp:id:${id}:v1`,
+    bySlug: (orgId: string, slug: string) => `mcp:slug:${orgId}:${slug}:v1`,
+    pattern: () => `mcp:*`,
+  },
+  /**
+   * Affiliate cache keys
+   */
+  affiliate: {
+    codeByUserId: (userId: string) => `affiliate:code-user:${userId}:v1`,
+    codeByCode: (code: string) => `affiliate:code-code:${code}:v1`,
+    codeById: (id: string) => `affiliate:code-id:${id}:v1`,
+    linkByUserId: (userId: string) => `affiliate:link-user:${userId}:v1`,
+    pattern: () => `affiliate:*`,
+  },
+  /**
    * N8N Workflow cache keys
    * Used for caching workflow lists to reduce DB load
    */
@@ -233,7 +258,14 @@ export const CacheTTL = {
     user: 300, // 5 minutes - User data by session
   },
   user: {
+    byId: 600, // 10 minutes
     byEmail: 600, // 10 minutes (was 300s)
+    byPrivyId: 600,
+    withOrg: 600,
+    byEmailWithOrg: 600,
+    byPrivyIdWithOrg: 600,
+    byWalletAddress: 600,
+    byWalletAddressWithOrg: 600,
   },
   memory: {
     item: 1440, // 24 minutes (unchanged - memory is critical)
@@ -295,6 +327,12 @@ export const CacheTTL = {
     items: 120, // 2 minutes - gallery items
     stats: 120, // 2 minutes - gallery stats
     collections: 300, // 5 minutes - collections change less often
+  },
+  mcp: {
+    data: 300, // 5 minutes - MCP definitions
+  },
+  affiliate: {
+    data: 3600, // 1 hour - affiliate codes and links rarely change
   },
   /**
    * N8N Workflow cache TTLs

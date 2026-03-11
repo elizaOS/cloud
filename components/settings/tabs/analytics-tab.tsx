@@ -9,7 +9,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 import type { UserWithOrganization } from "@/lib/types";
 import { Activity, Coins, Shield, BarChart, Loader2 } from "lucide-react";
 import {
@@ -18,7 +18,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import { toast } from "sonner";
 
 interface AnalyticsTabProps {

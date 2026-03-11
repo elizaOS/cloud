@@ -8,7 +8,7 @@
 import { CalendarClock, KeyRound, ShieldCheck, Signal } from "lucide-react";
 
 import type { ApiKeysSummaryData } from "./types";
-import { BrandCard } from "@/components/brand";
+import { BrandCard } from "@elizaos/ui";
 
 interface ApiKeysSummaryProps {
   summary: ApiKeysSummaryData;

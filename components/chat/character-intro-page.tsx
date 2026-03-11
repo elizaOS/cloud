@@ -17,10 +17,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "@elizaos/ui";
+import { Card, CardContent } from "@elizaos/ui";
 import { Sparkles, MessageCircle, Heart } from "lucide-react";
 import type { UserCharacter } from "@/db/schemas";
 import { EmailCaptureModal } from "./email-capture-modal";

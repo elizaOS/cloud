@@ -1,7 +1,7 @@
 "use client";
 
-import { useSetPageHeader } from "@/components/layout/page-header-context";
-import { Badge } from "@/components/ui/badge";
+import { useSetPageHeader } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
 
 export function ContainersPageClient() {
   useSetPageHeader({

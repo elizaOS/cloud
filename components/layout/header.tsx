@@ -13,10 +13,10 @@
 import { memo, useCallback, useState } from "react";
 import { Menu, LogIn, Plus } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { BrandButton } from "@/components/brand";
+import { BrandButton } from "@elizaos/ui";
 import UserMenu from "./user-menu";
-import { usePageHeader } from "./page-header-context";
-import { QuickCreateDialog } from "@/components/builders";
+import { usePageHeader } from "@elizaos/ui";
+import { QuickCreateDialog } from "@/components/builders/quick-create-dialog";
 
 interface HeaderProps {
   onToggleSidebar: () => void;

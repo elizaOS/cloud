@@ -10,20 +10,20 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@elizaos/ui";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
   DialogClose,
-} from "@/components/ui/dialog";
+} from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import { MONTHLY_CREDIT_CAP } from "@/lib/pricing-constants";
 import {
@@ -38,7 +38,7 @@ import {
   Download,
   Link2,
 } from "lucide-react";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 
 import { VideoGenerationForm } from "./video-generation-form";
 import { VideoPreview } from "./video-preview";
@@ -47,7 +47,7 @@ import type {
   VideoModelOption,
   VideoUsageSummary,
 } from "./types";
-import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
+import { BrandCard, CornerBrackets, BrandButton } from "@elizaos/ui";
 
 const THUMBNAIL_FALLBACKS = [
   "https://images.unsplash.com/photo-1526318472351-c75fcf07015d?auto=format&fit=crop&w=1600&q=80",

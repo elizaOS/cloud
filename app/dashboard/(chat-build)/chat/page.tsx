@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
-import { charactersService } from "@/lib/services/characters";
+import { charactersService } from "@/lib/services/characters/characters";
 import { sanitizeUUID } from "@/lib/utils/validation";
 
 interface PageProps {

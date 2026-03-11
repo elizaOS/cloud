@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
+import { BrandCard, CornerBrackets, BrandButton } from "@elizaos/ui";
 import { Sparkles, Clock, ArrowRight, Loader2, RefreshCw } from "lucide-react";
 
 interface ActiveSession {

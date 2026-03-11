@@ -30,7 +30,7 @@ export {
 } from "./tool-compatibility";
 
 // Re-export schema cache
-export { McpSchemaCache, getSchemaCache } from "./cache";
+export { McpSchemaCache, getSchemaCache } from "./cache/schema-cache";
 
 const mcpPlugin: Plugin = {
   name: "mcp",

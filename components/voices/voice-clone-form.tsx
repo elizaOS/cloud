@@ -12,8 +12,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
+import { Input } from "@elizaos/ui";
+import { Slider } from "@elizaos/ui";
 import {
   Upload,
   X,
@@ -41,7 +41,7 @@ import {
   BrandCard,
   BrandButton,
   CornerBrackets,
-} from "@/components/brand";
+} from "@elizaos/ui";
 
 interface VoiceCloneFormProps {
   creditBalance: number;

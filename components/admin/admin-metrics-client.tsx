@@ -33,14 +33,14 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "@/components/ui/chart";
+} from "@elizaos/ui";
 import {
   BrandTabsResponsive,
   BrandTabsContent,
   BrandCard,
   CornerBrackets,
-} from "@/components/brand";
-import type { TabItem } from "@/components/brand";
+} from "@elizaos/ui";
+import type { TabItem } from "@elizaos/ui";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------

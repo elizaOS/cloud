@@ -17,7 +17,7 @@
 
 import { Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
+import { BrandCard, BrandButton, CornerBrackets } from "@elizaos/ui";
 
 interface CreditPackCardProps {
   id: string;

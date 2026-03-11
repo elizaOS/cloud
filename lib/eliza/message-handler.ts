@@ -22,7 +22,7 @@ import type { UserContext } from "./user-context";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { discordService } from "@/lib/services/discord";
 import { roomsRepository } from "@/db/repositories";
-import { charactersService } from "@/lib/services/characters";
+import { charactersService } from "@/lib/services/characters/characters";
 import { generateRoomTitle } from "@/lib/services/room-title";
 import type { AgentModeConfig } from "./agent-mode-types";
 import { AgentMode, DEFAULT_AGENT_MODE } from "./agent-mode-types";

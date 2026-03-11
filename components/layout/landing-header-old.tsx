@@ -6,8 +6,8 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ElizaCloudLockup } from "@/components/brand";
+import { Button } from "@elizaos/ui";
+import { ElizaCloudLockup } from "@elizaos/ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import UserMenu from "@/components/layout/user-menu";

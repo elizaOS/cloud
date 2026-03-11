@@ -4,13 +4,13 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services/containers";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { ContainersTable } from "@/components/containers/containers-table";
-import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
+import { ContainersSkeleton } from "@elizaos/ui";
 import { MiladySandboxesTable } from "@/components/containers/milady-sandboxes-table";
 import { Server, Activity, TrendingUp, AlertCircle, Box } from "lucide-react";
-import { ContainersPageWrapper } from "./containers-page-wrapper";
-import { ContainersEmptyState } from "./containers-empty-state";
-import { DeployFromCLI } from "./deploy-from-cli";
-import { BrandCard, DashboardStatCard } from "@/components/brand";
+import { ContainersPageWrapper } from "@/components/containers/containers-page-wrapper";
+import { ContainersEmptyState } from "@elizaos/ui";
+import { DeployFromCLI } from "@/components/containers/deploy-from-cli";
+import { BrandCard, DashboardStatCard } from "@elizaos/ui";
 
 export const metadata: Metadata = {
   title: "Containers",

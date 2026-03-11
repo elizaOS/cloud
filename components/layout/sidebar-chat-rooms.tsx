@@ -7,11 +7,22 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import {
+  Button,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@elizaos/ui";
 import { Plus, MessageSquare, Trash2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { toast } from "sonner";
+import { useState } from "react";
 
 export function SidebarChatRooms() {
   const router = useRouter();
@@ -26,6 +37,7 @@ export function SidebarChatRooms() {
     selectedCharacterId,
     availableCharacters,
   } = useChatStore();
+  const [deleteRoomId, setDeleteRoomId] = useState<string | null>(null);
 
   // Load rooms on mount
   useEffect(() => {
@@ -68,10 +80,15 @@ export function SidebarChatRooms() {
     }
   };
 
-  const handleDeleteRoom = async (roomId: string, e: React.MouseEvent) => {
+  const handleDeleteRoom = (roomId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setDeleteRoomId(roomId);
+  };
 
-    if (!confirm("Delete this conversation?")) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteRoomId) return;
+    const roomId = deleteRoomId;
+    setDeleteRoomId(null);
 
     await deleteRoom(roomId);
 
@@ -98,6 +115,7 @@ export function SidebarChatRooms() {
   };
 
   return (
+    <>
     <div className="space-y-2">
       {/* Header with Create Button */}
       <div className="flex items-center justify-between px-1">
@@ -177,5 +195,26 @@ export function SidebarChatRooms() {
         )}
       </div>
     </div>
+
+    <AlertDialog open={deleteRoomId !== null} onOpenChange={(open) => !open && setDeleteRoomId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Conversation</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this conversation? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirmDelete}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

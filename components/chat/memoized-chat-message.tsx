@@ -8,7 +8,7 @@
 import React, { memo, useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Loader2, Copy, Check, Volume2, Square } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import { ElizaAvatar } from "./eliza-avatar";
 import Image from "next/image";
 import { ContentType, type Media } from "@elizaos/core";

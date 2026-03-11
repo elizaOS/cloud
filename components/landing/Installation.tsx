@@ -7,8 +7,8 @@
 
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { SectionLabel } from "@/components/brand";
+import { Button } from "@elizaos/ui";
+import { SectionLabel } from "@elizaos/ui";
 import { motion } from "framer-motion";
 
 export default function Installation() {

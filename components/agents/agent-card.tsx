@@ -11,10 +11,18 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@elizaos/ui";
+import { Switch } from "@elizaos/ui";
+import { Badge, StatusBadge } from "@elizaos/ui";
+import { Skeleton } from "@elizaos/ui";
 import {
   Copy,
   Upload,
@@ -206,9 +214,7 @@ export function AgentCard({
   }, []);
 
   const handleConfirmDelete = useCallback(
-    async (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+    async () => {
       setIsDeleting(true);
 
       const response = await fetch(`/api/my-agents/characters/${agent.id}`, {
@@ -229,9 +235,7 @@ export function AgentCard({
     [agent.id, router],
   );
 
-  const handleCancelDelete = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleCancelDelete = useCallback(() => {
     setShowDeleteConfirm(false);
   }, []);
 
@@ -346,17 +350,8 @@ export function AgentCard({
             {/* Status badges */}
             {showDeploymentStatus && (
               <div className="flex gap-1.5 flex-shrink-0">
-                {isDeployed && (
-                  <Badge className="bg-emerald-500 text-[10px] px-2 py-0.5 border-0 text-white">
-                    <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse mr-1" />
-                    Live
-                  </Badge>
-                )}
-                {isStopped && (
-                  <Badge className="bg-amber-500 text-[10px] px-2 py-0.5 border-0 text-black">
-                    Stopped
-                  </Badge>
-                )}
+                {isDeployed && <StatusBadge status="success" label="Live" pulse className="px-2 py-0.5 text-[10px]" />}
+                {isStopped && <StatusBadge status="warning" label="Stopped" className="px-2 py-0.5 text-[10px]" />}
               </div>
             )}
 
@@ -467,14 +462,26 @@ export function AgentCard({
           </div>
 
           {/* Delete Confirmation */}
-          {showDeleteConfirm && (
-            <DeleteConfirmDialog
-              agentName={agent.name}
-              isDeleting={isDeleting}
-              onConfirm={handleConfirmDelete}
-              onCancel={handleCancelDelete}
-            />
-          )}
+          <AlertDialog open={showDeleteConfirm} onOpenChange={(open) => !open && handleCancelDelete()}>
+            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete <span className="font-semibold text-white">{agent.name}</span>? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     );
@@ -526,15 +533,10 @@ export function AgentCard({
             </span>
           )}
           {showDeploymentStatus && isDeployed && (
-            <Badge className="bg-emerald-500 text-[10px] px-2 py-0.5 border-0 text-white">
-              <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse mr-1" />
-              Live
-            </Badge>
+            <StatusBadge status="success" label="Live" pulse className="px-2 py-0.5 text-[10px]" />
           )}
           {showDeploymentStatus && isStopped && (
-            <Badge className="bg-amber-500 text-[10px] px-2 py-0.5 border-0 text-black">
-              Stopped
-            </Badge>
+            <StatusBadge status="warning" label="Stopped" className="px-2 py-0.5 text-[10px]" />
           )}
         </div>
 
@@ -649,63 +651,28 @@ export function AgentCard({
         </div>
 
         {/* Delete Confirmation */}
-        {showDeleteConfirm && (
-          <DeleteConfirmDialog
-            agentName={agent.name}
-            isDeleting={isDeleting}
-            onConfirm={handleConfirmDelete}
-            onCancel={handleCancelDelete}
-          />
-        )}
+        <AlertDialog open={showDeleteConfirm} onOpenChange={(open) => !open && handleCancelDelete()}>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete <span className="font-semibold text-white">{agent.name}</span>? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
 }
 
-function DeleteConfirmDialog({
-  agentName,
-  isDeleting,
-  onConfirm,
-  onCancel,
-}: {
-  agentName: string;
-  isDeleting: boolean;
-  onConfirm: (e: React.MouseEvent) => void;
-  onCancel: (e: React.MouseEvent) => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-neutral-900 border border-white/10 rounded-xl p-6 w-full max-w-sm mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-semibold text-white mb-2">Delete Agent</h3>
-        <p className="text-sm text-white/60 mb-6">
-          Are you sure you want to delete{" "}
-          <span className="font-semibold text-white">{agentName}</span>? This
-          action cannot be undone.
-        </p>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 px-4 py-2.5 text-sm rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isDeleting}
-            className="flex-1 px-4 py-2.5 text-sm rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
-          >
-            {isDeleting ? "Deleting..." : "Delete"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

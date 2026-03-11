@@ -337,6 +337,13 @@
       "when": 1773061000000,
       "tag": "0047_add_token_agent_linkage",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1773199471391,
+      "tag": "0048_elite_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }

@@ -7,9 +7,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
+import { Button } from "@elizaos/ui";
+import { Switch } from "@elizaos/ui";
+import { Slider } from "@elizaos/ui";
 import {
   Loader2,
   Save,
@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@elizaos/ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,11 +33,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  EarningsSimulator,
-  RevenueFlowDiagram,
-} from "./monetization";
+} from "@elizaos/ui";
+import { EarningsSimulator } from "@elizaos/ui";
+import { RevenueFlowDiagram } from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 
 interface MonetizationSettings {

@@ -9,13 +9,13 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@elizaos/ui";
+import { Alert, AlertDescription } from "@elizaos/ui";
 import { Loader2, Search, FileText } from "lucide-react";
-import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
+import { Slider } from "@elizaos/ui";
+import { Label } from "@elizaos/ui";
 
 import type { QueryResult } from "@/lib/types/knowledge";
 

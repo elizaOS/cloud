@@ -24,8 +24,8 @@ import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
-} from "@/components/ui/resizable";
-import { AnimatedTabs } from "@/components/ui/animated-tabs";
+} from "@elizaos/ui";
+import { AnimatedTabs } from "@elizaos/ui";
 import Image from "next/image";
 import { usePrivy } from "@privy-io/react-auth";
 import { createDefaultCharacter } from "@/lib/utils/character-names";

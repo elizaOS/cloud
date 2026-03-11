@@ -1,6 +1,6 @@
 import type { StorybookConfig } from '@storybook/react-vite';
-
-import { dirname } from "path"
+import tailwindcss from '@tailwindcss/vite';
+import { dirname, resolve } from "path"
 
 import { fileURLToPath } from "url"
 
@@ -23,6 +23,24 @@ const config: StorybookConfig = {
     getAbsolutePath('@storybook/addon-docs'),
     getAbsolutePath('@storybook/addon-onboarding')
   ],
-  "framework": getAbsolutePath('@storybook/react-vite')
+  "framework": getAbsolutePath('@storybook/react-vite'),
+  async viteFinal(config) {
+    // Use @tailwindcss/vite instead of postcss plugin (avoids root postcss.config.mjs string format issue)
+    config.plugins = config.plugins || [];
+    config.plugins.push(tailwindcss());
+    // Override root postcss.config.mjs with empty inline config
+    config.css = {
+      ...config.css,
+      postcss: { plugins: [] },
+    };
+    // Add @/ path alias for component imports
+    const __storyDir = dirname(fileURLToPath(import.meta.url));
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': resolve(__storyDir, '../src'),
+    };
+    return config;
+  },
 };
 export default config;

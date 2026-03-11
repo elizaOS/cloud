@@ -15,6 +15,7 @@ import { timingSafeEqual } from "crypto";
 import { dbRead, dbWrite } from "@/db/client";
 import { containers, containerBillingRecords } from "@/db/schemas/containers";
 import { organizations } from "@/db/schemas/organizations";
+import { organizationBilling } from "@/db/schemas/organization-billing";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
 import { eq, and, inArray, lte, isNotNull, sql } from "drizzle-orm";
 import {
@@ -442,12 +443,22 @@ async function handleContainerBilling(
         id: organizations.id,
         name: organizations.name,
         credit_balance: organizations.credit_balance,
-        billing_email: organizations.billing_email,
       })
       .from(organizations)
       .where(inArray(organizations.id, orgIds));
 
-    const orgMap = new Map(orgs.map((o) => [o.id, o]));
+    // Get billing emails for these orgs
+    const billingData = await dbRead
+      .select({
+        organization_id: organizationBilling.organization_id,
+        billing_email: organizationBilling.billing_email,
+      })
+      .from(organizationBilling)
+      .where(inArray(organizationBilling.organization_id, orgIds));
+
+    const billingEmailMap = new Map(billingData.map((b) => [b.organization_id, b.billing_email]));
+
+    const orgMap = new Map(orgs.map((o) => [o.id, { ...o, billing_email: billingEmailMap.get(o.id) ?? null }]));
 
     // Process each container
     const results: BillingResult[] = [];

@@ -6,7 +6,7 @@
 "use client";
 
 import { ImageGeneratorAdvanced } from "./image-generator-advanced";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import type { GalleryItem } from "@/app/actions/gallery";
 
 interface ImagePageClientProps {

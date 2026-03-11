@@ -7,9 +7,9 @@
  * @param props.creditBalance - Current credit balance
  */
 
-import { BrandCard } from "@/components/brand";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { BrandCard } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Progress } from "@elizaos/ui";
 import type { AnalyticsData } from "@/lib/actions/analytics";
 import { CostAlerts } from "@/components/analytics/cost-alerts";
 

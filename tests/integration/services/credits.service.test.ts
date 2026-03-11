@@ -494,7 +494,7 @@ describe("CreditsService", () => {
     test("no-op when difference is within EPSILON", async () => {
       // Arrange
       const reserved = 5;
-      const actual = 5.00005; // Within EPSILON (0.0001)
+      const actual = 5.00000005; // Within EPSILON (0.0000001)
 
       // First deduct the reserved amount
       await creditsService.reserveAndDeductCredits({

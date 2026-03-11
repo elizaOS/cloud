@@ -23,18 +23,18 @@ import {
   FileText,
   Bug,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@elizaos/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import { Label } from "@elizaos/ui";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +42,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@elizaos/ui";
 import {
   Table,
   TableBody,
@@ -50,16 +50,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import { toast } from "sonner";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 
 // ---------------------------------------------------------------------------
 // Types

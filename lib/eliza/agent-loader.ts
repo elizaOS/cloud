@@ -7,7 +7,7 @@ import { cloudBootstrapPlugin } from "./plugin-cloud-bootstrap";
 import { affiliatePlugin } from "./plugin-affiliate";
 import { chatPlaygroundPlugin } from "./plugin-chat-playground";
 import { characterBuilderPlugin } from "./plugin-character-builder";
-import { charactersService } from "@/lib/services/characters";
+import { charactersService } from "@/lib/services/characters/characters";
 import { memoriesRepository } from "@/db/repositories/agents/memories";
 import type { ElizaCharacter } from "@/lib/types";
 import defaultAgent from "./agent";

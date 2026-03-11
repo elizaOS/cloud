@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
 import {
   Megaphone,
   Share2,

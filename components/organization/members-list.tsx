@@ -13,17 +13,17 @@
 
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card } from "@elizaos/ui";
+import { Avatar, AvatarFallback } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@elizaos/ui";
 import { User, Mail, Wallet, Crown, Shield, UserMinus } from "lucide-react";
 import { format } from "date-fns";
 

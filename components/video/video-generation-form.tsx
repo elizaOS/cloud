@@ -21,17 +21,17 @@
 import { useMemo } from "react";
 import { Loader2, Timer } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
+import { Input } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+} from "@elizaos/ui";
+import { Textarea } from "@elizaos/ui";
 import type { VideoModelOption } from "./types";
-import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
+import { BrandCard, BrandButton, CornerBrackets } from "@elizaos/ui";
 
 interface VideoGenerationFormProps {
   prompt: string;

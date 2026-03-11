@@ -12,11 +12,11 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+} from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import { Textarea } from "@elizaos/ui";
+import { Label } from "@elizaos/ui";
 import { Loader2, Send, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 

@@ -10,9 +10,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { BrandCard } from "@/components/brand";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@elizaos/ui";
+import { BrandCard } from "@elizaos/ui";
+import { Skeleton } from "@elizaos/ui";
 import {
   CheckCircle2,
   XCircle,

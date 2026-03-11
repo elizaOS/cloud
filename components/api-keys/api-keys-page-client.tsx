@@ -13,7 +13,7 @@ import { useState } from "react";
 import { Plus, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 
 import { ApiKeyEmptyState } from "./api-key-empty-state";
 import { ApiKeysSummary } from "./api-keys-summary";
@@ -26,17 +26,25 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent as AlertDialogContentComp,
+  AlertDialogDescription as AlertDialogDescComp,
+  AlertDialogFooter as AlertDialogFooterComp,
+  AlertDialogHeader as AlertDialogHeaderComp,
+  AlertDialogTitle as AlertDialogTitleComp,
+} from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { BrandButton } from "@/components/brand";
+} from "@elizaos/ui";
+import { Textarea } from "@elizaos/ui";
+import { BrandButton } from "@elizaos/ui";
 
 interface ApiKeysPageClientProps {
   keys: ApiKeyDisplay[];
@@ -91,6 +99,12 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
   const [createdKey, setCreatedKey] = useState<{
     plainKey: string;
     name: string;
+  } | null>(null);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "disable" | "delete" | "regenerate";
+    id: string;
+    title: string;
+    description: string;
   } | null>(null);
 
   const hasKeys = keys.length > 0;
@@ -159,77 +173,88 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
     const isCurrentlyActive = key?.status === "active";
     const action = isCurrentlyActive ? "disable" : "enable";
 
-    if (!confirm(`Are you sure you want to ${action} this API key?`)) {
-      return;
-    }
-
-    const response = await fetch(`/api/v1/api-keys/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        is_active: !isCurrentlyActive,
-      }),
+    setPendingAction({
+      type: "disable",
+      id,
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} API Key`,
+      description: `Are you sure you want to ${action} this API key?`,
     });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || `Failed to ${action} API key`);
-    }
-
-    toast.success(`API key ${action}d`, {
-      description: `The API key has been ${action}d successfully.`,
-    });
-    router.refresh();
   };
 
   const handleDeleteKey = async (id: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this API key? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
-
-    const response = await fetch(`/api/v1/api-keys/${id}`, {
-      method: "DELETE",
+    setPendingAction({
+      type: "delete",
+      id,
+      title: "Delete API Key",
+      description: "Are you sure you want to delete this API key? This action cannot be undone.",
     });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || "Failed to delete API key");
-    }
-
-    toast.success("API key deleted", {
-      description: "The API key has been permanently deleted.",
-    });
-    router.refresh();
   };
 
   const handleRegenerateKey = async (id: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to regenerate this API key? The old key will stop working immediately.",
-      )
-    ) {
-      return;
-    }
-
-    const response = await fetch(`/api/v1/api-keys/${id}/regenerate`, {
-      method: "POST",
+    setPendingAction({
+      type: "regenerate",
+      id,
+      title: "Regenerate API Key",
+      description: "Are you sure you want to regenerate this API key? The old key will stop working immediately.",
     });
+  };
 
-    const data = await response.json();
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+    const { type, id } = pendingAction;
+    setPendingAction(null);
 
-    if (!response.ok) {
-      throw new Error(data.error || "Failed to regenerate API key");
+    if (type === "disable") {
+      const key = keys.find((k) => k.id === id);
+      const isCurrentlyActive = key?.status === "active";
+      const action = isCurrentlyActive ? "disable" : "enable";
+
+      const response = await fetch(`/api/v1/api-keys/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: !isCurrentlyActive }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || `Failed to ${action} API key`);
+      }
+
+      toast.success(`API key ${action}d`, {
+        description: `The API key has been ${action}d successfully.`,
+      });
+      router.refresh();
+    } else if (type === "delete") {
+      const response = await fetch(`/api/v1/api-keys/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete API key");
+      }
+
+      toast.success("API key deleted", {
+        description: "The API key has been permanently deleted.",
+      });
+      router.refresh();
+    } else if (type === "regenerate") {
+      const response = await fetch(`/api/v1/api-keys/${id}/regenerate`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to regenerate API key");
+      }
+
+      setCreatedKey({ plainKey: data.plainKey, name: data.apiKey.name });
+      toast.success("API key regenerated", {
+        description: `${data.apiKey.name} has been regenerated. The old key is no longer valid.`,
+      });
+      router.refresh();
     }
-
-    setCreatedKey({ plainKey: data.plainKey, name: data.apiKey.name });
-    toast.success("API key regenerated", {
-      description: `${data.apiKey.name} has been regenerated. The old key is no longer valid.`,
-    });
-    router.refresh();
   };
 
   return (
@@ -471,6 +496,25 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
           <ApiKeyEmptyState onCreateKey={() => setCreateDialogOpen(true)} />
         )}
       </div>
+
+      {/* Confirm Action Dialog */}
+      <AlertDialog open={pendingAction !== null} onOpenChange={(open) => !open && setPendingAction(null)}>
+        <AlertDialogContentComp>
+          <AlertDialogHeaderComp>
+            <AlertDialogTitleComp>{pendingAction?.title}</AlertDialogTitleComp>
+            <AlertDialogDescComp>{pendingAction?.description}</AlertDialogDescComp>
+          </AlertDialogHeaderComp>
+          <AlertDialogFooterComp>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              className={pendingAction?.type === "delete" ? "bg-red-600 hover:bg-red-700" : ""}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooterComp>
+        </AlertDialogContentComp>
+      </AlertDialog>
     </div>
   );
 }

@@ -7,20 +7,20 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Slider } from "@/components/ui/slider";
+import { Slider } from "@elizaos/ui";
 import {
   Dialog,
   DialogContent,
   DialogClose,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@elizaos/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
   DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+} from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import {
   ImageIcon,
   Loader2,
@@ -38,12 +38,12 @@ import {
   Search,
 } from "lucide-react";
 import Image from "next/image";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@elizaos/ui";
 import { listExploreImages, type GalleryItem } from "@/app/actions/gallery";
 
 interface ImageGenerationSettings {

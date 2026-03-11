@@ -10,7 +10,7 @@ import {
   AgentCard,
   type AgentCardData,
   type ViewMode,
-} from "@/components/agents";
+} from "@/components/agents/agent-card";
 import { EmptyState } from "./empty-state";
 
 export interface AgentWithOwnership extends AgentCardData {

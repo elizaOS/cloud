@@ -2,7 +2,7 @@
 
 import { CardElement } from "@stripe/react-stripe-js";
 import type { StripeCardElementChangeEvent } from "@stripe/stripe-js";
-import { Label } from "@/components/ui/label";
+import { Label } from "@elizaos/ui";
 
 interface StripeCardElementProps {
   onReady?: () => void;

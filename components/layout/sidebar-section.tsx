@@ -17,7 +17,7 @@ import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
-} from "@/components/ui/collapsible";
+} from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import { isFeatureEnabled } from "@/lib/config/feature-flags";
 import { useAdmin } from "@/lib/hooks/use-admin";

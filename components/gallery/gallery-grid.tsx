@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@elizaos/ui";
 import {
   Dialog,
   DialogContent,
@@ -19,15 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@elizaos/ui";
 import { DownloadIcon, TrashIcon } from "@radix-ui/react-icons";
 import { Eye, X } from "lucide-react";
-import { DialogClose } from "@/components/ui/dialog";
+import { DialogClose } from "@elizaos/ui";
 import type { GalleryItem } from "@/app/actions/gallery";
 import { deleteMedia } from "@/app/actions/gallery";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { BrandButton } from "@/components/brand";
+import { BrandButton } from "@elizaos/ui";
 
 interface GalleryGridProps {
   items: GalleryItem[];

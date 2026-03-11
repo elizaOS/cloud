@@ -11,17 +11,17 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import { BrandCard, BrandButton } from "@/components/brand";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { BrandCard, BrandButton } from "@elizaos/ui";
+import { ScrollArea } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Skeleton } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import {
   RefreshCw,
   Download,
@@ -31,7 +31,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@elizaos/ui";
 
 import type { ParsedLogEntry } from "@/lib/types/containers";
 

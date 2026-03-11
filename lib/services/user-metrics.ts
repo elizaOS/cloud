@@ -27,6 +27,7 @@ import {
   type RetentionCohort,
 } from "@/db/schemas/retention-cohorts";
 import { users } from "@/db/schemas/users";
+import { userIdentities } from "@/db/schemas/user-identities";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
 import {
   roomTable,
@@ -183,9 +184,10 @@ class UserMetricsService {
         cnt: count(),
       })
       .from(users)
+      .leftJoin(userIdentities, eq(users.id, userIdentities.user_id))
       .where(
         and(
-          eq(users.is_anonymous, false),
+          sql`COALESCE(${userIdentities.is_anonymous}, false) = false`,
           gte(users.created_at, startDate),
           lt(users.created_at, endDate),
         ),
@@ -211,7 +213,8 @@ class UserMetricsService {
     const [totalRow] = await dbRead
       .select({ cnt: count() })
       .from(users)
-      .where(eq(users.is_anonymous, false));
+      .leftJoin(userIdentities, eq(users.id, userIdentities.user_id))
+      .where(sql`COALESCE(${userIdentities.is_anonymous}, false) = false`);
     const total_users = Number(totalRow?.cnt ?? 0);
 
     // Single query: get distinct (user_id, platform) pairs, then derive both
@@ -505,7 +508,7 @@ class UserMetricsService {
     const cohortEnd = new Date(cohortDate.getTime() + 86_400_000);
 
     const cohortConditions = and(
-      eq(users.is_anonymous, false),
+      sql`COALESCE(${userIdentities.is_anonymous}, false) = false`,
       gte(users.created_at, cohortDate),
       lt(users.created_at, cohortEnd),
     );
@@ -513,6 +516,7 @@ class UserMetricsService {
     const [sizeRow] = await dbRead
       .select({ cnt: count() })
       .from(users)
+      .leftJoin(userIdentities, eq(users.id, userIdentities.user_id))
       .where(cohortConditions);
     const cohortSize = Number(sizeRow?.cnt ?? 0);
 
@@ -521,6 +525,7 @@ class UserMetricsService {
       const cohortUserIdSq = dbRead
         .select({ id: users.id })
         .from(users)
+        .leftJoin(userIdentities, eq(users.id, userIdentities.user_id))
         .where(cohortConditions);
 
       retainedCount = await this._countRetainedUsers(
@@ -640,28 +645,27 @@ class UserMetricsService {
     platform: MetricsPlatform | null,
   ): Promise<number> {
     const conditions = [
-      eq(users.is_anonymous, false),
+      sql`COALESCE(ui.is_anonymous, false) = false`,
       gte(users.created_at, dayStart),
       lt(users.created_at, dayEnd),
     ];
 
     if (platform === "telegram") {
-      conditions.push(sql`${users.telegram_id} IS NOT NULL`);
+      conditions.push(sql`ui.telegram_id IS NOT NULL`);
     } else if (platform === "discord") {
-      conditions.push(sql`${users.discord_id} IS NOT NULL`);
+      conditions.push(sql`ui.discord_id IS NOT NULL`);
     } else if (platform === "sms" || platform === "imessage") {
-      // Both SMS and iMessage resolve to the same phone_number column;
-      // the schema has no way to distinguish them at signup time.
-      conditions.push(sql`${users.phone_number} IS NOT NULL`);
+      conditions.push(sql`ui.phone_number IS NOT NULL`);
     } else if (platform === "web") {
-      conditions.push(isNull(users.telegram_id));
-      conditions.push(isNull(users.discord_id));
-      conditions.push(isNull(users.phone_number));
+      conditions.push(sql`ui.telegram_id IS NULL`);
+      conditions.push(sql`ui.discord_id IS NULL`);
+      conditions.push(sql`ui.phone_number IS NULL`);
     }
 
     const [r] = await dbRead
       .select({ cnt: count() })
       .from(users)
+      .leftJoin(userIdentities, eq(users.id, userIdentities.user_id))
       .where(and(...conditions));
 
     return Number(r?.cnt ?? 0);

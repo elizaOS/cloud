@@ -1,6 +1,6 @@
 "use client";
 
-import { DashboardSection } from "@/components/brand";
+import { DashboardSection } from "@elizaos/ui";
 import { TelegramConnection } from "../telegram-connection";
 import { DiscordGatewayConnection } from "../discord-gateway-connection";
 import { GoogleConnection } from "../google-connection";

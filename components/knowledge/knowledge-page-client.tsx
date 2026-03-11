@@ -9,22 +9,22 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@elizaos/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import { DocumentUpload } from "./document-upload";
 import { DocumentList } from "./document-list";
 import { KnowledgeQuery } from "./knowledge-query";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@elizaos/ui";
 import { InfoIcon, Upload, Search, List, Bot } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
-import { DashboardSection } from "@/components/brand";
+import { DashboardSection } from "@elizaos/ui";
 
 import type { KnowledgeDocument } from "@/lib/types/knowledge";
 

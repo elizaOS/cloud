@@ -15,7 +15,7 @@
 
 import Image from "next/image";
 import { Download, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 
 interface ImageDisplayProps {
   imageUrl: string;

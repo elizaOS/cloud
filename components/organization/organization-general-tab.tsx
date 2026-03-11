@@ -11,7 +11,7 @@
 import { Building2, CreditCard, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import type { Organization } from "@/db/schemas";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 
 interface OrganizationGeneralTabProps {
   organization: Organization;

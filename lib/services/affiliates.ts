@@ -2,6 +2,8 @@ import { affiliatesRepository } from "@/db/repositories/affiliates";
 import type { AffiliateCode, UserAffiliate } from "@/db/schemas/affiliates";
 import { logger } from "@/lib/utils/logger";
 import { nanoid } from "nanoid";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 // Error codes for consistent error handling
 export const ERRORS = {
@@ -35,7 +37,15 @@ export class AffiliatesService {
    * Returns the user's affiliate code if it exists. Read-only; does not create.
    */
   async getAffiliateCode(userId: string): Promise<AffiliateCode | null> {
-    return affiliatesRepository.getAffiliateCodeByUserId(userId);
+    const cacheKey = CacheKeys.affiliate.codeByUserId(userId);
+    const cached = await cache.get<AffiliateCode | { __none: true }>(cacheKey);
+    if (cached) {
+      return "__none" in cached ? null : (cached as AffiliateCode);
+    }
+
+    const code = await affiliatesRepository.getAffiliateCodeByUserId(userId);
+    await cache.set(cacheKey, code || { __none: true }, CacheTTL.affiliate.data);
+    return code;
   }
 
   /**
@@ -45,7 +55,7 @@ export class AffiliatesService {
     userId: string,
     markupPercent?: number,
   ): Promise<AffiliateCode> {
-    let affiliateCode = await affiliatesRepository.getAffiliateCodeByUserId(userId);
+    let affiliateCode = await this.getAffiliateCode(userId);
     if (affiliateCode) {
       if (
         markupPercent !== undefined &&
@@ -71,10 +81,13 @@ export class AffiliatesService {
           code,
           markup_percent: markup.toFixed(2) as string,
         });
+
+        if (affiliateCode) {
+          await cache.del(CacheKeys.affiliate.codeByUserId(userId));
+        }
       } catch (error) {
         if (isUniqueViolation(error)) {
-          affiliateCode =
-            await affiliatesRepository.getAffiliateCodeByUserId(userId);
+          affiliateCode = await affiliatesRepository.getAffiliateCodeByUserId(userId);
           if (affiliateCode) {
             logger.info("[Affiliates] Using concurrently created affiliate code", {
               userId,
@@ -88,8 +101,7 @@ export class AffiliatesService {
       }
 
       if (!affiliateCode) {
-        affiliateCode =
-          await affiliatesRepository.getAffiliateCodeByUserId(userId);
+        affiliateCode = await affiliatesRepository.getAffiliateCodeByUserId(userId);
         if (affiliateCode) {
           logger.info("[Affiliates] Using concurrently created affiliate code", {
             userId,
@@ -138,6 +150,11 @@ export class AffiliatesService {
       throw new Error("Failed to update affiliate code");
     }
 
+    // Invalidate code cache
+    await cache.del(CacheKeys.affiliate.codeById(existing.id));
+    await cache.del(CacheKeys.affiliate.codeByUserId(existing.user_id));
+    await cache.del(CacheKeys.affiliate.codeByCode(existing.code));
+
     logger.info("[Affiliates] Updated affiliate markup", { userId, markupPercent });
     return updated;
   }
@@ -147,9 +164,18 @@ export class AffiliatesService {
    */
   async linkUserToAffiliateCode(userId: string, code: string): Promise<UserAffiliate> {
     const normalizedCode = normalizeAffiliateCode(code);
-    const affiliateCode =
-      await affiliatesRepository.getAffiliateCodeByCode(normalizedCode);
+    
+    // Check cache for affiliate code by code string
+    const codeCacheKey = CacheKeys.affiliate.codeByCode(normalizedCode);
+    let affiliateCode = await cache.get<AffiliateCode | { __none: true }>(codeCacheKey);
+    
     if (!affiliateCode) {
+      const dbCode = await affiliatesRepository.getAffiliateCodeByCode(normalizedCode);
+      affiliateCode = dbCode || { __none: true };
+      await cache.set(codeCacheKey, affiliateCode, CacheTTL.affiliate.data);
+    }
+
+    if ("__none" in affiliateCode) {
       throw new Error(ERRORS.INVALID_CODE);
     }
 
@@ -186,6 +212,9 @@ export class AffiliatesService {
       throw error;
     }
 
+    // Invalidate link cache for this user
+    await cache.del(CacheKeys.affiliate.linkByUserId(userId));
+
     logger.info("[Affiliates] Linked user to affiliate code", {
       userId,
       code: normalizedCode,
@@ -198,14 +227,35 @@ export class AffiliatesService {
    * and MCP to add markup to the charge and pay the affiliate from it.
    */
   async getReferrer(userId: string): Promise<AffiliateCode | null> {
-    const link = await affiliatesRepository.getUserAffiliate(userId);
+    const linkCacheKey = CacheKeys.affiliate.linkByUserId(userId);
+    let link = await cache.get<UserAffiliate | { __none: true }>(linkCacheKey);
+    
     if (!link) {
+      const dbLink = await affiliatesRepository.getUserAffiliate(userId);
+      link = dbLink || { __none: true };
+      await cache.set(linkCacheKey, link, CacheTTL.affiliate.data);
+    }
+
+    if ("__none" in link) {
       return null;
     }
-    const affiliateCode = await affiliatesRepository.getAffiliateCodeById(
-      link.affiliate_code_id,
-    );
-    return affiliateCode?.is_active ? affiliateCode : null;
+
+    const linkData = link as UserAffiliate;
+    const codeId = linkData.affiliate_code_id;
+    const codeCacheKey = CacheKeys.affiliate.codeById(codeId);
+    let affiliateCode = await cache.get<AffiliateCode | { __none: true }>(codeCacheKey);
+
+    if (!affiliateCode) {
+      const dbCode = await affiliatesRepository.getAffiliateCodeById(codeId);
+      affiliateCode = dbCode || { __none: true };
+      await cache.set(codeCacheKey, affiliateCode, CacheTTL.affiliate.data);
+    }
+
+    if ("__none" in affiliateCode || !(affiliateCode as AffiliateCode).is_active) {
+      return null;
+    }
+    
+    return affiliateCode as AffiliateCode;
   }
 }
 

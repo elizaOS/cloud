@@ -8,8 +8,8 @@
 
 import { useState, useEffect } from "react";
 import { Copy, Check, Terminal, Rocket, Code2, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { BrandButton, CornerBrackets } from "@/components/brand";
+import { Button } from "@elizaos/ui";
+import { BrandButton, CornerBrackets } from "@elizaos/ui";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { nanoid } from "nanoid";
 import { generateRandomName } from "@/lib/utils/random-names";
 import { useChatInput, useModelSelection, type ImageAttachment } from "@/lib/app-builder/store";
-import { formatToolDisplay, getTimeString } from "@/lib/app-builder";
+import { formatToolDisplay, getTimeString } from "@/lib/app-builder/tool-display";
 import { markdownComponents } from "@/lib/app-builder/markdown-components";
 import type {
   Message,
@@ -22,19 +22,17 @@ import type {
   SourceContext,
   PreviewTab,
 } from "@/lib/app-builder/types";
-import {
-  ChatInput,
-  HistoryTab,
-  SessionLoader,
-  WebTerminal,
-} from "@/components/app-builder";
+import { ChatInput } from "@/components/app-builder/chat-input";
+import { HistoryTab } from "@/components/app-builder/history-tab";
+import { SessionLoader } from "@/components/app-builder/session-loader";
+import { WebTerminal } from "@/components/app-builder/x-terminal";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
-} from "@/components/ui/resizable";
+} from "@elizaos/ui";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 
 async function fetchWithRetry(
   url: string,
@@ -107,25 +105,25 @@ import {
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
-import { BrandCard, CornerBrackets } from "@/components/brand";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import { Label } from "@elizaos/ui";
+import { Textarea } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
+import { ScrollArea } from "@elizaos/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@elizaos/ui";
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-} from "@/components/ui/accordion";
+} from "@elizaos/ui";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 

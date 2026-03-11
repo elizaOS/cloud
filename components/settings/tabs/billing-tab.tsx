@@ -8,7 +8,7 @@
 
 "use client";
 
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 import type { UserWithOrganization } from "@/lib/types";
 import {
   Loader2,
@@ -20,7 +20,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { Input } from "@elizaos/ui";
 import type { CryptoStatusResponse } from "@/app/api/crypto/status/route";
 import { trackEvent } from "@/lib/analytics/posthog";
 

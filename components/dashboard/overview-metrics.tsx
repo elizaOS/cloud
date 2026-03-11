@@ -10,7 +10,7 @@
 "use client";
 
 import * as React from "react";
-import { BrandCard } from "@/components/brand";
+import { BrandCard } from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import { Wallet } from "lucide-react";
 

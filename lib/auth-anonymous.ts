@@ -29,7 +29,10 @@ import { usersService } from "@/lib/services/users";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { logger } from "@/lib/utils/logger";
-import type { UserWithOrganization, User } from "@/lib/types";
+import type { UserWithOrganization } from "@/lib/types";
+import { userIdentities } from "@/db/schemas/user-identities";
+import { dbRead } from "@/db/helpers";
+import { eq } from "drizzle-orm";
 
 // Constants - can be overridden via environment variables
 const ANON_SESSION_COOKIE = "eliza-anon-session";
@@ -51,7 +54,7 @@ const ANON_HOURLY_LIMIT = Number.parseInt(
 /**
  * Type for anonymous user (no organization)
  */
-type AnonymousUserWithOrganization = Omit<User, "organization_id"> & {
+type AnonymousUserWithOrganization = Omit<UserWithOrganization, "organization_id"> & {
   organization_id: null;
   organization: null;
 };
@@ -119,24 +122,30 @@ export async function getOrCreateAnonymousUser(): Promise<{
     if (session) {
       const user = await usersService.getById(session.user_id);
 
-      if (user?.is_anonymous) {
-        logger.info("[auth-anonymous] Existing anonymous session found", {
-          userId: user.id,
-          messageCount: session.message_count,
-          remaining: session.messages_limit - session.message_count,
+      if (user) {
+        // Check identity for anonymous status
+        const identity = await dbRead.query.userIdentities.findFirst({
+          where: eq(userIdentities.user_id, user.id),
         });
+        if (identity?.is_anonymous) {
+          logger.info("[auth-anonymous] Existing anonymous session found", {
+            userId: user.id,
+            messageCount: session.message_count,
+            remaining: session.messages_limit - session.message_count,
+          });
 
-        const anonymousUser: AnonymousUserWithOrganization = {
-          ...user,
-          organization_id: null,
-          organization: null,
-        };
+          const anonymousUser: AnonymousUserWithOrganization = {
+            ...user,
+            organization_id: null,
+            organization: null,
+          };
 
-        return {
-          user: anonymousUser as UserWithOrganization,
-          session,
-          isNew: false,
-        };
+          return {
+            user: anonymousUser as UserWithOrganization,
+            session,
+            isNew: false,
+          };
+        }
       }
     }
   }
@@ -268,7 +277,12 @@ export async function getAnonymousUser(): Promise<{
     return null;
   }
 
-  if (!user.is_anonymous) {
+  // Check identity for anonymous status
+  const identity = await dbRead.query.userIdentities.findFirst({
+    where: eq(userIdentities.user_id, user.id),
+  });
+
+  if (!identity?.is_anonymous) {
     logger.debug("[getAnonymousUser] User is not anonymous:", user.id);
     return null;
   }

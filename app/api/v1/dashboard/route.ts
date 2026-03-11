@@ -8,7 +8,7 @@
 import { NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { generationsService } from "@/lib/services/generations";
-import { charactersService } from "@/lib/services/characters";
+import { charactersService } from "@/lib/services/characters/characters";
 import { listContainers } from "@/lib/services/containers";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { characterDeploymentDiscoveryService } from "@/lib/services/deployments";

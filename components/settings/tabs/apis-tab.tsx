@@ -8,15 +8,31 @@
 
 "use client";
 
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import {
+  BrandCard,
+  CornerBrackets,
+  Input,
+  Label,
+  Textarea,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent as AlertDialogContentComp,
+  AlertDialogDescription as AlertDialogDescComp,
+  AlertDialogFooter as AlertDialogFooterComp,
+  AlertDialogHeader as AlertDialogHeaderComp,
+  AlertDialogTitle as AlertDialogTitleComp,
+} from "@elizaos/ui";
 import type { UserWithOrganization } from "@/lib/types";
 import type { ApiKey } from "@/db/schemas/api-keys";
-import { Plus, Copy, Trash2, Loader2, Eye, EyeOff, X } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useCallback } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 interface ApisTabProps {
   user: UserWithOrganization;
@@ -53,6 +69,11 @@ export function ApisTab({ user }: ApisTabProps) {
     creating: false,
     deletingKeyId: null,
   });
+
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const [formState, setFormState] = useState<FormState>({
     name: "",
@@ -146,13 +167,13 @@ export function ApisTab({ user }: ApisTabProps) {
   };
 
   const handleDeleteKey = async (keyId: string, keyName: string) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete the API key "${keyName}"? This action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+    setDeleteTarget({ id: keyId, name: keyName });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { id: keyId } = deleteTarget;
+    setDeleteTarget(null);
 
     updateOperation({ deletingKeyId: keyId });
 
@@ -502,174 +523,144 @@ export function ApisTab({ user }: ApisTabProps) {
         </div>
       </BrandCard>
 
-      {/* Create Key Modal */}
-      {modalState.showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-md">
-            <CornerBrackets size="sm" className="opacity-50" />
-
-            <div className="relative z-10 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-mono text-white uppercase">
-                  Create API Key
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => updateModal({ showCreateModal: false })}
-                  className="text-white/60 hover:text-white transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">
-                    Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    value={formState.name}
-                    onChange={(e) => updateForm({ name: e.target.value })}
-                    placeholder="My API Key"
-                    className="bg-transparent border-[#303030] text-white"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">
-                    Description (optional)
-                  </Label>
-                  <Textarea
-                    value={formState.description}
-                    onChange={(e) =>
-                      updateForm({ description: e.target.value })
-                    }
-                    placeholder="Used for production deployment"
-                    className="bg-transparent border-[#303030] text-white min-h-[80px] resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => updateModal({ showCreateModal: false })}
-                  className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors order-2 sm:order-1 w-full sm:w-auto"
-                  disabled={operationState.creating}
-                >
-                  <span className="font-mono text-sm whitespace-nowrap">
-                    Cancel
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCreateSubmit}
-                  disabled={operationState.creating || !formState.name.trim()}
-                  className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
-                >
-                  <div
-                    className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
-                    style={{
-                      backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                      backgroundSize: "2.915576934814453px 2.915576934814453px",
-                    }}
-                  />
-                  <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center justify-center gap-2 whitespace-nowrap">
-                    {operationState.creating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
-                        Creating...
-                      </>
-                    ) : (
-                      "Create Key"
-                    )}
-                  </span>
-                </button>
-              </div>
+      {/* Create Key Dialog */}
+      <Dialog open={modalState.showCreateModal} onOpenChange={(open) => !open && updateModal({ showCreateModal: false })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-mono uppercase">Create API Key</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-white font-mono text-sm">
+                Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                value={formState.name}
+                onChange={(e) => updateForm({ name: e.target.value })}
+                placeholder="My API Key"
+                className="bg-transparent border-[#303030] text-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-white font-mono text-sm">
+                Description (optional)
+              </Label>
+              <Textarea
+                value={formState.description}
+                onChange={(e) => updateForm({ description: e.target.value })}
+                placeholder="Used for production deployment"
+                className="bg-transparent border-[#303030] text-white min-h-[80px] resize-none"
+              />
             </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => updateModal({ showCreateModal: false })}
+              className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors"
+              disabled={operationState.creating}
+            >
+              <span className="font-mono text-sm">Cancel</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCreateSubmit}
+              disabled={operationState.creating || !formState.name.trim()}
+              className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div
+                className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+                style={{
+                  backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                  backgroundSize: "2.915576934814453px 2.915576934814453px",
+                }}
+              />
+              <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center justify-center gap-2">
+                {operationState.creating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Key"
+                )}
+              </span>
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Show Full Key Modal */}
-      {modalState.showKeyModal && modalState.newlyCreatedKey && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-2xl">
-            <CornerBrackets size="sm" className="opacity-50" />
-
-            <div className="relative z-10 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-mono text-white uppercase">
-                  Save Your API Key
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    updateModal({ showKeyModal: false, newlyCreatedKey: null });
-                  }}
-                  className="text-white/60 hover:text-white transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-[rgba(255,88,0,0.1)] border border-[#FF5800] p-4">
-                  <p className="text-sm text-[#FF5800] font-mono">
-                    ⚠️ This is the only time you will see this key. Save it
-                    securely.
+      {/* Show Full Key Dialog */}
+      <Dialog open={modalState.showKeyModal && !!modalState.newlyCreatedKey} onOpenChange={(open) => !open && updateModal({ showKeyModal: false, newlyCreatedKey: null })}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-mono uppercase">Save Your API Key</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-[rgba(255,88,0,0.1)] border border-[#FF5800] p-4">
+              <p className="text-sm text-[#FF5800] font-mono">
+                ⚠️ This is the only time you will see this key. Save it securely.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-white font-mono text-sm">API Key</Label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1 bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3">
+                  <p className="text-xs sm:text-sm text-white/80 font-mono break-all">
+                    {modalState.newlyCreatedKey}
                   </p>
                 </div>
-
-                <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">
-                    API Key
-                  </Label>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="flex-1 bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3">
-                      <p className="text-xs sm:text-sm text-white/80 font-mono break-all">
-                        {modalState.newlyCreatedKey}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCopyFullKey}
-                      className="px-4 py-2 bg-[#e1e1e1] hover:bg-white transition-colors flex items-center justify-center gap-2"
-                      title="Copy to clipboard"
-                    >
-                      <Copy className="h-5 w-5 text-black" />
-                      <span className="text-black font-mono text-sm sm:hidden">
-                        Copy
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    updateModal({ showKeyModal: false, newlyCreatedKey: null });
-                  }}
-                  className="relative bg-[#e1e1e1] px-6 py-3 overflow-hidden hover:bg-white transition-colors w-full sm:w-auto"
+                  onClick={handleCopyFullKey}
+                  className="px-4 py-2 bg-[#e1e1e1] hover:bg-white transition-colors flex items-center justify-center gap-2"
+                  title="Copy to clipboard"
                 >
-                  <div
-                    className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
-                    style={{
-                      backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                      backgroundSize: "2.915576934814453px 2.915576934814453px",
-                    }}
-                  />
-                  <span className="relative z-10 text-black font-mono font-medium text-sm sm:text-base whitespace-nowrap">
-                    Done
-                  </span>
+                  <Copy className="h-5 w-5 text-black" />
+                  <span className="text-black font-mono text-sm sm:hidden">Copy</span>
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => updateModal({ showKeyModal: false, newlyCreatedKey: null })}
+              className="relative bg-[#e1e1e1] px-6 py-3 overflow-hidden hover:bg-white transition-colors"
+            >
+              <div
+                className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+                style={{
+                  backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                  backgroundSize: "2.915576934814453px 2.915576934814453px",
+                }}
+              />
+              <span className="relative z-10 text-black font-mono font-medium text-sm sm:text-base">Done</span>
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContentComp>
+          <AlertDialogHeaderComp>
+            <AlertDialogTitleComp>Delete API Key</AlertDialogTitleComp>
+            <AlertDialogDescComp>
+              Are you sure you want to delete the API key "{deleteTarget?.name}"? This action cannot be undone.
+            </AlertDialogDescComp>
+          </AlertDialogHeaderComp>
+          <AlertDialogFooterComp>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooterComp>
+        </AlertDialogContentComp>
+      </AlertDialog>
     </div>
   );
 }

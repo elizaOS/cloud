@@ -10,18 +10,18 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { BrandCard, BrandButton } from "@/components/brand";
+import { BrandCard, BrandButton } from "@elizaos/ui";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Skeleton } from "@elizaos/ui";
 import { Activity, Cpu, HardDrive, Network, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 
 interface ContainerMetrics {
   cpu_utilization: number;

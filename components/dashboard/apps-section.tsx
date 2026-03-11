@@ -11,18 +11,18 @@
 
 import * as React from "react";
 // import { useState } from "react";
-import { BrandButton } from "@/components/brand";
+import { BrandButton } from "@elizaos/ui";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import { /* Sparkles, */ Activity, Users, Info } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-// import { QuickCreateDialog } from "@/components/builders";
+import { StatusBadge, EmptyState } from "@elizaos/ui";
+// import { QuickCreateDialog } from "@/components/builders/quick-create-dialog";
 
 interface App {
   id: string;
@@ -122,15 +122,11 @@ function AppCard({ app }: { app: App }) {
         <div className="p-4 pb-3">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-white truncate">{app.name}</h3>
-            <Badge
-              className={
-                app.is_active
-                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 shrink-0 ml-2"
-                  : "bg-zinc-500/20 text-zinc-400 border-zinc-500/30 text-[10px] px-1.5 py-0 shrink-0 ml-2"
-              }
-            >
-              {app.is_active ? "Active" : "Inactive"}
-            </Badge>
+            <StatusBadge
+              status={app.is_active ? "success" : "neutral"}
+              label={app.is_active ? "Active" : "Inactive"}
+              className="text-[10px] px-1.5 py-0 shrink-0 ml-2"
+            />
           </div>
           <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2.5rem]">
             {app.description || "No description"}
@@ -168,16 +164,10 @@ function AppCard({ app }: { app: App }) {
 // Empty State
 function AppsEmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[160px] md:min-h-[240px] gap-4 bg-neutral-900 rounded-xl">
-      <h3 className="text-lg font-medium text-neutral-500">No apps yet</h3>
-      {/* <BrandButton
-        onClick={onBuildWithAI}
-        className="h-9 md:h-10 bg-[#FF5800] text-white hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
-      >
-        <Sparkles className="h-4 w-4" />
-        Build with AI
-      </BrandButton> */}
-    </div>
+    <EmptyState
+      title="No apps yet"
+      className="min-h-[160px] md:min-h-[240px]"
+    />
   );
 }
 

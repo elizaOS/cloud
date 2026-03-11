@@ -3,7 +3,7 @@
 import { useState, useEffect, type JSX } from "react";
 import { useRouter } from "next/navigation";
 import { App } from "@/db/schemas";
-import { Badge } from "@/components/ui/badge";
+import { Badge, StatusBadge, DashboardStatCard } from "@elizaos/ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@elizaos/ui";
 import {
   Copy,
   Check,
@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { DashboardStatCard } from "@/components/brand";
+
 
 interface AppOverviewProps {
   app: App;
@@ -61,41 +61,16 @@ function DeploymentStatusBadge({
 }): JSX.Element {
   switch (status) {
     case "deployed":
-      return (
-        <Badge className="bg-green-500/10 text-green-400 border-green-500/20">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          Deployed
-        </Badge>
-      );
+      return <StatusBadge status="success" label="Deployed" icon={<CheckCircle2 />} />;
     case "deploying":
-      return (
-        <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">
-          <Rocket className="h-3 w-3 mr-1 animate-pulse" />
-          Deploying
-        </Badge>
-      );
+      return <StatusBadge status="processing" label="Deploying" icon={<Rocket />} />;
     case "building":
-      return (
-        <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
-          <Hammer className="h-3 w-3 mr-1 animate-pulse" />
-          Building
-        </Badge>
-      );
+      return <StatusBadge status="processing" label="Building" icon={<Hammer />} />;
     case "failed":
-      return (
-        <Badge className="bg-red-500/10 text-red-400 border-red-500/20">
-          <XCircle className="h-3 w-3 mr-1" />
-          Failed
-        </Badge>
-      );
+      return <StatusBadge status="error" label="Failed" icon={<XCircle />} />;
     case "draft":
     default:
-      return (
-        <Badge className="bg-white/10 text-white/60 border-white/20">
-          <FileEdit className="h-3 w-3 mr-1" />
-          Draft
-        </Badge>
-      );
+      return <StatusBadge status="neutral" label="Draft" icon={<FileEdit />} />;
   }
 }
 
@@ -187,43 +162,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
 
   const getDeploymentBadge = () => {
     const status = app.deployment_status || "draft";
-    switch (status) {
-      case "deployed":
-        return (
-          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            Deployed
-          </Badge>
-        );
-      case "deploying":
-        return (
-          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
-            <Rocket className="h-3 w-3 mr-1 animate-pulse" />
-            Deploying
-          </Badge>
-        );
-      case "building":
-        return (
-          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-            <Hammer className="h-3 w-3 mr-1 animate-pulse" />
-            Building
-          </Badge>
-        );
-      case "failed":
-        return (
-          <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
-            <XCircle className="h-3 w-3 mr-1" />
-            Failed
-          </Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-white/10 text-white/60 border-white/20">
-            <FileEdit className="h-3 w-3 mr-1" />
-            Draft
-          </Badge>
-        );
-    }
+    return <DeploymentStatusBadge status={status as DeploymentStatus} />;
   };
 
   return (
@@ -263,32 +202,32 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
 
       {/* Stats Grid */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <StatCard
+        <DashboardStatCard
           label="Status"
           value={app.is_active ? "Active" : "Inactive"}
           icon={<Activity className="h-5 w-5" />}
-          color={app.is_active ? "emerald" : "red"}
+          accent={app.is_active ? "emerald" : "red"}
         />
-        <StatCard
+        <DashboardStatCard
           label="Deployment"
           value={
             (app.deployment_status || "draft").charAt(0).toUpperCase() +
             (app.deployment_status || "draft").slice(1)
           }
           icon={<Rocket className="h-5 w-5" />}
-          color="blue"
+          accent="blue"
         />
-        <StatCard
+        <DashboardStatCard
           label="Total Users"
           value={app.total_users?.toLocaleString() || "0"}
           icon={<Shield className="h-5 w-5" />}
-          color="purple"
+          accent="violet"
         />
-        <StatCard
+        <DashboardStatCard
           label="Total Requests"
           value={app.total_requests?.toLocaleString() || "0"}
           icon={<TrendingUp className="h-5 w-5" />}
-          color="orange"
+          accent="orange"
         />
       </div>
 
@@ -503,35 +442,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  color = "white",
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  color?: "emerald" | "red" | "blue" | "purple" | "orange" | "white";
-}) {
-  const accentMap = {
-    emerald: "emerald",
-    red: "red",
-    blue: "blue",
-    purple: "violet",
-    orange: "orange",
-    white: "white",
-  } as const;
 
-  return (
-    <DashboardStatCard
-      label={label}
-      value={value}
-      icon={icon}
-      accent={accentMap[color]}
-    />
-  );
-}
 
 function InfoRow({
   label,

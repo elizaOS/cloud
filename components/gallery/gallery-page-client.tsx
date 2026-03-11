@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@elizaos/ui";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
 import { listUserMedia, getUserMediaStats } from "@/app/actions/gallery";
 import type { GalleryItem } from "@/app/actions/gallery";
@@ -18,14 +18,14 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import {
   BrandTabsResponsive,
   BrandTabsContent,
   BrandCard,
   BrandButton,
-} from "@/components/brand";
-import type { TabItem } from "@/components/brand";
+} from "@elizaos/ui";
+import type { TabItem } from "@elizaos/ui";
 
 type TabType = "all" | "image" | "video";
 

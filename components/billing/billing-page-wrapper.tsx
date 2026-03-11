@@ -10,12 +10,12 @@
 
 "use client";
 
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import { BillingPageClient } from "./billing-page-client";
 import { Info } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@elizaos/ui";
 import type { CreditPack as DBCreditPack } from "@/lib/types";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 
 // Local interface with credits as number for display
 interface CreditPack {

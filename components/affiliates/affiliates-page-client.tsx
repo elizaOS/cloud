@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BrandCard } from "@/components/brand";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { BrandCard } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import { Skeleton } from "@elizaos/ui";
 import { Copy, CheckCircle2, UserCog, Link as LinkIcon, AlertTriangle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";

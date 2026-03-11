@@ -3,10 +3,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Alert, AlertDescription } from "@elizaos/ui";
 import { InfoIcon, Sparkles } from "lucide-react";
 import type { UserCharacter } from "@/db/schemas";
 import { ElizaChatInterface } from "./eliza-chat-interface";

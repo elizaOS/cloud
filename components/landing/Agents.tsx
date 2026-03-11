@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { MessageSquare, MoreVertical, ChevronRight } from "lucide-react";
-import { SectionLabel, CornerBrackets, BrandCard } from "@/components/brand";
+import { SectionLabel, CornerBrackets, BrandCard } from "@elizaos/ui";
 
 const Agents = () => {
   return (

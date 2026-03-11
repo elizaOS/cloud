@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { requireAuth } from "@/lib/auth";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
-import { MyAgentsClient } from "./my-agents";
+import { MyAgentsClient } from "@/components/my-agents/my-agents";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { logger } from "@/lib/utils/logger";
 

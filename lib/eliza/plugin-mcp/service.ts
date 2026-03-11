@@ -69,7 +69,7 @@ import {
 import { Tier2ToolIndex, type Tier2ToolEntry } from "./search/bm25-index";
 import { getCrucialToolsForServer, isCrucialTool } from "./tool-visibility";
 import { toActionName } from "./utils/action-naming";
-import { McpSchemaCache, getSchemaCache } from "./cache";
+import { McpSchemaCache, getSchemaCache } from "./cache/schema-cache";
 import {
   type McpToolCompatibility,
   createMcpToolCompatibilitySync,

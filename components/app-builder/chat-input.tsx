@@ -13,7 +13,7 @@
 
 import { memo, useCallback, useRef, useEffect, useState } from "react";
 import { Loader2, ArrowUp, Mic, Square, X, ImageIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import { useChatInput, useModelSelection, type ImageAttachment } from "@/lib/app-builder/store";
 import { useAppBuilderSTT } from "./use-app-builder-stt";
 import { cn } from "@/lib/utils";

@@ -9,19 +9,19 @@
 "use client";
 
 import { useState } from "react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 import type { UserWithOrganization } from "@/lib/types";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@elizaos/ui";
+import { Label } from "@elizaos/ui";
+import { Textarea } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+} from "@elizaos/ui";
+import { Switch } from "@elizaos/ui";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 

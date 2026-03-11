@@ -10,7 +10,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 import type { UserWithOrganization } from "@/lib/types";
 import type { SettingsTab } from "../settings-page-client";
 import { ArrowUpRight, Copy } from "lucide-react";

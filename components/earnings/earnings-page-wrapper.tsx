@@ -1,6 +1,6 @@
 "use client";
 
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import { EarningsPageClient } from "./earnings-page-client";
 
 export function EarningsPageWrapper() {

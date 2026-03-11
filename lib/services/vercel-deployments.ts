@@ -18,6 +18,7 @@
 
 import { dbRead, dbWrite } from "@/db/client";
 import { apps } from "@/db/schemas/apps";
+import { appConfig } from "@/db/schemas/app-config";
 import { appDomains, type NewAppDomain } from "@/db/schemas/app-domains";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -377,12 +378,19 @@ export async function createDeployment(
     return { success: false, error: "App not found" };
   }
 
-  if (!app.github_repo) {
+  // Get github_repo from app config
+  const config = await dbRead.query.appConfig.findFirst({
+    where: eq(appConfig.app_id, appId),
+  });
+
+  if (!config?.github_repo) {
     return {
       success: false,
       error: "App does not have a GitHub repository. Create one first.",
     };
   }
+
+  const githubRepo = config.github_repo;
 
   // Ensure subdomain exists
   const subdomainResult = await assignSubdomain(appId);
@@ -393,8 +401,7 @@ export async function createDeployment(
     };
   }
 
-  // Get or create Vercel project for this app
-  const project = await getOrCreateVercelProject(appId, app);
+  const project = await getOrCreateVercelProject(appId, { slug: app.slug, github_repo: githubRepo });
   if (!project) {
     return {
       success: false,
@@ -428,7 +435,7 @@ export async function createDeployment(
   logger.info("[Vercel Deployments] Creating deployment", {
     appId,
     projectId: project.projectId,
-    githubRepo: app.github_repo,
+    githubRepo,
     branch,
     target,
     commitSha,
@@ -436,9 +443,9 @@ export async function createDeployment(
 
   try {
     // Parse GitHub repo
-    const [org, repo] = app.github_repo.includes("/")
-      ? app.github_repo.split("/")
-      : [GITHUB_ORG, app.github_repo];
+    const [org, repo] = githubRepo.includes("/")
+      ? githubRepo.split("/")
+      : [GITHUB_ORG, githubRepo];
 
     // Create deployment via Vercel API
     const deploymentResponse = await vercelFetch<VercelDeploymentResponse>(

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { BrandCard, CornerBrackets, ElizaCloudLockup } from "@/components/brand";
+import { BrandCard, CornerBrackets, ElizaCloudLockup } from "@elizaos/ui";
 import LandingHeader from "@/components/layout/landing-header";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";

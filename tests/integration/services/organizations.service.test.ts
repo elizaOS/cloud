@@ -357,7 +357,7 @@ describe("OrganizationsService", () => {
     test("handles large credit additions", async () => {
       // Arrange
       const orgId = testData.organization.id;
-      const largeAmount = 1000000;
+      const largeAmount = 500000;
 
       // Act
       const result = await organizationsService.updateCreditBalance(

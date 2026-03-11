@@ -10,7 +10,7 @@
 
 import { Building2, CreditCard, Calendar } from "lucide-react";
 import type { Organization } from "@/lib/types";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 
 interface OrganizationInfoProps {
   organization: Organization;

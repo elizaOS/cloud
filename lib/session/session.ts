@@ -20,6 +20,8 @@ import {
   userCharacters,
   elizaRoomCharactersTable,
 } from "@/db/schemas";
+import { userIdentities } from "@/db/schemas/user-identities";
+import { organizationConfig } from "@/db/schemas/organization-config";
 import { participantTable } from "@/db/schemas/eliza";
 import type { AnonymousSession } from "@/db/schemas";
 import { eq, and, sql } from "drizzle-orm";
@@ -187,16 +189,22 @@ export async function getOrCreateSessionUser(
       const sessionUser = await usersService.getWithOrganization(
         session.user_id,
       );
-      if (sessionUser && sessionUser.is_anonymous) {
-        logger.info(
-          `${logPrefix} Valid anonymous session from provided token`,
-          {
-            userId: sessionUser.id,
-            messageCount: session.message_count,
-          },
-        );
+      if (sessionUser) {
+        // Check identity table for anonymous status
+        const identity = await db.query.userIdentities.findFirst({
+          where: eq(userIdentities.user_id, sessionUser.id),
+        });
+        if (identity?.is_anonymous) {
+          logger.info(
+            `${logPrefix} Valid anonymous session from provided token`,
+            {
+              userId: sessionUser.id,
+              messageCount: session.message_count,
+            },
+          );
 
-        return buildAnonymousSessionUser(sessionUser, session, providedToken);
+          return buildAnonymousSessionUser(sessionUser, session, providedToken);
+        }
       }
     }
     logger.debug(`${logPrefix} Provided token invalid or expired`);
@@ -216,13 +224,18 @@ export async function getOrCreateSessionUser(
       const sessionUser = await usersService.getWithOrganization(
         session.user_id,
       );
-      if (sessionUser && sessionUser.is_anonymous) {
-        logger.info(`${logPrefix} Valid anonymous session from cookie`, {
-          userId: sessionUser.id,
-          messageCount: session.message_count,
+      if (sessionUser) {
+        const identity = await db.query.userIdentities.findFirst({
+          where: eq(userIdentities.user_id, sessionUser.id),
         });
+        if (identity?.is_anonymous) {
+          logger.info(`${logPrefix} Valid anonymous session from cookie`, {
+            userId: sessionUser.id,
+            messageCount: session.message_count,
+          });
 
-        return buildAnonymousSessionUser(sessionUser, session, cookieToken);
+          return buildAnonymousSessionUser(sessionUser, session, cookieToken);
+        }
       }
     }
     logger.debug(`${logPrefix} Cookie token invalid or expired`);
@@ -283,14 +296,19 @@ async function createNewAnonymousSession(): Promise<SessionUser> {
   const [newUser] = await db
     .insert(users)
     .values({
-      is_anonymous: true,
-      anonymous_session_id: sessionToken,
       organization_id: null,
       is_active: true,
-      expires_at: expiresAt,
       role: "member",
     })
     .returning();
+
+  // Create identity record for anonymous user
+  await db.insert(userIdentities).values({
+    user_id: newUser.id,
+    is_anonymous: true,
+    anonymous_session_id: sessionToken,
+    expires_at: expiresAt,
+  });
 
   const newSession = await anonymousSessionsService.create({
     session_token: sessionToken,
@@ -436,21 +454,25 @@ export async function migrateAnonymousSession(
     let [anonUser] = await tx
       .select()
       .from(users)
-      .where(and(eq(users.id, anonymousUserId), eq(users.is_anonymous, true)))
-      .limit(1);
+      .innerJoin(userIdentities, eq(users.id, userIdentities.user_id))
+      .where(and(eq(users.id, anonymousUserId), eq(userIdentities.is_anonymous, true)))
+      .limit(1)
+      .then(rows => rows.map(r => r.users));
 
     if (!anonUser) {
       [anonUser] = await tx
         .select()
         .from(users)
+        .leftJoin(userIdentities, eq(users.id, userIdentities.user_id))
         .where(
           and(
             eq(users.id, anonymousUserId),
             sql`${users.email} LIKE 'affiliate-%@anonymous.elizacloud.ai'`,
-            sql`${users.privy_user_id} IS NULL`,
+            sql`${userIdentities.privy_user_id} IS NULL`,
           ),
         )
-        .limit(1);
+        .limit(1)
+        .then(rows => rows.map(r => r.users));
     }
 
     if (!anonUser) {
@@ -475,8 +497,10 @@ export async function migrateAnonymousSession(
     const [realUser] = await tx
       .select()
       .from(users)
-      .where(eq(users.privy_user_id, privyUserId))
-      .limit(1);
+      .innerJoin(userIdentities, eq(users.id, userIdentities.user_id))
+      .where(eq(userIdentities.privy_user_id, privyUserId))
+      .limit(1)
+      .then(rows => rows.map(r => r.users));
 
     let targetUserId: string;
     let targetOrgId: string | null = null;
@@ -490,25 +514,38 @@ export async function migrateAnonymousSession(
           name: `${anonUser.name || "User"}'s Organization`,
           slug: orgSlug,
           credit_balance: "5.00",
-          settings: anonSession
-            ? {
-                migratedFromAnonymous: {
-                  messageCount: anonSession.message_count,
-                  tokensUsed: anonSession.total_tokens_used,
-                  migratedAt: new Date().toISOString(),
-                },
-              }
-            : {},
         })
         .returning();
 
+      // Store migration metadata in organization config
+      if (anonSession) {
+        await tx.insert(organizationConfig).values({
+          organization_id: organization.id,
+          settings: {
+            migratedFromAnonymous: {
+              messageCount: anonSession.message_count,
+              tokensUsed: anonSession.total_tokens_used,
+              migratedAt: new Date().toISOString(),
+            },
+          },
+        });
+      }
+
+      // Update identity to non-anonymous
       await tx
-        .update(users)
+        .update(userIdentities)
         .set({
           privy_user_id: privyUserId,
           is_anonymous: false,
           anonymous_session_id: null,
           expires_at: null,
+          updated_at: new Date(),
+        })
+        .where(eq(userIdentities.user_id, anonymousUserId));
+
+      await tx
+        .update(users)
+        .set({
           organization_id: organization.id,
           role: "owner",
           updated_at: new Date(),
@@ -585,18 +622,35 @@ export async function migrateAnonymousSession(
         .where(eq(participantTable.entityId, anonymousUserId));
 
       if (anonSession && targetOrgId) {
-        await tx
-          .update(organizations)
-          .set({
-            settings: sql`COALESCE(settings, '{}'::jsonb) || ${JSON.stringify({
+        // Store migration metadata in organization config
+        const existingConfig = await tx.query.organizationConfig.findFirst({
+          where: eq(organizationConfig.organization_id, targetOrgId),
+        });
+        if (existingConfig) {
+          await tx
+            .update(organizationConfig)
+            .set({
+              settings: sql`COALESCE(${organizationConfig.settings}, '{}'::jsonb) || ${JSON.stringify({
+                migratedFromAnonymous: {
+                  messageCount: anonSession.message_count,
+                  tokensUsed: anonSession.total_tokens_used,
+                  migratedAt: new Date().toISOString(),
+                },
+              })}::jsonb`,
+            })
+            .where(eq(organizationConfig.organization_id, targetOrgId));
+        } else {
+          await tx.insert(organizationConfig).values({
+            organization_id: targetOrgId,
+            settings: {
               migratedFromAnonymous: {
                 messageCount: anonSession.message_count,
                 tokensUsed: anonSession.total_tokens_used,
                 migratedAt: new Date().toISOString(),
               },
-            })}::jsonb`,
-          })
-          .where(eq(organizations.id, targetOrgId));
+            },
+          });
+        }
       }
 
       await tx.delete(users).where(eq(users.id, anonymousUserId));

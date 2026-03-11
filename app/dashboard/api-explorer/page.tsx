@@ -36,7 +36,7 @@ import {
 import { ApiTester } from "@/components/api-explorer/api-tester";
 import { AuthManager } from "@/components/api-explorer/auth-manager";
 import { EndpointCard } from "@/components/api-explorer/endpoint-card";
-import { MonacoEditorSkeleton } from "@/components/chat/monaco-editor-skeleton";
+import { MonacoEditorSkeleton } from "@elizaos/ui";
 
 const OpenApiViewer = dynamic(
   () =>
@@ -48,7 +48,7 @@ const OpenApiViewer = dynamic(
     loading: () => <MonacoEditorSkeleton height="600px" />,
   },
 );
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 
 const categoryDescriptions: Record<string, string> = {

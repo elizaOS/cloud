@@ -18,16 +18,16 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+} from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import { Label } from "@elizaos/ui";
+import { Textarea } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import { CustomSelect } from "./custom-select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { ScrollArea } from "@elizaos/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@elizaos/ui";
 import {
   PlayIcon,
   CopyIcon,

@@ -10,7 +10,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 
 interface DashboardPageWrapperProps {
   userName: string;

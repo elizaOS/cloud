@@ -11,14 +11,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CharacterForm, type FormTab } from "@/components/character-builder";
-import { JsonEditor } from "@/components/character-creator/json-editor";
+import { CharacterForm, type FormTab } from "@/components/character-builder/character-form";
+import { JsonEditor } from "@/components/character-builder/json-editor";
 import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
-import { Button } from "@/components/ui/button";
-import { AnimatedTabs } from "@/components/ui/animated-tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@elizaos/ui";
+import { AnimatedTabs } from "@elizaos/ui";
+import { ScrollArea } from "@elizaos/ui";
 import { useSearchParams } from "next/navigation";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
 

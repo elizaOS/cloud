@@ -140,7 +140,7 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
-  transpilePackages: ["next-mdx-remote"],
+  transpilePackages: ["next-mdx-remote", "@elizaos/ui"],
   // Note: eslint config is no longer supported in next.config.ts for Next.js 16+
   // Use eslint.config.mjs instead
   outputFileTracingRoot: undefined,
@@ -161,6 +161,9 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
+    "@privy-io/server-auth",
+    "@solana/web3.js",
+    "@upstash/redis",
     // oxapay uses __dirname + fs.readFile for method info JSON
     "oxapay",
     // Prevent Response polyfill conflicts (Next.js #58611)

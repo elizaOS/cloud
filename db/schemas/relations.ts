@@ -5,12 +5,19 @@
  */
 import { relations } from "drizzle-orm";
 import { organizations } from "./organizations";
+import { organizationBilling } from "./organization-billing";
+import { organizationConfig } from "./organization-config";
 import { organizationInvites } from "./organization-invites";
 import { organizationEncryptionKeys } from "./organization-encryption-keys";
 import { users } from "./users";
+import { userIdentities } from "./user-identities";
+import { userPreferences } from "./user-preferences";
 import { conversations, conversationMessages } from "./conversations";
 import { userCharacters } from "./user-characters";
 import { apps, appUsers, appAnalytics } from "./apps";
+import { appConfig } from "./app-config";
+import { appBilling } from "./app-billing";
+import { appDatabases } from "./app-databases";
 import { apiKeys } from "./api-keys";
 import { appCreditBalances } from "./app-credit-balances";
 import { appEarnings, appEarningsTransactions } from "./app-earnings";
@@ -27,6 +34,34 @@ export const organizationsRelations = relations(
     invites: many(organizationInvites),
     apps: many(apps),
     encryptionKey: one(organizationEncryptionKeys),
+    billing: one(organizationBilling),
+    config: one(organizationConfig),
+  }),
+);
+
+/**
+ * Organization billing table relations.
+ */
+export const organizationBillingRelations = relations(
+  organizationBilling,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationBilling.organization_id],
+      references: [organizations.id],
+    }),
+  }),
+);
+
+/**
+ * Organization config table relations.
+ */
+export const organizationConfigRelations = relations(
+  organizationConfig,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationConfig.organization_id],
+      references: [organizations.id],
+    }),
   }),
 );
 
@@ -51,8 +86,36 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.organization_id],
     references: [organizations.id],
   }),
+  identity: one(userIdentities),
+  preferences: one(userPreferences),
   conversations: many(conversations),
 }));
+
+/**
+ * User identities table relations.
+ */
+export const userIdentitiesRelations = relations(
+  userIdentities,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userIdentities.user_id],
+      references: [users.id],
+    }),
+  }),
+);
+
+/**
+ * User preferences table relations.
+ */
+export const userPreferencesRelations = relations(
+  userPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userPreferences.user_id],
+      references: [users.id],
+    }),
+  }),
+);
 
 /**
  * Conversations table relations.
@@ -136,10 +199,43 @@ export const appsRelations = relations(apps, ({ one, many }) => ({
     fields: [apps.api_key_id],
     references: [apiKeys.id],
   }),
+  config: one(appConfig),
+  billing: one(appBilling),
+  database: one(appDatabases),
   users: many(appUsers),
   analytics: many(appAnalytics),
   creditBalances: many(appCreditBalances),
   earningsTransactions: many(appEarningsTransactions),
+}));
+
+/**
+ * App config table relations.
+ */
+export const appConfigRelations = relations(appConfig, ({ one }) => ({
+  app: one(apps, {
+    fields: [appConfig.app_id],
+    references: [apps.id],
+  }),
+}));
+
+/**
+ * App billing table relations.
+ */
+export const appBillingRelations = relations(appBilling, ({ one }) => ({
+  app: one(apps, {
+    fields: [appBilling.app_id],
+    references: [apps.id],
+  }),
+}));
+
+/**
+ * App databases table relations.
+ */
+export const appDatabasesRelations = relations(appDatabases, ({ one }) => ({
+  app: one(apps, {
+    fields: [appDatabases.app_id],
+    references: [apps.id],
+  }),
 }));
 
 /**

@@ -8,8 +8,8 @@ import {
   useLoginWithOAuth,
 } from "@privy-io/react-auth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BrandButton } from "@/components/brand";
-import { Input } from "@/components/ui/input";
+import { BrandButton } from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
 import { Loader2, Mail, Wallet, Github, Chrome, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import LandingHeader from "@/components/layout/landing-header";

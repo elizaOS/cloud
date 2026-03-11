@@ -6,9 +6,10 @@ import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import { PageHeaderProvider } from "@/components/layout/page-header-context";
-import { OnboardingProvider, OnboardingOverlay } from "@/components/onboarding";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { PageHeaderProvider } from "@elizaos/ui";
+import { OnboardingProvider } from "@/components/onboarding/onboarding-provider";
+import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
+import { ScrollArea } from "@elizaos/ui";
 
 /**
  * Free Mode Paths (accessible without auth):

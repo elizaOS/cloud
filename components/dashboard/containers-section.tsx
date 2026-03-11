@@ -10,17 +10,17 @@
 "use client";
 
 import * as React from "react";
-import { BrandButton } from "@/components/brand";
+import { BrandButton } from "@elizaos/ui";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import { Terminal, Info, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { ContainersTable } from "@/components/containers/containers-table";
-import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
+import { ContainersSkeleton } from "@elizaos/ui";
 
 // Simplified container type matching getDashboardData output
 interface DashboardContainer {

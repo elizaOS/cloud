@@ -10,19 +10,17 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import type { UserWithOrganization } from "@/lib/types";
 import { SettingsTabs } from "./settings-tabs";
-import {
-  GeneralTab,
-  AccountTab,
-  UsageTab,
-  BillingTab,
-  ApisTab,
-  AnalyticsTab,
-  OrganizationTab,
-  ConnectionsTab,
-} from "./tabs";
+import { GeneralTab } from "./tabs/general-tab";
+import { AccountTab } from "./tabs/account-tab";
+import { UsageTab } from "./tabs/usage-tab";
+import { BillingTab } from "./tabs/billing-tab";
+import { ApisTab } from "./tabs/apis-tab";
+import { AnalyticsTab } from "./tabs/analytics-tab";
+import { OrganizationTab } from "./tabs/organization-tab";
+import { ConnectionsTab } from "./tabs/connections-tab";
 
 interface SettingsPageClientProps {
   user: UserWithOrganization;

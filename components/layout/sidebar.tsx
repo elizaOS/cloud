@@ -14,11 +14,11 @@ import Link from "next/link";
 import { useState, useEffect, memo, useCallback } from "react";
 import { X, PanelLeft, PanelLeftClose } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@elizaos/ui";
 import { SidebarNavigationSection } from "./sidebar-section";
 import { sidebarSections } from "./sidebar-data";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
-import { ElizaCloudLockup, ElizaLogo } from "@/components/brand";
+import { ElizaCloudLockup, ElizaLogo } from "@elizaos/ui";
 
 interface SidebarProps {
   className?: string;

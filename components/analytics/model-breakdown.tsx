@@ -9,9 +9,9 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import type { EnhancedAnalyticsData } from "@/lib/actions/analytics-enhanced";
 import { ChevronDown, ChevronUp } from "lucide-react";
 

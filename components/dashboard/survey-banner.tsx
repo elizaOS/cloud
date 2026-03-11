@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { X, MessageCircleQuestion, ArrowRight } from "lucide-react";
-import { BrandButton } from "@/components/brand";
+import { BrandButton } from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "eliza-survey-banner-dismissed";

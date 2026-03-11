@@ -10,7 +10,7 @@
 
 import { Info, CheckCircle2, XCircle, Calendar, Wallet } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 
 interface AccountDetailsProps {
   user: UserWithOrganization;

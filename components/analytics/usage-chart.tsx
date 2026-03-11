@@ -12,13 +12,13 @@
 import { useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "@/components/ui/chart";
-import { Badge } from "@/components/ui/badge";
+} from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 
 type MetricKey = "requests" | "cost" | "successRate";

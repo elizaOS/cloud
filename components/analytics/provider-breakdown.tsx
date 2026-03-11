@@ -8,9 +8,9 @@
 
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Progress } from "@elizaos/ui";
 import type { EnhancedAnalyticsData } from "@/lib/actions/analytics-enhanced";
 
 interface ProviderBreakdownProps {

@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
 import { ContainerLogsViewer } from "@/components/containers/container-logs-viewer";
 import { ContainerMetrics } from "@/components/containers/container-metrics";
-import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
-import { Badge } from "@/components/ui/badge";
+import { BrandCard, BrandButton, CornerBrackets } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
 import {
   ExternalLink,
   ArrowLeft,

@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { MCPsPageWrapper } from "./mcps-page-wrapper";
-import { MCPsSection, MCPsSectionSkeleton } from "./mcps-section";
+import { MCPsPageWrapper } from "@/components/mcps/mcps-page-wrapper";
+import { MCPsSection, MCPsSectionSkeleton } from "@/components/mcps/mcps-section";
 
 export const metadata: Metadata = {
   title: "MCP Servers",

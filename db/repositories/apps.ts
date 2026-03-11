@@ -13,6 +13,7 @@ import {
   type AppRequest,
   type NewAppRequest,
 } from "../schemas";
+import { appConfig } from "../schemas/app-config";
 import { appDomains } from "../schemas/app-domains";
 import {
   eq,
@@ -687,11 +688,11 @@ export class AppsRepository {
   }
 
   // ============================================================================
-  // PROMOTIONAL ASSETS - Atomic operations
+  // PROMOTIONAL ASSETS - Atomic operations (via app_config table)
   // ============================================================================
 
   /**
-   * Atomically appends a promotional asset to an app's promotional_assets array.
+   * Atomically appends a promotional asset to an app's config.
    * Uses JSONB concatenation to avoid read-modify-write race conditions.
    */
   async appendPromotionalAsset(
@@ -703,21 +704,20 @@ export class AppsRepository {
       generatedAt: string;
     },
   ): Promise<App | undefined> {
-    const [updated] = await dbWrite
-      .update(apps)
+    await dbWrite
+      .update(appConfig)
       .set({
         promotional_assets: sql`
-          COALESCE(${apps.promotional_assets}, '[]'::jsonb) || ${JSON.stringify(asset)}::jsonb
+          COALESCE(${appConfig.promotional_assets}, '[]'::jsonb) || ${JSON.stringify(asset)}::jsonb
         `,
         updated_at: new Date(),
       })
-      .where(eq(apps.id, appId))
-      .returning();
-    return updated;
+      .where(eq(appConfig.app_id, appId));
+    return this.findById(appId);
   }
 
   /**
-   * Atomically removes a promotional asset from an app by URL.
+   * Atomically removes a promotional asset from an app config by URL.
    * Uses JSONB operations to avoid read-modify-write race conditions.
    */
   async removePromotionalAsset(
@@ -725,35 +725,39 @@ export class AppsRepository {
     assetUrl: string,
   ): Promise<{ app: App | undefined; removedAsset: unknown }> {
     // First get the asset we're about to remove (for blob cleanup)
-    const app = await this.findById(appId);
-    const assets = (app?.promotional_assets as Array<{ url: string }>) || [];
+    const config = await dbRead.query.appConfig.findFirst({
+      where: eq(appConfig.app_id, appId),
+    });
+    const assets =
+      (config?.promotional_assets as Array<{ url: string }>) || [];
     const removedAsset = assets.find((a) => a.url === assetUrl);
 
     if (!removedAsset) {
+      const app = await this.findById(appId);
       return { app, removedAsset: undefined };
     }
 
     // Atomically remove the asset using JSONB operations
-    const [updated] = await dbWrite
-      .update(apps)
+    await dbWrite
+      .update(appConfig)
       .set({
         promotional_assets: sql`
           CASE
-            WHEN jsonb_array_length(COALESCE(${apps.promotional_assets}, '[]'::jsonb)) <= 1
+            WHEN jsonb_array_length(COALESCE(${appConfig.promotional_assets}, '[]'::jsonb)) <= 1
             THEN NULL
             ELSE (
               SELECT jsonb_agg(elem)
-              FROM jsonb_array_elements(COALESCE(${apps.promotional_assets}, '[]'::jsonb)) AS elem
+              FROM jsonb_array_elements(COALESCE(${appConfig.promotional_assets}, '[]'::jsonb)) AS elem
               WHERE elem->>'url' != ${assetUrl}
             )
           END
         `,
         updated_at: new Date(),
       })
-      .where(eq(apps.id, appId))
-      .returning();
+      .where(eq(appConfig.app_id, appId));
 
-    return { app: updated, removedAsset };
+    const app = await this.findById(appId);
+    return { app, removedAsset };
   }
 }
 

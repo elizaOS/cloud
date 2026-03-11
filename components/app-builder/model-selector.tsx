@@ -6,8 +6,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+} from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import { ChevronDown, Sparkles, Zap, Brain, Cpu } from "lucide-react";
 import {
   APP_BUILDER_MODELS,

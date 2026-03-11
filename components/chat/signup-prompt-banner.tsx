@@ -13,7 +13,7 @@
 import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { X, Sparkles, Clock, Zap, Save } from "lucide-react";
-import { BrandButton } from "@/components/brand";
+import { BrandButton } from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 
 interface SignupPromptBannerProps {

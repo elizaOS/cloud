@@ -8,13 +8,13 @@
 
 "use client";
 
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import { ProfileForm } from "./profile-form";
 import { OrganizationInfo } from "./organization-info";
 import { AccountDetails } from "./account-details";
 import { SecurityPreferences } from "./security-preferences";
 import type { UserWithOrganization } from "@/lib/types";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 
 interface AccountPageClientProps {
   user: UserWithOrganization;

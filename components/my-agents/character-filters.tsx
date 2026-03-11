@@ -15,14 +15,14 @@
 
 "use client";
 
-import { Input } from "@/components/ui/input";
+import { Input } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import { Search, LayoutGrid, List } from "lucide-react";
 import type { ViewMode, SortOption } from "./my-agents-client";
 

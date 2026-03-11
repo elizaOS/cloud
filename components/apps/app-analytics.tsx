@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
 import {
+  Button,
+  DashboardStatCard,
+  MiniStatCard,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import {
   Loader2,
   TrendingUp,
@@ -38,7 +40,7 @@ import {
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { DashboardStatCard } from "@/components/brand";
+
 
 interface AppAnalyticsProps {
   appId: string;
@@ -351,17 +353,17 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
         <div className="space-y-4">
           {totalStats && (
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-              <StatCard
+              <DashboardStatCard
                 label="Total Requests"
                 value={totalStats.totalRequests?.toLocaleString() || "0"}
                 icon={<Activity className="h-5 w-5 text-purple-400" />}
               />
-              <StatCard
+              <DashboardStatCard
                 label="Total Users"
                 value={totalStats.totalUsers?.toLocaleString() || "0"}
                 icon={<Users className="h-5 w-5 text-blue-400" />}
               />
-              <StatCard
+              <DashboardStatCard
                 label="Credits Used"
                 value={`$${parseFloat(totalStats.totalCreditsUsed || "0").toFixed(2)}`}
                 icon={<DollarSign className="h-5 w-5 text-green-400" />}
@@ -614,17 +616,17 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
             <>
               {requestStats && (
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-                  <StatCard
+                  <DashboardStatCard
                     label="Unique IPs"
                     value={requestStats.uniqueIps.toLocaleString()}
                     icon={<Globe className="h-5 w-5 text-[#FF5800]" />}
                   />
-                  <StatCard
+                  <DashboardStatCard
                     label="Unique Users"
                     value={requestStats.uniqueUsers.toLocaleString()}
                     icon={<Users className="h-5 w-5 text-blue-400" />}
                   />
-                  <StatCard
+                  <DashboardStatCard
                     label="Avg Requests/IP"
                     value={
                       requestStats.uniqueIps > 0
@@ -859,31 +861,4 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-}) {
-  return <DashboardStatCard label={label} value={value} icon={icon} />;
-}
 
-function MiniStatCard({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color: string;
-}) {
-  return (
-    <div className="bg-neutral-900 rounded-xl p-3">
-      <p className="text-[10px] text-neutral-500">{label}</p>
-      <p className={`text-lg font-semibold mt-0.5 ${color}`}>{value}</p>
-    </div>
-  );
-}

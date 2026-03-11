@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { charactersService } from "@/lib/services/characters";
+import { charactersService } from "@/lib/services/characters/characters";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { getCurrentUser } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";

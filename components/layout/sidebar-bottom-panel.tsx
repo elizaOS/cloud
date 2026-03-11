@@ -12,7 +12,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { UserPlus, LogIn, Settings, LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CornerBrackets } from "@/components/brand";
+import { CornerBrackets } from "@elizaos/ui";
 import { useCredits } from "@/lib/providers/CreditsProvider";
 
 interface SidebarBottomPanelProps {

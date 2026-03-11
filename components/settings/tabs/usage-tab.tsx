@@ -10,7 +10,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 import type { UserWithOrganization } from "@/lib/types";
 import { Info, DollarSign, Loader2 } from "lucide-react";
 import { toast } from "sonner";

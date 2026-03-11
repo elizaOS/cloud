@@ -11,9 +11,9 @@
 import { useState, useTransition, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@elizaos/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "@elizaos/ui";
+import { Alert, AlertDescription } from "@elizaos/ui";
 import { updateProfile, uploadAvatar, updateEmail } from "@/app/actions/users";
 import {
   Loader2,
@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
 import { toast } from "sonner";
-import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
+import { BrandCard, BrandButton, CornerBrackets } from "@elizaos/ui";
 
 // Constants for validation
 const VALID_IMAGE_TYPES = [

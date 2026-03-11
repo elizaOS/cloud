@@ -8,7 +8,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useOnboarding } from "./onboarding-provider";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TooltipPlacement } from "@/lib/onboarding/types";

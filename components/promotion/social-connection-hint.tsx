@@ -9,8 +9,8 @@
  */
 
 import { useState, useEffect } from "react";
-import { BrandCard } from "@/components/brand";
-import { Button } from "@/components/ui/button";
+import { BrandCard } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import { X, ArrowRight, Bot, MessageSquare, Sparkles } from "lucide-react";
 import Link from "next/link";
 

@@ -25,7 +25,7 @@ import {
   MessageSquare,
   Plus,
 } from "lucide-react";
-import { BrandButton } from "@/components/brand";
+import { BrandButton } from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -33,7 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+} from "@elizaos/ui";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";

@@ -15,13 +15,21 @@ import {
   History,
   Circle,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Button,
+  ScrollArea,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -50,6 +58,11 @@ export function HistoryTab({
   const [rollbackingSha, setRollbackingSha] = useState<string | null>(null);
   const [expandedCommit, setExpandedCommit] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingRollback, setPendingRollback] = useState<{
+    sha: string;
+    shortSha: string;
+    message: string;
+  } | null>(null);
 
   const fetchCommits = useCallback(async () => {
     if (!sessionId) return;
@@ -85,10 +98,15 @@ export function HistoryTab({
 
     const commit = commits.find((c) => c.sha === sha);
     const shortSha = sha.substring(0, 7);
-    const confirmMessage = `Rollback to commit ${shortSha}?\n\n"${commit?.message.split("\n")[0] || "Unknown"}"\n\nThis will discard any unsaved changes.`;
 
-    if (!window.confirm(confirmMessage)) return;
+    setPendingRollback({ sha, shortSha, message: commit?.message.split("\n")[0] || "Unknown" });
+  };
 
+  const handleConfirmRollback = async () => {
+    if (!pendingRollback) return;
+    const { sha, shortSha } = pendingRollback;
+    const commit = commits.find((c) => c.sha === sha);
+    setPendingRollback(null);
     setRollbackingSha(sha);
 
     try {
@@ -230,6 +248,7 @@ export function HistoryTab({
   }
 
   return (
+    <>
     <div className={cn("flex flex-col h-full bg-[#0a0a0b]", className)}>
       {/* Header */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
@@ -464,5 +483,23 @@ export function HistoryTab({
         </div>
       </ScrollArea>
     </div>
+
+    <AlertDialog open={pendingRollback !== null} onOpenChange={(open) => !open && setPendingRollback(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Rollback to {pendingRollback?.shortSha}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            &quot;{pendingRollback?.message}&quot; — This will discard any unsaved changes.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmRollback}>
+            Restore
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

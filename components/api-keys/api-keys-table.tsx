@@ -17,8 +17,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  StatusBadge,
+  BrandButton,
+} from "@elizaos/ui";
 import {
   CalendarClock,
   Copy,
@@ -29,7 +36,6 @@ import {
 } from "lucide-react";
 
 import type { ApiKeyDisplay } from "./types";
-import { BrandButton } from "@/components/brand";
 
 interface ApiKeysTableProps {
   keys: ApiKeyDisplay[];
@@ -39,24 +45,29 @@ interface ApiKeysTableProps {
   onRegenerateKey?: (id: string) => void;
 }
 
-function getStatusStyles(status: ApiKeyDisplay["status"]) {
+function getStatusVariant(
+  status: ApiKeyDisplay["status"],
+): "success" | "warning" | "neutral" {
   switch (status) {
     case "active":
-      return {
-        badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
-        label: "Active",
-      } as const;
+      return "success";
     case "expired":
-      return {
-        badge: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-        label: "Expired",
-      } as const;
+      return "warning";
     case "inactive":
     default:
-      return {
-        badge: "bg-white/10 text-white/60 border-white/20",
-        label: "Inactive",
-      } as const;
+      return "neutral";
+  }
+}
+
+function getStatusLabel(status: ApiKeyDisplay["status"]): string {
+  switch (status) {
+    case "active":
+      return "Active";
+    case "expired":
+      return "Expired";
+    case "inactive":
+    default:
+      return "Inactive";
   }
 }
 
@@ -83,34 +94,27 @@ export function ApiKeysTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-none border border-white/10 bg-black/40">
-      <div className="grid grid-cols-[minmax(240px,2fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(160px,1fr)_80px] items-center bg-black/60 p-4 text-xs font-medium uppercase tracking-wide text-white/50">
-        <span>Key</span>
-        <span>Usage</span>
-        <span>Security</span>
-        <span>Timeline</span>
-        <span className="text-right">Actions</span>
-      </div>
-      <div className="h-px bg-white/10" />
-      <div className="divide-y divide-white/10">
-        {keys.map((key) => {
-          const status = getStatusStyles(key.status);
-          return (
-            <div
-              key={key.id}
-              className="grid grid-cols-[minmax(240px,2fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(160px,1fr)_80px] items-stretch px-4 py-5 text-sm transition hover:bg-white/5"
-            >
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Key</TableHead>
+          <TableHead>Usage</TableHead>
+          <TableHead>Security</TableHead>
+          <TableHead>Timeline</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {keys.map((key) => (
+          <TableRow key={key.id}>
+            <TableCell>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-white">{key.name}</span>
-                  <span
-                    className={cn(
-                      "border rounded-none px-2 py-0.5 text-xs font-bold uppercase tracking-wide",
-                      status.badge,
-                    )}
-                  >
-                    {status.label}
-                  </span>
+                  <StatusBadge
+                    status={getStatusVariant(key.status)}
+                    label={getStatusLabel(key.status)}
+                  />
                 </div>
                 <p className="text-xs text-white/60">
                   {key.description ?? "No description provided"}
@@ -139,7 +143,9 @@ export function ApiKeysTable({
                   </BrandButton>
                 </div>
               </div>
+            </TableCell>
 
+            <TableCell>
               <div className="flex flex-col gap-2">
                 <span className="font-medium text-white">
                   {key.usageCount.toLocaleString()} requests
@@ -148,7 +154,9 @@ export function ApiKeysTable({
                   Rate limit {key.rateLimit.toLocaleString()} / min
                 </p>
               </div>
+            </TableCell>
 
+            <TableCell>
               <div className="flex flex-col gap-2">
                 <span className="text-xs font-medium text-white/50 uppercase tracking-wide">
                   Permissions
@@ -170,7 +178,9 @@ export function ApiKeysTable({
                   </p>
                 )}
               </div>
+            </TableCell>
 
+            <TableCell>
               <div className="flex flex-col gap-2 text-xs text-white/60">
                 <div className="flex items-center gap-2">
                   <CalendarClock className="h-3.5 w-3.5 text-[#FF5800]" />
@@ -189,49 +199,49 @@ export function ApiKeysTable({
                   </span>
                 </div>
               </div>
+            </TableCell>
 
-              <div className="flex items-start justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <BrandButton
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Open actions</span>
-                    </BrandButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuLabel>Manage key</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onCopyKey?.(key.id)}>
-                      <Copy className="mr-2 h-4 w-4" />
-                      Copy prefix
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onRegenerateKey?.(key.id)}>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Regenerate key
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onDisableKey?.(key.id)}>
-                      <ShieldOff className="mr-2 h-4 w-4" />
-                      {key.status === "active" ? "Disable key" : "Enable key"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => onDeleteKey?.(key.id)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete key
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+            <TableCell className="text-right">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <BrandButton
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Open actions</span>
+                  </BrandButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuLabel>Manage key</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onCopyKey?.(key.id)}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy prefix
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onRegenerateKey?.(key.id)}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Regenerate key
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onDisableKey?.(key.id)}>
+                    <ShieldOff className="mr-2 h-4 w-4" />
+                    {key.status === "active" ? "Disable key" : "Enable key"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDeleteKey?.(key.id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete key
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

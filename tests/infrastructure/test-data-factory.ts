@@ -86,8 +86,8 @@ export async function createTestDataSet(
     const orgSlug = `test-org-${uuidv4().slice(0, 8)}`;
 
     await client.query(
-      `INSERT INTO organizations (id, name, slug, credit_balance, is_active, settings, allowed_models, allowed_providers)
-       VALUES ($1, $2, $3, $4, true, '{}', '[]', '[]')`,
+      `INSERT INTO organizations (id, name, slug, credit_balance, is_active, settings)
+       VALUES ($1, $2, $3, $4, true, '{}')`,
       [orgId, organizationName, orgSlug, creditBalance],
     );
 
@@ -237,8 +237,8 @@ export async function createAnonymousSession(
 
     // Create org for anonymous user
     await client.query(
-      `INSERT INTO organizations (id, name, slug, credit_balance, is_active, settings, allowed_models, allowed_providers)
-       VALUES ($1, $2, $3, $4, true, '{}', '[]', '[]')`,
+      `INSERT INTO organizations (id, name, slug, credit_balance, is_active, settings)
+       VALUES ($1, $2, $3, $4, true, '{}')`,
       [orgId, "Anonymous Org", `anon-org-${uuidv4().slice(0, 8)}`, 0],
     );
 

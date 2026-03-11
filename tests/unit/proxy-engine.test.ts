@@ -52,6 +52,7 @@ mock.module("@/lib/cache/client", () => ({
   cache: {
     get: mockCacheGet,
     set: mockCacheSet,
+    delPattern: mock(),
   },
 }));
 

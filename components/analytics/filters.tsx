@@ -13,9 +13,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import { cn } from "@/lib/utils";
-import { BrandButton } from "@/components/brand";
+import { BrandButton } from "@elizaos/ui";
 
 export function AnalyticsFilters() {
   const router = useRouter();

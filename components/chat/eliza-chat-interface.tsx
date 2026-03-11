@@ -13,8 +13,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@elizaos/ui";
+import { ScrollArea } from "@elizaos/ui";
 import {
   Loader2,
   ArrowUp,
@@ -49,7 +49,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import { ensureAudioFormat } from "@/lib/utils/audio";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/lib/stores/chat-store";
@@ -63,7 +63,7 @@ import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
-} from "@/components/ui/dropdown-menu";
+} from "@elizaos/ui";
 import {
   ADDITIONAL_MODELS,
   IMAGE_TIERS,

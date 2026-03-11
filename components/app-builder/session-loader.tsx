@@ -25,7 +25,7 @@ import type {
   SnapshotInfo,
   AppSnapshotInfo,
 } from "@/lib/app-builder/types";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 
 // Phase definitions for the loading sequence
 const PHASES = [

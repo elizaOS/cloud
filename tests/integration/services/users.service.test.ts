@@ -160,7 +160,20 @@ describe("UsersService", () => {
     test("returns user with organization when Privy ID matches", async () => {
       // Arrange - First set a privy_id on the user
       const privyId = `did:privy:${uuidv4()}`;
+      
+      // Update users table for legacy compat
       await usersService.update(testData.user.id, { privy_user_id: privyId });
+      
+      // Insert into userIdentities for the new schema
+      const { dbWrite } = await import("@/db/helpers");
+      const { userIdentities } = await import("@/db/schemas/user-identities");
+      await dbWrite.insert(userIdentities).values({
+        id: uuidv4(),
+        user_id: testData.user.id,
+        privy_user_id: privyId,
+        provider: "privy",
+        provider_id: privyId,
+      });
 
       // Act
       const user = await usersService.getByPrivyId(privyId);

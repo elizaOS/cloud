@@ -7,15 +7,15 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@elizaos/ui";
 import {
   Loader2,
   TrendingUp,
@@ -40,12 +40,10 @@ import {
   Legend,
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
-import {
-  MilestoneProgress,
-  WithdrawDialog,
-} from "./monetization";
+import { MilestoneProgress } from "@elizaos/ui";
+import { WithdrawDialog } from "./monetization/withdraw-dialog";
 import { cn } from "@/lib/utils";
-import { DashboardStatCard } from "@/components/brand";
+import { DashboardStatCard } from "@elizaos/ui";
 
 interface EarningsSummary {
   totalLifetimeEarnings: number;
@@ -307,29 +305,29 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
       {/* Stats Grid */}
       {summary && (
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-          <StatCard
+          <DashboardStatCard
             label="Pending"
-            value={summary.pendingBalance}
+            value={`$${summary.pendingBalance.toFixed(2)}`}
             icon={<Clock className="h-5 w-5" />}
-            color="amber"
+            accent="amber"
           />
-          <StatCard
+          <DashboardStatCard
             label="Withdrawable"
-            value={summary.withdrawableBalance}
+            value={`$${summary.withdrawableBalance.toFixed(2)}`}
             icon={<Wallet className="h-5 w-5" />}
-            color="emerald"
+            accent="emerald"
           />
-          <StatCard
+          <DashboardStatCard
             label="From Inference"
-            value={summary.totalInferenceEarnings}
+            value={`$${summary.totalInferenceEarnings.toFixed(2)}`}
             icon={<Zap className="h-5 w-5" />}
-            color="purple"
+            accent="violet"
           />
-          <StatCard
+          <DashboardStatCard
             label="From Purchases"
-            value={summary.totalPurchaseEarnings}
+            value={`$${summary.totalPurchaseEarnings.toFixed(2)}`}
             icon={<Coins className="h-5 w-5" />}
-            color="orange"
+            accent="orange"
           />
         </div>
       )}
@@ -490,29 +488,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
   );
 }
 
-interface StatCardProps {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  color: "amber" | "emerald" | "purple" | "orange";
-}
 
-function StatCard({ label, value, icon, color }: StatCardProps) {
-  return (
-    <DashboardStatCard
-      label={label}
-      value={`$${value.toFixed(2)}`}
-      icon={icon}
-      accent={
-        color === "purple"
-          ? "violet"
-          : color === "orange"
-            ? "orange"
-            : color
-      }
-    />
-  );
-}
 
 function TransactionIcon({ type }: { type: string }) {
   switch (type) {

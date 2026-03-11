@@ -6,7 +6,7 @@
 
 import { Shield, Key, Bell, Lock, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
+import { BrandCard, BrandButton, CornerBrackets } from "@elizaos/ui";
 
 export function SecurityPreferences() {
   return (

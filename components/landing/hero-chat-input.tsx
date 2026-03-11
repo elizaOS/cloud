@@ -25,8 +25,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+} from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 
 interface HeroChatInputProps {
   onSubmit?: () => void;

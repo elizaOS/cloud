@@ -6,16 +6,16 @@
 "use client";
 
 import * as React from "react";
-import { BrandButton } from "@/components/brand";
+import { BrandButton, EmptyState } from "@elizaos/ui";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import { Plus, Info } from "lucide-react";
 import Link from "next/link";
-import { AgentCard } from "@/components/agents";
+import { AgentCard } from "@/components/agents/agent-card";
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
 
 interface Agent {
@@ -111,16 +111,19 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
 // Empty State
 function AgentsEmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[160px] md:min-h-[240px] gap-4 bg-neutral-900 rounded-xl">
-      <h3 className="text-lg font-medium text-neutral-500">No agents yet</h3>
-      <BrandButton
-        onClick={() => (window.location.href = "/dashboard/build")}
-        className="h-9 md:h-10 bg-[#FF5800] text-white hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
-      >
-        <Plus className="h-4 w-4" />
-        Create Agent
-      </BrandButton>
-    </div>
+    <EmptyState
+      title="No agents yet"
+      className="min-h-[160px] md:min-h-[240px]"
+      action={
+        <BrandButton
+          onClick={() => (window.location.href = "/dashboard/build")}
+          className="h-9 md:h-10 bg-[#FF5800] text-white hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
+        >
+          <Plus className="h-4 w-4" />
+          Create Agent
+        </BrandButton>
+      }
+    />
   );
 }
 

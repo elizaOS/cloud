@@ -1003,10 +1003,10 @@ export class AppCreditsService {
         monetization_enabled: settings.monetizationEnabled,
       }),
       ...(settings.inferenceMarkupPercentage !== undefined && {
-        inference_markup_percentage: String(settings.inferenceMarkupPercentage),
+        inference_markup_percentage: settings.inferenceMarkupPercentage,
       }),
       ...(settings.purchaseSharePercentage !== undefined && {
-        purchase_share_percentage: String(settings.purchaseSharePercentage),
+        purchase_share_percentage: settings.purchaseSharePercentage,
       }),
     });
 

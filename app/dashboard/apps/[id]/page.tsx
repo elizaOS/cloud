@@ -4,7 +4,7 @@ import { appsService } from "@/lib/services/apps";
 import { redirect } from "next/navigation";
 import { AppDetailsTabs } from "@/components/apps/app-details-tabs";
 import { isValidUUID } from "@/lib/utils";
-import { AppPageWrapper } from "./app-page-wrapper";
+import { AppPageWrapper } from "@/components/apps/single-app-page-wrapper";
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";

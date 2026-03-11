@@ -15,7 +15,7 @@ import {
   X,
   Circle,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 

@@ -13,6 +13,9 @@ import { usersService } from "@/lib/services/users";
 import { organizationsService } from "@/lib/services/organizations";
 import type { UserWithOrganization } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
+import { userIdentities } from "@/db/schemas/user-identities";
+import { dbWrite } from "@/db/helpers";
+import { eq } from "drizzle-orm";
 import { ForbiddenError } from "@/lib/api/errors";
 import crypto from "crypto";
 
@@ -97,7 +100,14 @@ async function resolveServiceUser(
       walletMatch[1].toLowerCase(),
     );
     if (walletUser?.organization_id && walletUser?.organization) {
-      await usersService.update(walletUser.id, { privy_user_id: serviceId });
+      // Update identity to link the service ID
+      await dbWrite.insert(userIdentities).values({
+        user_id: walletUser.id,
+        privy_user_id: serviceId,
+      }).onConflictDoUpdate({
+        target: userIdentities.user_id,
+        set: { privy_user_id: serviceId, updated_at: new Date() },
+      });
       return walletUser as WaifuBridgeAuthResult["user"];
     }
   }
@@ -133,12 +143,17 @@ async function resolveServiceUser(
   const walletAddr = walletMatch ? walletMatch[1].toLowerCase() : undefined;
 
   const newUser = await usersService.create({
-    privy_user_id: serviceId,
     email,
     organization_id: orgId,
     wallet_address: walletAddr,
     wallet_verified: !!walletAddr,
     is_active: true,
+  });
+
+  // Create identity record for this service user
+  await dbWrite.insert(userIdentities).values({
+    user_id: newUser.id,
+    privy_user_id: serviceId,
   });
 
   const fullUser = await usersService.getWithOrganization(newUser.id);

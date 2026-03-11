@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@elizaos/ui";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { useSearchParams } from "next/navigation";

@@ -14,12 +14,19 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas";
+import { appConfig, type AppConfig } from "@/db/schemas/app-config";
 import { discordAppAutomationService } from "@/lib/services/discord-automation/app-automation";
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { twitterAppAutomationService } from "@/lib/services/twitter-automation/app-automation";
 import { logger } from "@/lib/utils/logger";
-import { sql, or } from "drizzle-orm";
+import { sql, or, eq } from "drizzle-orm";
 import type { App } from "@/db/schemas/apps";
+
+/** App combined with its config for automation processing */
+interface AppWithConfig {
+  app: App;
+  config: AppConfig;
+}
 
 // Constants for automation intervals
 const DEFAULT_INTERVAL_MIN = 120; // 2 hours minimum
@@ -108,26 +115,37 @@ function isAnnouncementDue(
   return windowProgress >= threshold;
 }
 
-async function getAppsWithAutomation(): Promise<App[]> {
-  return dbRead
+async function getAppsWithAutomation(): Promise<AppWithConfig[]> {
+  const configs = await dbRead
     .select()
-    .from(apps)
+    .from(appConfig)
     .where(
       or(
-        sql`${apps.discord_automation}->>'enabled' = 'true'`,
-        sql`${apps.telegram_automation}->>'enabled' = 'true'`,
-        sql`${apps.twitter_automation}->>'enabled' = 'true'`,
+        sql`${appConfig.discord_automation}->>'enabled' = 'true'`,
+        sql`${appConfig.telegram_automation}->>'enabled' = 'true'`,
+        sql`${appConfig.twitter_automation}->>'enabled' = 'true'`,
       ),
     );
+
+  const results: AppWithConfig[] = [];
+  for (const config of configs) {
+    const app = await dbRead.query.apps.findFirst({
+      where: eq(apps.id, config.app_id),
+    });
+    if (app) {
+      results.push({ app, config });
+    }
+  }
+  return results;
 }
 
 async function processDiscordAutomation(
-  app: App,
+  { app, config }: AppWithConfig,
 ): Promise<ProcessResult | null> {
-  const config = app.discord_automation as AutomationConfig | null;
-  if (!config?.enabled || !config.autoAnnounce) return null;
+  const automationConfig = config.discord_automation as AutomationConfig | null;
+  if (!automationConfig?.enabled || !automationConfig.autoAnnounce) return null;
 
-  const isDue = isAnnouncementDue(config, "announcement", app.id);
+  const isDue = isAnnouncementDue(automationConfig, "announcement", app.id);
   if (!isDue) return null;
 
   const result = await discordAppAutomationService.postAnnouncement(
@@ -146,12 +164,12 @@ async function processDiscordAutomation(
 }
 
 async function processTelegramAutomation(
-  app: App,
+  { app, config }: AppWithConfig,
 ): Promise<ProcessResult | null> {
-  const config = app.telegram_automation as AutomationConfig | null;
-  if (!config?.enabled || !config.autoAnnounce) return null;
+  const automationConfig = config.telegram_automation as AutomationConfig | null;
+  if (!automationConfig?.enabled || !automationConfig.autoAnnounce) return null;
 
-  const isDue = isAnnouncementDue(config, "announcement", app.id);
+  const isDue = isAnnouncementDue(automationConfig, "announcement", app.id);
   if (!isDue) return null;
 
   const result = await telegramAppAutomationService.postAnnouncement(
@@ -170,12 +188,12 @@ async function processTelegramAutomation(
 }
 
 async function processTwitterAutomation(
-  app: App,
+  { app, config }: AppWithConfig,
 ): Promise<ProcessResult | null> {
-  const config = app.twitter_automation as AutomationConfig | null;
-  if (!config?.enabled || !config.autoPost) return null;
+  const automationConfig = config.twitter_automation as AutomationConfig | null;
+  if (!automationConfig?.enabled || !automationConfig.autoPost) return null;
 
-  const isDue = isAnnouncementDue(config, "post", app.id);
+  const isDue = isAnnouncementDue(automationConfig, "post", app.id);
   if (!isDue) return null;
 
   const result = await twitterAppAutomationService.postAppTweet(
@@ -196,28 +214,28 @@ async function processTwitterAutomation(
 /**
  * Process a single app across all platforms
  */
-async function processApp(app: App): Promise<ProcessResult[]> {
+async function processApp(item: AppWithConfig): Promise<ProcessResult[]> {
   const results: ProcessResult[] = [];
 
   // Process all platforms for this app in parallel
   const [discordResult, telegramResult, twitterResult] = await Promise.all([
-    processDiscordAutomation(app).catch((error) => {
+    processDiscordAutomation(item).catch((error) => {
       logger.error("[SocialAutomation Cron] Discord error", {
-        appId: app.id,
+        appId: item.app.id,
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return null;
     }),
-    processTelegramAutomation(app).catch((error) => {
+    processTelegramAutomation(item).catch((error) => {
       logger.error("[SocialAutomation Cron] Telegram error", {
-        appId: app.id,
+        appId: item.app.id,
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return null;
     }),
-    processTwitterAutomation(app).catch((error) => {
+    processTwitterAutomation(item).catch((error) => {
       logger.error("[SocialAutomation Cron] Twitter error", {
-        appId: app.id,
+        appId: item.app.id,
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return null;
@@ -227,7 +245,7 @@ async function processApp(app: App): Promise<ProcessResult[]> {
   if (discordResult) {
     results.push(discordResult);
     logger.info("[SocialAutomation Cron] Discord post", {
-      appId: app.id,
+      appId: item.app.id,
       success: discordResult.success,
       error: discordResult.error,
     });
@@ -236,7 +254,7 @@ async function processApp(app: App): Promise<ProcessResult[]> {
   if (telegramResult) {
     results.push(telegramResult);
     logger.info("[SocialAutomation Cron] Telegram post", {
-      appId: app.id,
+      appId: item.app.id,
       success: telegramResult.success,
       error: telegramResult.error,
     });
@@ -245,7 +263,7 @@ async function processApp(app: App): Promise<ProcessResult[]> {
   if (twitterResult) {
     results.push(twitterResult);
     logger.info("[SocialAutomation Cron] Twitter post", {
-      appId: app.id,
+      appId: item.app.id,
       success: twitterResult.success,
       error: twitterResult.error,
     });
@@ -258,14 +276,14 @@ async function processApp(app: App): Promise<ProcessResult[]> {
  * Process apps in batches with concurrency limit
  */
 async function processAppsWithConcurrency(
-  apps: App[],
+  items: AppWithConfig[],
   concurrency: number,
 ): Promise<ProcessResult[]> {
   const results: ProcessResult[] = [];
 
   // Process in batches
-  for (let i = 0; i < apps.length; i += concurrency) {
-    const batch = apps.slice(i, i + concurrency);
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
     const batchResults = await Promise.all(batch.map(processApp));
     results.push(...batchResults.flat());
   }

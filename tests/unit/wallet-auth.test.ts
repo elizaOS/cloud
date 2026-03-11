@@ -20,6 +20,7 @@ mock.module("@/lib/cache/client", () => ({
         set: mockCacheSet,
         setIfNotExists: mockCacheSetIfNotExists,
         isAvailable: mockCacheIsAvailable,
+        delPattern: mock(),
     },
 }));
 

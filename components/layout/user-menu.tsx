@@ -8,8 +8,8 @@
 
 import { useState, useEffect } from "react";
 import { usePrivy, useLogout } from "@privy-io/react-auth";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,8 +17,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "@elizaos/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "@elizaos/ui";
 import {
   LogOut,
   Loader2,

@@ -4,9 +4,13 @@
  * Central export point for all database table schemas.
  */
 export * from "./organizations";
+export * from "./organization-billing";
+export * from "./organization-config";
 export * from "./organization-invites";
 export * from "./organization-encryption-keys";
 export * from "./users";
+export * from "./user-identities";
+export * from "./user-preferences";
 export * from "./user-sessions";
 export * from "./anonymous-sessions";
 export * from "./api-keys";
@@ -27,6 +31,9 @@ export * from "./user-voices";
 export * from "./containers";
 export * from "./alb-priorities";
 export * from "./apps";
+export * from "./app-config";
+export * from "./app-billing";
+export * from "./app-databases";
 export * from "./app-credit-balances";
 export * from "./app-earnings";
 export * from "./referrals";

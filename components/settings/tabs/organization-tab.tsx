@@ -9,7 +9,7 @@
 "use client";
 
 import { useState } from "react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@elizaos/ui";
 import type { UserWithOrganization } from "@/lib/types";
 import { Users, Settings } from "lucide-react";
 import { MembersTab } from "@/components/organization/members-tab";
@@ -19,7 +19,7 @@ import {
   BrandTabsList,
   BrandTabsTrigger,
   BrandTabsContent,
-} from "@/components/brand";
+} from "@elizaos/ui";
 
 interface OrganizationTabProps {
   user: UserWithOrganization;

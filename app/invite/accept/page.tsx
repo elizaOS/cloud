@@ -3,16 +3,16 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { Button } from "@/components/ui/button";
+import { Button } from "@elizaos/ui";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+} from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Alert, AlertDescription } from "@elizaos/ui";
 import {
   Mail,
   Building2,

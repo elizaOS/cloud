@@ -25,8 +25,8 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@elizaos/ui";
+import { Button } from "@elizaos/ui";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";

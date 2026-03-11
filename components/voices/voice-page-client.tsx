@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import { VoiceStudioAdvanced } from "./voice-studio-advanced";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { useSetPageHeader } from "@elizaos/ui";
 import type { Voice } from "./types";
 
 interface VoicePageClientProps {

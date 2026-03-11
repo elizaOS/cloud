@@ -6,9 +6,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@elizaos/ui";
+import { Alert, AlertDescription } from "@elizaos/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@elizaos/ui";
 import {
   Mic,
   Sparkles,
@@ -23,18 +23,18 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VoiceCloneForm } from "./voice-clone-form";
-import { VoiceAudioPlayer } from "./voice-audio-player";
+import { VoiceAudioPlayer } from "@elizaos/ui";
 import {
   VoiceStatusBadge,
   getEstimatedReadyMessage,
-} from "./voice-status-badge";
+} from "@elizaos/ui";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@elizaos/ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,7 +44,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@elizaos/ui";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -53,7 +53,7 @@ import {
   BrandButton,
   CornerBrackets,
   SectionLabel,
-} from "@/components/brand";
+} from "@elizaos/ui";
 
 import type { Voice as BaseVoice } from "./types";
 
