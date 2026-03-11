@@ -157,29 +157,37 @@ describe("UsersService", () => {
   // ===========================================================================
 
   describe("getByPrivyId", () => {
-    test("returns user with organization when Privy ID matches", async () => {
-      // Arrange - First set a privy_id on the user
+    test("returns user with organization when identity row matches", async () => {
+      // Arrange
       const privyId = `did:privy:${uuidv4()}`;
-      
-      // Update users table for legacy compat
+
       await usersService.update(testData.user.id, { privy_user_id: privyId });
-      
-      // Insert into userIdentities for the new schema
-      const { dbWrite } = await import("@/db/helpers");
-      const { userIdentities } = await import("@/db/schemas/user-identities");
-      await dbWrite.insert(userIdentities).values({
-        id: uuidv4(),
-        user_id: testData.user.id,
-        privy_user_id: privyId,
-        provider: "privy",
-        provider_id: privyId,
-      });
+      await usersService.upsertPrivyIdentity(testData.user.id, privyId);
 
       // Act
       const user = await usersService.getByPrivyId(privyId);
 
       // Assert
       expect(user).toBeDefined();
+      expect(user!.privy_user_id).toBe(privyId);
+      expect(user!.organization).toBeDefined();
+      expect(user!.organization_id).toBe(testData.organization.id);
+
+      // Cleanup
+      await cleanupTestData(connectionString, testData.organization.id);
+    });
+
+    test("falls back to users.privy_user_id when identity row is missing", async () => {
+      // Arrange
+      const privyId = `did:privy:${uuidv4()}`;
+      await usersService.update(testData.user.id, { privy_user_id: privyId });
+
+      // Act
+      const user = await usersService.getByPrivyId(privyId);
+
+      // Assert
+      expect(user).toBeDefined();
+      expect(user!.id).toBe(testData.user.id);
       expect(user!.privy_user_id).toBe(privyId);
       expect(user!.organization).toBeDefined();
       expect(user!.organization_id).toBe(testData.organization.id);
@@ -199,6 +207,34 @@ describe("UsersService", () => {
       expect(user).toBeUndefined();
 
       // Cleanup
+      await cleanupTestData(connectionString, testData.organization.id);
+    });
+  });
+
+  describe("upsertPrivyIdentity", () => {
+    test("creates and updates the identity projection idempotently", async () => {
+      const firstPrivyId = `did:privy:${uuidv4()}`;
+      const secondPrivyId = `did:privy:${uuidv4()}`;
+
+      await usersService.update(testData.user.id, {
+        privy_user_id: firstPrivyId,
+      });
+      await usersService.upsertPrivyIdentity(testData.user.id, firstPrivyId);
+
+      const firstLookup = await usersService.getByPrivyId(firstPrivyId);
+      expect(firstLookup?.id).toBe(testData.user.id);
+
+      await usersService.update(testData.user.id, {
+        privy_user_id: secondPrivyId,
+      });
+      await usersService.upsertPrivyIdentity(testData.user.id, secondPrivyId);
+
+      const secondLookup = await usersService.getByPrivyId(secondPrivyId);
+      expect(secondLookup?.id).toBe(testData.user.id);
+
+      const previousLookup = await usersService.getByPrivyId(firstPrivyId);
+      expect(previousLookup).toBeUndefined();
+
       await cleanupTestData(connectionString, testData.organization.id);
     });
   });

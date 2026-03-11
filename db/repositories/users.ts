@@ -4,6 +4,7 @@ import { users, type User, type NewUser } from "../schemas/users";
 import {
   userIdentities,
   type UserIdentity,
+  type NewUserIdentity,
 } from "../schemas/user-identities";
 import { type Organization } from "../schemas/organizations";
 
@@ -46,24 +47,56 @@ export class UsersRepository {
   }
 
   /**
-   * Finds a user by Privy user ID with organization data (via identity table).
+   * Finds a user by Privy user ID with organization data.
+   * Prefer the identity projection, which is the steady-state auth lookup,
+   * but fall back to the legacy users column while backfill or projection
+   * repair may still be catching up.
    */
   async findByPrivyIdWithOrganization(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const identity = await dbRead.query.userIdentities.findFirst({
+    return this.findByPrivyIdWithOrganizationUsingDb(dbRead, privyUserId);
+  }
+
+  /**
+   * Finds a user by Privy user ID with organization data from primary.
+   * Use after writes when replica lag could hide the just-written identity row.
+   * On primary, prefer the canonical users column first so stale projection rows
+   * do not shadow the just-written auth state during create or link flows.
+   * This is safe because those flows write users.privy_user_id immediately and
+   * only treat projection conflicts as recovered after separately verifying the
+   * primary projection row ownership.
+   */
+  async findByPrivyIdWithOrganizationForWrite(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await dbWrite.query.users.findFirst({
+      where: eq(users.privy_user_id, privyUserId),
+      with: {
+        organization: true,
+      },
+    });
+
+    if (user) {
+      return user as UserWithOrganization | undefined;
+    }
+
+    const identity = await dbWrite.query.userIdentities.findFirst({
       where: eq(userIdentities.privy_user_id, privyUserId),
     });
-    if (!identity) return undefined;
 
-    const user = await dbRead.query.users.findFirst({
+    if (!identity) {
+      return undefined;
+    }
+
+    const linkedUser = await dbWrite.query.users.findFirst({
       where: eq(users.id, identity.user_id),
       with: {
         organization: true,
       },
     });
 
-    return user as UserWithOrganization | undefined;
+    return linkedUser as UserWithOrganization | undefined;
   }
 
   /**
@@ -253,6 +286,129 @@ export class UsersRepository {
       .where(eq(users.id, id))
       .returning();
     return updated;
+  }
+
+  /**
+   * Finds the identity projection row for a user from primary.
+   * Use after writes when replica lag could return a stale identity row.
+   */
+  async findIdentityByUserIdForWrite(
+    userId: string,
+  ): Promise<UserIdentity | undefined> {
+    return await dbWrite.query.userIdentities.findFirst({
+      where: eq(userIdentities.user_id, userId),
+    });
+  }
+
+  /**
+   * Finds the identity projection row for a Privy user ID from primary.
+   * Use when recovery must verify the projection row ownership directly.
+   */
+  async findIdentityByPrivyIdForWrite(
+    privyUserId: string,
+  ): Promise<UserIdentity | undefined> {
+    return await dbWrite.query.userIdentities.findFirst({
+      where: eq(userIdentities.privy_user_id, privyUserId),
+    });
+  }
+
+  private async findByPrivyIdWithOrganizationUsingDb(
+    database: typeof dbRead,
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const identity = await database.query.userIdentities.findFirst({
+      where: eq(userIdentities.privy_user_id, privyUserId),
+    });
+
+    if (identity) {
+      const user = await database.query.users.findFirst({
+        where: eq(users.id, identity.user_id),
+        with: {
+          organization: true,
+        },
+      });
+
+      return user as UserWithOrganization | undefined;
+    }
+
+    const user = await database.query.users.findFirst({
+      where: eq(users.privy_user_id, privyUserId),
+      with: {
+        organization: true,
+      },
+    });
+
+    return user as UserWithOrganization | undefined;
+  }
+
+  /**
+   * Upserts the Privy identity projection for a user.
+   */
+  async upsertPrivyIdentity(
+    userId: string,
+    privyUserId: string,
+  ): Promise<UserIdentity> {
+    const user = await dbWrite.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!user) {
+      throw new Error(
+        `User ${userId} not found while upserting Privy identity ${privyUserId}`,
+      );
+    }
+
+    const identityValues: NewUserIdentity = {
+      user_id: userId,
+      privy_user_id: privyUserId,
+      is_anonymous: user.is_anonymous,
+      anonymous_session_id: user.anonymous_session_id,
+      expires_at: user.expires_at,
+      telegram_id: user.telegram_id,
+      telegram_username: user.telegram_username,
+      telegram_first_name: user.telegram_first_name,
+      telegram_photo_url: user.telegram_photo_url,
+      phone_number: user.phone_number,
+      phone_verified: user.phone_verified,
+      discord_id: user.discord_id,
+      discord_username: user.discord_username,
+      discord_global_name: user.discord_global_name,
+      discord_avatar_url: user.discord_avatar_url,
+      whatsapp_id: user.whatsapp_id,
+      whatsapp_name: user.whatsapp_name,
+    };
+
+    try {
+      const [identity] = await dbWrite
+        .insert(userIdentities)
+        .values(identityValues)
+        .onConflictDoUpdate({
+          target: userIdentities.user_id,
+          set: {
+            privy_user_id: privyUserId,
+            updated_at: new Date(),
+          },
+        })
+        .returning();
+
+      return identity;
+    } catch (error) {
+      const typedError =
+        error && typeof error === "object"
+          ? (error as { code?: unknown; constraint?: unknown; message?: unknown })
+          : undefined;
+
+      if (typedError?.code === "23503") {
+        throw new Error(
+          `User ${userId} disappeared while upserting Privy identity ${privyUserId}`,
+          {
+            cause: error,
+          },
+        );
+      }
+
+      throw error;
+    }
   }
 
   /**

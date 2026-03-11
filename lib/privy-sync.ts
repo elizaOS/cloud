@@ -14,7 +14,7 @@ import { invitesService } from "@/lib/services/invites";
 import { discordService } from "@/lib/services/discord";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { creditsService } from "@/lib/services/credits";
-import { organizationInvitesRepository } from "@/db/repositories";
+import { organizationInvitesRepository, usersRepository } from "@/db/repositories";
 import {
   abuseDetectionService,
   type SignupContext,
@@ -37,6 +37,124 @@ const getInitialCredits = (): number => {
 export interface SyncOptions {
   signupContext?: SignupContext;
   skipAbuseCheck?: boolean;
+}
+
+function isRecoverablePrivyProjectionConflict(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const extractErrorMetadata = (
+    candidate: unknown,
+  ): { code?: string; constraint?: string; detail?: string; message: string } => {
+    if (!candidate || typeof candidate !== "object") {
+      return { message: String(candidate ?? "") };
+    }
+
+    const typedCandidate = candidate as {
+      code?: unknown;
+      constraint?: unknown;
+      detail?: unknown;
+      message?: unknown;
+    };
+
+    return {
+      code:
+        typeof typedCandidate.code === "string" ? typedCandidate.code : undefined,
+      constraint:
+        typeof typedCandidate.constraint === "string"
+          ? typedCandidate.constraint
+          : undefined,
+      detail:
+        typeof typedCandidate.detail === "string"
+          ? typedCandidate.detail
+          : undefined,
+      message:
+        typeof typedCandidate.message === "string"
+          ? typedCandidate.message
+          : String(candidate),
+    };
+  };
+
+  const errorMetadata = extractErrorMetadata(error);
+  const causeMetadata =
+    "cause" in error ? extractErrorMetadata(error.cause) : { message: "" };
+  const isUniqueViolation =
+    errorMetadata.code === "23505" || causeMetadata.code === "23505";
+  const constraintName =
+    errorMetadata.constraint ?? causeMetadata.constraint ?? "";
+  const conflictText = [
+    errorMetadata.message,
+    errorMetadata.detail,
+    causeMetadata.message,
+    causeMetadata.detail,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const hasExactPrivyConstraint =
+    errorMetadata.constraint === "user_identities_privy_user_id_unique" ||
+    causeMetadata.constraint === "user_identities_privy_user_id_unique";
+  const hasSyntheticPrivyProjectionConflict =
+    /\bprivy projection conflict\b/i.test(conflictText);
+
+  if (isUniqueViolation && hasExactPrivyConstraint) {
+    return true;
+  }
+
+  return hasSyntheticPrivyProjectionConflict;
+}
+
+async function recoverCanonicalPrivyUser(
+  expectedUserId: string,
+  privyUserId: string,
+  context: "invite" | "signup",
+  error: unknown,
+): Promise<boolean> {
+  if (!isRecoverablePrivyProjectionConflict(error)) {
+    return false;
+  }
+
+  const projection = await usersService.getPrivyIdentityForWrite(privyUserId);
+  if (!projection || projection.user_id !== expectedUserId) {
+    return false;
+  }
+
+  const user = await usersService.getByPrivyIdForWrite(privyUserId);
+  if (!user || user.id !== expectedUserId) {
+    return false;
+  }
+
+  logger.warn("[PrivySync] Recovered from stale Privy identity projection conflict", {
+    context,
+    expectedUserId,
+    privyUserId,
+    error: error instanceof Error ? error.message : String(error),
+  });
+
+  return true;
+}
+
+async function rollbackCreatedUserSafely(
+  userId: string,
+  context: "invite" | "signup",
+  originalError: unknown,
+): Promise<void> {
+  try {
+    await usersRepository.delete(userId);
+  } catch (rollbackError) {
+    logger.error("[PrivySync] Failed to roll back newly created user", {
+      context,
+      userId,
+      originalError:
+        originalError instanceof Error
+          ? originalError.message
+          : String(originalError),
+      rollbackError:
+        rollbackError instanceof Error
+          ? rollbackError.message
+          : String(rollbackError),
+    });
+  }
 }
 
 /**
@@ -191,6 +309,16 @@ export async function syncUserFromPrivy(
   let user = await usersService.getByPrivyId(privyUserId);
 
   if (user) {
+    try {
+      await usersService.upsertPrivyIdentity(user.id, privyUserId);
+    } catch (error) {
+      logger.warn("[PrivySync] Failed to repair Privy identity projection for existing user", {
+        userId: user.id,
+        privyUserId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     // Update user if needed
     const shouldUpdate =
       user.name !== name ||
@@ -210,8 +338,8 @@ export async function syncUserFromPrivy(
         updated_at: new Date(),
       });
 
-      // Refresh user with organization
-      user = (await usersService.getByPrivyId(privyUserId))!;
+      // Refresh user with organization from primary to avoid replica lag
+      user = (await usersService.getByPrivyIdForWrite(privyUserId))!;
     }
 
     return user;
@@ -222,32 +350,53 @@ export async function syncUserFromPrivy(
     const pendingInvite = await invitesService.findPendingInviteByEmail(email);
 
     if (pendingInvite) {
-      const newUser = await usersService.create({
-        privy_user_id: privyUserId,
-        email: email || null,
-        email_verified: !!email,
-        wallet_address: walletAddress || null,
-        wallet_chain_type: walletChainType || null,
-        wallet_verified: walletVerified,
-        name,
-        avatar: getRandomUserAvatar(),
-        organization_id: pendingInvite.organization_id,
-        role: pendingInvite.invited_role,
-        is_active: true,
-      });
+      let newUser: Awaited<ReturnType<typeof usersService.create>> | undefined;
 
-      await organizationInvitesRepository.markAsAccepted(
-        pendingInvite.id,
-        newUser.id,
-      );
+      try {
+        newUser = await usersService.create({
+          privy_user_id: privyUserId,
+          email: email || null,
+          email_verified: !!email,
+          wallet_address: walletAddress || null,
+          wallet_chain_type: walletChainType || null,
+          wallet_verified: walletVerified,
+          name,
+          avatar: getRandomUserAvatar(),
+          organization_id: pendingInvite.organization_id,
+          role: pendingInvite.invited_role,
+          is_active: true,
+        });
+        await usersService.upsertPrivyIdentity(newUser.id, privyUserId);
+      } catch (error) {
+        const recovered =
+          newUser &&
+          (await recoverCanonicalPrivyUser(
+            newUser.id,
+            privyUserId,
+            "invite",
+            error,
+          ));
 
-      const userWithOrg = await usersService.getByPrivyId(privyUserId);
+        if (newUser && !recovered) {
+          await rollbackCreatedUserSafely(newUser.id, "invite", error);
+        }
+        if (!recovered) {
+          throw error;
+        }
+      }
+
+      const userWithOrg = await usersService.getByPrivyIdForWrite(privyUserId);
 
       if (!userWithOrg) {
         throw new Error(
           `Failed to fetch newly created user ${privyUserId} after accepting invite`,
         );
       }
+
+      await organizationInvitesRepository.markAsAccepted(
+        pendingInvite.id,
+        userWithOrg.id,
+      );
 
       // Log to Discord (fire-and-forget)
       discordService
@@ -278,11 +427,24 @@ export async function syncUserFromPrivy(
       console.info(
         `Linking Privy account for ${email}: ${existingByEmail.privy_user_id} → ${privyUserId}`,
       );
+      const previousPrivyUserId = existingByEmail.privy_user_id;
+
       await usersService.update(existingByEmail.id, {
         privy_user_id: privyUserId,
         updated_at: new Date(),
       });
-      const linkedUser = await usersService.getByPrivyId(privyUserId);
+
+      try {
+        await usersService.upsertPrivyIdentity(existingByEmail.id, privyUserId);
+      } catch (error) {
+        await usersService.update(existingByEmail.id, {
+          privy_user_id: previousPrivyUserId,
+          updated_at: new Date(),
+        });
+        throw error;
+      }
+
+      const linkedUser = await usersService.getByPrivyIdForWrite(privyUserId);
       if (!linkedUser) {
         throw new Error(
           `Failed to fetch user after Privy account linking for ${email}`,
@@ -380,8 +542,10 @@ export async function syncUserFromPrivy(
   }
 
   // Create user - handle race condition where another request created the user
+  let createdUser: Awaited<ReturnType<typeof usersService.create>> | undefined;
+
   try {
-    await usersService.create({
+    createdUser = await usersService.create({
       privy_user_id: privyUserId,
       email: email || null,
       email_verified: !!email,
@@ -421,7 +585,7 @@ export async function syncUserFromPrivy(
         }
 
         // Try to find by Privy ID first (most common race condition)
-        existingUser = await usersService.getByPrivyId(privyUserId);
+        existingUser = await usersService.getByPrivyIdForWrite(privyUserId);
 
         if (existingUser) {
           break;
@@ -438,12 +602,22 @@ export async function syncUserFromPrivy(
             console.info(
               `Linking Privy account for ${email}: ${existingUser.privy_user_id} → ${privyUserId}`,
             );
+            const previousPrivyUserId = existingUser.privy_user_id;
             await usersService.update(existingUser.id, {
               privy_user_id: privyUserId,
               updated_at: new Date(),
             });
+            try {
+              await usersService.upsertPrivyIdentity(existingUser.id, privyUserId);
+            } catch (upsertError) {
+              await usersService.update(existingUser.id, {
+                privy_user_id: previousPrivyUserId,
+                updated_at: new Date(),
+              });
+              throw upsertError;
+            }
             await organizationsService.delete(organization.id);
-            const linkedUser = await usersService.getByPrivyId(privyUserId);
+            const linkedUser = await usersService.getByPrivyIdForWrite(privyUserId);
             if (!linkedUser) {
               throw new Error(
                 `Failed to fetch user after Privy account linking for ${email}`,
@@ -475,8 +649,29 @@ export async function syncUserFromPrivy(
     throw error;
   }
 
+  if (!createdUser) {
+    throw new Error(`Failed to create user ${privyUserId}`);
+  }
+
+  try {
+    await usersService.upsertPrivyIdentity(createdUser.id, privyUserId);
+  } catch (error) {
+    const recovered = await recoverCanonicalPrivyUser(
+      createdUser.id,
+      privyUserId,
+      "signup",
+      error,
+    );
+
+    if (!recovered) {
+      await rollbackCreatedUserSafely(createdUser.id, "signup", error);
+      await organizationsService.delete(organization.id);
+      throw error;
+    }
+  }
+
   // Return user with organization
-  const userWithOrg = await usersService.getByPrivyId(privyUserId);
+  const userWithOrg = await usersService.getByPrivyIdForWrite(privyUserId);
 
   if (!userWithOrg) {
     throw new Error(`Failed to fetch newly created user ${privyUserId}`);

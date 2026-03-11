@@ -87,6 +87,25 @@ export class UsersService {
     return user;
   }
 
+  async getByPrivyIdForWrite(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await usersRepository.findByPrivyIdWithOrganizationForWrite(
+      privyUserId,
+    );
+    if (user) {
+      await cache.set(CacheKeys.user.byPrivyId(privyUserId), user, CacheTTL.user.byPrivyId);
+      logger.debug("[UsersService] Cached user data by privyId from primary");
+    }
+    return user;
+  }
+
+  async getPrivyIdentityForWrite(
+    privyUserId: string,
+  ): Promise<{ user_id: string; privy_user_id: string | null } | undefined> {
+    return await usersRepository.findIdentityByPrivyIdForWrite(privyUserId);
+  }
+
   async getWithOrganization(
     userId: string,
   ): Promise<UserWithOrganization | undefined> {
@@ -173,6 +192,33 @@ export class UsersService {
       await this.invalidateCache(result);
     }
     return result;
+  }
+
+  async upsertPrivyIdentity(
+    userId: string,
+    privyUserId: string,
+  ): Promise<void> {
+    const user = await usersRepository.findById(userId);
+    const existingIdentity =
+      await usersRepository.findIdentityByUserIdForWrite(userId);
+
+    await usersRepository.upsertPrivyIdentity(userId, privyUserId);
+
+    if (
+      existingIdentity?.privy_user_id &&
+      existingIdentity.privy_user_id !== privyUserId
+    ) {
+      await Promise.all([
+        cache.del(CacheKeys.user.byPrivyId(existingIdentity.privy_user_id)),
+        cache.del(
+          CacheKeys.user.byPrivyIdWithOrg(existingIdentity.privy_user_id),
+        ),
+      ]);
+    }
+
+    if (user) {
+      await this.invalidateCache(user);
+    }
   }
 
   async delete(id: string): Promise<void> {
