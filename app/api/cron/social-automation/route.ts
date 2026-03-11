@@ -21,6 +21,7 @@ import { twitterAppAutomationService } from "@/lib/services/twitter-automation/a
 import { logger } from "@/lib/utils/logger";
 import { sql, or, eq } from "drizzle-orm";
 import type { App } from "@/db/schemas/apps";
+import { verifyCronSecret } from "@/lib/api/cron-auth";
 
 /** App combined with its config for automation processing */
 interface AppWithConfig {
@@ -35,8 +36,6 @@ const MAX_CONCURRENT_POSTS = 5; // Process up to 5 apps concurrently
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const CRON_SECRET = process.env.CRON_SECRET;
 
 interface AutomationConfig {
   enabled: boolean;
@@ -292,10 +291,8 @@ async function processAppsWithConcurrency(
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const authHeader = request.headers.get("authorization");
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronSecret(request, "[SocialAutomation Cron]");
+  if (authError) return authError;
 
   const startTime = Date.now();
 
@@ -342,10 +339,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const authHeader = request.headers.get("authorization");
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronSecret(request, "[SocialAutomation Cron]");
+  if (authError) return authError;
 
   const appsWithAutomation = await getAppsWithAutomation();
 

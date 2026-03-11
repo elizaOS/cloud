@@ -13,19 +13,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { logger } from "@/lib/utils/logger";
-
-const CRON_SECRET = process.env.CRON_SECRET;
+import { verifyCronSecret } from "@/lib/api/cron-auth";
 
 /**
  * POST /api/cron/agent-budgets
  * Process agent budget maintenance tasks
  */
 export async function POST(request: NextRequest): Promise<Response> {
-  // Verify cron secret
-  const authHeader = request.headers.get("authorization");
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronSecret(request, "[AgentBudgets Cron]");
+  if (authError) return authError;
 
   const startTime = Date.now();
 
@@ -70,11 +66,8 @@ export async function POST(request: NextRequest): Promise<Response> {
  * Health check and status
  */
 export async function GET(request: NextRequest): Promise<Response> {
-  // Verify cron secret for status check
-  const authHeader = request.headers.get("authorization");
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronSecret(request, "[AgentBudgets Cron]");
+  if (authError) return authError;
 
   return NextResponse.json({
     status: "ready",

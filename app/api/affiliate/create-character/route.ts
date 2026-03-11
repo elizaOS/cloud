@@ -10,6 +10,8 @@ import { processAffiliateImages } from "@/lib/services/affiliate-images";
 import type { ElizaCharacter } from "@/lib/types";
 import type { AffiliateMetadata } from "@/lib/types/affiliate";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { getCorsHeaders } from "@/lib/utils/cors";
 
 // Get message limit from env or default to 5 (matching auth-anonymous.ts)
 const ANON_MESSAGE_LIMIT = Number.parseInt(
@@ -90,30 +92,7 @@ const CreateCharacterSchema = z.object({
     .optional(),
 });
 
-// In-memory rate limiting (simple implementation)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(
-  apiKeyId: string,
-  limit = 100,
-): { allowed: boolean; remaining: number } {
-  const now = Date.now();
-  const hourInMs = 60 * 60 * 1000;
-
-  let usage = rateLimitMap.get(apiKeyId);
-
-  if (!usage || usage.resetAt < now) {
-    usage = { count: 0, resetAt: now + hourInMs };
-    rateLimitMap.set(apiKeyId, usage);
-  }
-
-  if (usage.count >= limit) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  usage.count++;
-  return { allowed: true, remaining: limit - usage.count };
-}
+// Rate limiting handled by withRateLimit wrapper below
 
 /**
  * POST /api/affiliate/create-character
@@ -123,7 +102,7 @@ function checkRateLimit(
  * @param request - Request body with character data, affiliateId, optional sessionId, and metadata.
  * @returns Created character ID, session ID, and redirect URL.
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   const startTime = Date.now();
 
   try {
@@ -171,23 +150,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. RATE LIMITING - Check if affiliate has exceeded rate limit
-    const rateLimit = checkRateLimit(apiKey.id);
-    if (!rateLimit.allowed) {
-      logger.warn(
-        `[Affiliate API] Rate limit exceeded for key ${apiKey.key_prefix}`,
-      );
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Rate limit exceeded. Maximum 100 requests per hour.",
-        },
-        {
-          status: 429,
-          headers: { "X-RateLimit-Remaining": "0" },
-        },
-      );
-    }
+    // 3. RATE LIMITING - handled by withRateLimit wrapper
 
     // 4. PARSE AND VALIDATE REQUEST BODY
     const body = await request.json();
@@ -484,12 +447,7 @@ export async function POST(request: NextRequest) {
         redirectUrl: redirectUrl.toString(),
         message: "Character created successfully",
       },
-      {
-        status: 201,
-        headers: {
-          "X-RateLimit-Remaining": rateLimit.remaining.toString(),
-        },
-      },
+      { status: 201 },
     );
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -502,22 +460,19 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     );
   }
 }
 
+export const POST = withRateLimit(handlePost, RateLimitPresets.STRICT);
+
 // OPTIONS handler for CORS preflight
 export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
   return new NextResponse(null, {
     status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*", // Adjust in production
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id",
-    },
+    headers: getCorsHeaders(origin),
   });
 }

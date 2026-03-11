@@ -15,6 +15,7 @@ import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { createHash } from "crypto";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 // ============================================================================
 // Types
@@ -104,7 +105,7 @@ const querySchema = z.object({
 // Route Handler
 // ============================================================================
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async function (request: NextRequest) {
   const url = new URL(request.url);
   const rawParams = Object.fromEntries(url.searchParams);
 
@@ -216,7 +217,7 @@ export async function GET(request: NextRequest) {
     ...result,
     cached: false,
   });
-}
+}, RateLimitPresets.STANDARD);
 
 // ============================================================================
 // Helper Functions

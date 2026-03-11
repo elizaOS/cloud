@@ -9,6 +9,7 @@ import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { calculateDeploymentCost } from "@/lib/constants/pricing";
+import { verifyCronSecret } from "@/lib/api/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // 1 minute max
@@ -27,32 +28,8 @@ export const maxDuration = 60; // 1 minute max
 async function handleDeploymentMonitor(request: NextRequest) {
   try {
     // Authenticate cron request
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret) {
-      logger.error(
-        "[Deployment Monitor] CRON_SECRET not configured - rejecting request for security",
-      );
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Server configuration error: CRON_SECRET not set",
-        },
-        { status: 500 },
-      );
-    }
-
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      logger.warn("[Deployment Monitor] Unauthorized request", {
-        ip: request.headers.get("x-forwarded-for"),
-        timestamp: new Date().toISOString(),
-      });
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 },
-      );
-    }
+    const authError = verifyCronSecret(request, "[Deployment Monitor]");
+    if (authError) return authError;
 
     logger.info("[Deployment Monitor] Starting deployment status check");
 
