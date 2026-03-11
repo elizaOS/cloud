@@ -68,11 +68,11 @@ function slugFromUserId(userId: string): string {
 }
 
 export function canAutoCreateWaifuBridgeOrg(): boolean {
-  if (process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE === "true") {
-    return true;
-  }
-
-  return process.env.NODE_ENV !== "production";
+  // Only allow auto-creation when explicitly opted in. Relying on
+  // NODE_ENV !== "production" was unsafe because preview / staging
+  // deployments often run with NODE_ENV=development while still
+  // handling real traffic.
+  return process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE === "true";
 }
 
 /**
@@ -132,14 +132,46 @@ async function resolveServiceUser(
   const email = payload.email ?? `${serviceId}@waifu.bridge`;
   const walletAddr = walletMatch ? walletMatch[1].toLowerCase() : undefined;
 
-  const newUser = await usersService.create({
-    privy_user_id: serviceId,
-    email,
-    organization_id: orgId,
-    wallet_address: walletAddr,
-    wallet_verified: !!walletAddr,
-    is_active: true,
-  });
+  let newUser;
+  try {
+    newUser = await usersService.create({
+      privy_user_id: serviceId,
+      email,
+      organization_id: orgId,
+      wallet_address: walletAddr,
+      wallet_verified: !!walletAddr,
+      is_active: true,
+    });
+  } catch (err: unknown) {
+    // Handle concurrent provisioning: if a parallel request already created
+    // this user (unique constraint on privy_user_id or wallet_address),
+    // re-fetch instead of failing.
+    const isConflict =
+      err instanceof Error &&
+      (err.message.includes("duplicate key") ||
+        err.message.includes("unique constraint") ||
+        err.message.includes("23505"));
+    if (!isConflict) throw err;
+
+    logger.info("[waifu-bridge] Concurrent user creation detected, re-fetching", {
+      serviceId,
+    });
+
+    const existing = await usersService.getByPrivyId(serviceId);
+    if (existing?.organization_id && existing?.organization) {
+      return existing as WaifuBridgeAuthResult["user"];
+    }
+    // If wallet-based, try that path too
+    if (walletAddr) {
+      const walletUser = await usersService.getByWalletAddressWithOrganization(walletAddr);
+      if (walletUser?.organization_id && walletUser?.organization) {
+        return walletUser as WaifuBridgeAuthResult["user"];
+      }
+    }
+    throw new ForbiddenError(
+      "Failed to provision service account for waifu-core bridge (concurrent conflict)",
+    );
+  }
 
   const fullUser = await usersService.getWithOrganization(newUser.id);
   if (!fullUser?.organization_id || !fullUser?.organization) {

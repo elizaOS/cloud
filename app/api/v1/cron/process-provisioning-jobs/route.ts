@@ -21,13 +21,15 @@ function verifyCronSecret(request: NextRequest): boolean {
   const providedBuffer = Buffer.from(providedSecret, "utf8");
   const secretBuffer = Buffer.from(cronSecret, "utf8");
 
-  const maxLen = Math.max(providedBuffer.length, secretBuffer.length);
-  const a = Buffer.alloc(maxLen);
-  const b = Buffer.alloc(maxLen);
-  providedBuffer.copy(a);
-  secretBuffer.copy(b);
+  // Reject immediately on length mismatch — padding to max-length would
+  // make timingSafeEqual always compare equal-length buffers but the
+  // zero-padded tail leaks nothing useful; however, strict length-equality
+  // is the canonical safe pattern and avoids any ambiguity.
+  if (providedBuffer.length !== secretBuffer.length) {
+    return false;
+  }
 
-  return timingSafeEqual(a, b);
+  return timingSafeEqual(providedBuffer, secretBuffer);
 }
 
 /**

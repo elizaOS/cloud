@@ -368,6 +368,15 @@ export function errorEnvelope(message: string): { success: false; error: string 
 // Utility
 // ---------------------------------------------------------------------------
 
+/**
+ * Convert a date-ish value to an ISO string for compat JSON responses.
+ *
+ * When the value is null/undefined we return the Unix epoch ("1970-01-01T…")
+ * rather than the current time — this is intentional: compat clients interpret
+ * a zero-epoch as "not set" and it avoids silently injecting now() which would
+ * be misleading.  Callers that need nullable semantics should check before
+ * calling (e.g. `value ? toISO(value) : null`).
+ */
 function toISO(value: Date | string | null | undefined): string {
   if (!value) return new Date(0).toISOString();
   if (value instanceof Date) return value.toISOString();

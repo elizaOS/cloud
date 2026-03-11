@@ -208,10 +208,15 @@ describe("normalizeTokenAddress", () => {
     expect(normalizeTokenAddress(addr, null)).toBe(addr.toLowerCase());
   });
 
-  test("lowercases 0x-prefixed addresses when chain is unknown-but-evm-shaped", () => {
+  test("does NOT lowercase short 0x-prefixed addresses (not valid 42-char EVM)", () => {
     const addr = "0xABCD";
-    // Unknown chain, but address is 0x-hex → lowercase
-    expect(normalizeTokenAddress(addr, "some-new-evm-chain")).toBe("0xabcd");
+    // Short 0x-hex is not a valid 42-char EVM address — preserve casing
+    expect(normalizeTokenAddress(addr, "some-new-evm-chain")).toBe("0xABCD");
+  });
+
+  test("lowercases 42-char 0x addresses even when chain is unknown", () => {
+    const addr = "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12";
+    expect(normalizeTokenAddress(addr, "some-new-evm-chain")).toBe(addr.toLowerCase());
   });
 
   test("preserves Solana base58 addresses (case-sensitive)", () => {

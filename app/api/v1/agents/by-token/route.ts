@@ -41,6 +41,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // This is an unauthenticated public endpoint — do not expose private agents.
+  if (!character.is_public) {
+    return NextResponse.json(
+      { success: false, error: "No agent linked to this token" },
+      { status: 404 },
+    );
+  }
+
   return NextResponse.json({
     success: true,
     data: {

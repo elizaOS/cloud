@@ -49,6 +49,7 @@ WITH candidate_links AS (
   FROM "milady_sandboxes" ms
   JOIN "user_characters" uc ON uc.id = ms.character_id
   WHERE ms.agent_config->>'tokenContractAddress' IS NOT NULL
+    AND ms.agent_config->>'tokenContractAddress' <> ''
     AND uc.token_address IS NULL
 )
 UPDATE "user_characters" uc

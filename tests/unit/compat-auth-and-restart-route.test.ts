@@ -69,7 +69,7 @@ describe("compat auth", () => {
 
   test("rejects invalid service-key attempts instead of falling through", async () => {
     mockRequireServiceKey.mockImplementation(() => {
-      throw new Error("WAIFU_SERVICE_KEY is not configured");
+      throw new MockServiceKeyAuthError("Invalid or missing service key");
     });
 
     await expect(
@@ -78,10 +78,42 @@ describe("compat auth", () => {
           headers: { "X-Service-Key": "bad-key" },
         }),
       ),
-    ).rejects.toThrow("Invalid service key");
+    ).rejects.toThrow("Invalid or missing service key");
 
     expect(mockAuthenticateWaifuBridge).not.toHaveBeenCalled();
     expect(mockRequireAuthOrApiKeyWithOrg).not.toHaveBeenCalled();
+  });
+
+  test("preserves 500 for service-key env misconfiguration instead of swallowing into 401", async () => {
+    // When requireServiceKey throws a plain Error (misconfiguration), it
+    // should bubble up as-is (500-level) rather than being converted to
+    // ServiceKeyAuthError (401-level).
+    const configError = new Error(
+      "WAIFU_SERVICE_ORG_ID and WAIFU_SERVICE_USER_ID must be set when WAIFU_SERVICE_KEY is configured",
+    );
+    mockRequireServiceKey.mockImplementation(() => {
+      throw configError;
+    });
+
+    await expect(
+      requireCompatAuth(
+        new NextRequest("https://example.com/api/compat/agents", {
+          headers: { "X-Service-Key": "valid-key" },
+        }),
+      ),
+    ).rejects.toThrow(configError.message);
+
+    // The thrown error should NOT be a ServiceKeyAuthError
+    try {
+      await requireCompatAuth(
+        new NextRequest("https://example.com/api/compat/agents", {
+          headers: { "X-Service-Key": "valid-key" },
+        }),
+      );
+    } catch (err) {
+      expect(err).not.toBeInstanceOf(MockServiceKeyAuthError);
+      expect(err).toBeInstanceOf(Error);
+    }
   });
 });
 

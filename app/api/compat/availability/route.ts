@@ -6,12 +6,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
 import { validateServiceKey } from "@/lib/auth/service-key";
 import { authenticateWaifuBridge } from "@/lib/auth/waifu-bridge";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 async function canViewNodeTopology(request: NextRequest): Promise<boolean> {
   try {
+    // Only service keys and waifu-bridge (admin-level callers) may see
+    // per-node topology. Regular authenticated users receive aggregate
+    // capacity only — exposing hostnames/node-ids to end-users is an
+    // unnecessary information leak.
     if (validateServiceKey(request)) {
       return true;
     }
@@ -20,8 +23,7 @@ async function canViewNodeTopology(request: NextRequest): Promise<boolean> {
       return true;
     }
 
-    await requireAuthOrApiKeyWithOrg(request);
-    return true;
+    return false;
   } catch {
     return false;
   }

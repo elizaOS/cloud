@@ -6,21 +6,47 @@ describe("waifu bridge auth policy", () => {
   const savedAutoCreate = process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE;
 
   beforeEach(() => {
-    process.env.NODE_ENV = "production";
     delete process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE;
   });
 
   afterEach(() => {
     process.env.NODE_ENV = savedNodeEnv;
-    process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE = savedAutoCreate;
+    if (savedAutoCreate === undefined) {
+      delete process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE;
+    } else {
+      process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE = savedAutoCreate;
+    }
   });
 
   test("disables auto-creating orgs in production by default", () => {
+    process.env.NODE_ENV = "production";
     expect(canAutoCreateWaifuBridgeOrg()).toBe(false);
   });
 
-  test("allows explicit production opt-in for org auto-creation", () => {
+  test("disables auto-creating orgs in development by default (no longer relies on NODE_ENV)", () => {
+    process.env.NODE_ENV = "development";
+    expect(canAutoCreateWaifuBridgeOrg()).toBe(false);
+  });
+
+  test("disables auto-creating orgs in preview/staging by default", () => {
+    process.env.NODE_ENV = "test";
+    expect(canAutoCreateWaifuBridgeOrg()).toBe(false);
+  });
+
+  test("allows explicit opt-in for org auto-creation regardless of NODE_ENV", () => {
+    process.env.NODE_ENV = "production";
     process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE = "true";
     expect(canAutoCreateWaifuBridgeOrg()).toBe(true);
+
+    process.env.NODE_ENV = "development";
+    expect(canAutoCreateWaifuBridgeOrg()).toBe(true);
+  });
+
+  test("rejects non-true values for WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE", () => {
+    process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE = "yes";
+    expect(canAutoCreateWaifuBridgeOrg()).toBe(false);
+
+    process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE = "1";
+    expect(canAutoCreateWaifuBridgeOrg()).toBe(false);
   });
 });
