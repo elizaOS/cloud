@@ -348,7 +348,8 @@ export class DockerSSHClient {
         });
 
         stream.stderr.on("data", (data: Buffer) => {
-          output += data.toString();
+          const text = data.toString();
+          output += output && !output.endsWith("\n") ? `\n[stderr] ${text}` : `[stderr] ${text}`;
         });
 
         stream.on("close", (code: number) => {

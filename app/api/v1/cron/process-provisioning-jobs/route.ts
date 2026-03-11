@@ -1,9 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Provisioning can take up to ~90s per job
+
+function verifyCronSecret(request: NextRequest): boolean {
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret) {
+    logger.error(
+      "[Provisioning Jobs] CRON_SECRET not configured - rejecting request for security",
+    );
+    return false;
+  }
+
+  const providedSecret = authHeader?.replace("Bearer ", "") || "";
+  const providedBuffer = Buffer.from(providedSecret, "utf8");
+  const secretBuffer = Buffer.from(cronSecret, "utf8");
+
+  const maxLen = Math.max(providedBuffer.length, secretBuffer.length);
+  const a = Buffer.alloc(maxLen);
+  const b = Buffer.alloc(maxLen);
+  providedBuffer.copy(a);
+  secretBuffer.copy(b);
+
+  return timingSafeEqual(a, b);
+}
 
 /**
  * Process Provisioning Jobs Cron Handler
@@ -20,14 +45,7 @@ export const maxDuration = 120; // Provisioning can take up to ~90s per job
  */
 async function handleProcessProvisioningJobs(request: NextRequest) {
   try {
-    // Authenticate cron request
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret) {
-      logger.error(
-        "[Provisioning Jobs] CRON_SECRET not configured - rejecting request for security",
-      );
+    if (!process.env.CRON_SECRET) {
       return NextResponse.json(
         {
           success: false,
@@ -37,7 +55,7 @@ async function handleProcessProvisioningJobs(request: NextRequest) {
       );
     }
 
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    if (!verifyCronSecret(request)) {
       logger.warn("[Provisioning Jobs] Unauthorized request", {
         ip: request.headers.get("x-forwarded-for"),
         timestamp: new Date().toISOString(),

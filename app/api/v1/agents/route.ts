@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     agentName,
     characterId: character.id,
     agentConfig: {
-      tokenContractAddress: p.tokenContractAddress,
+      tokenContractAddress: normalizedTokenAddress,
       chain: p.chain,
       chainId: p.chainId,
       tokenName: p.tokenName,
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       billing: p.billing,
     },
     environmentVars: {
-      TOKEN_CONTRACT_ADDRESS: p.tokenContractAddress,
+      TOKEN_CONTRACT_ADDRESS: normalizedTokenAddress,
       TOKEN_CHAIN: p.chain,
       TOKEN_CHAIN_ID: String(p.chainId),
       TOKEN_NAME: p.tokenName,

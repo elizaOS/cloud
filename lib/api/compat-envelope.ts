@@ -22,6 +22,26 @@
 
 import type { MiladySandbox, MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
 
+function getAgentWebUiUrl(sandbox: MiladySandbox): string | null {
+  if (!sandbox.headscale_ip) {
+    return null;
+  }
+
+  const configuredDomain =
+    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ?? "shad0w.xyz";
+  const normalizedDomain = configuredDomain
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/\.+$/, "");
+
+  if (!normalizedDomain) {
+    return null;
+  }
+
+  return `https://${sandbox.id}.${normalizedDomain}`;
+}
+
 // ---------------------------------------------------------------------------
 // Agent shape (union of milady-cloud + waifu-core fields)
 // ---------------------------------------------------------------------------
@@ -52,9 +72,7 @@ export interface CompatAgentShape {
  * Translate a MiladySandbox row to the canonical Agent shape.
  */
 export function toCompatAgent(sandbox: MiladySandbox): CompatAgentShape {
-  const webUiUrl = sandbox.headscale_ip
-    ? `https://${sandbox.id}.shad0w.xyz`
-    : null;
+  const webUiUrl = getAgentWebUiUrl(sandbox);
 
   return {
     agent_id: sandbox.id,
@@ -180,6 +198,9 @@ export function toCompatJob(sandbox: MiladySandbox): CompatJobShape {
     errorMessage: sandbox.error_message,
   };
 
+  // waifu-core treats a successfully provisioned agent as a completed create job,
+  // even if the agent itself remains running afterward. This state machine is
+  // distinct from the live agent status exposed via `data.status` / `result.status`.
   const waifuStateMap: Record<string, string> = {
     pending: "waiting",
     provisioning: "active",
@@ -233,9 +254,7 @@ export interface CompatStatusShape {
  * Build canonical status payload from a sandbox record.
  */
 export function toCompatStatus(sandbox: MiladySandbox): CompatStatusShape {
-  const webUiUrl = sandbox.headscale_ip
-    ? `https://${sandbox.id}.shad0w.xyz`
-    : null;
+  const webUiUrl = getAgentWebUiUrl(sandbox);
 
   return {
     status: mapStatus(sandbox.status),

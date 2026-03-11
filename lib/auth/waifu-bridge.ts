@@ -63,7 +63,7 @@ function slugFromUserId(userId: string): string {
     .replace(/[^a-zA-Z0-9-]/g, "-")
     .toLowerCase()
     .slice(0, 40);
-  const rand = crypto.randomBytes(3).toString("hex");
+  const rand = crypto.randomBytes(8).toString("hex");
   return `${base}-${rand}`;
 }
 

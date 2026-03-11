@@ -1,4 +1,4 @@
-import { eq, desc, and, or, ilike, sql, SQL, inArray } from "drizzle-orm";
+import { eq, desc, and, or, sql, SQL, inArray } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
   userCharacters,
@@ -19,6 +19,10 @@ function escapeLikePattern(str: string): string {
   return str.replace(/[%_\\]/g, "\\$&");
 }
 
+function ilikeEscaped(column: unknown, query: string): SQL {
+  return sql`${column as SQL} ILIKE ${`%${escapeLikePattern(query)}%`} ESCAPE '\\'`;
+}
+
 /**
  * Repository for user character database operations.
  */
@@ -31,11 +35,10 @@ export class UserCharactersRepository {
     const conditions: SQL[] = [];
 
     if (filters.search) {
-      const escapedSearch = escapeLikePattern(filters.search);
       conditions.push(
         or(
-          ilike(userCharacters.name, `%${escapedSearch}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + escapedSearch + "%"}`,
+          ilikeEscaped(userCharacters.name, filters.search),
+          ilikeEscaped(sql`${userCharacters.bio}::text`, filters.search),
         )!,
       );
     }
@@ -102,11 +105,10 @@ export class UserCharactersRepository {
     );
 
     if (filters.search) {
-      const escapedSearch = escapeLikePattern(filters.search);
       conditions.push(
         or(
-          ilike(userCharacters.name, `%${escapedSearch}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + escapedSearch + "%"}`,
+          ilikeEscaped(userCharacters.name, filters.search),
+          ilikeEscaped(sql`${userCharacters.bio}::text`, filters.search),
         )!,
       );
     }
