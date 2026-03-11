@@ -184,6 +184,10 @@ export interface CompatJobShape {
 
 /**
  * Synthesize a Job record from a MiladySandbox's current state.
+ *
+ * NOTE: `startedAt` is approximated as `updated_at` when the sandbox has left
+ * the "pending" state — there is no dedicated `started_at` column.  This is
+ * close enough for compat polling (waifu-core uses it for display only).
  */
 export function toCompatJob(sandbox: MiladySandbox): CompatJobShape {
   const jobStatus = mapStatusToJobStatus(sandbox.status);
@@ -292,6 +296,11 @@ export function toCompatUsage(sandbox: MiladySandbox): CompatUsageShape {
   const billing = config.billing as Record<string, unknown> | undefined;
   const fundingSource = (billing?.mode as string) ?? "unknown";
 
+  // estimatedDailyBurnUsd and currentPeriodCostUsd are hardcoded to 0 because
+  // real billing metering is not yet wired. Compat clients treat 0 as "free
+  // tier / not metered". If billing becomes active, these should be computed
+  // from usage records or switched to null (with a compat-client update to
+  // distinguish "free" from "unknown").
   return {
     uptimeHours,
     estimatedDailyBurnUsd: 0,

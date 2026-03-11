@@ -29,9 +29,19 @@ export function handleCompatError(err: unknown): NextResponse {
   }
 
   // 3. Generic Error — heuristic status from message.
+  //
+  // The "Invalid" keyword was previously treated as a blanket 401 signal,
+  // but many non-auth validation errors (e.g. "Invalid agent config",
+  // "Invalid JSON body") also contain "Invalid". We now restrict the
+  // heuristic to auth-specific phrases only.
   if (err instanceof Error) {
     const msg = err.message;
-    const isAuth = msg.includes("Unauthorized") || msg.includes("Invalid");
+    const isAuth =
+      msg.includes("Unauthorized") ||
+      msg.includes("Invalid API key") ||
+      msg.includes("Invalid token") ||
+      msg.includes("Invalid credentials") ||
+      msg.includes("Invalid service key");
     const isForbid = msg.includes("Forbidden") || msg.includes("requires");
 
     if (isAuth) {

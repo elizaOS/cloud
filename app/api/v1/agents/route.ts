@@ -150,29 +150,51 @@ export async function POST(request: NextRequest) {
   }
 
   // 1. Create sandbox record (always sync — just a DB insert)
-  const agent = await miladySandboxService.createAgent({
-    organizationId: identity.organizationId,
-    userId: identity.userId,
-    agentName,
-    characterId: character.id,
-    agentConfig: {
-      tokenContractAddress: normalizedTokenAddress,
-      chain: p.chain,
-      chainId: p.chainId,
-      tokenName: p.tokenName,
-      tokenTicker: p.tokenTicker,
-      launchType: p.launchType,
-      character: p.character,
-      billing: p.billing,
-    },
-    environmentVars: {
-      TOKEN_CONTRACT_ADDRESS: normalizedTokenAddress,
-      TOKEN_CHAIN: p.chain,
-      TOKEN_CHAIN_ID: String(p.chainId),
-      TOKEN_NAME: p.tokenName,
-      TOKEN_TICKER: p.tokenTicker,
-    },
-  });
+  //
+  // If sandbox creation or job enqueue fails, clean up the character row
+  // to avoid orphaned records that would block subsequent retries (the
+  // token_address unique constraint would 409 on retry otherwise).
+  let agent;
+  try {
+    agent = await miladySandboxService.createAgent({
+      organizationId: identity.organizationId,
+      userId: identity.userId,
+      agentName,
+      characterId: character.id,
+      agentConfig: {
+        tokenContractAddress: normalizedTokenAddress,
+        chain: p.chain,
+        chainId: p.chainId,
+        tokenName: p.tokenName,
+        tokenTicker: p.tokenTicker,
+        launchType: p.launchType,
+        character: p.character,
+        billing: p.billing,
+      },
+      environmentVars: {
+        TOKEN_CONTRACT_ADDRESS: normalizedTokenAddress,
+        TOKEN_CHAIN: p.chain,
+        TOKEN_CHAIN_ID: String(p.chainId),
+        TOKEN_NAME: p.tokenName,
+        TOKEN_TICKER: p.tokenTicker,
+      },
+    });
+  } catch (createErr) {
+    // Compensate: remove the character row so the token address isn't
+    // permanently "claimed" by a failed provisioning attempt.
+    try {
+      await charactersService.delete(character.id);
+      logger.info("[service-api] Cleaned up orphaned character after createAgent failure", {
+        characterId: character.id,
+      });
+    } catch (cleanupErr) {
+      logger.error("[service-api] Failed to clean up orphaned character", {
+        characterId: character.id,
+        error: cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+      });
+    }
+    throw createErr;
+  }
 
   // ── Sync fallback (legacy) ────────────────────────────────────────
   if (sync) {
@@ -216,13 +238,35 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Async path (default) ──────────────────────────────────────────
-  const job = await provisioningJobService.enqueueMiladyProvision({
-    agentId: agent.id,
-    organizationId: identity.organizationId,
-    userId: identity.userId,
-    agentName,
-    webhookUrl: p.webhookUrl,
-  });
+  let job;
+  try {
+    job = await provisioningJobService.enqueueMiladyProvision({
+      agentId: agent.id,
+      organizationId: identity.organizationId,
+      userId: identity.userId,
+      agentName,
+      webhookUrl: p.webhookUrl,
+    });
+  } catch (enqueueErr) {
+    // Compensate: the sandbox record exists but no job will ever process
+    // it. Clean up the character so the token address isn't permanently
+    // claimed. (The sandbox record itself has no unique token constraint,
+    // so leaving it is less harmful and avoids cascading deletes.)
+    try {
+      await charactersService.delete(character.id);
+      logger.info("[service-api] Cleaned up orphaned character after enqueue failure", {
+        characterId: character.id,
+        agentId: agent.id,
+      });
+    } catch (cleanupErr) {
+      logger.error("[service-api] Failed to clean up orphaned character after enqueue failure", {
+        characterId: character.id,
+        agentId: agent.id,
+        error: cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+      });
+    }
+    throw enqueueErr;
+  }
 
   logger.info("[service-api] Agent provisioning job enqueued", {
     agentId: agent.id,

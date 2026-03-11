@@ -23,6 +23,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
+    // Org-scoped pre-check: verify agent exists and belongs to this org
+    // before attempting shutdown (matches resume/restart route pattern).
+    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    if (!agent) {
+      return NextResponse.json(errorEnvelope("Agent not found"), { status: 404 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const parsed = suspendSchema.safeParse(body);
     const reason = parsed.success ? parsed.data.reason : "owner requested suspension";

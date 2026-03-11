@@ -70,13 +70,21 @@ function serviceIdFromUserId(userId: string): string {
   return `svc_${userId.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}`;
 }
 
+/**
+ * Derive an org slug deterministically from the userId.
+ *
+ * Previous implementation used crypto.randomBytes, which meant concurrent
+ * requests for the same userId could each produce a different slug and
+ * therefore create separate orgs. We now derive the suffix from a SHA-256
+ * hash of the userId so it's stable across retries/races.
+ */
 function slugFromUserId(userId: string): string {
   const base = userId
     .replace(/[^a-zA-Z0-9-]/g, "-")
     .toLowerCase()
     .slice(0, 40);
-  const rand = crypto.randomBytes(8).toString("hex");
-  return `${base}-${rand}`;
+  const hash = crypto.createHash("sha256").update(userId).digest("hex").slice(0, 16);
+  return `${base}-${hash}`;
 }
 
 export function canAutoCreateWaifuBridgeOrg(): boolean {
@@ -142,8 +150,7 @@ async function resolveServiceUser(
       orgId = org.id;
     } catch (orgErr: unknown) {
       // Handle race: a concurrent request may have created the org with
-      // the same slug. Since slugs include random bytes this is rare,
-      // but guard defensively.
+      // the same deterministic slug.
       const isConflict =
         orgErr instanceof Error &&
         (orgErr.message.includes("duplicate key") ||
@@ -151,18 +158,28 @@ async function resolveServiceUser(
           orgErr.message.includes("23505"));
       if (!isConflict) throw orgErr;
 
-      logger.info("[waifu-bridge] Concurrent org creation detected, retrying user lookup", {
+      logger.info("[waifu-bridge] Concurrent org creation detected, resolving existing org", {
         serviceId,
+        slug,
       });
+
       // Another request won the race and may have created the user too —
       // re-check before falling through to user creation.
       const retryUser = await usersService.getByPrivyId(serviceId);
       if (retryUser?.organization_id && retryUser?.organization) {
         return retryUser as WaifuBridgeAuthResult["user"];
       }
-      throw new ForbiddenError(
-        "Failed to provision service org for waifu-core bridge (concurrent conflict)",
-      );
+
+      // The org exists but the user hasn't been created yet — look up the
+      // org by its deterministic slug so we can proceed with user creation.
+      const existingOrg = await organizationsService.getBySlug(slug);
+      if (existingOrg) {
+        orgId = existingOrg.id;
+      } else {
+        throw new ForbiddenError(
+          "Failed to provision service org for waifu-core bridge (concurrent conflict)",
+        );
+      }
     }
   }
 

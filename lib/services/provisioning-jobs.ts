@@ -240,6 +240,15 @@ export class ProvisioningJobService {
   private async executeMiladyProvision(job: Job): Promise<void> {
     const data = job.data as unknown as MiladyProvisionJobData;
 
+    // Cross-check: the org ID stored in the JSONB payload must match the
+    // first-class organization_id column. A mismatch indicates either a bug
+    // in the enqueue path or data tampering.
+    if (data.organizationId !== job.organization_id) {
+      throw new Error(
+        `Organization ID mismatch: job.data.organizationId (${data.organizationId}) !== job.organization_id (${job.organization_id})`,
+      );
+    }
+
     logger.info("[provisioning-jobs] Executing milady_provision", {
       jobId: job.id,
       agentId: data.agentId,
