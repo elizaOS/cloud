@@ -42,7 +42,16 @@ export function handleCompatError(err: unknown): NextResponse {
       msg.includes("Invalid token") ||
       msg.includes("Invalid credentials") ||
       msg.includes("Invalid service key");
-    const isForbid = msg.includes("Forbidden") || msg.includes("requires");
+    // "requires" was previously a blanket 403 signal, but many non-auth
+    // errors also contain the word (e.g. "Table requires migration",
+    // "Field requires a value"). Restrict to auth/access-specific phrases.
+    const isForbid =
+      msg.includes("Forbidden") ||
+      msg.includes("requires authentication") ||
+      msg.includes("requires authorization") ||
+      msg.includes("requires admin") ||
+      msg.includes("requires owner") ||
+      msg.includes("requires org membership");
 
     if (isAuth) {
       return NextResponse.json(errorEnvelope(msg), { status: 401 });

@@ -63,11 +63,19 @@ describe("handleCompatError", () => {
     expect(body.error).toBe("Unauthorized: bad token");
   });
 
-  test("Error with 'Invalid' → 401", async () => {
+  test("Error with 'Invalid API key' → 401", async () => {
     const res = handleCompatError(new Error("Invalid API key"));
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body.error).toBe("Invalid API key");
+  });
+
+  test("Error with 'Invalid agent config' → 500 (not 401)", async () => {
+    // Non-auth 'Invalid' errors should NOT become 401 (already narrowed in round-4)
+    const res = handleCompatError(new Error("Invalid agent config: missing name"));
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("Internal server error");
   });
 
   test("Error with 'Forbidden' → 403", async () => {
@@ -77,11 +85,40 @@ describe("handleCompatError", () => {
     expect(body.error).toBe("Forbidden: org mismatch");
   });
 
-  test("Error with 'requires' → 403", async () => {
+  test("Error with 'requires admin' → 403", async () => {
     const res = handleCompatError(new Error("This action requires admin"));
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error).toBe("This action requires admin");
+  });
+
+  test("Error with 'requires authentication' → 403", async () => {
+    const res = handleCompatError(new Error("Endpoint requires authentication"));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toBe("Endpoint requires authentication");
+  });
+
+  test("Error with 'requires org membership' → 403", async () => {
+    const res = handleCompatError(new Error("Access requires org membership"));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toBe("Access requires org membership");
+  });
+
+  // Non-auth 'requires' should NOT become 403 — falls through to 500
+  test("Error with non-auth 'requires' → 500 (not 403)", async () => {
+    const res = handleCompatError(new Error("Table requires migration"));
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("Internal server error");
+  });
+
+  test("Error with 'Field requires a value' → 500 (not 403)", async () => {
+    const res = handleCompatError(new Error("Field requires a value"));
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("Internal server error");
   });
 
   // --- 500-level: no internal message leakage ---

@@ -39,6 +39,14 @@ mock.module("@/lib/services/milaidy-sandbox", () => ({
   },
 }));
 
+const mockCharacterDelete = mock();
+
+mock.module("@/db/repositories/characters", () => ({
+  userCharactersRepository: {
+    delete: mockCharacterDelete,
+  },
+}));
+
 mock.module("@/lib/utils/logger", () => ({
   logger: {
     info: mock(),
@@ -131,6 +139,7 @@ describe("GET/DELETE /api/compat/agents/[id]", () => {
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockGetAgent.mockReset();
     mockDeleteAgent.mockReset();
+    mockCharacterDelete.mockReset();
     mockSnapshot.mockReset();
     mockProvision.mockReset();
 
@@ -173,6 +182,80 @@ describe("GET/DELETE /api/compat/agents/[id]", () => {
       success: false,
       error: "Agent not found",
     });
+  });
+
+  test("DELETE cleans up linked character row after agent deletion", async () => {
+    const mockSandbox = {
+      id: "agent-del",
+      character_id: "char-linked",
+      agent_name: "TestAgent",
+      status: "running",
+      organization_id: "org-1",
+    };
+    mockGetAgent.mockResolvedValue(mockSandbox);
+    mockDeleteAgent.mockResolvedValue(true);
+    mockCharacterDelete.mockResolvedValue(undefined);
+
+    const response = await deleteCompatAgent(
+      new NextRequest("https://example.com/api/compat/agents/agent-del", {
+        method: "DELETE",
+      }),
+      routeParams({ id: "agent-del" }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    // Verify character cleanup was called with the correct ID
+    expect(mockCharacterDelete).toHaveBeenCalledWith("char-linked");
+  });
+
+  test("DELETE succeeds even if character cleanup fails (best-effort)", async () => {
+    const mockSandbox = {
+      id: "agent-del2",
+      character_id: "char-broken",
+      agent_name: "TestAgent2",
+      status: "running",
+      organization_id: "org-1",
+    };
+    mockGetAgent.mockResolvedValue(mockSandbox);
+    mockDeleteAgent.mockResolvedValue(true);
+    mockCharacterDelete.mockRejectedValue(new Error("DB connection lost"));
+
+    const response = await deleteCompatAgent(
+      new NextRequest("https://example.com/api/compat/agents/agent-del2", {
+        method: "DELETE",
+      }),
+      routeParams({ id: "agent-del2" }),
+    );
+
+    // Should still succeed — character cleanup is best-effort
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    expect(mockCharacterDelete).toHaveBeenCalledWith("char-broken");
+  });
+
+  test("DELETE skips character cleanup when no character_id linked", async () => {
+    const mockSandbox = {
+      id: "agent-no-char",
+      character_id: null,
+      agent_name: "NoCharAgent",
+      status: "running",
+      organization_id: "org-1",
+    };
+    mockGetAgent.mockResolvedValue(mockSandbox);
+    mockDeleteAgent.mockResolvedValue(true);
+
+    const response = await deleteCompatAgent(
+      new NextRequest("https://example.com/api/compat/agents/agent-no-char", {
+        method: "DELETE",
+      }),
+      routeParams({ id: "agent-no-char" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockCharacterDelete).not.toHaveBeenCalled();
   });
 });
 

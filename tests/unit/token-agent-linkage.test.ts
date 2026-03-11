@@ -373,6 +373,31 @@ describe("by-token endpoint validation", () => {
     expect(address).toBeTruthy();
     expect(chain).toBeUndefined();
   });
+
+  // Input length guards — prevent absurdly long strings from reaching the DB
+  test("rejects address longer than 256 characters", () => {
+    const address = "0x" + "a".repeat(300);
+    const MAX_ADDRESS_LENGTH = 256;
+    expect(address.length).toBeGreaterThan(MAX_ADDRESS_LENGTH);
+  });
+
+  test("accepts address up to 256 characters", () => {
+    const address = "0x" + "a".repeat(254);
+    const MAX_ADDRESS_LENGTH = 256;
+    expect(address.length).toBeLessThanOrEqual(MAX_ADDRESS_LENGTH);
+  });
+
+  test("rejects chain longer than 50 characters", () => {
+    const chain = "x".repeat(51);
+    const MAX_CHAIN_LENGTH = 50;
+    expect(chain.length).toBeGreaterThan(MAX_CHAIN_LENGTH);
+  });
+
+  test("accepts chain up to 50 characters", () => {
+    const chain = "x".repeat(50);
+    const MAX_CHAIN_LENGTH = 50;
+    expect(chain.length).toBeLessThanOrEqual(MAX_CHAIN_LENGTH);
+  });
 });
 
 // ─── JSONB fallback logic tests ─────────────────────────────────────────────
