@@ -41,9 +41,17 @@ const mockMiladySandboxService = {
 
 const mockAssertSafeOutboundUrl = vi.fn();
 
+const mockMiladySandboxesRepository = {
+  update: vi.fn(),
+};
+
 vi.mock("@/db/repositories/jobs", () => ({
   jobsRepository: mockJobsRepository,
   JobsRepository: vi.fn(),
+}));
+
+vi.mock("@/db/repositories/milady-sandboxes", () => ({
+  miladySandboxesRepository: mockMiladySandboxesRepository,
 }));
 
 vi.mock("@/lib/services/milaidy-sandbox", () => ({
@@ -86,6 +94,7 @@ describe("ProvisioningJobService", () => {
     globalThis.fetch = originalFetch;
     service = new ProvisioningJobService();
     mockAssertSafeOutboundUrl.mockImplementation(async (url: string) => new URL(url));
+    mockMiladySandboxesRepository.update.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -337,6 +346,64 @@ describe("ProvisioningJobService", () => {
           }),
         }),
       );
+    });
+
+    it("marks sandbox as error when retries are exhausted (permanent failure)", async () => {
+      const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
+
+      mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([job]);
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
+
+      mockMiladySandboxService.provision.mockResolvedValue({
+        success: false,
+        error: "Node unreachable",
+        sandboxRecord: { status: "error" },
+      });
+
+      mockJobsRepository.update.mockResolvedValue(undefined);
+      // incrementAttempt returns a job with status "failed" → permanent failure
+      mockJobsRepository.incrementAttempt.mockResolvedValue({
+        ...job,
+        status: "failed",
+        attempts: 3,
+      });
+
+      await service.processPendingJobs(5);
+
+      // Should update the sandbox status to error
+      expect(mockMiladySandboxesRepository.update).toHaveBeenCalledWith(
+        TEST_AGENT_ID,
+        expect.objectContaining({
+          status: "error",
+          error_message: expect.stringContaining("permanently failed"),
+        }),
+      );
+    });
+
+    it("does NOT mark sandbox as error on retryable failure", async () => {
+      const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
+
+      mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([job]);
+      mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
+
+      mockMiladySandboxService.provision.mockResolvedValue({
+        success: false,
+        error: "Temporary glitch",
+        sandboxRecord: { status: "error" },
+      });
+
+      mockJobsRepository.update.mockResolvedValue(undefined);
+      // incrementAttempt returns job still "pending" → will retry
+      mockJobsRepository.incrementAttempt.mockResolvedValue({
+        ...job,
+        status: "pending",
+        attempts: 1,
+      });
+
+      await service.processPendingJobs(5);
+
+      // Should NOT update the sandbox status — job will retry
+      expect(mockMiladySandboxesRepository.update).not.toHaveBeenCalled();
     });
 
     it("uses atomic claimPendingJobs instead of read-then-update", async () => {

@@ -93,4 +93,42 @@ describe("POST /api/v1/agents", () => {
     expect(mockCreateAgent).not.toHaveBeenCalled();
     expect(mockEnqueueMiladyProvision).not.toHaveBeenCalled();
   });
+
+  test("stores normalized token address in agent config and environment vars", async () => {
+    mockFindByTokenAddress.mockResolvedValueOnce(null);
+    mockCharacterCreate.mockResolvedValueOnce({
+      id: "char-1",
+      token_address: "0xabcdef1234567890abcdef1234567890abcdef12",
+      token_chain: "base",
+      token_name: "Test Token",
+      token_ticker: "TEST",
+    });
+    mockCreateAgent.mockResolvedValueOnce({ id: "agent-1" });
+    mockEnqueueMiladyProvision.mockResolvedValueOnce({ id: "job-1" });
+
+    const response = await POST(
+      jsonRequest("https://example.com/api/v1/agents", "POST", {
+        tokenContractAddress: "0xAbCdEf1234567890aBCDef1234567890ABCDef12",
+        chain: "base",
+        chainId: 8453,
+        tokenName: "Test Token",
+        tokenTicker: "TEST",
+        launchType: "native",
+      }, {
+        "X-Service-Key": "test-service-key",
+      }),
+    );
+
+    expect(response.status).toBe(202);
+    expect(mockCreateAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentConfig: expect.objectContaining({
+          tokenContractAddress: "0xabcdef1234567890abcdef1234567890abcdef12",
+        }),
+        environmentVars: expect.objectContaining({
+          TOKEN_CONTRACT_ADDRESS: "0xabcdef1234567890abcdef1234567890abcdef12",
+        }),
+      }),
+    );
+  });
 });

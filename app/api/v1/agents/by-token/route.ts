@@ -29,12 +29,37 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Guard: reject absurdly long inputs before hitting the DB.
+  // Longest known on-chain addresses are ~64 chars (Solana base58);
+  // 256 chars is generous headroom.
+  if (address.length > 256) {
+    return NextResponse.json(
+      { success: false, error: "address parameter exceeds maximum length (256)" },
+      { status: 400 },
+    );
+  }
+
+  if (chain && chain.length > 50) {
+    return NextResponse.json(
+      { success: false, error: "chain parameter exceeds maximum length (50)" },
+      { status: 400 },
+    );
+  }
+
   const character = await userCharactersRepository.findByTokenAddress(
     normalizeTokenAddress(address, chain),
     chain,
   );
 
   if (!character) {
+    return NextResponse.json(
+      { success: false, error: "No agent linked to this token" },
+      { status: 404 },
+    );
+  }
+
+  // This is an unauthenticated public endpoint — do not expose private agents.
+  if (!character.is_public) {
     return NextResponse.json(
       { success: false, error: "No agent linked to this token" },
       { status: 404 },

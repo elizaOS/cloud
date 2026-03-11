@@ -41,13 +41,14 @@ export async function GET(
     }
   }
 
-  // Fallback to agent_config JSONB
+  // Fallback to agent_config JSONB — use typeof guards since JSONB
+  // values are untyped and could be numbers, objects, etc.
   if (!tokenAddress) {
     const cfg = agent.agent_config as Record<string, unknown> | null;
-    tokenAddress = (cfg?.tokenContractAddress as string) ?? null;
-    tokenChain = (cfg?.chain as string) ?? null;
-    tokenName = (cfg?.tokenName as string) ?? null;
-    tokenTicker = (cfg?.tokenTicker as string) ?? null;
+    tokenAddress = typeof cfg?.tokenContractAddress === "string" ? cfg.tokenContractAddress : null;
+    tokenChain = typeof cfg?.chain === "string" ? cfg.chain : null;
+    tokenName = typeof cfg?.tokenName === "string" ? cfg.tokenName : null;
+    tokenTicker = typeof cfg?.tokenTicker === "string" ? cfg.tokenTicker : null;
   }
 
   return NextResponse.json({

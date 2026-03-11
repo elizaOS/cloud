@@ -34,7 +34,12 @@ export async function requireCompatAuth(
     let serviceKeyIdentity;
     try {
       serviceKeyIdentity = requireServiceKey(request);
-    } catch {
+    } catch (err) {
+      // Preserve 500-level errors for server misconfiguration (e.g.
+      // WAIFU_SERVICE_ORG_ID / WAIFU_SERVICE_USER_ID not set) — only
+      // auth failures should become ServiceKeyAuthError (→ 401).
+      if (err instanceof ServiceKeyAuthError) throw err;
+      if (err instanceof Error) throw err;
       throw new ServiceKeyAuthError("Invalid service key");
     }
     return {

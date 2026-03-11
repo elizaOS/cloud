@@ -2,7 +2,7 @@
  * Unit tests for compat-envelope field mapping layer.
  */
 
-import { describe, test, expect } from "bun:test";
+import { afterEach, beforeEach, describe, test, expect } from "bun:test";
 import {
   toCompatAgent,
   toCompatCreateResult,
@@ -15,6 +15,20 @@ import {
   errorEnvelope,
 } from "../../lib/api/compat-envelope";
 import type { MiladySandbox } from "../../db/schemas/milady-sandboxes";
+
+const savedAgentBaseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+
+beforeEach(() => {
+  process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "shad0w.xyz";
+});
+
+afterEach(() => {
+  if (savedAgentBaseDomain === undefined) {
+    delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+  } else {
+    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = savedAgentBaseDomain;
+  }
+});
 
 function makeSandbox(overrides: Partial<MiladySandbox> = {}): MiladySandbox {
   return {
@@ -90,6 +104,14 @@ describe("toCompatAgent", () => {
     const agent = toCompatAgent(makeSandbox({ headscale_ip: null }));
     expect(agent.web_ui_url).toBeNull();
     expect(agent.webUiUrl).toBeNull();
+  });
+
+  test("uses configurable agent base domain for web UI links", () => {
+    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "agents.example.com";
+    const agent = toCompatAgent(makeSandbox());
+    expect(agent.webUiUrl).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.agents.example.com",
+    );
   });
 
   test("last_heartbeat_at is null when never heartbeated", () => {

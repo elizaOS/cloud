@@ -7,11 +7,11 @@ import { logger } from "@/lib/utils/logger";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { z } from "zod";
 import { requireCompatAuth } from "../_lib/auth";
+import { handleCompatError } from "../_lib/error-handler";
 import {
   toCompatAgent,
   toCompatCreateResult,
   envelope,
-  errorEnvelope,
 } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const agents = await miladySandboxService.listAgents(user.organization_id);
     return NextResponse.json(envelope(agents.map(toCompatAgent)));
   } catch (err) {
-    return handleError(err);
+    return handleCompatError(err);
   }
 }
 
@@ -58,32 +58,35 @@ export async function POST(request: NextRequest) {
       orgId: user.organization_id,
     });
 
+    let provisionWarning: string | undefined;
     if (process.env.WAIFU_AUTO_PROVISION === "true") {
       try {
         const result = await miladySandboxService.provision(agent.id, user.organization_id);
         if (result.success && result.sandboxRecord) {
           agent = result.sandboxRecord;
+        } else if (!result.success) {
+          provisionWarning = "Auto-provision was requested but did not succeed; the agent was created and can be provisioned manually.";
+          logger.warn("[compat] Auto-provision did not succeed", {
+            agentId: agent.id,
+            error: result.error,
+          });
         }
       } catch (provErr) {
-        logger.error("[compat] Auto-provision failed", { error: provErr });
+        provisionWarning = "Auto-provision was requested but failed; the agent was created and can be provisioned manually.";
+        logger.error("[compat] Auto-provision failed", {
+          agentId: agent.id,
+          error: provErr instanceof Error ? provErr.message : String(provErr),
+        });
       }
     }
 
-    return NextResponse.json(envelope(toCompatCreateResult(agent)), { status: 201 });
-  } catch (err) {
-    return handleError(err);
-  }
-}
+    const data = toCompatCreateResult(agent);
+    const responseBody = provisionWarning
+      ? { ...envelope(data), warning: provisionWarning }
+      : envelope(data);
 
-function handleError(err: unknown): NextResponse {
-  if (err instanceof Error) {
-    const msg = err.message;
-    const status = msg.includes("Unauthorized") || msg.includes("Invalid")
-      ? 401
-      : msg.includes("Forbidden") || msg.includes("requires")
-        ? 403
-        : 500;
-    return NextResponse.json(errorEnvelope(msg), { status });
+    return NextResponse.json(responseBody, { status: 201 });
+  } catch (err) {
+    return handleCompatError(err);
   }
-  return NextResponse.json(errorEnvelope("Internal server error"), { status: 500 });
 }

@@ -8,7 +8,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { requireCompatAuth } from "../../../_lib/auth";
+import { handleCompatError } from "../../../_lib/error-handler";
 import { envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
@@ -26,12 +28,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     const url = new URL(request.url);
-    const tail = parseInt(url.searchParams.get("tail") ?? "100", 10);
+    const rawTail = parseInt(url.searchParams.get("tail") ?? "100", 10);
+    const tail = Math.max(1, Math.min(Number.isFinite(rawTail) ? rawTail : 100, 5000));
 
     // Try bridge logs if agent is running
     if (agent.bridge_url && agent.status === "running") {
       try {
         const logsUrl = `${agent.bridge_url}/logs?tail=${tail}`;
+        // SSRF guard: validate bridge_url resolves to a safe destination
+        await assertSafeOutboundUrl(logsUrl);
         const res = await fetch(logsUrl, {
           signal: AbortSignal.timeout(10_000),
         });
@@ -61,9 +66,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       envelope(statusMsg[agent.status] ?? `Agent status: ${agent.status}`),
     );
   } catch (err) {
-    if (err instanceof Error) {
-      return NextResponse.json(errorEnvelope(err.message), { status: 500 });
-    }
-    return NextResponse.json(errorEnvelope("Internal server error"), { status: 500 });
+    return handleCompatError(err);
   }
 }

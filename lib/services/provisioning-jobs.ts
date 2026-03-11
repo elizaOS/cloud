@@ -14,6 +14,7 @@
  */
 
 import { jobsRepository, type Job, type NewJob } from "@/db/repositories/jobs";
+import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { logger } from "@/lib/utils/logger";
@@ -68,6 +69,13 @@ export class ProvisioningJobService {
     agentName: string;
     webhookUrl?: string;
   }): Promise<Job> {
+    // Validate webhook URL at enqueue time (fail fast) in addition to
+    // the delivery-time check in fireWebhook. This prevents storing
+    // obviously-malicious URLs that would only surface errors later.
+    if (params.webhookUrl) {
+      await assertSafeOutboundUrl(params.webhookUrl);
+    }
+
     const jobData: MiladyProvisionJobData = {
       agentId: params.agentId,
       organizationId: params.organizationId,
@@ -187,11 +195,34 @@ export class ProvisioningJobService {
         result.errors.push({ jobId: job.id, error: errorMsg });
 
         // Increment attempt; will auto-fail if max_attempts reached
-        await jobsRepository.incrementAttempt(
+        const updated = await jobsRepository.incrementAttempt(
           job.id,
           errorMsg,
           job.max_attempts,
         );
+
+        // When retries are exhausted (permanent failure), mark the
+        // sandbox as "error" immediately so the UI reflects reality
+        // instead of staying stuck in "provisioning".
+        if (updated?.status === "failed" && job.type === JOB_TYPES.MILADY_PROVISION) {
+          const data = job.data as unknown as MiladyProvisionJobData;
+          try {
+            await miladySandboxesRepository.update(data.agentId, {
+              status: "error",
+              error_message: `Provisioning permanently failed after ${job.max_attempts} attempts: ${errorMsg}`,
+            } as Parameters<typeof miladySandboxesRepository.update>[1]);
+            logger.warn("[provisioning-jobs] Marked sandbox as error after permanent failure", {
+              jobId: job.id,
+              agentId: data.agentId,
+            });
+          } catch (sandboxErr) {
+            logger.error("[provisioning-jobs] Failed to mark sandbox as error", {
+              jobId: job.id,
+              agentId: data.agentId,
+              error: sandboxErr instanceof Error ? sandboxErr.message : String(sandboxErr),
+            });
+          }
+        }
       }
     }
   }
@@ -208,6 +239,15 @@ export class ProvisioningJobService {
 
   private async executeMiladyProvision(job: Job): Promise<void> {
     const data = job.data as unknown as MiladyProvisionJobData;
+
+    // Cross-check: the org ID stored in the JSONB payload must match the
+    // first-class organization_id column. A mismatch indicates either a bug
+    // in the enqueue path or data tampering.
+    if (data.organizationId !== job.organization_id) {
+      throw new Error(
+        `Organization ID mismatch: job.data.organizationId (${data.organizationId}) !== job.organization_id (${job.organization_id})`,
+      );
+    }
 
     logger.info("[provisioning-jobs] Executing milady_provision", {
       jobId: job.id,

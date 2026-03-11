@@ -208,10 +208,15 @@ describe("normalizeTokenAddress", () => {
     expect(normalizeTokenAddress(addr, null)).toBe(addr.toLowerCase());
   });
 
-  test("lowercases 0x-prefixed addresses when chain is unknown-but-evm-shaped", () => {
+  test("does NOT lowercase short 0x-prefixed addresses (not valid 42-char EVM)", () => {
     const addr = "0xABCD";
-    // Unknown chain, but address is 0x-hex → lowercase
-    expect(normalizeTokenAddress(addr, "some-new-evm-chain")).toBe("0xabcd");
+    // Short 0x-hex is not a valid 42-char EVM address — preserve casing
+    expect(normalizeTokenAddress(addr, "some-new-evm-chain")).toBe("0xABCD");
+  });
+
+  test("lowercases 42-char 0x addresses even when chain is unknown", () => {
+    const addr = "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12";
+    expect(normalizeTokenAddress(addr, "some-new-evm-chain")).toBe(addr.toLowerCase());
   });
 
   test("preserves Solana base58 addresses (case-sensitive)", () => {
@@ -367,6 +372,31 @@ describe("by-token endpoint validation", () => {
     const chain = undefined;
     expect(address).toBeTruthy();
     expect(chain).toBeUndefined();
+  });
+
+  // Input length guards — prevent absurdly long strings from reaching the DB
+  test("rejects address longer than 256 characters", () => {
+    const address = "0x" + "a".repeat(300);
+    const MAX_ADDRESS_LENGTH = 256;
+    expect(address.length).toBeGreaterThan(MAX_ADDRESS_LENGTH);
+  });
+
+  test("accepts address up to 256 characters", () => {
+    const address = "0x" + "a".repeat(254);
+    const MAX_ADDRESS_LENGTH = 256;
+    expect(address.length).toBeLessThanOrEqual(MAX_ADDRESS_LENGTH);
+  });
+
+  test("rejects chain longer than 50 characters", () => {
+    const chain = "x".repeat(51);
+    const MAX_CHAIN_LENGTH = 50;
+    expect(chain.length).toBeGreaterThan(MAX_CHAIN_LENGTH);
+  });
+
+  test("accepts chain up to 50 characters", () => {
+    const chain = "x".repeat(50);
+    const MAX_CHAIN_LENGTH = 50;
+    expect(chain.length).toBeLessThanOrEqual(MAX_CHAIN_LENGTH);
   });
 });
 

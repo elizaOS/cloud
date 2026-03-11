@@ -32,10 +32,22 @@ export interface WaifuBridgeAuthResult {
  * Authenticate a request from waifu-core via service JWT.
  * Returns the resolved user+org or null.
  */
+let _warnedJwtNotConfigured = false;
+
 export async function authenticateWaifuBridge(
   request: NextRequest,
 ): Promise<WaifuBridgeAuthResult | null> {
-  if (!isServiceJwtEnabled()) return null;
+  if (!isServiceJwtEnabled()) {
+    // Warn once so operators notice the bridge is unconfigured without
+    // flooding logs on every request.
+    if (!_warnedJwtNotConfigured) {
+      _warnedJwtNotConfigured = true;
+      logger.warn(
+        "[waifu-bridge] MILADY_SERVICE_JWT_SECRET is not set — waifu bridge auth is disabled",
+      );
+    }
+    return null;
+  }
 
   const authHeader = request.headers.get("authorization");
   if (!authHeader) return null;
@@ -61,21 +73,29 @@ function serviceIdFromUserId(userId: string): string {
   return `svc_${userId.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}`;
 }
 
+/**
+ * Derive an org slug deterministically from the userId.
+ *
+ * Previous implementation used crypto.randomBytes, which meant concurrent
+ * requests for the same userId could each produce a different slug and
+ * therefore create separate orgs. We now derive the suffix from a SHA-256
+ * hash of the userId so it's stable across retries/races.
+ */
 function slugFromUserId(userId: string): string {
   const base = userId
     .replace(/[^a-zA-Z0-9-]/g, "-")
     .toLowerCase()
     .slice(0, 40);
-  const rand = crypto.randomBytes(3).toString("hex");
-  return `${base}-${rand}`;
+  const hash = crypto.createHash("sha256").update(userId).digest("hex").slice(0, 16);
+  return `${base}-${hash}`;
 }
 
 export function canAutoCreateWaifuBridgeOrg(): boolean {
-  if (process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE === "true") {
-    return true;
-  }
-
-  return process.env.NODE_ENV !== "production";
+  // Only allow auto-creation when explicitly opted in. Relying on
+  // NODE_ENV !== "production" was unsafe because preview / staging
+  // deployments often run with NODE_ENV=development while still
+  // handling real traffic.
+  return process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE === "true";
 }
 
 /**
@@ -132,16 +152,51 @@ async function resolveServiceUser(
       ? `waifu-${payload.userId.slice(6, 14)}`
       : "waifu-svc";
 
-    const org = await organizationsService.create({
-      name: orgName,
-      slug,
-    });
-    orgId = org.id;
+    try {
+      const org = await organizationsService.create({
+        name: orgName,
+        slug,
+      });
+      orgId = org.id;
+    } catch (orgErr: unknown) {
+      // Handle race: a concurrent request may have created the org with
+      // the same deterministic slug.
+      const isConflict =
+        orgErr instanceof Error &&
+        (orgErr.message.includes("duplicate key") ||
+          orgErr.message.includes("unique constraint") ||
+          orgErr.message.includes("23505"));
+      if (!isConflict) throw orgErr;
+
+      logger.info("[waifu-bridge] Concurrent org creation detected, resolving existing org", {
+        serviceId,
+        slug,
+      });
+
+      // Another request won the race and may have created the user too —
+      // re-check before falling through to user creation.
+      const retryUser = await usersService.getByPrivyId(serviceId);
+      if (retryUser?.organization_id && retryUser?.organization) {
+        return retryUser as WaifuBridgeAuthResult["user"];
+      }
+
+      // The org exists but the user hasn't been created yet — look up the
+      // org by its deterministic slug so we can proceed with user creation.
+      const existingOrg = await organizationsService.getBySlug(slug);
+      if (existingOrg) {
+        orgId = existingOrg.id;
+      } else {
+        throw new ForbiddenError(
+          "Failed to provision service org for waifu-core bridge (concurrent conflict)",
+        );
+      }
+    }
   }
 
   const email = payload.email ?? `${serviceId}@waifu.bridge`;
   const walletAddr = walletMatch ? walletMatch[1].toLowerCase() : undefined;
 
+<<<<<<< HEAD
   const newUser = await usersService.create({
     email,
     organization_id: orgId,
@@ -149,6 +204,48 @@ async function resolveServiceUser(
     wallet_verified: !!walletAddr,
     is_active: true,
   });
+=======
+  let newUser;
+  try {
+    newUser = await usersService.create({
+      privy_user_id: serviceId,
+      email,
+      organization_id: orgId,
+      wallet_address: walletAddr,
+      wallet_verified: !!walletAddr,
+      is_active: true,
+    });
+  } catch (err: unknown) {
+    // Handle concurrent provisioning: if a parallel request already created
+    // this user (unique constraint on privy_user_id or wallet_address),
+    // re-fetch instead of failing.
+    const isConflict =
+      err instanceof Error &&
+      (err.message.includes("duplicate key") ||
+        err.message.includes("unique constraint") ||
+        err.message.includes("23505"));
+    if (!isConflict) throw err;
+
+    logger.info("[waifu-bridge] Concurrent user creation detected, re-fetching", {
+      serviceId,
+    });
+
+    const existing = await usersService.getByPrivyId(serviceId);
+    if (existing?.organization_id && existing?.organization) {
+      return existing as WaifuBridgeAuthResult["user"];
+    }
+    // If wallet-based, try that path too
+    if (walletAddr) {
+      const walletUser = await usersService.getByWalletAddressWithOrganization(walletAddr);
+      if (walletUser?.organization_id && walletUser?.organization) {
+        return walletUser as WaifuBridgeAuthResult["user"];
+      }
+    }
+    throw new ForbiddenError(
+      "Failed to provision service account for waifu-core bridge (concurrent conflict)",
+    );
+  }
+>>>>>>> origin/combine/single-dashboard-all-in-one
 
   // Create identity record for this service user
   await dbWrite.insert(userIdentities).values({

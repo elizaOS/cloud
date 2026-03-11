@@ -38,11 +38,14 @@ export function validateServiceKey(request: NextRequest): ServiceKeyIdentity | n
     return null;
   }
 
-  // Constant-time comparison to prevent timing attacks
-  const headerBuf = Buffer.from(header);
-  const expectedBuf = Buffer.from(expectedKey);
+  // Constant-time comparison via fixed-length HMAC digests.
+  // Comparing digests instead of raw values avoids leaking the
+  // expected key's length through early-exit on size mismatch.
+  const hmacKey = crypto.randomBytes(32);
+  const headerDigest = crypto.createHmac("sha256", hmacKey).update(header).digest();
+  const expectedDigest = crypto.createHmac("sha256", hmacKey).update(expectedKey).digest();
 
-  if (headerBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(headerBuf, expectedBuf)) {
+  if (!crypto.timingSafeEqual(headerDigest, expectedDigest)) {
     logger.warn("[service-key] Invalid service key presented");
     return null;
   }

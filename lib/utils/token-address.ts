@@ -39,12 +39,16 @@ const EVM_CHAINS = new Set([
 ]);
 
 /**
- * Returns `true` when `address` looks like a 0x-prefixed hex string (EVM-style).
- * We intentionally accept any length ≥ 3 so contract addresses on non-standard
- * EVM forks still normalise correctly.
+ * Returns `true` when `address` looks like a standard EVM address:
+ * exactly 42 characters (0x + 40 hex digits = 20 bytes).
+ *
+ * Earlier versions accepted any-length 0x-hex which could false-positive
+ * on non-EVM identifiers that happen to start with "0x".  The 42-char
+ * requirement matches the EVM address spec (EIP-55) and is used by all
+ * major EVM chains.
  */
 function looksLikeEvmAddress(address: string): boolean {
-  return /^0x[0-9a-fA-F]+$/.test(address);
+  return /^0x[0-9a-fA-F]{40}$/.test(address);
 }
 
 /**

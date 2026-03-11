@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { requireCompatAuth } from "../../../_lib/auth";
+import { handleCompatError } from "../../../_lib/error-handler";
 import { toCompatOpResult, envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
@@ -47,12 +48,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(response);
   } catch (err) {
-    if (err instanceof Error) {
-      return NextResponse.json(
-        errorEnvelope(err.message),
-        { status: err.message.includes("not found") ? 404 : 500 },
-      );
-    }
-    return NextResponse.json(errorEnvelope("Internal server error"), { status: 500 });
+    return handleCompatError(err);
   }
 }

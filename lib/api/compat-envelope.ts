@@ -22,6 +22,26 @@
 
 import type { MiladySandbox, MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
 
+function getAgentWebUiUrl(sandbox: MiladySandbox): string | null {
+  if (!sandbox.headscale_ip) {
+    return null;
+  }
+
+  const configuredDomain =
+    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ?? "agents.example.com";
+  const normalizedDomain = configuredDomain
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/\.+$/, "");
+
+  if (!normalizedDomain) {
+    return null;
+  }
+
+  return `https://${sandbox.id}.${normalizedDomain}`;
+}
+
 // ---------------------------------------------------------------------------
 // Agent shape (union of milady-cloud + waifu-core fields)
 // ---------------------------------------------------------------------------
@@ -52,9 +72,7 @@ export interface CompatAgentShape {
  * Translate a MiladySandbox row to the canonical Agent shape.
  */
 export function toCompatAgent(sandbox: MiladySandbox): CompatAgentShape {
-  const webUiUrl = sandbox.headscale_ip
-    ? `https://${sandbox.id}.shad0w.xyz`
-    : null;
+  const webUiUrl = getAgentWebUiUrl(sandbox);
 
   return {
     agent_id: sandbox.id,
@@ -166,6 +184,10 @@ export interface CompatJobShape {
 
 /**
  * Synthesize a Job record from a MiladySandbox's current state.
+ *
+ * NOTE: `startedAt` is approximated as `updated_at` when the sandbox has left
+ * the "pending" state — there is no dedicated `started_at` column.  This is
+ * close enough for compat polling (waifu-core uses it for display only).
  */
 export function toCompatJob(sandbox: MiladySandbox): CompatJobShape {
   const jobStatus = mapStatusToJobStatus(sandbox.status);
@@ -180,6 +202,9 @@ export function toCompatJob(sandbox: MiladySandbox): CompatJobShape {
     errorMessage: sandbox.error_message,
   };
 
+  // waifu-core treats a successfully provisioned agent as a completed create job,
+  // even if the agent itself remains running afterward. This state machine is
+  // distinct from the live agent status exposed via `data.status` / `result.status`.
   const waifuStateMap: Record<string, string> = {
     pending: "waiting",
     provisioning: "active",
@@ -233,9 +258,7 @@ export interface CompatStatusShape {
  * Build canonical status payload from a sandbox record.
  */
 export function toCompatStatus(sandbox: MiladySandbox): CompatStatusShape {
-  const webUiUrl = sandbox.headscale_ip
-    ? `https://${sandbox.id}.shad0w.xyz`
-    : null;
+  const webUiUrl = getAgentWebUiUrl(sandbox);
 
   return {
     status: mapStatus(sandbox.status),
@@ -273,6 +296,11 @@ export function toCompatUsage(sandbox: MiladySandbox): CompatUsageShape {
   const billing = config.billing as Record<string, unknown> | undefined;
   const fundingSource = (billing?.mode as string) ?? "unknown";
 
+  // estimatedDailyBurnUsd and currentPeriodCostUsd are hardcoded to 0 because
+  // real billing metering is not yet wired. Compat clients treat 0 as "free
+  // tier / not metered". If billing becomes active, these should be computed
+  // from usage records or switched to null (with a compat-client update to
+  // distinguish "free" from "unknown").
   return {
     uptimeHours,
     estimatedDailyBurnUsd: 0,
@@ -309,6 +337,15 @@ export function mapStatus(status: MiladySandboxStatus): string {
   }
 }
 
+/**
+ * Map sandbox status to **job** status (not agent status).
+ *
+ * The "job" represents the provisioning task, not the live agent lifecycle.
+ * A "stopped" or "disconnected" agent still had its provisioning complete
+ * successfully, so the job status is "completed". The live agent status
+ * is conveyed separately via `data.status` / `result.status` in the job
+ * payload (see `toCompatJob`).
+ */
 function mapStatusToJobStatus(
   status: MiladySandboxStatus,
 ): CompatJobShape["status"] {
@@ -319,9 +356,9 @@ function mapStatusToJobStatus(
       return "processing";
     case "running":
       return "completed";
-    case "stopped":
+    case "stopped":         // provisioning succeeded; agent later stopped
       return "completed";
-    case "disconnected":
+    case "disconnected":    // provisioning succeeded; agent later disconnected
       return "completed";
     case "error":
       return "failed";
@@ -349,6 +386,15 @@ export function errorEnvelope(message: string): { success: false; error: string 
 // Utility
 // ---------------------------------------------------------------------------
 
+/**
+ * Convert a date-ish value to an ISO string for compat JSON responses.
+ *
+ * When the value is null/undefined we return the Unix epoch ("1970-01-01T…")
+ * rather than the current time — this is intentional: compat clients interpret
+ * a zero-epoch as "not set" and it avoids silently injecting now() which would
+ * be misleading.  Callers that need nullable semantics should check before
+ * calling (e.g. `value ? toISO(value) : null`).
+ */
 function toISO(value: Date | string | null | undefined): string {
   if (!value) return new Date(0).toISOString();
   if (value instanceof Date) return value.toISOString();

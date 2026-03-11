@@ -63,7 +63,7 @@ describe("compat availability route", () => {
     });
   });
 
-  test("includes per-node topology for authenticated requests", async () => {
+  test("includes per-node topology for service key requests", async () => {
     mockValidateServiceKey.mockReturnValue({
       organizationId: "org-1",
       userId: "user-1",
@@ -87,5 +87,26 @@ describe("compat availability route", () => {
         status: "healthy",
       },
     ]);
+  });
+
+  test("omits per-node topology for regular authenticated users", async () => {
+    // Regular user auth succeeds but should NOT see topology
+    mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
+      user: { id: "user-1", organization_id: "org-1" },
+    });
+
+    const response = await GET(
+      new NextRequest("https://example.com/api/compat/availability"),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.nodes).toBeUndefined();
+    expect(body.data).toEqual({
+      totalSlots: 8,
+      usedSlots: 3,
+      availableSlots: 5,
+      acceptingNewAgents: true,
+    });
   });
 });
