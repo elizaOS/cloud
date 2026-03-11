@@ -990,10 +990,6 @@ export class SecureTokenRedemptionService {
       transport: http(),
     });
 
-    const ERC20_ABI = parseAbi([
-      "function balanceOf(address account) view returns (uint256)",
-    ]);
-
     const rawBalance = await publicClient.readContract({
       address: tokenAddress,
       abi: ERC20_ABI,

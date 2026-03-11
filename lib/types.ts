@@ -170,6 +170,7 @@ export interface ElizaCharacter {
     chat?: string[];
     post?: string[];
   };
+  /** @deprecated Use avatarUrl instead */
   avatar_url?: string;
   isPublic?: boolean;
 }

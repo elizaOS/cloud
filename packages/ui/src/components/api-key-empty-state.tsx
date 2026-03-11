@@ -2,8 +2,8 @@
  * API key empty state using unified EmptyState component.
  */
 import { KeyRound, Plus } from "lucide-react";
-import { EmptyState } from "@elizaos/ui";
-import { BrandButton } from "@elizaos/ui";
+import { EmptyState } from "./empty-state";
+import { BrandButton } from "./brand";
 
 interface ApiKeyEmptyStateProps {
   onCreateKey?: () => void;

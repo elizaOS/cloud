@@ -8,10 +8,55 @@ import { NextResponse } from "next/server";
 import { isAddress } from "viem";
 import { withX402, type RouteConfig } from "x402-next";
 import { organizationsService } from "@/lib/services/organizations";
-import { getTopupRecipient } from "@/lib/services/topup";
+import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
+import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import { referralsService } from "@/lib/services/referrals";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
+import type { UserWithOrganization } from "@/lib/types";
+
+interface TopupRecipient {
+  user: UserWithOrganization;
+  organizationId: string;
+  walletAddress: string;
+}
+
+/**
+ * Resolve topup recipient: from wallet signature headers (if present) or from body.walletAddress.
+ */
+async function getTopupRecipient(
+  request: NextRequest,
+  body: { walletAddress?: string; ref?: string; referral_code?: string; appOwnerId?: string },
+): Promise<TopupRecipient> {
+  const hasWalletSig =
+    !!request.headers.get("X-Wallet-Address") &&
+    !!request.headers.get("X-Timestamp") &&
+    !!request.headers.get("X-Wallet-Signature");
+
+  if (hasWalletSig) {
+    const walletUser = await verifyWalletSignature(request);
+    if (!walletUser) throw new Error("Wallet signature verification failed");
+    return {
+      user: walletUser,
+      organizationId: walletUser.organization_id!,
+      walletAddress: walletUser.wallet_address ?? request.headers.get("X-Wallet-Address")!,
+    };
+  }
+
+  if (!body?.walletAddress?.trim()) {
+    throw new Error("walletAddress is required (body or wallet signature headers)");
+  }
+
+  const { user } = await findOrCreateUserByWalletAddress(body.walletAddress, {
+    grantInitialCredits: false,
+  });
+
+  return {
+    user,
+    organizationId: user.organization_id!,
+    walletAddress: body.walletAddress,
+  };
+}
 
 export interface CreateTopupHandlerOptions {
   amount: number;

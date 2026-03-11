@@ -1,4 +1,5 @@
 import { put, del, list } from "@vercel/blob";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Trusted blob storage hosts for URL validation.
@@ -260,7 +261,7 @@ export async function ensureElizaCloudUrl(
 
     // If fallback is allowed, return original URL
     if (options.fallbackToOriginal !== false) {
-      console.warn("[ensureElizaCloudUrl] Falling back to original Fal.ai URL");
+      logger.warn("[ensureElizaCloudUrl] Falling back to original Fal.ai URL");
       return sourceUrl;
     }
 

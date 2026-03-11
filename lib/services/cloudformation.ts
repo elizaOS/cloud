@@ -202,7 +202,7 @@ export class CloudFormationService {
         }
 
         const backoffDelay = delayMs * Math.pow(2, attempt - 1);
-        console.warn(
+        logger.warn(
           `CloudFormation operation failed (attempt ${attempt}/${maxRetries}), retrying in ${backoffDelay}ms...`,
           errorMessage,
         );

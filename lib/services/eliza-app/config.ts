@@ -7,6 +7,7 @@
  */
 
 import { getPromptPreset, type PromptPreset } from "@/lib/eliza/prompt-presets";
+import { logger } from "@/lib/utils/logger";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -20,7 +21,7 @@ function requireEnv(name: string, fallback?: string): string {
   }
 
   // In development/test, can use fallbacks
-  console.warn(`Missing env var ${name}, using fallback`);
+  logger.warn(`Missing env var ${name}, using fallback`);
   if (fallback !== undefined) return fallback;
   throw new Error(`Required env var ${name} is not set`);
 }

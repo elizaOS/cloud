@@ -1,0 +1,58 @@
+'use client';
+import { useState, useCallback, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+
+type ChatMessage = { role: string; content: string };
+
+export function useChat() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const send = useCallback(async (messages: ChatMessage[]) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { chat } = await import('@/lib/eliza');
+      return await chat(messages);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { send, loading, error };
+}
+
+export function useChatStream() {
+  const [loading, setLoading] = useState(false);
+
+  const stream = useCallback(async function* (messages: ChatMessage[]) {
+    setLoading(true);
+    try {
+      const { chatStream } = await import('@/lib/eliza');
+      yield* chatStream(messages);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { stream, loading };
+}
+
+export function usePageTracking() {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const track = async () => {
+      try {
+        const { trackPageView } = await import('@/lib/eliza');
+        trackPageView(pathname);
+      } catch {
+        // Silent fail for analytics
+      }
+    };
+    track();
+  }, [pathname]);
+}

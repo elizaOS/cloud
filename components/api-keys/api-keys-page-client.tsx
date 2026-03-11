@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useSetPageHeader } from "@elizaos/ui";
 
-import { ApiKeyEmptyState } from "./api-key-empty-state";
+import { ApiKeyEmptyState } from "@elizaos/ui";
 import { ApiKeysSummary } from "./api-keys-summary";
 import { ApiKeysTable } from "./api-keys-table";
 import type { ApiKeyDisplay, ApiKeysSummaryData } from "./types";

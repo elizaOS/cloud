@@ -68,9 +68,33 @@ export async function GET(request: NextRequest) {
 // POST — Register a new Docker node
 // ---------------------------------------------------------------------------
 
+/**
+ * Reject hostnames that resolve to private/reserved IP ranges.
+ * Defense-in-depth — even though this is admin-only, it prevents accidental
+ * registration of cloud metadata endpoints or loopback addresses.
+ */
+function isReservedAddress(hostname: string): boolean {
+  // Reject obvious IP-based patterns (not full DNS resolution, just input validation)
+  const reserved = [
+    /^127\./,            // loopback
+    /^10\./,             // RFC-1918 Class A
+    /^172\.(1[6-9]|2\d|3[01])\./,  // RFC-1918 Class B
+    /^192\.168\./,       // RFC-1918 Class C
+    /^169\.254\./,       // link-local / cloud metadata
+    /^0\./,              // "this" network
+    /^::1$/,             // IPv6 loopback
+    /^localhost$/i,      // loopback hostname
+    /^metadata\./i,      // cloud metadata service
+  ];
+  return reserved.some((re) => re.test(hostname));
+}
+
 const createNodeSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
-  hostname: z.string().min(1, "hostname is required"),
+  hostname: z.string().min(1, "hostname is required").refine(
+    (h) => !isReservedAddress(h),
+    "Hostname cannot be a private/reserved IP address (loopback, RFC-1918, link-local, metadata)",
+  ),
   sshPort: z.number().int().min(1).max(65535).optional().default(22),
   capacity: z.number().int().min(1).optional().default(8),
   sshUser: z.string().min(1).optional().default("root"),

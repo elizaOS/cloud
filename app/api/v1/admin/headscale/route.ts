@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        serverUrl: HEADSCALE_API_URL,
+        serverConfigured: true,
         user: HEADSCALE_USER,
         vpnNodes,
         summary: {

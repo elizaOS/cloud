@@ -49,9 +49,17 @@ async function autoCreateUser(
         username: platformName || platformId,
       });
     case "telegram":
-      return elizaAppUserService.findOrCreateByTelegramId(
-        platformId,
-        platformName,
+      // Gateway services don't have full TelegramAuthData or phone numbers,
+      // so we construct a minimal TelegramAuthData shape and use a synthetic
+      // placeholder phone. The real phone can be linked later via Telegram OAuth.
+      return elizaAppUserService.findOrCreateByTelegramWithPhone(
+        {
+          id: Number(platformId) || 0,
+          first_name: platformName || platformId,
+          auth_date: Math.floor(Date.now() / 1000),
+          hash: "",
+        },
+        `+0${platformId}`, // synthetic phone placeholder — will be overwritten on real Telegram OAuth
       );
     case "twilio":
     case "blooio":

@@ -40,170 +40,28 @@ export type {
   SandboxSessionData,
 };
 
-// ============================================================================
 // SDK Templates (Fallback for templates without built-in SDK)
+// Loaded from external files instead of inline string literals.
 // ============================================================================
 
-const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
-const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://www.elizacloud.ai';
-const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || '';
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-interface ChatMessage { role: string; content: string; }
+const SDK_TEMPLATES_DIR = join(__dirname, "sandbox/sdk-templates");
 
-const trackedPaths = new Set<string>();
-
-export async function trackPageView(pathname?: string) {
-  if (typeof window === 'undefined') return;
-  const path = pathname || window.location.pathname;
-  if (trackedPaths.has(path)) return;
-  trackedPaths.add(path);
-  try {
-    const payload = {
-      app_id: appId,
-      page_url: window.location.href,
-      pathname: path,
-      referrer: document.referrer,
-      screen_width: window.screen.width,
-      screen_height: window.screen.height,
-      ...(apiKey ? { api_key: apiKey } : {}),
-    };
-    const url = \`\${apiBase}/api/v1/track/pageview\`;
-    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-    if (navigator.sendBeacon) navigator.sendBeacon(url, blob);
-    else fetch(url, { method: 'POST', body: blob, keepalive: true }).catch(() => {});
-  } catch {}
+function loadTemplate(filename: string): string {
+  return readFileSync(join(SDK_TEMPLATES_DIR, filename), "utf-8");
 }
 
-export async function chat(messages: ChatMessage[], model = 'gpt-4o') {
-  const res = await fetch(\`\${apiBase}/api/v1/chat/completions\`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-    body: JSON.stringify({ messages, model }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
+// Lazy-loaded to avoid filesystem read at module evaluation time
+let _elizaSdkFile: string | undefined;
+let _elizaHookFile: string | undefined;
+let _elizaAnalyticsComponent: string | undefined;
 
-export async function* chatStream(messages: ChatMessage[], model = 'gpt-4o') {
-  const res = await fetch(\`\${apiBase}/api/v1/chat/completions\`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-    body: JSON.stringify({ messages, model, stream: true }),
-  });
-  const reader = res.body?.getReader();
-  const decoder = new TextDecoder();
-  while (reader) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    for (const line of decoder.decode(value).split('\\n')) {
-      if (line.startsWith('data: ') && !line.includes('[DONE]')) {
-        try { yield JSON.parse(line.slice(6)); } catch {}
-      }
-    }
-  }
-}
+const getElizaSdkFile = () => (_elizaSdkFile ??= loadTemplate("eliza-sdk.ts.template"));
+const getElizaHookFile = () => (_elizaHookFile ??= loadTemplate("use-eliza.ts.template"));
+const getElizaAnalyticsComponent = () => (_elizaAnalyticsComponent ??= loadTemplate("eliza-analytics.tsx.template"));
 
-export async function generateImage(prompt: string, options?: { model?: string; width?: number; height?: number }) {
-  const res = await fetch(\`\${apiBase}/api/v1/generate-image\`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-    body: JSON.stringify({ prompt, ...options }),
-  });
-  return res.json();
-}
-
-export async function generateVideo(prompt: string, options?: { model?: string; duration?: number }) {
-  const res = await fetch(\`\${apiBase}/api/v1/generate-video\`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-    body: JSON.stringify({ prompt, ...options }),
-  });
-  return res.json();
-}
-
-export async function getBalance() {
-  const res = await fetch(\`\${apiBase}/api/v1/credits/balance\`, {
-    headers: { 'X-Api-Key': apiKey },
-  });
-  return res.json();
-}
-`;
-
-const ELIZA_HOOK_FILE = `'use client';
-import { useState, useCallback, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-
-type ChatMessage = { role: string; content: string };
-
-export function useChat() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const send = useCallback(async (messages: ChatMessage[]) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { chat } = await import('@/lib/eliza');
-      return await chat(messages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  return { send, loading, error };
-}
-
-export function useChatStream() {
-  const [loading, setLoading] = useState(false);
-
-  const stream = useCallback(async function* (messages: ChatMessage[]) {
-    setLoading(true);
-    try {
-      const { chatStream } = await import('@/lib/eliza');
-      yield* chatStream(messages);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  return { stream, loading };
-}
-
-export function usePageTracking() {
-  const pathname = usePathname();
-
-  useEffect(() => {
-    const track = async () => {
-      try {
-        const { trackPageView } = await import('@/lib/eliza');
-        trackPageView(pathname);
-      } catch {
-        // Silent fail for analytics
-      }
-    };
-    track();
-  }, [pathname]);
-}
-`;
-
-const ELIZA_ANALYTICS_COMPONENT = `'use client';
-import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-import { trackPageView } from '@/lib/eliza';
-
-export function ElizaAnalytics() {
-  const pathname = usePathname();
-
-  useEffect(() => {
-    trackPageView(pathname);
-  }, [pathname]);
-
-  return null;
-}
-`;
 
 // ============================================================================
 // Constants
@@ -490,11 +348,11 @@ export class SandboxService {
 
         // Batch write all SDK files at once using native SDK method
         const { written, failed } = await writeFilesViaSh(sandbox, [
-          { path: `${libPath}/eliza.ts`, content: ELIZA_SDK_FILE },
-          { path: `${hooksPath}/use-eliza.ts`, content: ELIZA_HOOK_FILE },
+          { path: `${libPath}/eliza.ts`, content: getElizaSdkFile() },
+          { path: `${hooksPath}/use-eliza.ts`, content: getElizaHookFile() },
           {
             path: `${componentsPath}/eliza-analytics.tsx`,
-            content: ELIZA_ANALYTICS_COMPONENT,
+            content: getElizaAnalyticsComponent(),
           },
         ]);
 

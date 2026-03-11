@@ -70,12 +70,12 @@ async function ensureUserHasApiKey(
 ): Promise<void> {
   // Validate inputs
   if (!userId || userId.trim() === "") {
-    console.warn("[Auth] Invalid userId, skipping API key check");
+    logger.warn("[Auth] Invalid userId, skipping API key check");
     return;
   }
 
   if (!organizationId || organizationId.trim() === "") {
-    console.warn(
+    logger.warn(
       `[Auth] No organization for user ${userId}, skipping API key check`,
     );
     return;
@@ -388,16 +388,35 @@ export async function requireRole(
 }
 
 /**
- * Get user from API key
+ * Validate an API key and return the associated user with full org checks.
+ * Shared helper to avoid duplicated validation in X-API-Key and Bearer flows.
  */
-export async function getUserFromApiKey(
+async function validateAndGetApiKeyUser(
   apiKey: ApiKey,
-): Promise<UserWithOrganization | null> {
-  const user = await usersService.getWithOrganization(apiKey.user_id);
-  if (!user) {
-    return null;
+): Promise<{ user: UserWithOrganization }> {
+  if (!apiKey.is_active) {
+    throw new ForbiddenError("API key is inactive");
   }
-  return user;
+
+  if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
+    throw new AuthenticationError("API key has expired");
+  }
+
+  const user = await usersService.getWithOrganization(apiKey.user_id);
+
+  if (!user) {
+    throw new AuthenticationError("User associated with API key not found");
+  }
+
+  if (!user.is_active) {
+    throw new ForbiddenError("User account is inactive");
+  }
+
+  if (!user.organization?.is_active) {
+    throw new ForbiddenError("Organization is inactive");
+  }
+
+  return { user };
 }
 
 /**
@@ -461,28 +480,7 @@ export async function requireAuthOrApiKey(
       throw new AuthenticationError("Invalid or expired API key");
     }
 
-    if (!apiKey.is_active) {
-      throw new ForbiddenError("API key is inactive");
-    }
-
-    if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
-      throw new AuthenticationError("API key has expired");
-    }
-
-    const user = await getUserFromApiKey(apiKey);
-
-    if (!user) {
-      throw new AuthenticationError("User associated with API key not found");
-    }
-
-    if (!user.is_active) {
-      throw new ForbiddenError("User account is inactive");
-    }
-
-    if (!user.organization?.is_active) {
-      throw new ForbiddenError("Organization is inactive");
-    }
-
+    const { user } = await validateAndGetApiKeyUser(apiKey);
     await apiKeysService.incrementUsage(apiKey.id);
     return { user, apiKey, authMethod: "api_key" };
   }
@@ -527,28 +525,7 @@ export async function requireAuthOrApiKey(
     const apiKey = await apiKeysService.validateApiKey(bearerValue);
 
     if (apiKey) {
-      if (!apiKey.is_active) {
-        throw new ForbiddenError("API key is inactive");
-      }
-
-      if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
-        throw new AuthenticationError("API key has expired");
-      }
-
-      const user = await getUserFromApiKey(apiKey);
-
-      if (!user) {
-        throw new AuthenticationError("User associated with API key not found");
-      }
-
-      if (!user.is_active) {
-        throw new ForbiddenError("User account is inactive");
-      }
-
-      if (!user.organization?.is_active) {
-        throw new ForbiddenError("Organization is inactive");
-      }
-
+      const { user } = await validateAndGetApiKeyUser(apiKey);
       await apiKeysService.incrementUsage(apiKey.id);
 
       return {

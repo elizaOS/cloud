@@ -68,6 +68,7 @@ function generateSlugFromWallet(walletAddress: string): string {
 }
 
 import type { User as PrivyUser } from "@privy-io/server-auth";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Type for Privy user data that handles both SDK User and webhook payloads.
@@ -493,7 +494,7 @@ export async function syncUserFromPrivy(
       console.error("[PrivySync] Failed to send welcome email:", error);
     });
   } else {
-    console.warn("[PrivySync] No email available for welcome email", {
+    logger.warn("[PrivySync] No email available for welcome email", {
       userId: userWithOrg.id,
       walletAddress: walletAddress,
     });
@@ -535,12 +536,12 @@ async function ensureUserHasApiKey(
 ): Promise<void> {
   // Validate inputs
   if (!userId || userId.trim() === "") {
-    console.warn("[PrivySync] Invalid userId, skipping API key creation");
+    logger.warn("[PrivySync] Invalid userId, skipping API key creation");
     return;
   }
 
   if (!organizationId || organizationId.trim() === "") {
-    console.warn(
+    logger.warn(
       `[PrivySync] No organization for user ${userId}, skipping API key creation`,
     );
     return;

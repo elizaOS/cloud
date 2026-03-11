@@ -14,7 +14,14 @@ export {
   STT_MINIMUM_COST,
 } from "@/lib/pricing-constants";
 
-import { PLATFORM_MARKUP_MULTIPLIER } from "@/lib/pricing-constants";
+// Local import for constants used within this file
+import {
+  PLATFORM_MARKUP_MULTIPLIER,
+  TTS_COST_PER_1K_CHARS,
+  STT_COST_PER_MINUTE,
+  TTS_MINIMUM_COST,
+  STT_MINIMUM_COST,
+} from "@/lib/pricing-constants";
 
 // =============================================================================
 // COST CALCULATION INTERFACES & FUNCTIONS
@@ -295,10 +302,6 @@ export async function estimateRequestCost(
  * @returns Cost in USD (with 20% markup).
  */
 export function calculateTTSCost(characterCount: number): number {
-  const {
-    TTS_COST_PER_1K_CHARS,
-    TTS_MINIMUM_COST,
-  } = require("@/lib/pricing-constants");
   const cost = (characterCount / 1000) * TTS_COST_PER_1K_CHARS;
   return Math.max(TTS_MINIMUM_COST, Math.round(cost * 10000) / 10000);
 }
@@ -311,10 +314,6 @@ export function calculateTTSCost(characterCount: number): number {
  * @returns Cost in USD (with 20% markup).
  */
 export function calculateSTTCost(durationMinutes: number): number {
-  const {
-    STT_COST_PER_MINUTE,
-    STT_MINIMUM_COST,
-  } = require("@/lib/pricing-constants");
   const cost = durationMinutes * STT_COST_PER_MINUTE;
   return Math.max(STT_MINIMUM_COST, Math.round(cost * 10000) / 10000);
 }

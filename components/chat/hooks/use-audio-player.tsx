@@ -4,6 +4,8 @@
  *
  * @returns {UseAudioPlayerReturn} Audio player state and control functions
  */
+"use client";
+
 import { useState, useRef, useCallback, useEffect } from "react";
 
 export interface UseAudioPlayerReturn {

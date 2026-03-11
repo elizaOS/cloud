@@ -1,3 +1,4 @@
+import { logger } from "@/lib/utils/logger";
 /**
  * Prompt Presets - Environment-based prompt configurations for different app deployments
  *
@@ -214,7 +215,7 @@ export function getPresetFromEnv(): PromptPreset | null {
   if (!presetName) return null;
 
   if (!(presetName in promptPresets)) {
-    console.warn(`Unknown APP_PROMPT_PRESET: ${presetName}, using defaults`);
+    logger.warn(`Unknown APP_PROMPT_PRESET: ${presetName}, using defaults`);
     return null;
   }
 

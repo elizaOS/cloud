@@ -297,12 +297,12 @@ export class AutoTopUpService {
     );
 
     logger.info(
-        `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
-      );
+      `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
+    );
 
-      if (paymentIntent.status === "succeeded") {
-        const previousBalance = Number(org.credit_balance);
-        const newBalance = previousBalance + amount;
+    if (paymentIntent.status === "succeeded") {
+      const previousBalance = Number(org.credit_balance);
+      const newBalance = previousBalance + amount;
 
       logger.info(
         `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,

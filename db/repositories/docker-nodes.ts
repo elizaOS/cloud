@@ -6,6 +6,7 @@ import {
   type DockerNodeStatus,
 } from "@/db/schemas/docker-nodes";
 import { eq, and, desc, sql, asc } from "drizzle-orm";
+import { logger } from "@/lib/utils/logger";
 
 export type { DockerNode, NewDockerNode, DockerNodeStatus };
 
@@ -113,13 +114,22 @@ export class DockerNodesRepository {
   }
 
   async decrementAllocated(nodeId: string): Promise<void> {
-    await dbWrite
+    const [result] = await dbWrite
       .update(dockerNodes)
       .set({
         allocated_count: sql`GREATEST(${dockerNodes.allocated_count} - 1, 0)`,
         updated_at: new Date(),
       })
-      .where(eq(dockerNodes.node_id, nodeId));
+      .where(eq(dockerNodes.node_id, nodeId))
+      .returning({ allocated_count: dockerNodes.allocated_count });
+
+    // If allocated_count is 0 after GREATEST clamping, the count was already
+    // at 0 before decrement — likely a sync issue worth investigating.
+    if (result && result.allocated_count === 0) {
+      logger.warn(
+        `[docker-nodes] decrementAllocated clamped to 0 for node ${nodeId} — allocation count may be out of sync`,
+      );
+    }
   }
 
   /**

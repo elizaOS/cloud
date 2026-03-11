@@ -96,16 +96,17 @@ export class DockerSSHClient {
    * Uses default SSH port / user / key unless the pool entry was created
    * with different settings earlier.
    *
-   * Pool key includes hostname + port to avoid collisions when two nodes
-   * share a hostname but use different SSH ports.
+   * Pool key includes hostname + port + username to avoid collisions when
+   * two nodes share a hostname but use different SSH ports or users.
    *
    * When hostKeyFingerprint is provided, the pooled client will reject
    * connections if the remote key doesn't match. When omitted, TOFU
    * (trust-on-first-use) applies: the fingerprint is logged on first connect.
    */
-  static getClient(hostname: string, port?: number, hostKeyFingerprint?: string): DockerSSHClient {
+  static getClient(hostname: string, port?: number, hostKeyFingerprint?: string, username?: string): DockerSSHClient {
     const effectivePort = port ?? DEFAULT_SSH_PORT;
-    const poolKey = `${hostname}:${effectivePort}`;
+    const effectiveUser = username ?? DEFAULT_SSH_USERNAME;
+    const poolKey = `${hostname}:${effectivePort}:${effectiveUser}`;
     let client = DockerSSHClient.pool.get(poolKey);
     if (client) {
       // Evict stale connections (handles serverless cold-start reconnections)

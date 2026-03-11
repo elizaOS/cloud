@@ -174,7 +174,7 @@ export class HeadscaleClient {
    *
    * @param opts.reusable   Allow the key to be used more than once (default false)
    * @param opts.ephemeral  Node will be removed once it goes offline (default false)
-   * @param opts.expiration ISO-8601 expiration timestamp (default: 24h from now)
+   * @param opts.expiration ISO-8601 expiration timestamp (default: 10 min from now)
    * @param opts.aclTags    ACL tags to attach to the key (default: ["tag:agent"])
    */
   async createPreAuthKey(opts?: {
@@ -190,8 +190,10 @@ export class HeadscaleClient {
       aclTags = ["tag:agent"],
     } = opts ?? {};
 
+    // 10-minute window is sufficient for container boot + VPN enrollment.
+    // Previous 24h was unnecessarily large for single-use ephemeral keys.
     const expirationTime =
-      expiration ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      expiration ?? new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     const userId = await this.resolveUserId();
 

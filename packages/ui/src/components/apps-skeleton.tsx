@@ -1,7 +1,7 @@
 /**
  * Apps skeleton loading using unified ListSkeleton component.
  */
-import { ListSkeleton } from "@elizaos/ui";
+import { ListSkeleton } from "./list-skeleton";
 
 export function AppsSkeleton() {
   return <ListSkeleton rows={3} variant="card" />;

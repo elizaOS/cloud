@@ -392,18 +392,6 @@ export const dbEU = {
       return typeof value === "function" ? value.bind(database) : value;
     },
   }),
-  /**
-   * Write connection - Routes to NA primary (EU is read-only).
-   * @deprecated Use dbWrite instead for clarity. EU writes go to NA primary.
-   */
-  write: new Proxy({} as Database, {
-    get: (_, prop) => {
-      // EU is read-only, writes always go to NA primary
-      const database = connectionManager.getWriteConnection();
-      const value = database[prop as keyof typeof database];
-      return typeof value === "function" ? value.bind(database) : value;
-    },
-  }),
 };
 
 /**

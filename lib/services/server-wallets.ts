@@ -5,6 +5,7 @@ import { getPrivyClient } from "@/lib/auth/privy-client";
 import type { WalletApiWalletResponseType } from "@privy-io/server-auth";
 import { verifyMessage } from "viem";
 import { cache } from "@/lib/cache/client";
+import { logger } from "@/lib/utils/logger";
 
 class WalletAlreadyExistsError extends Error {
   constructor() {
@@ -102,7 +103,7 @@ export async function provisionServerWallet({
             );
           });
         } else {
-          console.warn(
+          logger.warn(
             `Privy SDK does not expose wallet deletion; orphaned wallet ${walletId} may require manual cleanup`,
           );
         }

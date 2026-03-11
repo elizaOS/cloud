@@ -36,6 +36,7 @@ import {
   getCurrentRegion,
   getDbConnectionInfo,
 } from "./client";
+import { logger } from "@/lib/utils/logger";
 
 // ============================================================================
 // Core Read/Write Helpers
@@ -161,7 +162,7 @@ export function getWriteDb(): Database {
  */
 export function logDbRouting(): void {
   const info = getDbConnectionInfo();
-  console.log("[DB Routing]", {
+  logger.info("[DB Routing]", {
     region: info.currentRegion,
     vercelRegion: info.vercelRegion || "local",
     hasEuReadReplica: info.hasEuReadReplica,

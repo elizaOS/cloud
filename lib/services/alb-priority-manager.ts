@@ -204,7 +204,7 @@ export class DatabasePriorityManager {
         `✅ Released ALB priority ${result[0].priority} for user ${userId} project ${projectName} (expires: ${expiryDate.toISOString()})`,
       );
     } else {
-      console.warn(
+      logger.warn(
         `⚠️  No ALB priority found for user ${userId} project ${projectName}`,
       );
     }
