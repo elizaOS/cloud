@@ -67,6 +67,10 @@ export const CacheKeys = {
     byWalletAddressWithOrg: (address: string) => `user:wallet-with-org:${address}:v1`,
     pattern: () => `user:*`,
   },
+  identity: {
+    resolve: (platform: string, platformId: string) =>
+      `identity:${platform}:${platformId}`,
+  },
   memory: {
     item: (orgId: string, memoryId: string) => `memory:${orgId}:${memoryId}:v1`,
     roomRecent: (orgId: string, roomId: string) =>
@@ -266,6 +270,9 @@ export const CacheTTL = {
     byPrivyIdWithOrg: 600,
     byWalletAddress: 600,
     byWalletAddressWithOrg: 600,
+  },
+  identity: {
+    resolve: 300, // 5 minutes
   },
   memory: {
     item: 1440, // 24 minutes (unchanged - memory is critical)
