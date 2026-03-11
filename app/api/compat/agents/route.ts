@@ -58,18 +58,34 @@ export async function POST(request: NextRequest) {
       orgId: user.organization_id,
     });
 
+    let provisionWarning: string | undefined;
     if (process.env.WAIFU_AUTO_PROVISION === "true") {
       try {
         const result = await miladySandboxService.provision(agent.id, user.organization_id);
         if (result.success && result.sandboxRecord) {
           agent = result.sandboxRecord;
+        } else if (!result.success) {
+          provisionWarning = "Auto-provision was requested but did not succeed; the agent was created and can be provisioned manually.";
+          logger.warn("[compat] Auto-provision did not succeed", {
+            agentId: agent.id,
+            error: result.error,
+          });
         }
       } catch (provErr) {
-        logger.error("[compat] Auto-provision failed", { error: provErr });
+        provisionWarning = "Auto-provision was requested but failed; the agent was created and can be provisioned manually.";
+        logger.error("[compat] Auto-provision failed", {
+          agentId: agent.id,
+          error: provErr instanceof Error ? provErr.message : String(provErr),
+        });
       }
     }
 
-    return NextResponse.json(envelope(toCompatCreateResult(agent)), { status: 201 });
+    const data = toCompatCreateResult(agent);
+    const responseBody = provisionWarning
+      ? { ...envelope(data), warning: provisionWarning }
+      : envelope(data);
+
+    return NextResponse.json(responseBody, { status: 201 });
   } catch (err) {
     return handleCompatError(err);
   }

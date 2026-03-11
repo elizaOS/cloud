@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { requireCompatAuth } from "../../../_lib/auth";
+import { handleCompatError } from "../../../_lib/error-handler";
 import { toCompatOpResult, envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
@@ -18,21 +19,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
+    // Org-scoped pre-check: verify agent exists and belongs to this org
+    // before attempting provision (matches restart route pattern).
+    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    if (!agent) {
+      return NextResponse.json(errorEnvelope("Agent not found"), { status: 404 });
+    }
+
     logger.info("[compat] Resume requested", { agentId });
 
     const result = await miladySandboxService.provision(agentId, user.organization_id);
     if (!result.success) {
-      const status = result.error === "Agent not found" ? 404
-        : result.error === "Agent is already being provisioned" ? 409
-        : 500;
+      const status = result.error === "Agent is already being provisioned" ? 409 : 500;
       return NextResponse.json(errorEnvelope(result.error ?? "Resume failed"), { status });
     }
 
     return NextResponse.json(envelope(toCompatOpResult(agentId, "resume", true)));
   } catch (err) {
-    if (err instanceof Error) {
-      return NextResponse.json(errorEnvelope(err.message), { status: 500 });
-    }
-    return NextResponse.json(errorEnvelope("Internal server error"), { status: 500 });
+    return handleCompatError(err);
   }
 }

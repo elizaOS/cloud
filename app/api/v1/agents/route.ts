@@ -14,17 +14,17 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const provisionSchema = z.object({
-  tokenContractAddress: z.string().min(1),
-  chain: z.string().min(1),
+  tokenContractAddress: z.string().min(1).max(256),
+  chain: z.string().min(1).max(50),
   chainId: z.number().int().positive(),
-  tokenName: z.string().min(1),
-  tokenTicker: z.string().min(1),
+  tokenName: z.string().min(1).max(200),
+  tokenTicker: z.string().min(1).max(30),
   launchType: z.enum(["native", "imported"]),
   character: z
     .object({
-      name: z.string().min(1),
-      bio: z.string().optional(),
-      avatar: z.string().optional(),
+      name: z.string().min(1).max(200),
+      bio: z.string().max(5000).optional(),
+      avatar: z.string().url().max(2048).optional(),
       config: z.record(z.string(), z.unknown()).optional(),
     })
     .optional(),
@@ -35,7 +35,7 @@ const provisionSchema = z.object({
     })
     .optional(),
   /** Optional: webhook URL to receive job completion notifications */
-  webhookUrl: z.string().url().optional(),
+  webhookUrl: z.string().url().max(2048).optional(),
 });
 
 /**

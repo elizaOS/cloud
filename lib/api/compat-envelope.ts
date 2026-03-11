@@ -328,6 +328,15 @@ export function mapStatus(status: MiladySandboxStatus): string {
   }
 }
 
+/**
+ * Map sandbox status to **job** status (not agent status).
+ *
+ * The "job" represents the provisioning task, not the live agent lifecycle.
+ * A "stopped" or "disconnected" agent still had its provisioning complete
+ * successfully, so the job status is "completed". The live agent status
+ * is conveyed separately via `data.status` / `result.status` in the job
+ * payload (see `toCompatJob`).
+ */
 function mapStatusToJobStatus(
   status: MiladySandboxStatus,
 ): CompatJobShape["status"] {
@@ -338,9 +347,9 @@ function mapStatusToJobStatus(
       return "processing";
     case "running":
       return "completed";
-    case "stopped":
+    case "stopped":         // provisioning succeeded; agent later stopped
       return "completed";
-    case "disconnected":
+    case "disconnected":    // provisioning succeeded; agent later disconnected
       return "completed";
     case "error":
       return "failed";
