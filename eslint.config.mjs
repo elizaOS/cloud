@@ -12,6 +12,7 @@ const eslintConfig = [...nextConfig, {
     ".next-build/**",
     ".next-analyze/**",
     "out/**",
+    "**/storybook-static/**",
     "build/**",
     "next-env.d.ts",
     "docs/**",
@@ -52,6 +53,11 @@ const eslintConfig = [...nextConfig, {
     // Note: Not always needed, but good to be aware of
     "react/jsx-no-useless-fragment": "warn",
   },
-}, ...storybook.configs["flat/recommended"]];
+}, ...storybook.configs["flat/recommended"], {
+  rules: {
+    "storybook/no-renderer-packages": "off",
+    "react/no-unescaped-entities": "off"
+  }
+}];
 
 export default eslintConfig;

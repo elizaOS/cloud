@@ -237,6 +237,8 @@
     "drizzle-kit": "^0.31.9",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.1.6",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-storybook": "^10.2.17",
     "fast-check": "^4.5.3",
     "pg": "^8.17.2",
