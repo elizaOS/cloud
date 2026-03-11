@@ -196,15 +196,6 @@ async function resolveServiceUser(
   const email = payload.email ?? `${serviceId}@waifu.bridge`;
   const walletAddr = walletMatch ? walletMatch[1].toLowerCase() : undefined;
 
-<<<<<<< HEAD
-  const newUser = await usersService.create({
-    email,
-    organization_id: orgId,
-    wallet_address: walletAddr,
-    wallet_verified: !!walletAddr,
-    is_active: true,
-  });
-=======
   let newUser;
   try {
     newUser = await usersService.create({
@@ -245,7 +236,6 @@ async function resolveServiceUser(
       "Failed to provision service account for waifu-core bridge (concurrent conflict)",
     );
   }
->>>>>>> origin/combine/single-dashboard-all-in-one
 
   // Create identity record for this service user
   await dbWrite.insert(userIdentities).values({
