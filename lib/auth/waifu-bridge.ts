@@ -29,10 +29,22 @@ export interface WaifuBridgeAuthResult {
  * Authenticate a request from waifu-core via service JWT.
  * Returns the resolved user+org or null.
  */
+let _warnedJwtNotConfigured = false;
+
 export async function authenticateWaifuBridge(
   request: NextRequest,
 ): Promise<WaifuBridgeAuthResult | null> {
-  if (!isServiceJwtEnabled()) return null;
+  if (!isServiceJwtEnabled()) {
+    // Warn once so operators notice the bridge is unconfigured without
+    // flooding logs on every request.
+    if (!_warnedJwtNotConfigured) {
+      _warnedJwtNotConfigured = true;
+      logger.warn(
+        "[waifu-bridge] MILADY_SERVICE_JWT_SECRET is not set — waifu bridge auth is disabled",
+      );
+    }
+    return null;
+  }
 
   const authHeader = request.headers.get("authorization");
   if (!authHeader) return null;
@@ -122,11 +134,36 @@ async function resolveServiceUser(
       ? `waifu-${payload.userId.slice(6, 14)}`
       : "waifu-svc";
 
-    const org = await organizationsService.create({
-      name: orgName,
-      slug,
-    });
-    orgId = org.id;
+    try {
+      const org = await organizationsService.create({
+        name: orgName,
+        slug,
+      });
+      orgId = org.id;
+    } catch (orgErr: unknown) {
+      // Handle race: a concurrent request may have created the org with
+      // the same slug. Since slugs include random bytes this is rare,
+      // but guard defensively.
+      const isConflict =
+        orgErr instanceof Error &&
+        (orgErr.message.includes("duplicate key") ||
+          orgErr.message.includes("unique constraint") ||
+          orgErr.message.includes("23505"));
+      if (!isConflict) throw orgErr;
+
+      logger.info("[waifu-bridge] Concurrent org creation detected, retrying user lookup", {
+        serviceId,
+      });
+      // Another request won the race and may have created the user too —
+      // re-check before falling through to user creation.
+      const retryUser = await usersService.getByPrivyId(serviceId);
+      if (retryUser?.organization_id && retryUser?.organization) {
+        return retryUser as WaifuBridgeAuthResult["user"];
+      }
+      throw new ForbiddenError(
+        "Failed to provision service org for waifu-core bridge (concurrent conflict)",
+      );
+    }
   }
 
   const email = payload.email ?? `${serviceId}@waifu.bridge`;

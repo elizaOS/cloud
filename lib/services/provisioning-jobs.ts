@@ -69,6 +69,13 @@ export class ProvisioningJobService {
     agentName: string;
     webhookUrl?: string;
   }): Promise<Job> {
+    // Validate webhook URL at enqueue time (fail fast) in addition to
+    // the delivery-time check in fireWebhook. This prevents storing
+    // obviously-malicious URLs that would only surface errors later.
+    if (params.webhookUrl) {
+      await assertSafeOutboundUrl(params.webhookUrl);
+    }
+
     const jobData: MiladyProvisionJobData = {
       agentId: params.agentId,
       organizationId: params.organizationId,

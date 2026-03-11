@@ -28,7 +28,7 @@ function getAgentWebUiUrl(sandbox: MiladySandbox): string | null {
   }
 
   const configuredDomain =
-    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ?? "shad0w.xyz";
+    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ?? "agents.example.com";
   const normalizedDomain = configuredDomain
     .trim()
     .replace(/^https?:\/\//, "")

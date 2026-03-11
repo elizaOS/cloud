@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: `An agent is already linked to token ${p.tokenContractAddress} on ${p.chain}`,
-          existingAgentId: existingChar?.id,
+          ...(existingChar?.id ? { existingAgentId: existingChar.id } : {}),
         },
         { status: 409 },
       );

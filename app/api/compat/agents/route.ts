@@ -7,11 +7,11 @@ import { logger } from "@/lib/utils/logger";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { z } from "zod";
 import { requireCompatAuth } from "../_lib/auth";
+import { handleCompatError } from "../_lib/error-handler";
 import {
   toCompatAgent,
   toCompatCreateResult,
   envelope,
-  errorEnvelope,
 } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const agents = await miladySandboxService.listAgents(user.organization_id);
     return NextResponse.json(envelope(agents.map(toCompatAgent)));
   } catch (err) {
-    return handleError(err);
+    return handleCompatError(err);
   }
 }
 
@@ -71,19 +71,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(envelope(toCompatCreateResult(agent)), { status: 201 });
   } catch (err) {
-    return handleError(err);
+    return handleCompatError(err);
   }
-}
-
-function handleError(err: unknown): NextResponse {
-  if (err instanceof Error) {
-    const msg = err.message;
-    const status = msg.includes("Unauthorized") || msg.includes("Invalid")
-      ? 401
-      : msg.includes("Forbidden") || msg.includes("requires")
-        ? 403
-        : 500;
-    return NextResponse.json(errorEnvelope(msg), { status });
-  }
-  return NextResponse.json(errorEnvelope("Internal server error"), { status: 500 });
 }
