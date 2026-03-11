@@ -5,7 +5,9 @@ const mockRequireServiceKey = mock();
 const mockCreateAgent = mock();
 const mockEnqueueMiladyProvision = mock();
 const mockFindByTokenAddress = mock();
+const mockGetAllUsernames = mock();
 const mockCharacterCreate = mock();
+const mockCharacterCreateDB = mock();
 
 mock.module("@/lib/auth/service-key", () => ({
   requireServiceKey: mockRequireServiceKey,
@@ -27,10 +29,12 @@ mock.module("@/lib/services/provisioning-jobs", () => ({
 mock.module("@/db/repositories/characters", () => ({
   userCharactersRepository: {
     findByTokenAddress: mockFindByTokenAddress,
+    getAllUsernames: mockGetAllUsernames,
+    create: mockCharacterCreateDB,
   },
 }));
 
-mock.module("@/lib/services/characters", () => ({
+mock.module("@/lib/services/characters/characters", () => ({
   charactersService: {
     create: mockCharacterCreate,
   },
@@ -53,12 +57,16 @@ describe("POST /api/v1/agents", () => {
     mockCreateAgent.mockReset();
     mockEnqueueMiladyProvision.mockReset();
     mockFindByTokenAddress.mockReset();
+    mockGetAllUsernames.mockReset();
     mockCharacterCreate.mockReset();
+    mockCharacterCreateDB.mockReset();
 
     mockRequireServiceKey.mockReturnValue({
       organizationId: "org-1",
       userId: "user-1",
     });
+
+    mockGetAllUsernames.mockResolvedValue(new Set());
   });
 
   test("returns 409 when token-agent linkage races on unique constraint", async () => {

@@ -4,6 +4,7 @@ import { jsonRequest } from "./route-test-helpers";
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockCharacterCreate = mock();
 const mockFindByTokenAddress = mock();
+const mockGetAllUsernames = mock();
 const mockTrackServerEvent = mock();
 const mockFindOrganization = mock();
 const mockCountWhere = mock();
@@ -12,7 +13,7 @@ mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
 }));
 
-mock.module("@/lib/services/characters", () => ({
+mock.module("@/lib/services/characters/characters", () => ({
   charactersService: {
     create: mockCharacterCreate,
   },
@@ -21,6 +22,7 @@ mock.module("@/lib/services/characters", () => ({
 mock.module("@/db/repositories/characters", () => ({
   userCharactersRepository: {
     findByTokenAddress: mockFindByTokenAddress,
+    getAllUsernames: mockGetAllUsernames,
   },
 }));
 
@@ -66,6 +68,7 @@ describe("POST /api/v1/app/agents", () => {
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockCharacterCreate.mockReset();
     mockFindByTokenAddress.mockReset();
+    mockGetAllUsernames.mockReset();
     mockTrackServerEvent.mockReset();
     mockFindOrganization.mockReset();
     mockCountWhere.mockReset();
@@ -83,6 +86,7 @@ describe("POST /api/v1/app/agents", () => {
       settings: {},
     });
     mockCountWhere.mockResolvedValue([{ count: 0 }]);
+    mockGetAllUsernames.mockResolvedValue(new Set());
   });
 
   test("returns 409 when token-agent linkage races on unique constraint", async () => {
