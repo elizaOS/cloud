@@ -81,27 +81,11 @@ function isRecoverablePrivyProjectionConflict(error: unknown): boolean {
     "cause" in error ? extractErrorMetadata(error.cause) : { message: "" };
   const isUniqueViolation =
     errorMetadata.code === "23505" || causeMetadata.code === "23505";
-  const constraintName =
-    errorMetadata.constraint ?? causeMetadata.constraint ?? "";
-  const conflictText = [
-    errorMetadata.message,
-    errorMetadata.detail,
-    causeMetadata.message,
-    causeMetadata.detail,
-  ]
-    .filter(Boolean)
-    .join(" ");
   const hasExactPrivyConstraint =
     errorMetadata.constraint === "user_identities_privy_user_id_unique" ||
     causeMetadata.constraint === "user_identities_privy_user_id_unique";
-  const hasSyntheticPrivyProjectionConflict =
-    /\bprivy projection conflict\b/i.test(conflictText);
 
-  if (isUniqueViolation && hasExactPrivyConstraint) {
-    return true;
-  }
-
-  return hasSyntheticPrivyProjectionConflict;
+  return isUniqueViolation && hasExactPrivyConstraint;
 }
 
 async function recoverCanonicalPrivyUser(
@@ -119,6 +103,9 @@ async function recoverCanonicalPrivyUser(
     return false;
   }
 
+  // Re-read through the primary auth lookup after confirming projection ownership.
+  // If a concurrent transfer changes ownership between these reads, recovery is
+  // rejected because the canonical user lookup will no longer match expectedUserId.
   const user = await usersService.getByPrivyIdForWrite(privyUserId);
   if (!user || user.id !== expectedUserId) {
     return false;

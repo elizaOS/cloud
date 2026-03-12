@@ -94,7 +94,14 @@ export class UsersService {
       privyUserId,
     );
     if (user) {
-      await cache.set(CacheKeys.user.byPrivyId(privyUserId), user, CacheTTL.user.byPrivyId);
+      await Promise.all([
+        cache.set(CacheKeys.user.byPrivyId(privyUserId), user, CacheTTL.user.byPrivyId),
+        cache.set(
+          CacheKeys.user.byPrivyIdWithOrg(privyUserId),
+          user,
+          CacheTTL.user.byPrivyIdWithOrg,
+        ),
+      ]);
       logger.debug("[UsersService] Cached user data by privyId from primary");
     }
     return user;
@@ -198,7 +205,6 @@ export class UsersService {
     userId: string,
     privyUserId: string,
   ): Promise<void> {
-    const user = await usersRepository.findById(userId);
     const existingIdentity =
       await usersRepository.findIdentityByUserIdForWrite(userId);
 
@@ -216,6 +222,7 @@ export class UsersService {
       ]);
     }
 
+    const user = await usersRepository.findById(userId);
     if (user) {
       await this.invalidateCache(user);
     }

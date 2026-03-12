@@ -240,6 +240,60 @@ describe("syncUserFromPrivy", () => {
     expect(result).toEqual(linkedUser);
   });
 
+  test("restores the previous Privy ID when account linking upsert fails", async () => {
+    const existingUser = {
+      id: "user-existing",
+      privy_user_id: "did:privy:old-user",
+      email: "link@example.com",
+      organization_id: "org-existing",
+      organization: {
+        id: "org-existing",
+        name: "Existing Org",
+      },
+    };
+
+    mockGetByPrivyId.mockResolvedValueOnce(undefined);
+    mockGetByEmailWithOrganization.mockResolvedValue(existingUser);
+    mockUpdateUser
+      .mockResolvedValueOnce({
+        ...existingUser,
+        privy_user_id: "did:privy:new-user",
+      })
+      .mockResolvedValueOnce(existingUser);
+    mockUpsertPrivyIdentity.mockRejectedValue(
+      makeUniqueViolationError(
+        'duplicate key value violates unique constraint "user_identities_privy_user_id_unique"',
+        "user_identities_privy_user_id_unique",
+      ),
+    );
+
+    const { syncUserFromPrivy } = await import("@/lib/privy-sync");
+
+    await expect(
+      syncUserFromPrivy({
+        id: "did:privy:new-user",
+        email: { address: "link@example.com" },
+        linkedAccounts: [],
+      } as never),
+    ).rejects.toThrow("user_identities_privy_user_id_unique");
+
+    expect(mockUpdateUser).toHaveBeenNthCalledWith(
+      1,
+      "user-existing",
+      expect.objectContaining({
+        privy_user_id: "did:privy:new-user",
+      }),
+    );
+    expect(mockUpdateUser).toHaveBeenNthCalledWith(
+      2,
+      "user-existing",
+      expect.objectContaining({
+        privy_user_id: "did:privy:old-user",
+      }),
+    );
+    expect(mockGetByPrivyIdForWrite).not.toHaveBeenCalled();
+  });
+
   test("rolls back invited user creation when identity upsert fails", async () => {
     mockFindPendingInviteByEmail.mockResolvedValue({
       id: "invite-1",
@@ -335,7 +389,10 @@ describe("syncUserFromPrivy", () => {
       organization_id: "org-existing",
     });
     mockUpsertPrivyIdentity.mockRejectedValue(
-      new Error("privy projection conflict"),
+      makeUniqueViolationError(
+        'duplicate key value violates unique constraint "user_identities_privy_user_id_unique"',
+        "user_identities_privy_user_id_unique",
+      ),
     );
     mockGetPrivyIdentityForWrite.mockResolvedValue({
       user_id: "user-invite",
@@ -369,7 +426,10 @@ describe("syncUserFromPrivy", () => {
       organization_id: "org-existing",
     });
     mockUpsertPrivyIdentity.mockRejectedValue(
-      new Error("privy projection conflict"),
+      makeUniqueViolationError(
+        'duplicate key value violates unique constraint "user_identities_privy_user_id_unique"',
+        "user_identities_privy_user_id_unique",
+      ),
     );
     mockGetPrivyIdentityForWrite.mockResolvedValue({
       user_id: "user-other",
@@ -384,7 +444,7 @@ describe("syncUserFromPrivy", () => {
         email: { address: "invite@example.com" },
         linkedAccounts: [],
       } as never),
-    ).rejects.toThrow("privy projection conflict");
+    ).rejects.toThrow("user_identities_privy_user_id_unique");
 
     expect(mockDeleteUserRecord).toHaveBeenCalledWith("user-invite");
     expect(mockMarkInviteAccepted).not.toHaveBeenCalled();
@@ -573,7 +633,7 @@ describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "
         `);
         await client.query(`
           CREATE TEMP TABLE "user_identities" (
-            "id" uuid PRIMARY KEY,
+            "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
             "user_id" uuid UNIQUE NOT NULL,
             "privy_user_id" text UNIQUE,
             "is_anonymous" boolean DEFAULT false NOT NULL,
