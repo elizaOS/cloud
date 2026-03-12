@@ -1,5 +1,8 @@
 -- Migration: Repair stale Privy claims on existing user_identities rows
 -- Purpose: Clear stale claims and reassign safe ones atomically in one statement
+-- Note: Later CTEs in this statement intentionally observe earlier CTE writes.
+-- PostgreSQL makes the NULLed claims from nulled_existing_privy_repairs visible
+-- to the NOT EXISTS checks below, so stale chains can settle in one pass.
 
 WITH existing_privy_repairs AS (
   SELECT
@@ -21,6 +24,8 @@ WITH existing_privy_repairs AS (
   FROM existing_privy_repairs epr
   JOIN nulled_existing_privy_repairs npr ON npr.user_id = epr.user_id
   WHERE epr.privy_user_id IS NOT NULL
+    -- If multiple rows in the repair set claim the same canonical Privy ID,
+    -- leave them NULL here and require manual cleanup instead of guessing.
     AND epr.privy_user_id_count = 1
     AND NOT EXISTS (
       SELECT 1

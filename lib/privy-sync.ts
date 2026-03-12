@@ -39,42 +39,45 @@ export interface SyncOptions {
   skipAbuseCheck?: boolean;
 }
 
+const PRIVY_IDENTITY_UNIQUE_CONSTRAINT =
+  "user_identities_privy_user_id_unique";
+
+function extractErrorMetadata(
+  candidate: unknown,
+): { code?: string; constraint?: string; detail?: string; message: string } {
+  if (!candidate || typeof candidate !== "object") {
+    return { message: String(candidate ?? "") };
+  }
+
+  const typedCandidate = candidate as {
+    code?: unknown;
+    constraint?: unknown;
+    detail?: unknown;
+    message?: unknown;
+  };
+
+  return {
+    code:
+      typeof typedCandidate.code === "string" ? typedCandidate.code : undefined,
+    constraint:
+      typeof typedCandidate.constraint === "string"
+        ? typedCandidate.constraint
+        : undefined,
+    detail:
+      typeof typedCandidate.detail === "string"
+        ? typedCandidate.detail
+        : undefined,
+    message:
+      typeof typedCandidate.message === "string"
+        ? typedCandidate.message
+        : String(candidate),
+  };
+}
+
 function isRecoverablePrivyProjectionConflict(error: unknown): boolean {
   if (!error || typeof error !== "object") {
     return false;
   }
-
-  const extractErrorMetadata = (
-    candidate: unknown,
-  ): { code?: string; constraint?: string; detail?: string; message: string } => {
-    if (!candidate || typeof candidate !== "object") {
-      return { message: String(candidate ?? "") };
-    }
-
-    const typedCandidate = candidate as {
-      code?: unknown;
-      constraint?: unknown;
-      detail?: unknown;
-      message?: unknown;
-    };
-
-    return {
-      code:
-        typeof typedCandidate.code === "string" ? typedCandidate.code : undefined,
-      constraint:
-        typeof typedCandidate.constraint === "string"
-          ? typedCandidate.constraint
-          : undefined,
-      detail:
-        typeof typedCandidate.detail === "string"
-          ? typedCandidate.detail
-          : undefined,
-      message:
-        typeof typedCandidate.message === "string"
-          ? typedCandidate.message
-          : String(candidate),
-    };
-  };
 
   const errorMetadata = extractErrorMetadata(error);
   const causeMetadata =
@@ -82,8 +85,8 @@ function isRecoverablePrivyProjectionConflict(error: unknown): boolean {
   const isUniqueViolation =
     errorMetadata.code === "23505" || causeMetadata.code === "23505";
   const hasExactPrivyConstraint =
-    errorMetadata.constraint === "user_identities_privy_user_id_unique" ||
-    causeMetadata.constraint === "user_identities_privy_user_id_unique";
+    errorMetadata.constraint === PRIVY_IDENTITY_UNIQUE_CONSTRAINT ||
+    causeMetadata.constraint === PRIVY_IDENTITY_UNIQUE_CONSTRAINT;
 
   return isUniqueViolation && hasExactPrivyConstraint;
 }
@@ -129,6 +132,8 @@ async function rollbackCreatedUserSafely(
   try {
     await usersRepository.delete(userId);
   } catch (rollbackError) {
+    // If this delete fails, the partially created user can survive without a
+    // matching Privy projection until a later repair or manual cleanup.
     logger.error("[PrivySync] Failed to roll back newly created user", {
       context,
       userId,
@@ -380,6 +385,9 @@ export async function syncUserFromPrivy(
         );
       }
 
+      // Mark the invite only after the canonical post-write lookup succeeds.
+      // This stays correct even when the identity upsert was recovered from an
+      // existing projection conflict, because userWithOrg.id is the verified owner.
       await organizationInvitesRepository.markAsAccepted(
         pendingInvite.id,
         userWithOrg.id,

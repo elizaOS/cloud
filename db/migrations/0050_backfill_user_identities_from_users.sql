@@ -1,5 +1,9 @@
 -- Migration: Backfill missing user_identities rows from legacy users columns
 -- Purpose: Insert identity projection rows for legacy users that do not have one
+-- Note: user_identities intentionally does not store email, so users.email
+-- remains canonical and is not copied here.
+-- This is a one-time backfill. The correlated NOT EXISTS checks trade some
+-- runtime for conservative conflict avoidance while the table catches up.
 
 WITH source_users AS (
   SELECT

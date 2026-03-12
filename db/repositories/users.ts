@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import { users, type User, type NewUser } from "../schemas/users";
 import { userIdentities, type UserIdentity } from "../schemas/user-identities";
-import { type Organization } from "../schemas/organizations";
+import { organizations, type Organization } from "../schemas/organizations";
 
 export type { User, NewUser };
 
@@ -77,22 +77,25 @@ export class UsersRepository {
       return user as UserWithOrganization | undefined;
     }
 
-    const identity = await dbWrite.query.userIdentities.findFirst({
-      where: eq(userIdentities.privy_user_id, privyUserId),
-    });
+    const [identityLinkedUser] = await dbWrite
+      .select({
+        user: users,
+        organization: organizations,
+      })
+      .from(userIdentities)
+      .innerJoin(users, eq(users.id, userIdentities.user_id))
+      .leftJoin(organizations, eq(organizations.id, users.organization_id))
+      .where(eq(userIdentities.privy_user_id, privyUserId))
+      .limit(1);
 
-    if (!identity) {
+    if (!identityLinkedUser) {
       return undefined;
     }
 
-    const linkedUser = await dbWrite.query.users.findFirst({
-      where: eq(users.id, identity.user_id),
-      with: {
-        organization: true,
-      },
-    });
-
-    return linkedUser as UserWithOrganization | undefined;
+    return {
+      ...identityLinkedUser.user,
+      organization: identityLinkedUser.organization,
+    };
   }
 
   /**
@@ -386,6 +389,10 @@ export class UsersRepository {
       WHERE u.id = ${userId}
       ON CONFLICT (user_id) DO UPDATE
       SET
+        -- The conflict target is the per-user projection row, not the global
+        -- privy_user_id unique constraint. If a different user already owns this
+        -- privy_user_id, Postgres still raises user_identities_privy_user_id_unique
+        -- and the caller decides whether recovery is safe.
         -- Only Privy projection state is repaired here; other identity columns
         -- remain as originally projected from the canonical users row.
         privy_user_id = EXCLUDED.privy_user_id,
