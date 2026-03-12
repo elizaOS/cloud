@@ -13,6 +13,59 @@ export interface UserWithOrganization extends User {
   organization: Organization | null;
 }
 
+const COMPATIBLE_USER_SELECT = {
+  id: users.id,
+  email: users.email,
+  email_verified: users.email_verified,
+  wallet_address: users.wallet_address,
+  wallet_chain_type: users.wallet_chain_type,
+  wallet_verified: users.wallet_verified,
+  name: users.name,
+  avatar: users.avatar,
+  organization_id: users.organization_id,
+  role: users.role,
+  privy_user_id: users.privy_user_id,
+  telegram_id: users.telegram_id,
+  telegram_username: users.telegram_username,
+  telegram_first_name: users.telegram_first_name,
+  telegram_photo_url: users.telegram_photo_url,
+  discord_id: users.discord_id,
+  discord_username: users.discord_username,
+  discord_global_name: users.discord_global_name,
+  discord_avatar_url: users.discord_avatar_url,
+  phone_number: users.phone_number,
+  phone_verified: users.phone_verified,
+  is_anonymous: users.is_anonymous,
+  anonymous_session_id: users.anonymous_session_id,
+  expires_at: users.expires_at,
+  nickname: users.nickname,
+  work_function: users.work_function,
+  preferences: users.preferences,
+  email_notifications: users.email_notifications,
+  response_notifications: users.response_notifications,
+  is_active: users.is_active,
+  created_at: users.created_at,
+  updated_at: users.updated_at,
+};
+
+const COMPATIBLE_USER_SELECT_WITH_WHATSAPP = {
+  ...COMPATIBLE_USER_SELECT,
+  whatsapp_id: users.whatsapp_id,
+  whatsapp_name: users.whatsapp_name,
+};
+
+type WhatsAppColumnSupport = {
+  users: boolean;
+  userIdentities: boolean;
+};
+
+let readWhatsAppColumnSupportPromise:
+  | Promise<WhatsAppColumnSupport>
+  | undefined;
+let writeWhatsAppColumnSupportPromise:
+  | Promise<WhatsAppColumnSupport>
+  | undefined;
+
 /**
  * Repository for user database operations.
  *
@@ -51,7 +104,11 @@ export class UsersRepository {
   async findByPrivyIdWithOrganization(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    return this.findByPrivyIdWithOrganizationUsingDb(dbRead, privyUserId);
+    return this.findByPrivyIdWithOrganizationUsingDb(
+      dbRead,
+      "read",
+      privyUserId,
+    );
   }
 
   /**
@@ -67,34 +124,31 @@ export class UsersRepository {
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
     // Try canonical users.privy_user_id first (just-written auth state)
-    const user = await dbWrite.query.users.findFirst({
-      where: eq(users.privy_user_id, privyUserId),
-      with: {
-        organization: true,
-      },
-    });
+    const user = await this.findCompatibleUserWithOrganizationByPrivyId(
+      dbWrite,
+      "write",
+      privyUserId,
+    );
 
     if (user) {
-      return user as UserWithOrganization | undefined;
+      return user;
     }
 
     // Fallback: look up via identity projection (two-query approach for safety)
-    const identity = await dbWrite.query.userIdentities.findFirst({
-      where: eq(userIdentities.privy_user_id, privyUserId),
-    });
+    const identityUserId = await this.findIdentityUserIdByPrivyId(
+      dbWrite,
+      privyUserId,
+    );
 
-    if (!identity) {
+    if (!identityUserId) {
       return undefined;
     }
 
-    const linkedUser = await dbWrite.query.users.findFirst({
-      where: eq(users.id, identity.user_id),
-      with: {
-        organization: true,
-      },
-    });
-
-    return linkedUser as UserWithOrganization | undefined;
+    return await this.findCompatibleUserWithOrganizationById(
+      dbWrite,
+      "write",
+      identityUserId,
+    );
   }
 
   /**
@@ -312,31 +366,196 @@ export class UsersRepository {
 
   private async findByPrivyIdWithOrganizationUsingDb(
     database: typeof dbRead,
+    databaseRole: "read" | "write",
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const identity = await database.query.userIdentities.findFirst({
-      where: eq(userIdentities.privy_user_id, privyUserId),
-    });
+    // Intentionally avoid Drizzle's full-table relation hydration here.
+    // Some deployed environments still lag older identity columns on users,
+    // so auth lookups only select the columns they actually need and fill any
+    // missing legacy fields from schema detection.
+    const identityUserId = await this.findIdentityUserIdByPrivyId(
+      database,
+      privyUserId,
+    );
 
-    if (identity) {
-      const user = await database.query.users.findFirst({
-        where: eq(users.id, identity.user_id),
-        with: {
-          organization: true,
-        },
-      });
-
-      return user as UserWithOrganization | undefined;
+    if (identityUserId) {
+      return await this.findCompatibleUserWithOrganizationById(
+        database,
+        databaseRole,
+        identityUserId,
+      );
     }
 
-    const user = await database.query.users.findFirst({
-      where: eq(users.privy_user_id, privyUserId),
-      with: {
-        organization: true,
-      },
+    return await this.findCompatibleUserWithOrganizationByPrivyId(
+      database,
+      databaseRole,
+      privyUserId,
+    );
+  }
+
+  private async getWhatsAppColumnSupport(
+    database: typeof dbRead,
+    databaseRole: "read" | "write",
+  ): Promise<WhatsAppColumnSupport> {
+    const cachedPromise =
+      databaseRole === "read"
+        ? readWhatsAppColumnSupportPromise
+        : writeWhatsAppColumnSupportPromise;
+
+    if (cachedPromise) {
+      return await cachedPromise;
+    }
+
+    const supportPromise = (async (): Promise<WhatsAppColumnSupport> => {
+      const result = await database.execute<{
+        table_name: string;
+        column_name: string;
+      }>(sql`
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name IN ('users', 'user_identities')
+          AND column_name IN ('whatsapp_id', 'whatsapp_name')
+      `);
+
+      const usersColumns = new Set<string>();
+      const userIdentityColumns = new Set<string>();
+
+      for (const row of result.rows) {
+        if (row.table_name === "users") {
+          usersColumns.add(row.column_name);
+        }
+
+        if (row.table_name === "user_identities") {
+          userIdentityColumns.add(row.column_name);
+        }
+      }
+
+      return {
+        users:
+          usersColumns.has("whatsapp_id") && usersColumns.has("whatsapp_name"),
+        userIdentities:
+          userIdentityColumns.has("whatsapp_id") &&
+          userIdentityColumns.has("whatsapp_name"),
+      };
+    })();
+
+    const cachedSupportPromise = supportPromise.catch((error) => {
+      if (databaseRole === "read") {
+        readWhatsAppColumnSupportPromise = undefined;
+      } else {
+        writeWhatsAppColumnSupportPromise = undefined;
+      }
+
+      throw error;
     });
 
-    return user as UserWithOrganization | undefined;
+    if (databaseRole === "read") {
+      readWhatsAppColumnSupportPromise = cachedSupportPromise;
+    } else {
+      writeWhatsAppColumnSupportPromise = cachedSupportPromise;
+    }
+
+    return await cachedSupportPromise;
+  }
+
+  private async findIdentityUserIdByPrivyId(
+    database: typeof dbRead,
+    privyUserId: string,
+  ): Promise<string | undefined> {
+    const [identity] = await database
+      .select({ user_id: userIdentities.user_id })
+      .from(userIdentities)
+      .where(eq(userIdentities.privy_user_id, privyUserId))
+      .limit(1);
+
+    return identity?.user_id;
+  }
+
+  private normalizeCompatibleUser(
+    user: Partial<User>,
+    hasUsersWhatsAppColumns: boolean,
+  ): User {
+    return {
+      ...(user as User),
+      whatsapp_id: hasUsersWhatsAppColumns ? (user.whatsapp_id ?? null) : null,
+      whatsapp_name: hasUsersWhatsAppColumns
+        ? (user.whatsapp_name ?? null)
+        : null,
+    };
+  }
+
+  private async findCompatibleUserWithOrganizationById(
+    database: typeof dbRead,
+    databaseRole: "read" | "write",
+    userId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const support = await this.getWhatsAppColumnSupport(database, databaseRole);
+    const [user] = support.users
+      ? await database
+          .select(COMPATIBLE_USER_SELECT_WITH_WHATSAPP)
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1)
+      : await database
+          .select(COMPATIBLE_USER_SELECT)
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+
+    if (!user) {
+      return undefined;
+    }
+
+    return await this.attachOrganization(
+      database,
+      this.normalizeCompatibleUser(user as Partial<User>, support.users),
+    );
+  }
+
+  private async findCompatibleUserWithOrganizationByPrivyId(
+    database: typeof dbRead,
+    databaseRole: "read" | "write",
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const support = await this.getWhatsAppColumnSupport(database, databaseRole);
+    const [user] = support.users
+      ? await database
+          .select(COMPATIBLE_USER_SELECT_WITH_WHATSAPP)
+          .from(users)
+          .where(eq(users.privy_user_id, privyUserId))
+          .limit(1)
+      : await database
+          .select(COMPATIBLE_USER_SELECT)
+          .from(users)
+          .where(eq(users.privy_user_id, privyUserId))
+          .limit(1);
+
+    if (!user) {
+      return undefined;
+    }
+
+    return await this.attachOrganization(
+      database,
+      this.normalizeCompatibleUser(user as Partial<User>, support.users),
+    );
+  }
+
+  private async attachOrganization(
+    database: typeof dbRead,
+    user: User,
+  ): Promise<UserWithOrganization> {
+    const organizationId = user.organization_id;
+    const organization = organizationId
+      ? ((await database.query.organizations.findFirst({
+          where: (organization, { eq }) => eq(organization.id, organizationId),
+        })) ?? null)
+      : null;
+
+    return {
+      ...user,
+      organization,
+    };
   }
 
   /**
@@ -346,6 +565,22 @@ export class UsersRepository {
     userId: string,
     privyUserId: string,
   ): Promise<UserIdentity> {
+    const support = await this.getWhatsAppColumnSupport(dbWrite, "write");
+    const whatsappInsertColumns = support.userIdentities
+      ? sql`,
+        whatsapp_id,
+        whatsapp_name`
+      : sql``;
+    const whatsappSelectColumns = support.userIdentities
+      ? support.users
+        ? sql`,
+        u.whatsapp_id,
+        u.whatsapp_name`
+        : sql`,
+        NULL::text,
+        NULL::text`
+      : sql``;
+
     // UserIdentity uses the table's snake_case column names, so the raw RETURNING
     // payload shape matches the inferred Drizzle select type here.
     const result = await dbWrite.execute<UserIdentity>(sql`
@@ -364,9 +599,8 @@ export class UsersRepository {
         discord_id,
         discord_username,
         discord_global_name,
-        discord_avatar_url,
-        whatsapp_id,
-        whatsapp_name
+        discord_avatar_url
+        ${whatsappInsertColumns}
       )
       SELECT
         ${userId},
@@ -383,9 +617,8 @@ export class UsersRepository {
         u.discord_id,
         u.discord_username,
         u.discord_global_name,
-        u.discord_avatar_url,
-        u.whatsapp_id,
-        u.whatsapp_name
+        u.discord_avatar_url
+        ${whatsappSelectColumns}
       FROM ${users} u
       WHERE u.id = ${userId}
       ON CONFLICT (user_id) DO UPDATE

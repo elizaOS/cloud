@@ -13,6 +13,20 @@ import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 
+function getErrorDetails(error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) {
+    return { error: String(error) };
+  }
+
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+    code: (error as Error & { code?: string }).code,
+    cause: error.cause ? getErrorDetails(error.cause) : undefined,
+  };
+}
+
 /**
  * Service for user operations including organization lookups.
  */
@@ -34,7 +48,9 @@ export class UsersService {
     const walletAddress = user.wallet_address;
     if (typeof walletAddress === "string") {
       promises.push(cache.del(CacheKeys.user.byWalletAddress(walletAddress)));
-      promises.push(cache.del(CacheKeys.user.byWalletAddressWithOrg(walletAddress)));
+      promises.push(
+        cache.del(CacheKeys.user.byWalletAddressWithOrg(walletAddress)),
+      );
     }
     await Promise.all(promises);
     logger.debug("[UsersService] Invalidated cache for user:", user.id);
@@ -81,31 +97,49 @@ export class UsersService {
     }
 
     try {
-      const user = await usersRepository.findByPrivyIdWithOrganization(privyUserId);
+      const user =
+        await usersRepository.findByPrivyIdWithOrganization(privyUserId);
       if (user) {
         await cache.set(cacheKey, user, CacheTTL.user.byPrivyId);
         logger.debug("[UsersService] Cached user data by privyId");
       }
       return user;
     } catch (error) {
-      logger.warn("[UsersService] Read-path Privy lookup failed, retrying on primary", {
-        privyUserId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      const errorDetails = getErrorDetails(error);
 
-      return await this.getByPrivyIdForWrite(privyUserId);
+      logger.warn(
+        "[UsersService] Read-path Privy lookup failed, retrying on primary",
+        {
+          privyUserId,
+          ...errorDetails,
+        },
+      );
+
+      try {
+        return await this.getByPrivyIdForWrite(privyUserId);
+      } catch (fallbackError) {
+        logger.error("[UsersService] Primary Privy lookup retry failed", {
+          privyUserId,
+          readError: errorDetails,
+          writeError: getErrorDetails(fallbackError),
+        });
+        throw fallbackError;
+      }
     }
   }
 
   async getByPrivyIdForWrite(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await usersRepository.findByPrivyIdWithOrganizationForWrite(
-      privyUserId,
-    );
+    const user =
+      await usersRepository.findByPrivyIdWithOrganizationForWrite(privyUserId);
     if (user) {
       await Promise.all([
-        cache.set(CacheKeys.user.byPrivyId(privyUserId), user, CacheTTL.user.byPrivyId),
+        cache.set(
+          CacheKeys.user.byPrivyId(privyUserId),
+          user,
+          CacheTTL.user.byPrivyId,
+        ),
         cache.set(
           CacheKeys.user.byPrivyIdWithOrg(privyUserId),
           user,
@@ -181,9 +215,8 @@ export class UsersService {
       logger.debug("[UsersService] Cache hit for user byWalletAddressWithOrg");
       return cached;
     }
-    const user = await usersRepository.findByWalletAddressWithOrganization(
-      walletAddress,
-    );
+    const user =
+      await usersRepository.findByWalletAddressWithOrganization(walletAddress);
     if (user) {
       await cache.set(cacheKey, user, CacheTTL.user.byWalletAddressWithOrg);
       logger.debug("[UsersService] Cached user data byWalletAddressWithOrg");
