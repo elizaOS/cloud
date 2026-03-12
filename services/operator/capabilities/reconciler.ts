@@ -54,6 +54,23 @@ export async function reconciler(instance: Server) {
       Log.info(`Server ${name}: removed agent mapping ${agentId}`);
     }
 
+    // Persist current agent IDs so the next reconcile can detect removals
+    await K8s(Server).Apply(
+      {
+        apiVersion: "eliza.ai/v1alpha1",
+        kind: "Server",
+        metadata: {
+          name,
+          namespace: ns,
+          annotations: {
+            "eliza.ai/previous-agents": JSON.stringify(currentAgentIds),
+          },
+        },
+        spec: instance.spec,
+      },
+      { force: true },
+    );
+
     await updateStatus(instance, {
       phase: "Pending",
       readyAgents: 0,

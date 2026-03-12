@@ -23,30 +23,41 @@ for (const key of required) {
   }
 }
 
+if (process.env.AGENT_ID && !process.env.CHARACTER_REF) {
+  console.error("CHARACTER_REF is required when AGENT_ID is set");
+  process.exit(1);
+}
+
 const PORT = Number(process.env.PORT ?? 3000);
 const manager = new AgentManager();
 
+// Initialize manager before accepting connections
+await manager.initialize();
+
+const agentId = process.env.AGENT_ID;
+const characterRef = process.env.CHARACTER_REF;
+if (agentId && characterRef) {
+  await manager.startAgent(agentId, characterRef);
+  console.log(
+    `Auto-started agent ${agentId} (${process.env.TIER} tier, character=${characterRef})`,
+  );
+}
+
 new Elysia().use(cors()).use(createRoutes(manager)).listen(PORT);
 
-manager.initialize().then(async () => {
-  const agentId = process.env.AGENT_ID;
-  const characterRef = process.env.CHARACTER_REF || agentId;
-  if (agentId && characterRef) {
-    await manager.startAgent(agentId, characterRef);
-    console.log(
-      `Auto-started agent ${agentId} (${process.env.TIER} tier, character=${characterRef})`,
-    );
-  }
-  console.log(
-    `agent-server ${process.env.SERVER_NAME} listening on :${PORT} (tier=${process.env.TIER}, capacity=${process.env.CAPACITY})`,
-  );
-});
+console.log(
+  `agent-server ${process.env.SERVER_NAME} listening on :${PORT} (tier=${process.env.TIER}, capacity=${process.env.CAPACITY})`,
+);
 
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received, draining...");
   await manager.drain();
+  await manager.cleanupRedis();
   const redis = getRedis();
-  await redis.del(`server:${process.env.SERVER_NAME}:status`);
-  redis.disconnect();
+  try {
+    await redis.quit();
+  } catch {
+    redis.disconnect();
+  }
   process.exit(0);
 });

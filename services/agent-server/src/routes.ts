@@ -75,6 +75,7 @@ export function createRoutes(manager: AgentManager) {
 
     .post("/drain", async () => {
       await manager.drain();
+      await manager.cleanupRedis();
       return { drained: true };
     });
 }

@@ -61,36 +61,49 @@ export class AgentManager {
       throw new Error("Agent already exists");
     }
 
-    const character = createCharacter({
-      name: characterRef,
-      secrets: {
-        POSTGRES_URL: process.env.POSTGRES_URL || "",
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
-        ELIZAOS_CLOUD_API_KEY: process.env.ELIZAOS_CLOUD_API_KEY || "",
-      },
-    });
-
-    // Priority: elizacloud (unified proxy) > openai
-    const plugins: Plugin[] = [sqlPlugin as Plugin];
-    if (process.env.ELIZAOS_CLOUD_API_KEY) {
-      const elizacloudPlugin = await import("@elizaos/plugin-elizacloud");
-      plugins.push(elizacloudPlugin.default as Plugin);
-    } else if (process.env.OPENAI_API_KEY) {
-      const { openaiPlugin } = await import("@elizaos/plugin-openai");
-      plugins.push(openaiPlugin);
-    }
-
-    const runtime = new AgentRuntime({ character, plugins });
-    const skipMigrations = process.env.SKIP_MIGRATIONS === "true";
-    await runtime.initialize({ skipMigrations });
-
+    // Reserve the slot immediately to prevent concurrent requests from exceeding capacity
     this.agents.set(agentId, {
       agentId,
       characterRef,
-      runtime,
-      state: "running",
+      runtime: null as unknown as IAgentRuntime,
+      state: "stopped",
     });
-    await getRedis().set(`agent:${agentId}:server`, process.env.SERVER_NAME!);
+
+    try {
+      const character = createCharacter({
+        name: characterRef,
+        secrets: {
+          POSTGRES_URL: process.env.POSTGRES_URL || "",
+          OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+          ELIZAOS_CLOUD_API_KEY: process.env.ELIZAOS_CLOUD_API_KEY || "",
+        },
+      });
+
+      // Priority: elizacloud (unified proxy) > openai
+      const plugins: Plugin[] = [sqlPlugin as Plugin];
+      if (process.env.ELIZAOS_CLOUD_API_KEY) {
+        const elizacloudPlugin = await import("@elizaos/plugin-elizacloud");
+        plugins.push(elizacloudPlugin.default as Plugin);
+      } else if (process.env.OPENAI_API_KEY) {
+        const { openaiPlugin } = await import("@elizaos/plugin-openai");
+        plugins.push(openaiPlugin);
+      }
+
+      const runtime = new AgentRuntime({ character, plugins });
+      const skipMigrations = process.env.SKIP_MIGRATIONS === "true";
+      await runtime.initialize({ skipMigrations });
+
+      this.agents.set(agentId, {
+        agentId,
+        characterRef,
+        runtime,
+        state: "running",
+      });
+      await getRedis().set(`agent:${agentId}:server`, process.env.SERVER_NAME!);
+    } catch (err) {
+      this.agents.delete(agentId);
+      throw err;
+    }
   }
 
   async stopAgent(id: string) {
@@ -151,15 +164,27 @@ export class AgentManager {
 
   async drain() {
     this._draining = true;
+
+    // Wait for in-flight requests to finish before stopping runtimes
+    const deadline = Date.now() + 50_000;
+    while (this.inFlight > 0 && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
     for (const [, entry] of this.agents) {
       if (entry.state === "running") {
         await entry.runtime.stop();
         entry.state = "stopped";
       }
     }
-    const deadline = Date.now() + 50_000;
-    while (this.inFlight > 0 && Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 200));
-    }
+  }
+
+  async cleanupRedis() {
+    const redis = getRedis();
+    const keys = [
+      `server:${process.env.SERVER_NAME}:status`,
+      ...Array.from(this.agents.keys()).map((id) => `agent:${id}:server`),
+    ];
+    if (keys.length > 0) await redis.del(...keys);
   }
 }
