@@ -1,11 +1,7 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import { users, type User, type NewUser } from "../schemas/users";
-import {
-  userIdentities,
-  type UserIdentity,
-  type NewUserIdentity,
-} from "../schemas/user-identities";
+import { userIdentities, type UserIdentity } from "../schemas/user-identities";
 import { type Organization } from "../schemas/organizations";
 
 export type { User, NewUser };
@@ -348,67 +344,62 @@ export class UsersRepository {
     userId: string,
     privyUserId: string,
   ): Promise<UserIdentity> {
-    const user = await dbWrite.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
+    const result = await dbWrite.execute<UserIdentity>(sql`
+      INSERT INTO ${userIdentities} (
+        user_id,
+        privy_user_id,
+        is_anonymous,
+        anonymous_session_id,
+        expires_at,
+        telegram_id,
+        telegram_username,
+        telegram_first_name,
+        telegram_photo_url,
+        phone_number,
+        phone_verified,
+        discord_id,
+        discord_username,
+        discord_global_name,
+        discord_avatar_url,
+        whatsapp_id,
+        whatsapp_name
+      )
+      SELECT
+        ${userId},
+        ${privyUserId},
+        u.is_anonymous,
+        u.anonymous_session_id,
+        u.expires_at,
+        u.telegram_id,
+        u.telegram_username,
+        u.telegram_first_name,
+        u.telegram_photo_url,
+        u.phone_number,
+        u.phone_verified,
+        u.discord_id,
+        u.discord_username,
+        u.discord_global_name,
+        u.discord_avatar_url,
+        u.whatsapp_id,
+        u.whatsapp_name
+      FROM ${users} u
+      WHERE u.id = ${userId}
+      ON CONFLICT (user_id) DO UPDATE
+      SET
+        privy_user_id = EXCLUDED.privy_user_id,
+        updated_at = NOW()
+      RETURNING *
+    `);
 
-    if (!user) {
+    const [identity] = result.rows;
+
+    if (!identity) {
       throw new Error(
         `User ${userId} not found while upserting Privy identity ${privyUserId}`,
       );
     }
 
-    const identityValues: NewUserIdentity = {
-      user_id: userId,
-      privy_user_id: privyUserId,
-      is_anonymous: user.is_anonymous,
-      anonymous_session_id: user.anonymous_session_id,
-      expires_at: user.expires_at,
-      telegram_id: user.telegram_id,
-      telegram_username: user.telegram_username,
-      telegram_first_name: user.telegram_first_name,
-      telegram_photo_url: user.telegram_photo_url,
-      phone_number: user.phone_number,
-      phone_verified: user.phone_verified,
-      discord_id: user.discord_id,
-      discord_username: user.discord_username,
-      discord_global_name: user.discord_global_name,
-      discord_avatar_url: user.discord_avatar_url,
-      whatsapp_id: user.whatsapp_id,
-      whatsapp_name: user.whatsapp_name,
-    };
-
-    try {
-      const [identity] = await dbWrite
-        .insert(userIdentities)
-        .values(identityValues)
-        .onConflictDoUpdate({
-          target: userIdentities.user_id,
-          set: {
-            privy_user_id: privyUserId,
-            updated_at: new Date(),
-          },
-        })
-        .returning();
-
-      return identity;
-    } catch (error) {
-      const typedError =
-        error && typeof error === "object"
-          ? (error as { code?: unknown; constraint?: unknown; message?: unknown })
-          : undefined;
-
-      if (typedError?.code === "23503") {
-        throw new Error(
-          `User ${userId} disappeared while upserting Privy identity ${privyUserId}`,
-          {
-            cause: error,
-          },
-        );
-      }
-
-      throw error;
-    }
+    return identity;
   }
 
   /**

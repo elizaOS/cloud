@@ -237,6 +237,55 @@ describe("UsersService", () => {
 
       await cleanupTestData(connectionString, testData.organization.id);
     });
+
+    test("write-path lookup falls back to users.privy_user_id when projection is missing", async () => {
+      const privyId = `did:privy:${uuidv4()}`;
+
+      await usersService.update(testData.user.id, {
+        privy_user_id: privyId,
+      });
+
+      const user = await usersService.getByPrivyIdForWrite(privyId);
+
+      expect(user).toBeDefined();
+      expect(user?.id).toBe(testData.user.id);
+      expect(user?.organization_id).toBe(testData.organization.id);
+
+      await cleanupTestData(connectionString, testData.organization.id);
+    });
+
+    test("concurrent inserts for the same Privy ID leave one canonical winner", async () => {
+      const privyId = `did:privy:${uuidv4()}`;
+      const secondData = await createTestDataSet(connectionString, {
+        creditBalance: 100,
+      });
+
+      try {
+        const [firstResult, secondResult] = await Promise.allSettled([
+          usersService.upsertPrivyIdentity(testData.user.id, privyId),
+          usersService.upsertPrivyIdentity(secondData.user.id, privyId),
+        ]);
+
+        expect(
+          [firstResult.status, secondResult.status].filter(
+            (status) => status === "fulfilled",
+          ),
+        ).toHaveLength(1);
+        expect(
+          [firstResult.status, secondResult.status].filter(
+            (status) => status === "rejected",
+          ),
+        ).toHaveLength(1);
+
+        const user = await usersService.getByPrivyId(privyId);
+
+        expect(user).toBeDefined();
+        expect([testData.user.id, secondData.user.id]).toContain(user?.id);
+      } finally {
+        await cleanupTestData(connectionString, secondData.organization.id);
+        await cleanupTestData(connectionString, testData.organization.id);
+      }
+    });
   });
 
   // ===========================================================================
