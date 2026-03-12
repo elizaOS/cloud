@@ -63,7 +63,13 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   const user = await requireAuthWithOrg();
   const { id } = await params;
 
-  const agent = await miladySandboxService.getAgent(id, user.organization_id);
+  // Milady sandboxes table may not exist in all environments — redirect gracefully
+  let agent;
+  try {
+    agent = await miladySandboxService.getAgent(id, user.organization_id);
+  } catch {
+    redirect("/dashboard/containers");
+  }
   if (!agent) {
     redirect("/dashboard/containers");
   }
