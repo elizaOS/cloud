@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import { users, type User, type NewUser } from "../schemas/users";
 import { userIdentities, type UserIdentity } from "../schemas/user-identities";
-import { organizations, type Organization } from "../schemas/organizations";
+import { type Organization } from "../schemas/organizations";
 
 export type { User, NewUser };
 
@@ -66,6 +66,7 @@ export class UsersRepository {
   async findByPrivyIdWithOrganizationForWrite(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
+    // Try canonical users.privy_user_id first (just-written auth state)
     const user = await dbWrite.query.users.findFirst({
       where: eq(users.privy_user_id, privyUserId),
       with: {
@@ -77,25 +78,23 @@ export class UsersRepository {
       return user as UserWithOrganization | undefined;
     }
 
-    const [identityLinkedUser] = await dbWrite
-      .select({
-        user: users,
-        organization: organizations,
-      })
-      .from(userIdentities)
-      .innerJoin(users, eq(users.id, userIdentities.user_id))
-      .leftJoin(organizations, eq(organizations.id, users.organization_id))
-      .where(eq(userIdentities.privy_user_id, privyUserId))
-      .limit(1);
+    // Fallback: look up via identity projection (two-query approach for safety)
+    const identity = await dbWrite.query.userIdentities.findFirst({
+      where: eq(userIdentities.privy_user_id, privyUserId),
+    });
 
-    if (!identityLinkedUser) {
+    if (!identity) {
       return undefined;
     }
 
-    return {
-      ...identityLinkedUser.user,
-      organization: identityLinkedUser.organization,
-    };
+    const linkedUser = await dbWrite.query.users.findFirst({
+      where: eq(users.id, identity.user_id),
+      with: {
+        organization: true,
+      },
+    });
+
+    return linkedUser as UserWithOrganization | undefined;
   }
 
   /**
@@ -315,22 +314,19 @@ export class UsersRepository {
     database: typeof dbRead,
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const [identityLinkedUser] = await database
-      .select({
-        user: users,
-        organization: organizations,
-      })
-      .from(userIdentities)
-      .innerJoin(users, eq(users.id, userIdentities.user_id))
-      .leftJoin(organizations, eq(organizations.id, users.organization_id))
-      .where(eq(userIdentities.privy_user_id, privyUserId))
-      .limit(1);
+    const identity = await database.query.userIdentities.findFirst({
+      where: eq(userIdentities.privy_user_id, privyUserId),
+    });
 
-    if (identityLinkedUser) {
-      return {
-        ...identityLinkedUser.user,
-        organization: identityLinkedUser.organization,
-      };
+    if (identity) {
+      const user = await database.query.users.findFirst({
+        where: eq(users.id, identity.user_id),
+        with: {
+          organization: true,
+        },
+      });
+
+      return user as UserWithOrganization | undefined;
     }
 
     const user = await database.query.users.findFirst({

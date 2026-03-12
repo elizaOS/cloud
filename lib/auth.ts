@@ -239,6 +239,12 @@ export const getCurrentUser = cache(
         "[AUTH] ✗ Error:",
         error instanceof Error ? error.message : error,
       );
+      if (error instanceof Error && error.cause) {
+        logger.error(
+          "[AUTH] ✗ Root cause:",
+          error.cause instanceof Error ? error.cause.message : error.cause,
+        );
+      }
       return null;
     }
   },
