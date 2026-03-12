@@ -79,12 +79,22 @@ export class UsersService {
       logger.debug("[UsersService] Cache hit for user byPrivyId");
       return cached;
     }
-    const user = await usersRepository.findByPrivyIdWithOrganization(privyUserId);
-    if (user) {
-      await cache.set(cacheKey, user, CacheTTL.user.byPrivyId);
-      logger.debug("[UsersService] Cached user data by privyId");
+
+    try {
+      const user = await usersRepository.findByPrivyIdWithOrganization(privyUserId);
+      if (user) {
+        await cache.set(cacheKey, user, CacheTTL.user.byPrivyId);
+        logger.debug("[UsersService] Cached user data by privyId");
+      }
+      return user;
+    } catch (error) {
+      logger.warn("[UsersService] Read-path Privy lookup failed, retrying on primary", {
+        privyUserId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      return await this.getByPrivyIdForWrite(privyUserId);
     }
-    return user;
   }
 
   async getByPrivyIdForWrite(
