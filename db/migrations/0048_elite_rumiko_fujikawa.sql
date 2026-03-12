@@ -1,5 +1,5 @@
 
-CREATE TABLE "organization_billing" (
+CREATE TABLE IF NOT EXISTS "organization_billing" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"stripe_customer_id" text,
@@ -18,7 +18,7 @@ CREATE TABLE "organization_billing" (
 	CONSTRAINT "organization_billing_organization_id_unique" UNIQUE("organization_id")
 );
 --> statement-breakpoint
-CREATE TABLE "organization_config" (
+CREATE TABLE IF NOT EXISTS "organization_config" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"webhook_url" text,
@@ -33,7 +33,7 @@ CREATE TABLE "organization_config" (
 	CONSTRAINT "organization_config_organization_id_unique" UNIQUE("organization_id")
 );
 --> statement-breakpoint
-CREATE TABLE "organization_encryption_keys" (
+CREATE TABLE IF NOT EXISTS "organization_encryption_keys" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"encrypted_dek" text NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE "organization_encryption_keys" (
 	CONSTRAINT "organization_encryption_keys_org_unique" UNIQUE("organization_id")
 );
 --> statement-breakpoint
-CREATE TABLE "user_identities" (
+CREATE TABLE IF NOT EXISTS "user_identities" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"privy_user_id" text,
@@ -74,7 +74,7 @@ CREATE TABLE "user_identities" (
 	CONSTRAINT "user_identities_whatsapp_id_unique" UNIQUE("whatsapp_id")
 );
 --> statement-breakpoint
-CREATE TABLE "user_preferences" (
+CREATE TABLE IF NOT EXISTS "user_preferences" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"nickname" text,
@@ -88,7 +88,7 @@ CREATE TABLE "user_preferences" (
 );
 --> statement-breakpoint
 
-CREATE TABLE "app_config" (
+CREATE TABLE IF NOT EXISTS "app_config" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"app_id" uuid NOT NULL,
 	"features_enabled" jsonb DEFAULT '{"chat":true,"image":false,"video":false,"voice":false,"agents":false,"embedding":false}'::jsonb NOT NULL,
@@ -103,7 +103,7 @@ CREATE TABLE "app_config" (
 	CONSTRAINT "app_config_app_id_unique" UNIQUE("app_id")
 );
 --> statement-breakpoint
-CREATE TABLE "app_billing" (
+CREATE TABLE IF NOT EXISTS "app_billing" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"app_id" uuid NOT NULL,
 	"custom_pricing_enabled" boolean DEFAULT false NOT NULL,
@@ -120,7 +120,7 @@ CREATE TABLE "app_billing" (
 	CONSTRAINT "app_billing_app_id_unique" UNIQUE("app_id")
 );
 --> statement-breakpoint
-CREATE TABLE "app_databases" (
+CREATE TABLE IF NOT EXISTS "app_databases" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"app_id" uuid NOT NULL,
 	"user_database_uri" text,
@@ -146,41 +146,41 @@ ALTER TABLE "org_platform_servers" DISABLE ROW LEVEL SECURITY;--> statement-brea
 ALTER TABLE "org_team_members" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "org_todos" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "n8n_workflow"."credential_mappings" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-DROP TABLE "org_feed_configs" CASCADE;--> statement-breakpoint
-DROP TABLE "pending_reply_confirmations" CASCADE;--> statement-breakpoint
-DROP TABLE "social_engagement_events" CASCADE;--> statement-breakpoint
-DROP TABLE "social_notification_messages" CASCADE;--> statement-breakpoint
-DROP TABLE "domain_moderation_events" CASCADE;--> statement-breakpoint
-DROP TABLE "org_checkin_responses" CASCADE;--> statement-breakpoint
-DROP TABLE "org_checkin_schedules" CASCADE;--> statement-breakpoint
-DROP TABLE "org_platform_connections" CASCADE;--> statement-breakpoint
-DROP TABLE "org_platform_servers" CASCADE;--> statement-breakpoint
-DROP TABLE "org_team_members" CASCADE;--> statement-breakpoint
-DROP TABLE "org_todos" CASCADE;--> statement-breakpoint
-DROP TABLE "n8n_workflow"."credential_mappings" CASCADE;--> statement-breakpoint
-ALTER TABLE "users" DROP CONSTRAINT "users_anonymous_session_id_unique";--> statement-breakpoint
-DROP INDEX "organizations_stripe_customer_idx";--> statement-breakpoint
-DROP INDEX "organizations_auto_top_up_enabled_idx";--> statement-breakpoint
-DROP INDEX "users_privy_user_id_idx";--> statement-breakpoint
-DROP INDEX "users_anonymous_session_idx";--> statement-breakpoint
-DROP INDEX "users_expires_at_idx";--> statement-breakpoint
-DROP INDEX "users_work_function_idx";--> statement-breakpoint
-DROP INDEX "users_telegram_id_idx";--> statement-breakpoint
-DROP INDEX "users_phone_number_idx";--> statement-breakpoint
-DROP INDEX "users_discord_id_idx";--> statement-breakpoint
-DROP INDEX "apps_user_database_status_idx";--> statement-breakpoint
-ALTER TABLE "organizations" ALTER COLUMN "credit_balance" SET DATA TYPE numeric(12, 6);--> statement-breakpoint
+DROP TABLE IF EXISTS "org_feed_configs" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "pending_reply_confirmations" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "social_engagement_events" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "social_notification_messages" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "domain_moderation_events" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "org_checkin_responses" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "org_checkin_schedules" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "org_platform_connections" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "org_platform_servers" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "org_team_members" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "org_todos" CASCADE;--> statement-breakpoint
+DROP TABLE IF EXISTS "n8n_workflow"."credential_mappings" CASCADE;--> statement-breakpoint
+ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_anonymous_session_id_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "organizations_stripe_customer_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "organizations_auto_top_up_enabled_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "users_privy_user_id_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "users_anonymous_session_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "users_expires_at_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "users_work_function_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "users_telegram_id_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "users_phone_number_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "users_discord_id_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "apps_user_database_status_idx";--> statement-breakpoint
+ALTER TABLE "organizations" ALTER COLUMN "credit_balance" SET DATA TYPE numeric(16, 6);--> statement-breakpoint
 ALTER TABLE "organizations" ALTER COLUMN "credit_balance" SET DEFAULT '100.000000';--> statement-breakpoint
 ALTER TABLE "organizations" ALTER COLUMN "auto_top_up_enabled" DROP NOT NULL;--> statement-breakpoint
 ALTER TABLE "organizations" ALTER COLUMN "auto_top_up_threshold" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "organizations" ALTER COLUMN "settings" DROP NOT NULL;--> statement-breakpoint
-ALTER TABLE "usage_records" ALTER COLUMN "input_cost" SET DATA TYPE numeric(12, 6);--> statement-breakpoint
+ALTER TABLE "usage_records" ALTER COLUMN "input_cost" SET DATA TYPE numeric(16, 6);--> statement-breakpoint
 ALTER TABLE "usage_records" ALTER COLUMN "input_cost" SET DEFAULT '0.000000';--> statement-breakpoint
-ALTER TABLE "usage_records" ALTER COLUMN "output_cost" SET DATA TYPE numeric(12, 6);--> statement-breakpoint
+ALTER TABLE "usage_records" ALTER COLUMN "output_cost" SET DATA TYPE numeric(16, 6);--> statement-breakpoint
 ALTER TABLE "usage_records" ALTER COLUMN "output_cost" SET DEFAULT '0.000000';--> statement-breakpoint
-ALTER TABLE "usage_records" ALTER COLUMN "markup" SET DATA TYPE numeric(12, 6);--> statement-breakpoint
+ALTER TABLE "usage_records" ALTER COLUMN "markup" SET DATA TYPE numeric(16, 6);--> statement-breakpoint
 ALTER TABLE "usage_records" ALTER COLUMN "markup" SET DEFAULT '0.000000';--> statement-breakpoint
-ALTER TABLE "credit_transactions" ALTER COLUMN "amount" SET DATA TYPE numeric(12, 6);--> statement-breakpoint
+ALTER TABLE "credit_transactions" ALTER COLUMN "amount" SET DATA TYPE numeric(16, 6);--> statement-breakpoint
 ALTER TABLE "apps" ALTER COLUMN "custom_pricing_enabled" DROP NOT NULL;--> statement-breakpoint
 ALTER TABLE "apps" ALTER COLUMN "inference_markup_percentage" SET DATA TYPE real;--> statement-breakpoint
 ALTER TABLE "apps" ALTER COLUMN "inference_markup_percentage" DROP NOT NULL;--> statement-breakpoint
@@ -196,65 +196,65 @@ ALTER TABLE "apps" ALTER COLUMN "user_database_region" DROP DEFAULT;--> statemen
 
 ALTER TABLE "apps" ADD COLUMN "email_notifications" boolean DEFAULT true;--> statement-breakpoint
 ALTER TABLE "apps" ADD COLUMN "response_notifications" boolean DEFAULT true;--> statement-breakpoint
-ALTER TABLE "organization_billing" ADD CONSTRAINT "organization_billing_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_config" ADD CONSTRAINT "organization_config_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_encryption_keys" ADD CONSTRAINT "organization_encryption_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_identities" ADD CONSTRAINT "user_identities_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'organization_billing_organization_id_organizations_id_fk') THEN ALTER TABLE "organization_billing" ADD CONSTRAINT "organization_billing_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'organization_config_organization_id_organizations_id_fk') THEN ALTER TABLE "organization_config" ADD CONSTRAINT "organization_config_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'organization_encryption_keys_organization_id_organizations_id_fk') THEN ALTER TABLE "organization_encryption_keys" ADD CONSTRAINT "organization_encryption_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_identities_user_id_users_id_fk') THEN ALTER TABLE "user_identities" ADD CONSTRAINT "user_identities_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_preferences_user_id_users_id_fk') THEN ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
 
-ALTER TABLE "app_config" ADD CONSTRAINT "app_config_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "app_billing" ADD CONSTRAINT "app_billing_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "app_databases" ADD CONSTRAINT "app_databases_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "org_billing_organization_idx" ON "organization_billing" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "org_billing_stripe_customer_idx" ON "organization_billing" USING btree ("stripe_customer_id");--> statement-breakpoint
-CREATE INDEX "org_billing_auto_top_up_enabled_idx" ON "organization_billing" USING btree ("auto_top_up_enabled");--> statement-breakpoint
-CREATE INDEX "org_config_organization_idx" ON "organization_config" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "org_encryption_keys_org_idx" ON "organization_encryption_keys" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "user_identities_user_idx" ON "user_identities" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "user_identities_privy_user_id_idx" ON "user_identities" USING btree ("privy_user_id");--> statement-breakpoint
-CREATE INDEX "user_identities_is_anonymous_idx" ON "user_identities" USING btree ("is_anonymous");--> statement-breakpoint
-CREATE INDEX "user_identities_anonymous_session_idx" ON "user_identities" USING btree ("anonymous_session_id");--> statement-breakpoint
-CREATE INDEX "user_identities_expires_at_idx" ON "user_identities" USING btree ("expires_at");--> statement-breakpoint
-CREATE INDEX "user_identities_telegram_id_idx" ON "user_identities" USING btree ("telegram_id");--> statement-breakpoint
-CREATE INDEX "user_identities_phone_number_idx" ON "user_identities" USING btree ("phone_number");--> statement-breakpoint
-CREATE INDEX "user_identities_discord_id_idx" ON "user_identities" USING btree ("discord_id");--> statement-breakpoint
-CREATE INDEX "user_identities_whatsapp_id_idx" ON "user_identities" USING btree ("whatsapp_id");--> statement-breakpoint
-CREATE INDEX "user_preferences_user_idx" ON "user_preferences" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "user_preferences_work_function_idx" ON "user_preferences" USING btree ("work_function");--> statement-breakpoint
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'app_config_app_id_apps_id_fk') THEN ALTER TABLE "app_config" ADD CONSTRAINT "app_config_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'app_billing_app_id_apps_id_fk') THEN ALTER TABLE "app_billing" ADD CONSTRAINT "app_billing_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'app_databases_app_id_apps_id_fk') THEN ALTER TABLE "app_databases" ADD CONSTRAINT "app_databases_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
+CREATE INDEX IF NOT EXISTS "org_billing_organization_idx" ON "organization_billing" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "org_billing_stripe_customer_idx" ON "organization_billing" USING btree ("stripe_customer_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "org_billing_auto_top_up_enabled_idx" ON "organization_billing" USING btree ("auto_top_up_enabled");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "org_config_organization_idx" ON "organization_config" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "org_encryption_keys_org_idx" ON "organization_encryption_keys" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_identities_user_idx" ON "user_identities" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_identities_privy_user_id_idx" ON "user_identities" USING btree ("privy_user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_identities_is_anonymous_idx" ON "user_identities" USING btree ("is_anonymous");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_identities_anonymous_session_idx" ON "user_identities" USING btree ("anonymous_session_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_identities_expires_at_idx" ON "user_identities" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_identities_telegram_id_idx" ON "user_identities" USING btree ("telegram_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_identities_phone_number_idx" ON "user_identities" USING btree ("phone_number");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_identities_discord_id_idx" ON "user_identities" USING btree ("discord_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_identities_whatsapp_id_idx" ON "user_identities" USING btree ("whatsapp_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_preferences_user_idx" ON "user_preferences" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_preferences_work_function_idx" ON "user_preferences" USING btree ("work_function");--> statement-breakpoint
 
-CREATE INDEX "app_config_app_idx" ON "app_config" USING btree ("app_id");--> statement-breakpoint
-CREATE INDEX "app_billing_app_idx" ON "app_billing" USING btree ("app_id");--> statement-breakpoint
-CREATE INDEX "app_databases_app_idx" ON "app_databases" USING btree ("app_id");--> statement-breakpoint
-CREATE INDEX "app_databases_status_idx" ON "app_databases" USING btree ("user_database_status");--> statement-breakpoint
-CREATE INDEX "users_privy_idx" ON "users" USING btree ("privy_user_id");--> statement-breakpoint
-CREATE INDEX "users_telegram_idx" ON "users" USING btree ("telegram_id");--> statement-breakpoint
-CREATE INDEX "users_discord_idx" ON "users" USING btree ("discord_id");--> statement-breakpoint
-CREATE INDEX "users_phone_idx" ON "users" USING btree ("phone_number");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "app_config_app_idx" ON "app_config" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "app_billing_app_idx" ON "app_billing" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "app_databases_app_idx" ON "app_databases" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "app_databases_status_idx" ON "app_databases" USING btree ("user_database_status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "users_privy_idx" ON "users" USING btree ("privy_user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "users_telegram_idx" ON "users" USING btree ("telegram_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "users_discord_idx" ON "users" USING btree ("discord_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "users_phone_idx" ON "users" USING btree ("phone_number");--> statement-breakpoint
 
-ALTER TABLE "organizations" DROP COLUMN "webhook_url";--> statement-breakpoint
-ALTER TABLE "organizations" DROP COLUMN "webhook_secret";--> statement-breakpoint
-ALTER TABLE "organizations" DROP COLUMN "tax_id_type";--> statement-breakpoint
-ALTER TABLE "organizations" DROP COLUMN "tax_id_value";--> statement-breakpoint
-ALTER TABLE "organizations" DROP COLUMN "billing_address";--> statement-breakpoint
-ALTER TABLE "organizations" DROP COLUMN "auto_top_up_subscription_id";--> statement-breakpoint
-ALTER TABLE "organizations" DROP COLUMN "max_api_requests";--> statement-breakpoint
-ALTER TABLE "organizations" DROP COLUMN "max_tokens_per_request";--> statement-breakpoint
-ALTER TABLE "organizations" DROP COLUMN "allowed_models";--> statement-breakpoint
-ALTER TABLE "organizations" DROP COLUMN "allowed_providers";--> statement-breakpoint
-ALTER TABLE "apps" DROP COLUMN "features_enabled";--> statement-breakpoint
-ALTER TABLE "apps" DROP COLUMN "rate_limit_per_minute";--> statement-breakpoint
-ALTER TABLE "apps" DROP COLUMN "rate_limit_per_hour";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "webhook_url";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "webhook_secret";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "tax_id_type";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "tax_id_value";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "billing_address";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "auto_top_up_subscription_id";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "max_api_requests";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "max_tokens_per_request";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "allowed_models";--> statement-breakpoint
+ALTER TABLE "organizations" DROP COLUMN IF EXISTS "allowed_providers";--> statement-breakpoint
+ALTER TABLE "apps" DROP COLUMN IF EXISTS "features_enabled";--> statement-breakpoint
+ALTER TABLE "apps" DROP COLUMN IF EXISTS "rate_limit_per_minute";--> statement-breakpoint
+ALTER TABLE "apps" DROP COLUMN IF EXISTS "rate_limit_per_hour";--> statement-breakpoint
 
-DROP TYPE "public"."reply_confirmation_status";--> statement-breakpoint
-DROP TYPE "public"."social_engagement_type";--> statement-breakpoint
-DROP TYPE "public"."domain_event_detected_by";--> statement-breakpoint
-DROP TYPE "public"."domain_event_severity";--> statement-breakpoint
-DROP TYPE "public"."domain_event_type";--> statement-breakpoint
-DROP TYPE "public"."org_agent_type";--> statement-breakpoint
-DROP TYPE "public"."org_checkin_frequency";--> statement-breakpoint
-DROP TYPE "public"."org_checkin_type";--> statement-breakpoint
-DROP TYPE "public"."org_platform_status";--> statement-breakpoint
-DROP TYPE "public"."org_platform_type";--> statement-breakpoint
-DROP TYPE "public"."org_todo_priority";--> statement-breakpoint
-DROP TYPE "public"."org_todo_status";--> statement-breakpoint
-DROP SCHEMA "n8n_workflow";
+DROP TYPE IF EXISTS "public"."reply_confirmation_status";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."social_engagement_type";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."domain_event_detected_by";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."domain_event_severity";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."domain_event_type";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."org_agent_type";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."org_checkin_frequency";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."org_checkin_type";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."org_platform_status";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."org_platform_type";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."org_todo_priority";--> statement-breakpoint
+DROP TYPE IF EXISTS "public"."org_todo_status";--> statement-breakpoint
+DROP SCHEMA IF EXISTS "n8n_workflow";
