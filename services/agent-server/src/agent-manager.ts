@@ -6,10 +6,8 @@ import {
   type IAgentRuntime,
   type Plugin,
   stringToUuid,
-  type UUID,
 } from "@elizaos/core";
 import sqlPlugin from "@elizaos/plugin-sql";
-import { v4 as uuidv4 } from "uuid";
 import { getRedis } from "./redis";
 
 interface AgentEntry {
@@ -130,7 +128,6 @@ export class AgentManager {
       } as Parameters<typeof rt.ensureConnection>[0]);
 
       const mem = createMessageMemory({
-        id: uuidv4() as UUID,
         entityId: uid,
         roomId,
         content: {
