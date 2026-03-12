@@ -210,22 +210,24 @@ export class UsersService {
 
     await usersRepository.upsertPrivyIdentity(userId, privyUserId);
 
+    const cacheDeletes = [
+      cache.del(CacheKeys.user.byPrivyId(privyUserId)),
+      cache.del(CacheKeys.user.byPrivyIdWithOrg(privyUserId)),
+    ];
+
     if (
       existingIdentity?.privy_user_id &&
       existingIdentity.privy_user_id !== privyUserId
     ) {
-      await Promise.all([
+      cacheDeletes.push(
         cache.del(CacheKeys.user.byPrivyId(existingIdentity.privy_user_id)),
         cache.del(
           CacheKeys.user.byPrivyIdWithOrg(existingIdentity.privy_user_id),
         ),
-      ]);
+      );
     }
 
-    const user = await usersRepository.findById(userId);
-    if (user) {
-      await this.invalidateCache(user);
-    }
+    await Promise.all(cacheDeletes);
   }
 
   async delete(id: string): Promise<void> {

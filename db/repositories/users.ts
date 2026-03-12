@@ -386,6 +386,8 @@ export class UsersRepository {
       WHERE u.id = ${userId}
       ON CONFLICT (user_id) DO UPDATE
       SET
+        -- Only Privy projection state is repaired here; other identity columns
+        -- remain as originally projected from the canonical users row.
         privy_user_id = EXCLUDED.privy_user_id,
         updated_at = NOW()
       RETURNING *
