@@ -284,6 +284,9 @@ export class DockerSandboxProvider implements SandboxProvider {
       AGENT_NAME: agentName,
       PORT: "2138",
       BRIDGE_PORT: "31337",
+      // Eliza server requires JWT_SECRET in production mode.
+      // Generate a unique per-container secret if the caller didn't provide one.
+      JWT_SECRET: environmentVars.JWT_SECRET || crypto.randomUUID(),
     };
 
     // Validate env var keys to prevent shell command injection via malformed keys
