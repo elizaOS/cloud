@@ -14,6 +14,8 @@
         "@aws-sdk/client-ecr": "^3.974.0",
         "@aws-sdk/client-kms": "^3.974.0",
         "@aws-sdk/middleware-host-header": "^3.972.7",
+        "@aws-sdk/middleware-logger": "^3.972.7",
+        "@babel/runtime": "^7.28.6",
         "@coinbase/x402": "^2.1.0",
         "@discordjs/rest": "^2.6.0",
         "@elevenlabs/elevenlabs-js": "^2.32.0",
