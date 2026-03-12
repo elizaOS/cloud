@@ -98,12 +98,50 @@ function watchServerExit(process: Subprocess): void {
   });
 }
 
-function stopServer(): void {
+async function waitForPortRelease(port: number, timeoutMs = 10_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const server = Bun.serve({ port, fetch: () => new Response("") });
+      server.stop(true);
+      return;
+    } catch {
+      await Bun.sleep(250);
+    }
+  }
+}
+
+async function stopServer(): Promise<void> {
   if (!startedServer || !serverProcess) return;
-  serverProcess.kill();
+  const proc = serverProcess;
   serverProcess = null;
   startedServer = false;
   serverStartupPromise = null;
+
+  // Kill the entire process group so child processes (webpack, etc.) also die
+  try {
+    process.kill(-proc.pid, "SIGKILL");
+  } catch {
+    // Process group kill failed — fall back to direct kill
+    try {
+      proc.kill(9);
+    } catch {
+      // already dead
+    }
+  }
+
+  // Wait for the process to actually exit
+  try {
+    await Promise.race([
+      proc.exited,
+      Bun.sleep(5_000),
+    ]);
+  } catch {
+    // ignore
+  }
+
+  // Wait for the port to be released
+  await waitForPortRelease(3000);
 }
 
 export async function ensureServer(): Promise<void> {
@@ -216,14 +254,17 @@ const fetchWithServer: typeof fetch = async (input, init) => {
 
 globalThis.fetch = fetchWithServer;
 
-process.on("exit", stopServer);
+process.on("exit", () => {
+  // Sync-only: forcefully kill the server process if still running
+  if (serverProcess) {
+    try { process.kill(-serverProcess.pid, "SIGKILL"); } catch { /* already dead */ }
+  }
+});
 process.on("SIGINT", () => {
-  stopServer();
-  process.exit(0);
+  void stopServer().finally(() => process.exit(0));
 });
 process.on("SIGTERM", () => {
-  stopServer();
-  process.exit(0);
+  void stopServer().finally(() => process.exit(0));
 });
 
 export const serverReady = ensureServer();
