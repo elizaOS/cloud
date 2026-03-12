@@ -2,6 +2,10 @@ name: Setup Test Environment
 description: Common setup for Bun-based test jobs with optional local services.
 
 inputs:
+  bun-version:
+    description: Bun version to install (pinned to avoid GitHub API rate-limit flakes).
+    required: false
+    default: "1.2"
   setup-db:
     description: Start postgres/redis and run migrations.
     required: false
@@ -11,6 +15,8 @@ runs:
   using: composite
   steps:
     - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ inputs.bun-version }}
 
     - name: Install dependencies
       shell: bash

@@ -1,11 +1,8 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import { users, type User, type NewUser } from "../schemas/users";
-import {
-  userIdentities,
-  type UserIdentity,
-} from "../schemas/user-identities";
-import { type Organization } from "../schemas/organizations";
+import { userIdentities, type UserIdentity } from "../schemas/user-identities";
+import { organizations, type Organization } from "../schemas/organizations";
 
 export type { User, NewUser };
 
@@ -46,24 +43,59 @@ export class UsersRepository {
   }
 
   /**
-   * Finds a user by Privy user ID with organization data (via identity table).
+   * Finds a user by Privy user ID with organization data.
+   * Prefer the identity projection, which is the steady-state auth lookup,
+   * but fall back to the legacy users column while backfill or projection
+   * repair may still be catching up.
    */
   async findByPrivyIdWithOrganization(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const identity = await dbRead.query.userIdentities.findFirst({
-      where: eq(userIdentities.privy_user_id, privyUserId),
-    });
-    if (!identity) return undefined;
+    return this.findByPrivyIdWithOrganizationUsingDb(dbRead, privyUserId);
+  }
 
-    const user = await dbRead.query.users.findFirst({
-      where: eq(users.id, identity.user_id),
+  /**
+   * Finds a user by Privy user ID with organization data from primary.
+   * Use after writes when replica lag could hide the just-written identity row.
+   * On primary, prefer the canonical users column first so stale projection rows
+   * do not shadow the just-written auth state during create or link flows.
+   * This is safe because those flows write users.privy_user_id immediately and
+   * only treat projection conflicts as recovered after separately verifying the
+   * primary projection row ownership.
+   */
+  async findByPrivyIdWithOrganizationForWrite(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await dbWrite.query.users.findFirst({
+      where: eq(users.privy_user_id, privyUserId),
       with: {
         organization: true,
       },
     });
 
-    return user as UserWithOrganization | undefined;
+    if (user) {
+      return user as UserWithOrganization | undefined;
+    }
+
+    const [identityLinkedUser] = await dbWrite
+      .select({
+        user: users,
+        organization: organizations,
+      })
+      .from(userIdentities)
+      .innerJoin(users, eq(users.id, userIdentities.user_id))
+      .leftJoin(organizations, eq(organizations.id, users.organization_id))
+      .where(eq(userIdentities.privy_user_id, privyUserId))
+      .limit(1);
+
+    if (!identityLinkedUser) {
+      return undefined;
+    }
+
+    return {
+      ...identityLinkedUser.user,
+      organization: identityLinkedUser.organization,
+    };
   }
 
   /**
@@ -253,6 +285,135 @@ export class UsersRepository {
       .where(eq(users.id, id))
       .returning();
     return updated;
+  }
+
+  /**
+   * Finds the identity projection row for a user from primary.
+   * Use after writes when replica lag could return a stale identity row.
+   */
+  async findIdentityByUserIdForWrite(
+    userId: string,
+  ): Promise<UserIdentity | undefined> {
+    return await dbWrite.query.userIdentities.findFirst({
+      where: eq(userIdentities.user_id, userId),
+    });
+  }
+
+  /**
+   * Finds the identity projection row for a Privy user ID from primary.
+   * Use when recovery must verify the projection row ownership directly.
+   */
+  async findIdentityByPrivyIdForWrite(
+    privyUserId: string,
+  ): Promise<UserIdentity | undefined> {
+    return await dbWrite.query.userIdentities.findFirst({
+      where: eq(userIdentities.privy_user_id, privyUserId),
+    });
+  }
+
+  private async findByPrivyIdWithOrganizationUsingDb(
+    database: typeof dbRead,
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const [identityLinkedUser] = await database
+      .select({
+        user: users,
+        organization: organizations,
+      })
+      .from(userIdentities)
+      .innerJoin(users, eq(users.id, userIdentities.user_id))
+      .leftJoin(organizations, eq(organizations.id, users.organization_id))
+      .where(eq(userIdentities.privy_user_id, privyUserId))
+      .limit(1);
+
+    if (identityLinkedUser) {
+      return {
+        ...identityLinkedUser.user,
+        organization: identityLinkedUser.organization,
+      };
+    }
+
+    const user = await database.query.users.findFirst({
+      where: eq(users.privy_user_id, privyUserId),
+      with: {
+        organization: true,
+      },
+    });
+
+    return user as UserWithOrganization | undefined;
+  }
+
+  /**
+   * Upserts the Privy identity projection for a user.
+   */
+  async upsertPrivyIdentity(
+    userId: string,
+    privyUserId: string,
+  ): Promise<UserIdentity> {
+    // UserIdentity uses the table's snake_case column names, so the raw RETURNING
+    // payload shape matches the inferred Drizzle select type here.
+    const result = await dbWrite.execute<UserIdentity>(sql`
+      INSERT INTO ${userIdentities} (
+        user_id,
+        privy_user_id,
+        is_anonymous,
+        anonymous_session_id,
+        expires_at,
+        telegram_id,
+        telegram_username,
+        telegram_first_name,
+        telegram_photo_url,
+        phone_number,
+        phone_verified,
+        discord_id,
+        discord_username,
+        discord_global_name,
+        discord_avatar_url,
+        whatsapp_id,
+        whatsapp_name
+      )
+      SELECT
+        ${userId},
+        ${privyUserId},
+        u.is_anonymous,
+        u.anonymous_session_id,
+        u.expires_at,
+        u.telegram_id,
+        u.telegram_username,
+        u.telegram_first_name,
+        u.telegram_photo_url,
+        u.phone_number,
+        u.phone_verified,
+        u.discord_id,
+        u.discord_username,
+        u.discord_global_name,
+        u.discord_avatar_url,
+        u.whatsapp_id,
+        u.whatsapp_name
+      FROM ${users} u
+      WHERE u.id = ${userId}
+      ON CONFLICT (user_id) DO UPDATE
+      SET
+        -- The conflict target is the per-user projection row, not the global
+        -- privy_user_id unique constraint. If a different user already owns this
+        -- privy_user_id, Postgres still raises user_identities_privy_user_id_unique
+        -- and the caller decides whether recovery is safe.
+        -- Only Privy projection state is repaired here; other identity columns
+        -- remain as originally projected from the canonical users row.
+        privy_user_id = EXCLUDED.privy_user_id,
+        updated_at = NOW()
+      RETURNING *
+    `);
+
+    const [identity] = result.rows;
+
+    if (!identity) {
+      throw new Error(
+        `User ${userId} not found while upserting Privy identity ${privyUserId}`,
+      );
+    }
+
+    return identity;
   }
 
   /**

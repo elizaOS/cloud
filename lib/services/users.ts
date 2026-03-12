@@ -87,6 +87,32 @@ export class UsersService {
     return user;
   }
 
+  async getByPrivyIdForWrite(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await usersRepository.findByPrivyIdWithOrganizationForWrite(
+      privyUserId,
+    );
+    if (user) {
+      await Promise.all([
+        cache.set(CacheKeys.user.byPrivyId(privyUserId), user, CacheTTL.user.byPrivyId),
+        cache.set(
+          CacheKeys.user.byPrivyIdWithOrg(privyUserId),
+          user,
+          CacheTTL.user.byPrivyIdWithOrg,
+        ),
+      ]);
+      logger.debug("[UsersService] Cached user data by privyId from primary");
+    }
+    return user;
+  }
+
+  async getPrivyIdentityForWrite(
+    privyUserId: string,
+  ): Promise<{ user_id: string; privy_user_id: string | null } | undefined> {
+    return await usersRepository.findIdentityByPrivyIdForWrite(privyUserId);
+  }
+
   async getWithOrganization(
     userId: string,
   ): Promise<UserWithOrganization | undefined> {
@@ -173,6 +199,42 @@ export class UsersService {
       await this.invalidateCache(result);
     }
     return result;
+  }
+
+  async upsertPrivyIdentity(
+    userId: string,
+    privyUserId: string,
+  ): Promise<void> {
+    const existingIdentity =
+      await usersRepository.findIdentityByUserIdForWrite(userId);
+
+    // Existing authenticated users hit this path on every Privy-backed request.
+    // Once the projection already points at the canonical Privy ID, skip the
+    // write and cache churn. Missing rows or mismatched IDs still repair below.
+    if (existingIdentity?.privy_user_id === privyUserId) {
+      return;
+    }
+
+    await usersRepository.upsertPrivyIdentity(userId, privyUserId);
+
+    const cacheDeletes = [
+      cache.del(CacheKeys.user.byPrivyId(privyUserId)),
+      cache.del(CacheKeys.user.byPrivyIdWithOrg(privyUserId)),
+    ];
+
+    if (
+      existingIdentity?.privy_user_id &&
+      existingIdentity.privy_user_id !== privyUserId
+    ) {
+      cacheDeletes.push(
+        cache.del(CacheKeys.user.byPrivyId(existingIdentity.privy_user_id)),
+        cache.del(
+          CacheKeys.user.byPrivyIdWithOrg(existingIdentity.privy_user_id),
+        ),
+      );
+    }
+
+    await Promise.all(cacheDeletes);
   }
 
   async delete(id: string): Promise<void> {
