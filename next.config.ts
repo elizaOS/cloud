@@ -175,6 +175,16 @@ const nextConfig: NextConfig = {
     "isomorphic-dompurify",
     // ssh2 ships non-ECMAScript assets that Turbopack cannot place into ESM chunks
     "ssh2",
+    // AWS SDK middleware has deep transitive deps that Turbopack can't resolve
+    "@aws-sdk/client-kms",
+    "@aws-sdk/client-ecr",
+    "@aws-sdk/client-cloudwatch-logs",
+    // highlight.js / react-syntax-highlighter have bundling issues with c-like lang
+    "highlight.js",
+    "react-syntax-highlighter",
+    // xyflow depends on classcat + other ESM-only packages that need native resolution
+    "@xyflow/react",
+    "@xyflow/system",
     // NOTE: pino and thread-stream are NOT external - they get bundled with
     // the thread-stream alias to our synchronous stub, preventing dynamic
     // worker module loading (pino-28069d5257187539) that fails in serverless
