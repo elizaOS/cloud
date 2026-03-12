@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import { users, type User, type NewUser } from "../schemas/users";
 import { userIdentities, type UserIdentity } from "../schemas/user-identities";
@@ -13,6 +13,18 @@ export interface UserWithOrganization extends User {
   organization: Organization | null;
 }
 
+type CompatibleUserWithoutWhatsApp = Omit<
+  User,
+  "whatsapp_id" | "whatsapp_name"
+>;
+type CompatibleUserRow = CompatibleUserWithoutWhatsApp & {
+  whatsapp_id?: User["whatsapp_id"];
+  whatsapp_name?: User["whatsapp_name"];
+};
+
+// NOTE: keep this in sync with db/schemas/users.ts. Auth-path compatibility
+// reads intentionally avoid selecting users.whatsapp_* when older deployments
+// have not run that migration yet.
 const COMPATIBLE_USER_SELECT = {
   id: users.id,
   email: users.email,
@@ -59,13 +71,6 @@ type WhatsAppColumnSupport = {
   userIdentities: boolean;
 };
 
-let readWhatsAppColumnSupportPromise:
-  | Promise<WhatsAppColumnSupport>
-  | undefined;
-let writeWhatsAppColumnSupportPromise:
-  | Promise<WhatsAppColumnSupport>
-  | undefined;
-
 /**
  * Repository for user database operations.
  *
@@ -73,6 +78,17 @@ let writeWhatsAppColumnSupportPromise:
  * Write operations → dbWrite (primary)
  */
 export class UsersRepository {
+  private static readWhatsAppColumnSupportPromise:
+    | Promise<WhatsAppColumnSupport>
+    | undefined;
+  private static writeWhatsAppColumnSupportPromise:
+    | Promise<WhatsAppColumnSupport>
+    | undefined;
+
+  static resetWhatsAppColumnSupportCacheForTests(): void {
+    UsersRepository.readWhatsAppColumnSupportPromise = undefined;
+    UsersRepository.writeWhatsAppColumnSupportPromise = undefined;
+  }
   // ============================================================================
   // READ OPERATIONS (use read replica)
   // ============================================================================
@@ -353,6 +369,57 @@ export class UsersRepository {
   }
 
   /**
+   * Refreshes WhatsApp projection fields from the canonical users row.
+   * This is used on the same-Privy-ID fast path so WhatsApp relinks do not
+   * require a full projection rewrite on every authenticated request.
+   */
+  async refreshWhatsAppProjectionForWrite(userId: string): Promise<void> {
+    const support = await this.getWhatsAppColumnSupport(dbWrite, "write");
+
+    if (!support.users || !support.userIdentities) {
+      return;
+    }
+
+    const [canonicalIdentity] = await dbWrite
+      .select({
+        whatsapp_id: users.whatsapp_id,
+        whatsapp_name: users.whatsapp_name,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!canonicalIdentity) {
+      return;
+    }
+
+    if (canonicalIdentity.whatsapp_id) {
+      const conflictingProjection =
+        await dbWrite.query.userIdentities.findFirst({
+          where: and(
+            eq(userIdentities.whatsapp_id, canonicalIdentity.whatsapp_id),
+            ne(userIdentities.user_id, userId),
+          ),
+        });
+
+      if (conflictingProjection) {
+        return;
+      }
+    }
+
+    await dbWrite
+      .update(userIdentities)
+      .set({
+        whatsapp_id: canonicalIdentity.whatsapp_id ?? null,
+        whatsapp_name: canonicalIdentity.whatsapp_id
+          ? (canonicalIdentity.whatsapp_name ?? null)
+          : null,
+        updated_at: new Date(),
+      })
+      .where(eq(userIdentities.user_id, userId));
+  }
+
+  /**
    * Finds the identity projection row for a Privy user ID from primary.
    * Use when recovery must verify the projection row ownership directly.
    */
@@ -399,8 +466,8 @@ export class UsersRepository {
   ): Promise<WhatsAppColumnSupport> {
     const cachedPromise =
       databaseRole === "read"
-        ? readWhatsAppColumnSupportPromise
-        : writeWhatsAppColumnSupportPromise;
+        ? UsersRepository.readWhatsAppColumnSupportPromise
+        : UsersRepository.writeWhatsAppColumnSupportPromise;
 
     if (cachedPromise) {
       return await cachedPromise;
@@ -442,18 +509,18 @@ export class UsersRepository {
 
     const cachedSupportPromise = supportPromise.catch((error) => {
       if (databaseRole === "read") {
-        readWhatsAppColumnSupportPromise = undefined;
+        UsersRepository.readWhatsAppColumnSupportPromise = undefined;
       } else {
-        writeWhatsAppColumnSupportPromise = undefined;
+        UsersRepository.writeWhatsAppColumnSupportPromise = undefined;
       }
 
       throw error;
     });
 
     if (databaseRole === "read") {
-      readWhatsAppColumnSupportPromise = cachedSupportPromise;
+      UsersRepository.readWhatsAppColumnSupportPromise = cachedSupportPromise;
     } else {
-      writeWhatsAppColumnSupportPromise = cachedSupportPromise;
+      UsersRepository.writeWhatsAppColumnSupportPromise = cachedSupportPromise;
     }
 
     return await cachedSupportPromise;
@@ -473,11 +540,11 @@ export class UsersRepository {
   }
 
   private normalizeCompatibleUser(
-    user: Partial<User>,
+    user: CompatibleUserRow,
     hasUsersWhatsAppColumns: boolean,
   ): User {
     return {
-      ...(user as User),
+      ...user,
       whatsapp_id: hasUsersWhatsAppColumns ? (user.whatsapp_id ?? null) : null,
       whatsapp_name: hasUsersWhatsAppColumns
         ? (user.whatsapp_name ?? null)
@@ -509,7 +576,7 @@ export class UsersRepository {
 
     return await this.attachOrganization(
       database,
-      this.normalizeCompatibleUser(user as Partial<User>, support.users),
+      this.normalizeCompatibleUser(user as CompatibleUserRow, support.users),
     );
   }
 
@@ -537,7 +604,7 @@ export class UsersRepository {
 
     return await this.attachOrganization(
       database,
-      this.normalizeCompatibleUser(user as Partial<User>, support.users),
+      this.normalizeCompatibleUser(user as CompatibleUserRow, support.users),
     );
   }
 
@@ -627,8 +694,9 @@ export class UsersRepository {
         -- privy_user_id unique constraint. If a different user already owns this
         -- privy_user_id, Postgres still raises user_identities_privy_user_id_unique
         -- and the caller decides whether recovery is safe.
-        -- Only Privy projection state is repaired here; other identity columns
-        -- remain as originally projected from the canonical users row.
+        -- Keep unique cross-account identities on their existing rows here.
+        -- WhatsApp refresh happens separately on a guarded primary-only path so
+        -- projection repair does not introduce new unique-key failure modes.
         privy_user_id = EXCLUDED.privy_user_id,
         updated_at = NOW()
       RETURNING *

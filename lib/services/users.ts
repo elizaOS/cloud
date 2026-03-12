@@ -252,13 +252,21 @@ export class UsersService {
       await usersRepository.findIdentityByUserIdForWrite(userId);
 
     // Existing authenticated users hit this path on every Privy-backed request.
-    // Once the projection already points at the canonical Privy ID, skip the
-    // write and cache churn. Missing rows or mismatched IDs still repair below.
+    // Once the projection already points at the canonical Privy ID, avoid the
+    // full upsert, but still refresh guarded WhatsApp projection fields so
+    // relinks do not leave stale identity data behind.
     if (existingIdentity?.privy_user_id === privyUserId) {
+      await usersRepository.refreshWhatsAppProjectionForWrite(userId);
+
+      await Promise.all([
+        cache.del(CacheKeys.user.byPrivyId(privyUserId)),
+        cache.del(CacheKeys.user.byPrivyIdWithOrg(privyUserId)),
+      ]);
       return;
     }
 
     await usersRepository.upsertPrivyIdentity(userId, privyUserId);
+    await usersRepository.refreshWhatsAppProjectionForWrite(userId);
 
     const cacheDeletes = [
       cache.del(CacheKeys.user.byPrivyId(privyUserId)),

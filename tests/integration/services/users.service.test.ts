@@ -25,6 +25,9 @@ import {
   beforeEach,
 } from "bun:test";
 import { v4 as uuidv4 } from "uuid";
+import { eq } from "drizzle-orm";
+import { dbWrite } from "@/db/helpers";
+import { userIdentities } from "@/db/schemas/user-identities";
 import { usersService } from "@/lib/services/users";
 import { organizationsService } from "@/lib/services/organizations";
 import {
@@ -234,6 +237,35 @@ describe("UsersService", () => {
 
       const previousLookup = await usersService.getByPrivyId(firstPrivyId);
       expect(previousLookup).toBeUndefined();
+
+      await cleanupTestData(connectionString, testData.organization.id);
+    });
+
+    test("refreshes WhatsApp projection fields on re-upsert", async () => {
+      const privyId = `did:privy:${uuidv4()}`;
+      const firstWhatsAppId = `wa-${uuidv4()}`;
+      const secondWhatsAppId = `wa-${uuidv4()}`;
+
+      await usersService.update(testData.user.id, {
+        privy_user_id: privyId,
+        whatsapp_id: firstWhatsAppId,
+        whatsapp_name: "First WhatsApp",
+      });
+      await usersService.upsertPrivyIdentity(testData.user.id, privyId);
+
+      await usersService.update(testData.user.id, {
+        whatsapp_id: secondWhatsAppId,
+        whatsapp_name: "Second WhatsApp",
+      });
+      await usersService.upsertPrivyIdentity(testData.user.id, privyId);
+
+      const identity = await dbWrite.query.userIdentities.findFirst({
+        where: eq(userIdentities.user_id, testData.user.id),
+      });
+
+      expect(identity).toBeDefined();
+      expect(identity?.whatsapp_id).toBe(secondWhatsAppId);
+      expect(identity?.whatsapp_name).toBe("Second WhatsApp");
 
       await cleanupTestData(connectionString, testData.organization.id);
     });

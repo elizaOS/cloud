@@ -1,6 +1,9 @@
 /**
- * Regression test: Privy read-path hydration remains compatible with the
+ * Regression test: Privy lookup hydration remains compatible with the
  * relational Drizzle query shape used throughout the user auth flow.
+ *
+ * These assertions intentionally read from primary because they verify the
+ * post-write hydrated shape, not replica propagation timing.
  */
 import {
   describe,
@@ -13,7 +16,7 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import { eq } from "drizzle-orm";
 import { usersService } from "@/lib/services/users";
-import { dbRead } from "@/db/helpers";
+import { dbWrite } from "@/db/helpers";
 import { users } from "@/db/schemas/users";
 import {
   createTestDataSet,
@@ -55,10 +58,10 @@ describe("Privy read-path regression (5c31c7732)", () => {
     await usersService.update(testData.user.id, { privy_user_id: privyId });
     await usersService.upsertPrivyIdentity(testData.user.id, privyId);
 
-    const serviceUser = await usersService.getByPrivyId(privyId);
+    const serviceUser = await usersService.getByPrivyIdForWrite(privyId);
     expect(serviceUser).toBeDefined();
 
-    const relationalUser = await dbRead.query.users.findFirst({
+    const relationalUser = await dbWrite.query.users.findFirst({
       where: eq(users.id, testData.user.id),
       with: { organization: true },
     });
@@ -97,13 +100,13 @@ describe("Privy read-path regression (5c31c7732)", () => {
 
     await usersService.upsertPrivyIdentity(detachedUser.id, privyId);
 
-    const serviceUser = await usersService.getByPrivyId(privyId);
+    const serviceUser = await usersService.getByPrivyIdForWrite(privyId);
     expect(serviceUser).toBeDefined();
     expect(serviceUser!.id).toBe(detachedUser.id);
     expect(serviceUser!.organization_id).toBeNull();
     expect(serviceUser!.organization).toBeNull();
 
-    const relationalUser = await dbRead.query.users.findFirst({
+    const relationalUser = await dbWrite.query.users.findFirst({
       where: eq(users.id, detachedUser.id),
       with: { organization: true },
     });
@@ -118,7 +121,7 @@ describe("Privy read-path regression (5c31c7732)", () => {
     await usersService.update(testData.user.id, { privy_user_id: privyId });
     await usersService.upsertPrivyIdentity(testData.user.id, privyId);
 
-    const user = await usersService.getByPrivyId(privyId);
+    const user = await usersService.getByPrivyIdForWrite(privyId);
     expect(user).toBeDefined();
 
     expect(user!.id).toBeDefined();
