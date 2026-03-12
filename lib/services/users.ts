@@ -208,6 +208,13 @@ export class UsersService {
     const existingIdentity =
       await usersRepository.findIdentityByUserIdForWrite(userId);
 
+    // Existing authenticated users hit this path on every Privy-backed request.
+    // Once the projection already points at the canonical Privy ID, skip the
+    // write and cache churn. Missing rows or mismatched IDs still repair below.
+    if (existingIdentity?.privy_user_id === privyUserId) {
+      return;
+    }
+
     await usersRepository.upsertPrivyIdentity(userId, privyUserId);
 
     const cacheDeletes = [

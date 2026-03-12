@@ -149,6 +149,32 @@ async function rollbackCreatedUserSafely(
   }
 }
 
+async function restorePreviousPrivyUserIdSafely(
+  userId: string,
+  previousPrivyUserId: string | null | undefined,
+  originalError: unknown,
+): Promise<void> {
+  try {
+    await usersService.update(userId, {
+      privy_user_id: previousPrivyUserId,
+      updated_at: new Date(),
+    });
+  } catch (rollbackError) {
+    logger.error("[PrivySync] Failed to restore previous Privy user ID", {
+      userId,
+      previousPrivyUserId,
+      originalError:
+        originalError instanceof Error
+          ? originalError.message
+          : String(originalError),
+      rollbackError:
+        rollbackError instanceof Error
+          ? rollbackError.message
+          : String(rollbackError),
+    });
+  }
+}
+
 /**
  * Generates a unique organization slug from an email address.
  *
@@ -432,10 +458,11 @@ export async function syncUserFromPrivy(
       try {
         await usersService.upsertPrivyIdentity(existingByEmail.id, privyUserId);
       } catch (error) {
-        await usersService.update(existingByEmail.id, {
-          privy_user_id: previousPrivyUserId,
-          updated_at: new Date(),
-        });
+        await restorePreviousPrivyUserIdSafely(
+          existingByEmail.id,
+          previousPrivyUserId,
+          error,
+        );
         throw error;
       }
 

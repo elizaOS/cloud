@@ -315,19 +315,22 @@ export class UsersRepository {
     database: typeof dbRead,
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const identity = await database.query.userIdentities.findFirst({
-      where: eq(userIdentities.privy_user_id, privyUserId),
-    });
+    const [identityLinkedUser] = await database
+      .select({
+        user: users,
+        organization: organizations,
+      })
+      .from(userIdentities)
+      .innerJoin(users, eq(users.id, userIdentities.user_id))
+      .leftJoin(organizations, eq(organizations.id, users.organization_id))
+      .where(eq(userIdentities.privy_user_id, privyUserId))
+      .limit(1);
 
-    if (identity) {
-      const user = await database.query.users.findFirst({
-        where: eq(users.id, identity.user_id),
-        with: {
-          organization: true,
-        },
-      });
-
-      return user as UserWithOrganization | undefined;
+    if (identityLinkedUser) {
+      return {
+        ...identityLinkedUser.user,
+        organization: identityLinkedUser.organization,
+      };
     }
 
     const user = await database.query.users.findFirst({
@@ -347,6 +350,8 @@ export class UsersRepository {
     userId: string,
     privyUserId: string,
   ): Promise<UserIdentity> {
+    // UserIdentity uses the table's snake_case column names, so the raw RETURNING
+    // payload shape matches the inferred Drizzle select type here.
     const result = await dbWrite.execute<UserIdentity>(sql`
       INSERT INTO ${userIdentities} (
         user_id,

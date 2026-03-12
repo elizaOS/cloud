@@ -34,6 +34,16 @@ function makeUniqueViolationError(
   });
 }
 
+function readMigrationFixture(relativePath: string): string {
+  try {
+    return readFileSync(new URL(relativePath, import.meta.url), "utf8");
+  } catch (error) {
+    throw new Error(
+      `Failed to load migration fixture ${relativePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 mock.module("@/lib/services/users", () => ({
   usersService: {
     getByPrivyId: mockGetByPrivyId,
@@ -292,6 +302,59 @@ describe("syncUserFromPrivy", () => {
       }),
     );
     expect(mockGetByPrivyIdForWrite).not.toHaveBeenCalled();
+  });
+
+  test("preserves the original account-link error when rollback update fails", async () => {
+    const existingUser = {
+      id: "user-existing",
+      privy_user_id: "did:privy:old-user",
+      email: "link@example.com",
+      organization_id: "org-existing",
+      organization: {
+        id: "org-existing",
+        name: "Existing Org",
+      },
+    };
+
+    mockGetByPrivyId.mockResolvedValueOnce(undefined);
+    mockGetByEmailWithOrganization.mockResolvedValue(existingUser);
+    mockUpdateUser
+      .mockResolvedValueOnce({
+        ...existingUser,
+        privy_user_id: "did:privy:new-user",
+      })
+      .mockRejectedValueOnce(new Error("rollback update failed"));
+    mockUpsertPrivyIdentity.mockRejectedValue(
+      makeUniqueViolationError(
+        'duplicate key value violates unique constraint "user_identities_privy_user_id_unique"',
+        "user_identities_privy_user_id_unique",
+      ),
+    );
+
+    const { syncUserFromPrivy } = await import("@/lib/privy-sync");
+
+    await expect(
+      syncUserFromPrivy({
+        id: "did:privy:new-user",
+        email: { address: "link@example.com" },
+        linkedAccounts: [],
+      } as never),
+    ).rejects.toThrow("user_identities_privy_user_id_unique");
+
+    expect(mockUpdateUser).toHaveBeenNthCalledWith(
+      1,
+      "user-existing",
+      expect.objectContaining({
+        privy_user_id: "did:privy:new-user",
+      }),
+    );
+    expect(mockUpdateUser).toHaveBeenNthCalledWith(
+      2,
+      "user-existing",
+      expect.objectContaining({
+        privy_user_id: "did:privy:old-user",
+      }),
+    );
   });
 
   test("rolls back invited user creation when identity upsert fails", async () => {
@@ -593,13 +656,11 @@ describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "
   "0049/0050 user identity backfill migrations",
   () => {
     test("repairs chained stale Privy claims without changing unrelated identity fields", async () => {
-      const repairExistingClaimsSql = readFileSync(
-        new URL("../../db/migrations/0049_repair_existing_user_identity_privy_claims.sql", import.meta.url),
-        "utf8",
+      const repairExistingClaimsSql = readMigrationFixture(
+        "../../db/migrations/0049_repair_existing_user_identity_privy_claims.sql",
       );
-      const backfillMissingIdentitiesSql = readFileSync(
-        new URL("../../db/migrations/0050_backfill_user_identities_from_users.sql", import.meta.url),
-        "utf8",
+      const backfillMissingIdentitiesSql = readMigrationFixture(
+        "../../db/migrations/0050_backfill_user_identities_from_users.sql",
       );
       const client = new Client({
         connectionString: process.env.DATABASE_URL,
@@ -608,6 +669,8 @@ describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "
       await client.connect();
 
       try {
+        // These temp tables intentionally shadow the real table names for this
+        // session only. This test must never point DATABASE_URL at production.
         await client.query(`
           CREATE TEMP TABLE "users" (
             "id" uuid PRIMARY KEY,

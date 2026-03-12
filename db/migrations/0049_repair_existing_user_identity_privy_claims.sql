@@ -1,8 +1,9 @@
 -- Migration: Repair stale Privy claims on existing user_identities rows
 -- Purpose: Clear stale claims and reassign safe ones atomically in one statement
--- Note: Later CTEs in this statement intentionally observe earlier CTE writes.
--- PostgreSQL makes the NULLed claims from nulled_existing_privy_repairs visible
--- to the NOT EXISTS checks below, so stale chains can settle in one pass.
+-- Note: PostgreSQL CTEs are snapshot-based, so the NOT EXISTS check below does
+-- not observe the NULLs written by nulled_existing_privy_repairs directly.
+-- Correctness comes from excluding rows that are themselves in the repair set
+-- via the LEFT JOIN existing_privy_repairs ... IS NULL filter.
 
 WITH existing_privy_repairs AS (
   SELECT
