@@ -118,6 +118,27 @@ const nextConfig: NextConfig = {
     },
   },
   webpack: (config, { isServer }) => {
+    // react-syntax-highlighter (via @elizaos/ui) dynamically imports highlight.js
+    // languages, refractor grammars, and lowlight modules. Many are removed/renamed
+    // in newer versions or not installed (bun hoisting issue). Suppress these —
+    // they're client-side syntax highlighting features that don't affect server routes.
+    const webpack = require("webpack");
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        // Ignore missing highlight.js language files (c-like, htmlbars, sql_more removed in v11)
+        resourceRegExp: /^highlight\.js\/lib\/languages\/(c-like|htmlbars|sql_more)$/,
+      }),
+      new webpack.IgnorePlugin({
+        // Ignore refractor grammar imports — refractor isn't installed
+        resourceRegExp: /^refractor\b/,
+        contextRegExp: /react-syntax-highlighter/,
+      }),
+      new webpack.IgnorePlugin({
+        // Ignore lowlight imports — lowlight isn't installed
+        resourceRegExp: /^lowlight\b/,
+        contextRegExp: /react-syntax-highlighter/,
+      }),
+    );
     if (isServer) {
       // Resolve thread-stream to synchronous stub in production webpack builds
       // This prevents pino from creating dynamic worker modules like pino-28069d5257187539
@@ -188,6 +209,16 @@ const nextConfig: NextConfig = {
     // NOTE: pino and thread-stream are NOT external - they get bundled with
     // the thread-stream alias to our synchronous stub, preventing dynamic
     // worker module loading (pino-28069d5257187539) that fails in serverless
+    // redis v4 sub-packages (@redis/*) are nested inside bun's .bun directory
+    // and webpack can't resolve them
+    "redis",
+    // telegraf has deep transitive deps (sandwich-stream, etc.) that bun
+    // doesn't hoist for webpack
+    "telegraf",
+    // @sendgrid packages have transitive deps (deepmerge, etc.)
+    "@sendgrid/mail",
+    "@sendgrid/client",
+    "@sendgrid/helpers",
   ],
 
   async headers() {

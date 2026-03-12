@@ -159,6 +159,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "decimal.js": "^10.6.0",
+    "deepmerge": "^4.3.1",
     "discord-api-types": "^0.38.37",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",

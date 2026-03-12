@@ -8,7 +8,7 @@ const STARTUP_TIMEOUT_MS = 120_000;
 const HEALTHCHECK_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 500;
 const MANAGED_FETCH_RETRIES = 4;
-const TEST_SERVER_SCRIPT = process.env.TEST_SERVER_SCRIPT || "dev:local";
+const TEST_SERVER_SCRIPT = process.env.TEST_SERVER_SCRIPT || "dev";
 const baseFetch: typeof fetch = globalThis.fetch.bind(globalThis);
 
 let serverProcess: Subprocess | null = null;
@@ -112,40 +112,45 @@ async function waitForPortRelease(port: number, timeoutMs = 10_000): Promise<voi
 }
 
 async function stopServer(): Promise<void> {
-  if (!startedServer || !serverProcess) return;
   const proc = serverProcess;
   serverProcess = null;
   startedServer = false;
   serverStartupPromise = null;
+  serverExitError = null;
 
-  // Kill the entire process group so child processes (webpack, etc.) also die
-  try {
-    process.kill(-proc.pid, "SIGKILL");
-  } catch {
-    // Process group kill failed — fall back to direct kill
+  if (proc) {
+    // Kill the entire process group so child processes (webpack, etc.) also die
     try {
-      proc.kill(9);
+      process.kill(-proc.pid, "SIGKILL");
     } catch {
-      // already dead
+      // Process group kill failed — fall back to direct kill
+      try {
+        proc.kill(9);
+      } catch {
+        // already dead
+      }
+    }
+
+    // Wait for the process to actually exit
+    try {
+      await Promise.race([
+        proc.exited,
+        Bun.sleep(5_000),
+      ]);
+    } catch {
+      // ignore
     }
   }
 
-  // Wait for the process to actually exit
-  try {
-    await Promise.race([
-      proc.exited,
-      Bun.sleep(5_000),
-    ]);
-  } catch {
-    // ignore
-  }
-
-  // Wait for the port to be released
+  // Always wait for the port to be released, even without a process —
+  // something else may still hold the port.
   await waitForPortRelease(3000);
 }
 
 export async function ensureServer(): Promise<void> {
   if (await isServerRunning()) {
+    // Server is already responding to health checks — clear any stale error.
+    serverExitError = null;
     return;
   }
 
@@ -156,8 +161,17 @@ export async function ensureServer(): Promise<void> {
 
   serverStartupPromise = (async () => {
     if (await isServerRunning()) {
+      serverExitError = null;
       return;
     }
+
+    // If a previous server process is lingering, clean it up first.
+    if (serverProcess || serverExitError) {
+      await stopServer();
+    }
+
+    // Ensure the port is free before spawning.
+    await waitForPortRelease(3000);
 
     startedServer = true;
     serverExitError = null;
@@ -178,7 +192,7 @@ export async function ensureServer(): Promise<void> {
     try {
       await waitForServer(STARTUP_TIMEOUT_MS);
     } catch (error) {
-      stopServer();
+      await stopServer();
       throw error;
     }
   })();
@@ -219,7 +233,8 @@ function isRecoverableServerError(error: unknown): boolean {
     message.includes("ConnectionRefused") ||
     message.includes("Unable to connect") ||
     message.includes("ECONNRESET") ||
-    message.includes("socket connection was closed unexpectedly")
+    message.includes("socket connection was closed unexpectedly") ||
+    message.includes("E2E server exited with code")
   );
 }
 
@@ -234,9 +249,9 @@ const fetchWithServer: typeof fetch = async (input, init) => {
   const nextRequest = createRequestFactory(input, init);
 
   for (let attempt = 0; attempt < MANAGED_FETCH_RETRIES; attempt += 1) {
-    await ensureServer();
-
     try {
+      await ensureServer();
+
       const [requestInput, requestInit] = nextRequest();
       return await baseFetch(requestInput, requestInit);
     } catch (error) {
