@@ -613,15 +613,30 @@ export class UsersRepository {
     user: User,
   ): Promise<UserWithOrganization> {
     const organizationId = user.organization_id;
-    const organization = organizationId
-      ? ((await database.query.organizations.findFirst({
-          where: (organization, { eq }) => eq(organization.id, organizationId),
-        })) ?? null)
-      : null;
+
+    if (!organizationId) {
+      return {
+        ...user,
+        organization: null,
+      };
+    }
+
+    // Keep organization hydration on the same relational query path used by the
+    // pre-regression auth lookup. Direct table selects changed numeric formatting
+    // for credit_balance in the failing regression case.
+    const relationalUser = (await database.query.users.findFirst({
+      columns: {
+        id: true,
+      },
+      where: eq(users.id, user.id),
+      with: {
+        organization: true,
+      },
+    })) as { organization: Organization | null } | undefined;
 
     return {
       ...user,
-      organization,
+      organization: relationalUser?.organization ?? null,
     };
   }
 
