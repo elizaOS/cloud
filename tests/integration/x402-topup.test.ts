@@ -1,7 +1,6 @@
 import { describe, expect, it, mock, beforeAll, beforeEach, afterEach, afterAll } from "bun:test";
 import { NextRequest } from "next/server";
 
-const mockGetTopupRecipient = mock();
 const originalX402RecipientAddress = process.env.X402_RECIPIENT_ADDRESS;
 const mockUpdateCreditBalance = mock();
 const mockApplyReferralCode = mock();
@@ -22,6 +21,26 @@ let redeemableEarningsServiceForTest: {
     addEarnings: typeof mockAddEarnings;
 } | null = null;
 let originalAddEarnings: unknown;
+
+// Register mock.module BEFORE any dynamic imports so the mock is in place
+// when topup-handler statically imports wallet-signup
+const mockUserResult = {
+    user: {
+        id: "22222222-2222-4222-8222-222222222222",
+        organization_id: "11111111-1111-4111-8111-111111111111",
+        wallet_address: "0x1234567890abcdef1234567890abcdef12345678",
+    },
+    created: false,
+};
+
+mock.module("@/lib/services/wallet-signup", () => ({
+    findOrCreateUserByWalletAddress: (_walletAddress: string) =>
+        Promise.resolve(mockUserResult),
+}));
+
+mock.module("x402-next", () => ({
+    withX402: (handler: any) => handler,
+}));
 
 describe("x402 Topup Endpoints", () => {
     const mockWallet = "0x1234567890abcdef1234567890abcdef12345678";
@@ -45,14 +64,6 @@ describe("x402 Topup Endpoints", () => {
             actualRedeemableEarningsModule.redeemableEarningsService as typeof redeemableEarningsServiceForTest;
         originalAddEarnings = redeemableEarningsServiceForTest.addEarnings;
         redeemableEarningsServiceForTest.addEarnings = mockAddEarnings;
-
-        mock.module("x402-next", () => ({
-            withX402: (handler: any) => handler,
-        }));
-
-        mock.module("@/lib/services/topup", () => ({
-            getTopupRecipient: mockGetTopupRecipient,
-        }));
     });
 
     beforeEach(() => {
@@ -63,20 +74,10 @@ describe("x402 Topup Endpoints", () => {
         mockCalculateRevenueSplits.mockReset();
         mockCalculateRevenueSplits.mockResolvedValue({ splits: [] });
         mockAddEarnings.mockClear();
-        mockGetTopupRecipient.mockImplementation((_req: NextRequest, body: { walletAddress?: string }) => {
-            if (!body?.walletAddress?.trim()) {
-                return Promise.reject(new Error("walletAddress is required (body or wallet signature headers)"));
-            }
-            return Promise.resolve({
-                user: {
-                    id: mockUserId,
-                    organization_id: mockOrgId,
-                    wallet_address: body.walletAddress ?? mockWallet,
-                } as any,
-                organizationId: mockOrgId,
-                walletAddress: body.walletAddress ?? mockWallet,
-            });
-        });
+        // Update the mutable mock result in case a test needs different values
+        mockUserResult.user.id = mockUserId;
+        mockUserResult.user.organization_id = mockOrgId;
+        mockUserResult.user.wallet_address = mockWallet;
     });
 
     afterEach(() => {
