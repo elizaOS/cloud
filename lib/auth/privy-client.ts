@@ -196,7 +196,27 @@ export async function verifyAuthTokenCached(
 
     return claims;
   } catch (error) {
-    // Log error but don't expose details
+    // Distinguish expected token failures from unexpected errors
+    const isExpectedFailure =
+      error instanceof Error &&
+      (error.message.includes("JWSInvalid") ||
+        error.message.includes("JWTExpired") ||
+        error.message.includes("JWTClaimValidationFailed") ||
+        error.message.includes("Invalid Compact JWS") ||
+        ("code" in error &&
+          (error.code === "ERR_JWS_INVALID" ||
+            error.code === "ERR_JWT_EXPIRED" ||
+            error.code === "ERR_JWT_CLAIM_VALIDATION_FAILED")));
+
+    if (isExpectedFailure) {
+      logger.warn(
+        "[PrivyClient] Token verification failed (invalid/expired token):",
+        error instanceof Error ? error.message : "Unknown error",
+      );
+      return null;
+    }
+
+    // Unexpected error — log at error level and try direct verification
     logger.error(
       "[PrivyClient] ✗ Token verification error:",
       error instanceof Error ? error.message : "Unknown error",
