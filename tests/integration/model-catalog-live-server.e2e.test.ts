@@ -81,7 +81,10 @@ describe.skipIf(!shouldRun)("Model catalog live server E2E", () => {
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
     expect(cached).not.toBeNull();
-    expect(cached?.data.length).toBe(body.data.length);
+    // The API response merges gateway models with supplemental Groq native models,
+    // so body.data.length >= cached.data.length. The cache stores only gateway models.
+    expect(cached!.data.length).toBeGreaterThan(0);
+    expect(body.data.length).toBeGreaterThanOrEqual(cached!.data.length);
     expect(cached?.data[0]?.id).toBe(body.data[0]?.id);
     expect(typeof cached?.cachedAt).toBe("number");
     expect(cached!.staleAt).toBeGreaterThan(cached!.cachedAt);
