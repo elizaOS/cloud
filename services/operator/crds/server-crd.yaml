@@ -50,6 +50,16 @@ spec:
                           type: string
                         cpu:
                           type: string
+                cooldownPeriod:
+                  type: integer
+                  minimum: 0
+                  default: 900
+                  description: KEDA cooldown in seconds before scale-to-zero (default 900)
+                pollingInterval:
+                  type: integer
+                  minimum: 5
+                  default: 30
+                  description: KEDA polling interval in seconds (default 30)
                 agents:
                   type: array
                   items:
@@ -70,8 +80,12 @@ spec:
                   type: integer
                 totalAgents:
                   type: integer
-                podName:
-                  type: string
+                replicas:
+                  type: integer
+                podNames:
+                  type: array
+                  items:
+                    type: string
                 lastActivity:
                   type: string
                   format: date-time

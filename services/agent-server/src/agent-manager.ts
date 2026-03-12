@@ -83,7 +83,8 @@ export class AgentManager {
     }
 
     const runtime = new AgentRuntime({ character, plugins });
-    await runtime.initialize({ skipMigrations: true });
+    const skipMigrations = process.env.SKIP_MIGRATIONS === "true";
+    await runtime.initialize({ skipMigrations });
 
     this.agents.set(agentId, {
       agentId,
