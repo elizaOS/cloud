@@ -4,7 +4,7 @@
  * Tests the utility functions extracted to docker-sandbox-utils.ts.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import {
   shellQuote,
   validateAgentId,
@@ -19,6 +19,16 @@ import {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+async function importSandboxProviderModule() {
+  mock.restore();
+  return import(
+    new URL(
+      `../../lib/services/sandbox-provider.ts?test=${Date.now()}`,
+      import.meta.url,
+    ).href
+  );
+}
 
 describe("Docker Infrastructure - Pure Functions", () => {
   // -------------------------------------------------------------------------
@@ -97,7 +107,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("throws for shell injection chars (semicolon, space)", () => {
-      expect(() => validateAgentId("agent;rm -rf /")).toThrow(/Invalid agent ID/);
+      expect(() => validateAgentId("agent;rm -rf /")).toThrow(
+        /Invalid agent ID/,
+      );
     });
 
     test("throws for dots", () => {
@@ -150,15 +162,21 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("throws for control characters (null byte)", () => {
-      expect(() => validateAgentName("agent\x00name")).toThrow(/control characters/);
+      expect(() => validateAgentName("agent\x00name")).toThrow(
+        /control characters/,
+      );
     });
 
     test("throws for control characters (newline)", () => {
-      expect(() => validateAgentName("agent\nname")).toThrow(/control characters/);
+      expect(() => validateAgentName("agent\nname")).toThrow(
+        /control characters/,
+      );
     });
 
     test("throws for control characters (tab)", () => {
-      expect(() => validateAgentName("agent\tname")).toThrow(/control characters/);
+      expect(() => validateAgentName("agent\tname")).toThrow(
+        /control characters/,
+      );
     });
   });
 
@@ -272,7 +290,11 @@ describe("Docker Infrastructure - Pure Functions", () => {
       process.env.MILADY_DOCKER_NODES = "node1:192.168.1.1:8";
       const nodes = parseDockerNodes();
       expect(nodes).toHaveLength(1);
-      expect(nodes[0]).toEqual({ nodeId: "node1", hostname: "192.168.1.1", capacity: 8 });
+      expect(nodes[0]).toEqual({
+        nodeId: "node1",
+        hostname: "192.168.1.1",
+        capacity: 8,
+      });
     });
 
     test("parses multiple valid nodes", () => {
@@ -293,7 +315,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("throws when env var is not set", () => {
       delete process.env.MILADY_DOCKER_NODES;
-      expect(() => parseDockerNodes()).toThrow(/MILADY_DOCKER_NODES env var is not set/);
+      expect(() => parseDockerNodes()).toThrow(
+        /MILADY_DOCKER_NODES env var is not set/,
+      );
     });
 
     test("throws when all entries are invalid", () => {
@@ -312,9 +336,14 @@ describe("Docker Infrastructure - Pure Functions", () => {
   // -------------------------------------------------------------------------
   describe("createSandboxProvider factory", () => {
     let savedEnv: string | undefined;
+    let savedLegacyEnv: string | undefined;
 
     beforeEach(() => {
       savedEnv = process.env.MILADY_SANDBOX_PROVIDER;
+      savedLegacyEnv = process.env.MILAIDY_SANDBOX_PROVIDER;
+      delete process.env.MILADY_SANDBOX_PROVIDER;
+      delete process.env.MILAIDY_SANDBOX_PROVIDER;
+      mock.restore();
     });
 
     afterEach(() => {
@@ -323,31 +352,35 @@ describe("Docker Infrastructure - Pure Functions", () => {
       } else {
         process.env.MILADY_SANDBOX_PROVIDER = savedEnv;
       }
+
+      if (savedLegacyEnv === undefined) {
+        delete process.env.MILAIDY_SANDBOX_PROVIDER;
+      } else {
+        process.env.MILAIDY_SANDBOX_PROVIDER = savedLegacyEnv;
+      }
+
+      mock.restore();
     });
 
     test("defaults to VercelSandboxProvider when env var is unset", async () => {
-      delete process.env.MILADY_SANDBOX_PROVIDER;
-      const { createSandboxProvider } = await import("@/lib/services/sandbox-provider");
+      const { createSandboxProvider } = await importSandboxProviderModule();
       const provider = createSandboxProvider();
-      const { VercelSandboxProvider } = await import("@/lib/services/vercel-sandbox-provider");
-      expect(provider).toBeInstanceOf(VercelSandboxProvider);
+      expect(provider.constructor.name).toBe("VercelSandboxProvider");
     });
 
     test("returns VercelSandboxProvider for MILADY_SANDBOX_PROVIDER=vercel", async () => {
       process.env.MILADY_SANDBOX_PROVIDER = "vercel";
-      const { createSandboxProvider } = await import("@/lib/services/sandbox-provider");
+      const { createSandboxProvider } = await importSandboxProviderModule();
       const provider = createSandboxProvider();
-      const { VercelSandboxProvider } = await import("@/lib/services/vercel-sandbox-provider");
-      expect(provider).toBeInstanceOf(VercelSandboxProvider);
+      expect(provider.constructor.name).toBe("VercelSandboxProvider");
     });
 
     test("returns DockerSandboxProvider for MILADY_SANDBOX_PROVIDER=docker", async () => {
       process.env.MILADY_SANDBOX_PROVIDER = "docker";
-      const { createSandboxProvider } = await import("@/lib/services/sandbox-provider");
+      const { createSandboxProvider } = await importSandboxProviderModule();
       try {
         const provider = createSandboxProvider();
-        const { DockerSandboxProvider } = await import("@/lib/services/docker-sandbox-provider");
-        expect(provider).toBeInstanceOf(DockerSandboxProvider);
+        expect(provider.constructor.name).toBe("DockerSandboxProvider");
       } catch (err) {
         // If DockerSandboxProvider can't be constructed in test env, at least
         // verify the factory attempted to create it (no "Unknown provider" error)
@@ -357,17 +390,16 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("throws for an unknown provider name", async () => {
       process.env.MILADY_SANDBOX_PROVIDER = "unknown";
-      const { createSandboxProvider } = await import("@/lib/services/sandbox-provider");
+      const { createSandboxProvider } = await importSandboxProviderModule();
       expect(() => createSandboxProvider()).toThrow(/Unknown sandbox provider/);
     });
 
     test("is case-insensitive (Docker → docker)", async () => {
       process.env.MILADY_SANDBOX_PROVIDER = "Docker";
-      const { createSandboxProvider } = await import("@/lib/services/sandbox-provider");
+      const { createSandboxProvider } = await importSandboxProviderModule();
       try {
         const provider = createSandboxProvider();
-        const { DockerSandboxProvider } = await import("@/lib/services/docker-sandbox-provider");
-        expect(provider).toBeInstanceOf(DockerSandboxProvider);
+        expect(provider.constructor.name).toBe("DockerSandboxProvider");
       } catch (err) {
         expect(String(err)).not.toContain("Unknown sandbox provider");
       }
@@ -375,10 +407,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("is case-insensitive (VERCEL → vercel)", async () => {
       process.env.MILADY_SANDBOX_PROVIDER = "VERCEL";
-      const { createSandboxProvider } = await import("@/lib/services/sandbox-provider");
+      const { createSandboxProvider } = await importSandboxProviderModule();
       const provider = createSandboxProvider();
-      const { VercelSandboxProvider } = await import("@/lib/services/vercel-sandbox-provider");
-      expect(provider).toBeInstanceOf(VercelSandboxProvider);
+      expect(provider.constructor.name).toBe("VercelSandboxProvider");
     });
   });
 });

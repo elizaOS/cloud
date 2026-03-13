@@ -35,6 +35,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     logger.info("[compat] Suspend requested", { agentId, reason });
 
+    const agent = await miladySandboxService.getAgent(
+      agentId,
+      user.organization_id,
+    );
+    if (!agent) {
+      return NextResponse.json(errorEnvelope("Agent not found"), {
+        status: 404,
+      });
+    }
+
     const result = await miladySandboxService.shutdown(
       agentId,
       user.organization_id,
