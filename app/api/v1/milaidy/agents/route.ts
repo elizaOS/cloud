@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
   const sanitizedConfig = parsed.data.agentConfig
     ? Object.fromEntries(
         Object.entries(parsed.data.agentConfig).filter(
-          ([k]) => !k.startsWith("__milady"),
+          ([k]) => !k.toLowerCase().startsWith("__milady"),
         ),
       )
     : undefined;

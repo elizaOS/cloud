@@ -20,6 +20,7 @@ import { jobs } from "@/db/schemas/jobs";
 import { miladySandboxes } from "@/db/schemas/milady-sandboxes";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladyProvisionAdvisoryLockSql } from "@/lib/services/milady-provision-lock";
 import { logger } from "@/lib/utils/logger";
 import { and, desc, eq, sql } from "drizzle-orm";
 
@@ -117,7 +118,10 @@ export class ProvisioningJobService {
 
     return await dbWrite.transaction(async (tx) => {
       await tx.execute(
-        sql`SELECT pg_advisory_xact_lock(hashtext(${`milady_provision:${params.organizationId}:${params.agentId}`}))`,
+        miladyProvisionAdvisoryLockSql(
+          params.organizationId,
+          params.agentId,
+        ),
       );
 
       const [sandbox] = await tx
@@ -193,6 +197,16 @@ export class ProvisioningJobService {
    */
   async getJob(jobId: string): Promise<Job | undefined> {
     return jobsRepository.findById(jobId);
+  }
+
+  /**
+   * Get a job by ID scoped to a single organization.
+   */
+  async getJobForOrg(
+    jobId: string,
+    organizationId: string,
+  ): Promise<Job | undefined> {
+    return jobsRepository.findByIdAndOrg(jobId, organizationId);
   }
 
   /**

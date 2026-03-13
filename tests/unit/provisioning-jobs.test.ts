@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockJobsRepository = {
   create: vi.fn(),
   findById: vi.fn(),
+  findByIdAndOrg: vi.fn(),
   findByFilters: vi.fn(),
   findByDataField: vi.fn(),
   claimPendingJobs: vi.fn(),
@@ -263,6 +264,26 @@ describe("ProvisioningJobService", () => {
     it("returns undefined for non-existent job", async () => {
       mockJobsRepository.findById.mockResolvedValue(undefined);
       const result = await service.getJob("nonexistent");
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe("getJobForOrg", () => {
+    it("delegates to repository findByIdAndOrg", async () => {
+      const fakeJob = { id: TEST_JOB_ID, organization_id: TEST_ORG_ID };
+      mockJobsRepository.findByIdAndOrg.mockResolvedValue(fakeJob);
+
+      const result = await service.getJobForOrg(TEST_JOB_ID, TEST_ORG_ID);
+      expect(result).toEqual(fakeJob);
+      expect(mockJobsRepository.findByIdAndOrg).toHaveBeenCalledWith(
+        TEST_JOB_ID,
+        TEST_ORG_ID,
+      );
+    });
+
+    it("returns undefined when org-scoped lookup misses", async () => {
+      mockJobsRepository.findByIdAndOrg.mockResolvedValue(undefined);
+      const result = await service.getJobForOrg(TEST_JOB_ID, TEST_ORG_ID);
       expect(result).toBeUndefined();
     });
   });

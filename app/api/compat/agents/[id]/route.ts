@@ -45,28 +45,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    // Look up the sandbox first to capture its character_id before deletion.
-    // After deleteAgent removes the sandbox row, the FK (onDelete: set null)
-    // would orphan the character and its token_address unique constraint would
-    // block future re-provisioning with the same token.
-    const sandbox = await miladySandboxService.getAgentForWrite(
-      agentId,
-      user.organization_id,
-    );
-    if (!sandbox) {
-      return NextResponse.json(errorEnvelope("Agent not found"), {
-        status: 404,
-      });
-    }
-
-    const characterId = sandbox.character_id;
-    const sandboxConfig = sandbox.agent_config as Record<
-      string,
-      unknown
-    > | null;
-    const reusesExistingCharacter =
-      sandboxConfig?.__miladyCharacterOwnership === "reuse-existing";
-
     const deleted = await miladySandboxService.deleteAgent(
       agentId,
       user.organization_id,
@@ -77,9 +55,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
           ? 404
           : deleted.error === "Agent provisioning is in progress"
             ? 409
-            : 400;
+            : 500;
       return NextResponse.json(errorEnvelope(deleted.error), { status });
     }
+
+    const characterId = deleted.deletedSandbox.character_id;
+    const sandboxConfig = deleted.deletedSandbox.agent_config as Record<
+      string,
+      unknown
+    > | null;
+    const reusesExistingCharacter =
+      sandboxConfig?.__miladyCharacterOwnership === "reuse-existing";
 
     // Clean up the linked character row so the token_address unique constraint
     // is released. Best-effort: log but don't fail the delete if cleanup fails.

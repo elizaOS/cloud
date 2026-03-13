@@ -155,22 +155,6 @@ export async function DELETE(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
 
-  const sandbox = await miladySandboxService.getAgentForWrite(
-    agentId,
-    user.organization_id,
-  );
-  if (!sandbox) {
-    return NextResponse.json(
-      { success: false, error: "Agent not found" },
-      { status: 404 },
-    );
-  }
-
-  const characterId = sandbox.character_id;
-  const sandboxConfig = sandbox.agent_config as Record<string, unknown> | null;
-  const reusesExistingCharacter =
-    sandboxConfig?.__miladyCharacterOwnership === "reuse-existing";
-
   const deleted = await miladySandboxService.deleteAgent(
     agentId,
     user.organization_id,
@@ -181,12 +165,20 @@ export async function DELETE(
         ? 404
         : deleted.error === "Agent provisioning is in progress"
           ? 409
-          : 400;
+          : 500;
     return NextResponse.json(
       { success: false, error: deleted.error },
       { status },
     );
   }
+
+  const characterId = deleted.deletedSandbox.character_id;
+  const sandboxConfig = deleted.deletedSandbox.agent_config as Record<
+    string,
+    unknown
+  > | null;
+  const reusesExistingCharacter =
+    sandboxConfig?.__miladyCharacterOwnership === "reuse-existing";
 
   if (characterId && !reusesExistingCharacter) {
     try {

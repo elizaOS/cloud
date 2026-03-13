@@ -3,22 +3,32 @@
  * Neon DB provisioning, sandbox creation (via pluggable provider), bridge proxy, backups, heartbeat.
  */
 
+import { dbWrite, type Database } from "@/db/helpers";
+import {
+  miladySandboxes,
+  miladySandboxBackups,
+  type MiladyBackupStateData,
+} from "@/db/schemas/milady-sandboxes";
+import { jobs } from "@/db/schemas/jobs";
 import { logger } from "@/lib/utils/logger";
-import { getNeonClient } from "./neon-client";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
+import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
+import { getNeonClient, NeonClientError } from "./neon-client";
 import {
   miladySandboxesRepository,
   type MiladySandbox,
   type MiladySandboxBackup,
   type MiladyBackupSnapshotType,
 } from "@/db/repositories/milady-sandboxes";
-import { jobsRepository } from "@/db/repositories/jobs";
-import type { MiladyBackupStateData } from "@/db/schemas/milady-sandboxes";
 import {
   createSandboxProvider,
   type SandboxProvider,
 } from "./sandbox-provider";
 import type { DockerSandboxMetadata } from "./docker-sandbox-provider";
 import { JOB_TYPES } from "./provisioning-jobs";
+import { miladyProvisionAdvisoryLockSql } from "./milady-provision-lock";
+import { sql } from "drizzle-orm";
+import { isIP } from "node:net";
 
 export interface CreateAgentParams {
   organizationId: string;
@@ -40,7 +50,7 @@ export type ProvisionResult =
   | { success: false; sandboxRecord?: MiladySandbox; error: string };
 
 export type DeleteAgentResult =
-  | { success: true }
+  | { success: true; deletedSandbox: MiladySandbox }
   | { success: false; error: string };
 
 export interface BridgeRequest {
@@ -64,6 +74,7 @@ export interface SnapshotResult {
 }
 
 const MAX_BACKUPS = 10;
+type LifecycleTx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 function sanitizeProjectNameSegment(value: string): string {
   const sanitized = value
@@ -118,42 +129,84 @@ export class MiladySandboxService {
     agentId: string,
     orgId: string,
   ): Promise<DeleteAgentResult> {
-    const rec = await miladySandboxesRepository.findByIdAndOrgForWrite(
-      agentId,
-      orgId,
-    );
-    if (!rec) return { success: false, error: "Agent not found" };
+    return dbWrite.transaction(async (tx) => {
+      await this.lockLifecycle(tx, agentId, orgId);
 
-    const hasActiveProvisionJob = await this.hasActiveProvisionJob(
-      agentId,
-      orgId,
-    );
+      const rec = await this.getAgentForLifecycleMutation(tx, agentId, orgId);
+      if (!rec) return { success: false, error: "Agent not found" } as const;
 
-    if (rec.status === "provisioning" || hasActiveProvisionJob) {
-      return {
-        success: false,
-        error: "Agent provisioning is in progress",
-      };
-    }
+      const hasActiveProvisionJob = await this.hasActiveProvisionJobTx(
+        tx,
+        agentId,
+        orgId,
+      );
+      if (rec.status === "provisioning" || hasActiveProvisionJob) {
+        return {
+          success: false,
+          error: "Agent provisioning is in progress",
+        } as const;
+      }
 
-    logger.info("[milady-sandbox] Deleting agent", {
-      agentId,
-      neon: rec.neon_project_id,
-      sandbox: rec.sandbox_id,
-    });
-    if (rec.neon_project_id) await this.cleanupNeon(rec.neon_project_id);
-    if (rec.sandbox_id && rec.status === "running") {
-      await this.provider.stop(rec.sandbox_id).catch((e) => {
-        logger.warn("[milady-sandbox] Stop failed during delete", {
-          error: e instanceof Error ? e.message : String(e),
-        });
+      logger.info("[milady-sandbox] Deleting agent", {
+        agentId,
+        neon: rec.neon_project_id,
+        sandbox: rec.sandbox_id,
       });
-    }
 
-    const deleted = await miladySandboxesRepository.delete(agentId, orgId);
-    return deleted
-      ? { success: true }
-      : { success: false, error: "Agent not found" };
+      if (rec.sandbox_id) {
+        try {
+          await this.provider.stop(rec.sandbox_id);
+        } catch (e) {
+          const errorMessage = e instanceof Error ? e.message : String(e);
+          if (!this.isIgnorableSandboxStopError(e)) {
+            logger.warn("[milady-sandbox] Stop failed during delete", {
+              sandboxId: rec.sandbox_id,
+              status: rec.status,
+              error: errorMessage,
+            });
+            return {
+              success: false,
+              error: "Failed to delete sandbox",
+            } as const;
+          }
+
+          logger.info(
+            "[milady-sandbox] Sandbox already absent during delete cleanup",
+            {
+              sandboxId: rec.sandbox_id,
+              status: rec.status,
+              error: errorMessage,
+            },
+          );
+        }
+      }
+      if (rec.neon_project_id) {
+        try {
+          await this.cleanupNeon(rec.neon_project_id);
+        } catch (e) {
+          logger.warn("[milady-sandbox] Neon cleanup failed during delete", {
+            projectId: rec.neon_project_id,
+            error: e instanceof Error ? e.message : String(e),
+          });
+          return {
+            success: false,
+            error: "Failed to delete database project",
+          } as const;
+        }
+      }
+
+      const result = await tx.execute<MiladySandbox>(sql`
+        DELETE FROM ${miladySandboxes}
+        WHERE id = ${agentId}
+          AND organization_id = ${orgId}
+        RETURNING *
+      `);
+      const deletedSandbox = result.rows[0];
+
+      return deletedSandbox
+        ? ({ success: true, deletedSandbox } as const)
+        : ({ success: false, error: "Agent not found" } as const);
+    });
   }
 
   // Provision
@@ -238,6 +291,7 @@ export class MiladySandboxService {
           await this.pushState(
             handle.bridgeUrl,
             backup.state_data as MiladyBackupStateData,
+            { trusted: true },
           );
 
         // 5. Mark running + persist provider-specific metadata
@@ -339,6 +393,155 @@ export class MiladySandboxService {
     };
   }
 
+  private async getSafeBridgeEndpoint(
+    sandboxOrBridgeUrl:
+      | Pick<
+          MiladySandbox,
+          | "bridge_url"
+          | "node_id"
+          | "bridge_port"
+          | "headscale_ip"
+          | "sandbox_id"
+        >
+      | string,
+    path: string,
+    options?: { trusted?: boolean },
+  ): Promise<string> {
+    if (typeof sandboxOrBridgeUrl === "string") {
+      if (options?.trusted) {
+        return new URL(path, sandboxOrBridgeUrl).toString();
+      }
+
+      return (
+        await assertSafeOutboundUrl(
+          new URL(path, sandboxOrBridgeUrl).toString(),
+        )
+      ).toString();
+    }
+
+    const dockerBridgeBaseUrl =
+      await this.getTrustedDockerBridgeBaseUrl(sandboxOrBridgeUrl);
+    if (
+      dockerBridgeBaseUrl &&
+      sandboxOrBridgeUrl.bridge_url &&
+      this.matchesTrustedDockerBridge(
+        sandboxOrBridgeUrl.bridge_url,
+        dockerBridgeBaseUrl,
+      )
+    ) {
+      return new URL(path, dockerBridgeBaseUrl).toString();
+    }
+
+    if (!sandboxOrBridgeUrl.bridge_url) {
+      throw new Error("Sandbox bridge is missing");
+    }
+
+    if (this.isTrustedLegacyPrivateBridgeUrl(sandboxOrBridgeUrl)) {
+      return new URL(path, sandboxOrBridgeUrl.bridge_url).toString();
+    }
+
+    return (
+      await assertSafeOutboundUrl(
+        new URL(path, sandboxOrBridgeUrl.bridge_url).toString(),
+      )
+    ).toString();
+  }
+
+  private async getTrustedDockerBridgeBaseUrl(
+    sandbox: Pick<MiladySandbox, "node_id" | "bridge_port" | "headscale_ip">,
+  ): Promise<string | null> {
+    if (!sandbox.node_id || !sandbox.bridge_port) {
+      return null;
+    }
+
+    const host =
+      sandbox.headscale_ip ||
+      (await dockerNodesRepository.findByNodeId(sandbox.node_id))?.hostname;
+    if (!host) {
+      return null;
+    }
+
+    return `http://${host}:${sandbox.bridge_port}`;
+  }
+
+  private isTrustedLegacyPrivateBridgeUrl(
+    sandbox: Pick<
+      MiladySandbox,
+      "bridge_url" | "node_id" | "bridge_port" | "headscale_ip" | "sandbox_id"
+    >,
+  ): boolean {
+    if (!sandbox.bridge_url) {
+      return false;
+    }
+
+    let candidate: URL;
+    try {
+      candidate = new URL(sandbox.bridge_url);
+    } catch {
+      return false;
+    }
+
+    if (
+      candidate.protocol !== "http:" ||
+      !this.isMiladyPrivateBridgeHost(candidate.hostname)
+    ) {
+      return false;
+    }
+
+    const candidatePort = Number.parseInt(candidate.port, 10);
+    const hasMatchingBridgePort =
+      sandbox.bridge_port != null &&
+      Number.isInteger(candidatePort) &&
+      candidatePort === sandbox.bridge_port;
+    const hasMatchingHeadscaleIp =
+      !!sandbox.headscale_ip && candidate.hostname === sandbox.headscale_ip;
+    const hasDockerNodeSignal = !!sandbox.node_id;
+    // Older Docker-backed records may predate the node/headscale backfill but
+    // still carry the provider-generated `sandbox_id`/container name.
+    const hasLegacyDockerSandboxId = this.isLegacyDockerSandboxId(
+      sandbox.sandbox_id,
+    );
+
+    return (
+      hasMatchingHeadscaleIp ||
+      hasLegacyDockerSandboxId ||
+      (hasDockerNodeSignal && hasMatchingBridgePort) ||
+      (hasDockerNodeSignal && hasMatchingHeadscaleIp)
+    );
+  }
+
+  private isLegacyDockerSandboxId(
+    sandboxId: string | null | undefined,
+  ): boolean {
+    return (
+      typeof sandboxId === "string" && /^milady-[0-9a-f-]{36}$/i.test(sandboxId)
+    );
+  }
+
+  private isMiladyPrivateBridgeHost(hostname: string): boolean {
+    if (isIP(hostname) !== 4) {
+      return false;
+    }
+
+    const [first, second] = hostname
+      .split(".")
+      .map((part) => Number.parseInt(part, 10));
+    return first === 100 && second >= 64 && second <= 127;
+  }
+
+  private matchesTrustedDockerBridge(
+    bridgeUrl: string,
+    trustedDockerBridgeBaseUrl: string,
+  ): boolean {
+    try {
+      const candidate = new URL(bridgeUrl);
+      const trusted = new URL(trustedDockerBridgeBaseUrl);
+      return candidate.host === trusted.host;
+    } catch {
+      return false;
+    }
+  }
+
   // Bridge
 
   async bridge(
@@ -362,19 +565,36 @@ export class MiladySandboxService {
       };
     }
 
-    const res = await fetch(`${rec.bridge_url}/bridge`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rpc),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!res.ok)
+    try {
+      const bridgeEndpoint = await this.getSafeBridgeEndpoint(rec, "/bridge");
+      const res = await fetch(bridgeEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rpc),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok)
+        return {
+          jsonrpc: "2.0",
+          id: rpc.id,
+          error: {
+            code: -32000,
+            message: `Bridge returned HTTP ${res.status}`,
+          },
+        };
+      return (await res.json()) as BridgeResponse;
+    } catch (error) {
+      logger.warn("[milady-sandbox] Bridge request failed", {
+        agentId,
+        method: rpc.method,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return {
         jsonrpc: "2.0",
         id: rpc.id,
-        error: { code: -32000, message: `Bridge returned HTTP ${res.status}` },
+        error: { code: -32000, message: "Sandbox bridge is unreachable" },
       };
-    return (await res.json()) as BridgeResponse;
+    }
   }
 
   async bridgeStream(
@@ -387,13 +607,27 @@ export class MiladySandboxService {
       orgId,
     );
     if (!rec?.bridge_url) return null;
-    const res = await fetch(`${rec.bridge_url}/bridge/stream`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rpc),
-      signal: AbortSignal.timeout(120_000),
-    });
-    return res.ok ? res : null;
+
+    try {
+      const bridgeEndpoint = await this.getSafeBridgeEndpoint(
+        rec,
+        "/bridge/stream",
+      );
+      const res = await fetch(bridgeEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rpc),
+        signal: AbortSignal.timeout(120_000),
+      });
+      return res.ok ? res : null;
+    } catch (error) {
+      logger.warn("[milady-sandbox] Bridge stream request failed", {
+        agentId,
+        method: rpc.method,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
   }
 
   // Snapshots
@@ -410,7 +644,11 @@ export class MiladySandboxService {
     if (!rec?.bridge_url)
       return { success: false, error: "Sandbox is not running" };
 
-    const res = await fetch(`${rec.bridge_url}/api/snapshot`, {
+    const snapshotEndpoint = await this.getSafeBridgeEndpoint(
+      rec,
+      "/api/snapshot",
+    );
+    const res = await fetch(snapshotEndpoint, {
       method: "POST",
       signal: AbortSignal.timeout(15_000),
     });
@@ -456,10 +694,7 @@ export class MiladySandboxService {
     if (!backup) return { success: false, error: "No backup found" };
 
     if (rec.status === "running" && rec.bridge_url) {
-      await this.pushState(
-        rec.bridge_url,
-        backup.state_data as MiladyBackupStateData,
-      );
+      await this.pushState(rec, backup.state_data as MiladyBackupStateData);
       return { success: true, backup };
     }
 
@@ -486,15 +721,31 @@ export class MiladySandboxService {
     );
     if (!rec?.bridge_url) return false;
 
-    const res = await fetch(`${rec.bridge_url}/bridge`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "heartbeat",
-      } satisfies BridgeRequest),
-      signal: AbortSignal.timeout(10_000),
-    }).catch(() => null);
+    const bridgeUrl = rec.bridge_url;
+    if (!bridgeUrl) return false;
+    const res = await (async () => {
+      try {
+        const heartbeatEndpoint = await this.getSafeBridgeEndpoint(
+          rec,
+          "/bridge",
+        );
+        return await fetch(heartbeatEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            method: "heartbeat",
+          } satisfies BridgeRequest),
+          signal: AbortSignal.timeout(10_000),
+        });
+      } catch (error) {
+        logger.warn("[milady-sandbox] Heartbeat request failed", {
+          agentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      }
+    })();
 
     if (!res?.ok) {
       logger.warn("[milady-sandbox] Heartbeat failed, marking disconnected", {
@@ -511,71 +762,175 @@ export class MiladySandboxService {
     return true;
   }
 
-  private async hasActiveProvisionJob(
-    agentId: string,
-    orgId: string,
-  ): Promise<boolean> {
-    const relatedJobs = await jobsRepository.findByDataFieldForWrite({
-      type: JOB_TYPES.MILADY_PROVISION,
-      organizationId: orgId,
-      dataField: "agentId",
-      dataValue: agentId,
-      orderBy: "desc",
-    });
-
-    return relatedJobs.some(
-      (job) => job.status === "pending" || job.status === "in_progress",
-    );
-  }
-
   // Shutdown
 
   async shutdown(
     agentId: string,
     orgId: string,
   ): Promise<{ success: boolean; error?: string }> {
-    const rec = await miladySandboxesRepository.findByIdAndOrgForWrite(
-      agentId,
-      orgId,
-    );
-    if (!rec) return { success: false, error: "Agent not found" };
+    let snapshotAgentId: string | null = null;
 
-    const hasActiveProvisionJob = await this.hasActiveProvisionJob(
-      agentId,
-      orgId,
-    );
-    if (rec.status === "provisioning" || hasActiveProvisionJob) {
-      return {
-        success: false,
-        error: "Agent provisioning is in progress",
-      };
-    }
+    const result = await dbWrite.transaction(async (tx) => {
+      await this.lockLifecycle(tx, agentId, orgId);
 
-    if (rec.status === "running" && rec.bridge_url) {
-      await this.snapshot(agentId, orgId, "pre-shutdown").catch((e) => {
-        logger.warn("[milady-sandbox] Pre-shutdown backup failed", {
-          error: e instanceof Error ? e.message : String(e),
+      const rec = await this.getAgentForLifecycleMutation(tx, agentId, orgId);
+      if (!rec) return { success: false, error: "Agent not found" } as const;
+
+      const hasActiveProvisionJob = await this.hasActiveProvisionJobTx(
+        tx,
+        agentId,
+        orgId,
+      );
+      if (rec.status === "provisioning" || hasActiveProvisionJob) {
+        return {
+          success: false,
+          error: "Agent provisioning is in progress",
+        } as const;
+      }
+
+      if (rec.status === "running" && rec.bridge_url) {
+        await this.createSnapshotWithinTransaction(
+          tx,
+          rec,
+          "pre-shutdown",
+        ).catch((e) => {
+          logger.warn("[milady-sandbox] Pre-shutdown backup failed", {
+            agentId,
+            error: e instanceof Error ? e.message : String(e),
+          });
         });
-      });
-    }
-    if (rec.sandbox_id) {
-      await this.provider.stop(rec.sandbox_id).catch((e) => {
-        logger.warn("[milady-sandbox] Stop failed during shutdown", {
-          error: e instanceof Error ? e.message : String(e),
+      }
+
+      if (rec.sandbox_id) {
+        await this.provider.stop(rec.sandbox_id).catch((e) => {
+          logger.warn("[milady-sandbox] Stop failed during shutdown", {
+            sandboxId: rec.sandbox_id,
+            status: rec.status,
+            error: e instanceof Error ? e.message : String(e),
+          });
         });
-      });
-    }
-    await miladySandboxesRepository.update(rec.id, {
-      status: "stopped",
-      sandbox_id: null,
-      bridge_url: null,
-      health_url: null,
+      }
+
+      await tx.execute(sql`
+        UPDATE ${miladySandboxes}
+        SET
+          status = 'stopped',
+          sandbox_id = NULL,
+          bridge_url = NULL,
+          health_url = NULL,
+          updated_at = NOW()
+        WHERE id = ${rec.id}
+      `);
+
+      snapshotAgentId = rec.id;
+      return { success: true } as const;
     });
-    logger.info("[milady-sandbox] Shutdown complete", { agentId });
-    return { success: true };
+
+    if (result.success && snapshotAgentId) {
+      await miladySandboxesRepository
+        .pruneBackups(snapshotAgentId, MAX_BACKUPS)
+        .catch((error) => {
+          logger.warn("[milady-sandbox] Backup pruning failed after shutdown", {
+            agentId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      logger.info("[milady-sandbox] Shutdown complete", { agentId });
+    }
+
+    return result;
   }
 
   // Private helpers
+
+  private async lockLifecycle(
+    tx: LifecycleTx,
+    agentId: string,
+    orgId: string,
+  ): Promise<void> {
+    await tx.execute(miladyProvisionAdvisoryLockSql(orgId, agentId));
+  }
+
+  private async getAgentForLifecycleMutation(
+    tx: LifecycleTx,
+    agentId: string,
+    orgId: string,
+  ): Promise<MiladySandbox | undefined> {
+    const result = await tx.execute<MiladySandbox>(sql`
+      SELECT *
+      FROM ${miladySandboxes}
+      WHERE id = ${agentId}
+        AND organization_id = ${orgId}
+      FOR UPDATE
+    `);
+    return result.rows[0];
+  }
+
+  private async hasActiveProvisionJobTx(
+    tx: LifecycleTx,
+    agentId: string,
+    orgId: string,
+  ): Promise<boolean> {
+    const result = await tx.execute<{ id: string }>(sql`
+      SELECT id
+      FROM ${jobs}
+      WHERE type = ${JOB_TYPES.MILADY_PROVISION}
+        AND organization_id = ${orgId}
+        AND ${jobs.data}->>'agentId' = ${agentId}
+        AND status IN ('pending', 'in_progress')
+      LIMIT 1
+    `);
+    return result.rows.length > 0;
+  }
+
+  private async createSnapshotWithinTransaction(
+    tx: LifecycleTx,
+    rec: MiladySandbox,
+    type: MiladyBackupSnapshotType,
+  ): Promise<void> {
+    if (!rec.bridge_url) {
+      throw new Error("Sandbox is not running");
+    }
+
+    const snapshotEndpoint = await this.getSafeBridgeEndpoint(
+      rec,
+      "/api/snapshot",
+    );
+    const res = await fetch(snapshotEndpoint, {
+      method: "POST",
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) {
+      throw new Error(`Snapshot fetch failed: HTTP ${res.status}`);
+    }
+
+    const stateData = (await res.json()) as MiladyBackupStateData;
+    const serialized = JSON.stringify(stateData);
+    const sizeBytes = Buffer.byteLength(serialized, "utf-8");
+
+    const backupResult = await tx.execute<MiladySandboxBackup>(sql`
+      INSERT INTO ${miladySandboxBackups}
+        (sandbox_record_id, snapshot_type, state_data, size_bytes)
+      VALUES
+        (${rec.id}, ${type}, ${stateData}, ${sizeBytes})
+      RETURNING *
+    `);
+    const backup = backupResult.rows[0];
+
+    await tx.execute(sql`
+      UPDATE ${miladySandboxes}
+      SET
+        last_backup_at = NOW(),
+        updated_at = NOW()
+      WHERE id = ${rec.id}
+    `);
+
+    logger.info("[milady-sandbox] Backup created", {
+      agentId: rec.id,
+      type,
+      bytes: backup?.size_bytes ?? sizeBytes,
+    });
+  }
 
   private async markError(rec: MiladySandbox, msg: string) {
     await miladySandboxesRepository.update(rec.id, {
@@ -624,18 +979,57 @@ export class MiladySandboxService {
   }
 
   private async cleanupNeon(projectId: string) {
-    await getNeonClient()
-      .deleteProject(projectId)
-      .catch((e) => {
-        logger.warn("[milady-sandbox] Neon cleanup failed", {
-          projectId,
-          error: e instanceof Error ? e.message : String(e),
-        });
-      });
+    try {
+      await getNeonClient().deleteProject(projectId);
+    } catch (error) {
+      if (error instanceof NeonClientError && error.statusCode === 404) {
+        logger.info(
+          "[milady-sandbox] Neon project already absent during cleanup",
+          {
+            projectId,
+          },
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
-  private async pushState(bridgeUrl: string, state: MiladyBackupStateData) {
-    const res = await fetch(`${bridgeUrl}/api/restore`, {
+  private isIgnorableSandboxStopError(error: unknown): boolean {
+    if (error instanceof NeonClientError && error.statusCode === 404) {
+      return true;
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes("not found") ||
+      normalized.includes("already gone") ||
+      normalized.includes("no longer exists") ||
+      normalized.includes("404")
+    );
+  }
+
+  private async pushState(
+    sandboxOrBridgeUrl:
+      | Pick<
+          MiladySandbox,
+          | "bridge_url"
+          | "node_id"
+          | "bridge_port"
+          | "headscale_ip"
+          | "sandbox_id"
+        >
+      | string,
+    state: MiladyBackupStateData,
+    options?: { trusted?: boolean },
+  ) {
+    const restoreEndpoint = await this.getSafeBridgeEndpoint(
+      sandboxOrBridgeUrl,
+      "/api/restore",
+      options,
+    );
+    const res = await fetch(restoreEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state),

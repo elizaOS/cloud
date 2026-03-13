@@ -10,6 +10,34 @@ export const dynamic = "force-dynamic";
 // Sync fallback (?sync=true) still needs headroom for legacy callers.
 export const maxDuration = 120;
 
+function getProvisionFailureStatus(error?: string): 404 | 409 | 500 {
+  if (error === "Agent not found") return 404;
+  if (error === "Agent is already being provisioned") return 409;
+  return 500;
+}
+
+function sanitizeProvisionFailureMessage(
+  error: string | undefined,
+  status: 404 | 409 | 500,
+): string {
+  if (status !== 500) {
+    return error ?? "Provisioning failed";
+  }
+
+  return "Provisioning failed";
+}
+
+function sanitizeEnqueueFailureMessage(
+  error: string,
+  status: 404 | 409 | 500,
+): string {
+  if (status !== 500) {
+    return error;
+  }
+
+  return "Failed to start provisioning";
+}
+
 /**
  * POST /api/v1/milady/agents/[agentId]/provision
  *
@@ -75,14 +103,19 @@ export async function POST(
     );
 
     if (!result.success) {
-      const status =
-        result.error === "Agent not found"
-          ? 404
-          : result.error === "Agent is already being provisioned"
-            ? 409
-            : 500;
+      const status = getProvisionFailureStatus(result.error);
+      const clientError = sanitizeProvisionFailureMessage(result.error, status);
+
+      if (status === 500) {
+        logger.error("[milady-api] Sync provision failed", {
+          agentId,
+          orgId: user.organization_id,
+          error: result.error,
+        });
+      }
+
       return NextResponse.json(
-        { success: false, error: result.error },
+        { success: false, error: clientError },
         { status },
       );
     }
@@ -133,7 +166,22 @@ export async function POST(
         : message === "Agent state changed while starting"
           ? 409
           : 500;
-    return NextResponse.json({ success: false, error: message }, { status });
+
+    if (status === 500) {
+      logger.error("[milady-api] Failed to enqueue provisioning job", {
+        agentId,
+        orgId: user.organization_id,
+        error: message,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: sanitizeEnqueueFailureMessage(message, status),
+      },
+      { status },
+    );
   }
 
   const { job, created } = enqueueResult;
