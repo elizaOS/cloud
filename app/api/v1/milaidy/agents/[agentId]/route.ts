@@ -3,8 +3,13 @@ import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+
+const patchAgentSchema = z.object({
+  action: z.enum(["shutdown"]),
+});
 
 /**
  * GET /api/v1/milady/agents/[agentId]
@@ -17,7 +22,10 @@ export async function GET(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
 
-  const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+  const agent = await miladySandboxService.getAgent(
+    agentId,
+    user.organization_id,
+  );
   if (!agent) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
@@ -32,7 +40,10 @@ export async function GET(
   let tokenTicker: string | null = null;
 
   if (agent.character_id) {
-    const char = await userCharactersRepository.findById(agent.character_id);
+    const char = await userCharactersRepository.findByIdInOrganization(
+      agent.character_id,
+      user.organization_id,
+    );
     if (char) {
       tokenAddress = char.token_address ?? null;
       tokenChain = char.token_chain ?? null;
@@ -45,7 +56,10 @@ export async function GET(
   // values are untyped and could be numbers, objects, etc.
   if (!tokenAddress) {
     const cfg = agent.agent_config as Record<string, unknown> | null;
-    tokenAddress = typeof cfg?.tokenContractAddress === "string" ? cfg.tokenContractAddress : null;
+    tokenAddress =
+      typeof cfg?.tokenContractAddress === "string"
+        ? cfg.tokenContractAddress
+        : null;
     tokenChain = typeof cfg?.chain === "string" ? cfg.chain : null;
     tokenName = typeof cfg?.tokenName === "string" ? cfg.tokenName : null;
     tokenTicker = typeof cfg?.tokenTicker === "string" ? cfg.tokenTicker : null;
@@ -75,6 +89,62 @@ export async function GET(
 }
 
 /**
+ * PATCH /api/v1/milady/agents/[agentId]
+ * Perform agent lifecycle actions that do not fit cleanly as separate resources.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> },
+) {
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+  const { agentId } = await params;
+  const body = await request.json().catch(() => null);
+
+  const parsed = patchAgentSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Invalid request data",
+        details: parsed.error.issues,
+      },
+      { status: 400 },
+    );
+  }
+
+  if (parsed.data.action === "shutdown") {
+    const result = await miladySandboxService.shutdown(
+      agentId,
+      user.organization_id,
+    );
+    if (!result.success) {
+      const status =
+        result.error === "Agent not found"
+          ? 404
+          : result.error === "Agent provisioning is in progress"
+            ? 409
+            : 400;
+      return NextResponse.json(
+        { success: false, error: result.error ?? "Shutdown failed" },
+        { status },
+      );
+    }
+
+    logger.info("[milady-api] Agent shutdown complete", {
+      agentId,
+      orgId: user.organization_id,
+    });
+
+    return NextResponse.json({ success: true });
+  }
+
+  return NextResponse.json(
+    { success: false, error: "Unsupported action" },
+    { status: 400 },
+  );
+}
+
+/**
  * DELETE /api/v1/milady/agents/[agentId]
  * Delete a Milady cloud agent and all associated infrastructure.
  */
@@ -85,12 +155,59 @@ export async function DELETE(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
 
-  const deleted = await miladySandboxService.deleteAgent(agentId, user.organization_id);
-  if (!deleted) {
+  const sandbox = await miladySandboxService.getAgentForWrite(
+    agentId,
+    user.organization_id,
+  );
+  if (!sandbox) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
       { status: 404 },
     );
+  }
+
+  const characterId = sandbox.character_id;
+  const sandboxConfig = sandbox.agent_config as Record<string, unknown> | null;
+  const reusesExistingCharacter =
+    sandboxConfig?.__miladyCharacterOwnership === "reuse-existing";
+
+  const deleted = await miladySandboxService.deleteAgent(
+    agentId,
+    user.organization_id,
+  );
+  if (!deleted.success) {
+    const status =
+      deleted.error === "Agent not found"
+        ? 404
+        : deleted.error === "Agent provisioning is in progress"
+          ? 409
+          : 400;
+    return NextResponse.json(
+      { success: false, error: deleted.error },
+      { status },
+    );
+  }
+
+  if (characterId && !reusesExistingCharacter) {
+    try {
+      await userCharactersRepository.delete(characterId);
+      logger.info("[milady-api] Cleaned up linked character after delete", {
+        agentId,
+        characterId,
+      });
+    } catch (characterErr) {
+      logger.warn(
+        "[milady-api] Failed to clean up linked character after delete",
+        {
+          agentId,
+          characterId,
+          error:
+            characterErr instanceof Error
+              ? characterErr.message
+              : String(characterErr),
+        },
+      );
+    }
   }
 
   logger.info("[milady-api] Agent deleted", {

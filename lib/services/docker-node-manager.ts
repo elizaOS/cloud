@@ -12,7 +12,10 @@ import type { DockerNode, DockerNodeStatus } from "@/db/schemas/docker-nodes";
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
 import { logger } from "@/lib/utils/logger";
 import { dbRead } from "@/db/helpers";
-import { miladySandboxes, type MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
+import {
+  miladySandboxes,
+  type MiladySandboxStatus,
+} from "@/db/schemas/milady-sandboxes";
 import { eq, and, sql, notInArray } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
@@ -110,9 +113,17 @@ export class DockerNodeManager {
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const ssh = DockerSSHClient.getClient(node.hostname, node.ssh_port ?? undefined, node.host_key_fingerprint ?? undefined);
+        const ssh = DockerSSHClient.getClient(
+          node.hostname,
+          node.ssh_port ?? undefined,
+          node.host_key_fingerprint ?? undefined,
+          node.ssh_user ?? undefined,
+        );
         await ssh.connect();
-        const dockerId = await ssh.exec("docker info --format '{{.ID}}'", 10_000);
+        const dockerId = await ssh.exec(
+          "docker info --format '{{.ID}}'",
+          10_000,
+        );
 
         if (dockerId.trim()) {
           await dockerNodesRepository.updateStatus(node.node_id, "healthy");
@@ -123,15 +134,21 @@ export class DockerNodeManager {
       } catch (error: unknown) {
         lastError = error instanceof Error ? error.message : String(error);
         if (attempt < MAX_RETRIES) {
-          logger.warn(`[docker-node-manager] Health check attempt ${attempt}/${MAX_RETRIES} failed for ${node.node_id}: ${lastError}, retrying in ${RETRY_DELAY_MS}ms`);
-          await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+          logger.warn(
+            `[docker-node-manager] Health check attempt ${attempt}/${MAX_RETRIES} failed for ${node.node_id}: ${lastError}, retrying in ${RETRY_DELAY_MS}ms`,
+          );
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
         }
       }
     }
 
     // All retries exhausted
-    logger.warn(`[docker-node-manager] Health check failed for ${node.node_id} after ${MAX_RETRIES} attempts: ${lastError}`);
-    const status: DockerNodeStatus = lastError.includes("empty ID") ? "degraded" : "offline";
+    logger.warn(
+      `[docker-node-manager] Health check failed for ${node.node_id} after ${MAX_RETRIES} attempts: ${lastError}`,
+    );
+    const status: DockerNodeStatus = lastError.includes("empty ID")
+      ? "degraded"
+      : "offline";
     await dockerNodesRepository.updateStatus(node.node_id, status);
     return status;
   }
@@ -175,7 +192,9 @@ export class DockerNodeManager {
    *
    * Active sandboxes are those not in terminal states (stopped/error).
    */
-  async syncAllocatedCounts(): Promise<Map<string, { before: number; after: number }>> {
+  async syncAllocatedCounts(): Promise<
+    Map<string, { before: number; after: number }>
+  > {
     const nodes = await dockerNodesRepository.findEnabled();
     const changes = new Map<string, { before: number; after: number }>();
 
@@ -199,7 +218,10 @@ export class DockerNodeManager {
         logger.info(
           `[docker-node-manager] Sync ${node.node_id}: allocated_count ${node.allocated_count} → ${actualCount}`,
         );
-        await dockerNodesRepository.setAllocatedCount(node.node_id, actualCount);
+        await dockerNodesRepository.setAllocatedCount(
+          node.node_id,
+          actualCount,
+        );
         changes.set(node.node_id, {
           before: node.allocated_count,
           after: actualCount,
@@ -224,9 +246,16 @@ export class DockerNodeManager {
    */
   async getRuntimeContainers(
     node: DockerNode,
-  ): Promise<{ name: string; id: string; state: string; status: string }[] | null> {
+  ): Promise<
+    { name: string; id: string; state: string; status: string }[] | null
+  > {
     try {
-      const ssh = DockerSSHClient.getClient(node.hostname, node.ssh_port ?? undefined, node.host_key_fingerprint ?? undefined);
+      const ssh = DockerSSHClient.getClient(
+        node.hostname,
+        node.ssh_port ?? undefined,
+        node.host_key_fingerprint ?? undefined,
+        node.ssh_user ?? undefined,
+      );
       await ssh.connect();
 
       const output = await ssh.exec(

@@ -24,9 +24,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const agent = await miladySandboxService.getAgent(
+      agentId,
+      user.organization_id,
+    );
     if (!agent) {
-      return NextResponse.json(errorEnvelope("Agent not found"), { status: 404 });
+      return NextResponse.json(errorEnvelope("Agent not found"), {
+        status: 404,
+      });
     }
 
     return NextResponse.json(envelope(toCompatAgent(agent)));
@@ -44,21 +49,41 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // After deleteAgent removes the sandbox row, the FK (onDelete: set null)
     // would orphan the character and its token_address unique constraint would
     // block future re-provisioning with the same token.
-    const sandbox = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const sandbox = await miladySandboxService.getAgentForWrite(
+      agentId,
+      user.organization_id,
+    );
     if (!sandbox) {
-      return NextResponse.json(errorEnvelope("Agent not found"), { status: 404 });
+      return NextResponse.json(errorEnvelope("Agent not found"), {
+        status: 404,
+      });
     }
 
     const characterId = sandbox.character_id;
+    const sandboxConfig = sandbox.agent_config as Record<
+      string,
+      unknown
+    > | null;
+    const reusesExistingCharacter =
+      sandboxConfig?.__miladyCharacterOwnership === "reuse-existing";
 
-    const deleted = await miladySandboxService.deleteAgent(agentId, user.organization_id);
-    if (!deleted) {
-      return NextResponse.json(errorEnvelope("Agent not found"), { status: 404 });
+    const deleted = await miladySandboxService.deleteAgent(
+      agentId,
+      user.organization_id,
+    );
+    if (!deleted.success) {
+      const status =
+        deleted.error === "Agent not found"
+          ? 404
+          : deleted.error === "Agent provisioning is in progress"
+            ? 409
+            : 400;
+      return NextResponse.json(errorEnvelope(deleted.error), { status });
     }
 
     // Clean up the linked character row so the token_address unique constraint
     // is released. Best-effort: log but don't fail the delete if cleanup fails.
-    if (characterId) {
+    if (characterId && !reusesExistingCharacter) {
       try {
         await userCharactersRepository.delete(characterId);
         logger.info("[compat] Cleaned up linked character after agent delete", {
@@ -66,16 +91,24 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
           characterId,
         });
       } catch (charErr) {
-        logger.warn("[compat] Failed to clean up linked character after agent delete", {
-          agentId,
-          characterId,
-          error: charErr instanceof Error ? charErr.message : String(charErr),
-        });
+        logger.warn(
+          "[compat] Failed to clean up linked character after agent delete",
+          {
+            agentId,
+            characterId,
+            error: charErr instanceof Error ? charErr.message : String(charErr),
+          },
+        );
       }
     }
 
-    logger.info("[compat] Agent deleted", { agentId, orgId: user.organization_id });
-    return NextResponse.json(envelope(toCompatOpResult(agentId, "delete", true)));
+    logger.info("[compat] Agent deleted", {
+      agentId,
+      orgId: user.organization_id,
+    });
+    return NextResponse.json(
+      envelope(toCompatOpResult(agentId, "delete", true)),
+    );
   } catch (err) {
     return handleCompatError(err);
   }

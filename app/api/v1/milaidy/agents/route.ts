@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 const createAgentSchema = z.object({
   agentName: z.string().min(1).max(100),
+  characterId: z.string().uuid().optional(),
   agentConfig: z.record(z.string(), z.unknown()).optional(),
   environmentVars: z.record(z.string(), z.string()).optional(),
 });
@@ -21,14 +22,20 @@ export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const agents = await miladySandboxService.listAgents(user.organization_id);
 
-  const characterIds = Array.from(new Set(
-    agents
-      .map((a) => a.character_id)
-      .filter((id): id is string => id != null),
-  ));
-  const characters = characterIds.length > 0
-    ? await userCharactersRepository.findByIds(characterIds)
-    : [];
+  const characterIds = Array.from(
+    new Set(
+      agents
+        .map((a) => a.character_id)
+        .filter((id): id is string => id != null),
+    ),
+  );
+  const characters =
+    characterIds.length > 0
+      ? await userCharactersRepository.findByIdsInOrganization(
+          characterIds,
+          user.organization_id,
+        )
+      : [];
   const charMap = new Map(characters.map((c) => [c.id, c]));
 
   return NextResponse.json({
@@ -48,10 +55,18 @@ export async function GET(request: NextRequest) {
         createdAt: a.created_at,
         updatedAt: a.updated_at,
         // Canonical token linkage
-        token_address: char?.token_address ?? (cfg?.tokenContractAddress as string | undefined) ?? null,
-        token_chain: char?.token_chain ?? (cfg?.chain as string | undefined) ?? null,
-        token_name: char?.token_name ?? (cfg?.tokenName as string | undefined) ?? null,
-        token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string | undefined) ?? null,
+        token_address:
+          char?.token_address ??
+          (cfg?.tokenContractAddress as string | undefined) ??
+          null,
+        token_chain:
+          char?.token_chain ?? (cfg?.chain as string | undefined) ?? null,
+        token_name:
+          char?.token_name ?? (cfg?.tokenName as string | undefined) ?? null,
+        token_ticker:
+          char?.token_ticker ??
+          (cfg?.tokenTicker as string | undefined) ??
+          null,
       };
     }),
   });
@@ -68,16 +83,44 @@ export async function POST(request: NextRequest) {
   const parsed = createAgentSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request data", details: parsed.error.issues },
+      {
+        success: false,
+        error: "Invalid request data",
+        details: parsed.error.issues,
+      },
       { status: 400 },
     );
+  }
+
+  if (parsed.data.characterId) {
+    const character =
+      await userCharactersRepository.findByIdInOrganizationForWrite(
+        parsed.data.characterId,
+        user.organization_id,
+      );
+
+    if (!character) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Character not found",
+        },
+        { status: 404 },
+      );
+    }
   }
 
   const agent = await miladySandboxService.createAgent({
     organizationId: user.organization_id,
     userId: user.id,
     agentName: parsed.data.agentName,
-    agentConfig: parsed.data.agentConfig,
+    characterId: parsed.data.characterId,
+    agentConfig: parsed.data.characterId
+      ? {
+          ...(parsed.data.agentConfig ?? {}),
+          __miladyCharacterOwnership: "reuse-existing",
+        }
+      : parsed.data.agentConfig,
     environmentVars: parsed.data.environmentVars,
   });
 

@@ -27,21 +27,36 @@ export async function POST(
     if (e instanceof ServiceKeyAuthError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Service authentication misconfigured" },
+      { status: 500 },
+    );
   }
 
   const { agentId } = await params;
   const body = await request.json().catch(() => ({}));
   const parsed = suspendSchema.safeParse(body);
-  const reason = parsed.success ? parsed.data.reason : "owner requested suspension";
+  const reason = parsed.success
+    ? parsed.data.reason
+    : "owner requested suspension";
 
   logger.info("[service-api] Suspending agent", { agentId, reason });
 
-  const result = await miladySandboxService.shutdown(agentId, identity.organizationId);
+  const result = await miladySandboxService.shutdown(
+    agentId,
+    identity.organizationId,
+  );
   if (!result.success) {
     return NextResponse.json(
       { success: false, error: result.error },
-      { status: result.error === "Agent not found" ? 404 : 500 },
+      {
+        status:
+          result.error === "Agent not found"
+            ? 404
+            : result.error === "Agent provisioning is in progress"
+              ? 409
+              : 500,
+      },
     );
   }
 

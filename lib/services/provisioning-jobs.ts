@@ -13,11 +13,15 @@
  * - agent_restore: Restore from backup
  */
 
+import { dbWrite } from "@/db/helpers";
 import { jobsRepository, type Job, type NewJob } from "@/db/repositories/jobs";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
+import { jobs } from "@/db/schemas/jobs";
+import { miladySandboxes } from "@/db/schemas/milady-sandboxes";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { logger } from "@/lib/utils/logger";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // Job type constants
@@ -27,8 +31,7 @@ export const JOB_TYPES = {
   MILADY_PROVISION: "milady_provision",
 } as const;
 
-export type ProvisioningJobType =
-  (typeof JOB_TYPES)[keyof typeof JOB_TYPES];
+export type ProvisioningJobType = (typeof JOB_TYPES)[keyof typeof JOB_TYPES];
 
 // ---------------------------------------------------------------------------
 // Job data shapes (stored in jobs.data JSONB)
@@ -53,6 +56,11 @@ export interface MiladyProvisionJobResult {
   error?: string;
 }
 
+export interface EnqueueMiladyProvisionResult {
+  job: Job;
+  created: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -69,6 +77,18 @@ export class ProvisioningJobService {
     agentName: string;
     webhookUrl?: string;
   }): Promise<Job> {
+    const result = await this.enqueueMiladyProvisionOnce(params);
+    return result.job;
+  }
+
+  async enqueueMiladyProvisionOnce(params: {
+    agentId: string;
+    organizationId: string;
+    userId: string;
+    agentName: string;
+    webhookUrl?: string;
+    expectedUpdatedAt?: Date | string | null;
+  }): Promise<EnqueueMiladyProvisionResult> {
     // Validate webhook URL at enqueue time (fail fast) in addition to
     // the delivery-time check in fireWebhook. This prevents storing
     // obviously-malicious URLs that would only surface errors later.
@@ -95,15 +115,77 @@ export class ProvisioningJobService {
       estimated_completion_at: new Date(Date.now() + 90_000),
     };
 
-    const job = await jobsRepository.create(newJob);
+    return await dbWrite.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${`milady_provision:${params.organizationId}:${params.agentId}`}))`,
+      );
 
-    logger.info("[provisioning-jobs] Enqueued milady_provision job", {
-      jobId: job.id,
-      agentId: params.agentId,
-      orgId: params.organizationId,
+      const [sandbox] = await tx
+        .select({
+          id: miladySandboxes.id,
+          updated_at: miladySandboxes.updated_at,
+        })
+        .from(miladySandboxes)
+        .where(
+          and(
+            eq(miladySandboxes.id, params.agentId),
+            eq(miladySandboxes.organization_id, params.organizationId),
+          ),
+        )
+        .limit(1);
+
+      if (!sandbox) {
+        throw new Error("Agent not found");
+      }
+
+      if (params.expectedUpdatedAt) {
+        const expectedMs = new Date(params.expectedUpdatedAt).getTime();
+        const currentMs = sandbox.updated_at
+          ? new Date(sandbox.updated_at).getTime()
+          : Number.NaN;
+
+        if (
+          Number.isFinite(expectedMs) &&
+          Number.isFinite(currentMs) &&
+          currentMs !== expectedMs
+        ) {
+          throw new Error("Agent state changed while starting");
+        }
+      }
+
+      const [existing] = await tx
+        .select()
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.type, JOB_TYPES.MILADY_PROVISION),
+            eq(jobs.organization_id, params.organizationId),
+            sql`${jobs.data}->>'agentId' = ${params.agentId}`,
+            sql`${jobs.status} IN ('pending', 'in_progress')`,
+          ),
+        )
+        .orderBy(desc(jobs.created_at))
+        .limit(1);
+
+      if (existing) {
+        logger.info("[provisioning-jobs] Reusing active milady_provision job", {
+          jobId: existing.id,
+          agentId: params.agentId,
+          orgId: params.organizationId,
+        });
+        return { job: existing, created: false };
+      }
+
+      const [job] = await tx.insert(jobs).values(newJob).returning();
+
+      logger.info("[provisioning-jobs] Enqueued milady_provision job", {
+        jobId: job.id,
+        agentId: params.agentId,
+        orgId: params.organizationId,
+      });
+
+      return { job, created: true };
     });
-
-    return job;
   }
 
   /**
@@ -190,8 +272,7 @@ export class ProvisioningJobService {
         result.succeeded++;
       } catch (err) {
         result.failed++;
-        const errorMsg =
-          err instanceof Error ? err.message : String(err);
+        const errorMsg = err instanceof Error ? err.message : String(err);
         result.errors.push({ jobId: job.id, error: errorMsg });
 
         // Increment attempt; will auto-fail if max_attempts reached
@@ -204,23 +285,35 @@ export class ProvisioningJobService {
         // When retries are exhausted (permanent failure), mark the
         // sandbox as "error" immediately so the UI reflects reality
         // instead of staying stuck in "provisioning".
-        if (updated?.status === "failed" && job.type === JOB_TYPES.MILADY_PROVISION) {
+        if (
+          updated?.status === "failed" &&
+          job.type === JOB_TYPES.MILADY_PROVISION
+        ) {
           const data = job.data as unknown as MiladyProvisionJobData;
           try {
             await miladySandboxesRepository.update(data.agentId, {
               status: "error",
               error_message: `Provisioning permanently failed after ${job.max_attempts} attempts: ${errorMsg}`,
             } as Parameters<typeof miladySandboxesRepository.update>[1]);
-            logger.warn("[provisioning-jobs] Marked sandbox as error after permanent failure", {
-              jobId: job.id,
-              agentId: data.agentId,
-            });
+            logger.warn(
+              "[provisioning-jobs] Marked sandbox as error after permanent failure",
+              {
+                jobId: job.id,
+                agentId: data.agentId,
+              },
+            );
           } catch (sandboxErr) {
-            logger.error("[provisioning-jobs] Failed to mark sandbox as error", {
-              jobId: job.id,
-              agentId: data.agentId,
-              error: sandboxErr instanceof Error ? sandboxErr.message : String(sandboxErr),
-            });
+            logger.error(
+              "[provisioning-jobs] Failed to mark sandbox as error",
+              {
+                jobId: job.id,
+                agentId: data.agentId,
+                error:
+                  sandboxErr instanceof Error
+                    ? sandboxErr.message
+                    : String(sandboxErr),
+              },
+            );
           }
         }
       }

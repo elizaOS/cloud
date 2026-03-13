@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 
@@ -38,7 +39,10 @@ export async function POST(
   });
 
   // Fast path: check if already running (no job needed)
-  const existing = await miladySandboxService.getAgent(agentId, user.organization_id!);
+  const existing = await miladySandboxService.getAgentForWrite(
+    agentId,
+    user.organization_id!,
+  );
   if (!existing) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
@@ -46,7 +50,11 @@ export async function POST(
     );
   }
 
-  if (existing.status === "running" && existing.bridge_url && existing.health_url) {
+  if (
+    existing.status === "running" &&
+    existing.bridge_url &&
+    existing.health_url
+  ) {
     return NextResponse.json({
       success: true,
       data: {
@@ -61,7 +69,10 @@ export async function POST(
 
   // ── Sync fallback (legacy) ────────────────────────────────────────
   if (sync) {
-    const result = await miladySandboxService.provision(agentId, user.organization_id!);
+    const result = await miladySandboxService.provision(
+      agentId,
+      user.organization_id!,
+    );
 
     if (!result.success) {
       const status =
@@ -89,26 +100,55 @@ export async function POST(
   }
 
   // ── Async path (default) ──────────────────────────────────────────
-  const webhookUrl =
-    request.headers.get("x-webhook-url") ?? undefined;
+  const webhookUrl = request.headers.get("x-webhook-url") ?? undefined;
+  if (webhookUrl) {
+    try {
+      await assertSafeOutboundUrl(webhookUrl);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : "Invalid webhook URL",
+        },
+        { status: 400 },
+      );
+    }
+  }
 
-  const job = await provisioningJobService.enqueueMiladyProvision({
-    agentId,
-    organizationId: user.organization_id!,
-    userId: user.id,
-    agentName: existing.agent_name ?? agentId,
-    webhookUrl,
-  });
+  let enqueueResult;
+  try {
+    enqueueResult = await provisioningJobService.enqueueMiladyProvisionOnce({
+      agentId,
+      organizationId: user.organization_id!,
+      userId: user.id,
+      agentName: existing.agent_name ?? agentId,
+      webhookUrl,
+      expectedUpdatedAt: existing.updated_at,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const status =
+      message === "Agent not found"
+        ? 404
+        : message === "Agent state changed while starting"
+          ? 409
+          : 500;
+    return NextResponse.json({ success: false, error: message }, { status });
+  }
+
+  const { job, created } = enqueueResult;
 
   return NextResponse.json(
     {
-      success: true,
-      message:
-        "Provisioning job created. Poll the job endpoint for status.",
+      success: created,
+      error: created ? undefined : "Agent is already being provisioned",
+      message: created
+        ? "Provisioning job created. Poll the job endpoint for status."
+        : "Provisioning is already in progress. Poll the existing job for status.",
       data: {
         jobId: job.id,
         agentId,
-        status: "pending",
+        status: job.status,
         estimatedCompletionAt: job.estimated_completion_at,
       },
       polling: {
@@ -117,6 +157,6 @@ export async function POST(
         expectedDurationMs: 90000,
       },
     },
-    { status: 202 },
+    { status: created ? 202 : 409 },
   );
 }

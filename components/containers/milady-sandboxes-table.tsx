@@ -55,7 +55,10 @@ import {
   Network,
   Play,
   Square,
+  Loader2,
 } from "lucide-react";
+import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
+import { useJobPoller } from "@/lib/hooks/use-job-poller";
 
 // ----------------------------------------------------------------
 // Types
@@ -154,42 +157,63 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
+  const poller = useJobPoller({
+    onComplete: () => toast.success("Agent provisioning completed"),
+    onFailed: (job) => toast.error(job.error ?? "Provisioning failed"),
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortField, setSortField] = useState<"name" | "status" | "created">("created");
+  const [sortField, setSortField] = useState<"name" | "status" | "created">(
+    "created",
+  );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const handleSort = (field: typeof sortField) => {
-    setSortDir((prev) => (sortField === field && prev === "asc" ? "desc" : "asc"));
+    setSortDir((prev) =>
+      sortField === field && prev === "asc" ? "desc" : "asc",
+    );
     setSortField(field);
   };
 
   const filtered = useMemo(() => {
     let list = sandboxes.filter((sb) => {
       const q = searchQuery.toLowerCase();
+      const displayStatus = poller.isActive(sb.id) ? "provisioning" : sb.status;
       const matchSearch =
         !q ||
         (sb.agent_name ?? "").toLowerCase().includes(q) ||
         (sb.container_name ?? "").toLowerCase().includes(q) ||
         (sb.node_id ?? "").toLowerCase().includes(q) ||
         (sb.headscale_ip ?? "").toLowerCase().includes(q);
-      const matchStatus = statusFilter === "all" || sb.status === statusFilter;
+      const matchStatus =
+        statusFilter === "all" || displayStatus === statusFilter;
       return matchSearch && matchStatus;
     });
 
     list.sort((a, b) => {
       let cmp = 0;
-      if (sortField === "name")
+      const aStatus = poller.isActive(a.id) ? "provisioning" : a.status;
+      const bStatus = poller.isActive(b.id) ? "provisioning" : b.status;
+      if (sortField === "name") {
         cmp = (a.agent_name ?? "").localeCompare(b.agent_name ?? "");
-      else if (sortField === "status")
-        cmp = a.status.localeCompare(b.status);
-      else
+      } else if (sortField === "status") {
+        cmp = aStatus.localeCompare(bStatus);
+      } else {
         cmp =
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [sandboxes, searchQuery, statusFilter, sortField, sortDir]);
+  }, [
+    sandboxes,
+    searchQuery,
+    statusFilter,
+    sortField,
+    sortDir,
+    poller.isActive,
+  ]);
 
   // ── Actions ──────────────────────────────────────────────────────
 
@@ -199,11 +223,41 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       const res = await fetch(`/api/v1/milaidy/agents/${id}/provision`, {
         method: "POST",
       });
-      if (!res.ok) throw new Error("Provision failed");
-      toast.success("Agent provisioning started");
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 409) {
+        const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
+        if (jobId) {
+          poller.track(id, jobId);
+          toast.info("Provisioning already in progress");
+          return;
+        }
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          (data as { error?: string }).error ?? "Provision failed",
+        );
+      }
+
+      if (res.status === 202) {
+        const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
+        if (jobId) {
+          poller.track(id, jobId);
+          toast.success("Agent provisioning queued");
+          return;
+        }
+
+        toast.success("Agent provisioning started");
+        router.refresh();
+        return;
+      }
+
+      toast.success("Agent is already running");
       router.refresh();
-    } catch {
-      toast.error("Failed to start agent");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to start agent: ${message}`);
     } finally {
       setActionInProgress(null);
     }
@@ -217,12 +271,11 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "shutdown" }),
       });
-      // PATCH may not exist yet — fall back to a simple DELETE signal
-      if (!res.ok && res.status !== 404) throw new Error("Shutdown failed");
+      if (!res.ok) throw new Error("Shutdown failed");
       toast.success("Agent shutdown initiated");
       router.refresh();
     } catch {
-      toast.error("Failed to stop agent — try from the details page");
+      toast.error("Failed to stop agent");
     } finally {
       setActionInProgress(null);
     }
@@ -234,18 +287,40 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       const res = await fetch(`/api/v1/milaidy/agents/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Delete failed");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error ?? "Delete failed");
+      }
       toast.success("Agent deleted");
       router.refresh();
-    } catch {
-      toast.error("Failed to delete agent");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to delete agent";
+      toast.error(message);
     } finally {
       setIsDeleting(false);
       setDeleteId(null);
     }
   }
 
-  if (sandboxes.length === 0) return null;
+  const deleteTargetBusy = deleteId ? poller.isActive(deleteId) : false;
+
+  if (sandboxes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+        <Boxes className="h-10 w-10 text-neutral-600" />
+        <div className="space-y-1">
+          <p className="text-white font-medium">No Milady sandboxes yet</p>
+          <p className="text-sm text-neutral-500 max-w-xs">
+            Create your first sandbox, then provision it from the dashboard.
+          </p>
+        </div>
+        <CreateMiladySandboxDialog
+          onProvisionQueued={(agentId, jobId) => poller.track(agentId, jobId)}
+        />
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -275,6 +350,9 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
               <SelectItem value="error">Error</SelectItem>
             </SelectContent>
           </Select>
+          <CreateMiladySandboxDialog
+            onProvisionQueued={(agentId, jobId) => poller.track(agentId, jobId)}
+          />
         </div>
 
         {(searchQuery || statusFilter !== "all") && (
@@ -340,12 +418,17 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                 filtered.map((sb) => {
                   const isDocker = isDockerBacked(sb);
                   const connectUrl = getConnectUrl(sb);
-                  const busy = actionInProgress === sb.id;
+                  const trackedJob = poller.getStatus(sb.id);
+                  const isProvisioning = poller.isActive(sb.id);
+                  const displayStatus = isProvisioning
+                    ? "provisioning"
+                    : sb.status;
+                  const busy = actionInProgress === sb.id || isProvisioning;
                   const canStart =
                     ["stopped", "error", "pending", "disconnected"].includes(
-                      sb.status,
+                      displayStatus,
                     ) && !busy;
-                  const canStop = sb.status === "running" && !busy;
+                  const canStop = displayStatus === "running" && !busy;
 
                   return (
                     <TableRow
@@ -391,10 +474,16 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                         <div className="flex flex-col gap-2">
                           <Badge
                             variant="outline"
-                            className={`${statusColor(sb.status)} text-white border-none w-fit rounded-md text-xs`}
+                            className={`${statusColor(displayStatus)} text-white border-none w-fit rounded-md text-xs`}
                           >
-                            {statusDot(sb.status)} {sb.status}
+                            {statusDot(displayStatus)} {displayStatus}
                           </Badge>
+                          {isProvisioning && trackedJob && (
+                            <span className="text-[10px] text-blue-400 flex items-center gap-1">
+                              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                              Starting, job {trackedJob.jobId.slice(0, 8)}
+                            </span>
+                          )}
                           {sb.error_message && (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -416,20 +505,30 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                           <div className="space-y-0.5 text-xs text-neutral-400">
                             <div className="flex items-center gap-1">
                               <Server className="h-3 w-3 text-blue-400 shrink-0" />
-                              <span className="truncate max-w-[120px]" title={sb.node_id ?? ""}>
+                              <span
+                                className="truncate max-w-[120px]"
+                                title={sb.node_id ?? ""}
+                              >
                                 {sb.node_id}
                               </span>
                             </div>
                             {sb.container_name && (
-                              <div className="font-mono text-neutral-500 truncate max-w-[160px]" title={sb.container_name}>
+                              <div
+                                className="font-mono text-neutral-500 truncate max-w-[160px]"
+                                title={sb.container_name}
+                              >
                                 {sb.container_name}
                               </div>
                             )}
                             {(sb.bridge_port || sb.web_ui_port) && (
                               <div className="text-neutral-600">
-                                {sb.bridge_port && <span>Bridge: {sb.bridge_port}</span>}
+                                {sb.bridge_port && (
+                                  <span>Bridge: {sb.bridge_port}</span>
+                                )}
                                 {sb.bridge_port && sb.web_ui_port && " · "}
-                                {sb.web_ui_port && <span>UI: {sb.web_ui_port}</span>}
+                                {sb.web_ui_port && (
+                                  <span>UI: {sb.web_ui_port}</span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -437,7 +536,9 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                           <div className="text-xs text-neutral-500">
                             <Cloud className="h-3 w-3 text-purple-400 inline mr-1" />
                             {sb.sandbox_id ? (
-                              <span className="font-mono">{sb.sandbox_id.slice(0, 12)}…</span>
+                              <span className="font-mono">
+                                {sb.sandbox_id.slice(0, 12)}…
+                              </span>
                             ) : (
                               <span className="italic">No sandbox yet</span>
                             )}
@@ -455,7 +556,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                                 {sb.headscale_ip}
                               </span>
                             </div>
-                            {connectUrl && sb.status === "running" && (
+                            {connectUrl && displayStatus === "running" && (
                               <a
                                 href={connectUrl}
                                 target="_blank"
@@ -475,7 +576,9 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                       {/* Created */}
                       <TableCell>
                         <div className="text-sm">
-                          <div className="text-white">{formatRelative(sb.created_at)}</div>
+                          <div className="text-white">
+                            {formatRelative(sb.created_at)}
+                          </div>
                           {sb.last_heartbeat_at && (
                             <div className="text-xs text-neutral-500">
                               Heartbeat {formatRelative(sb.last_heartbeat_at)}
@@ -490,7 +593,9 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                           {/* Details */}
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Link href={`/dashboard/containers/agents/${sb.id}`}>
+                              <Link
+                                href={`/dashboard/containers/agents/${sb.id}`}
+                              >
                                 <button className="p-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                                   <FileText className="h-4 w-4" />
                                 </button>
@@ -502,11 +607,13 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                           </Tooltip>
 
                           {/* Connect (external) */}
-                          {connectUrl && sb.status === "running" && (
+                          {connectUrl && displayStatus === "running" && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  onClick={() => window.open(connectUrl, "_blank")}
+                                  onClick={() =>
+                                    window.open(connectUrl, "_blank")
+                                  }
                                   className="p-2 text-neutral-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
                                 >
                                   <ExternalLink className="h-4 w-4" />
@@ -558,8 +665,8 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
-                                onClick={() => setDeleteId(sb.id)}
-                                disabled={isDeleting}
+                                onClick={() => !busy && setDeleteId(sb.id)}
+                                disabled={isDeleting || busy}
                                 className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -581,13 +688,19 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       </div>
 
       {/* Delete confirmation */}
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+      <AlertDialog
+        open={deleteId !== null}
+        onOpenChange={() => setDeleteId(null)}
+      >
         <AlertDialogContent className="bg-neutral-900 border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Agent</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">
+              Delete Agent
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-neutral-400">
-              This will delete the agent record and stop any running container. This
-              action cannot be undone.
+              {deleteTargetBusy
+                ? "This agent is still provisioning. Wait for the job to finish before deleting it."
+                : "This will delete the agent record and stop any running container. This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -595,8 +708,11 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteId && handleDelete(deleteId)}
-              className="bg-red-500 hover:bg-red-600 text-white"
+              onClick={() =>
+                deleteId && !deleteTargetBusy && handleDelete(deleteId)
+              }
+              disabled={isDeleting || deleteTargetBusy}
+              className="bg-red-500 hover:bg-red-600 text-white disabled:opacity-50"
             >
               Delete
             </AlertDialogAction>

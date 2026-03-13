@@ -103,29 +103,48 @@ export class DockerSSHClient {
    * connections if the remote key doesn't match. When omitted, TOFU
    * (trust-on-first-use) applies: the fingerprint is logged on first connect.
    */
-  static getClient(hostname: string, port?: number, hostKeyFingerprint?: string, username?: string): DockerSSHClient {
+  static getClient(
+    hostname: string,
+    port?: number,
+    hostKeyFingerprint?: string,
+    username?: string,
+  ): DockerSSHClient {
     const effectivePort = port ?? DEFAULT_SSH_PORT;
     const effectiveUser = username ?? DEFAULT_SSH_USERNAME;
     const poolKey = `${hostname}:${effectivePort}:${effectiveUser}`;
     let client = DockerSSHClient.pool.get(poolKey);
     if (client) {
       // Evict stale connections (handles serverless cold-start reconnections)
-      if (client.connected && Date.now() - client.lastActivityMs > DockerSSHClient.IDLE_TIMEOUT_MS) {
+      if (
+        client.connected &&
+        Date.now() - client.lastActivityMs > DockerSSHClient.IDLE_TIMEOUT_MS
+      ) {
         logger.info(`[docker-ssh] Evicting idle connection for ${poolKey}`);
         client.disconnect().catch(() => {});
         DockerSSHClient.pool.delete(poolKey);
         client = undefined;
       }
       // Evict if fingerprint requirements changed
-      if (client && hostKeyFingerprint && client.pinnedFingerprint !== hostKeyFingerprint) {
-        logger.info(`[docker-ssh] Evicting pooled connection for ${poolKey} — fingerprint changed`);
+      if (
+        client &&
+        hostKeyFingerprint &&
+        client.pinnedFingerprint !== hostKeyFingerprint
+      ) {
+        logger.info(
+          `[docker-ssh] Evicting pooled connection for ${poolKey} — fingerprint changed`,
+        );
         client.disconnect().catch(() => {});
         DockerSSHClient.pool.delete(poolKey);
         client = undefined;
       }
     }
     if (!client) {
-      client = new DockerSSHClient({ hostname, port: effectivePort, hostKeyFingerprint });
+      client = new DockerSSHClient({
+        hostname,
+        port: effectivePort,
+        username: effectiveUser,
+        hostKeyFingerprint,
+      });
       DockerSSHClient.pool.set(poolKey, client);
     }
     return client;
@@ -158,7 +177,9 @@ export class DockerSSHClient {
     this.privateKeyPath = config.privateKeyPath ?? DEFAULT_SSH_KEY_PATH;
     this.hostKeyFingerprint = config.hostKeyFingerprint;
 
-    this.privateKey = config.privateKey ?? DockerSSHClient.resolvePrivateKey(this.privateKeyPath);
+    this.privateKey =
+      config.privateKey ??
+      DockerSSHClient.resolvePrivateKey(this.privateKeyPath);
   }
 
   // ---- Private key resolution ------------------------------------------
@@ -207,8 +228,8 @@ export class DockerSSHClient {
         : innerMsg;
       throw new Error(
         `[docker-ssh] Failed to load SSH key (file: .../${safePath}). ` +
-        `Set MILADY_SSH_KEY env var (base64) for serverless deployments. ` +
-        `(${safeInnerMsg})`,
+          `Set MILADY_SSH_KEY env var (base64) for serverless deployments. ` +
+          `(${safeInnerMsg})`,
       );
     }
   }
@@ -240,9 +261,7 @@ export class DockerSSHClient {
         clearTimeout(timeout);
         this.client = conn;
         this.connected = true;
-        logger.info(
-          `[docker-ssh] Connected to ${this.hostname}:${this.port}`,
-        );
+        logger.info(`[docker-ssh] Connected to ${this.hostname}:${this.port}`);
         resolve();
       });
 
@@ -269,14 +288,21 @@ export class DockerSSHClient {
         privateKey: this.privateKey,
         readyTimeout: CONNECTION_TIMEOUT_MS,
         hostVerifier: (key: Buffer) => {
-          const fingerprint = crypto.createHash("sha256").update(key).digest("base64");
+          const fingerprint = crypto
+            .createHash("sha256")
+            .update(key)
+            .digest("base64");
           if (!this.hostKeyFingerprint) {
             // No fingerprint configured — TOFU: accept and log at warn for operator visibility
-            logger.warn(`[docker-ssh] Host key for ${this.hostname}: SHA256:${fingerprint} (not verified — set hostKeyFingerprint to pin)`);
+            logger.warn(
+              `[docker-ssh] Host key for ${this.hostname}: SHA256:${fingerprint} (not verified — set hostKeyFingerprint to pin)`,
+            );
             return true;
           }
           if (fingerprint !== this.hostKeyFingerprint) {
-            logger.error(`[docker-ssh] HOST KEY MISMATCH for ${this.hostname}! Expected SHA256:${this.hostKeyFingerprint}, got SHA256:${fingerprint}`);
+            logger.error(
+              `[docker-ssh] HOST KEY MISMATCH for ${this.hostname}! Expected SHA256:${this.hostKeyFingerprint}, got SHA256:${fingerprint}`,
+            );
             return false;
           }
           return true;
@@ -319,7 +345,11 @@ export class DockerSSHClient {
           settled = true;
           // Close the SSH channel to signal the remote process (SIGHUP)
           // and prevent orphaned server-side processes after timeout.
-          try { stream?.close(); } catch { /* best-effort */ }
+          try {
+            stream?.close();
+          } catch {
+            /* best-effort */
+          }
           reject(
             new Error(
               `[docker-ssh] Command timed out after ${effectiveTimeout}ms on ${this.hostname}: ${cmdFirstToken} [redacted]`,
@@ -350,7 +380,10 @@ export class DockerSSHClient {
 
         stream.stderr.on("data", (data: Buffer) => {
           const text = data.toString();
-          output += output && !output.endsWith("\n") ? `\n[stderr] ${text}` : `[stderr] ${text}`;
+          output +=
+            output && !output.endsWith("\n")
+              ? `\n[stderr] ${text}`
+              : `[stderr] ${text}`;
         });
 
         stream.on("close", (code: number) => {
