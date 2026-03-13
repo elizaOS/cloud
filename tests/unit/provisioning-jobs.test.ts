@@ -62,6 +62,22 @@ vi.mock("@/lib/security/outbound-url", () => ({
   assertSafeOutboundUrl: mockAssertSafeOutboundUrl,
 }));
 
+// Mock dbWrite.transaction used by enqueueMiladyProvisionOnce.
+// The transaction callback receives a Drizzle-like tx object.
+const mockDbWriteTransaction = vi.fn();
+
+vi.mock("@/db/helpers", () => ({
+  dbWrite: { transaction: (...args: unknown[]) => mockDbWriteTransaction(...args) },
+  dbRead: {},
+  db: {},
+  useReadDb: vi.fn(),
+  useWriteDb: vi.fn(),
+  getReadDb: vi.fn(),
+  getWriteDb: vi.fn(),
+  getCurrentRegion: vi.fn(),
+  getDbConnectionInfo: vi.fn(),
+}));
+
 vi.mock("@/lib/utils/logger", () => ({
   logger: {
     info: vi.fn(),
@@ -95,6 +111,7 @@ describe("ProvisioningJobService", () => {
     service = new ProvisioningJobService();
     mockAssertSafeOutboundUrl.mockImplementation(async (url: string) => new URL(url));
     mockMiladySandboxesRepository.update.mockResolvedValue(undefined);
+    mockDbWriteTransaction.mockReset();
   });
 
   afterEach(() => {
@@ -107,6 +124,51 @@ describe("ProvisioningJobService", () => {
   // ─────────────────────────────────────────────────────────────────
 
   describe("enqueueMiladyProvision", () => {
+    // Helper: build a fake Drizzle-like tx for the transaction mock.
+    // Captures the NewJob passed to insert().values() so we can assert on it.
+    function setupTxMock(returnedJob: Record<string, unknown>) {
+      let capturedInsertValues: Record<string, unknown> | null = null;
+      let selectCall = 0;
+
+      mockDbWriteTransaction.mockImplementation(async (fn: Function) => {
+        selectCall = 0;
+        const fakeTx = {
+          execute: vi.fn().mockResolvedValue(undefined),
+          select: vi.fn().mockImplementation(() => {
+            selectCall++;
+            const current = selectCall;
+            return {
+              from: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                  // First select (sandbox existence check) → sandbox found
+                  limit: vi.fn().mockResolvedValue(
+                    current === 1
+                      ? [{ id: TEST_AGENT_ID, updated_at: new Date() }]
+                      : [],
+                  ),
+                  // Second select (existing job check) → no existing jobs
+                  orderBy: vi.fn().mockReturnValue({
+                    limit: vi.fn().mockResolvedValue([]),
+                  }),
+                }),
+              }),
+            };
+          }),
+          insert: vi.fn().mockReturnValue({
+            values: vi.fn().mockImplementation((newJob: Record<string, unknown>) => {
+              capturedInsertValues = newJob;
+              return {
+                returning: vi.fn().mockResolvedValue([{ ...newJob, ...returnedJob }]),
+              };
+            }),
+          }),
+        };
+        return fn(fakeTx);
+      });
+
+      return () => capturedInsertValues;
+    }
+
     it("creates a pending job with correct data", async () => {
       const fakeJob = {
         id: TEST_JOB_ID,
@@ -126,7 +188,7 @@ describe("ProvisioningJobService", () => {
         updated_at: new Date(),
       };
 
-      mockJobsRepository.create.mockResolvedValue(fakeJob);
+      const getCaptured = setupTxMock(fakeJob);
 
       const result = await service.enqueueMiladyProvision({
         agentId: TEST_AGENT_ID,
@@ -136,19 +198,18 @@ describe("ProvisioningJobService", () => {
       });
 
       expect(result.id).toBe(TEST_JOB_ID);
-      expect(result.type).toBe(JOB_TYPES.MILADY_PROVISION);
-      expect(result.status).toBe("pending");
 
-      expect(mockJobsRepository.create).toHaveBeenCalledOnce();
-      const createArg = mockJobsRepository.create.mock.calls[0][0];
-      expect(createArg.type).toBe("milady_provision");
-      expect(createArg.status).toBe("pending");
-      expect(createArg.max_attempts).toBe(3);
-      expect(createArg.data.agentId).toBe(TEST_AGENT_ID);
+      expect(mockDbWriteTransaction).toHaveBeenCalledOnce();
+      const insertArg = getCaptured();
+      expect(insertArg).not.toBeNull();
+      expect(insertArg!.type).toBe("milady_provision");
+      expect(insertArg!.status).toBe("pending");
+      expect(insertArg!.max_attempts).toBe(3);
+      expect((insertArg!.data as Record<string, unknown>).agentId).toBe(TEST_AGENT_ID);
     });
 
     it("passes webhook URL when provided", async () => {
-      mockJobsRepository.create.mockResolvedValue({
+      const getCaptured = setupTxMock({
         id: TEST_JOB_ID,
         webhook_url: "https://example.com/webhook",
       });
@@ -161,12 +222,13 @@ describe("ProvisioningJobService", () => {
         webhookUrl: "https://example.com/webhook",
       });
 
-      const createArg = mockJobsRepository.create.mock.calls[0][0];
-      expect(createArg.webhook_url).toBe("https://example.com/webhook");
+      const insertArg = getCaptured();
+      expect(insertArg).not.toBeNull();
+      expect(insertArg!.webhook_url).toBe("https://example.com/webhook");
     });
 
     it("sets estimated completion to ~90s from now", async () => {
-      mockJobsRepository.create.mockResolvedValue({ id: TEST_JOB_ID });
+      const getCaptured = setupTxMock({ id: TEST_JOB_ID });
 
       const before = Date.now();
       await service.enqueueMiladyProvision({
@@ -176,8 +238,9 @@ describe("ProvisioningJobService", () => {
         agentName: "TestAgent",
       });
 
-      const createArg = mockJobsRepository.create.mock.calls[0][0];
-      const estimated = new Date(createArg.estimated_completion_at).getTime();
+      const insertArg = getCaptured();
+      expect(insertArg).not.toBeNull();
+      const estimated = new Date(insertArg!.estimated_completion_at as string).getTime();
       expect(estimated).toBeGreaterThanOrEqual(before + 85_000);
       expect(estimated).toBeLessThanOrEqual(before + 95_000);
     });

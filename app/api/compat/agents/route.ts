@@ -45,11 +45,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Strip reserved __milady* keys from user-supplied agentConfig to prevent
+    // callers from spoofing internal flags that control delete-time behaviour.
+    const sanitizedConfig = parsed.data.agentConfig
+      ? Object.fromEntries(
+          Object.entries(parsed.data.agentConfig).filter(
+            ([k]) => !k.startsWith("__milady"),
+          ),
+        )
+      : undefined;
+
     let agent = await miladySandboxService.createAgent({
       organizationId: user.organization_id,
       userId: user.id,
       agentName: parsed.data.agentName,
-      agentConfig: parsed.data.agentConfig,
+      agentConfig: sanitizedConfig,
       environmentVars: parsed.data.environmentVars,
     });
 

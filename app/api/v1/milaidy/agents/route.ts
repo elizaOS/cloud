@@ -110,6 +110,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Strip reserved __milady* keys from user-supplied agentConfig to prevent
+  // callers from spoofing internal flags (e.g. __miladyCharacterOwnership)
+  // that control delete-time character cleanup behaviour.
+  const sanitizedConfig = parsed.data.agentConfig
+    ? Object.fromEntries(
+        Object.entries(parsed.data.agentConfig).filter(
+          ([k]) => !k.startsWith("__milady"),
+        ),
+      )
+    : undefined;
+
   const agent = await miladySandboxService.createAgent({
     organizationId: user.organization_id,
     userId: user.id,
@@ -117,10 +128,10 @@ export async function POST(request: NextRequest) {
     characterId: parsed.data.characterId,
     agentConfig: parsed.data.characterId
       ? {
-          ...(parsed.data.agentConfig ?? {}),
+          ...sanitizedConfig,
           __miladyCharacterOwnership: "reuse-existing",
         }
-      : parsed.data.agentConfig,
+      : sanitizedConfig,
     environmentVars: parsed.data.environmentVars,
   });
 

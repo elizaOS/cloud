@@ -6,6 +6,7 @@ const mockRequireServiceKey = mock();
 const mockAuthenticateWaifuBridge = mock();
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockGetAgent = mock();
+const mockGetAgentForWrite = mock();
 const mockSnapshot = mock();
 const mockProvision = mock();
 const mockDeleteAgent = mock();
@@ -33,6 +34,7 @@ mock.module("@/lib/auth", () => ({
 mock.module("@/lib/services/milaidy-sandbox", () => ({
   miladySandboxService: {
     getAgent: mockGetAgent,
+    getAgentForWrite: mockGetAgentForWrite,
     deleteAgent: mockDeleteAgent,
     snapshot: mockSnapshot,
     provision: mockProvision,
@@ -138,6 +140,7 @@ describe("GET/DELETE /api/compat/agents/[id]", () => {
     mockAuthenticateWaifuBridge.mockReset();
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockGetAgent.mockReset();
+    mockGetAgentForWrite.mockReset();
     mockDeleteAgent.mockReset();
     mockCharacterDelete.mockReset();
     mockSnapshot.mockReset();
@@ -168,7 +171,7 @@ describe("GET/DELETE /api/compat/agents/[id]", () => {
   });
 
   test("DELETE returns 404 error envelope when agent is missing", async () => {
-    mockDeleteAgent.mockResolvedValue(false);
+    mockGetAgentForWrite.mockResolvedValue(null);
 
     const response = await deleteCompatAgent(
       new NextRequest("https://example.com/api/compat/agents/agent-404", {
@@ -189,11 +192,12 @@ describe("GET/DELETE /api/compat/agents/[id]", () => {
       id: "agent-del",
       character_id: "char-linked",
       agent_name: "TestAgent",
+      agent_config: null,
       status: "running",
       organization_id: "org-1",
     };
-    mockGetAgent.mockResolvedValue(mockSandbox);
-    mockDeleteAgent.mockResolvedValue(true);
+    mockGetAgentForWrite.mockResolvedValue(mockSandbox);
+    mockDeleteAgent.mockResolvedValue({ success: true });
     mockCharacterDelete.mockResolvedValue(undefined);
 
     const response = await deleteCompatAgent(
@@ -215,11 +219,12 @@ describe("GET/DELETE /api/compat/agents/[id]", () => {
       id: "agent-del2",
       character_id: "char-broken",
       agent_name: "TestAgent2",
+      agent_config: null,
       status: "running",
       organization_id: "org-1",
     };
-    mockGetAgent.mockResolvedValue(mockSandbox);
-    mockDeleteAgent.mockResolvedValue(true);
+    mockGetAgentForWrite.mockResolvedValue(mockSandbox);
+    mockDeleteAgent.mockResolvedValue({ success: true });
     mockCharacterDelete.mockRejectedValue(new Error("DB connection lost"));
 
     const response = await deleteCompatAgent(
@@ -241,11 +246,12 @@ describe("GET/DELETE /api/compat/agents/[id]", () => {
       id: "agent-no-char",
       character_id: null,
       agent_name: "NoCharAgent",
+      agent_config: null,
       status: "running",
       organization_id: "org-1",
     };
-    mockGetAgent.mockResolvedValue(mockSandbox);
-    mockDeleteAgent.mockResolvedValue(true);
+    mockGetAgentForWrite.mockResolvedValue(mockSandbox);
+    mockDeleteAgent.mockResolvedValue({ success: true });
 
     const response = await deleteCompatAgent(
       new NextRequest("https://example.com/api/compat/agents/agent-no-char", {
