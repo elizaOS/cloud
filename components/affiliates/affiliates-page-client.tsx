@@ -212,6 +212,47 @@ export function AffiliatesPageClient() {
                     </div>
                 </div>
             </BrandCard>
+
+            {/* API Integration Snippet */}
+            <BrandCard corners={false}>
+                <h3 className="text-lg font-semibold text-white mb-1">Developer API Integration (SKUs)</h3>
+                <p className="text-sm text-white/60 mb-4">
+                    Embed your affiliate code directly into your API calls. All users passing your code header will automatically generate marked-up revenue for you on every inference.
+                </p>
+
+                <div className="bg-[#0A0A0A] rounded-lg border border-white/10 overflow-hidden relative group">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-white/[0.02]">
+                        <span className="text-xs font-mono text-white/40">cURL Example</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-white/40 hover:text-white"
+                            onClick={() => {
+                                const codeSnippet = `curl -X POST https://api.elizacloud.ai/v1/chat/completions \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "X-Affiliate-Code: ${affiliateData?.code || 'YOUR_CODE_HERE'}" \\
+  -d '{
+    "model": "google/gemini-2.5-flash",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'`;
+                                navigator.clipboard.writeText(codeSnippet);
+                                toast.success("Code snippet copied!");
+                            }}
+                        >
+                            <Copy className="h-3 w-3" />
+                        </Button>
+                    </div>
+                    <pre className="p-4 overflow-x-auto text-sm font-mono text-white/80 leading-relaxed">
+                        <span className="text-green-400">curl</span> -X POST https://api.elizacloud.ai/v1/chat/completions \<br/>
+                        {'  '}-H <span className="text-yellow-300">"Authorization: Bearer YOUR_API_KEY"</span> \<br/>
+                        {'  '}-H <span className="text-yellow-300">"X-Affiliate-Code: <span className="text-[#FF5800] break-all">{affiliateData?.code || 'YOUR_CODE_HERE'}</span>"</span> \<br/>
+                        {'  '}-d <span className="text-yellow-300">'{'{'}<br/>
+                        {'    '}"model": "google/gemini-2.5-flash",<br/>
+                        {'    '}"messages": [{'{'}"role": "user", "content": "Hello!"{'}'}]<br/>
+                        {'  }'}'</span>
+                    </pre>
+                </div>
+            </BrandCard>
         </div>
     );
 }

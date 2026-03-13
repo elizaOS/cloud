@@ -28,6 +28,52 @@ describe("Affiliates API", () => {
       expect(response.status).toBe(200);
     },
   );
+
+  test.skipIf(!api.hasApiKey())(
+    "Affiliate SKU end-to-end: AI inference with X-Affiliate-Code credits owner",
+    async () => {
+      // 1. Ensure affiliate code exists with markup
+      const createRes = await api.post(
+        "/api/v1/affiliates",
+        { markupPercent: 50 },
+        { authenticated: true },
+      );
+      expect([200, 400]).toContain(createRes.status);
+      
+      const getRes = await api.get("/api/v1/affiliates", { authenticated: true });
+      expect(getRes.status).toBe(200);
+      const getBody = await getRes.json() as any;
+      const affiliateCode = getBody.code?.code;
+      expect(affiliateCode).toBeTruthy();
+
+      // 2. Initial earnings check
+      const initialUserRes = await api.get("/api/v1/user", { authenticated: true });
+      const initialUserBody = await initialUserRes.json() as any;
+      const initialEarnings = Number(initialUserBody.user?.redeemable_earnings || 0);
+
+      // 3. Perform AI inference with X-Affiliate-Code
+      const chatRes = await api.post(
+        "/api/v1/chat/completions",
+        {
+           model: "google/gemini-2.5-flash",
+           messages: [{ role: "user", content: "Say hello!" }],
+           max_tokens: 10,
+        },
+        {
+          authenticated: true,
+          headers: { "X-Affiliate-Code": affiliateCode },
+        }
+      );
+      expect(chatRes.status).toBe(200);
+
+      // 4. Verify earnings increased
+      const finalUserRes = await api.get("/api/v1/user", { authenticated: true });
+      const finalUserBody = await finalUserRes.json() as any;
+      const finalEarnings = Number(finalUserBody.user?.redeemable_earnings || 0);
+
+      expect(finalEarnings).toBeGreaterThan(initialEarnings);
+    },
+  );
 });
 
 describe("Referrals API", () => {

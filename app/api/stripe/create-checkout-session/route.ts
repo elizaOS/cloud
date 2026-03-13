@@ -18,7 +18,7 @@ const CUSTOM_AMOUNT_LIMITS = {
 const ALLOWED_ORIGINS = [
   process.env.NEXT_PUBLIC_APP_URL,
   "http://localhost:3000",
-  "http://localhost:3001",
+  "http://localhost:3000",
 ].filter(Boolean) as string[];
 
 // Configurable currency

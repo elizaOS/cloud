@@ -539,6 +539,7 @@ async function handlePOST(req: NextRequest) {
 
   const estimatedInputTokens = estimateInputTokens(estimateMessages);
   const estimatedOutputTokens = request.max_tokens;
+  const affiliateCode = req.headers.get("X-Affiliate-Code");
 
   let reservation: CreditReservation;
   let appCreditsInfo: AppCreditsInfo | undefined;
@@ -581,6 +582,7 @@ async function handlePOST(req: NextRequest) {
           userId: user.id,
           model,
           provider,
+          affiliateCode,
         },
         estimatedInputTokens,
         estimatedOutputTokens,
@@ -619,6 +621,7 @@ async function handlePOST(req: NextRequest) {
         apiKey,
         reservation,
         appCreditsInfo,
+        affiliateCode,
         startTime,
         estimatedInputTokens,
         safeParams,
@@ -636,6 +639,7 @@ async function handlePOST(req: NextRequest) {
       apiKey,
       reservation,
       appCreditsInfo,
+      affiliateCode,
       startTime,
       safeParams,
       tools,
@@ -657,6 +661,7 @@ async function handleNonStream(
   apiKey: { id: string } | null,
   reservation: CreditReservation,
   appCreditsInfo: AppCreditsInfo | undefined,
+  affiliateCode: string | null,
   startTime: number,
   safeParams: ReturnType<typeof getSafeModelParams>,
   tools: ReturnType<typeof convertTools>,
@@ -686,6 +691,7 @@ async function handleNonStream(
       apiKeyId: apiKey?.id,
       model,
       provider,
+      affiliateCode,
     },
     result.usage,
     reservation,
@@ -773,6 +779,7 @@ async function handleStream(
   apiKey: { id: string } | null,
   reservation: CreditReservation,
   appCreditsInfo: AppCreditsInfo | undefined,
+  affiliateCode: string | null,
   startTime: number,
   estimatedInputTokens: number,
   safeParams: ReturnType<typeof getSafeModelParams>,
@@ -804,6 +811,7 @@ async function handleStream(
             apiKeyId: apiKey?.id,
             model,
             provider,
+            affiliateCode,
           },
           totalUsage,
           reservation,

@@ -12,8 +12,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
-import HeroChatInput from "./hero-chat-input";
-// import DiscoverApps from "./discover-apps";
+import HeroSection from "./hero-section";
 // import DiscoverAgents from "./discover-agents";
 import { toast } from "sonner";
 
@@ -107,7 +106,7 @@ export function LandingPage({ accessError }: LandingPageProps) {
 
         {/* Hero Chat Input - Full screen height section */}
         <div className="min-h-screen flex items-center justify-center pb-12 sm:pb-32">
-          <HeroChatInput onSubmit={() => router.push("/login?intent=signup")} />
+          <HeroSection />
         </div>
 
         {/* Discover Sections */}

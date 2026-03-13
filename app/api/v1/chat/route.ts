@@ -12,6 +12,7 @@ import {
   InsufficientCreditsError,
   type CreditReservation,
 } from "@/lib/services/credits";
+import { billUsage } from "@/lib/services/ai-billing";
 import { calculateCost, estimateTokens } from "@/lib/pricing";
 import { resolveModel } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
@@ -257,6 +258,7 @@ async function handlePOST(req: NextRequest) {
     // Reserve credits BEFORE making API call (prevents TOCTOU race condition)
     let reservation: CreditReservation =
       creditsService.createAnonymousReservation();
+    const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     if (!isAnonymous && user.organization_id) {
       const messageText = messages
@@ -320,10 +322,22 @@ async function handlePOST(req: NextRequest) {
             usage.inputTokens || 0,
             usage.outputTokens || 0,
           );
-
-          // Reconcile credits (refund excess if actual < reserved)
-          // For anonymous users, reservation.reconcile is a no-op
-          await reservation.reconcile(totalCost);
+          
+          // Use AI Billing wrapper to handle affiliate markup/redemption easily
+          // Since this route still manually tracks conversations and uses standalone `calculateCost`
+          // We will use the common `billUsage` instead, which calculates cost, markups and reconciles.
+          const billing = await billUsage({
+              organizationId: user.organization_id || "anonymous",
+              userId: user.id,
+              apiKeyId: apiKey?.id,
+              model: selectedModel,
+              provider,
+              affiliateCode,
+          }, usage, reservation);
+           
+          const totalCostBilled = billing.totalCost;
+          const inputCostBilled = billing.inputCost;
+          const outputCostBilled = billing.outputCost;
 
           // Track token usage for anonymous users (no credits, just analytics)
           if (isAnonymous && anonymousSession) {
@@ -346,7 +360,7 @@ async function handlePOST(req: NextRequest) {
               content: extractTextFromParts(userMessage.parts),
               model: selectedModel,
               tokens: usage.inputTokens,
-              cost: String(inputCost),
+              cost: String(inputCostBilled),
             });
 
             // Add assistant message
@@ -355,7 +369,7 @@ async function handlePOST(req: NextRequest) {
               content: text,
               model: selectedModel,
               tokens: usage.outputTokens,
-              cost: String(outputCost),
+              cost: String(outputCostBilled),
             });
           }
 
@@ -371,8 +385,8 @@ async function handlePOST(req: NextRequest) {
               provider: provider,
               input_tokens: usage.inputTokens,
               output_tokens: usage.outputTokens,
-              input_cost: String(inputCost),
-              output_cost: String(outputCost),
+              input_cost: String(inputCostBilled),
+              output_cost: String(outputCostBilled),
               is_successful: true,
             });
 
@@ -392,8 +406,8 @@ async function handlePOST(req: NextRequest) {
                 status: "completed",
                 content: text,
                 tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-                cost: String(totalCost),
-                credits: String(totalCost),
+                cost: String(totalCostBilled),
+                credits: String(totalCostBilled),
                 usage_record_id: usageRecord.id,
                 completed_at: new Date(),
                 result: {
@@ -408,9 +422,9 @@ async function handlePOST(req: NextRequest) {
           }
 
           logger.info("chat-api", "Cost charged", {
-            totalCost,
-            inputCost,
-            outputCost,
+            totalCost: totalCostBilled,
+            inputCost: inputCostBilled,
+            outputCost: outputCostBilled,
           });
         } catch (error) {
           logger.error(

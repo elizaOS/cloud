@@ -263,6 +263,7 @@ async function handlePOST(req: NextRequest) {
       request.messages.map((m) => ({ content: getMessageContent(m) })),
     );
     const estimatedOutputTokens = request.max_tokens || 500;
+    const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     let reservation: CreditReservation;
     let appCreditsInfo:
@@ -317,6 +318,7 @@ async function handlePOST(req: NextRequest) {
             userId: user.id,
             model,
             provider,
+            affiliateCode,
           },
           estimatedInputTokens,
           estimatedOutputTokens,
@@ -368,6 +370,7 @@ async function handlePOST(req: NextRequest) {
         apiKey ? { id: apiKey.id } : null,
         reservation,
         appCreditsInfo,
+        affiliateCode,
         startTime,
       );
     } else {
@@ -380,6 +383,7 @@ async function handlePOST(req: NextRequest) {
         apiKey ? { id: apiKey.id } : null,
         reservation,
         appCreditsInfo,
+        affiliateCode,
         startTime,
       );
     }
@@ -440,6 +444,7 @@ async function handleStreamingRequest(
   appCreditsInfo:
     | { appId: string; estimatedBaseCost: number; app: unknown }
     | undefined,
+  affiliateCode: string | null,
   startTime: number,
 ) {
   const provider = getProviderFromModel(model);
@@ -471,6 +476,7 @@ async function handleStreamingRequest(
             apiKeyId: apiKey?.id,
             model,
             provider,
+            affiliateCode,
           },
           usage,
           reservation,
@@ -602,6 +608,7 @@ async function handleNonStreamingRequest(
   appCreditsInfo:
     | { appId: string; estimatedBaseCost: number; app: unknown }
     | undefined,
+  affiliateCode: string | null,
   startTime: number,
 ) {
   const provider = getProviderFromModel(model);
@@ -634,6 +641,7 @@ async function handleNonStreamingRequest(
       apiKeyId: apiKey?.id,
       model,
       provider,
+      affiliateCode,
     },
     result.usage,
     reservation,

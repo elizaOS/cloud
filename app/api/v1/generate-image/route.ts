@@ -18,6 +18,7 @@ import {
   InsufficientCreditsError,
   type CreditReservation,
 } from "@/lib/services/credits";
+import { billUsage } from "@/lib/services/ai-billing";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { UserWithOrganization } from "@/lib/types";
@@ -163,6 +164,7 @@ async function handlePOST(req: NextRequest) {
       sourceImage,
       model: requestedModel,
     }: GenerateImageRequest = requestBody;
+    const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return Response.json(
@@ -474,14 +476,40 @@ async function handlePOST(req: NextRequest) {
         { status: 500 },
       );
     }
-
+    
     // Calculate actual cost based on successful images and reconcile
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
-    await reservation.reconcile(actualCost);
 
     // Only create usage record for authenticated users
     let usageRecordId: string | undefined;
+    let actualCostBilled = actualCost;
     if (!isAnonymous && user.organization_id) {
+       
+      // Calculate final pricing utilizing AI billing helper
+      // This applies affiliate markups, calculates platform markups, and reconciles the reservation
+      const billing = await billUsage({
+          organizationId: user.organization_id,
+          userId: user.id,
+          apiKeyId: apiKey?.id,
+          model: imageModel,
+          provider: imageProvider,
+          affiliateCode,
+          description: `Image generation (${successfulResults.length}x): ${imageModel}`,
+      }, {
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          // We override the total cost through a hack since images are billed per unit not per token within `calculateCost`.
+          // We let `billUsage` do the affiliate markup math.
+      }, {
+          reservedAmount: actualCost, // we just pass a mock reservation to reconcile it via the wrapper logic
+          reconcile: async (cost: number) => {
+              // Reconcile actual calculated final cost against original estimated cost we already reserved
+              await reservation.reconcile(cost);
+          }
+      });
+      actualCostBilled = billing.totalCost;
+
       const usageRecord = await usageService.create({
         organization_id: user.organization_id,
         user_id: user.id,
@@ -491,7 +519,7 @@ async function handlePOST(req: NextRequest) {
         provider: imageProvider,
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: String(actualCost),
+        input_cost: String(actualCostBilled),
         output_cost: String(0),
         is_successful: true,
       });
@@ -511,7 +539,7 @@ async function handlePOST(req: NextRequest) {
           userAgent,
           userId: user.id,
           model: imageModel,
-          creditsUsed: String(actualCost),
+          creditsUsed: String(actualCostBilled),
           status: "success",
         });
       }
@@ -584,8 +612,8 @@ async function handlePOST(req: NextRequest) {
         // First record holds the total cost for the entire batch
         await generationsService.update(generationId, {
           status: "completed",
-          credits: String(actualCost),
-          cost: String(actualCost),
+          credits: String(actualCostBilled),
+          cost: String(actualCostBilled),
           content: uploadResults[0].imageBase64,
           storage_url: uploadResults[0].blobUrl,
           mime_type: uploadResults[0].mimeType,
@@ -633,8 +661,8 @@ async function handlePOST(req: NextRequest) {
         // Single image or multi-image without org (just update existing record)
         await generationsService.update(generationId, {
           status: "completed",
-          credits: String(actualCost),
-          cost: String(actualCost),
+          credits: String(actualCostBilled),
+          cost: String(actualCostBilled),
           content: uploadResults[0].imageBase64,
           storage_url: uploadResults[0].blobUrl,
           mime_type: uploadResults[0].mimeType,

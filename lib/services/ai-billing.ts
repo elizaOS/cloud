@@ -26,6 +26,8 @@ import {
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { logger } from "@/lib/utils/logger";
+import { affiliatesRepository } from "@/db/repositories/affiliates";
+import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 
 // ============================================================================
 // Types
@@ -47,6 +49,7 @@ export interface BillingContext {
   model: string;
   provider?: string;
   description?: string;
+  affiliateCode?: string | null;
 }
 
 export interface BillingResult {
@@ -160,12 +163,58 @@ export async function billUsage(
   const normalizedModel = normalizeModelName(context.model);
 
   // Calculate cost with 20% platform markup (built into calculateCost)
-  const { inputCost, outputCost, totalCost } = await calculateCost(
+  let { inputCost, outputCost, totalCost } = await calculateCost(
     normalizedModel,
     provider,
     inputTokens,
     outputTokens,
   );
+
+  // Apply affiliate markup if present
+  let appliedAffiliateMarkup = false;
+  if (context.affiliateCode) {
+    const affiliate = await affiliatesRepository.getAffiliateCodeByCode(context.affiliateCode);
+    if (affiliate && affiliate.is_active) {
+      const markupPercent = Number(affiliate.markup_percent) / 100;
+      
+      // Calculate affiliate markup based on total cost (after platform markup)
+      const affiliateMarkupBaseCost = totalCost;
+      const affiliateEarnings = affiliateMarkupBaseCost * markupPercent;
+
+      // Update total costs charged to the user
+      inputCost += inputCost * markupPercent;
+      outputCost += outputCost * markupPercent;
+      totalCost += affiliateEarnings;
+      appliedAffiliateMarkup = true;
+
+      // Credit the affiliate owner
+      if (affiliateEarnings > 0) {
+        // Prevent double booking on identical reservations easily, 
+        // using the transaction ID or random ID if none present.
+        const sourceId = `legacy_${crypto.randomUUID()}`;
+        
+        await redeemableEarningsService.addEarnings({
+          userId: affiliate.user_id,
+          amount: affiliateEarnings,
+          source: "affiliate",
+          sourceId,
+          description: `Affiliate markup earnings from model: ${context.model}`,
+          metadata: {
+            appId: null, // this isn't from a specific miniapp, but from an affiliate SKU
+            model: context.model,
+            tokens: totalTokens,
+          },
+          dedupeBySourceId: true,
+        }).catch(err => {
+            logger.error("[AI Billing] Failed to add affiliate earnings", {
+                error: err instanceof Error ? err.message : String(err),
+                affiliateId: affiliate.id,
+                amount: affiliateEarnings,
+            });
+        });
+      }
+    }
+  }
 
   // Reconcile reservation (refund excess or charge overage)
   if (reservation) {
