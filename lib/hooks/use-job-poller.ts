@@ -55,6 +55,7 @@ export function useJobPoller(options: UseJobPollerOptions = {}) {
       Array.from(jobMap.values()).filter((job) => isActiveStatus(job.status)),
     [jobMap],
   );
+  const hasActiveJobs = activeJobs.length > 0;
 
   const track = useCallback((key: string, jobId: string) => {
     setJobMap((prev) => {
@@ -81,7 +82,7 @@ export function useJobPoller(options: UseJobPollerOptions = {}) {
   );
 
   useEffect(() => {
-    if (activeJobs.length === 0) {
+    if (!hasActiveJobs) {
       return;
     }
 
@@ -182,7 +183,7 @@ export function useJobPoller(options: UseJobPollerOptions = {}) {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [activeJobs.length, autoRefresh, intervalMs, maxDurationMs, router]);
+  }, [hasActiveJobs, autoRefresh, intervalMs, maxDurationMs, router]);
 
   return {
     track,

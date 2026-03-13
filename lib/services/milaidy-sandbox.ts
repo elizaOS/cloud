@@ -12,6 +12,10 @@ import {
 import { jobs } from "@/db/schemas/jobs";
 import { logger } from "@/lib/utils/logger";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
+import {
+  stripReservedMiladyConfigKeys,
+  withReusedMiladyCharacterOwnership,
+} from "@/lib/services/milady-agent-config";
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
 import { getNeonClient, NeonClientError } from "./neon-client";
 import {
@@ -101,11 +105,17 @@ export class MiladySandboxService {
       orgId: params.organizationId,
       name: params.agentName,
     });
+
+    const sanitizedConfig = stripReservedMiladyConfigKeys(params.agentConfig);
+    const agentConfig = params.characterId
+      ? withReusedMiladyCharacterOwnership(sanitizedConfig)
+      : sanitizedConfig;
+
     return miladySandboxesRepository.create({
       organization_id: params.organizationId,
       user_id: params.userId,
       agent_name: params.agentName,
-      agent_config: params.agentConfig ?? {},
+      agent_config: agentConfig,
       environment_vars: params.environmentVars ?? {},
       status: "pending",
       database_status: "none",
@@ -644,28 +654,13 @@ export class MiladySandboxService {
     if (!rec?.bridge_url)
       return { success: false, error: "Sandbox is not running" };
 
-    const snapshotEndpoint = await this.getSafeBridgeEndpoint(
-      rec,
-      "/api/snapshot",
-    );
-    const res = await fetch(snapshotEndpoint, {
-      method: "POST",
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!res.ok)
-      return {
-        success: false,
-        error: `Snapshot fetch failed: HTTP ${res.status}`,
-      };
-
-    const stateData = (await res.json()) as MiladyBackupStateData;
-    const serialized = JSON.stringify(stateData);
+    const { stateData, sizeBytes } = await this.fetchSnapshotState(rec);
 
     const backup = await miladySandboxesRepository.createBackup({
       sandbox_record_id: rec.id,
       snapshot_type: type,
       state_data: stateData,
-      size_bytes: Buffer.byteLength(serialized, "utf-8"),
+      size_bytes: sizeBytes,
     });
 
     await miladySandboxesRepository.update(rec.id, {
@@ -721,8 +716,6 @@ export class MiladySandboxService {
     );
     if (!rec?.bridge_url) return false;
 
-    const bridgeUrl = rec.bridge_url;
-    if (!bridgeUrl) return false;
     const res = await (async () => {
       try {
         const heartbeatEndpoint = await this.getSafeBridgeEndpoint(
@@ -769,6 +762,24 @@ export class MiladySandboxService {
     orgId: string,
   ): Promise<{ success: boolean; error?: string }> {
     let snapshotAgentId: string | null = null;
+    let preShutdownSnapshot: {
+      stateData: MiladyBackupStateData;
+      sizeBytes: number;
+      bridgeUrl: string;
+    } | null = null;
+
+    const snapshotSource = await this.getAgentForWrite(agentId, orgId);
+    if (snapshotSource?.status === "running" && snapshotSource.bridge_url) {
+      preShutdownSnapshot = await this.fetchSnapshotState(snapshotSource).catch(
+        (error) => {
+          logger.warn("[milady-sandbox] Pre-shutdown backup fetch failed", {
+            agentId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        },
+      );
+    }
 
     const result = await dbWrite.transaction(async (tx) => {
       await this.lockLifecycle(tx, agentId, orgId);
@@ -788,17 +799,18 @@ export class MiladySandboxService {
         } as const;
       }
 
-      if (rec.status === "running" && rec.bridge_url) {
-        await this.createSnapshotWithinTransaction(
+      if (
+        preShutdownSnapshot &&
+        rec.status === "running" &&
+        rec.bridge_url === preShutdownSnapshot.bridgeUrl
+      ) {
+        await this.persistSnapshotWithinTransaction(
           tx,
-          rec,
+          rec.id,
           "pre-shutdown",
-        ).catch((e) => {
-          logger.warn("[milady-sandbox] Pre-shutdown backup failed", {
-            agentId,
-            error: e instanceof Error ? e.message : String(e),
-          });
-        });
+          preShutdownSnapshot.stateData,
+          preShutdownSnapshot.sizeBytes,
+        );
       }
 
       if (rec.sandbox_id) {
@@ -883,11 +895,16 @@ export class MiladySandboxService {
     return result.rows.length > 0;
   }
 
-  private async createSnapshotWithinTransaction(
-    tx: LifecycleTx,
-    rec: MiladySandbox,
-    type: MiladyBackupSnapshotType,
-  ): Promise<void> {
+  private async fetchSnapshotState(
+    rec: Pick<
+      MiladySandbox,
+      "bridge_url" | "node_id" | "bridge_port" | "headscale_ip" | "sandbox_id"
+    >,
+  ): Promise<{
+    stateData: MiladyBackupStateData;
+    sizeBytes: number;
+    bridgeUrl: string;
+  }> {
     if (!rec.bridge_url) {
       throw new Error("Sandbox is not running");
     }
@@ -905,14 +922,27 @@ export class MiladySandboxService {
     }
 
     const stateData = (await res.json()) as MiladyBackupStateData;
-    const serialized = JSON.stringify(stateData);
-    const sizeBytes = Buffer.byteLength(serialized, "utf-8");
+    const sizeBytes = Buffer.byteLength(JSON.stringify(stateData), "utf-8");
 
+    return {
+      stateData,
+      sizeBytes,
+      bridgeUrl: rec.bridge_url,
+    };
+  }
+
+  private async persistSnapshotWithinTransaction(
+    tx: LifecycleTx,
+    sandboxRecordId: string,
+    type: MiladyBackupSnapshotType,
+    stateData: MiladyBackupStateData,
+    sizeBytes: number,
+  ): Promise<void> {
     const backupResult = await tx.execute<MiladySandboxBackup>(sql`
       INSERT INTO ${miladySandboxBackups}
         (sandbox_record_id, snapshot_type, state_data, size_bytes)
       VALUES
-        (${rec.id}, ${type}, ${stateData}, ${sizeBytes})
+        (${sandboxRecordId}, ${type}, ${stateData}, ${sizeBytes})
       RETURNING *
     `);
     const backup = backupResult.rows[0];
@@ -922,11 +952,11 @@ export class MiladySandboxService {
       SET
         last_backup_at = NOW(),
         updated_at = NOW()
-      WHERE id = ${rec.id}
+      WHERE id = ${sandboxRecordId}
     `);
 
     logger.info("[milady-sandbox] Backup created", {
-      agentId: rec.id,
+      agentId: sandboxRecordId,
       type,
       bytes: backup?.size_bytes ?? sizeBytes,
     });
@@ -996,10 +1026,6 @@ export class MiladySandboxService {
   }
 
   private isIgnorableSandboxStopError(error: unknown): boolean {
-    if (error instanceof NeonClientError && error.statusCode === 404) {
-      return true;
-    }
-
     const message = error instanceof Error ? error.message : String(error);
     const normalized = message.toLowerCase();
     return (

@@ -3,6 +3,10 @@ import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import {
+  stripReservedMiladyConfigKeys,
+  withReusedMiladyCharacterOwnership,
+} from "@/lib/services/milady-agent-config";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -111,15 +115,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Strip reserved __milady* keys from user-supplied agentConfig to prevent
-  // callers from spoofing internal flags (e.g. __miladyCharacterOwnership)
-  // that control delete-time character cleanup behaviour.
-  const sanitizedConfig = parsed.data.agentConfig
-    ? Object.fromEntries(
-        Object.entries(parsed.data.agentConfig).filter(
-          ([k]) => !k.toLowerCase().startsWith("__milady"),
-        ),
-      )
-    : undefined;
+  // callers from spoofing internal lifecycle flags.
+  const sanitizedConfig = stripReservedMiladyConfigKeys(
+    parsed.data.agentConfig,
+  );
 
   const agent = await miladySandboxService.createAgent({
     organizationId: user.organization_id,
@@ -127,10 +126,7 @@ export async function POST(request: NextRequest) {
     agentName: parsed.data.agentName,
     characterId: parsed.data.characterId,
     agentConfig: parsed.data.characterId
-      ? {
-          ...sanitizedConfig,
-          __miladyCharacterOwnership: "reuse-existing",
-        }
+      ? withReusedMiladyCharacterOwnership(sanitizedConfig)
       : sanitizedConfig,
     environmentVars: parsed.data.environmentVars,
   });

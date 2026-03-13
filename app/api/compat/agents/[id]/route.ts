@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-config";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { requireCompatAuth } from "../../_lib/auth";
 import { handleCompatError } from "../../_lib/error-handler";
@@ -65,7 +66,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       unknown
     > | null;
     const reusesExistingCharacter =
-      sandboxConfig?.__miladyCharacterOwnership === "reuse-existing";
+      reusesExistingMiladyCharacter(sandboxConfig);
 
     // Clean up the linked character row so the token_address unique constraint
     // is released. Best-effort: log but don't fail the delete if cleanup fails.

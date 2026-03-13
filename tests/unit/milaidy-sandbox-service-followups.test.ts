@@ -150,6 +150,39 @@ describe("MiladySandboxService follow-ups", () => {
     expect(mockMiladySandboxesRepository.update).not.toHaveBeenCalled();
   });
 
+  test("createAgent strips reserved __milady* keys inside the service layer", async () => {
+    const service = new MiladySandboxService(provider as never);
+
+    mockMiladySandboxesRepository.create.mockResolvedValue({
+      id: "agent-1",
+      agent_config: {
+        safe: true,
+        __miladyCharacterOwnership: "reuse-existing",
+      },
+    });
+
+    await service.createAgent({
+      organizationId: "org-1",
+      userId: "user-1",
+      agentName: "Test Agent",
+      characterId: "char-1",
+      agentConfig: {
+        safe: true,
+        __miladyCharacterOwnership: "spoofed",
+        __MILADYOtherFlag: "spoofed-too",
+      },
+    });
+
+    expect(mockMiladySandboxesRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agent_config: {
+          safe: true,
+          __miladyCharacterOwnership: "reuse-existing",
+        },
+      }),
+    );
+  });
+
   test("deleteAgent returns a conflict when an active provision job exists", async () => {
     const service = new MiladySandboxService(provider as never);
 

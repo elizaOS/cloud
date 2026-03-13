@@ -188,8 +188,9 @@ export async function POST(
 
   return NextResponse.json(
     {
-      success: created,
-      error: created ? undefined : "Agent is already being provisioned",
+      success: true,
+      created,
+      alreadyInProgress: !created,
       message: created
         ? "Provisioning job created. Poll the job endpoint for status."
         : "Provisioning is already in progress. Poll the existing job for status.",

@@ -156,6 +156,7 @@ export function CreateMiladySandboxDialog({
                     void handleCreate();
                   }
                 }}
+                maxLength={100}
                 autoFocus
               />
             </div>

@@ -174,9 +174,12 @@ describe("milady agent route follow-ups", () => {
     );
 
     const response = await postProvisionRoute(
-      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/provision", {
-        method: "POST",
-      }),
+      new NextRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
+        {
+          method: "POST",
+        },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -209,16 +212,20 @@ describe("milady agent route follow-ups", () => {
     });
 
     const response = await postProvisionRoute(
-      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/provision", {
-        method: "POST",
-      }),
+      new NextRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
+        {
+          method: "POST",
+        },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({
-      success: false,
-      error: "Agent is already being provisioned",
+      success: true,
+      created: false,
+      alreadyInProgress: true,
       message:
         "Provisioning is already in progress. Poll the existing job for status.",
       data: {
@@ -237,9 +244,13 @@ describe("milady agent route follow-ups", () => {
 
   test("PATCH /api/v1/milaidy/agents/[agentId] rejects invalid lifecycle payloads", async () => {
     const response = await patchMilaidyAgent(
-      jsonRequest("https://example.com/api/v1/milaidy/agents/agent-1", "PATCH", {
-        action: "restart",
-      }),
+      jsonRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1",
+        "PATCH",
+        {
+          action: "restart",
+        },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -256,9 +267,13 @@ describe("milady agent route follow-ups", () => {
     });
 
     const response = await patchMilaidyAgent(
-      jsonRequest("https://example.com/api/v1/milaidy/agents/agent-1", "PATCH", {
-        action: "shutdown",
-      }),
+      jsonRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1",
+        "PATCH",
+        {
+          action: "shutdown",
+        },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 

@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { stripReservedMiladyConfigKeys } from "@/lib/services/milady-agent-config";
 import { z } from "zod";
 import { requireCompatAuth } from "../_lib/auth";
 import { handleCompatError } from "../_lib/error-handler";
@@ -40,20 +41,20 @@ export async function POST(request: NextRequest) {
     const parsed = createAgentSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request data", details: parsed.error.issues },
+        {
+          success: false,
+          error: "Invalid request data",
+          details: parsed.error.issues,
+        },
         { status: 400 },
       );
     }
 
     // Strip reserved __milady* keys from user-supplied agentConfig to prevent
-    // callers from spoofing internal flags that control delete-time behaviour.
-    const sanitizedConfig = parsed.data.agentConfig
-      ? Object.fromEntries(
-          Object.entries(parsed.data.agentConfig).filter(
-            ([k]) => !k.toLowerCase().startsWith("__milady"),
-          ),
-        )
-      : undefined;
+    // callers from spoofing internal lifecycle flags.
+    const sanitizedConfig = stripReservedMiladyConfigKeys(
+      parsed.data.agentConfig,
+    );
 
     let agent = await miladySandboxService.createAgent({
       organizationId: user.organization_id,
@@ -71,18 +72,23 @@ export async function POST(request: NextRequest) {
     let provisionWarning: string | undefined;
     if (process.env.WAIFU_AUTO_PROVISION === "true") {
       try {
-        const result = await miladySandboxService.provision(agent.id, user.organization_id);
+        const result = await miladySandboxService.provision(
+          agent.id,
+          user.organization_id,
+        );
         if (result.success && result.sandboxRecord) {
           agent = result.sandboxRecord;
         } else if (!result.success) {
-          provisionWarning = "Auto-provision was requested but did not succeed; the agent was created and can be provisioned manually.";
+          provisionWarning =
+            "Auto-provision was requested but did not succeed; the agent was created and can be provisioned manually.";
           logger.warn("[compat] Auto-provision did not succeed", {
             agentId: agent.id,
             error: result.error,
           });
         }
       } catch (provErr) {
-        provisionWarning = "Auto-provision was requested but failed; the agent was created and can be provisioned manually.";
+        provisionWarning =
+          "Auto-provision was requested but failed; the agent was created and can be provisioned manually.";
         logger.error("[compat] Auto-provision failed", {
           agentId: agent.id,
           error: provErr instanceof Error ? provErr.message : String(provErr),

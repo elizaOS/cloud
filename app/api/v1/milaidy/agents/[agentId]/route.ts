@@ -3,6 +3,7 @@ import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-config";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -177,8 +178,7 @@ export async function DELETE(
     string,
     unknown
   > | null;
-  const reusesExistingCharacter =
-    sandboxConfig?.__miladyCharacterOwnership === "reuse-existing";
+  const reusesExistingCharacter = reusesExistingMiladyCharacter(sandboxConfig);
 
   if (characterId && !reusesExistingCharacter) {
     try {
