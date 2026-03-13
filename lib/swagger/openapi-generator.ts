@@ -328,7 +328,7 @@ export function generateOpenAPISpec(baseUrl?: string): OpenAPISpec {
       version: "1.0.0",
       contact: {
         name: "Eliza Cloud",
-        url: "https://github.com/elizaOS/eliza-cloud-v2",
+        url: "https://github.com/elizaOS/cloud",
       },
     },
     servers: [

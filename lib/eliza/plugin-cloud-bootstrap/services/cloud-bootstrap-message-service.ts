@@ -1,5 +1,5 @@
 /**
- * CloudBootstrapMessageService - Multi-step message execution for eliza-cloud-v2.
+ * CloudBootstrapMessageService - Multi-step message execution for cloud.
  */
 import { v4 } from "uuid";
 import {
@@ -373,11 +373,11 @@ export class CloudBootstrapMessageService implements IMessageService {
       | undefined;
     const mentionContext: MentionContext | undefined = metadata
       ? {
-          isMention: !!metadata.isMention,
-          isReply: !!metadata.isReply,
-          isThread: !!metadata.isThread,
-          mentionType: metadata.mentionType as MentionContext["mentionType"],
-        }
+        isMention: !!metadata.isMention,
+        isReply: !!metadata.isReply,
+        isThread: !!metadata.isThread,
+        mentionType: metadata.mentionType as MentionContext["mentionType"],
+      }
       : undefined;
 
     // Check if we should respond
@@ -1285,15 +1285,15 @@ export class CloudBootstrapMessageService implements IMessageService {
 
       const responseMessages: Memory[] = responseContent
         ? [
-            {
-              id: asUUID(v4()),
-              entityId: runtime.agentId,
-              agentId: runtime.agentId,
-              content: responseContent,
-              roomId: message.roomId,
-              createdAt: Date.now(),
-            },
-          ]
+          {
+            id: asUUID(v4()),
+            entityId: runtime.agentId,
+            agentId: runtime.agentId,
+            content: responseContent,
+            roomId: message.roomId,
+            createdAt: Date.now(),
+          },
+        ]
         : [];
 
       return {
@@ -1369,9 +1369,9 @@ export class CloudBootstrapMessageService implements IMessageService {
 
       const actions = parsedResponse.actions
         ? String(parsedResponse.actions)
-            .split(",")
-            .map((a: string) => a.trim())
-            .filter(Boolean)
+          .split(",")
+          .map((a: string) => a.trim())
+          .filter(Boolean)
         : [];
 
       const responseContent: Content = {
@@ -1390,15 +1390,15 @@ export class CloudBootstrapMessageService implements IMessageService {
 
       const responseMessages: Memory[] = responseContent.text
         ? [
-            {
-              id: asUUID(v4()),
-              entityId: runtime.agentId,
-              agentId: runtime.agentId,
-              roomId: message.roomId,
-              content: responseContent,
-              createdAt: Date.now(),
-            },
-          ]
+          {
+            id: asUUID(v4()),
+            entityId: runtime.agentId,
+            agentId: runtime.agentId,
+            roomId: message.roomId,
+            content: responseContent,
+            createdAt: Date.now(),
+          },
+        ]
         : [];
 
       return {
@@ -1446,11 +1446,11 @@ export class CloudBootstrapMessageService implements IMessageService {
 
     const customChannels = normalizeEnvList(
       runtime.getSetting("ALWAYS_RESPOND_CHANNELS") ||
-        runtime.getSetting("SHOULD_RESPOND_BYPASS_TYPES"),
+      runtime.getSetting("SHOULD_RESPOND_BYPASS_TYPES"),
     );
     const customSources = normalizeEnvList(
       runtime.getSetting("ALWAYS_RESPOND_SOURCES") ||
-        runtime.getSetting("SHOULD_RESPOND_BYPASS_SOURCES"),
+      runtime.getSetting("SHOULD_RESPOND_BYPASS_SOURCES"),
     );
 
     const respondChannels = new Set(
@@ -1529,7 +1529,7 @@ export class CloudBootstrapMessageService implements IMessageService {
               typeof result === "string"
                 ? result
                 : (result as { description?: string })?.description ||
-                  "Image attachment";
+                "Image attachment";
           } catch (error) {
             logger.warn(
               `[CloudBootstrap] Failed to generate image description for ${label}: ${error}`,

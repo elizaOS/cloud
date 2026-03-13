@@ -1,5 +1,5 @@
 /**
- * Cloud Bootstrap Plugin - Multi-step message execution for eliza-cloud-v2.
+ * Cloud Bootstrap Plugin - Multi-step message execution for cloud.
  * Replaces default message service with CloudBootstrapMessageService.
  */
 import {
@@ -52,8 +52,8 @@ class MessageServiceInstaller extends Service {
     return service;
   }
 
-  static async stop(_runtime: IAgentRuntime): Promise<void> {}
-  async stop(): Promise<void> {}
+  static async stop(_runtime: IAgentRuntime): Promise<void> { }
+  async stop(): Promise<void> { }
 }
 
 // PERF: Track logged runIds to prevent duplicate log writes per run.
@@ -169,7 +169,7 @@ const events = {
 export const cloudBootstrapPlugin: Plugin = {
   name: "cloud-bootstrap",
   description:
-    "Multi-step message execution with action params for eliza-cloud-v2",
+    "Multi-step message execution with action params for cloud",
   actions: [
     generateImageAction,
     finishAction,

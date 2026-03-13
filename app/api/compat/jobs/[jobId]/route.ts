@@ -1,7 +1,7 @@
 /**
  * GET /api/compat/jobs/[jobId] — synthesized job status
  *
- * eliza-cloud-v2 has no async job system — jobId IS the agent ID.
+ * cloud has no async job system — jobId IS the agent ID.
  */
 
 import { NextRequest, NextResponse } from "next/server";

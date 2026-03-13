@@ -70,7 +70,7 @@ function MaxTokens(
  * Extract search parameters from state or via LLM.
  * Supports multiple runtime patterns:
  * 1. actionParams from custom bootstrap (otaku pattern)
- * 2. LLM extraction from conversation context (eliza-cloud-v2, elizav2)
+ * 2. LLM extraction from conversation context (cloud, elizav2)
  */
 async function extractSearchParams(
   runtime: IAgentRuntime,
@@ -355,17 +355,16 @@ export const webSearch: Action = {
 
       if (searchResponse && searchResponse.results.length) {
         const responseList = searchResponse.answer
-          ? `${searchResponse.answer}${
-              Array.isArray(searchResponse.results) &&
-              searchResponse.results.length > 0
-                ? `\n\nFor more details, you can check out these resources:\n${searchResponse.results
-                    .map(
-                      (result: SearchResult, index: number) =>
-                        `${index + 1}. [${result.title}](${result.url})`,
-                    )
-                    .join("\n")}`
-                : ""
-            }`
+          ? `${searchResponse.answer}${Array.isArray(searchResponse.results) &&
+            searchResponse.results.length > 0
+            ? `\n\nFor more details, you can check out these resources:\n${searchResponse.results
+              .map(
+                (result: SearchResult, index: number) =>
+                  `${index + 1}. [${result.title}](${result.url})`,
+              )
+              .join("\n")}`
+            : ""
+          }`
           : "";
 
         // Build detailed reasoning for storage
