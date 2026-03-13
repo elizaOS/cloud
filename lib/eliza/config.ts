@@ -7,8 +7,8 @@ import { FALLBACK_TEXT_SELECTOR_MODELS } from "@/lib/models";
 
 /**
  * Get the elizaOS Cloud API base URL based on environment
- * - Local: http://localhost:3000/api/v1
- * - Test: http://localhost:3000/api/v1 (same as local)
+ * - Local: http://localhost:3333/api/v1
+ * - Test: http://localhost:3333/api/v1 (same as local)
  * - Development: https://www.dev.elizacloud.ai/api/v1
  * - Production: https://www.elizacloud.ai/api/v1
  */
@@ -28,7 +28,7 @@ export function getElizaCloudApiUrl(): string {
     nodeEnv === "development" ||
     nodeEnv === "test"
   ) {
-    return "http://localhost:3000/api/v1";
+    return "http://localhost:3333/api/v1";
   }
 
   // Development environment

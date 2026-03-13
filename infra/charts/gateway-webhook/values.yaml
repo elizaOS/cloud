@@ -26,11 +26,11 @@ replicaCount: 1
 # Service configuration
 service:
   type: ClusterIP
-  port: 3000
-  targetPort: 3000
+  port: 3333
+  targetPort: 3333
 
 # Container port
-containerPort: 3000
+containerPort: 3333
 
 # Resource requests and limits (lighter than gateway-discord — no persistent WS connections)
 resources:
@@ -44,7 +44,7 @@ resources:
 # Gateway configuration (environment variables)
 config:
   nodeEnv: "production"
-  port: "3000"
+  port: "3333"
   # Public URL for Twilio signature verification (behind ingress/proxy)
   twilioPublicUrl: ""
 
@@ -81,7 +81,7 @@ preStopDrainSleepSeconds: 10
 livenessProbe:
   httpGet:
     path: /health
-    port: 3000
+    port: 3333
   initialDelaySeconds: 10
   periodSeconds: 30
   timeoutSeconds: 10
@@ -91,7 +91,7 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /ready
-    port: 3000
+    port: 3333
   initialDelaySeconds: 5
   periodSeconds: 10
   timeoutSeconds: 5

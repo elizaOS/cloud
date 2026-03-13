@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
  * Tests dashboard billing and API key pages load and are interactive.
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 
 test.describe("Billing Flow", () => {
   test("billing page loads without errors", async ({ page }) => {

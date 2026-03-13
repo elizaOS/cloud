@@ -385,7 +385,7 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_APP_URL ||
       (request.headers.get("host")
         ? `${request.headers.get("x-forwarded-proto") || "https"}://${request.headers.get("host")}`
-        : "http://localhost:3000");
+        : "http://localhost:3333");
 
     // SECURITY FIX: Validate and sanitize query parameters
     // This prevents DoS attacks from extremely long strings or invalid values

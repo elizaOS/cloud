@@ -40,9 +40,8 @@ function createResourceSelectionPrompt(composedState: State, userMessage: string
       const resource = server.resources[uri];
       resourcesDescription += `Resource: ${uri} (Server: ${serverName})\n`;
       resourcesDescription += `Name: ${resource.name || "No name available"}\n`;
-      resourcesDescription += `Description: ${
-        resource.description || "No description available"
-      }\n`;
+      resourcesDescription += `Description: ${resource.description || "No description available"
+        }\n`;
       resourcesDescription += `MIME Type: ${resource.mimeType || "Not specified"}\n\n`;
     }
   }
@@ -240,7 +239,7 @@ export const readResourceAction: Action = {
       {
         name: "{{assistant}}",
         content: {
-          text: `elizaOS installation is straightforward. You'll need Node.js 23+ and Git installed. For Windows users, WSL 2 is required. The quickest way to get started is by cloning the elizaOS starter repository with \`git clone https://github.com/elizaos/eliza-starter.git\`, then run \`cd eliza-starter && cp .env.example .env && bun i && bun run build && bun start\`. This will set up a development environment with the core features enabled. After starting, you can access the web interface at http://localhost:3000 to interact with your agent.`,
+          text: `elizaOS installation is straightforward. You'll need Node.js 23+ and Git installed. For Windows users, WSL 2 is required. The quickest way to get started is by cloning the elizaOS starter repository with \`git clone https://github.com/elizaos/eliza-starter.git\`, then run \`cd eliza-starter && cp .env.example .env && bun i && bun run build && bun start\`. This will set up a development environment with the core features enabled. After starting, you can access the web interface at http://localhost:3333 to interact with your agent.`,
           actions: ["READ_MCP_RESOURCE"],
         },
       },

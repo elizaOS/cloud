@@ -120,10 +120,10 @@ mock.module("file-type", () => ({
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
+    info: () => { },
+    warn: () => { },
+    error: () => { },
+    debug: () => { },
   },
 }));
 
@@ -256,7 +256,7 @@ describe("Voice listing APIs", () => {
   test("user voice listing validates query parameters", async () => {
     const response = await listUserVoices(
       jsonRequest(
-        "http://localhost:3000/api/elevenlabs/voices/user?cloneType=weird",
+        "http://localhost:3333/api/elevenlabs/voices/user?cloneType=weird",
         "GET",
       ),
     );
@@ -267,7 +267,7 @@ describe("Voice listing APIs", () => {
   test("user voice listing paginates and reports hasMore", async () => {
     const response = await listUserVoices(
       jsonRequest(
-        "http://localhost:3000/api/elevenlabs/voices/user?limit=1&offset=0",
+        "http://localhost:3333/api/elevenlabs/voices/user?limit=1&offset=0",
         "GET",
       ),
     );
@@ -282,7 +282,7 @@ describe("Voice listing APIs", () => {
 describe("Single voice APIs", () => {
   test("GET rejects non-UUID voice IDs", async () => {
     const response = await getVoice(
-      jsonRequest("http://localhost:3000/api/elevenlabs/voices/not-a-uuid", "GET"),
+      jsonRequest("http://localhost:3333/api/elevenlabs/voices/not-a-uuid", "GET"),
       routeParams({ id: "not-a-uuid" }),
     );
 
@@ -291,7 +291,7 @@ describe("Single voice APIs", () => {
 
   test("PATCH now rejects non-UUID voice IDs as well", async () => {
     const response = await patchVoice(
-      jsonRequest("http://localhost:3000/api/elevenlabs/voices/not-a-uuid", "PATCH", {
+      jsonRequest("http://localhost:3333/api/elevenlabs/voices/not-a-uuid", "PATCH", {
         name: "Updated",
       }),
       routeParams({ id: "not-a-uuid" }),
@@ -305,7 +305,7 @@ describe("Single voice APIs", () => {
 
     const response = await deleteVoice(
       jsonRequest(
-        "http://localhost:3000/api/elevenlabs/voices/550e8400-e29b-41d4-a716-446655440000",
+        "http://localhost:3333/api/elevenlabs/voices/550e8400-e29b-41d4-a716-446655440000",
         "DELETE",
       ),
       routeParams({ id: "550e8400-e29b-41d4-a716-446655440000" }),
@@ -322,7 +322,7 @@ describe("Voice cloning API", () => {
     formData.set("cloneType", "instant");
 
     const response = await cloneVoice(
-      formDataRequest("http://localhost:3000/api/elevenlabs/voices/clone", formData),
+      formDataRequest("http://localhost:3333/api/elevenlabs/voices/clone", formData),
     );
 
     expect(response.status).toBe(400);
@@ -336,7 +336,7 @@ describe("Voice cloning API", () => {
     formData.set("file0", createFile("sample.mp3", "audio/mpeg"));
 
     const response = await cloneVoice(
-      formDataRequest("http://localhost:3000/api/elevenlabs/voices/clone", formData),
+      formDataRequest("http://localhost:3333/api/elevenlabs/voices/clone", formData),
     );
 
     expect(response.status).toBe(400);
@@ -351,7 +351,7 @@ describe("Voice cloning API", () => {
     formData.set("file0", createFile("sample.mp3", "audio/mpeg"));
 
     const response = await cloneVoice(
-      formDataRequest("http://localhost:3000/api/elevenlabs/voices/clone", formData),
+      formDataRequest("http://localhost:3333/api/elevenlabs/voices/clone", formData),
     );
 
     expect(response.status).toBe(402);
@@ -360,7 +360,7 @@ describe("Voice cloning API", () => {
   test("clone endpoint creates voices successfully", async () => {
     const response = await cloneVoice(
       formDataRequest(
-        "http://localhost:3000/api/elevenlabs/voices/clone",
+        "http://localhost:3333/api/elevenlabs/voices/clone",
         (() => {
           const formData = new FormData();
           formData.set("name", "Narrator");
@@ -380,7 +380,7 @@ describe("Voice cloning API", () => {
 describe("TTS and STT APIs", () => {
   test("tts requires text", async () => {
     const response = await tts(
-      jsonRequest("http://localhost:3000/api/elevenlabs/tts", "POST", {
+      jsonRequest("http://localhost:3333/api/elevenlabs/tts", "POST", {
         voiceId: "voice-1",
       }),
     );
@@ -400,7 +400,7 @@ describe("TTS and STT APIs", () => {
     ];
 
     const response = await tts(
-      jsonRequest("http://localhost:3000/api/elevenlabs/tts", "POST", {
+      jsonRequest("http://localhost:3333/api/elevenlabs/tts", "POST", {
         text: "Hello world",
         voiceId: "eleven-custom",
       }),
@@ -417,7 +417,7 @@ describe("TTS and STT APIs", () => {
 
   test("stt requires an uploaded audio file", async () => {
     const response = await stt(
-      formDataRequest("http://localhost:3000/api/elevenlabs/stt", new FormData()),
+      formDataRequest("http://localhost:3333/api/elevenlabs/stt", new FormData()),
     );
 
     expect(response.status).toBe(400);
@@ -430,7 +430,7 @@ describe("TTS and STT APIs", () => {
     formData.set("audio", createFile("sample.mp3", "audio/mpeg"));
 
     const response = await stt(
-      formDataRequest("http://localhost:3000/api/elevenlabs/stt", formData),
+      formDataRequest("http://localhost:3333/api/elevenlabs/stt", formData),
     );
 
     expect(response.status).toBe(400);
@@ -443,7 +443,7 @@ describe("TTS and STT APIs", () => {
     formData.set("audio", createFile("sample.webm", "audio/webm"));
 
     const response = await stt(
-      formDataRequest("http://localhost:3000/api/elevenlabs/stt", formData),
+      formDataRequest("http://localhost:3333/api/elevenlabs/stt", formData),
     );
 
     expect(response.status).toBe(200);

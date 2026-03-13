@@ -29,7 +29,7 @@ describe("outbound URL safety", () => {
     const { assertSafeOutboundUrl } = await importOutboundUrl();
 
     await expect(
-      assertSafeOutboundUrl("http://127.0.0.1:3000/mcp"),
+      assertSafeOutboundUrl("http://127.0.0.1:3333/mcp"),
     ).rejects.toThrow(/private|reserved|localhost/i);
     await expect(
       assertSafeOutboundUrl("http://169.254.169.254/latest/meta-data"),

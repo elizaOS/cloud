@@ -82,10 +82,10 @@ mock.module("@/lib/middleware/rate-limit", () => ({
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
+    info: () => { },
+    warn: () => { },
+    error: () => { },
+    debug: () => { },
   },
 }));
 
@@ -96,7 +96,7 @@ import { GET } from "@/app/api/v1/admin/metrics/route";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function makeRequest(params: Record<string, string> = {}): NextRequest {
-  const url = new URL("http://localhost:3000/api/v1/admin/metrics");
+  const url = new URL("http://localhost:3333/api/v1/admin/metrics");
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }

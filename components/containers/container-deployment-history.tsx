@@ -135,8 +135,8 @@ export function ContainerDeploymentHistory({
   const successRate =
     completedDeployments.length > 0
       ? (completedDeployments.filter((d) => d.status === "success").length /
-          completedDeployments.length) *
-        100
+        completedDeployments.length) *
+      100
       : 0;
 
   const pendingCount = deployments.filter((d) => d.status === "pending").length;
@@ -144,9 +144,9 @@ export function ContainerDeploymentHistory({
   const avgDuration =
     deployments.length > 0 && deployments.some((d) => d.duration_ms)
       ? deployments
-          .filter((d) => d.duration_ms)
-          .reduce((sum, d) => sum + (d.duration_ms || 0), 0) /
-        deployments.filter((d) => d.duration_ms).length
+        .filter((d) => d.duration_ms)
+        .reduce((sum, d) => sum + (d.duration_ms || 0), 0) /
+      deployments.filter((d) => d.duration_ms).length
       : null;
 
   const totalCost = deployments.reduce(
@@ -400,7 +400,7 @@ export function ContainerDeploymentHistory({
                             className="font-medium text-white"
                             style={{ fontFamily: "var(--font-roboto-mono)" }}
                           >
-                            {deployment.metadata.port || 3000}
+                            {deployment.metadata.port || 3333}
                           </span>
                         </div>
                       </div>

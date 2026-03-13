@@ -14,7 +14,7 @@ import { test, expect } from "@playwright/test";
  * then reconcile the difference after.
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 const CLOUD_URL = process.env.CLOUD_URL ?? BASE_URL;
 const API_KEY = process.env.TEST_API_KEY;
 

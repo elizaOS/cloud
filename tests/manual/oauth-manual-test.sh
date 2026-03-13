@@ -6,20 +6,20 @@
 # It tests both happy paths and error scenarios.
 #
 # Prerequisites:
-# 1. Server running at http://localhost:3000 (bun run dev)
+# 1. Server running at http://localhost:3333 (bun run dev)
 # 2. Valid API key (set below or via TEST_API_KEY env var)
 # 3. For Google tests: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env
 #
 # Usage:
 #   ./tests/manual/oauth-manual-test.sh
 #   TEST_API_KEY=your_key ./tests/manual/oauth-manual-test.sh
-#   TEST_BASE_URL=http://custom:3000 ./tests/manual/oauth-manual-test.sh
+#   TEST_BASE_URL=http://custom:3333 ./tests/manual/oauth-manual-test.sh
 #
 
 set -e
 
 # Configuration
-BASE_URL="${TEST_BASE_URL:-http://localhost:3000}"
+BASE_URL="${TEST_BASE_URL:-http://localhost:3333}"
 API_KEY="${TEST_API_KEY:-}"
 VERBOSE="${VERBOSE:-false}"
 

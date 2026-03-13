@@ -113,11 +113,11 @@ GATEWAY_BOOTSTRAP_SECRET=your_random_secret_here   # Exchanged for JWT at startu
 
 # Eliza Cloud URL (pick ONE of these options):
 # Option A: Use dedicated env var (recommended for production)
-ELIZA_CLOUD_URL=http://localhost:3000
+ELIZA_CLOUD_URL=http://localhost:3333
 
 # Option B: Reuse the same var as main app (convenient for local dev)
 # If ELIZA_CLOUD_URL is not set, it falls back to NEXT_PUBLIC_APP_URL
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3333
 
 # Optional - Redis for failover coordination
 KV_REST_API_URL=https://your-redis.upstash.io
@@ -168,7 +168,7 @@ In the root directory:
 ```bash
 bun run dev
 ```
-This starts the Next.js app on `http://localhost:3000`
+This starts the Next.js app on `http://localhost:3333`
 
 **Step 2: Start the Gateway**
 
@@ -179,23 +179,23 @@ cd services/gateway-discord
 # Install dependencies
 bun install
 
-# Start with hot reload (runs on port 3000 by default)
+# Start with hot reload (runs on port 3333 by default)
 bun run dev
 ```
 
 The gateway will:
-- Start on port 3000 (scripts default to this to avoid conflict with Eliza Cloud on 3000)
-- Poll `http://localhost:3000/api/internal/discord/gateway/assignments` every 30s
-- Forward events to `http://localhost:3000/api/internal/discord/events`
+- Start on port 3333 (scripts default to this to avoid conflict with Eliza Cloud on 3333)
+- Poll `http://localhost:3333/api/internal/discord/gateway/assignments` every 30s
+- Forward events to `http://localhost:3333/api/internal/discord/events`
 - Send heartbeats every 15s
 
 > **Note:** The gateway's PORT only affects where it listens for health checks and metrics.
-> It always connects to Eliza Cloud via `NEXT_PUBLIC_APP_URL` (http://localhost:3000).
+> It always connects to Eliza Cloud via `NEXT_PUBLIC_APP_URL` (http://localhost:3333).
 
 #### Option 2: Production Mode
 
 ```bash
-bun run start  # Runs on port 3000 by default
+bun run start  # Runs on port 3333 by default
 ```
 
 #### Option 3: Docker
@@ -214,7 +214,7 @@ bun run docker:down
 Or manually:
 ```bash
 docker build -t gateway-discord:local .
-docker run -p 3000:3000 --env-file .env gateway-discord:local
+docker run -p 3333:3333 --env-file .env gateway-discord:local
 ```
 
 #### Option 4: Docker Compose
@@ -223,7 +223,7 @@ docker run -p 3000:3000 --env-file .env gateway-discord:local
 docker compose up -d
 ```
 
-This maps port 3000 on your host to 3000 in the container.
+This maps port 3333 on your host to 3333 in the container.
 
 ### Registering a Discord Bot Connection
 
@@ -232,7 +232,7 @@ Use the Discord Connections API to manage bot connections.
 **Create a connection:**
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/discord/connections \
+curl -X POST http://localhost:3333/api/v1/discord/connections \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
   -d '{
@@ -359,13 +359,13 @@ The gateway also supports a single system-wide **Eliza App Bot** (DM-only) along
 **Port Reference:**
 | Running Method | Gateway Port | Notes |
 |----------------|--------------|-------|
-| Local (`bun run dev`) | `http://localhost:3000` | Scripts default to port 3000 |
-| Docker (`docker compose up`) | `http://localhost:3000` | Mapped from container's internal port 3000 |
+| Local (`bun run dev`) | `http://localhost:3333` | Scripts default to port 3333 |
+| Docker (`docker compose up`) | `http://localhost:3333` | Mapped from container's internal port 3333 |
 
 #### 1. Check Gateway Health
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:3333/health
 ```
 
 Expected response:
@@ -389,7 +389,7 @@ Expected response:
 #### 2. Check Gateway Status
 
 ```bash
-curl http://localhost:3000/status
+curl http://localhost:3333/status
 ```
 
 Shows detailed information about all active connections.
@@ -397,7 +397,7 @@ Shows detailed information about all active connections.
 #### 3. Check Prometheus Metrics
 
 ```bash
-curl http://localhost:3000/metrics
+curl http://localhost:3333/metrics
 ```
 
 Returns metrics in Prometheus format for monitoring.
@@ -432,7 +432,7 @@ Eliza Cloud logs show:
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| Gateway can't reach Eliza Cloud | Wrong URL | Set `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` to `http://localhost:3000` (or `http://host.docker.internal:3000` in Docker) |
+| Gateway can't reach Eliza Cloud | Wrong URL | Set `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` to `http://localhost:3333` (or `http://host.docker.internal:3333` in Docker) |
 | `401 Unauthorized` on API calls | JWT authentication failed | Check `GATEWAY_BOOTSTRAP_SECRET` matches on both sides, verify JWT signing keys are configured |
 | Gateway fails on startup | Token acquisition failed | Ensure Eliza Cloud is running and has `JWT_SIGNING_PRIVATE_KEY`/`JWT_SIGNING_PUBLIC_KEY` configured |
 | Bot connects but doesn't respond | No linked app/character | Ensure the connection has `character_id` linked to an app with a character |
@@ -456,7 +456,7 @@ Eliza Cloud logs show:
 | `KV_REST_API_URL` | No | - | Redis URL for failover |
 | `KV_REST_API_TOKEN` | No | - | Redis auth token |
 | `POD_NAME` | No | `gateway-{hostname}` | Pod identifier |
-| `PORT` | No | `3000` | HTTP server port |
+| `PORT` | No | `3333` | HTTP server port |
 | `MAX_BOTS_PER_POD` | No | `100` | Max connections per pod |
 | `VOICE_MESSAGE_ENABLED` | No | `true` | Process voice messages |
 | `BLOB_READ_WRITE_TOKEN` | No | - | Vercel Blob for voice storage |
@@ -488,11 +488,11 @@ ELIZA_CLOUD_URL → NEXT_PUBLIC_APP_URL → https://elizacloud.ai
 ### Scripts
 
 ```bash
-# Development (uses root ../../.env.local, runs on port 3000)
+# Development (uses root ../../.env.local, runs on port 3333)
 bun run dev          # Development with hot reload, uses root .env.local
 bun run start        # Production mode, uses root .env.local
 
-# Development (uses local .env in this directory, runs on port 3000)
+# Development (uses local .env in this directory, runs on port 3333)
 bun run dev:local    # Development with hot reload, uses local .env
 bun run start:local  # Production mode, uses local .env
 
@@ -784,7 +784,7 @@ If leader dies:
 |----------|-------|-------------|
 | `ELIZA_APP_LEADER_KEY` | `discord:eliza-app-bot:leader` | Redis key for leader lock |
 | `ELIZA_APP_LEADER_TTL_SECONDS` | 10 | Lock TTL - how long before lock expires |
-| `ELIZA_APP_LEADER_CHECK_INTERVAL_MS` | 3000 | How often pods check/renew leadership |
+| `ELIZA_APP_LEADER_CHECK_INTERVAL_MS` | 3333 | How often pods check/renew leadership |
 
 **Multi-Environment Warning:**
 

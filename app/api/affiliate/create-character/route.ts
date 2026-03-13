@@ -418,7 +418,7 @@ async function handlePost(request: NextRequest) {
 
     // 11. BUILD REDIRECT URL
     // Always use /chat route - theming is now dynamic based on source param
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
 
     const redirectUrl = new URL(`${baseUrl}/chat/${createdCharacter.id}`);
     redirectUrl.searchParams.set("source", affiliateId);

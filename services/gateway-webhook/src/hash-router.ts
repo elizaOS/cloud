@@ -43,7 +43,7 @@ function parseServerUrl(serverUrl: string): {
   return {
     serviceName: parts[0],
     namespace: parts[1] || "eliza-agents",
-    port: url.port || "3000",
+    port: url.port || "3333",
   };
 }
 

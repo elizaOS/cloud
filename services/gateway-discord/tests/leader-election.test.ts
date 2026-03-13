@@ -22,7 +22,7 @@ const ELIZA_APP_LEADER_KEY = "discord:eliza-app-bot:leader";
 const ELIZA_APP_LEADER_TTL_SECONDS = 10;
 
 /** How often to check/renew leadership (3 seconds) */
-const ELIZA_APP_LEADER_CHECK_INTERVAL_MS = 3000;
+const ELIZA_APP_LEADER_CHECK_INTERVAL_MS = 3333;
 
 describe("Eliza App Bot Leader Election Constants", () => {
   test("default leader key has correct format", () => {
@@ -36,7 +36,7 @@ describe("Eliza App Bot Leader Election Constants", () => {
   });
 
   test("check interval is 3 seconds", () => {
-    expect(ELIZA_APP_LEADER_CHECK_INTERVAL_MS).toBe(3000);
+    expect(ELIZA_APP_LEADER_CHECK_INTERVAL_MS).toBe(3333);
   });
 
   test("TTL is greater than check interval", () => {
@@ -237,7 +237,7 @@ describe("Leader Election Logic", () => {
       // - Lock just renewed (TTL full)
       // - Next check by other pod at max interval
       const maxFailoverMs = ELIZA_APP_LEADER_TTL_SECONDS * 1000 + ELIZA_APP_LEADER_CHECK_INTERVAL_MS;
-      expect(maxFailoverMs).toBe(13000); // 10s TTL + 3s check = 13s max
+      expect(maxFailoverMs).toBe(13333); // 10s TTL + 3.333s check = 13.333s max
     });
 
     test("minimum failover time calculation", () => {
@@ -249,8 +249,8 @@ describe("Leader Election Logic", () => {
     test("average failover time estimation", () => {
       // On average: half of TTL remaining + half of check interval
       const avgFailoverMs = (ELIZA_APP_LEADER_TTL_SECONDS * 1000) / 2 +
-                           ELIZA_APP_LEADER_CHECK_INTERVAL_MS / 2;
-      expect(avgFailoverMs).toBe(6500); // 5s + 1.5s = 6.5s average
+        ELIZA_APP_LEADER_CHECK_INTERVAL_MS / 2;
+      expect(avgFailoverMs).toBe(6666.5); // 5s + 1.666s = 6.6665s average
     });
   });
 });

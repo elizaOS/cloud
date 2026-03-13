@@ -5,7 +5,7 @@
  * Provides auth-aware request methods plus assertion helpers.
  */
 
-const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3333";
 const API_KEY = process.env.TEST_API_KEY;
 const CRON_SECRET = process.env.CRON_SECRET || "test-cron-secret";
 

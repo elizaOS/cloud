@@ -108,7 +108,7 @@ describe("x402 Topup Endpoints", () => {
 
     it("should topup 10 credits successfully for a new user", async () => {
         const { POST: POST10 } = await import("@/app/api/v1/topup/10/route");
-        const req = new NextRequest("http://localhost:3000/api/v1/topup/10", {
+        const req = new NextRequest("http://localhost:3333/api/v1/topup/10", {
             method: "POST",
             body: JSON.stringify({ walletAddress: mockWallet }),
         });
@@ -124,7 +124,7 @@ describe("x402 Topup Endpoints", () => {
     });
 
     it("should topup 50 credits successfully for an existing user", async () => {
-        const req = new NextRequest("http://localhost:3000/api/v1/topup/50", {
+        const req = new NextRequest("http://localhost:3333/api/v1/topup/50", {
             method: "POST",
             body: JSON.stringify({ walletAddress: mockWallet }),
         });
@@ -149,7 +149,7 @@ describe("x402 Topup Endpoints", () => {
 
         const { POST: POST10 } = await import("@/app/api/v1/topup/10/route");
         const req = new NextRequest(
-            "http://localhost:3000/api/v1/topup/10?ref=ABCD-1234&appOwnerId=owner-1",
+            "http://localhost:3333/api/v1/topup/10?ref=ABCD-1234&appOwnerId=owner-1",
             {
                 method: "POST",
                 body: JSON.stringify({ walletAddress: mockWallet }),
@@ -178,7 +178,7 @@ describe("x402 Topup Endpoints", () => {
 
     it("should fail if no wallet address is provided", async () => {
         const { POST: POST100 } = await import("@/app/api/v1/topup/100/route");
-        const req = new NextRequest("http://localhost:3000/api/v1/topup/100", {
+        const req = new NextRequest("http://localhost:3333/api/v1/topup/100", {
             method: "POST",
             body: JSON.stringify({}),
         });

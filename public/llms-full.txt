@@ -2354,7 +2354,7 @@ Get all containers for your organization.
       "url": "https://my-project.containers.elizacloud.ai",
       "cpu": 1792,
       "memory": 1792,
-      "port": 3000,
+      "port": 3333,
       "architecture": "arm64",
       "created_at": "2024-01-15T10:30:00Z"
     }
@@ -2380,7 +2380,7 @@ Deploy a new container to AWS ECS. Returns immediately with a 202 Accepted statu
   "name": "My Agent Runtime",
   "project_name": "my-project",
   "ecr_image_uri": "123456789.dkr.ecr.us-east-1.amazonaws.com/eliza-user-images:my-tag",
-  "port": 3000,
+  "port": 3333,
   "cpu": 1792,
   "memory": 1792,
   "desired_count": 1,
@@ -2400,7 +2400,7 @@ Deploy a new container to AWS ECS. Returns immediately with a 202 Accepted statu
 | `name`              | string  | ✓        | Display name (max 100 chars)                        |
 | `project_name`      | string  | ✓        | Project identifier (max 50 chars, used in URL)      |
 | `ecr_image_uri`     | string  | ✓        | Full ECR image URI with tag                         |
-| `port`              | integer |          | Container port. Default: 3000                       |
+| `port`              | integer |          | Container port. Default: 3333                       |
 | `cpu`               | integer |          | CPU units (256-2048). Default: 1792                 |
 | `memory`            | integer |          | Memory in MB (256-2048). Default: 1792              |
 | `desired_count`     | integer |          | Number of instances (1-10). Default: 1              |
@@ -2492,7 +2492,7 @@ Get container logs from CloudWatch.
   "logs": [
     {
       "timestamp": "2024-01-15T10:30:00Z",
-      "message": "Server started on port 3000"
+      "message": "Server started on port 3333"
     }
   ]
 }
@@ -6695,7 +6695,7 @@ curl -X POST "https://elizacloud.ai/api/v1/containers" \
   -d '{
     "name": "my-service",
     "image": "myregistry/myimage:latest",
-    "port": 3000,
+    "port": 3333,
     "env": {
       "NODE_ENV": "production"
     }
@@ -6725,7 +6725,7 @@ Track logs, metrics, and health status.
 {
   "name": "my-service",
   "image": "myregistry/myimage:latest",
-  "port": 3000,
+  "port": 3333,
   "replicas": 2,
   "resources": {
     "cpu": "0.5",
@@ -6807,7 +6807,7 @@ Configure health monitoring:
   "healthCheck": {
     "type": "http",
     "path": "/health",
-    "port": 3000,
+    "port": 3333,
     "interval": 30,
     "timeout": 5,
     "retries": 3,
@@ -9080,7 +9080,7 @@ app.post("/mcp", (req, res) => {
   });
 });
 
-app.listen(3000);
+app.listen(3333);
 ```
 
 ## Demo Servers

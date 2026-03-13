@@ -6450,7 +6450,7 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 3000
+          "default": 3333
         },
         "health_check_path": {
           "name": "health_check_path",

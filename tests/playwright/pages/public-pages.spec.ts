@@ -34,7 +34,7 @@ test.describe("Public Pages", () => {
 
     // Blog slug pages depend on content existing — just verify no 500
     test("/blog/[slug] handles missing slug gracefully", async ({ page }) => {
-      const response = await page.goto("http://localhost:3000/blog/nonexistent-post");
+      const response = await page.goto("http://localhost:3333/blog/nonexistent-post");
       expect(response?.status()).not.toBe(500);
     });
   });
@@ -63,7 +63,7 @@ test.describe("Public Pages", () => {
     // Chat with a known characterId — should load even if character doesn't exist
     test("/chat/[characterId] handles nonexistent character", async ({ page }) => {
       const response = await page.goto(
-        "http://localhost:3000/chat/00000000-0000-4000-8000-000000000000",
+        "http://localhost:3333/chat/00000000-0000-4000-8000-000000000000",
       );
       expect(response?.status()).not.toBe(500);
       expect([200, 304, 404]).toContain(response?.status() ?? 0);
@@ -72,7 +72,7 @@ test.describe("Public Pages", () => {
 
   test.describe("OAuth & App Auth", () => {
     test("/app-auth/authorize loads without crashing", async ({ page }) => {
-      const response = await page.goto("http://localhost:3000/app-auth/authorize");
+      const response = await page.goto("http://localhost:3333/app-auth/authorize");
       expect(response?.status()).not.toBe(500);
     });
   });
@@ -84,7 +84,7 @@ test.describe("Public Pages", () => {
 
     test("/invite/accept loads with test token", async ({ page }) => {
       const response = await page.goto(
-        "http://localhost:3000/invite/accept?token=test-token",
+        "http://localhost:3333/invite/accept?token=test-token",
       );
       expect(response?.status()).not.toBe(500);
       expect([200, 304]).toContain(response?.status() ?? 0);
@@ -93,7 +93,7 @@ test.describe("Public Pages", () => {
 
   test.describe("Sandbox Proxy", () => {
     test("/sandbox-proxy loads without crashing", async ({ page }) => {
-      const response = await page.goto("http://localhost:3000/sandbox-proxy");
+      const response = await page.goto("http://localhost:3333/sandbox-proxy");
       expect(response?.status()).not.toBe(500);
     });
   });

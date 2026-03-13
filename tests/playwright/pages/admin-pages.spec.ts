@@ -16,7 +16,7 @@ const ADMIN_PAGES = [
 test.describe("Admin Pages", () => {
   for (const path of ADMIN_PAGES) {
     test(`${path} loads without 500`, async ({ page }) => {
-      const response = await page.goto(`http://localhost:3000${path}`);
+      const response = await page.goto(`http://localhost:3333${path}`);
       // Admin pages redirect to login or show forbidden — but never 500
       expect(
         response?.status(),

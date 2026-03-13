@@ -17,7 +17,7 @@
  * Requirements:
  * - DATABASE_URL: PostgreSQL connection string
  * - SECRETS_LOCAL_KEY: For encryption (or AWS KMS configured)
- * - Server running at TEST_BASE_URL (default: http://localhost:3000)
+ * - Server running at TEST_BASE_URL (default: http://localhost:3333)
  *
  * Optional (for full integration):
  * - GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for Google OAuth
@@ -40,7 +40,7 @@ import {
 import { createEncryptionService } from "@/lib/services/secrets/encryption";
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
-const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3333";
 // Use a wider request timeout because these E2E tests run against a managed
 // Next dev server that may restart or recompile routes between requests.
 const TIMEOUT = 60000;
@@ -71,9 +71,9 @@ function hasUsableCacheConfig(): boolean {
 
   return Boolean(
     restUrl &&
-      restToken &&
-      !isPlaceholderCredential(restUrl) &&
-      !isPlaceholderCredential(restToken),
+    restToken &&
+    !isPlaceholderCredential(restUrl) &&
+    !isPlaceholderCredential(restToken),
   );
 }
 
@@ -1390,13 +1390,13 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     it("should handle missing required secrets for Twilio", async () => {
       // Clean up any existing Twilio secrets and invalidate cache by revoking
       const connectionId = `twilio:${testData.organization.id}`;
-      
+
       // First delete any existing secrets
       await client.query(
         `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWILIO_%'`,
         [testData.organization.id],
       );
-      
+
       // Now insert only account SID, missing auth token
       await createTestSecret(
         testData.organization.id,
@@ -1523,7 +1523,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
         [testData.organization.id],
       );
-      
+
       await createTestSecret(
         testData.organization.id,
         testData.user.id,
@@ -1563,7 +1563,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'BLOOIO_%'`,
         [testData.organization.id],
       );
-      
+
       await createTestSecret(
         testData.organization.id,
         testData.user.id,
@@ -1759,7 +1759,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         );
 
         expect(response.status).toBe(404);
-        
+
         // Try to parse JSON, but handle cases where it might not be JSON
         const text = await response.text();
         try {
@@ -1783,7 +1783,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
         [testData.organization.id],
       );
-      
+
       // Insert fresh secrets
       await createTestSecret(
         testData.organization.id,
@@ -2037,7 +2037,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
       expect(listResponse.status).toBe(200);
       const listData = await listResponse.json();
-      
+
       for (const status of statuses) {
         const conn = listData.connections.find(
           (c: { platformUserId: string }) => c.platformUserId === `user-${status}`,
@@ -2097,7 +2097,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
 
       const data = await response.json();
       const messageStr = JSON.stringify(data);
-      
+
       // Should not contain any token-like strings
       expect(messageStr).not.toMatch(/[A-Za-z0-9]{32,}/);
       expect(messageStr).not.toContain("Bearer");

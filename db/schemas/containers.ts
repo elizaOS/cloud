@@ -60,7 +60,7 @@ export const containers = pgTable(
     desired_count: integer("desired_count").default(1).notNull(),
     cpu: integer("cpu").default(1792).notNull(), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.small's 2 vCPUs)
     memory: integer("memory").default(1792).notNull(), // Memory in MB (1792 MB = 1.75 GiB, 87.5% of t4g.small's 2 GiB)
-    port: integer("port").default(3000).notNull(),
+    port: integer("port").default(3333).notNull(),
     health_check_path: text("health_check_path").default("/health"),
     architecture: text("architecture").default("arm64").notNull(), // CPU architecture: arm64 (t4g) or x86_64 (t3)
     last_deployed_at: timestamp("last_deployed_at"),

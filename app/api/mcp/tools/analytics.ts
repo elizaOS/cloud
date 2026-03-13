@@ -62,7 +62,7 @@ export function registerAnalyticsTools(server: McpServer): void {
       try {
         const { user } = getAuthContext();
         const baseUrl =
-          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
         const sseUrl = `${baseUrl}/api/mcp/stream?eventType=credits&resourceId=${user.organization_id}`;
 
         return jsonResponse({

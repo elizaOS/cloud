@@ -16,7 +16,7 @@ config({ path: resolve(root, ".env.test") });
 
 // Keep all test execution pinned to the local app surface.
 process.env.NODE_ENV = "test";
-process.env.ELIZAOS_CLOUD_BASE_URL = "http://localhost:3000/api/v1";
+process.env.ELIZAOS_CLOUD_BASE_URL = "http://localhost:3333/api/v1";
 process.env.TEST_BLOCK_ANONYMOUS = "true";
 
 if (process.env.SKIP_DB_DEPENDENT === "1") {

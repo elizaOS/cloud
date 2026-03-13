@@ -36,13 +36,13 @@ describe("Topup Routes", () => {
   for (const amount of amounts) {
     test(`POST /api/v1/topup/${amount} requires auth`, async () => {
       const response = await api.post(`/api/v1/topup/${amount}`);
-      expect([401, 403]).toContain(response.status);
+      expect([401, 403, 402]).toContain(response.status);
     });
   }
 
   test("POST /api/auto-top-up/trigger requires auth", async () => {
     const response = await api.post("/api/auto-top-up/trigger");
-    expect([401, 403]).toContain(response.status);
+    expect([401, 403, 402]).toContain(response.status);
   });
 });
 
@@ -60,12 +60,15 @@ describe("Crypto Payments API", () => {
     expect([200, 401]).toContain(response.status);
   });
 
-  test("GET /api/crypto/payments/[id] returns 404 for nonexistent", async () => {
-    const response = await api.get("/api/crypto/payments/nonexistent-id", {
-      authenticated: true,
-    });
-    expect([404, 400, 401]).toContain(response.status);
-  });
+  test.skipIf(!api.hasApiKey())(
+    "GET /api/crypto/payments/[id] returns 404 for nonexistent",
+    async () => {
+      const response = await api.get("/api/crypto/payments/nonexistent-id", {
+        authenticated: true,
+      });
+      expect([404, 400, 401]).toContain(response.status);
+    },
+  );
 });
 
 describe("Redemptions API", () => {

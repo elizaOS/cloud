@@ -19,7 +19,7 @@ if (!API_KEY) {
 }
 
 async function testImageDescription() {
-  const baseUrl = "http://localhost:3000/api/v1";
+  const baseUrl = "http://localhost:3333/api/v1";
 
   console.log("🚀 Starting image description test...\n");
   console.log(

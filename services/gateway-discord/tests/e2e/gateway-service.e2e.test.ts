@@ -17,7 +17,7 @@ const mockDiscordClient = {
   user: { id: "bot-user-123", username: "TestBot" },
   guilds: { cache: { size: 5 } },
   login: mock(() => Promise.resolve("token")),
-  destroy: mock(() => {}),
+  destroy: mock(() => { }),
   on: mock((event: string, handler: (...args: unknown[]) => void) => {
     // Store handlers for later triggering
     mockDiscordClient._handlers.set(event, handler);
@@ -119,8 +119,8 @@ mock.module("@upstash/redis", () => ({
 mock.module("../../src/voice-message-handler", () => ({
   VoiceMessageHandler: mock(() => ({
     processVoiceAttachments: mock(() => Promise.resolve([])),
-    startCleanupJob: mock(() => {}),
-    stopCleanupJob: mock(() => {}),
+    startCleanupJob: mock(() => { }),
+    stopCleanupJob: mock(() => { }),
   })),
   hasVoiceAttachments: mock(() => false),
 }));
@@ -131,13 +131,13 @@ const mockFetchCalls: Array<{ url: string; options: RequestInit }> = [];
 
 const mockFetch = mock((url: string, options?: RequestInit) => {
   mockFetchCalls.push({ url, options: options ?? {} });
-  
+
   for (const { url: pattern, response } of mockFetchResponses) {
     if (typeof pattern === "string" ? url.includes(pattern) : pattern.test(url)) {
       return Promise.resolve(response);
     }
   }
-  
+
   // Default response
   return Promise.resolve(new Response(JSON.stringify({ assignments: [] }), {
     status: 200,
@@ -206,10 +206,10 @@ describe("Discord Gateway Service E2E", () => {
   describe("HTTP Endpoints", () => {
     test("GET /health returns healthy status when no bots", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -226,10 +226,10 @@ describe("Discord Gateway Service E2E", () => {
 
     test("GET /ready returns ready when healthy", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -243,10 +243,10 @@ describe("Discord Gateway Service E2E", () => {
 
     test("GET /metrics returns Prometheus format", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -264,10 +264,10 @@ describe("Discord Gateway Service E2E", () => {
 
     test("GET /status returns detailed status", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -286,10 +286,10 @@ describe("Discord Gateway Service E2E", () => {
   describe("Hono App Integration", () => {
     test("health endpoint returns JSON with correct status code", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -311,10 +311,10 @@ describe("Discord Gateway Service E2E", () => {
 
     test("ready endpoint returns 503 when degraded", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -341,10 +341,10 @@ describe("Discord Gateway Service E2E", () => {
 
     test("metrics endpoint returns text/plain", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -369,7 +369,7 @@ describe("Discord Gateway Service E2E", () => {
     test("polls for bot assignments on start", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/assignments",
         response: createMockResponse({
@@ -386,10 +386,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -403,7 +403,7 @@ describe("Discord Gateway Service E2E", () => {
       // @ts-expect-error - accessing private for test
       await manager.pollForBots();
 
-      const assignmentCall = mockFetchCalls.find(c => 
+      const assignmentCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/discord/gateway/assignments")
       );
 
@@ -414,17 +414,17 @@ describe("Discord Gateway Service E2E", () => {
     test("handles poll failure gracefully", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/assignments",
         response: new Response("Internal Server Error", { status: 500 }),
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -445,7 +445,7 @@ describe("Discord Gateway Service E2E", () => {
     test("respects MAX_BOTS_PER_POD limit", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       // Create assignments exceeding the limit
       const assignments = Array.from({ length: 150 }, (_, i) => ({
         connectionId: `conn-${i}`,
@@ -461,10 +461,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -487,17 +487,17 @@ describe("Discord Gateway Service E2E", () => {
     test("updates connection status to Eliza Cloud", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/status",
         response: createMockResponse({ success: true }),
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -510,13 +510,13 @@ describe("Discord Gateway Service E2E", () => {
       // @ts-expect-error - accessing private for test
       await manager.updateConnectionStatus("conn-123", "connected", undefined, "bot-user-456");
 
-      const statusCall = mockFetchCalls.find(c => 
+      const statusCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/discord/gateway/status")
       );
 
       expect(statusCall).toBeDefined();
       expect(statusCall?.options.method).toBe("POST");
-      
+
       const body = JSON.parse(statusCall?.options.body as string);
       expect(body.connection_id).toBe("conn-123");
       expect(body.status).toBe("connected");
@@ -528,17 +528,17 @@ describe("Discord Gateway Service E2E", () => {
     test("sends heartbeat to Eliza Cloud and Redis", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/heartbeat",
         response: createMockResponse({ success: true }),
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -569,7 +569,7 @@ describe("Discord Gateway Service E2E", () => {
       await manager.sendHeartbeat();
 
       // Check Eliza Cloud heartbeat
-      const heartbeatCall = mockFetchCalls.find(c => 
+      const heartbeatCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/discord/gateway/heartbeat")
       );
       expect(heartbeatCall).toBeDefined();
@@ -584,14 +584,14 @@ describe("Discord Gateway Service E2E", () => {
     test("detects dead pods and claims orphaned connections", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       // Setup: another pod with stale heartbeat
       const deadPodState = JSON.stringify({
         podId: "dead-pod",
         connections: ["conn-orphan-1", "conn-orphan-2"],
         lastHeartbeat: Date.now() - 60_000, // 60 seconds ago (> 45s threshold)
       });
-      
+
       mockRedisData.set("discord:pod:dead-pod", deadPodState);
       mockRedisData.set("discord:active_pods:dead-pod", "dead-pod");
 
@@ -601,10 +601,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -617,7 +617,7 @@ describe("Discord Gateway Service E2E", () => {
       // @ts-expect-error - accessing private for test
       await manager.checkForDeadPods();
 
-      const failoverCall = mockFetchCalls.find(c => 
+      const failoverCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/discord/gateway/failover")
       );
 
@@ -634,15 +634,15 @@ describe("Discord Gateway Service E2E", () => {
         connections: ["conn-1"],
         lastHeartbeat: Date.now() - 5_000, // 5 seconds ago (< 45s threshold)
       });
-      
+
       mockRedisData.set("discord:pod:healthy-pod", healthyPodState);
       mockRedisData.set("discord:active_pods:healthy-pod", "healthy-pod");
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -652,7 +652,7 @@ describe("Discord Gateway Service E2E", () => {
       await manager.checkForDeadPods();
 
       // Should NOT call failover endpoint
-      const failoverCall = mockFetchCalls.find(c => 
+      const failoverCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/discord/gateway/failover")
       );
 
@@ -666,18 +666,18 @@ describe("Discord Gateway Service E2E", () => {
         connections: ["conn-1"],
         lastHeartbeat: Date.now() - 60_000, // 60s ago - dead
       });
-      
+
       mockRedisData.set("discord:pod:dead-pod", deadPodState);
       mockRedisData.set("discord:active_pods:dead-pod", "dead-pod");
-      
+
       // Another pod already has the failover lock
       mockRedisData.set("discord:failover:lock:dead-pod", "other-pod");
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -687,7 +687,7 @@ describe("Discord Gateway Service E2E", () => {
       await manager.checkForDeadPods();
 
       // Should NOT call failover endpoint because lock is held
-      const failoverCall = mockFetchCalls.find(c => 
+      const failoverCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/discord/gateway/failover")
       );
 
@@ -699,7 +699,7 @@ describe("Discord Gateway Service E2E", () => {
     test("releases connections on shutdown", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/shutdown",
         response: createMockResponse({ success: true }),
@@ -710,10 +710,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -743,7 +743,7 @@ describe("Discord Gateway Service E2E", () => {
       await manager.shutdown();
 
       // Check shutdown was called
-      const shutdownCall = mockFetchCalls.find(c => 
+      const shutdownCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/discord/gateway/shutdown")
       );
       expect(shutdownCall).toBeDefined();
@@ -765,17 +765,17 @@ describe("Discord Gateway Service E2E", () => {
     test("forwards MESSAGE_CREATE events to Eliza Cloud", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       mockFetchResponses.push({
         url: "/api/internal/discord/events",
         response: createMockResponse({ processed: true }),
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -812,7 +812,7 @@ describe("Discord Gateway Service E2E", () => {
         author: { id: "user-111", username: "testuser", bot: false },
       });
 
-      const eventCall = mockFetchCalls.find(c => 
+      const eventCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/discord/events")
       );
 
@@ -829,17 +829,17 @@ describe("Discord Gateway Service E2E", () => {
     test("increments eventsRouted on success", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       mockFetchResponses.push({
         url: "/api/internal/discord/events",
         response: createMockResponse({ processed: true }),
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -880,17 +880,17 @@ describe("Discord Gateway Service E2E", () => {
     test("increments eventsFailed on failure", async () => {
       // Setup token mock first
       setupMockTokenResponse();
-      
+
       mockFetchResponses.push({
         url: "/api/internal/discord/events",
         response: new Response("Error", { status: 500 }),
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -932,10 +932,10 @@ describe("Discord Gateway Service E2E", () => {
   describe("Health Status Transitions", () => {
     test("transitions to unhealthy after 5 consecutive poll failures", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -954,10 +954,10 @@ describe("Discord Gateway Service E2E", () => {
 
     test("transitions to degraded when some bots disconnected", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -1000,10 +1000,10 @@ describe("Discord Gateway Service E2E", () => {
 
     test("transitions to unhealthy when all bots disconnected", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -1032,10 +1032,10 @@ describe("Discord Gateway Service E2E", () => {
   describe("Session State Persistence", () => {
     test("saves session state to Redis", async () => {
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -1060,11 +1060,11 @@ describe("Discord Gateway Service E2E", () => {
       await manager.saveSessionState("conn-123", mockConn);
 
       expect(mockRedis.setex).toHaveBeenCalled();
-      
+
       // Verify the saved data
       const savedData = mockRedisData.get("discord:session:conn-123");
       expect(savedData).toBeDefined();
-      
+
       const parsed = JSON.parse(savedData!);
       expect(parsed.connectionId).toBe("conn-123");
       expect(parsed.eventsReceived).toBe(100);
@@ -1085,10 +1085,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -1097,7 +1097,7 @@ describe("Discord Gateway Service E2E", () => {
       // @ts-expect-error - accessing private for test
       await manager.acquireToken();
 
-      const tokenCall = mockFetchCalls.find(c => 
+      const tokenCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/auth/token")
       );
 
@@ -1132,10 +1132,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -1149,14 +1149,14 @@ describe("Discord Gateway Service E2E", () => {
       // @ts-expect-error - accessing private for test
       await manager.refreshToken();
 
-      const refreshCall = mockFetchCalls.find(c => 
+      const refreshCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/auth/refresh")
       );
 
       expect(refreshCall).toBeDefined();
       expect(refreshCall?.options.method).toBe("POST");
       expect(refreshCall?.options.headers).toHaveProperty("Authorization");
-      
+
       // Should use Bearer token
       const authHeader = (refreshCall?.options.headers as Record<string, string>)["Authorization"];
       expect(authHeader).toMatch(/^Bearer /);
@@ -1180,10 +1180,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -1217,7 +1217,7 @@ describe("Discord Gateway Service E2E", () => {
         channel_id: "chan-456",
       });
 
-      const eventCall = mockFetchCalls.find(c => 
+      const eventCall = mockFetchCalls.find(c =>
         c.url.includes("/api/internal/discord/events")
       );
 
@@ -1233,10 +1233,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "wrong-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -1258,10 +1258,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
@@ -1292,10 +1292,10 @@ describe("Discord Gateway Service E2E", () => {
       });
 
       const { GatewayManager } = await import("../../src/gateway-manager");
-      
+
       const manager = new GatewayManager({
         podName: "test-pod",
-        elizaCloudUrl: "http://localhost:3000",
+        elizaCloudUrl: "http://localhost:3333",
         gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",

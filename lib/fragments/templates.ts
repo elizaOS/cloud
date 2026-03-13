@@ -44,7 +44,7 @@ const templates = {
     file: "pages/index.tsx",
     instructions:
       "A Next.js 13+ app that reloads automatically. Using the pages router.",
-    port: 3000,
+    port: 3333,
   },
   [getTemplateIdSuffix("vue-developer")]: {
     name: "Vue.js developer",
@@ -52,7 +52,7 @@ const templates = {
     file: "app/app.vue",
     instructions:
       "A Vue.js 3+ app that reloads automatically. Only when asked specifically for a Vue app.",
-    port: 3000,
+    port: 3333,
   },
   [getTemplateIdSuffix("streamlit-developer")]: {
     name: "Streamlit developer",

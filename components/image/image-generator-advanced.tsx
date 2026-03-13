@@ -361,11 +361,10 @@ export function ImageGeneratorAdvanced({
       <div>
         <div className="w-full">
           <div
-            className={`relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-all ${
-              requestState.isLoading
+            className={`relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-all ${requestState.isLoading
                 ? "opacity-60 pointer-events-none"
                 : "focus-within:border-white/[0.15] focus-within:bg-white/[0.03]"
-            }`}
+              }`}
           >
             {/* Loading Scanner */}
             {requestState.isLoading && (
@@ -662,11 +661,10 @@ export function ImageGeneratorAdvanced({
             onClick={() =>
               setUiState((prev) => ({ ...prev, activeTab: "creations" }))
             }
-            className={`text-base font-medium transition-colors ${
-              uiState.activeTab === "creations"
+            className={`text-base font-medium transition-colors ${uiState.activeTab === "creations"
                 ? "text-[#FF5800]"
                 : "text-white/50 hover:text-white/70"
-            }`}
+              }`}
           >
             My Creations
           </button>
@@ -675,11 +673,10 @@ export function ImageGeneratorAdvanced({
             onClick={() =>
               setUiState((prev) => ({ ...prev, activeTab: "explore" }))
             }
-            className={`flex items-center gap-2 text-base font-medium transition-colors ${
-              uiState.activeTab === "explore"
+            className={`flex items-center gap-2 text-base font-medium transition-colors ${uiState.activeTab === "explore"
                 ? "text-[#FF5800]"
                 : "text-white/50 hover:text-white/70"
-            }`}
+              }`}
           >
             <Search className="h-4 w-4" />
             Explore
@@ -1168,8 +1165,8 @@ export function ImageGeneratorAdvanced({
                       imageState.currentImages[imageState.currentIndex]
                         ?.prompt ?? imageState.currentImage.prompt
                     }
-                    width={3000}
-                    height={3000}
+                    width={3333}
+                    height={3333}
                     className="object-contain max-w-full max-h-full w-auto h-auto"
                     unoptimized
                   />
@@ -1242,7 +1239,7 @@ export function ImageGeneratorAdvanced({
                         onClick={() => {
                           const newIndex =
                             imageState.currentIndex <
-                            imageState.currentImages.length - 1
+                              imageState.currentImages.length - 1
                               ? imageState.currentIndex + 1
                               : 0;
                           setImageState((prev) => ({
@@ -1262,7 +1259,7 @@ export function ImageGeneratorAdvanced({
                         onClick={() =>
                           handleDownload(
                             imageState.currentImages[imageState.currentIndex] ??
-                              imageState.currentImage!,
+                            imageState.currentImage!,
                           )
                         }
                       >

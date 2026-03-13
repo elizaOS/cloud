@@ -113,7 +113,7 @@ function transformMcpUrlsForDisplay(
     process.env.NEXT_PUBLIC_APP_URL ||
     (request.headers.get("host")
       ? `${request.headers.get("x-forwarded-proto") || "https"}://${request.headers.get("host")}`
-      : "http://localhost:3000");
+      : "http://localhost:3333");
 
   const transformedServers: Record<string, McpServerConfig> = {};
 

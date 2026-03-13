@@ -7,7 +7,7 @@ export function getAppUrl(): string {
   const url =
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.VERCEL_URL ||
-    "http://localhost:3000";
+    "http://localhost:3333";
   const base = url.startsWith("http") ? url : `https://${url}`;
   return base.replace(/\/$/, "");
 }

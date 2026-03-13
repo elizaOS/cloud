@@ -24,10 +24,10 @@ mock.module("@/lib/services/user-metrics", () => ({
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
+    info: () => { },
+    warn: () => { },
+    error: () => { },
+    debug: () => { },
   },
 }));
 
@@ -52,7 +52,7 @@ function makeRequest(secret?: string): NextRequest {
   if (secret) {
     headers.set("authorization", `Bearer ${secret}`);
   }
-  return new NextRequest("http://localhost:3000/api/cron/compute-metrics", {
+  return new NextRequest("http://localhost:3333/api/cron/compute-metrics", {
     method: "GET",
     headers,
   });

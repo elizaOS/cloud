@@ -82,14 +82,6 @@ function HeaderComponent({
           </BrandButton>
         ) : (
           <div className="flex flex-row items-center gap-3 md:gap-4">
-            <BrandButton
-              variant="primary"
-              onClick={() => setShowQuickCreate(true)}
-              className="h-8 items-center gap-2 px-3 md:h-10 md:px-4"
-            >
-              <Plus className="size-4" />
-              <span className="hidden md:inline">Create</span>
-            </BrandButton>
             <UserMenu />
           </div>
         )}

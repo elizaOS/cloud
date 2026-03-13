@@ -10,7 +10,7 @@
 
 import { test as base, expect, type Page } from "@playwright/test";
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 const API_KEY = process.env.TEST_API_KEY;
 
 /** Auth headers for API requests */

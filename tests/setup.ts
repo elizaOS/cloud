@@ -10,7 +10,7 @@
 
 import "./load-env";
 
-const LOCAL_SERVER_URL = "http://localhost:3000";
+const LOCAL_SERVER_URL = "http://localhost:3333";
 
 /**
  * Verify local server is running before any tests execute
@@ -38,15 +38,15 @@ async function verifyLocalServerRunning(): Promise<void> {
     clearTimeout(timeout);
     throw new Error(
       `\n${"=".repeat(60)}\n` +
-        `❌ LOCAL SERVER NOT RUNNING\n` +
-        `${"=".repeat(60)}\n\n` +
-        `Runtime tests require the local server at ${LOCAL_SERVER_URL}\n` +
-        `Please start the server first:\n\n` +
-        `  bun run dev\n\n` +
-        `Or skip this check for unit tests:\n\n` +
-        `  SKIP_SERVER_CHECK=true bun test ...\n\n` +
-        `Error: ${error.message}\n` +
-        `${"=".repeat(60)}\n`,
+      `❌ LOCAL SERVER NOT RUNNING\n` +
+      `${"=".repeat(60)}\n\n` +
+      `Runtime tests require the local server at ${LOCAL_SERVER_URL}\n` +
+      `Please start the server first:\n\n` +
+      `  bun run dev\n\n` +
+      `Or skip this check for unit tests:\n\n` +
+      `  SKIP_SERVER_CHECK=true bun test ...\n\n` +
+      `Error: ${error.message}\n` +
+      `${"=".repeat(60)}\n`,
     );
   });
 

@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { userId, name, mode } = body;
-        
+
         // Basic validation
         if (!userId || !mode) {
             return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
             success: true,
             agentId,
             message,
-            gatewayUrl: `http://localhost:3000/api/eliza-app/gateway/${agentId}`
+            gatewayUrl: `http://localhost:3333/api/eliza-app/gateway/${agentId}`
         });
 
     } catch (e: any) {

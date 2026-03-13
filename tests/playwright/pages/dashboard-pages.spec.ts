@@ -54,7 +54,7 @@ const DASHBOARD_PAGES = [
 test.describe("Dashboard Pages", () => {
   for (const path of DASHBOARD_PAGES) {
     test(`${path} loads without 500`, async ({ page }) => {
-      const response = await page.goto(`http://localhost:3000${path}`);
+      const response = await page.goto(`http://localhost:3333${path}`);
       // Dashboard pages should either render (200) or redirect to login (302)
       // but NEVER return 500
       expect(
@@ -70,7 +70,7 @@ test.describe("Dashboard Pages", () => {
       page,
     }) => {
       const response = await page.goto(
-        "http://localhost:3000/dashboard/containers/00000000-0000-4000-8000-000000000000",
+        "http://localhost:3333/dashboard/containers/00000000-0000-4000-8000-000000000000",
       );
       expect(response?.status()).not.toBe(500);
     });
@@ -79,14 +79,14 @@ test.describe("Dashboard Pages", () => {
       page,
     }) => {
       const response = await page.goto(
-        "http://localhost:3000/dashboard/containers/agents/00000000-0000-4000-8000-000000000000",
+        "http://localhost:3333/dashboard/containers/agents/00000000-0000-4000-8000-000000000000",
       );
       expect(response?.status()).not.toBe(500);
     });
 
     test("/dashboard/apps/[id] handles nonexistent ID", async ({ page }) => {
       const response = await page.goto(
-        "http://localhost:3000/dashboard/apps/00000000-0000-4000-8000-000000000000",
+        "http://localhost:3333/dashboard/apps/00000000-0000-4000-8000-000000000000",
       );
       expect(response?.status()).not.toBe(500);
     });
@@ -95,7 +95,7 @@ test.describe("Dashboard Pages", () => {
       page,
     }) => {
       const response = await page.goto(
-        "http://localhost:3000/dashboard/invoices/00000000-0000-4000-8000-000000000000",
+        "http://localhost:3333/dashboard/invoices/00000000-0000-4000-8000-000000000000",
       );
       expect(response?.status()).not.toBe(500);
     });

@@ -26,11 +26,11 @@ replicaCount: 1
 # Service configuration
 service:
   type: ClusterIP
-  port: 3000
-  targetPort: 3000
+  port: 3333
+  targetPort: 3333
 
 # Container port
-containerPort: 3000
+containerPort: 3333
 
 # Resource requests and limits
 resources:
@@ -44,7 +44,7 @@ resources:
 # Gateway configuration (environment variables)
 config:
   nodeEnv: "production"
-  port: "3000"
+  port: "3333"
   maxBotsPerPod: "100"
   failoverCheckIntervalMs: "30000"
   deadPodThresholdMs: "45000"
@@ -82,7 +82,7 @@ preStopDrainSleepSeconds: 90
 livenessProbe:
   httpGet:
     path: /health
-    port: 3000
+    port: 3333
   initialDelaySeconds: 10
   periodSeconds: 30
   timeoutSeconds: 10
@@ -92,7 +92,7 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /ready
-    port: 3000
+    port: 3333
   initialDelaySeconds: 5
   periodSeconds: 10
   timeoutSeconds: 5
@@ -144,7 +144,7 @@ prometheus:
 # Pod annotations for Prometheus scraping (works without Prometheus Operator)
 podAnnotations:
   prometheus.io/scrape: "true"
-  prometheus.io/port: "3000"
+  prometheus.io/port: "3333"
   prometheus.io/path: "/metrics"
 
 # Service account configuration

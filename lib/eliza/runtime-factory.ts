@@ -519,10 +519,10 @@ export class RuntimeFactory {
     const { character, plugins, modeResolution } = isDefaultCharacter
       ? await agentLoader.getDefaultCharacter(context.agentMode, loaderOptions)
       : await agentLoader.loadCharacter(
-          context.characterId!,
-          context.agentMode,
-          loaderOptions,
-        );
+        context.characterId!,
+        context.agentMode,
+        loaderOptions,
+      );
 
     if (modeResolution.upgradeReason !== "none") {
       elizaLogger.info(
@@ -726,7 +726,7 @@ export class RuntimeFactory {
   ): Record<string, unknown> {
     if (!mcpSettings?.servers) return mcpSettings;
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
     const transformedServers: Record<string, unknown> = {};
 
     for (const [serverId, serverConfig] of Object.entries(

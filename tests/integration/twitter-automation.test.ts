@@ -10,12 +10,12 @@
  *
  * Requirements:
  * - TEST_API_KEY: Valid API key with credits
- * - Server running at TEST_SERVER_URL (default: http://localhost:3000)
+ * - Server running at TEST_SERVER_URL (default: http://localhost:3333)
  */
 
 import { describe, test, expect, beforeAll } from "bun:test";
 
-const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
+const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3333";
 const API_KEY = process.env.TEST_API_KEY;
 const TIMEOUT = 15000;
 

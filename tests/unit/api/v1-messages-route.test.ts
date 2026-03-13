@@ -103,10 +103,10 @@ mock.module("@ai-sdk/gateway", () => ({
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
+    info: () => { },
+    warn: () => { },
+    error: () => { },
+    debug: () => { },
   },
 }));
 
@@ -186,7 +186,7 @@ describe("/api/v1/messages", () => {
     mockRequireAuthOrApiKeyWithOrg.mockRejectedValueOnce(new Error("bad key"));
 
     const response = await messagesPost(
-      jsonRequest("http://localhost:3000/api/v1/messages", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/messages", "POST", {
         model: "claude-sonnet-4",
         max_tokens: 16,
         messages: [{ role: "user", content: "hi" }],
@@ -205,7 +205,7 @@ describe("/api/v1/messages", () => {
 
   test("OPTIONS includes Anthropic and app credit headers", async () => {
     const response = await messagesOptions(
-      new NextRequest("http://localhost:3000/api/v1/messages", {
+      new NextRequest("http://localhost:3333/api/v1/messages", {
         method: "OPTIONS",
       }),
     );
@@ -224,7 +224,7 @@ describe("/api/v1/messages", () => {
 
   test("returns Anthropic-shaped 400 for invalid JSON", async () => {
     const response = await messagesPost(
-      new NextRequest("http://localhost:3000/api/v1/messages", {
+      new NextRequest("http://localhost:3333/api/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "{",
@@ -255,7 +255,7 @@ describe("/api/v1/messages", () => {
     });
 
     const response = await messagesPost(
-      jsonRequest("http://localhost:3000/api/v1/messages", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/messages", "POST", {
         model: "claude-sonnet-4",
         max_tokens: 64,
         system: [{ type: "text", text: "system prompt" }],
@@ -357,7 +357,7 @@ describe("/api/v1/messages", () => {
     }));
 
     const response = await messagesPost(
-      jsonRequest("http://localhost:3000/api/v1/messages", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/messages", "POST", {
         model: "claude-sonnet-4",
         max_tokens: 32,
         stream: true,

@@ -12,7 +12,7 @@ import { test, expect } from "@playwright/test";
  * "invalid input syntax for type uuid: 17c8b876-86a0-465d-9794-2aea244f4239\"
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 
 test.describe("UUID Sanitization - Dashboard Chat", () => {
   test.describe("Malformed characterId Handling", () => {

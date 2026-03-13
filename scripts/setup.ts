@@ -202,8 +202,8 @@ async function setupDefaults(env: Record<string, string>): Promise<void> {
   console.log("\n⚙️  Setting up defaults...");
 
   const defaults: Record<string, string> = {
-    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
-    NEXT_PUBLIC_API_URL: "http://localhost:3000",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3333",
+    NEXT_PUBLIC_API_URL: "http://localhost:3333",
     X402_NETWORK: "base-sepolia",
     CACHE_ENABLED: "true",
     REDIS_URL: "redis://localhost:6379",

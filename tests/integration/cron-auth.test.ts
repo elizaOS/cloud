@@ -14,7 +14,7 @@ const TEST_SECRET = "integration-test-cron-secret-abc123";
 function makeRequest(headers: Record<string, string> = {}): NextRequest {
   const h = new Headers(headers);
   h.set("x-forwarded-for", "10.0.0.1");
-  return new NextRequest("http://localhost:3000/api/v1/cron/health-check", {
+  return new NextRequest("http://localhost:3333/api/v1/cron/health-check", {
     method: "GET",
     headers: h,
   });

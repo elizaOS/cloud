@@ -9,7 +9,7 @@
 
 import { type Page, type Response, expect } from "@playwright/test";
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 
 /** Known non-critical console errors to filter out */
 const NON_CRITICAL_PATTERNS = [

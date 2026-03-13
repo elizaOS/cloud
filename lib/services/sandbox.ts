@@ -117,7 +117,7 @@ export class SandboxService {
       templateUrl = DEFAULT_TEMPLATE_URL,
       timeout = DEFAULT_TIMEOUT_MS,
       vcpus = 4,
-      ports = [3000],
+      ports = [3333],
       env = {},
       onProgress,
     } = config;
@@ -226,12 +226,12 @@ export class SandboxService {
       ) {
         throw new Error(
           `Vercel Sandbox creation failed (400 Bad Request).\n\n` +
-            `Possible causes:\n` +
-            `1. Concurrent sandbox limit reached - wait for existing sandboxes to expire\n` +
-            `2. Template URL is invalid or inaccessible\n` +
-            `3. Account sandbox quota exceeded\n` +
-            `4. Invalid configuration parameters\n\n` +
-            `Details: ${detailedMessage}`,
+          `Possible causes:\n` +
+          `1. Concurrent sandbox limit reached - wait for existing sandboxes to expire\n` +
+          `2. Template URL is invalid or inaccessible\n` +
+          `3. Account sandbox quota exceeded\n` +
+          `4. Invalid configuration parameters\n\n` +
+          `Details: ${detailedMessage}`,
         );
       }
 
@@ -248,7 +248,7 @@ export class SandboxService {
       throw new Error(`Sandbox creation failed: ${detailedMessage}`);
     }
 
-    const devServerUrl = sandbox.domain(3000);
+    const devServerUrl = sandbox.domain(3333);
     const sandboxId = sandbox.sandboxId || extractSandboxIdFromUrl(devServerUrl);
 
     logger.info("Sandbox created", { sandboxId, devServerUrl });
@@ -264,37 +264,37 @@ export class SandboxService {
 
     // Skip bun install and dependencies if created from snapshot (already included)
     if (!createdFromSnapshot) {
-    // Install bun runtime
-    logger.info("Installing bun runtime", { sandboxId });
-    onProgress?.({ step: "installing", message: "Installing bun runtime..." });
+      // Install bun runtime
+      logger.info("Installing bun runtime", { sandboxId });
+      onProgress?.({ step: "installing", message: "Installing bun runtime..." });
 
-    const bunInstall = await sandbox.runCommand({
-      cmd: "npm",
-      args: ["install", "-g", "bun"],
-    });
+      const bunInstall = await sandbox.runCommand({
+        cmd: "npm",
+        args: ["install", "-g", "bun"],
+      });
 
-    if (bunInstall.exitCode !== 0) {
-      logger.warn(
-        "Failed to install bun globally, will fall back to pnpm/npm",
-        {
-          sandboxId,
-          stderr: await bunInstall.stderr(),
-        },
-      );
-    } else {
-      logger.info("Bun installed successfully", { sandboxId });
-    }
+      if (bunInstall.exitCode !== 0) {
+        logger.warn(
+          "Failed to install bun globally, will fall back to pnpm/npm",
+          {
+            sandboxId,
+            stderr: await bunInstall.stderr(),
+          },
+        );
+      } else {
+        logger.info("Bun installed successfully", { sandboxId });
+      }
 
-    // Install dependencies
-    logger.info("Installing dependencies", { sandboxId });
-    onProgress?.({ step: "installing", message: "Installing dependencies..." });
+      // Install dependencies
+      logger.info("Installing dependencies", { sandboxId });
+      onProgress?.({ step: "installing", message: "Installing dependencies..." });
 
-    const installResult = await installDependencies(sandbox);
-    if (installResult.includes("Failed")) {
-      throw new Error(installResult);
-    }
+      const installResult = await installDependencies(sandbox);
+      if (installResult.includes("Failed")) {
+        throw new Error(installResult);
+      }
 
-    onProgress?.({ step: "installing", message: "Dependencies installed" });
+      onProgress?.({ step: "installing", message: "Dependencies installed" });
     } else {
       logger.info("Skipping bun install and dependencies (created from snapshot)", { sandboxId });
       onProgress?.({ step: "installing", message: "Using pre-installed dependencies from snapshot" });
@@ -418,7 +418,7 @@ export class SandboxService {
       });
     } else if (isLocalDev && !config.env?.NEXT_PUBLIC_ELIZA_API_URL) {
       const localServerUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
       mergedEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
       logger.info("Local dev: defaulting to postMessage proxy bridge", {
         sandboxId,
@@ -480,7 +480,7 @@ export class SandboxService {
       env: mergedEnv,
     });
 
-    await waitForDevServer(sandbox, 3000);
+    await waitForDevServer(sandbox, 3333);
 
     logger.info("Sandbox ready", { sandboxId, devServerUrl });
     onProgress?.({ step: "ready", message: "Sandbox is ready!" });
@@ -629,7 +629,7 @@ export class SandboxService {
       detached: true,
     });
 
-    await waitForDevServer(sandbox, 3000);
+    await waitForDevServer(sandbox, 3333);
     logger.info("Dev server restarted after dependency install", { sandboxId });
     onProgress?.({ step: "ready", message: "Dev server ready!" });
   }
@@ -727,7 +727,7 @@ export class SandboxService {
                 "%{http_code}",
                 "-m",
                 "5",
-                "http://localhost:3000",
+                "http://localhost:3333",
               ],
             });
 
@@ -771,7 +771,7 @@ export class SandboxService {
               detached: true,
             });
 
-            await waitForDevServer(existingSandbox, 3000);
+            await waitForDevServer(existingSandbox, 3333);
 
             onProgress?.({ step: "ready", message: "Reconnected to sandbox!" });
             return {
@@ -831,7 +831,7 @@ export class SandboxService {
           "%{http_code}",
           "-m",
           "5",
-          "http://localhost:3000",
+          "http://localhost:3333",
         ],
       });
 
@@ -863,7 +863,7 @@ export class SandboxService {
           detached: true,
         });
 
-        await waitForDevServer(sandbox, 3000);
+        await waitForDevServer(sandbox, 3333);
       }
 
       try {
@@ -956,7 +956,7 @@ export class SandboxService {
 
     // Import snapshot service and create snapshot
     const { createSnapshotFromSandbox } = await import("./sandbox-snapshots");
-    
+
     const snapshotSandbox = sandbox as unknown as {
       sandboxId: string;
       snapshot: () => Promise<{ snapshotId: string }>;

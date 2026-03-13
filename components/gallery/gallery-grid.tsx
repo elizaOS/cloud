@@ -129,8 +129,8 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                   <Image
                     src={selectedItem.url}
                     alt={selectedItem.prompt}
-                    width={3000}
-                    height={3000}
+                    width={3333}
+                    height={3333}
                     className="object-contain max-w-full max-h-full w-auto h-auto"
                     unoptimized
                     priority

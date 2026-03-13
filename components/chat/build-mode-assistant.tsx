@@ -342,10 +342,10 @@ export function BuildModeAssistant({
         const loadedMessages = data.messages || [];
         const metadata = data.metadata as
           | {
-              locked?: boolean;
-              createdCharacterId?: string;
-              createdCharacterName?: string;
-            }
+            locked?: boolean;
+            createdCharacterId?: string;
+            createdCharacterName?: string;
+          }
           | undefined;
 
         // Check if room is locked (character was created)
@@ -447,28 +447,28 @@ export function BuildModeAssistant({
       // Include current client-side character state so the agent knows what user sees
       const clientCharacterState = character
         ? {
-            name: character.name || "",
-            bio: character.bio || "",
-            system: character.system || "",
-            adjectives: character.adjectives || [],
-            topics: character.topics || [],
-            style: character.style || { all: [], chat: [], post: [] },
-            messageExamples: character.messageExamples || [],
-            avatarUrl: character.avatarUrl || character.avatar_url || "",
-          }
+          name: character.name || "",
+          bio: character.bio || "",
+          system: character.system || "",
+          adjectives: character.adjectives || [],
+          topics: character.topics || [],
+          style: character.style || { all: [], chat: [], post: [] },
+          messageExamples: character.messageExamples || [],
+          avatarUrl: character.avatarUrl || character.avatar_url || "",
+        }
         : null;
 
       const metadata: Record<string, unknown> = isCreatorMode
         ? {
-            isCreatorMode: true,
-            clientCharacterState,
-            isUnsaved: true, // Creator mode is always unsaved
-          }
+          isCreatorMode: true,
+          clientCharacterState,
+          isUnsaved: true, // Creator mode is always unsaved
+        }
         : {
-            targetCharacterId: character?.id,
-            clientCharacterState,
-            isUnsaved: !character?.id, // Unsaved if no ID yet
-          };
+          targetCharacterId: character?.id,
+          clientCharacterState,
+          isUnsaved: !character?.id, // Unsaved if no ID yet
+        };
 
       try {
         const response = await fetch(
@@ -762,7 +762,7 @@ export function BuildModeAssistant({
 
                   // Refresh character data after apply action (SAVE_CHANGES)
                   if (detectedApplyAction && onCharacterRefresh) {
-                    toast.success("Character saved!", { duration: 3000 });
+                    toast.success("Character saved!", { duration: 3333 });
                     await onCharacterRefresh();
                   }
                 }

@@ -364,7 +364,7 @@ The platform uses a single database with integrated schemas:
 
 2. **Privy** ([privy.io](https://privy.io))
    - Create an application
-   - Configure webhook endpoint: `http://localhost:3000/api/privy/webhook`
+   - Configure webhook endpoint: `http://localhost:3333/api/privy/webhook`
    - Enable desired login methods (email, wallet, social)
    - Note your Client ID and API Key
 
@@ -509,7 +509,7 @@ This creates credit pack products in Stripe.
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000).
+Visit [http://localhost:3333](http://localhost:3333).
 
 ### 6. First Login
 
@@ -927,7 +927,7 @@ elizaos containers delete  # Finds and deletes chatbot project
 
 **Docker Image Requirements**:
 
-- Must expose a port (default: 3000)
+- Must expose a port (default: 3333)
 - Must include a `/health` endpoint for ECS health checks
 - Dockerfile can be auto-generated if not present
 - Environment variables passed from cloud API
@@ -941,7 +941,7 @@ Authorization: Bearer eliza_your_api_key
 
 {
   "name": "my-agent",
-  "port": 3000,
+  "port": 3333,
   "max_instances": 1,
   "environment_vars": {
     "NODE_ENV": "production"
@@ -1238,7 +1238,7 @@ Add to your Claude Desktop config:
 {
   "mcpServers": {
     "eliza-cloud": {
-      "url": "http://localhost:3000/api/mcp",
+      "url": "http://localhost:3333/api/mcp",
       "transport": {
         "type": "streamableHttp"
       },
@@ -1468,7 +1468,7 @@ Documented management endpoints support multiple authentication methods:
 
 ### Base URL
 
-- Development: `http://localhost:3000`
+- Development: `http://localhost:3333`
 - Production: `https://your-domain.com`
 
 ### Endpoints
@@ -1524,7 +1524,7 @@ GET /api/v1/containers
 POST /api/v1/containers
 {
   "name": "my-agent",
-  "port": 3000,
+  "port": 3333,
   "ecr_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/elizaos/my-project:v1.0.0",
   "environment_vars": {...},
   "cpu": 256,
@@ -1822,7 +1822,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 - View webhook events in Stripe dashboard → Developers → Webhooks
 - Test locally with Stripe CLI:
   ```bash
-  stripe listen --forward-to localhost:3000/api/stripe/webhook
+  stripe listen --forward-to localhost:3333/api/stripe/webhook
   ```
 
 ### Getting Help

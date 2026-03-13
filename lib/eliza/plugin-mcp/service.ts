@@ -234,7 +234,7 @@ export class McpService extends Service {
       const total = results.cached.length + results.connected.length;
       logger.info(
         `[MCP] Ready ${total}/${entries.length} in ${Date.now() - start}ms ` +
-          `(${results.cached.length} cached, ${results.connected.length} connected, ${results.failed.length} failed)`,
+        `(${results.cached.length} cached, ${results.connected.length} connected, ${results.failed.length} failed)`,
       );
 
       this.mcpProvider = buildMcpProviderData(this.getServers());
@@ -399,7 +399,7 @@ export class McpService extends Service {
       const baseUrl =
         process.env.NEXT_PUBLIC_APP_URL ||
         process.env.APP_URL ||
-        "http://localhost:3000";
+        "http://localhost:3333";
       try {
         if (url.origin === new URL(baseUrl).origin) {
           headers["X-API-Key"] = apiKey;

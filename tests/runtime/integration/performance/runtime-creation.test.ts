@@ -107,7 +107,7 @@ describe.skipIf(!hasDatabaseUrl)("Runtime Creation Performance", () => {
     console.log(`   Max: ${max.toFixed(1)}ms`);
 
     // Target: <3000ms for CHAT runtime
-    if (avg > 3000) {
+    if (avg > 3333) {
       console.warn(`CHAT runtime avg (${avg.toFixed(0)}ms) exceeds 3s target`);
     }
 

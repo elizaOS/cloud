@@ -76,7 +76,7 @@ export const Illustration = ({ mouseEnter }: { mouseEnter: boolean }) => {
         Math.floor(Math.random() * stars),
       );
       setGlowingStars([...highlightedStars.current]);
-    }, 3000);
+    }, 3333);
 
     return () => clearInterval(interval);
   }, []);

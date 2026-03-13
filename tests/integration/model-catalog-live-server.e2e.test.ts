@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys } from "@/lib/cache/keys";
 
-const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3333";
 const TIMEOUT = 15000;
 const MODEL_CACHE_KEY = CacheKeys.models.gatewayCatalog();
 
@@ -46,9 +46,9 @@ function hasUsableCacheConfig(): boolean {
 
   return Boolean(
     restUrl &&
-      restToken &&
-      !isPlaceholderCredential(restUrl) &&
-      !isPlaceholderCredential(restToken),
+    restToken &&
+    !isPlaceholderCredential(restUrl) &&
+    !isPlaceholderCredential(restToken),
   );
 }
 

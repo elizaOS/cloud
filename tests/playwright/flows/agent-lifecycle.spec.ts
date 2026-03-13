@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
  * Tests dashboard navigation for agent management pages.
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 
 test.describe("Agent Lifecycle Pages", () => {
   test("my-agents page loads and has content", async ({ page }) => {

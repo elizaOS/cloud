@@ -4,7 +4,7 @@
  * Tests for the Discord connections API endpoints.
  *
  * Prerequisites:
- * - Set TEST_SERVER_URL (default: http://localhost:3000)
+ * - Set TEST_SERVER_URL (default: http://localhost:3333)
  * - Set TEST_API_KEY (Bearer token for authentication)
  * - Set TEST_CHARACTER_ID (valid character UUID in your organization)
  */
@@ -26,7 +26,7 @@ if (preservedTestDatabaseUrl) {
   process.env.TEST_DATABASE_URL = preservedTestDatabaseUrl;
 }
 
-const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
+const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3333";
 const API_KEY = process.env.TEST_API_KEY;
 const TEST_CHARACTER_ID = process.env.TEST_CHARACTER_ID;
 

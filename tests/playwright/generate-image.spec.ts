@@ -7,7 +7,7 @@ import { test, expect, APIRequestContext } from "@playwright/test";
  * response structure, model selection, and credit handling.
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 const CLOUD_URL = process.env.CLOUD_URL ?? BASE_URL;
 const API_KEY = process.env.TEST_API_KEY;
 

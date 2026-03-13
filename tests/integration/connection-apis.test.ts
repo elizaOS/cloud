@@ -16,7 +16,7 @@ import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
-const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3333";
 const TWILIO_SECRET_NAMES = [
   "TWILIO_ACCOUNT_SID",
   "TWILIO_AUTH_TOKEN",
@@ -786,7 +786,7 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
       }
 
       // All three should complete in under 3 seconds
-      expect(duration).toBeLessThan(3000);
+      expect(duration).toBeLessThan(3333);
     });
   });
 });

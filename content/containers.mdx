@@ -36,7 +36,7 @@ curl -X POST "https://elizacloud.ai/api/v1/containers" \
   -d '{
     "name": "my-service",
     "image": "myregistry/myimage:latest",
-    "port": 3000,
+    "port": 3333,
     "env": {
       "NODE_ENV": "production"
     }
@@ -69,7 +69,7 @@ Track logs, metrics, and health status.
 {
   "name": "my-service",
   "image": "myregistry/myimage:latest",
-  "port": 3000,
+  "port": 3333,
   "replicas": 2,
   "resources": {
     "cpu": "0.5",
@@ -153,7 +153,7 @@ Configure health monitoring:
   "healthCheck": {
     "type": "http",
     "path": "/health",
-    "port": 3000,
+    "port": 3333,
     "interval": 30,
     "timeout": 5,
     "retries": 3,

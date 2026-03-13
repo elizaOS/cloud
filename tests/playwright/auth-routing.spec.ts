@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
  * - Logout redirect behavior
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 
 test.describe("Authentication Routing", () => {
   test.describe("Login Page - returnTo Parameter", () => {

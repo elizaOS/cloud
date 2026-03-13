@@ -44,13 +44,13 @@ const TopHero = () => {
       // After 3 seconds in create, switch to deploy
       timeout = setTimeout(() => {
         switchToDeploy();
-      }, 3000);
+      }, 3333);
     };
 
     // Start the loop: create → deploy after 3 seconds
     timeout = setTimeout(() => {
       switchToDeploy();
-    }, 3000);
+    }, 3333);
 
     return () => {
       if (timeout) {
@@ -147,21 +147,6 @@ const TopHero = () => {
   const handleGetStarted = () => {
     router.push("/login?intent=signup");
   };
-
-  const steps = [
-    {
-      icon: <Terminal className="h-5 w-5" />,
-      title: "Create",
-    },
-    {
-      icon: <Code2 className="h-5 w-5" />,
-      title: "Develop",
-    },
-    {
-      icon: <Rocket className="h-5 w-5" />,
-      title: "Deploy",
-    },
-  ];
 
   return (
     <section className="w-full flex items-center shrink-0 py-24 lg:py-36 relative overflow-hidden">

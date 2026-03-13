@@ -17,7 +17,7 @@ describe('Service Pricing Admin Routes', () => {
 
   describe('GET /api/v1/admin/service-pricing', () => {
     it('should return 401 when wallet is not connected', async () => {
-      const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
+      const request = new NextRequest('http://localhost:3333/api/v1/admin/service-pricing?service_id=solana-rpc');
       vi.mocked(requireAdminWithResponse).mockResolvedValue(
         NextResponse.json({ error: 'Wallet connection required' }, { status: 401 }),
       );
@@ -28,7 +28,7 @@ describe('Service Pricing Admin Routes', () => {
     });
 
     it('should return 403 when user is not admin', async () => {
-      const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
+      const request = new NextRequest('http://localhost:3333/api/v1/admin/service-pricing?service_id=solana-rpc');
       vi.mocked(requireAdminWithResponse).mockResolvedValue(
         NextResponse.json({ error: 'Admin access required' }, { status: 403 }),
       );
@@ -39,7 +39,7 @@ describe('Service Pricing Admin Routes', () => {
     });
 
     it('should return service pricing data', async () => {
-      const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
+      const request = new NextRequest('http://localhost:3333/api/v1/admin/service-pricing?service_id=solana-rpc');
       vi.mocked(requireAdminWithResponse).mockResolvedValue({
         user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
         role: 'super_admin',

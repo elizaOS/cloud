@@ -1,6 +1,6 @@
 import { test, expect, type Locator } from "@playwright/test";
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 const REAL_AUTH_TIMEOUT_MS = 5 * 60_000;
 const PRIVY_EMAIL = process.env.PLAYWRIGHT_PRIVY_EMAIL;
 const PRIVY_EMAIL_CODE = process.env.PLAYWRIGHT_PRIVY_EMAIL_CODE;

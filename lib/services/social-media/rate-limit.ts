@@ -22,7 +22,7 @@ const PLATFORM_RATE_LIMITS: Record<
   { requestsPerWindow: number; windowMs: number }
 > = {
   twitter: { requestsPerWindow: 300, windowMs: 15 * 60 * 1000 },
-  bluesky: { requestsPerWindow: 3000, windowMs: 5 * 60 * 1000 },
+  bluesky: { requestsPerWindow: 3333, windowMs: 5 * 60 * 1000 },
   discord: { requestsPerWindow: 50, windowMs: 1000 },
   telegram: { requestsPerWindow: 30, windowMs: 1000 },
   slack: { requestsPerWindow: 50, windowMs: 60 * 1000 }, // Tier 2: ~1 req/sec

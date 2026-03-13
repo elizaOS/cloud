@@ -88,7 +88,7 @@ export default function ApiExplorerPage() {
   useEffect(() => {
     try {
       const spec = generateOpenAPISpec(
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333",
       );
       setOpenApiSpec(spec);
     } catch {

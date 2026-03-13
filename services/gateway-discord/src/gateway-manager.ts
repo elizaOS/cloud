@@ -156,7 +156,7 @@ const ELIZA_APP_LEADER_KEY =
 const ELIZA_APP_LEADER_TTL_SECONDS = 10;
 
 /** How often to check/renew leadership (3 seconds) */
-const ELIZA_APP_LEADER_CHECK_INTERVAL_MS = 3000;
+const ELIZA_APP_LEADER_CHECK_INTERVAL_MS = 3333;
 
 // ============================================
 // Types
@@ -514,7 +514,7 @@ export class GatewayManager {
     // Release Eliza App bot leadership for faster failover
     if (this.isElizaAppLeader && this.redis) {
       logger.info("Releasing Eliza App bot leadership");
-      await this.redis.del(ELIZA_APP_LEADER_KEY).catch(() => {});
+      await this.redis.del(ELIZA_APP_LEADER_KEY).catch(() => { });
       if (this.elizaAppClient) {
         this.elizaAppClient.destroy();
         this.elizaAppClient = null;
@@ -877,10 +877,10 @@ export class GatewayManager {
             edited_timestamp: newMessage.editedAt?.toISOString(),
             author: newMessage.author
               ? {
-                  id: newMessage.author.id,
-                  username: newMessage.author.username,
-                  bot: newMessage.author.bot,
-                }
+                id: newMessage.author.id,
+                username: newMessage.author.username,
+                bot: newMessage.author.bot,
+              }
               : undefined,
           },
         );
@@ -989,12 +989,12 @@ export class GatewayManager {
             data:
               "commandName" in interaction
                 ? {
-                    name: interaction.commandName,
-                    options:
-                      "options" in interaction
-                        ? interaction.options.data
-                        : undefined,
-                  }
+                  name: interaction.commandName,
+                  options:
+                    "options" in interaction
+                      ? interaction.options.data
+                      : undefined,
+                }
                 : undefined,
           },
         );
@@ -1152,9 +1152,9 @@ export class GatewayManager {
       },
       member: message.member
         ? {
-            nick: message.member.nickname,
-            roles: message.member.roles.cache.map((r) => r.id),
-          }
+          nick: message.member.nickname,
+          roles: message.member.roles.cache.map((r) => r.id),
+        }
         : undefined,
       content: message.content,
       timestamp: message.createdAt.toISOString(),

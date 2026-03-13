@@ -79,7 +79,7 @@ export async function checkBuild(sandbox: SandboxInstance): Promise<string> {
  */
 export async function waitForDevServer(
   sandbox: SandboxInstance,
-  port: number = 3000,
+  port: number = 3333,
   maxWaitMs: number = 60000,
 ): Promise<void> {
   const startTime = Date.now();

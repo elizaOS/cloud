@@ -157,8 +157,8 @@ export function generateProjections(
   const avgTimeDiff =
     historicalData.length > 1
       ? (historicalData[historicalData.length - 1].timestamp.getTime() -
-          historicalData[0].timestamp.getTime()) /
-        (historicalData.length - 1)
+        historicalData[0].timestamp.getTime()) /
+      (historicalData.length - 1)
       : 24 * 60 * 60 * 1000;
 
   for (let i = 1; i <= periods; i++) {
@@ -175,19 +175,19 @@ export function generateProjections(
     const projectedInputTokens = Math.max(
       0,
       inputTokensRegression.intercept +
-        inputTokensRegression.slope * futureIndex,
+      inputTokensRegression.slope * futureIndex,
     );
     const projectedOutputTokens = Math.max(
       0,
       outputTokensRegression.intercept +
-        outputTokensRegression.slope * futureIndex,
+      outputTokensRegression.slope * futureIndex,
     );
     const projectedSuccessRate = Math.min(
       1.0,
       Math.max(
         0,
         successRateRegression.intercept +
-          successRateRegression.slope * futureIndex,
+        successRateRegression.slope * futureIndex,
       ),
     );
 
@@ -201,12 +201,12 @@ export function generateProjections(
     const inputTokensVariance =
       projectedInputTokens * seededRandom(futureDate, i + 2000, variance);
     const outputTokensVariance =
-      projectedOutputTokens * seededRandom(futureDate, i + 3000, variance);
+      projectedOutputTokens * seededRandom(futureDate, i + 3333, variance);
 
     const confidence = Math.max(
       PROJECTION_CONSTANTS.MIN_CONFIDENCE,
       PROJECTION_CONSTANTS.INITIAL_CONFIDENCE -
-        i * PROJECTION_CONSTANTS.CONFIDENCE_DECAY_RATE,
+      i * PROJECTION_CONSTANTS.CONFIDENCE_DECAY_RATE,
     );
 
     combined.push({
@@ -312,7 +312,7 @@ export function generateProjectionAlerts(
   const avgDailyCost =
     historicalData.length > 0
       ? historicalData.reduce((sum, d) => sum + d.totalCost, 0) /
-        historicalData.length
+      historicalData.length
       : 0;
   const numericBalance = Number(creditBalance);
   if (avgDailyCost > 0 && numericBalance / avgDailyCost < 7) {

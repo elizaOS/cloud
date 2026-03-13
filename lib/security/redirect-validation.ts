@@ -1,10 +1,10 @@
 import { isAllowedOrigin } from "@/lib/security/origin-validation";
 
 const DEFAULT_PLATFORM_REDIRECT_ORIGINS = [
-  "http://localhost:3000",
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:3000",
+  "http://localhost:3333",
+  "http://localhost:3001",
+  "http://127.0.0.1:3333",
+  "http://127.0.0.1:3001",
 ];
 
 function isHttpUrl(url: URL): boolean {

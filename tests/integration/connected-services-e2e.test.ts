@@ -18,7 +18,7 @@ import {
   type TestDataSet,
 } from "../infrastructure/test-data-factory";
 
-const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
+const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3333";
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const TIMEOUT = 60000;
 
@@ -94,7 +94,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
       const data = await res.json();
       const google = data.services?.find((s: { id: string }) => s.id === "google");
-      
+
       if (google) {
         expect(google).toHaveProperty("connected");
         expect(typeof google.connected).toBe("boolean");
@@ -112,7 +112,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
       const data = await res.json();
       const twilio = data.services?.find((s: { id: string }) => s.id === "twilio");
-      
+
       if (twilio) {
         expect(twilio).toHaveProperty("connected");
         expect(typeof twilio.connected).toBe("boolean");
@@ -130,7 +130,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
       const data = await res.json();
       const blooio = data.services?.find((s: { id: string }) => s.id === "blooio");
-      
+
       if (blooio) {
         expect(blooio).toHaveProperty("connected");
         expect(typeof blooio.connected).toBe("boolean");
@@ -424,11 +424,11 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       expect(res.status).toBe(200);
 
       const data = await res.json();
-      
+
       // Should only see own organization's connections
       // The other org's Blooio should not appear as connected for this org
       const blooio = data.services?.find((s: { id: string }) => s.id === "blooio");
-      
+
       // Our org's Blooio should not be affected by other org's connection
       expect(blooio?.connected).toBe(false);
     });
@@ -455,7 +455,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
       // First org should not be connected
       expect(blooio1?.connected).toBe(false);
-      
+
       // Second org should be connected (if connection succeeded)
       // Note: This depends on the beforeAll connection succeeding
     });

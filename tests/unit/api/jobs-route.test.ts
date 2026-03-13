@@ -46,7 +46,7 @@ import { GET } from "@/app/api/v1/jobs/[jobId]/route";
 
 // Helpers
 function makeRequest(jobId: string): [Request, { params: Promise<{ jobId: string }> }] {
-  const url = `http://localhost:3000/api/v1/jobs/${jobId}`;
+  const url = `http://localhost:3333/api/v1/jobs/${jobId}`;
   const req = new Request(url, { method: "GET" });
   return [req as any, { params: Promise.resolve({ jobId }) }];
 }

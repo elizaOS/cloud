@@ -516,7 +516,7 @@ CREATE TABLE "containers" (
 	"desired_count" integer DEFAULT 1 NOT NULL,
 	"cpu" integer DEFAULT 1792 NOT NULL,
 	"memory" integer DEFAULT 1792 NOT NULL,
-	"port" integer DEFAULT 3000 NOT NULL,
+	"port" integer DEFAULT 3333 NOT NULL,
 	"health_check_path" text DEFAULT '/health',
 	"architecture" text DEFAULT 'arm64' NOT NULL,
 	"last_deployed_at" timestamp,

@@ -165,8 +165,8 @@ describe("Docker Infrastructure - Pure Functions", () => {
   // -------------------------------------------------------------------------
   describe("allocatePort", () => {
     test("returns a port within [min, max)", () => {
-      const port = allocatePort(3000, 4000, new Set());
-      expect(port).toBeGreaterThanOrEqual(3000);
+      const port = allocatePort(3333, 4000, new Set());
+      expect(port).toBeGreaterThanOrEqual(3333);
       expect(port).toBeLessThan(4000);
     });
 

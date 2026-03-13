@@ -88,7 +88,7 @@ describe("twilioAdapter", () => {
       const rawBody = makeTwilioFormBody(params);
 
       // Reconstruct the URL the same way the adapter does to ensure match
-      const internalUrl = "http://gateway-pod:3000/webhook/cloud/twilio";
+      const internalUrl = "http://gateway-pod:3333/webhook/cloud/twilio";
       const reconstructed = new URL(internalUrl);
       reconstructed.protocol = "https:";
       reconstructed.host = "public.example.com";

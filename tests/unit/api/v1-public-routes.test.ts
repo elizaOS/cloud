@@ -80,10 +80,10 @@ mock.module("@/lib/middleware/rate-limit", () => ({
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
+    info: () => { },
+    warn: () => { },
+    error: () => { },
+    debug: () => { },
   },
 }));
 
@@ -213,7 +213,7 @@ beforeEach(() => {
 describe("User API", () => {
   test("GET returns the authenticated user profile", async () => {
     const response = await getUser(
-      new NextRequest("http://localhost:3000/api/v1/user"),
+      new NextRequest("http://localhost:3333/api/v1/user"),
     );
     expect(response.status).toBe(200);
 
@@ -229,7 +229,7 @@ describe("User API", () => {
     );
 
     const response = await getUser(
-      new NextRequest("http://localhost:3000/api/v1/user"),
+      new NextRequest("http://localhost:3333/api/v1/user"),
     );
     expect(response.status).toBe(401);
 
@@ -239,7 +239,7 @@ describe("User API", () => {
 
   test("PATCH validates profile updates and normalizes empty avatars", async () => {
     const response = await patchUser(
-      jsonRequest("http://localhost:3000/api/v1/user", "PATCH", {
+      jsonRequest("http://localhost:3333/api/v1/user", "PATCH", {
         name: "Updated Shaw",
         avatar: "",
         response_notifications: false,
@@ -256,7 +256,7 @@ describe("User API", () => {
 
   test("PATCH rejects invalid payloads", async () => {
     const response = await patchUser(
-      jsonRequest("http://localhost:3000/api/v1/user", "PATCH", {
+      jsonRequest("http://localhost:3333/api/v1/user", "PATCH", {
         work_function: "astronaut",
       }),
     );
@@ -279,7 +279,7 @@ describe("API Keys API", () => {
 
   test("POST validates create input", async () => {
     const response = await postApiKeys(
-      jsonRequest("http://localhost:3000/api/v1/api-keys", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/api-keys", "POST", {
         name: "",
         rate_limit: 0,
       }),
@@ -292,7 +292,7 @@ describe("API Keys API", () => {
 
   test("POST trims and transforms create input", async () => {
     const response = await postApiKeys(
-      jsonRequest("http://localhost:3000/api/v1/api-keys", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/api-keys", "POST", {
         name: "  Build Bot  ",
         description: "  deploy key  ",
         permissions: ["chat:write", "images:write"],
@@ -315,7 +315,7 @@ describe("API Keys API", () => {
 
   test("PATCH rejects empty updates", async () => {
     const response = await patchApiKey(
-      jsonRequest("http://localhost:3000/api/v1/api-keys/key-1", "PATCH", {}),
+      jsonRequest("http://localhost:3333/api/v1/api-keys/key-1", "PATCH", {}),
       routeParams({ id: "key-1" }),
     );
 
@@ -331,7 +331,7 @@ describe("API Keys API", () => {
     });
 
     const response = await patchApiKey(
-      jsonRequest("http://localhost:3000/api/v1/api-keys/key-1", "PATCH", {
+      jsonRequest("http://localhost:3333/api/v1/api-keys/key-1", "PATCH", {
         name: "Renamed",
       }),
       routeParams({ id: "key-1" }),
@@ -344,7 +344,7 @@ describe("API Keys API", () => {
 
   test("PATCH updates validated key fields", async () => {
     const response = await patchApiKey(
-      jsonRequest("http://localhost:3000/api/v1/api-keys/key-1", "PATCH", {
+      jsonRequest("http://localhost:3333/api/v1/api-keys/key-1", "PATCH", {
         description: "",
         rate_limit: 500,
         is_active: false,
@@ -364,7 +364,7 @@ describe("API Keys API", () => {
     mockApiKeysGetById.mockResolvedValue(undefined);
 
     const response = await deleteApiKey(
-      jsonRequest("http://localhost:3000/api/v1/api-keys/missing", "DELETE"),
+      jsonRequest("http://localhost:3333/api/v1/api-keys/missing", "DELETE"),
       routeParams({ id: "missing" }),
     );
 
@@ -373,7 +373,7 @@ describe("API Keys API", () => {
 
   test("DELETE deletes owned keys", async () => {
     const response = await deleteApiKey(
-      jsonRequest("http://localhost:3000/api/v1/api-keys/key-1", "DELETE"),
+      jsonRequest("http://localhost:3333/api/v1/api-keys/key-1", "DELETE"),
       routeParams({ id: "key-1" }),
     );
 
@@ -389,7 +389,7 @@ describe("API Keys API", () => {
 
     const response = await regenerateApiKey(
       jsonRequest(
-        "http://localhost:3000/api/v1/api-keys/key-1/regenerate",
+        "http://localhost:3333/api/v1/api-keys/key-1/regenerate",
         "POST",
       ),
       routeParams({ id: "key-1" }),
@@ -412,7 +412,7 @@ describe("API Keys API", () => {
 describe("Gallery API", () => {
   test("GET validates query parameters", async () => {
     const response = await getGallery(
-      new NextRequest("http://localhost:3000/api/v1/gallery?type=audio"),
+      new NextRequest("http://localhost:3333/api/v1/gallery?type=audio"),
     );
 
     expect(response.status).toBe(400);
@@ -476,7 +476,7 @@ describe("Gallery API", () => {
     ]);
 
     const response = await getGallery(
-      new NextRequest("http://localhost:3000/api/v1/gallery?type=image&limit=1"),
+      new NextRequest("http://localhost:3333/api/v1/gallery?type=image&limit=1"),
     );
 
     expect(response.status).toBe(200);
@@ -501,7 +501,7 @@ describe("Gallery API", () => {
 describe("Models API", () => {
   test("GET returns provider models with cache headers", async () => {
     const response = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
+      new NextRequest("http://localhost:3333/api/v1/models"),
     );
 
     expect(response.status).toBe(200);
@@ -518,7 +518,7 @@ describe("Models API", () => {
     mockGetAnonymousUser.mockResolvedValue(null);
 
     const response = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
+      new NextRequest("http://localhost:3333/api/v1/models"),
     );
 
     expect(response.status).toBe(200);

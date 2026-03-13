@@ -97,7 +97,7 @@ function LoginPageContent() {
         const timeout = setTimeout(() => {
           setIsProcessingOAuth(false);
           sessionStorage.removeItem("oauth_login_pending");
-        }, 3000); // Give Privy 3 seconds to complete auth
+        }, 3333); // Give Privy 3 seconds to complete auth
         return () => clearTimeout(timeout);
       }
     }

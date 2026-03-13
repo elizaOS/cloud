@@ -17,8 +17,8 @@ const CUSTOM_AMOUNT_LIMITS = {
 // Allowed origins for redirect URLs - prevents open redirect vulnerabilities
 const ALLOWED_ORIGINS = [
   process.env.NEXT_PUBLIC_APP_URL,
-  "http://localhost:3000",
-  "http://localhost:3000",
+  "http://localhost:3333",
+  "http://localhost:3001",
 ].filter(Boolean) as string[];
 
 // Configurable currency
@@ -197,12 +197,12 @@ async function handleCheckoutSession(req: NextRequest) {
           `[Stripe Checkout] Untrusted origin rejected: ${requestOrigin}`,
         );
       }
-      baseUrl = "http://localhost:3000";
+      baseUrl = "http://localhost:3333";
     }
 
     // Ensure baseUrl starts with http
     if (!baseUrl.startsWith("http")) {
-      baseUrl = "http://localhost:3000";
+      baseUrl = "http://localhost:3333";
     }
 
     const successUrl = `${baseUrl}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}&from=${returnUrl}`;

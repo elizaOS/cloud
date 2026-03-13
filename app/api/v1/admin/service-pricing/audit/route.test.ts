@@ -13,7 +13,7 @@ describe('Service Pricing Audit Route', () => {
   });
 
   it('should return 401 when not authenticated', async () => {
-    const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing/audit?service_id=solana-rpc');
+    const request = new NextRequest('http://localhost:3333/api/v1/admin/service-pricing/audit?service_id=solana-rpc');
     vi.mocked(requireAdminWithResponse).mockResolvedValue(
       NextResponse.json({ error: 'Not authenticated' }, { status: 401 }),
     );
@@ -24,7 +24,7 @@ describe('Service Pricing Audit Route', () => {
   });
 
   it('should return audit history', async () => {
-    const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing/audit?service_id=solana-rpc');
+    const request = new NextRequest('http://localhost:3333/api/v1/admin/service-pricing/audit?service_id=solana-rpc');
     vi.mocked(requireAdminWithResponse).mockResolvedValue({
       user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
       isAdmin: true,

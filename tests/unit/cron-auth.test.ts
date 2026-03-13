@@ -18,7 +18,7 @@ function mockRequest(authHeader?: string): NextRequest {
   }
   headers.set("x-forwarded-for", "127.0.0.1");
 
-  return new NextRequest("http://localhost:3000/api/cron/test", {
+  return new NextRequest("http://localhost:3333/api/cron/test", {
     method: "POST",
     headers,
   });

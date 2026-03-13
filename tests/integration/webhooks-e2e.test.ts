@@ -17,7 +17,7 @@ import {
 import { createEncryptionService } from "@/lib/services/secrets/encryption";
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
-const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3333";
 const TWILIO_AUTH_TOKEN = "test_token";
 const BLOOIO_WEBHOOK_SECRET = "webhook_secret_123";
 const TWILIO_SECRET_NAMES = [

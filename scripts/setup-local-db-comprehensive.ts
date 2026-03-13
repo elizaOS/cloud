@@ -284,7 +284,7 @@ async function main() {
     "1. Make sure DATABASE_URL in .env.local points to the local database",
   );
   console.log("2. Run 'bun run dev' to start the development server");
-  console.log("3. Visit http://localhost:3000/dashboard");
+  console.log("3. Visit http://localhost:3333/dashboard");
   console.log("\nUseful commands:");
   console.log("  bun run db:local:logs    - View database logs");
   console.log("  bun run db:local:stop    - Stop database");

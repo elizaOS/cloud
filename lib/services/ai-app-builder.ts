@@ -43,15 +43,15 @@ export interface BuilderSessionConfig {
   appDescription?: string;
   initialPrompt?: string;
   templateType?:
-    | "chat"
-    | "agent-dashboard"
-    | "landing-page"
-    | "analytics"
-    | "blank"
-    | "mcp-service"
-    | "a2a-agent"
-    | "saas-starter"
-    | "ai-tool";
+  | "chat"
+  | "agent-dashboard"
+  | "landing-page"
+  | "analytics"
+  | "blank"
+  | "mcp-service"
+  | "a2a-agent"
+  | "saas-starter"
+  | "ai-tool";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
   /** User explicitly requested persistent storage (PostgreSQL database) */
@@ -304,7 +304,7 @@ export class AIAppBuilderService {
       // Local development: Use postMessage proxy bridge
       // The sandbox will embed an iframe to /sandbox-proxy which forwards API calls to localhost
       const localServerUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
       sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
 
       // If ELIZA_API_URL is explicitly set (e.g., ngrok), use it as a direct API URL instead
@@ -1210,7 +1210,7 @@ export class AIAppBuilderService {
 
     if (isLocalDev) {
       const localServerUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
       sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
 
       if (process.env.ELIZA_API_URL) {

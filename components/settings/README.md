@@ -105,7 +105,7 @@ All Figma assets are stored in `/public/assets/settings/`
 
 ```tsx
 // Access the page at:
-// http://localhost:3000/dashboard/settings
+// http://localhost:3333/dashboard/settings
 
 // The page automatically:
 // 1. Requires authentication
@@ -148,7 +148,7 @@ To test the page:
 bun run dev
 
 # Navigate to:
-http://localhost:3000/dashboard/settings
+http://localhost:3333/dashboard/settings
 ```
 
 Make sure you're authenticated to access the page.

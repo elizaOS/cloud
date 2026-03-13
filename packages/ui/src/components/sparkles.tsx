@@ -172,8 +172,8 @@ export const SparklesCore = (props: ParticlesProps) => {
                   distance: 200,
                   enable: false,
                   rotate: {
-                    x: 3000,
-                    y: 3000,
+                    x: 3333,
+                    y: 3333,
                   },
                 },
                 center: {

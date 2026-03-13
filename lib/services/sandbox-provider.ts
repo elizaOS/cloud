@@ -54,13 +54,13 @@ export function createSandboxProvider(): SandboxProvider {
       // import() would require converting the constructor to a static async
       // factory method across all call-sites.  The lazy require keeps the
       // Vercel SDK out of the Docker bundle without that refactor.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const { VercelSandboxProvider } = require("./vercel-sandbox-provider") as typeof import("./vercel-sandbox-provider");
       return new VercelSandboxProvider();
     }
 
     case "docker": {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+       
       const { DockerSandboxProvider } = require("./docker-sandbox-provider") as typeof import("./docker-sandbox-provider");
       return new DockerSandboxProvider();
     }

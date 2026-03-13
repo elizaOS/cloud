@@ -24,7 +24,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const { searchParams } = new URL(request.url);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
   const defaultReturnPath = "/dashboard/settings?tab=connections";
   const safeReturnTarget = resolveSafeRedirectTarget(
     searchParams.get("returnUrl"),

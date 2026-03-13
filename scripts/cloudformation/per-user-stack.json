@@ -21,7 +21,7 @@
     },
     "ContainerPort": {
       "Type": "Number",
-      "Default": 3000,
+      "Default": 3333,
       "Description": "Container port"
     },
     "ContainerCpu": {
@@ -82,7 +82,10 @@
       "Type": "String",
       "Description": "CPU Architecture (arm64 for Graviton/t4g, x86_64 for Intel-AMD/t3)",
       "Default": "arm64",
-      "AllowedValues": ["arm64", "amd64"]
+      "AllowedValues": [
+        "arm64",
+        "amd64"
+      ]
     }
   },
   "Mappings": {
@@ -101,10 +104,28 @@
   },
   "Conditions": {
     "HasKeyPair": {
-      "Fn::Not": [{ "Fn::Equals": [{ "Ref": "KeyName" }, ""] }]
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "KeyName"
+            },
+            ""
+          ]
+        }
+      ]
     },
     "HasSNSTopic": {
-      "Fn::Not": [{ "Fn::Equals": [{ "Ref": "SNSTopicArn" }, ""] }]
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "SNSTopicArn"
+            },
+            ""
+          ]
+        }
+      ]
     }
   },
   "Resources": {
@@ -117,19 +138,31 @@
         "GroupDescription": {
           "Fn::Sub": "Security group for user ${UserId} project ${ProjectName} ECS instance"
         },
-        "VpcId": { "Ref": "SharedVPCId" },
+        "VpcId": {
+          "Ref": "SharedVPCId"
+        },
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
-            "FromPort": { "Ref": "ContainerPort" },
-            "ToPort": { "Ref": "ContainerPort" },
-            "SourceSecurityGroupId": { "Ref": "SharedALBSecurityGroupId" },
+            "FromPort": {
+              "Ref": "ContainerPort"
+            },
+            "ToPort": {
+              "Ref": "ContainerPort"
+            },
+            "SourceSecurityGroupId": {
+              "Ref": "SharedALBSecurityGroupId"
+            },
             "Description": "Allow traffic from ALB"
           },
           {
             "IpProtocol": "tcp",
-            "FromPort": { "Ref": "ContainerPort" },
-            "ToPort": { "Ref": "ContainerPort" },
+            "FromPort": {
+              "Ref": "ContainerPort"
+            },
+            "ToPort": {
+              "Ref": "ContainerPort"
+            },
             "CidrIp": "0.0.0.0/0",
             "Description": "Allow direct public access to container port"
           }
@@ -174,15 +207,44 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}-sg" }
+            "Value": {
+              "Fn::Sub": "elizaos-${UserId}-${ProjectName}-sg"
+            }
           },
-          { "Key": "UserId", "Value": { "Ref": "UserId" } },
-          { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
-          { "Key": "Project", "Value": "elizaOS" },
-          { "Key": "Environment", "Value": "production" },
-          { "Key": "BillingEntity", "Value": "elizaOS" },
-          { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-          { "Key": "ManagedBy", "Value": "CloudFormation" }
+          {
+            "Key": "UserId",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "UserEmail",
+            "Value": {
+              "Ref": "UserEmail"
+            }
+          },
+          {
+            "Key": "Project",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "Environment",
+            "Value": "production"
+          },
+          {
+            "Key": "BillingEntity",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
         ]
       }
     },
@@ -201,15 +263,44 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}" }
+            "Value": {
+              "Fn::Sub": "elizaos-${UserId}-${ProjectName}"
+            }
           },
-          { "Key": "UserId", "Value": { "Ref": "UserId" } },
-          { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
-          { "Key": "Project", "Value": "elizaOS" },
-          { "Key": "Environment", "Value": "production" },
-          { "Key": "BillingEntity", "Value": "elizaOS" },
-          { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-          { "Key": "ManagedBy", "Value": "CloudFormation" }
+          {
+            "Key": "UserId",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "UserEmail",
+            "Value": {
+              "Ref": "UserEmail"
+            }
+          },
+          {
+            "Key": "Project",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "Environment",
+            "Value": "production"
+          },
+          {
+            "Key": "BillingEntity",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
         ]
       }
     },
@@ -219,7 +310,9 @@
         "InstanceProfileName": {
           "Fn::Sub": "elizaos-${UserId}-${ProjectName}-profile"
         },
-        "Roles": ["elizaos-ecs-instance-role"]
+        "Roles": [
+          "elizaos-ecs-instance-role"
+        ]
       }
     },
     "EC2Instance": {
@@ -238,7 +331,9 @@
               "AMIParameter": {
                 "Fn::FindInMap": [
                   "ArchitectureConfig",
-                  { "Ref": "Architecture" },
+                  {
+                    "Ref": "Architecture"
+                  },
                   "AMIParameter"
                 ]
               }
@@ -248,20 +343,34 @@
         "InstanceType": {
           "Fn::FindInMap": [
             "ArchitectureConfig",
-            { "Ref": "Architecture" },
+            {
+              "Ref": "Architecture"
+            },
             "InstanceType"
           ]
         },
-        "IamInstanceProfile": { "Ref": "InstanceProfile" },
+        "IamInstanceProfile": {
+          "Ref": "InstanceProfile"
+        },
         "KeyName": {
           "Fn::If": [
             "HasKeyPair",
-            { "Ref": "KeyName" },
-            { "Ref": "AWS::NoValue" }
+            {
+              "Ref": "KeyName"
+            },
+            {
+              "Ref": "AWS::NoValue"
+            }
           ]
         },
-        "SubnetId": { "Ref": "SharedSubnetId" },
-        "SecurityGroupIds": [{ "Ref": "UserSecurityGroup" }],
+        "SubnetId": {
+          "Ref": "SharedSubnetId"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "UserSecurityGroup"
+          }
+        ],
         "BlockDeviceMappings": [
           {
             "DeviceName": "/dev/xvda",
@@ -270,7 +379,7 @@
               "VolumeType": "gp3",
               "DeleteOnTermination": true,
               "Encrypted": true,
-              "Iops": 3000
+              "Iops": 3333
             }
           }
         ],
@@ -282,20 +391,53 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}" }
+            "Value": {
+              "Fn::Sub": "elizaos-${UserId}-${ProjectName}"
+            }
           },
-          { "Key": "UserId", "Value": { "Ref": "UserId" } },
-          { "Key": "ProjectName", "Value": { "Ref": "ProjectName" } },
-          { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
-          { "Key": "Project", "Value": "elizaOS" },
-          { "Key": "Environment", "Value": "production" },
-          { "Key": "BillingEntity", "Value": "elizaOS" },
-          { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-          { "Key": "ManagedBy", "Value": "CloudFormation" }
+          {
+            "Key": "UserId",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "ProjectName",
+            "Value": {
+              "Ref": "ProjectName"
+            }
+          },
+          {
+            "Key": "UserEmail",
+            "Value": {
+              "Ref": "UserEmail"
+            }
+          },
+          {
+            "Key": "Project",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "Environment",
+            "Value": "production"
+          },
+          {
+            "Key": "BillingEntity",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
         ]
       }
     },
-
     "TargetGroup": {
       "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
       "Properties": {
@@ -305,21 +447,42 @@
             [
               "eliza-",
               {
-                "Fn::Select": [0, { "Fn::Split": ["-", { "Ref": "UserId" }] }]
+                "Fn::Select": [
+                  0,
+                  {
+                    "Fn::Split": [
+                      "-",
+                      {
+                        "Ref": "UserId"
+                      }
+                    ]
+                  }
+                ]
               },
               "-",
               {
                 "Fn::Select": [
                   0,
-                  { "Fn::Split": ["-", { "Ref": "ProjectName" }] }
+                  {
+                    "Fn::Split": [
+                      "-",
+                      {
+                        "Ref": "ProjectName"
+                      }
+                    ]
+                  }
                 ]
               }
             ]
           ]
         },
         "Protocol": "HTTP",
-        "Port": { "Ref": "ContainerPort" },
-        "VpcId": { "Ref": "SharedVPCId" },
+        "Port": {
+          "Ref": "ContainerPort"
+        },
+        "VpcId": {
+          "Ref": "SharedVPCId"
+        },
         "TargetType": "instance",
         "HealthCheckEnabled": true,
         "HealthCheckPath": "/health",
@@ -332,11 +495,30 @@
           "HttpCode": "200,201"
         },
         "Tags": [
-          { "Key": "UserId", "Value": { "Ref": "UserId" } },
-          { "Key": "Project", "Value": "elizaOS" },
-          { "Key": "BillingEntity", "Value": "elizaOS" },
-          { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-          { "Key": "ManagedBy", "Value": "CloudFormation" }
+          {
+            "Key": "UserId",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "Project",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "BillingEntity",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
         ]
       }
     },
@@ -358,10 +540,19 @@
         "Dimensions": [
           {
             "Name": "TargetGroup",
-            "Value": { "Fn::GetAtt": ["TargetGroup", "TargetGroupFullName"] }
+            "Value": {
+              "Fn::GetAtt": [
+                "TargetGroup",
+                "TargetGroupFullName"
+              ]
+            }
           }
         ],
-        "AlarmActions": [{ "Ref": "SNSTopicArn" }],
+        "AlarmActions": [
+          {
+            "Ref": "SNSTopicArn"
+          }
+        ],
         "TreatMissingData": "notBreaching"
       }
     },
@@ -369,7 +560,9 @@
       "Type": "AWS::CloudWatch::Alarm",
       "Condition": "HasSNSTopic",
       "Properties": {
-        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}-high-cpu" },
+        "AlarmName": {
+          "Fn::Sub": "elizaos-${UserId}-${ProjectName}-high-cpu"
+        },
         "AlarmDescription": "Alert when CPU utilization is high",
         "MetricName": "CPUUtilization",
         "Namespace": "AWS/ECS",
@@ -381,14 +574,25 @@
         "Dimensions": [
           {
             "Name": "ServiceName",
-            "Value": { "Fn::GetAtt": ["ECSService", "Name"] }
+            "Value": {
+              "Fn::GetAtt": [
+                "ECSService",
+                "Name"
+              ]
+            }
           },
           {
             "Name": "ClusterName",
-            "Value": { "Ref": "ECSCluster" }
+            "Value": {
+              "Ref": "ECSCluster"
+            }
           }
         ],
-        "AlarmActions": [{ "Ref": "SNSTopicArn" }],
+        "AlarmActions": [
+          {
+            "Ref": "SNSTopicArn"
+          }
+        ],
         "TreatMissingData": "notBreaching"
       }
     },
@@ -410,22 +614,37 @@
         "Dimensions": [
           {
             "Name": "ServiceName",
-            "Value": { "Fn::GetAtt": ["ECSService", "Name"] }
+            "Value": {
+              "Fn::GetAtt": [
+                "ECSService",
+                "Name"
+              ]
+            }
           },
           {
             "Name": "ClusterName",
-            "Value": { "Ref": "ECSCluster" }
+            "Value": {
+              "Ref": "ECSCluster"
+            }
           }
         ],
-        "AlarmActions": [{ "Ref": "SNSTopicArn" }],
+        "AlarmActions": [
+          {
+            "Ref": "SNSTopicArn"
+          }
+        ],
         "TreatMissingData": "notBreaching"
       }
     },
     "ListenerRule": {
       "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
       "Properties": {
-        "ListenerArn": { "Ref": "SharedListenerArn" },
-        "Priority": { "Ref": "ListenerRulePriority" },
+        "ListenerArn": {
+          "Ref": "SharedListenerArn"
+        },
+        "Priority": {
+          "Ref": "ListenerRulePriority"
+        },
         "Conditions": [
           {
             "Field": "host-header",
@@ -438,11 +657,20 @@
                       {
                         "Fn::Select": [
                           "0",
-                          { "Fn::Split": ["-", { "Ref": "UserId" }] }
+                          {
+                            "Fn::Split": [
+                              "-",
+                              {
+                                "Ref": "UserId"
+                              }
+                            ]
+                          }
                         ]
                       },
                       "-",
-                      { "Ref": "ProjectName" },
+                      {
+                        "Ref": "ProjectName"
+                      },
                       ".containers.elizacloud.ai"
                     ]
                   ]
@@ -454,7 +682,9 @@
         "Actions": [
           {
             "Type": "forward",
-            "TargetGroupArn": { "Ref": "TargetGroup" }
+            "TargetGroupArn": {
+              "Ref": "TargetGroup"
+            }
           }
         ]
       }
@@ -462,7 +692,9 @@
     "LogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": { "Fn::Sub": "/ecs/elizaos-${UserId}-${ProjectName}" },
+        "LogGroupName": {
+          "Fn::Sub": "/ecs/elizaos-${UserId}-${ProjectName}"
+        },
         "RetentionInDays": 7
       }
     },
@@ -474,30 +706,48 @@
           "Fn::Sub": "elizaos-${UserId}-${ProjectName}"
         },
         "NetworkMode": "bridge",
-        "RequiresCompatibilities": ["EC2"],
+        "RequiresCompatibilities": [
+          "EC2"
+        ],
         "RuntimePlatform": {
           "CpuArchitecture": {
             "Fn::FindInMap": [
               "ArchitectureConfig",
-              { "Ref": "Architecture" },
+              {
+                "Ref": "Architecture"
+              },
               "CpuArchitecture"
             ]
           },
           "OperatingSystemFamily": "LINUX"
         },
-        "Cpu": { "Ref": "ContainerCpu" },
-        "Memory": { "Ref": "ContainerMemory" },
-        "ExecutionRoleArn": { "Ref": "ECSExecutionRoleArn" },
-        "TaskRoleArn": { "Ref": "ECSTaskRoleArn" },
+        "Cpu": {
+          "Ref": "ContainerCpu"
+        },
+        "Memory": {
+          "Ref": "ContainerMemory"
+        },
+        "ExecutionRoleArn": {
+          "Ref": "ECSExecutionRoleArn"
+        },
+        "TaskRoleArn": {
+          "Ref": "ECSTaskRoleArn"
+        },
         "ContainerDefinitions": [
           {
             "Name": "agent",
-            "Image": { "Ref": "ContainerImage" },
+            "Image": {
+              "Ref": "ContainerImage"
+            },
             "Essential": true,
             "PortMappings": [
               {
-                "ContainerPort": { "Ref": "ContainerPort" },
-                "HostPort": { "Ref": "ContainerPort" },
+                "ContainerPort": {
+                  "Ref": "ContainerPort"
+                },
+                "HostPort": {
+                  "Ref": "ContainerPort"
+                },
                 "Protocol": "tcp"
               }
             ],
@@ -507,7 +757,9 @@
                 "awslogs-group": {
                   "Fn::Sub": "/ecs/elizaos-${UserId}-${ProjectName}"
                 },
-                "awslogs-region": { "Ref": "AWS::Region" },
+                "awslogs-region": {
+                  "Ref": "AWS::Region"
+                },
                 "awslogs-stream-prefix": "ecs"
               }
             },
@@ -526,30 +778,61 @@
           }
         ],
         "Tags": [
-          { "Key": "UserId", "Value": { "Ref": "UserId" } },
-          { "Key": "Project", "Value": "elizaOS" },
-          { "Key": "BillingEntity", "Value": "elizaOS" },
-          { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-          { "Key": "ManagedBy", "Value": "CloudFormation" }
+          {
+            "Key": "UserId",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "Project",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "BillingEntity",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
         ]
       }
     },
     "ECSService": {
       "Type": "AWS::ECS::Service",
-      "DependsOn": ["EC2Instance", "ListenerRule", "TargetGroup"],
+      "DependsOn": [
+        "EC2Instance",
+        "ListenerRule",
+        "TargetGroup"
+      ],
       "Properties": {
         "ServiceName": {
           "Fn::Sub": "elizaos-${UserId}-${ProjectName}"
         },
-        "Cluster": { "Ref": "ECSCluster" },
-        "TaskDefinition": { "Ref": "TaskDefinition" },
+        "Cluster": {
+          "Ref": "ECSCluster"
+        },
+        "TaskDefinition": {
+          "Ref": "TaskDefinition"
+        },
         "DesiredCount": 1,
         "LaunchType": "EC2",
         "LoadBalancers": [
           {
-            "TargetGroupArn": { "Ref": "TargetGroup" },
+            "TargetGroupArn": {
+              "Ref": "TargetGroup"
+            },
             "ContainerName": "agent",
-            "ContainerPort": { "Ref": "ContainerPort" }
+            "ContainerPort": {
+              "Ref": "ContainerPort"
+            }
           }
         ],
         "HealthCheckGracePeriodSeconds": 300,
@@ -568,11 +851,30 @@
           }
         ],
         "Tags": [
-          { "Key": "UserId", "Value": { "Ref": "UserId" } },
-          { "Key": "Project", "Value": "elizaOS" },
-          { "Key": "BillingEntity", "Value": "elizaOS" },
-          { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-          { "Key": "ManagedBy", "Value": "CloudFormation" }
+          {
+            "Key": "UserId",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "Project",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "BillingEntity",
+            "Value": "elizaOS"
+          },
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "UserId"
+            }
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
         ]
       }
     }
@@ -580,23 +882,42 @@
   "Outputs": {
     "ClusterName": {
       "Description": "ECS Cluster Name",
-      "Value": { "Ref": "ECSCluster" }
+      "Value": {
+        "Ref": "ECSCluster"
+      }
     },
     "ClusterArn": {
       "Description": "ECS Cluster ARN",
-      "Value": { "Fn::GetAtt": ["ECSCluster", "Arn"] }
+      "Value": {
+        "Fn::GetAtt": [
+          "ECSCluster",
+          "Arn"
+        ]
+      }
     },
     "EC2InstanceId": {
       "Description": "EC2 Instance ID",
-      "Value": { "Ref": "EC2Instance" }
+      "Value": {
+        "Ref": "EC2Instance"
+      }
     },
     "EC2InstancePublicIP": {
       "Description": "EC2 Instance Public IP",
-      "Value": { "Fn::GetAtt": ["EC2Instance", "PublicIp"] }
+      "Value": {
+        "Fn::GetAtt": [
+          "EC2Instance",
+          "PublicIp"
+        ]
+      }
     },
     "EC2InstancePublicDNS": {
       "Description": "EC2 Instance Public DNS Name",
-      "Value": { "Fn::GetAtt": ["EC2Instance", "PublicDnsName"] }
+      "Value": {
+        "Fn::GetAtt": [
+          "EC2Instance",
+          "PublicDnsName"
+        ]
+      }
     },
     "DirectAccessUrl": {
       "Description": "Direct access URL via EC2 public DNS (bypasses ALB)",
@@ -606,15 +927,21 @@
     },
     "ServiceArn": {
       "Description": "ECS Service ARN",
-      "Value": { "Ref": "ECSService" }
+      "Value": {
+        "Ref": "ECSService"
+      }
     },
     "TaskDefinitionArn": {
       "Description": "ECS Task Definition ARN",
-      "Value": { "Ref": "TaskDefinition" }
+      "Value": {
+        "Ref": "TaskDefinition"
+      }
     },
     "TargetGroupArn": {
       "Description": "Target Group ARN",
-      "Value": { "Ref": "TargetGroup" }
+      "Value": {
+        "Ref": "TargetGroup"
+      }
     },
     "ContainerUrl": {
       "Description": "Container URL",
@@ -624,10 +951,22 @@
           [
             "https://",
             {
-              "Fn::Select": ["0", { "Fn::Split": ["-", { "Ref": "UserId" }] }]
+              "Fn::Select": [
+                "0",
+                {
+                  "Fn::Split": [
+                    "-",
+                    {
+                      "Ref": "UserId"
+                    }
+                  ]
+                }
+              ]
             },
             "-",
-            { "Ref": "ProjectName" },
+            {
+              "Ref": "ProjectName"
+            },
             ".containers.elizacloud.ai"
           ]
         ]

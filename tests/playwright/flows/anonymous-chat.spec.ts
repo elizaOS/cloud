@@ -10,7 +10,7 @@ import { smokeTestPage } from "../fixtures/page-helpers";
  * 3. Page is interactive
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333";
 
 test.describe("Anonymous Chat Flow", () => {
   test("landing page → chat interface loads", async ({ page }) => {

@@ -1,0 +1,2233 @@
+$ SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --max-concurrency=1 --preload ./tests/load-env.ts $(find tests/unit -name '*.test.ts' ! -path 'tests/unit/credits.test.ts' ! -path 'tests/unit/eliza-app/telegram-ux-helpers.test.ts' ! -path 'tests/unit/eliza-app/discord-auth.test.ts' ! -path 'tests/unit/mcp-proxy-affiliate-pricing.test.ts' | sort) lib/services/gateway-discord/__tests__ services/gateway-discord/tests/gateway-manager.test.ts services/gateway-discord/tests/leader-election.test.ts services/gateway-discord/tests/logger.test.ts services/gateway-discord/tests/voice-message-handler.test.ts
+bun test v1.3.5 (1e86cebd)
+
+tests/unit/mcp-tool-visibility.test.ts:
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (93) from .env.local -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env.test -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+(pass) MCP tool visibility > keeps core Twitter tools visible and promotes mentions [1.30ms]
+
+tests/unit/wallet-auth.test.ts:
+(pass) Wallet Authentication > should successfully verify a valid wallet signature [0.58ms]
+(pass) Wallet Authentication > should reject an expired timestamp [0.32ms]
+(pass) Wallet Authentication > should reject an invalid signature [0.05ms]
+(pass) Wallet Authentication > should return null if headers are missing [0.12ms]
+(pass) Wallet Authentication > should throw when findOrCreateUserByWalletAddress throws [0.12ms]
+(pass) Wallet Authentication > should throw if user or org is inactive [0.20ms]
+
+tests/unit/database-url.test.ts:
+(pass) database URL fallback > defaults to local Docker Postgres for local test runs [0.09ms]
+(pass) database URL fallback > prefers explicit test database URL over the Docker fallback [0.04ms]
+(pass) database URL fallback > exposes the canonical localhost Docker URL constant [0.10ms]
+(pass) database URL fallback > prefers the detected local Docker host when building the fallback URL
+(pass) database URL fallback > does not fall back in CI or production [0.09ms]
+(pass) database URL fallback > hydrates process.env when fallback is applied [0.06ms]
+
+tests/unit/internal-jwt-auth.test.ts:
+(pass) Internal JWT Authentication > extractBearerToken > extracts token from valid Bearer header [6.35ms]
+(pass) Internal JWT Authentication > extractBearerToken > returns null for null header [0.07ms]
+(pass) Internal JWT Authentication > extractBearerToken > returns null for empty header [0.02ms]
+(pass) Internal JWT Authentication > extractBearerToken > returns null for non-Bearer auth type [0.02ms]
+(pass) Internal JWT Authentication > extractBearerToken > returns null for Bearer without token [0.03ms]
+(pass) Internal JWT Authentication > extractBearerToken > returns null for malformed header with extra parts [0.02ms]
+(pass) Internal JWT Authentication > extractBearerToken > is case-sensitive for Bearer prefix [0.02ms]
+(pass) Internal JWT Authentication > JWT Signing and Verification > signs and verifies a valid token [3.85ms]
+(pass) Internal JWT Authentication > JWT Signing and Verification > respects custom expiration time [0.15ms]
+(pass) Internal JWT Authentication > JWT Signing and Verification > signs token without optional service field [0.28ms]
+(pass) Internal JWT Authentication > JWT Signing and Verification > rejects token with invalid signature [0.28ms]
+(pass) Internal JWT Authentication > JWT Signing and Verification > rejects completely invalid token [0.09ms]
+(pass) Internal JWT Authentication > JWT Signing and Verification > rejects token with wrong format [0.05ms]
+(pass) Internal JWT Authentication > JWKS Configuration > isJWKSConfigured returns true when keys are set [0.03ms]
+(pass) Internal JWT Authentication > JWKS Configuration > getKeyId returns configured key ID
+(pass) Internal JWT Authentication > JWKS Configuration > getAlgorithm returns ES256 [0.05ms]
+(pass) Internal JWT Authentication > JWKS Configuration > getJWKS returns valid JWKS structure [0.52ms]
+(pass) Internal JWT Authentication > Token Constants > TOKEN_LIFETIME_SECONDS is 1 hour [0.03ms]
+(pass) Internal JWT Authentication > Token Constants > refresh at 80% lifetime is 48 minutes
+(pass) Internal API Middleware > validateInternalJWTAsync > returns auth result for valid token [1.35ms]
+(pass) Internal API Middleware > validateInternalJWTAsync > returns 401 for missing Authorization header [0.62ms]
+(pass) Internal API Middleware > validateInternalJWTAsync > returns 401 for invalid token [0.16ms]
+(pass) Internal API Middleware > validateInternalJWTAsync > returns 401 for non-Bearer auth
+(pass) Internal API Middleware > withInternalAuth wrapper > calls handler with auth result for valid token [0.49ms]
+(pass) Internal API Middleware > withInternalAuth wrapper > returns 401 without calling handler for missing token [0.14ms]
+(pass) Internal API Middleware > withInternalAuth wrapper > returns 401 without calling handler for invalid token [0.10ms]
+(pass) Internal API Middleware > withInternalAuth wrapper > passes through additional arguments to handler [0.26ms]
+(pass) Token Security Properties > each token has a unique JTI (JWT ID) [0.31ms]
+(pass) Token Security Properties > token contains correct issuer and audience [0.17ms]
+(pass) Token Security Properties > token has iat (issued at) claim [0.19ms]
+(pass) Token Security Properties > token has exp (expiration) claim set to iat + lifetime [0.19ms]
+(pass) Token Security Properties > token header contains kid (key ID) [0.11ms]
+(pass) Bootstrap Secret Validation > timing-safe comparison pattern is correct [0.29ms]
+(pass) Error Handling > missing private key error message format
+(pass) Error Handling > missing public key error message format
+(pass) Error Handling > isJWKSConfigured returns false when keys missing
+
+tests/unit/origin-validation.test.ts:
+(pass) origin validation > normalizes full URLs to their origin [0.07ms]
+(pass) origin validation > matches allowlist entries stored as full callback URLs [0.05ms]
+(pass) origin validation > matches wildcard subdomain origins [0.05ms]
+(pass) origin validation > rejects unregistered redirect URIs
+(pass) origin validation > rejects invalid protocols
+
+tests/unit/ledger-source-id.test.ts:
+(pass) normalizeLedgerSourceId > preserves valid UUID source IDs [0.04ms]
+(pass) normalizeLedgerSourceId > maps composite source IDs into deterministic UUIDs [0.40ms]
+
+tests/unit/model-catalog.test.ts:
+(pass) Groq catalog helpers > recognizes Groq native model ids
+(pass) Groq catalog helpers > maps Groq public ids to API ids [0.02ms]
+(pass) text model selection filter > keeps current chat-capable language models
+(pass) text model selection filter > filters non-chat models out of the selector [0.02ms]
+(pass) catalog merging > deduplicates models by id when supplementing a provider catalog [0.07ms]
+(pass) model catalog caching > uses a dedicated SWR cache key and timings [0.05ms]
+
+tests/unit/proxy-pricing.test.ts:
+(pass) proxy pricing cache > returns cached pricing without hitting the repository [0.15ms]
+(pass) proxy pricing cache > deduplicates concurrent cache misses per service [0.29ms]
+(pass) proxy pricing cache > invalidates the cached pricing entry [0.04ms]
+
+tests/unit/mcp-twitter-tools.test.ts:
+(pass) Twitter MCP Tools > Registration > exports registerTwitterTools [7.46ms]
+(pass) Twitter MCP Tools > Registration > registers all expected tools [1.17ms]
+(pass) Twitter MCP Tools > twitter_status > returns connected with username when active [0.80ms]
+(pass) Twitter MCP Tools > twitter_status > returns connected=false when no active connection [0.59ms]
+(pass) Twitter MCP Tools > twitter_status > filters out revoked/expired connections [0.47ms]
+(pass) Twitter MCP Tools > twitter_status > returns error on service failure [0.56ms]
+(pass) Twitter MCP Tools > twitter_get_me > returns mapped profile fields [0.56ms]
+(pass) Twitter MCP Tools > twitter_get_me > returns error when not connected [0.37ms]
+(pass) Twitter MCP Tools > twitter_get_my_tweets > returns tweets with enriched metadata [0.53ms]
+(pass) Twitter MCP Tools > twitter_get_my_tweets > passes startTime and endTime to API [0.29ms]
+(pass) Twitter MCP Tools > twitter_get_my_tweets > passes exclude filter to API [0.31ms]
+(pass) Twitter MCP Tools > twitter_get_my_tweets > passes pagination token to API [0.27ms]
+(pass) Twitter MCP Tools > twitter_get_my_tweets > passes maxResults to API [0.27ms]
+(pass) Twitter MCP Tools > twitter_get_my_tweets > handles empty results gracefully [0.30ms]
+(pass) Twitter MCP Tools > twitter_get_my_tweets > handles API error [0.25ms]
+(pass) Twitter MCP Tools > twitter_get_user_tweets > passes userId to API and returns enriched response [0.38ms]
+(pass) Twitter MCP Tools > twitter_get_user_tweets > passes all optional params [0.48ms]
+(pass) Twitter MCP Tools > twitter_search_tweets > passes query and returns enriched response [0.54ms]
+(pass) Twitter MCP Tools > twitter_search_tweets > passes date filters and sort order [0.32ms]
+(pass) Twitter MCP Tools > twitter_search_tweets > maps paginationToken to next_token for search API [0.35ms]
+(pass) Twitter MCP Tools > twitter_search_tweets > handles empty search results [0.32ms]
+(pass) Twitter MCP Tools > twitter_get_tweet > returns full tweet details [0.35ms]
+(pass) Twitter MCP Tools > twitter_create_tweet > creates simple tweet and passes correct text to API [0.39ms]
+(pass) Twitter MCP Tools > twitter_create_tweet > creates reply [0.27ms]
+(pass) Twitter MCP Tools > twitter_create_tweet > creates quote tweet [0.11ms]
+(pass) Twitter MCP Tools > twitter_create_thread > posts multi-tweet thread and returns URL [1006.86ms]
+(pass) Twitter MCP Tools > twitter_create_thread > chains replies correctly [1002.67ms]
+(pass) Twitter MCP Tools > twitter_create_thread > handles getTwitterClient failure (not connected) [0.73ms]
+(pass) Twitter MCP Tools > twitter_create_thread > reports partial results on mid-thread failure [1002.69ms]
+(pass) Twitter MCP Tools > twitter_resolve_tweet_url > resolves standard x.com URL [0.46ms]
+(pass) Twitter MCP Tools > twitter_resolve_tweet_url > resolves twitter.com URL [0.16ms]
+(pass) Twitter MCP Tools > twitter_resolve_tweet_url > resolves mobile.twitter.com URL [0.48ms]
+(pass) Twitter MCP Tools > twitter_resolve_tweet_url > handles URL with query params [0.29ms]
+(pass) Twitter MCP Tools > twitter_resolve_tweet_url > rejects invalid URL [0.30ms]
+(pass) Twitter MCP Tools > twitter_resolve_tweet_url > rejects t.co shortened URLs with specific hint [0.28ms]
+(pass) Twitter MCP Tools > twitter_check_relationship > returns mutual follow status [0.38ms]
+(pass) Twitter MCP Tools > twitter_check_relationship > strips @ prefix from usernames [0.25ms]
+(pass) Twitter MCP Tools > twitter_check_relationship > returns non-mutual status [0.36ms]
+(pass) Twitter MCP Tools > twitter_check_relationship > handles errors gracefully [0.30ms]
+(pass) Twitter MCP Tools > twitter_follow_user > follows by userId [0.44ms]
+(pass) Twitter MCP Tools > twitter_follow_user > follows by username (auto-resolves ID) [0.31ms]
+(pass) Twitter MCP Tools > twitter_follow_user > returns error when neither userId nor username provided [0.26ms]
+(pass) Twitter MCP Tools > twitter_unfollow_user > unfollows by username [0.30ms]
+(pass) Twitter MCP Tools > twitter_get_mentions > returns mentions with metadata [0.35ms]
+(pass) Twitter MCP Tools > twitter_get_mentions > passes date filters [0.25ms]
+(pass) Twitter MCP Tools > twitter_get_liked_tweets > returns liked tweets with pagination [0.28ms]
+(pass) Twitter MCP Tools > twitter_get_bookmarks > handles empty bookmarks [0.32ms]
+(pass) Twitter MCP Tools > twitter_get_bookmarks > returns descriptive error on OAuth 2.0 failure [0.31ms]
+(pass) Twitter MCP Tools > twitter_get_followers > returns followers with pagination [0.34ms]
+(pass) Twitter MCP Tools > twitter_get_followers > passes pagination token [0.25ms]
+(pass) Twitter MCP Tools > twitter_get_following > returns following list [0.27ms]
+(pass) Twitter MCP Tools > Engagement tools > like_tweet returns success [0.29ms]
+(pass) Twitter MCP Tools > Engagement tools > unlike_tweet returns success [0.29ms]
+(pass) Twitter MCP Tools > Engagement tools > retweet returns success [0.26ms]
+(pass) Twitter MCP Tools > Engagement tools > unretweet returns success [0.26ms]
+(pass) Twitter MCP Tools > Engagement tools > delete_tweet returns success [0.27ms]
+(pass) Twitter MCP Tools > Engagement tools > like_tweet returns error on API failure [0.27ms]
+(pass) Twitter MCP Tools > Engagement tools > retweet returns error on API failure [0.27ms]
+(pass) Twitter MCP Tools > Engagement tools > delete_tweet returns error on API failure [0.25ms]
+(pass) Twitter MCP Tools > Edge cases > errMsg formats rate limit info [0.32ms]
+(pass) Twitter MCP Tools > Edge cases > handles non-Error thrown objects [0.25ms]
+(pass) Twitter MCP Tools > Edge cases > concurrent requests isolate auth context [0.91ms]
+(pass) Twitter MCP Tools > Edge cases > mapTweetSummary includes referencedTweets only when present [0.34ms]
+(pass) Twitter MCP Tools > Edge cases > twitter_get_user returns error for nonexistent user [0.40ms]
+(pass) Twitter MCP Tools > Edge cases > paginatedTweetResponse handles undefined meta [0.32ms]
+(pass) Twitter MCP Tools > Edge cases > twitter not connected shows helpful message [0.30ms]
+(pass) Twitter MCP Tools > Edge cases > missing accessTokenSecret returns a specific reconnect error [0.28ms]
+
+tests/unit/n8n-bridge-oauth-cred-map.test.ts:
+(pass) mapCredTypeToCloudPlatform > maps gmail credentials to google [0.03ms]
+(pass) mapCredTypeToCloudPlatform > maps google credentials to google [0.01ms]
+(pass) mapCredTypeToCloudPlatform > maps gSuite credentials to google
+(pass) mapCredTypeToCloudPlatform > maps youTube credentials to google
+(pass) mapCredTypeToCloudPlatform > maps slack credentials to slack
+(pass) mapCredTypeToCloudPlatform > maps github credentials to github
+(pass) mapCredTypeToCloudPlatform > maps linear credentials to linear [0.02ms]
+(pass) mapCredTypeToCloudPlatform > maps notion credentials to notion [0.02ms]
+(pass) mapCredTypeToCloudPlatform > maps twitter credentials to twitter [0.02ms]
+(pass) mapCredTypeToCloudPlatform > returns null for unsupported credential types [0.01ms]
+(pass) mapCredTypeToCloudPlatform > does not false-positive on partial prefix overlaps
+(pass) getCredPrefixesForPlatform > returns prefixes for google
+(pass) getCredPrefixesForPlatform > returns prefixes for slack
+(pass) getCredPrefixesForPlatform > returns empty array for unknown platform [0.04ms]
+
+tests/unit/oauth-state-validation.test.ts:
+(pass) OAuth State Schema Validation > Valid State Objects > validates correct state object [0.77ms]
+(pass) OAuth State Schema Validation > Valid State Objects > validates state with multiple scopes
+(pass) OAuth State Schema Validation > Valid State Objects > validates state with empty scopes array
+(pass) OAuth State Schema Validation > Invalid State Objects > rejects state with invalid organizationId [0.25ms]
+(pass) OAuth State Schema Validation > Invalid State Objects > rejects state with invalid userId [0.06ms]
+(pass) OAuth State Schema Validation > Invalid State Objects > rejects state with missing required fields [0.08ms]
+(pass) OAuth State Schema Validation > Invalid State Objects > rejects state with wrong field types [0.05ms]
+(pass) OAuth State Schema Validation > Invalid State Objects > rejects null input [0.01ms]
+(pass) OAuth State Schema Validation > Invalid State Objects > rejects undefined input [0.09ms]
+(pass) OAuth State Schema Validation > Invalid State Objects > rejects non-string scopes [0.10ms]
+(pass) OAuth State Schema Validation > Security Edge Cases > rejects prototype pollution attempts [0.04ms]
+(pass) OAuth State Schema Validation > Security Edge Cases > handles deeply nested malicious objects [0.03ms]
+(pass) OAuth State Schema Validation > Security Edge Cases > handles extra fields gracefully (strips them) [0.03ms]
+(pass) OAuth State Schema Validation > Security Edge Cases > validates UUID format strictly [0.02ms]
+(pass) OAuth State Schema Validation > JSON Parsing Integration > validates JSON parsed state correctly [0.02ms]
+(pass) OAuth State Schema Validation > JSON Parsing Integration > handles malformed JSON gracefully [0.03ms]
+
+tests/unit/security-validations.test.ts:
+(pass) Security Validations > Metadata Size Limits > accepts metadata within size limit [0.24ms]
+(pass) Security Validations > Metadata Size Limits > identifies metadata exceeding size limit [0.13ms]
+(pass) Security Validations > Metadata Size Limits > rejects deeply nested objects [0.27ms]
+(pass) Security Validations > Metadata Size Limits > accepts arrays of primitive values [0.06ms]
+(pass) Security Validations > Metadata Size Limits > rejects arrays with objects [0.09ms]
+(pass) Security Validations > Message Length Validation > accepts messages within length limit
+(pass) Security Validations > Message Length Validation > identifies messages exceeding length limit
+(pass) Security Validations > Message Length Validation > handles unicode characters correctly [0.02ms]
+(pass) Security Validations > JSON Parsing Safety > handles valid JSON without issues
+(pass) Security Validations > JSON Parsing Safety > safely handles invalid JSON [0.05ms]
+(pass) Security Validations > JSON Parsing Safety > handles null values in JSON [0.02ms]
+(pass) Security Validations > JSON Parsing Safety > handles prototype pollution attempts in JSON [0.02ms]
+(pass) Security Validations > JSON Parsing Safety > handles very large numbers correctly [0.01ms]
+(pass) Security Validations > JSON Parsing Safety > handles escaped characters [0.01ms]
+(pass) Security Validations > Input Sanitization > handles control characters [0.02ms]
+(pass) Security Validations > Input Sanitization > handles unicode null character
+(pass) Security Validations > Input Sanitization > preserves valid unicode characters
+(pass) Security Validations > Rate Limiting Configuration > has reasonable production rate limit
+(pass) Security Validations > Rate Limiting Configuration > has higher development rate limit
+(pass) Security Validations > Rate Limiting Configuration > uses 1-minute window
+(pass) Security Validations > Timestamp Validation > accepts timestamps within tolerance [0.01ms]
+(pass) Security Validations > Timestamp Validation > rejects timestamps outside tolerance
+(pass) Security Validations > Timestamp Validation > handles future timestamps within tolerance
+(pass) Security Validations > Timestamp Validation > rejects far future timestamps
+(pass) Webhook Security > Signature Verification > verifies HMAC signature format [0.03ms]
+(pass) Webhook Security > Signature Verification > rejects invalid signature format [0.01ms]
+(pass) Webhook Security > Organization ID Validation > validates UUID format for organization IDs [0.01ms]
+(pass) Webhook Security > Organization ID Validation > rejects invalid organization IDs [0.01ms]
+
+tests/unit/mcp-tools.test.ts:
+(pass) MCP Tools Registration > getMcpHandler initializes without errors [1220.48ms]
+
+tests/unit/service-jwt.test.ts:
+(pass) Service JWT Auth > isServiceJwtEnabled > returns true when secret is set [0.03ms]
+(pass) Service JWT Auth > isServiceJwtEnabled > returns false when secret is not set [0.03ms]
+(pass) Service JWT Auth > verifyServiceJwt > returns null for null header [0.16ms]
+(pass) Service JWT Auth > verifyServiceJwt > returns null for empty header [0.02ms]
+(pass) Service JWT Auth > verifyServiceJwt > returns null when secret is not configured [4.79ms]
+(pass) Service JWT Auth > verifyServiceJwt > returns null for invalid token [0.22ms]
+(pass) Service JWT Auth > verifyServiceJwt > returns null for token with wrong secret [2.94ms]
+(pass) Service JWT Auth > verifyServiceJwt > re-reads the secret when the env value changes in-process [1.91ms]
+(pass) Service JWT Auth > verifyServiceJwt > returns null when userId claim is missing [0.21ms]
+(pass) Service JWT Auth > verifyServiceJwt > returns payload for valid token with Bearer prefix [0.14ms]
+(pass) Service JWT Auth > verifyServiceJwt > returns payload for valid token without Bearer prefix [0.52ms]
+(pass) Service JWT Auth > verifyServiceJwt > email and tier are optional [0.34ms]
+
+tests/unit/waifu-bridge.test.ts:
+(pass) waifu bridge auth policy > disables auto-creating orgs in production by default [0.07ms]
+(pass) waifu bridge auth policy > disables auto-creating orgs in development by default (no longer relies on NODE_ENV)
+(pass) waifu bridge auth policy > disables auto-creating orgs in preview/staging by default
+(pass) waifu bridge auth policy > allows explicit opt-in for org auto-creation regardless of NODE_ENV
+(pass) waifu bridge auth policy > rejects non-true values for WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE
+
+tests/unit/cache-client.test.ts:
+(pass) CacheClient native Redis support > prefers native REDIS_URL over placeholder Upstash REST vars [0.56ms]
+
+tests/unit/affiliates-service.test.ts:
+(pass) affiliatesService > retries affiliate code creation when the generated code collides [1.06ms]
+(pass) affiliatesService > reuses an existing identical link and normalizes affiliate codes [0.17ms]
+(pass) affiliatesService > rejects inactive affiliate codes [0.06ms]
+(pass) affiliatesService > ignores inactive referrers when resolving affiliate relationships
+
+tests/unit/performance-optimizations.test.ts:
+(pass) Action validation cache > returns validated actions, filters out invalid ones [0.51ms]
+(pass) Action validation cache > caches results — same message ID validates only once [0.13ms]
+(pass) Action validation cache > different message IDs produce separate cache entries
+(pass) Action validation cache > invalidateActionValidationCache forces re-validation [0.14ms]
+(pass) Action validation cache > invalidation of non-existent key does not throw [0.01ms]
+[ACTIONS] validate error: BAD boom
+(pass) Action validation cache > action throwing during validation is filtered out, others survive [0.11ms]
+(pass) Action validation cache > caches discoverable tool count from MCP service [0.05ms]
+(pass) Action validation cache > handles missing MCP service gracefully [0.04ms]
+(pass) Action validation cache > no validated actions returns empty values [0.02ms]
+(pass) Action validation cache > parallel calls after cache is warm all return same data [51.32ms]
+(pass) Action validation cache > concurrent calls on cold cache cause redundant validation (known trade-off) [31.42ms]
+(pass) Action validation cache > invalidation clears the stale eviction timer before recaching [0.31ms]
+(pass) Action validation cache > undefined message.id works but skips cache [0.19ms]
+(pass) Cache invalidation flow > message service imports invalidateActionValidationCache [0.43ms]
+(pass) Cache invalidation flow > invalidation is called inside SEARCH_ACTIONS success path [0.14ms]
+(pass) Retry config > source values are baseDelayMs=200, maxDelayMs=1000, multiplier=2 [0.15ms]
+(pass) Retry config > backoff sequence caps at maxDelayMs [0.08ms]
+(pass) Retry config > delay never exceeds max even at extreme attempt numbers [0.11ms]
+(pass) Multi-step decision template > contains minimize-iterations and strengthened FINISH rules [0.06ms]
+(pass) Multi-step decision template > preserves OAuth/connect rules from ux-overhaul [0.02ms]
+(pass) Multi-step decision template > all 8 rules present and numbered
+(pass) Multi-step decision template > summary template preserves URL and next-step guidelines [0.04ms]
+(pass) MCP timeout constant > DEFAULT_MCP_TIMEOUT_MS is 15000ms and the legacy alias still matches
+(pass) MCP timeout constant > other MCP constants unchanged [0.07ms]
+(pass) MCP timeout constant > service uses the millisecond timeout constant when timeoutInMillis is absent [0.06ms]
+(pass) Parse retry defaults > MULTISTEP_PARSE_RETRIES default is '2' [0.10ms]
+(pass) Parse retry defaults > MULTISTEP_SUMMARY_PARSE_RETRIES default is '2' [0.09ms]
+(pass) MCP wait removal > waitForInitialization removed from message service [0.11ms]
+(pass) MCP wait removal > RuntimeFactory still calls waitForMcpServiceIfNeeded [0.08ms]
+
+tests/unit/pr385-round2-fixes.test.ts:
+(pass) compat-envelope default domain > uses agents.example.com when env var is unset [0.68ms]
+(pass) handleCompatError > maps ForbiddenError to 403 [0.77ms]
+(pass) handleCompatError > maps Error with 'Unauthorized' to 401 [0.04ms]
+(pass) handleCompatError > maps Error with 'Forbidden' to 403 [0.04ms]
+(pass) handleCompatError > maps unknown errors to 500 [0.02ms]
+(pass) handleCompatError > maps generic Error to 500 [0.07ms]
+(pass) service-key HMAC digest compare > accepts correct key (different lengths irrelevant) [16.92ms]
+(pass) service-key HMAC digest compare > rejects wrong key of same length [13.51ms]
+(pass) service-key HMAC digest compare > rejects wrong key of different length [14.34ms]
+(pass) JSONB typeof guards for token fields > extracts string values correctly [0.08ms]
+(pass) JSONB typeof guards for token fields > returns null for non-string values [0.04ms]
+(pass) JSONB typeof guards for token fields > returns null for null config [0.02ms]
+(pass) tail parameter clamping > defaults to 100 when absent [0.07ms]
+(pass) tail parameter clamping > clamps to 5000 max [0.02ms]
+(pass) tail parameter clamping > clamps to 1 min
+(pass) tail parameter clamping > handles NaN gracefully
+(pass) tail parameter clamping > passes through valid values
+(pass) waifu-bridge warn-once on missing JWT secret > authenticateWaifuBridge returns null without crashing when secret unset [0.30ms]
+(pass) 409 race response shape > omits existingAgentId key when id is falsy [0.03ms]
+(pass) 409 race response shape > includes existingAgentId when id is present
+
+tests/unit/token-agent-linkage.test.ts:
+(pass) Token linkage schema validation > accepts agent creation without token fields [0.37ms]
+(pass) Token linkage schema validation > accepts agent creation with full token linkage [0.06ms]
+(pass) Token linkage schema validation > accepts Solana mint address [0.03ms]
+(pass) Token linkage schema validation > rejects empty token address when provided [0.06ms]
+(pass) Token linkage schema validation > rejects token address exceeding max length
+(pass) Token linkage schema validation > rejects token ticker exceeding max length [0.12ms]
+(pass) Service-to-service provision schema > accepts valid provision request [0.14ms]
+(pass) Service-to-service provision schema > rejects provision request without token address [0.17ms]
+(pass) Token linkage response shape > agent response includes all token fields [0.01ms]
+(pass) Token linkage response shape > agent response has null token fields when not linked
+(pass) normalizeTokenAddress > lowercases EVM 0x-prefixed addresses when chain is EVM [0.06ms]
+(pass) normalizeTokenAddress > lowercases 0x-prefixed addresses even when chain is omitted [0.03ms]
+(pass) normalizeTokenAddress > does NOT lowercase short 0x-prefixed addresses (not valid 42-char EVM)
+(pass) normalizeTokenAddress > lowercases 42-char 0x addresses even when chain is unknown
+(pass) normalizeTokenAddress > preserves Solana base58 addresses (case-sensitive)
+(pass) normalizeTokenAddress > preserves non-0x addresses on unknown chains
+(pass) normalizeTokenAddress > is idempotent
+(pass) normalizeTokenAddress > handles already-lowercase EVM addresses as no-op
+(pass) Token lookup logic > findByTokenAddress filters by address and chain [0.06ms]
+(pass) Token lookup logic > findByTokenAddress matches EVM addresses regardless of checksum casing
+(pass) Token lookup logic > Solana addresses remain case-sensitive
+(pass) Token lookup logic > listTokenLinked filters by chain
+(pass) Token lookup logic > duplicate token detection catches checksum variants [0.09ms]
+(pass) by-token endpoint validation > requires address query parameter
+(pass) by-token endpoint validation > accepts address with optional chain
+(pass) by-token endpoint validation > accepts address without chain
+(pass) by-token endpoint validation > rejects address longer than 256 characters
+(pass) by-token endpoint validation > accepts address up to 256 characters
+(pass) by-token endpoint validation > rejects chain longer than 50 characters
+(pass) by-token endpoint validation > accepts chain up to 50 characters
+(pass) JSONB fallback for milady agents > extracts token fields from agent_config when character record missing
+(pass) JSONB fallback for milady agents > prefers character record over JSONB fallback
+(pass) Migration backfill logic > backfill only updates characters where token_address IS NULL
+
+tests/unit/compat-envelope.test.ts:
+(pass) toCompatAgent > maps running sandbox to milady-cloud Agent shape [0.16ms]
+(pass) toCompatAgent > maps pending status to queued [0.09ms]
+(pass) toCompatAgent > maps error status to failed
+(pass) toCompatAgent > maps disconnected status to stopped
+(pass) toCompatAgent > uses sandbox_id as container_id fallback
+(pass) toCompatAgent > web_ui_url is null when headscale_ip is null
+(pass) toCompatAgent > uses configurable agent base domain for web UI links
+(pass) toCompatAgent > last_heartbeat_at is null when never heartbeated
+(pass) toCompatCreateResult > returns expected shape for pending agent
+(pass) toCompatCreateResult > message reflects running status [0.16ms]
+(pass) toCompatCreateResult > reuses the agent ID as the compat job ID [0.01ms]
+(pass) toCompatOpResult > returns completed for success
+(pass) toCompatOpResult > returns failed for failure
+(pass) toCompatJob > maps running sandbox to completed job [0.33ms]
+(pass) toCompatJob > maps pending sandbox to queued job [0.09ms]
+(pass) toCompatJob > maps provisioning sandbox to processing job [0.02ms]
+(pass) toCompatJob > maps disconnected sandbox to completed job [0.03ms]
+(pass) toCompatJob > maps error sandbox to failed job
+(pass) toCompatJob > maps disconnected sandbox to completed job with stopped compat status
+(pass) toCompatStatus > maps running sandbox to status shape
+(pass) toCompatStatus > includes error message as suspendedReason
+(pass) toCompatStatus > webUiUrl is null when no headscale_ip [0.10ms]
+(pass) toCompatUsage > returns zero usage for stopped agent [0.04ms]
+(pass) toCompatUsage > returns non-zero uptime for running agent [0.02ms]
+(pass) toCompatUsage > extracts funding source from agent_config
+(pass) toCompatUsage > defaults funding source to unknown
+(pass) mapStatus > pending -> queued
+(pass) mapStatus > provisioning -> provisioning [0.05ms]
+(pass) mapStatus > running -> running
+(pass) mapStatus > stopped -> stopped
+(pass) mapStatus > disconnected -> stopped
+(pass) mapStatus > error -> failed
+(pass) envelope > wraps data in success envelope [0.04ms]
+(pass) errorEnvelope > wraps message in error envelope [0.02ms]
+
+tests/unit/proxy-engine.test.ts:
+(pass) proxy engine > returns 400 for malformed JSON bodies [0.98ms]
+(pass) proxy engine > returns cache metadata headers on cache hits [0.39ms]
+(pass) proxy engine > maps auth failures to 401 responses [0.11ms]
+
+tests/unit/docker-infrastructure.test.ts:
+(pass) Docker Infrastructure - Pure Functions > shellQuote > wraps a simple string in single quotes [0.10ms]
+(pass) Docker Infrastructure - Pure Functions > shellQuote > wraps an empty string
+(pass) Docker Infrastructure - Pure Functions > shellQuote > wraps a string with spaces [0.11ms]
+(pass) Docker Infrastructure - Pure Functions > shellQuote > escapes an embedded single quote [0.08ms]
+(pass) Docker Infrastructure - Pure Functions > shellQuote > safely quotes $HOME && rm -rf / (no variable expansion)
+(pass) Docker Infrastructure - Pure Functions > shellQuote > wraps a string with double quotes (no escaping needed)
+(pass) Docker Infrastructure - Pure Functions > shellQuote > safely quotes a string with newlines
+(pass) Docker Infrastructure - Pure Functions > shellQuote > safely quotes $(whoami) — no command substitution possible [0.04ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentId > accepts a UUID-like ID [0.03ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentId > accepts alphanumeric with underscores [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentId > accepts a single character
+(pass) Docker Infrastructure - Pure Functions > validateAgentId > accepts exactly 128 characters [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentId > throws for empty string [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentId > throws for 129 characters (too long) [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentId > throws for shell injection chars (semicolon, space)
+(pass) Docker Infrastructure - Pure Functions > validateAgentId > throws for dots
+(pass) Docker Infrastructure - Pure Functions > validateAgentId > throws for spaces
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > accepts a simple valid name
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > accepts alphanumeric with underscores and hyphens
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > accepts a single character [0.08ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > accepts exactly 64 characters
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > throws for empty string
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > throws for 65 characters (too long)
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > now accepts spaces (relaxed for existing agents)
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > now accepts dots (relaxed for existing agents) [0.01ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > now accepts semicolons (shell-safe via quoting)
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > throws for control characters (null byte) [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > throws for control characters (newline) [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > validateAgentName > throws for control characters (tab)
+(pass) Docker Infrastructure - Pure Functions > allocatePort > returns a port within [min, max) [0.04ms]
+(pass) Docker Infrastructure - Pure Functions > allocatePort > never returns an excluded port (large range, many iterations) [0.06ms]
+(pass) Docker Infrastructure - Pure Functions > allocatePort > finds an available port when most of the range is excluded [0.05ms]
+(pass) Docker Infrastructure - Pure Functions > allocatePort > throws when all ports in range are excluded [0.05ms]
+(pass) Docker Infrastructure - Pure Functions > allocatePort > works with an empty exclusion set [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > allocatePort > single-port range with no exclusions returns that port
+(pass) Docker Infrastructure - Pure Functions > getContainerName > prefixes the agentId with 'milady-'
+(pass) Docker Infrastructure - Pure Functions > getContainerName > works with a UUID-style agentId
+(pass) Docker Infrastructure - Pure Functions > getContainerName > works with a short agentId
+(pass) Docker Infrastructure - Pure Functions > getVolumePath > returns the correct path for a valid agentId
+(pass) Docker Infrastructure - Pure Functions > getVolumePath > returns the correct path for a UUID-style agentId
+(pass) Docker Infrastructure - Pure Functions > getVolumePath > throws for an invalid agentId (has dots)
+(pass) Docker Infrastructure - Pure Functions > getVolumePath > throws for an empty agentId
+(pass) Docker Infrastructure - Pure Functions > parseDockerNodes > parses a single valid node [0.13ms]
+(pass) Docker Infrastructure - Pure Functions > parseDockerNodes > parses multiple valid nodes
+(pass) Docker Infrastructure - Pure Functions > parseDockerNodes > skips malformed entries and keeps valid ones [0.03ms]
+(pass) Docker Infrastructure - Pure Functions > parseDockerNodes > throws when env var is not set [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > parseDockerNodes > throws when all entries are invalid [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > parseDockerNodes > returns cached result on repeated calls with same env value
+(pass) Docker Infrastructure - Pure Functions > createSandboxProvider factory > defaults to VercelSandboxProvider when env var is unset [1.07ms]
+(pass) Docker Infrastructure - Pure Functions > createSandboxProvider factory > returns VercelSandboxProvider for MILADY_SANDBOX_PROVIDER=vercel [0.02ms]
+(pass) Docker Infrastructure - Pure Functions > createSandboxProvider factory > returns DockerSandboxProvider for MILADY_SANDBOX_PROVIDER=docker [40.22ms]
+(pass) Docker Infrastructure - Pure Functions > createSandboxProvider factory > throws for an unknown provider name [0.15ms]
+(pass) Docker Infrastructure - Pure Functions > createSandboxProvider factory > is case-insensitive (Docker → docker) [0.11ms]
+(pass) Docker Infrastructure - Pure Functions > createSandboxProvider factory > is case-insensitive (VERCEL → vercel) [0.03ms]
+
+tests/unit/message-router-service.test.ts:
+(skip) MessageRouterService > Phone Number Normalization > handles standard E.164 format in routing
+(skip) MessageRouterService > Phone Number Normalization > handles phone number without country code
+(skip) MessageRouterService > Phone Number Normalization > handles phone number with spaces and dashes
+(skip) MessageRouterService > Phone Number Normalization > handles email addresses for iMessage
+(skip) MessageRouterService > Phone Number Normalization > handles uppercase email addresses
+(skip) MessageRouterService > routeIncomingMessage > returns error when no phone mapping found
+(skip) MessageRouterService > routeIncomingMessage > includes error message in result
+(skip) MessageRouterService > routeIncomingMessage > handles message with media URLs
+(skip) MessageRouterService > routeIncomingMessage > handles message with metadata
+(skip) MessageRouterService > routeIncomingMessage > handles different message types
+(skip) MessageRouterService > routeIncomingMessage > handles iMessage type
+(skip) MessageRouterService > routeIncomingMessage > handles WhatsApp message type
+(skip) MessageRouterService > sendMessage > returns false for unknown provider
+(skip) MessageRouterService > sendMessage > handles Twilio provider (fails without credentials)
+(skip) MessageRouterService > sendMessage > handles Blooio provider (fails without credentials)
+(skip) MessageRouterService > sendMessage > handles WhatsApp provider (fails without credentials)
+(skip) MessageRouterService > sendMessage > handles message with media URLs
+(skip) MessageRouterService > getPhoneNumbers > returns array for organization
+(skip) MessageRouterService > getPhoneNumbers > returns empty array for non-existent organization
+(skip) MessageRouterService > getPhoneNumberById > returns null for non-existent phone number
+(skip) MessageRouterService > getPhoneNumberById > throws error for invalid UUID format
+(skip) MessageRouterService > deactivatePhoneNumber > does not throw for non-existent phone number
+(skip) MessageRouterService > Error Handling > handles empty message body
+(skip) MessageRouterService > Error Handling > handles undefined optional fields
+(skip) MessageRouterService > Error Handling > handles special characters in message body
+(skip) MessageRouterService > Error Handling > handles very long message body
+(skip) MessageRouterService > registerPhoneNumber > has correct method signature
+(skip) MessageRouterService > registerPhoneNumber > requires organizationId, agentId, phoneNumber, and provider
+(skip) MessageRouterService > updateMessageLog > has correct method signature
+(skip) MessageRouterService > markMessageFailed > has correct method signature
+(skip) MessageRouterService ID Generation > Entity ID Generation > generates consistent IDs for same phone number
+(skip) MessageRouterService ID Generation > Room ID Generation > generates consistent IDs regardless of direction
+(skip) MessageRouterService Concurrent Operations > handles concurrent message routing
+(skip) MessageRouterService Concurrent Operations > handles concurrent message sending
+(skip) MessageRouterService Concurrent Operations > handles concurrent phone number lookups
+(skip) MessageRouterService Provider Handling > correctly identifies Twilio messages
+(skip) MessageRouterService Provider Handling > correctly identifies Blooio messages
+(skip) MessageRouterService Provider Handling > handles provider message ID
+
+tests/unit/service-key-auth.test.ts:
+(pass) Service Key Auth > validateServiceKey > returns null when X-Service-Key header is missing [14.81ms]
+(pass) Service Key Auth > validateServiceKey > returns null when X-Service-Key header is empty [15.69ms]
+(pass) Service Key Auth > validateServiceKey > returns null when key does not match [17.22ms]
+(pass) Service Key Auth > validateServiceKey > returns null when WAIFU_SERVICE_KEY env is not set [14.89ms]
+(pass) Service Key Auth > validateServiceKey > returns identity when key matches [16.59ms]
+(pass) Service Key Auth > validateServiceKey > throws when key matches but org/user env vars are missing [15.03ms]
+(pass) Service Key Auth > validateServiceKey > throws when key matches but user env var is missing [17.90ms]
+(pass) Service Key Auth > requireServiceKey > returns identity for valid key [14.47ms]
+(pass) Service Key Auth > requireServiceKey > throws ServiceKeyAuthError for invalid key [15.76ms]
+(pass) Service Key Auth > requireServiceKey > throws ServiceKeyAuthError for missing header [16.15ms]
+
+tests/unit/whatsapp-api-util.test.ts:
+(pass) WhatsApp Webhook Signature Verification > accepts valid signature [0.18ms]
+(pass) WhatsApp Webhook Signature Verification > rejects invalid signature [0.02ms]
+(pass) WhatsApp Webhook Signature Verification > rejects tampered body
+(pass) WhatsApp Webhook Signature Verification > rejects wrong app secret [0.03ms]
+(pass) WhatsApp Webhook Signature Verification > rejects empty signature header
+(pass) WhatsApp Webhook Signature Verification > rejects empty app secret [0.02ms]
+(pass) WhatsApp Webhook Signature Verification > rejects signature without sha256= prefix [0.01ms]
+(pass) WhatsApp Webhook Payload Parsing > parses valid payload [0.78ms]
+(pass) WhatsApp Webhook Payload Parsing > rejects payload with wrong object type [0.10ms]
+(pass) WhatsApp Webhook Payload Parsing > rejects payload with missing entry
+(pass) WhatsApp Webhook Payload Parsing > rejects invalid JSON structure [0.09ms]
+(pass) WhatsApp Webhook Payload Parsing > parses payload with status updates (no messages) [0.09ms]
+(pass) WhatsApp Message Extraction > extracts text message with profile name [0.14ms]
+(pass) WhatsApp Message Extraction > returns empty array for status-only payloads [0.02ms]
+(pass) WhatsApp Message Extraction > extracts multiple messages [0.04ms]
+(pass) WhatsApp Message Extraction > skips non-messages field changes
+(pass) WhatsApp Phone Number Formatting > whatsappIdToE164 adds + prefix [0.04ms]
+(pass) WhatsApp Phone Number Formatting > whatsappIdToE164 strips non-digit characters
+(pass) WhatsApp Phone Number Formatting > e164ToWhatsappId removes + prefix [0.04ms]
+(pass) WhatsApp Phone Number Formatting > e164ToWhatsappId handles already-clean IDs
+(pass) WhatsApp Phone Number Formatting > roundtrip conversion
+(pass) WhatsApp ID Validation > accepts valid WhatsApp IDs
+(pass) WhatsApp ID Validation > rejects invalid WhatsApp IDs
+
+tests/unit/jsonb-param.test.ts:
+(pass) jsonbParam > produces a jsonb cast and binds JSON as a string parameter [0.14ms]
+
+tests/unit/idempotency.test.ts:
+(skip) Idempotency Utility > isAlreadyProcessed > returns false for new keys
+(skip) Idempotency Utility > isAlreadyProcessed > returns true for processed keys
+(skip) Idempotency Utility > isAlreadyProcessed > handles empty key gracefully
+(skip) Idempotency Utility > isAlreadyProcessed > handles special characters in keys
+(skip) Idempotency Utility > markAsProcessed > marks a key as processed
+(skip) Idempotency Utility > markAsProcessed > accepts source parameter
+(skip) Idempotency Utility > markAsProcessed > uses default source when not provided
+(skip) Idempotency Utility > markAsProcessed > handles duplicate marking gracefully
+(skip) Idempotency Utility > getProcessedMessagesCount > returns a number
+(skip) Idempotency Utility > getProcessedMessagesCount > increases after marking a key
+(skip) Idempotency Utility > cleanupExpiredKeys > returns number of deleted keys
+(skip) Idempotency Utility > cleanupExpiredKeys > does not delete recent keys
+(skip) Idempotency Utility > clearProcessedMessages > clears all messages without error
+(skip) Idempotency Utility > (unnamed)
+(skip) tryClaimForProcessing > returns true for first claim
+(skip) tryClaimForProcessing > returns false for duplicate claim
+(skip) tryClaimForProcessing > handles concurrent claims correctly - only one wins
+(skip) tryClaimForProcessing > claimed key is visible to isAlreadyProcessed
+(skip) tryClaimForProcessing > uses default source when not provided
+(skip) tryClaimForProcessing > (unnamed)
+(skip) releaseProcessingClaim > allows re-claim after release
+(skip) releaseProcessingClaim > released key is no longer visible to isAlreadyProcessed
+(skip) releaseProcessingClaim > does not throw when releasing a non-existent key
+(skip) releaseProcessingClaim > (unnamed)
+(skip) Idempotency Security Tests > Replay Attack Prevention > prevents duplicate processing of same message
+(skip) Idempotency Security Tests > Replay Attack Prevention > uses unique keys for different message sources
+(skip) Idempotency Security Tests > Key Format Validation > handles very long keys
+(skip) Idempotency Security Tests > Key Format Validation > handles keys with special webhook-related characters
+
+tests/unit/privy-sync.test.ts:
+(pass) syncUserFromPrivy > upserts user identity after creating a new Privy user [1.19ms]
+Linking Privy account for link@example.com: did:privy:old-user → did:privy:new-user
+(pass) syncUserFromPrivy > upserts user identity before reading linked accounts by new Privy id
+Linking Privy account for link@example.com: did:privy:old-user → did:privy:new-user
+(pass) syncUserFromPrivy > restores the previous Privy ID when account linking upsert fails [0.73ms]
+Linking Privy account for link@example.com: did:privy:old-user → did:privy:new-user
+(pass) syncUserFromPrivy > preserves the original account-link error when rollback update fails [0.09ms]
+(pass) syncUserFromPrivy > rolls back invited user creation when identity upsert fails [0.13ms]
+(pass) syncUserFromPrivy > preserves the original invite error when rollback delete fails [0.11ms]
+(pass) syncUserFromPrivy > keeps invited user when Privy projection conflict is recoverable from primary
+(pass) syncUserFromPrivy > rolls back invited user when Privy projection conflict lacks verified projection ownership [0.19ms]
+(pass) syncUserFromPrivy > keeps newly created signup when Privy projection conflict is recoverable from primary
+(pass) syncUserFromPrivy > rolls back newly created signup when Privy projection conflict lacks verified projection ownership [0.13ms]
+(pass) syncUserFromPrivy > preserves the original signup error when rollback delete fails [0.13ms]
+(pass) syncUserFromPrivy > does not treat non-unique privy_user_id errors as recoverable [0.07ms]
+(skip) 0049/0050 user identity backfill migrations > repairs chained stale Privy claims without changing unrelated identity fields
+
+tests/unit/pr385-round5-fixes.test.ts:
+(pass) handleCompatError — narrowed Invalid heuristic > 'Invalid API key' → 401 [0.08ms]
+(pass) handleCompatError — narrowed Invalid heuristic > 'Invalid token' → 401
+(pass) handleCompatError — narrowed Invalid heuristic > 'Invalid credentials' → 401 [0.07ms]
+(pass) handleCompatError — narrowed Invalid heuristic > 'Invalid service key' → 401 [0.01ms]
+(pass) handleCompatError — narrowed Invalid heuristic > 'Invalid agent config' → 500 (not 401) [0.07ms]
+(pass) handleCompatError — narrowed Invalid heuristic > 'Invalid JSON body' → 500 (not 401) [0.03ms]
+(pass) handleCompatError — narrowed Invalid heuristic > 'Invalid request data' → 500 (not 401) [0.02ms]
+(pass) handleCompatError — narrowed Invalid heuristic > 'Invalid parameter: limit must be positive' → 500 (not 401) [0.03ms]
+(pass) handleCompatError — narrowed Invalid heuristic > 'Unauthorized' → 401 (unchanged) [0.03ms]
+(pass) handleCompatError — narrowed Invalid heuristic > 'Forbidden access' → 403 (unchanged) [0.03ms]
+(pass) handleCompatError — narrowed Invalid heuristic > generic error → 500 (unchanged) [0.02ms]
+(pass) provisioning-jobs org-id cross-check > executeMiladyProvision throws on org-id mismatch [0.03ms]
+(pass) provisioning-jobs org-id cross-check > passes when org-ids match [0.02ms]
+(pass) waifu-bridge slugFromUserId determinism > same userId always produces the same slug [0.08ms]
+(pass) waifu-bridge slugFromUserId determinism > different userIds produce different slugs [0.02ms]
+(pass) waifu-bridge slugFromUserId determinism > slug format: base-hash (16 hex chars suffix) [0.02ms]
+(pass) waifu-bridge slugFromUserId determinism > long userId is truncated in base portion [0.02ms]
+(pass) waifu-bridge slugFromUserId determinism > special characters are replaced with hyphens [0.01ms]
+(pass) agents/route orphan character cleanup > compensation deletes character when createAgent throws [0.08ms]
+(pass) agents/route orphan character cleanup > compensation deletes character when enqueue throws [0.06ms]
+(pass) agents/route orphan character cleanup > original error propagates even if cleanup fails [0.09ms]
+(pass) suspend route — org-scoped getAgent structural check > suspend route source contains getAgent call [0.20ms]
+(pass) suspend route — org-scoped getAgent structural check > suspend route matches resume route pattern [0.24ms]
+
+tests/unit/mcp-google-tools.test.ts:
+(pass) Google MCP Tools > Module Registration > registerGoogleTools is exported [1.24ms]
+(pass) Google MCP Tools > Module Registration > registers all expected tools [0.90ms]
+(pass) Google MCP Tools > google_status > returns connected=false when no Google connection [0.40ms]
+(pass) Google MCP Tools > google_status > returns connection details when connected [0.47ms]
+(pass) Google MCP Tools > google_status > handles service errors gracefully [0.41ms]
+(pass) Google MCP Tools > google_status > filters for active connections only [0.32ms]
+(pass) Google MCP Tools > gmail_send > returns error when Google not connected [0.56ms]
+(pass) Google MCP Tools > gmail_send > sends email successfully [0.36ms]
+(pass) Google MCP Tools > gmail_send > handles CC and BCC recipients [0.30ms]
+(pass) Google MCP Tools > gmail_send > handles Gmail API errors [0.29ms]
+(pass) Google MCP Tools > gmail_send > handles HTML email content [0.28ms]
+(pass) Google MCP Tools > gmail_list > returns empty list when no messages [0.40ms]
+(pass) Google MCP Tools > gmail_list > respects maxResults parameter [0.24ms]
+(pass) Google MCP Tools > gmail_list > passes query parameter to Gmail API [0.24ms]
+(pass) Google MCP Tools > gmail_list > reports partial failures when some messages fail to fetch [0.37ms]
+(pass) Google MCP Tools > gmail_read > reads message with full content [0.42ms]
+(pass) Google MCP Tools > gmail_read > handles multipart messages [0.28ms]
+(pass) Google MCP Tools > gmail_read > handles deeply nested multipart messages [0.27ms]
+(pass) Google MCP Tools > gmail_read > returns error for non-existent message [0.21ms]
+(pass) Google MCP Tools > calendar_list_events > lists events with default parameters [0.38ms]
+(pass) Google MCP Tools > calendar_list_events > handles all-day events (date without time) [0.25ms]
+(pass) Google MCP Tools > calendar_create_event > creates event successfully [0.28ms]
+(pass) Google MCP Tools > calendar_create_event > creates event with attendees [0.32ms]
+(pass) Google MCP Tools > calendar_delete_event > deletes event successfully (204 response) [0.29ms]
+(pass) Google MCP Tools > contacts_list > lists contacts from connections API [0.33ms]
+(pass) Google MCP Tools > contacts_list > uses search API when query provided [0.24ms]
+(pass) Google MCP Tools > Concurrent Request Isolation > handles concurrent requests with different orgs [35.37ms]
+(pass) Google MCP Tools > Edge Cases > handles empty scopes array [0.49ms]
+(pass) Google MCP Tools > Edge Cases > handles special characters in email subject [0.39ms]
+(pass) Google MCP Tools > Edge Cases > handles network timeout gracefully [0.31ms]
+(pass) Google MCP Tools > Edge Cases > handles malformed API response [0.25ms]
+
+tests/unit/v1-agents-schema.test.ts:
+(pass) v1/agents provisionSchema max-length constraints > accepts valid minimal payload [0.16ms]
+(pass) v1/agents provisionSchema max-length constraints > accepts valid payload with all optional fields [0.26ms]
+(pass) v1/agents provisionSchema max-length constraints > rejects tokenContractAddress > 256 chars [0.06ms]
+(pass) v1/agents provisionSchema max-length constraints > rejects chain > 50 chars [0.04ms]
+(pass) v1/agents provisionSchema max-length constraints > rejects tokenName > 200 chars [0.05ms]
+(pass) v1/agents provisionSchema max-length constraints > rejects tokenTicker > 30 chars
+(pass) v1/agents provisionSchema max-length constraints > rejects character.name > 200 chars [0.05ms]
+(pass) v1/agents provisionSchema max-length constraints > rejects character.bio > 5000 chars [0.05ms]
+(pass) v1/agents provisionSchema max-length constraints > accepts character.bio at exactly 5000 chars
+(pass) v1/agents provisionSchema max-length constraints > rejects character.avatar that is not a URL [0.10ms]
+(pass) v1/agents provisionSchema max-length constraints > rejects webhookUrl > 2048 chars [0.04ms]
+(pass) v1/agents provisionSchema max-length constraints > accepts Solana-length address (44 chars base58) [0.02ms]
+(pass) v1/agents provisionSchema max-length constraints > accepts EVM-length address (42 chars hex)
+
+tests/unit/deployment-environment.test.ts:
+(pass) deployment environment detection > treats bare NODE_ENV=production as production [0.02ms]
+(pass) deployment environment detection > treats Vercel preview builds as non-production
+(pass) deployment environment detection > treats Vercel production deployments as production
+(pass) deployment environment detection > blocks unsafe webhook skip only for production deployments [0.01ms]
+(pass) deployment environment detection > blocks devnet bypass only for production deployments
+
+tests/unit/mcp-lib.test.ts:
+(pass) jsonResponse > wraps data in MCP content format [0.04ms]
+(pass) jsonResponse > serializes object to JSON string [0.02ms]
+(pass) jsonResponse > pretty prints with 2 spaces [0.03ms]
+(pass) jsonResponse > handles nested objects [0.01ms]
+(pass) jsonResponse > handles arrays [0.01ms]
+(pass) jsonResponse > handles null [0.02ms]
+(pass) errorResponse > sets isError to true
+(pass) errorResponse > includes error message in content [0.03ms]
+(pass) errorResponse > merges details into response [0.03ms]
+(pass) errorResponse > handles undefined details
+(pass) authContextStorage > is an AsyncLocalStorage instance [0.03ms]
+(pass) authContextStorage > run() executes callback with context [0.06ms]
+(pass) authContextStorage > context is isolated between runs [11.79ms]
+(pass) getAuthContext > throws when called outside context [0.08ms]
+(pass) getAuthContext > returns context when inside run() [0.10ms]
+
+tests/unit/x402-facilitator.test.ts:
+(pass) X402FacilitatorService (BSC Integration) > should initialize and expose bsc and bsc-testnet in its supported config [20.21ms]
+(pass) X402FacilitatorService (BSC Integration) > should reject payments if the network is strictly not supported [8.93ms]
+(pass) X402FacilitatorService (BSC Integration) > should reject expired payment payloads [6.87ms]
+
+tests/unit/cron-auth.test.ts:
+(pass) verifyCronSecret > when CRON_SECRET is not configured > returns 500 response [0.21ms]
+(pass) verifyCronSecret > when CRON_SECRET is not configured > returns error message about configuration [0.14ms]
+(pass) verifyCronSecret > when CRON_SECRET is configured > returns 401 when no Authorization header is provided [0.04ms]
+(pass) verifyCronSecret > when CRON_SECRET is configured > returns 401 for wrong secret [0.06ms]
+(pass) verifyCronSecret > when CRON_SECRET is configured > returns 401 for empty Bearer token [0.01ms]
+(pass) verifyCronSecret > when CRON_SECRET is configured > returns null (success) even without Bearer prefix [0.03ms]
+(pass) verifyCronSecret > when CRON_SECRET is configured > returns 401 for partial match secret [0.04ms]
+(pass) verifyCronSecret > when CRON_SECRET is configured > returns 401 for secret with extra characters [0.04ms]
+(pass) verifyCronSecret > when CRON_SECRET is configured > returns null (success) for valid secret [0.02ms]
+(pass) verifyCronSecret > when CRON_SECRET is configured > accepts valid secret with various log prefixes [0.07ms]
+(pass) verifyCronSecret > edge cases > handles long secrets [0.03ms]
+(pass) verifyCronSecret > edge cases > rejects empty string as CRON_SECRET [0.04ms]
+
+tests/unit/discord-connections-api.test.ts:
+(pass) CreateConnectionSchema > accepts valid payload with required fields [0.21ms]
+(pass) CreateConnectionSchema > accepts valid payload with all fields [0.22ms]
+(pass) CreateConnectionSchema > rejects missing applicationId [0.06ms]
+(pass) CreateConnectionSchema > rejects empty applicationId [0.04ms]
+(pass) CreateConnectionSchema > rejects missing botToken [0.03ms]
+(pass) CreateConnectionSchema > rejects empty botToken
+(pass) CreateConnectionSchema > rejects missing characterId
+(pass) CreateConnectionSchema > rejects invalid characterId (not UUID) [0.05ms]
+(pass) CreateConnectionSchema > rejects negative intents [0.04ms]
+(pass) CreateConnectionSchema > rejects zero intents [0.03ms]
+(pass) CreateConnectionSchema > rejects non-integer intents [0.04ms]
+(pass) UpdateConnectionSchema > accepts empty payload (no updates) [0.10ms]
+(pass) UpdateConnectionSchema > accepts valid characterId update [0.02ms]
+(pass) UpdateConnectionSchema > accepts null characterId (remove character) [0.02ms]
+(pass) UpdateConnectionSchema > accepts isActive update [0.02ms]
+(pass) UpdateConnectionSchema > accepts metadata update
+(pass) UpdateConnectionSchema > accepts all fields together [0.03ms]
+(pass) UpdateConnectionSchema > rejects invalid characterId (not UUID) [0.04ms]
+(pass) UpdateConnectionSchema > rejects non-boolean isActive [0.02ms]
+(pass) DiscordConnectionMetadataSchema > accepts empty metadata
+(pass) DiscordConnectionMetadataSchema > accepts undefined metadata
+(pass) DiscordConnectionMetadataSchema > accepts responseMode: always [0.02ms]
+(pass) DiscordConnectionMetadataSchema > accepts responseMode: mention [0.01ms]
+(pass) DiscordConnectionMetadataSchema > accepts responseMode: keyword with keywords [0.01ms]
+(pass) DiscordConnectionMetadataSchema > rejects responseMode: keyword without keywords [0.04ms]
+(pass) DiscordConnectionMetadataSchema > rejects responseMode: keyword with empty keywords array [0.02ms]
+(pass) DiscordConnectionMetadataSchema > rejects invalid responseMode [0.05ms]
+(pass) DiscordConnectionMetadataSchema > accepts enabledChannels array [0.01ms]
+(pass) DiscordConnectionMetadataSchema > accepts disabledChannels array
+(pass) DiscordConnectionMetadataSchema > accepts all fields together [0.01ms]
+
+tests/unit/users-repository-compat.test.ts:
+(pass) UsersRepository WhatsApp schema compatibility cache > clears cached probe failures so the next lookup can retry [0.29ms]
+
+tests/unit/outbound-url.test.ts:
+(pass) outbound URL safety > rejects localhost and link-local destinations [0.38ms]
+(pass) outbound URL safety > rejects public hostnames that resolve to private addresses [0.19ms]
+(pass) outbound URL safety > accepts public https endpoints [0.10ms]
+(pass) outbound URL safety > rejects URLs that embed credentials [0.05ms]
+
+tests/unit/compat-availability-route.test.ts:
+(pass) compat availability route > omits per-node topology for unauthenticated requests [0.75ms]
+(pass) compat availability route > includes per-node topology for service key requests [0.10ms]
+(pass) compat availability route > omits per-node topology for regular authenticated users [0.24ms]
+
+tests/unit/whatsapp-automation.test.ts:
+(pass) WhatsApp Automation - Verify Token Generation > generates a verify token with correct prefix [0.06ms]
+(pass) WhatsApp Automation - Verify Token Generation > generates unique tokens on each call
+(pass) WhatsApp Automation - Verify Token Generation > token is hex-safe (no special characters)
+(pass) WhatsApp Automation - Webhook Subscription Verification > returns challenge when all params match [0.08ms]
+(pass) WhatsApp Automation - Webhook Subscription Verification > rejects when mode is not subscribe
+(pass) WhatsApp Automation - Webhook Subscription Verification > rejects when verify token does not match
+(pass) WhatsApp Automation - Webhook Subscription Verification > rejects when challenge is missing
+(pass) WhatsApp Automation - Webhook Subscription Verification > rejects when mode is null
+(pass) WhatsApp Automation - Webhook Subscription Verification > rejects when no stored token exists
+(pass) WhatsApp Automation - Signature Verification Delegation > accepts valid signature with org-specific secret [0.09ms]
+(pass) WhatsApp Automation - Signature Verification Delegation > rejects signature from different org secret [0.03ms]
+(pass) WhatsApp Automation - ID Validation in Webhook > accepts valid WhatsApp IDs [0.01ms]
+(pass) WhatsApp Automation - ID Validation in Webhook > rejects IDs with non-digit characters
+(pass) WhatsApp Automation - ID Validation in Webhook > rejects IDs that are too short or too long [0.01ms]
+(pass) WhatsApp Automation - Connection Status Logic > not configured when no credentials
+(pass) WhatsApp Automation - Connection Status Logic > configured when both token and phone number ID exist
+(pass) WhatsApp Automation - Connection Status Logic > not fully configured when only token exists
+(pass) WhatsApp Automation - Idempotency Key Format > org-level key includes orgId for isolation
+(pass) WhatsApp Automation - Idempotency Key Format > different orgs produce different keys for same message
+(pass) WhatsApp Automation - Secret Name Constants > secret names are correctly defined [0.60ms]
+
+tests/unit/provisioning-jobs.test.ts:
+(pass) ProvisioningJobService > enqueueMiladyProvision > creates a pending job with correct data [0.23ms]
+(pass) ProvisioningJobService > enqueueMiladyProvision > passes webhook URL when provided [0.06ms]
+(pass) ProvisioningJobService > enqueueMiladyProvision > sets estimated completion to ~90s from now [0.04ms]
+(pass) ProvisioningJobService > getJob > delegates to repository findById [0.03ms]
+(pass) ProvisioningJobService > getJob > returns undefined for non-existent job [0.04ms]
+(pass) ProvisioningJobService > processPendingJobs > processes pending jobs and marks them completed on success [0.41ms]
+(pass) ProvisioningJobService > processPendingJobs > increments attempt on provision failure [0.09ms]
+(pass) ProvisioningJobService > processPendingJobs > returns empty result when no pending jobs [0.06ms]
+(pass) ProvisioningJobService > processPendingJobs > stores partial result in job data on failure [0.07ms]
+(pass) ProvisioningJobService > processPendingJobs > marks sandbox as error when retries are exhausted (permanent failure) [0.07ms]
+(pass) ProvisioningJobService > processPendingJobs > does NOT mark sandbox as error on retryable failure [0.01ms]
+(pass) ProvisioningJobService > processPendingJobs > uses atomic claimPendingJobs instead of read-then-update [0.05ms]
+(pass) ProvisioningJobService > processPendingJobs > does not call updateStatus('in_progress') — claiming handles that atomically [0.02ms]
+(pass) ProvisioningJobService > webhook delivery > fires webhook on successful completion [0.22ms]
+(pass) ProvisioningJobService > webhook delivery > rejects unsafe webhook destinations before fetch [0.12ms]
+(pass) ProvisioningJobService > JOB_TYPES > has expected type constants [0.01ms]
+(pass) ProvisioningJobService > stale recovery > recovers stale jobs once per type without per-org scans [0.05ms]
+(pass) ProvisioningJobService > getJobsForOrg > delegates to repository with correct filters [0.03ms]
+(pass) ProvisioningJobService > getJobsForOrg > uses defaults for optional params
+
+tests/unit/referrals-service.test.ts:
+(pass) referralsService > returns distinct creator and editor roles for multi-tier referrals [0.35ms]
+(pass) referralsService > returns an existing code when concurrent creation hits a unique constraint [0.12ms]
+(pass) referralsService > retries referral code creation when a generated code collides with another user [0.13ms]
+(pass) referralsService > treats replaying the same referral code as an idempotent success [0.13ms]
+(pass) referralsService > qualifies a referral only once before crediting the bonus [0.12ms]
+
+tests/unit/redirect-validation.test.ts:
+(pass) redirect validation > accepts allowlisted absolute redirect URLs [1.45ms]
+(pass) redirect validation > rejects redirect URLs on untrusted origins [0.04ms]
+(pass) redirect validation > rejects redirect URLs with embedded credentials
+(pass) redirect validation > resolves safe relative redirect targets against the base URL [0.03ms]
+(pass) redirect validation > falls back when an external redirect target is provided
+
+tests/unit/cors-utils.test.ts:
+(pass) getCorsHeaders > allowed origins > reflects allowed origin in Access-Control-Allow-Origin [1.41ms]
+(pass) getCorsHeaders > allowed origins > reflects www subdomain as allowed origin [0.05ms]
+(pass) getCorsHeaders > allowed origins > sets Access-Control-Allow-Credentials for allowed origins
+(pass) getCorsHeaders > disallowed origins > omits Access-Control-Allow-Origin for unknown origin [0.04ms]
+(pass) getCorsHeaders > disallowed origins > omits credentials header for unknown origin
+(pass) getCorsHeaders > disallowed origins > omits Access-Control-Allow-Origin for null origin [0.02ms]
+(pass) getCorsHeaders > disallowed origins > omits Access-Control-Allow-Origin for empty string
+(pass) getCorsHeaders > common headers > always includes Access-Control-Allow-Methods [0.05ms]
+(pass) getCorsHeaders > common headers > always includes Access-Control-Allow-Headers
+(pass) getCorsHeaders > common headers > sets Access-Control-Max-Age [0.01ms]
+
+tests/unit/compat-auth-and-restart-route.test.ts:
+(pass) compat auth > rejects invalid service-key attempts instead of falling through [0.13ms]
+(pass) compat auth > preserves 500 for service-key env misconfiguration instead of swallowing into 401 [0.32ms]
+(pass) GET/DELETE /api/compat/agents/[id] > GET returns 404 error envelope when agent is missing [0.18ms]
+(pass) GET/DELETE /api/compat/agents/[id] > DELETE returns 404 error envelope when agent is missing [0.28ms]
+(pass) GET/DELETE /api/compat/agents/[id] > DELETE cleans up linked character row after agent deletion [0.05ms]
+(pass) GET/DELETE /api/compat/agents/[id] > DELETE succeeds even if character cleanup fails (best-effort) [0.27ms]
+(pass) GET/DELETE /api/compat/agents/[id] > DELETE skips character cleanup when no character_id linked
+(pass) POST /api/compat/agents/[id]/restart > returns 502 with failed op result when restart fails [0.24ms]
+
+tests/unit/evm-rpc-proxy-route.test.ts:
+(pass) EVM RPC proxy route > rejects malformed JSON before billing [0.50ms]
+(pass) EVM RPC proxy route > rejects oversized batches before billing [0.11ms]
+(pass) EVM RPC proxy route > bills batch requests by item count [0.07ms]
+
+tests/unit/blooio-automation-service.test.ts:
+(skip) BlooioAutomationService > validateApiKey > returns invalid when API key is empty
+(skip) BlooioAutomationService > validateApiKey > returns invalid when API key is whitespace
+(skip) BlooioAutomationService > invalidateStatusCache > clears cache for organization
+(skip) BlooioAutomationService > invalidateStatusCache > handles multiple invalidations
+(skip) BlooioAutomationService > getWebhookUrl > returns correct webhook URL format
+(skip) BlooioAutomationService > getWebhookUrl > includes organization ID in URL
+(skip) BlooioAutomationService > Chat ID Validation > normalizes chat IDs > handles phone numbers
+(skip) BlooioAutomationService > Chat ID Validation > normalizes chat IDs > handles email addresses
+(skip) BlooioAutomationService > Chat ID Validation > normalizes chat IDs > handles comma-separated chat IDs
+(skip) BlooioAutomationService > sendMessage > returns error when Blooio is not configured
+(skip) BlooioAutomationService > sendMessage > validates chat ID format
+(skip) BlooioAutomationService > sendMessage > handles group chat IDs
+(skip) BlooioAutomationService > sendMessage > handles message with attachments
+(skip) BlooioAutomationService > sendMessage > handles message with metadata
+(skip) BlooioAutomationService > isConfigured > returns false when no API key is stored
+(skip) BlooioAutomationService > getConnectionStatus > returns unconfigured status when no API key
+(skip) BlooioAutomationService > getConnectionStatus > caches status for performance
+(skip) BlooioAutomationService > getConnectionStatus > respects skipCache option
+(skip) BlooioAutomationService > getConnectionStatus > returns fromNumber when available
+(skip) BlooioAutomationService > Error Handling > handles empty organization ID gracefully
+(skip) BlooioAutomationService > Error Handling > handles special characters in organization ID
+(skip) BlooioAutomationService > Credential Methods > getApiKey > returns null when no API key stored
+(skip) BlooioAutomationService > Credential Methods > getWebhookSecret > returns null when no webhook secret stored
+(skip) BlooioAutomationService > Credential Methods > getFromNumber > returns null when no from number stored
+(skip) BlooioAutomationService > Message Request Handling > handles text-only message
+(skip) BlooioAutomationService > Message Request Handling > handles message with typing indicator
+(skip) BlooioAutomationService > Message Request Handling > handles message with idempotency key
+(pass) BlooioAutomationService Integration-style Tests > Credential Lifecycle > can store and retrieve credentials
+(pass) BlooioAutomationService Integration-style Tests > Credential Lifecycle > credential storage invalidates cache [0.43ms]
+
+tests/unit/admin-docker-routes.test.ts:
+(pass) Status Consistency > badge covers all sandbox statuses
+(pass) Status Consistency > badge covers all node statuses
+(pass) Logs Route — isValidDockerLogsSince > accepts ISO-8601 timestamp with Z suffix
+(pass) Logs Route — isValidDockerLogsSince > accepts ISO-8601 timestamp with timezone offset
+(pass) Logs Route — isValidDockerLogsSince > accepts ISO-8601 timestamp with fractional seconds
+(pass) Logs Route — isValidDockerLogsSince > accepts relative duration hours
+(pass) Logs Route — isValidDockerLogsSince > accepts relative duration days
+(pass) Logs Route — isValidDockerLogsSince > accepts relative duration minutes
+(pass) Logs Route — isValidDockerLogsSince > accepts relative duration seconds
+(pass) Logs Route — isValidDockerLogsSince > accepts relative duration weeks [0.14ms]
+(pass) Logs Route — isValidDockerLogsSince > rejects command injection via semicolon
+(pass) Logs Route — isValidDockerLogsSince > rejects command injection via &&
+(pass) Logs Route — isValidDockerLogsSince > rejects locale-dependent string 'yesterday'
+(pass) Logs Route — isValidDockerLogsSince > rejects locale-dependent string 'March 9, 2026'
+(pass) Logs Route — isValidDockerLogsSince > rejects bare date without time 'YYYY-MM-DD'
+(pass) Logs Route — isValidDockerLogsSince > rejects ISO-like without timezone
+(pass) Logs Route — isValidDockerLogsSince > rejects empty string
+
+tests/unit/n8n-bridge-apikey-cred-map.test.ts:
+(pass) API_KEY_CRED_TYPES > openAiApi builds correct data payload [0.07ms]
+(pass) API_KEY_CRED_TYPES > openAiApi appends /api/v1 to base URL [0.02ms]
+(pass) API_KEY_CRED_TYPES > unknown credential type is not in the map
+
+tests/unit/compat-error-handler.test.ts:
+(pass) handleCompatError > AuthenticationError → 401 with original message [0.13ms]
+(pass) handleCompatError > ForbiddenError → 403 with original message
+(pass) handleCompatError > ServiceKeyAuthError → 401 [0.08ms]
+(pass) handleCompatError > Error with 'Unauthorized' → 401 [0.03ms]
+(pass) handleCompatError > Error with 'Invalid API key' → 401 [0.03ms]
+(pass) handleCompatError > Error with 'Invalid agent config' → 500 (not 401)
+(pass) handleCompatError > Error with 'Forbidden' → 403
+(pass) handleCompatError > Error with 'requires admin' → 403
+(pass) handleCompatError > Error with 'requires authentication' → 403
+(pass) handleCompatError > Error with 'requires org membership' → 403
+(pass) handleCompatError > Error with non-auth 'requires' → 500 (not 403) [0.17ms]
+(pass) handleCompatError > Error with 'Field requires a value' → 500 (not 403)
+(pass) handleCompatError > generic Error → 500 with generic message (no leak) [0.04ms]
+(pass) handleCompatError > DB connection error → 500 with generic message
+(pass) handleCompatError > non-Error throw → 500 generic [0.06ms]
+(pass) handleCompatError > null throw → 500 generic
+
+tests/unit/phone-normalization.test.ts:
+(pass) Phone Normalization Utilities > isValidE164 > validates correct E.164 format [0.02ms]
+(pass) Phone Normalization Utilities > isValidE164 > rejects numbers without plus sign
+(pass) Phone Normalization Utilities > isValidE164 > rejects numbers with invalid formats
+(pass) Phone Normalization Utilities > isValidE164 > rejects numbers with non-digit characters
+(pass) Phone Normalization Utilities > isValidEmail > validates correct email formats [0.07ms]
+(pass) Phone Normalization Utilities > isValidEmail > rejects invalid email formats [0.03ms]
+(pass) Phone Normalization Utilities > normalizeToE164 > normalizes 10-digit US numbers [0.05ms]
+(pass) Phone Normalization Utilities > normalizeToE164 > normalizes 11-digit numbers starting with 1 [0.01ms]
+(pass) Phone Normalization Utilities > normalizeToE164 > validates existing E.164 numbers
+(pass) Phone Normalization Utilities > normalizeToE164 > returns null for invalid formats
+(pass) Phone Normalization Utilities > normalizeToE164 > returns null for numbers that cannot be normalized
+(pass) Phone Normalization Utilities > normalizePhoneNumber > normalizes valid phone numbers [1.61ms]
+(pass) Phone Normalization Utilities > normalizePhoneNumber > normalizes email addresses to lowercase [0.01ms]
+(pass) Phone Normalization Utilities > normalizePhoneNumber > handles whitespace [0.05ms]
+(pass) Phone Normalization Utilities > normalizePhoneNumber > uses default country code for normalization [0.04ms]
+(pass) Phone Normalization Utilities > normalizePhoneNumber > handles international numbers [0.29ms]
+(pass) Phone Normalization Utilities > normalizePhoneNumber > returns cleaned version for invalid numbers [0.21ms]
+(pass) Phone Normalization Utilities > parsePhoneNumber > parses valid phone numbers [0.04ms]
+(pass) Phone Normalization Utilities > parsePhoneNumber > returns null for email addresses
+(pass) Phone Normalization Utilities > parsePhoneNumber > returns null for invalid input
+(pass) Phone Normalization Utilities > parsePhoneNumber > includes validation status [0.08ms]
+(pass) Phone Normalization Edge Cases > Security-relevant tests > handles very long input without crashing [0.01ms]
+(pass) Phone Normalization Edge Cases > Security-relevant tests > handles special characters safely
+(pass) Phone Normalization Edge Cases > Security-relevant tests > handles null-byte injection attempts
+(pass) Phone Normalization Edge Cases > Security-relevant tests > handles unicode characters [0.09ms]
+(pass) Phone Normalization Edge Cases > Boundary conditions > handles maximum length E.164 number (15 digits)
+(pass) Phone Normalization Edge Cases > Boundary conditions > rejects 16+ digit numbers
+(pass) Phone Normalization Edge Cases > Boundary conditions > handles minimum length E.164 number [0.04ms]
+(pass) validatePhoneForAPI > valid inputs > accepts valid E.164 phone numbers [0.04ms]
+(pass) validatePhoneForAPI > valid inputs > accepts and normalizes 10-digit US numbers [0.03ms]
+(pass) validatePhoneForAPI > valid inputs > accepts formatted phone numbers
+(pass) validatePhoneForAPI > valid inputs > handles whitespace around phone numbers
+(pass) validatePhoneForAPI > valid inputs > accepts international numbers [0.12ms]
+(pass) validatePhoneForAPI > invalid inputs > rejects empty string [0.03ms]
+(pass) validatePhoneForAPI > invalid inputs > rejects whitespace-only string
+(pass) validatePhoneForAPI > invalid inputs > rejects invalid phone format [0.03ms]
+(pass) validatePhoneForAPI > invalid inputs > rejects too short numbers [0.17ms]
+(pass) validatePhoneForAPI > invalid inputs > rejects email addresses (not phone numbers)
+(pass) validatePhoneForAPI > edge cases > handles very long input gracefully
+(pass) validatePhoneForAPI > edge cases > handles special characters [0.16ms]
+(pass) validatePhoneForAPI > edge cases > handles null-byte injection [0.03ms]
+
+tests/unit/docker-ssh-cloud-deploy.test.ts:
+(pass) DockerSSHClient — cloud deploy key resolution > loads key from MILADY_SSH_KEY env var (base64) [0.24ms]
+(pass) DockerSSHClient — cloud deploy key resolution > DockerSSHConfig accepts privateKey buffer directly [0.05ms]
+(pass) DockerSSHClient — cloud deploy key resolution > constructor does not throw when privateKey buffer is provided (even without filesystem)
+(pass) DockerSSHClient — cloud deploy key resolution > error message does not contain full filesystem path [0.10ms]
+(pass) DockerSSHClient — cloud deploy key resolution > error message suggests MILADY_SSH_KEY for serverless [0.09ms]
+(pass) Logger redact.context — secret field coverage > redacts privateKey fields
+(pass) Logger redact.context — secret field coverage > redacts private_key fields
+(pass) Logger redact.context — secret field coverage > redacts apiKey fields
+(pass) Logger redact.context — secret field coverage > redacts api_key fields
+(pass) Logger redact.context — secret field coverage > redacts secret fields [0.18ms]
+(pass) Logger redact.context — secret field coverage > redacts password fields
+(pass) Logger redact.context — secret field coverage > redacts token fields [0.03ms]
+(pass) Logger redact.context — secret field coverage > redacts authKey / auth_key fields
+(pass) Logger redact.context — secret field coverage > redacts SSH key fields
+(pass) Logger redact.context — secret field coverage > redacts signing key fields
+(pass) Logger redact.context — secret field coverage > does NOT redact non-sensitive fields
+(pass) Logger redact.context — secret field coverage > handles non-string values without redaction [0.09ms]
+(pass) DockerSSHConfig — interface completeness > exports DockerSSHConfig with all expected fields [0.01ms]
+(pass) DockerSSHConfig — interface completeness > DockerSSHConfig works with minimal fields
+
+tests/unit/compat-routes-error-handling.test.ts:
+(pass) all compat routes return 401 on auth failure (not 500) > GET /agents/[id]/status → 401 [0.35ms]
+(pass) all compat routes return 401 on auth failure (not 500) > GET /agents/[id]/logs → 401 [0.27ms]
+(pass) all compat routes return 401 on auth failure (not 500) > POST /agents/[id]/suspend → 401 [0.18ms]
+(pass) all compat routes return 401 on auth failure (not 500) > POST /agents/[id]/resume → 401 [0.09ms]
+(pass) all compat routes return 401 on auth failure (not 500) > POST /agents/[id]/restart → 401
+(pass) all compat routes return 401 on auth failure (not 500) > GET /jobs/[jobId] → 401 [0.21ms]
+(pass) 500-level errors return generic message across all routes > GET /agents/[id]/status → 500 generic
+(pass) 500-level errors return generic message across all routes > GET /jobs/[jobId] → 500 generic
+(pass) POST /agents/[id]/resume — org-scoped pre-check > returns 404 when agent doesn't exist for this org [0.20ms]
+(pass) POST /agents/[id]/resume — org-scoped pre-check > proceeds to provision when agent exists [0.05ms]
+(pass) POST /agents — auto-provision warning field > no warning when auto-provision is disabled [0.24ms]
+(pass) POST /agents — auto-provision warning field > no warning when auto-provision succeeds [0.47ms]
+(pass) POST /agents — auto-provision warning field > includes warning when auto-provision fails (throws) [0.15ms]
+(pass) POST /agents — auto-provision warning field > includes warning when auto-provision returns !success [0.18ms]
+
+tests/unit/validation.test.ts:
+(pass) isValidUUID > returns true for valid UUID v4 [1.57ms]
+(pass) isValidUUID > returns true for UUIDs with different versions (1-5)
+(pass) isValidUUID > returns true for uppercase UUIDs [0.12ms]
+(pass) isValidUUID > returns false for UUID with trailing backslash (common URL encoding issue)
+(pass) isValidUUID > returns false for UUID with trailing forward slash
+(pass) isValidUUID > returns false for UUID with whitespace [0.02ms]
+(pass) isValidUUID > returns false for malformed UUIDs [0.03ms]
+(pass) isValidUUID > returns false for UUIDs with invalid characters [0.02ms]
+(pass) isValidUUID > returns false for UUID without hyphens
+(pass) sanitizeUUID > returns valid UUID unchanged [0.03ms]
+(pass) sanitizeUUID > removes trailing backslash and returns valid UUID
+(pass) sanitizeUUID > removes trailing forward slash and returns valid UUID
+(pass) sanitizeUUID > removes trailing whitespace and returns valid UUID
+(pass) sanitizeUUID > trims leading whitespace before validation
+(pass) sanitizeUUID > returns undefined for null/undefined input
+(pass) sanitizeUUID > returns undefined for empty string
+(pass) sanitizeUUID > returns undefined for completely invalid input [0.02ms]
+(pass) sanitizeUUID > handles real-world URL-decoded backslash case from error logs [0.02ms]
+(pass) sanitizeUUID > handles multiple types of trailing garbage
+(pass) sanitizeUUID > handles multiple whitespace types
+(pass) sanitizeUUID > rejects UUIDs with embedded invalid characters (fail-fast) [0.04ms]
+
+tests/unit/field-encryption.test.ts:
+(pass) FieldEncryptionService > encrypts and decrypts values with the organization key [1.25ms]
+(pass) FieldEncryptionService > rejects tampered ciphertext [0.22ms]
+(pass) FieldEncryptionService > warns generically when decryptIfNeeded sees plaintext [0.07ms]
+(pass) FieldEncryptionService > falls back to the primary database after an insert race [0.10ms]
+(pass) FieldEncryptionService > fails fast when the master key is missing
+
+tests/unit/admin-service-pricing-route.test.ts:
+(pass) Admin Service Pricing API > GET returns auth response when unauthorized [0.88ms]
+(pass) Admin Service Pricing API > GET returns pricing list for admin [0.31ms]
+(pass) Admin Service Pricing API > PUT upserts pricing and invalidates cache [0.38ms]
+(pass) Admin Service Pricing API > PUT fails when pre-update cache invalidation fails [0.27ms]
+(pass) Admin Service Pricing API > PUT succeeds when only post-update cache invalidation fails [0.07ms]
+
+tests/unit/blooio-schema.test.ts:
+(pass) Blooio Webhook Schema > nullish field handling > should accept event with explicit null values (Blooio actual format) [0.34ms]
+(pass) Blooio Webhook Schema > nullish field handling > should accept event with omitted fields (standard optional) [0.04ms]
+(pass) Blooio Webhook Schema > nullish field handling > should accept event with mixed null and undefined fields [0.03ms]
+(pass) Blooio Webhook Schema > required field validation > should reject event without required event type [0.10ms]
+(pass) Blooio Webhook Schema > required field validation > should reject event with empty event type [0.02ms]
+(pass) Blooio Webhook Schema > attachment validation > should accept string attachments [0.06ms]
+(pass) Blooio Webhook Schema > attachment validation > should accept object attachments with url and name [0.10ms]
+(pass) Blooio Webhook Schema > attachment validation > should accept null attachments array [0.03ms]
+(pass) Blooio Webhook Schema > real Blooio webhook payloads > should handle typical message_received event [0.03ms]
+(pass) Blooio Webhook Schema > real Blooio webhook payloads > should handle message with media attachment
+(pass) Blooio Webhook Schema > real Blooio webhook payloads > should handle typing indicator event [0.04ms]
+
+tests/unit/twilio-automation-service.test.ts:
+(skip) TwilioAutomationService > validateCredentials > returns invalid when accountSid is empty
+(skip) TwilioAutomationService > validateCredentials > returns invalid when authToken is empty
+(skip) TwilioAutomationService > validateCredentials > returns invalid when both are empty
+(skip) TwilioAutomationService > invalidateStatusCache > clears cache for organization
+(skip) TwilioAutomationService > invalidateStatusCache > handles multiple invalidations
+(skip) TwilioAutomationService > getWebhookUrl > returns correct webhook URL format
+(skip) TwilioAutomationService > getWebhookUrl > includes organization ID in URL
+(skip) TwilioAutomationService > sendMessage > returns error when Twilio is not configured
+(skip) TwilioAutomationService > sendMessage > validates E.164 phone number format
+(skip) TwilioAutomationService > sendMessage > accepts valid E.164 format
+(skip) TwilioAutomationService > sendMessage > handles message with media URLs
+(skip) TwilioAutomationService > sendMessage > handles message with multiple media URLs
+(skip) TwilioAutomationService > sendMessage > handles message with status callback
+(skip) TwilioAutomationService > isConfigured > returns false when no credentials stored
+(skip) TwilioAutomationService > getConnectionStatus > returns unconfigured status when no credentials
+(skip) TwilioAutomationService > getConnectionStatus > caches status for performance
+(skip) TwilioAutomationService > getConnectionStatus > respects skipCache option
+(skip) TwilioAutomationService > getConnectionStatus > includes phoneNumber when available
+(skip) TwilioAutomationService > Credential Retrieval Methods > getAccountSid > returns null when no credential stored
+(skip) TwilioAutomationService > Credential Retrieval Methods > getAuthToken > returns null when no credential stored
+(skip) TwilioAutomationService > Credential Retrieval Methods > getPhoneNumber > returns null when no phone number stored
+(skip) TwilioAutomationService > Error Handling > handles empty organization ID
+(skip) TwilioAutomationService > Error Handling > handles special characters in organization ID
+(skip) TwilioAutomationService > Phone Number Validation > rejects phone number without plus sign
+(skip) TwilioAutomationService > Phone Number Validation > rejects phone number with spaces
+(skip) TwilioAutomationService > Phone Number Validation > rejects phone number with dashes
+(skip) TwilioAutomationService > Phone Number Validation > rejects phone number with parentheses
+(skip) TwilioAutomationService > Phone Number Validation > accepts international phone number
+(skip) TwilioAutomationService > Message Request Handling > handles body-only message
+(skip) TwilioAutomationService > Message Request Handling > handles empty body with media
+(skip) TwilioAutomationService > Message Request Handling > handles very long message body
+(skip) TwilioAutomationService > Message Request Handling > handles unicode in message body
+(skip) TwilioAutomationService > Credential Lifecycle > exposes storeCredentials method
+(skip) TwilioAutomationService > Credential Lifecycle > exposes removeCredentials method
+(skip) TwilioAutomationService Cache Behavior > cache TTL is reasonable (5 minutes)
+(skip) TwilioAutomationService Cache Behavior > skipCache forces fresh fetch
+(skip) TwilioAutomationService Cache Behavior > invalidateStatusCache clears cache
+(skip) TwilioAutomationService Edge Cases > handles concurrent status checks for same org
+(skip) TwilioAutomationService Edge Cases > handles concurrent status checks for different orgs
+(skip) TwilioAutomationService Edge Cases > handles concurrent message sends
+
+services/gateway-discord/tests/leader-election.test.ts:
+(pass) Eliza App Bot Leader Election Constants > default leader key has correct format [0.01ms]
+(pass) Eliza App Bot Leader Election Constants > TTL is 10 seconds [0.02ms]
+(pass) Eliza App Bot Leader Election Constants > check interval is 3 seconds
+(pass) Eliza App Bot Leader Election Constants > TTL is greater than check interval [0.01ms]
+(pass) Eliza App Bot Leader Election Constants > check interval allows multiple renewals before TTL expires
+(pass) Leader Election Logic > SETNX (Set if Not Exists) behavior > first pod acquires leadership [0.06ms]
+(pass) Leader Election Logic > SETNX (Set if Not Exists) behavior > second pod cannot acquire leadership while first holds it [0.01ms]
+(pass) Leader Election Logic > SETNX (Set if Not Exists) behavior > leadership can be renewed with EXPIRE [0.03ms]
+(pass) Leader Election Logic > SETNX (Set if Not Exists) behavior > EXPIRE returns false for non-existent key
+(pass) Leader Election Logic > SETNX (Set if Not Exists) behavior > leadership can be explicitly released with DEL [0.02ms]
+(pass) Leader Election Logic > Leadership state management > pod starts as non-leader [0.02ms]
+(pass) Leader Election Logic > Leadership state management > pod becomes leader when acquiring lock [0.02ms]
+(pass) Leader Election Logic > Leadership state management > pod loses leadership when lock expires
+(pass) Leader Election Logic > Leadership state management > state includes pod name [0.03ms]
+(pass) Leader Election Logic > Failover timing > maximum failover time calculation
+(pass) Leader Election Logic > Failover timing > minimum failover time calculation
+(pass) Leader Election Logic > Failover timing > average failover time estimation [0.02ms]
+(pass) Leader Election with Discord Intents > DirectMessages intent bit is correct
+(pass) Leader Election with Discord Intents > MessageContent intent bit is correct [0.01ms]
+(pass) Leader Election with Discord Intents > combined intents for Eliza App bot
+(pass) Discord Partials for DM Support > Channel partial is required for DM events
+(pass) Discord Partials for DM Support > Message partial enables handling of uncached messages
+(pass) Discord Partials for DM Support > both Channel and Message partials should be configured [0.02ms]
+(pass) Environment Variable Configuration > detects Eliza App bot configuration [0.02ms]
+(pass) Environment Variable Configuration > detects Redis configuration [0.02ms]
+(pass) Environment Variable Configuration > leader election requires both bot and Redis config [0.01ms]
+(pass) Graceful Shutdown > Leadership release on shutdown > leader releases lock on graceful shutdown [0.02ms]
+(pass) Graceful Shutdown > Leadership release on shutdown > non-leader has nothing to release
+(pass) Graceful Shutdown > Interval cleanup > leader check interval is cleared on shutdown [0.01ms]
+(pass) DM-Only Message Handling > processes DM messages from users
+(pass) DM-Only Message Handling > skips DM messages from bots
+(pass) DM-Only Message Handling > skips server messages from users
+(pass) DM-Only Message Handling > skips server messages from bots [0.02ms]
+(pass) Webhook Forwarding > creates valid forward payload [0.03ms]
+(pass) Webhook Forwarding > guild_id is always null for DM forwarding
+(pass) Webhook Forwarding > bot flag is always false for forwarded messages [0.03ms]
+
+services/gateway-discord/tests/voice-message-handler.test.ts:
+(pass) Voice attachment detection logic > audio content types are detected as voice [0.03ms]
+(pass) Voice attachment detection logic > non-audio content types are not detected as voice [0.02ms]
+(pass) Voice attachment detection logic > IsVoiceMessage flag (8192) can be detected [0.03ms]
+(pass) Filename sanitization > removes path traversal characters [0.04ms]
+(pass) Filename sanitization > preserves safe characters
+(pass) Filename sanitization > path traversal prevention works by sanitizing parent directory references
+(pass) Voice file size limits > 25MB limit is correct
+(pass) Voice file size limits > files under limit pass validation
+(pass) Voice file size limits > files over limit fail validation
+(pass) parseIntEnv behavior > parseIntEnv logic validates integers correctly [0.13ms]
+(pass) Voice audio TTL calculation > expiration date is calculated correctly
+(pass) Voice audio TTL calculation > file is expired when age exceeds TTL
+
+services/gateway-discord/tests/gateway-manager.test.ts:
+(pass) GatewayManager helper functions > parseIntEnv logic > returns default value when env var not set [0.09ms]
+(pass) GatewayManager helper functions > parseIntEnv logic > parses valid integer from env var [0.02ms]
+(pass) GatewayManager helper functions > parseIntEnv logic > parses zero correctly
+(pass) GatewayManager helper functions > parseIntEnv logic > parses negative numbers [0.01ms]
+(pass) GatewayManager helper functions > parseIntEnv logic > throws on invalid integer
+(pass) GatewayManager helper functions > parseIntEnv logic > throws with env var name in error
+(pass) GatewayManager helper functions > escapePrometheusLabel logic > escapes backslashes [0.05ms]
+(pass) GatewayManager helper functions > escapePrometheusLabel logic > escapes newlines
+(pass) GatewayManager helper functions > escapePrometheusLabel logic > escapes double quotes [0.02ms]
+(pass) GatewayManager helper functions > escapePrometheusLabel logic > escapes combined special characters
+(pass) GatewayManager helper functions > escapePrometheusLabel logic > leaves normal strings unchanged
+(pass) GatewayManager helper functions > metric formatting logic > formats metric with HELP, TYPE, and value [0.03ms]
+(pass) GatewayManager helper functions > metric formatting logic > escapes pod name in metric label
+(pass) GatewayManager helper functions > metric formatting logic > handles zero values [0.02ms]
+(pass) GatewayManager helper functions > metric formatting logic > handles large values
+(pass) GatewayManager helper functions > fetchWithTimeout logic > timeout value is reasonable (10 seconds default)
+(pass) GatewayManager helper functions > fetchWithTimeout logic > event forward timeout is longer (60 seconds)
+(pass) GatewayManager health status logic > health status calculation > returns healthy when no issues
+(pass) GatewayManager health status logic > health status calculation > returns healthy with no bots
+(pass) GatewayManager health status logic > health status calculation > returns unhealthy when control plane is lost
+(pass) GatewayManager health status logic > health status calculation > returns unhealthy when all bots disconnected
+(pass) GatewayManager health status logic > health status calculation > returns degraded when some bots disconnected
+(pass) GatewayManager health status logic > health status calculation > control plane lost takes precedence over all bots connected
+(pass) GatewayManager health status logic > control plane health thresholds > critical threshold is 5 consecutive failures
+(pass) GatewayManager health status logic > control plane health thresholds > isControlPlaneLost logic
+(pass) GatewayManager failover logic > dead pod detection > dead pod threshold is 45 seconds [0.01ms]
+(pass) GatewayManager failover logic > dead pod detection > pod is dead when heartbeat exceeds threshold [0.02ms]
+(pass) GatewayManager failover logic > capacity limits > default max bots per pod is 100
+(pass) GatewayManager failover logic > capacity limits > hasCapacity logic
+(pass) GatewayManager constants > bot poll interval is 30 seconds
+(pass) GatewayManager constants > heartbeat interval is 15 seconds
+(pass) GatewayManager constants > pod state TTL is 5 minutes
+(pass) GatewayManager constants > session state TTL is 1 hour
+(pass) GatewayManager constants > max Discord message length is 2000
+(pass) GatewayManager Discord intents > default intents include required permissions [0.08ms]
+(pass) Bot connection state transitions > valid connection statuses [0.02ms]
+(pass) Bot connection state transitions > connection lifecycle transitions [0.01ms]
+(pass) Token sanitization > regex matches real Discord token formats [0.03ms]
+(pass) Token sanitization > sanitizeError redacts tokens from error messages [0.03ms]
+(pass) Token sanitization > sanitizeError handles Error objects [0.01ms]
+(pass) Token sanitization > sanitizeError handles multiple tokens in one message
+(pass) Token sanitization > sanitizeError preserves messages without tokens
+(pass) Token sanitization > regex does not match non-token strings [0.01ms]
+(pass) Token sanitization > regex handles tokens with underscores and hyphens
+(pass) Token sanitization > sanitizeError works with all sample tokens [0.02ms]
+(pass) Event forwarding > supported event types
+(pass) Event forwarding > event payload structure [0.05ms]
+
+services/gateway-discord/tests/logger.test.ts:
+(pass) logger > log level filtering > debug level logs all messages [0.62ms]
+(pass) logger > log level filtering > info level filters debug messages [0.33ms]
+(pass) logger > log level filtering > warn level filters debug and info messages [0.37ms]
+(pass) logger > log level filtering > error level only logs errors [0.19ms]
+(pass) logger > log level filtering > defaults to info level when LOG_LEVEL not set [0.20ms]
+(pass) logger > message formatting > formats message as JSON with timestamp, level, and message [0.22ms]
+(pass) logger > message formatting > includes metadata in formatted message [0.25ms]
+(pass) logger > message formatting > warn logs to console.warn [0.21ms]
+(pass) logger > message formatting > error logs to console.error [0.15ms]
+(pass) logger > edge cases > handles undefined metadata [0.10ms]
+(pass) logger > edge cases > handles empty metadata object [0.16ms]
+(pass) logger > edge cases > handles complex nested metadata [0.12ms]
+
+tests/unit/engagement-metrics/schemas.test.ts:
+(pass) dailyMetrics schema > table name is daily_metrics [0.04ms]
+(pass) dailyMetrics schema > has all required columns
+(pass) dailyMetrics schema > id is a uuid primary key [0.07ms]
+(pass) dailyMetrics schema > date column is not nullable [0.01ms]
+(pass) dailyMetrics schema > platform column is nullable (for aggregate rows) [0.01ms]
+(pass) dailyMetrics schema > dau, new_signups, total_messages have default 0 [0.01ms]
+(pass) dailyMetrics schema > messages_per_user is numeric(10,2)
+(pass) dailyMetrics schema > has a unique index on (date, platform) [0.05ms]
+(pass) dailyMetrics schema > has a non-unique index on (date) [0.02ms]
+(pass) retentionCohorts schema > table name is retention_cohorts
+(pass) retentionCohorts schema > has all required columns [0.02ms]
+(pass) retentionCohorts schema > id is a uuid primary key
+(pass) retentionCohorts schema > cohort_date column is not nullable
+(pass) retentionCohorts schema > platform column is nullable (for aggregate rows)
+(pass) retentionCohorts schema > cohort_size is required
+(pass) retentionCohorts schema > d1/d7/d30 retained columns are nullable
+(pass) retentionCohorts schema > has a unique index on (cohort_date, platform)
+
+tests/unit/engagement-metrics/user-metrics-contract.test.ts:
+(pass) UserMetricsService interface contract > getActiveUsers > returns ActiveUsersResult shape with total and byPlatform [1.65ms]
+(pass) UserMetricsService interface contract > getActiveUsers > total is sum of all platform DAUs [0.06ms]
+(pass) UserMetricsService interface contract > getActiveUsers > accepts day, 7d, and 30d time ranges [0.05ms]
+(pass) UserMetricsService interface contract > getNewSignups > returns SignupsResult shape with total and byDay [0.04ms]
+(pass) UserMetricsService interface contract > getNewSignups > total equals sum of daily counts [0.05ms]
+(pass) UserMetricsService interface contract > getNewSignups > returns empty byDay array when no signups [0.02ms]
+(pass) UserMetricsService interface contract > getOAuthConnectionRate > returns OAuthConnectionRate with rate between 0 and 1
+(pass) UserMetricsService interface contract > getOAuthConnectionRate > rate is 0 when no users exist [0.07ms]
+(pass) UserMetricsService interface contract > getOAuthConnectionRate > byService maps platform names to user counts [0.02ms]
+(pass) UserMetricsService interface contract > getMetricsOverview > returns all required overview fields [0.05ms]
+(pass) UserMetricsService interface contract > getMetricsOverview > DAU <= WAU <= MAU
+(pass) UserMetricsService interface contract > computeDailyMetrics > accepts a Date parameter [0.02ms]
+(pass) UserMetricsService interface contract > computeDailyMetrics > does not return data (void) [0.03ms]
+(pass) UserMetricsService interface contract > computeRetentionCohorts > accepts a Date parameter [0.03ms]
+(pass) UserMetricsService interface contract > computeRetentionCohorts > does not return data (void) [0.01ms]
+
+tests/unit/engagement-metrics/compute-metrics-cron.test.ts:
+(pass) Compute Metrics Cron > authentication > rejects request with no authorization header [0.36ms]
+(pass) Compute Metrics Cron > authentication > rejects request with wrong secret [0.04ms]
+(pass) Compute Metrics Cron > authentication > rejects request when CRON_SECRET is not set
+(pass) Compute Metrics Cron > authentication > rejects request with different-length secret
+(pass) Compute Metrics Cron > authentication > accepts request with valid secret [0.08ms]
+(pass) Compute Metrics Cron > computation > calls computeDailyMetrics with yesterday's date
+(pass) Compute Metrics Cron > computation > calls computeRetentionCohorts with yesterday's date
+(pass) Compute Metrics Cron > computation > returns success response with date and duration
+(pass) Compute Metrics Cron > computation > returns 500 when computation fails [0.23ms]
+(pass) Compute Metrics Cron > computation > returns generic error for non-Error exceptions
+
+tests/unit/engagement-metrics/admin-metrics-api.test.ts:
+(pass) Admin Metrics API > authentication > returns 403 when admin check fails [1.91ms]
+(pass) Admin Metrics API > authentication > returns 403 with custom error message [0.04ms]
+(pass) Admin Metrics API > authentication > succeeds when admin check passes with super_admin role [0.03ms]
+(pass) Admin Metrics API > authentication > returns 403 for moderator role
+(pass) Admin Metrics API > authentication > returns 403 for viewer role
+(pass) Admin Metrics API > authentication > returns 403 when role is null [0.12ms]
+(pass) Admin Metrics API > view routing > defaults to overview when no view specified
+(pass) Admin Metrics API > view routing > returns overview data for view=overview
+(pass) Admin Metrics API > view routing > passes time range to overview as rangeDays
+(pass) Admin Metrics API > view routing > returns daily data for view=daily [0.21ms]
+(pass) Admin Metrics API > view routing > returns retention data for view=retention [0.02ms]
+(pass) Admin Metrics API > view routing > returns active users for view=active [0.05ms]
+(pass) Admin Metrics API > view routing > returns signups for view=signups [0.04ms]
+(pass) Admin Metrics API > view routing > returns oauth rate for view=oauth
+(pass) Admin Metrics API > view routing > returns 400 for unknown view
+(pass) Admin Metrics API > time range handling > defaults to 30d when no timeRange specified
+(pass) Admin Metrics API > time range handling > handles 7d time range [0.16ms]
+(pass) Admin Metrics API > time range handling > handles 90d time range [0.04ms]
+(pass) Admin Metrics API > time range handling > maps active view time ranges correctly [0.06ms]
+(pass) Admin Metrics API > time range handling > falls back to 30d for unrecognized time range [0.01ms]
+(pass) Admin Metrics API > error handling > returns 500 when service throws [0.05ms]
+(pass) Admin Metrics API > error handling > returns 500 for daily view failure [0.03ms]
+
+tests/unit/engagement-metrics/cache-keys.test.ts:
+(pass) CacheKeys.userMetrics > overview returns a versioned key scoped by range
+(pass) CacheKeys.userMetrics > daily returns a key scoped by date range
+(pass) CacheKeys.userMetrics > daily keys with different ranges are distinct [0.06ms]
+(pass) CacheKeys.userMetrics > retention returns a key scoped by date range
+(pass) CacheKeys.userMetrics > activeUsers returns a key scoped by time range
+(pass) CacheKeys.userMetrics > pattern returns a wildcard for invalidation
+(pass) CacheKeys.userMetrics > all keys include version suffix v1 [0.03ms]
+(pass) CacheTTL.userMetrics > overview TTL is 300 seconds
+(pass) CacheTTL.userMetrics > daily TTL is 3600 seconds (pre-computed data)
+(pass) CacheTTL.userMetrics > retention TTL is 3600 seconds (pre-computed data) [0.02ms]
+(pass) CacheTTL.userMetrics > activeUsers TTL is 300 seconds
+(pass) CacheTTL.userMetrics > pre-computed TTLs are longer than live query TTLs
+(pass) CacheStaleTTL.userMetrics > overview stale TTL is 180 seconds
+(pass) CacheStaleTTL.userMetrics > activeUsers stale TTL is 180 seconds
+(pass) CacheStaleTTL.userMetrics > stale TTLs are shorter than their corresponding TTLs
+
+tests/unit/oauth/secrets-adapter-utils.test.ts:
+(pass) Secrets Adapter Utils > generateConnectionId > should generate ID in format platform:organizationId [1.62ms]
+(pass) Secrets Adapter Utils > generateConnectionId > should work with various platform names [0.06ms]
+(pass) Secrets Adapter Utils > generateConnectionId > should work with UUIDs as organization IDs
+(pass) Secrets Adapter Utils > generateConnectionId > should handle special characters in organization ID
+(pass) Secrets Adapter Utils > generateConnectionId > should handle empty strings
+(pass) Secrets Adapter Utils > ownsConnectionId > should return true when ID starts with platform prefix [0.06ms]
+(pass) Secrets Adapter Utils > ownsConnectionId > should return false when ID does not match platform
+(pass) Secrets Adapter Utils > ownsConnectionId > should return false for UUID-style IDs (Google format) [0.03ms]
+(pass) Secrets Adapter Utils > ownsConnectionId > should handle partial matches correctly
+(pass) Secrets Adapter Utils > ownsConnectionId > should handle edge cases [0.02ms]
+(pass) Secrets Adapter Utils > verifyConnectionId > should not throw when connection ID matches expected format
+(pass) Secrets Adapter Utils > verifyConnectionId > should throw CONNECTION_NOT_FOUND when ID does not match [0.08ms]
+(pass) Secrets Adapter Utils > verifyConnectionId > should throw when platform does not match
+(pass) Secrets Adapter Utils > verifyConnectionId > should throw when organization ID does not match
+(pass) Secrets Adapter Utils > verifyConnectionId > should throw when connection ID is malformed
+(pass) Secrets Adapter Utils > verifyConnectionId > should throw when connection ID is a UUID (wrong format)
+(pass) Secrets Adapter Utils > getEarliestSecretDate > should return earliest date from array
+(pass) Secrets Adapter Utils > getEarliestSecretDate > should return current date for empty array
+(pass) Secrets Adapter Utils > getEarliestSecretDate > should return the single date for array of one [0.16ms]
+(pass) Secrets Adapter Utils > getEarliestSecretDate > should handle dates as Date objects [0.02ms]
+(pass) Secrets Adapter Utils > getEarliestSecretDate > should handle identical dates [0.01ms]
+(pass) Secrets Adapter Utils > createSecretsConnection > should create connection with required fields [0.02ms]
+(pass) Secrets Adapter Utils > createSecretsConnection > should allow overriding fields
+(pass) Secrets Adapter Utils > createSecretsConnection > should not allow overriding generated ID
+(pass) Secrets Adapter Utils > createSecretsConnection > should work with all platform types [0.08ms]
+(pass) Secrets Adapter Utils > createSecretsConnection > should allow setting status in overrides
+(pass) Secrets Adapter Utils > createSecretsConnection > should allow setting scopes in overrides
+(pass) Secrets Adapter Utils > createSecretsConnection > should allow setting lastUsedAt in overrides
+(pass) Secrets Adapter Utils > createSecretsConnection > should not have lastUsedAt by default
+(pass) Connection ID Format Compatibility > should distinguish secrets-based IDs from platform_credentials IDs [0.01ms]
+(pass) Connection ID Format Compatibility > should handle various organization ID formats [0.04ms]
+
+tests/unit/oauth/connection-adapters.test.ts:
+(pass) Connection Adapters Registry > getAdapter > should return adapter for Google
+(pass) Connection Adapters Registry > getAdapter > should return adapter for Twitter
+(pass) Connection Adapters Registry > getAdapter > should return adapter for Twilio
+(pass) Connection Adapters Registry > getAdapter > should return adapter for Blooio
+(pass) Connection Adapters Registry > getAdapter > should return null for unknown platform [0.13ms]
+(pass) Connection Adapters Registry > getAdapter > should return null for Discord (excluded)
+(pass) Connection Adapters Registry > getAllAdapters > should return array of all adapters
+(pass) Connection Adapters Registry > getAllAdapters > should include adapters for all defined providers
+(pass) Connection Adapters Registry > getAllAdapters > should not include Discord adapter
+(pass) Connection Adapters Registry > Adapter Interface Compliance > each adapter should have a platform property
+(pass) Connection Adapters Registry > Adapter Interface Compliance > each adapter should implement listConnections
+(pass) Connection Adapters Registry > Adapter Interface Compliance > each adapter should implement getToken
+(pass) Connection Adapters Registry > Adapter Interface Compliance > each adapter should implement revoke
+(pass) Connection Adapters Registry > Adapter Interface Compliance > each adapter should implement ownsConnection [0.16ms]
+(pass) Google Adapter > should have correct platform
+(pass) Google Adapter > ownsConnection > should return true for UUID connection IDs
+(pass) Google Adapter > ownsConnection > should return false for non-UUID connection IDs
+(pass) Google Adapter > ownsConnection > should return false for invalid format
+(pass) Google Adapter > ownsConnection > should return false for empty string
+(pass) Twitter Adapter > should have correct platform
+(pass) Twitter Adapter > ownsConnection > should return true for twitter: prefixed IDs [0.04ms]
+(pass) Twitter Adapter > ownsConnection > should return false for other platform prefixes
+(pass) Twitter Adapter > ownsConnection > should return false for UUID IDs
+(pass) Twilio Adapter > should have correct platform
+(pass) Twilio Adapter > ownsConnection > should return true for twilio: prefixed IDs
+(pass) Twilio Adapter > ownsConnection > should return false for other platform prefixes
+(pass) Blooio Adapter > should have correct platform
+(pass) Blooio Adapter > ownsConnection > should return true for blooio: prefixed IDs
+(pass) Blooio Adapter > ownsConnection > should return false for other platform prefixes
+(pass) Connection ID Disambiguation > adapters should not claim each others connection IDs [0.22ms]
+(pass) Connection ID Disambiguation > malformed IDs should not be owned by any secrets adapter
+(pass) Storage Type Alignment > Google adapter should use platform_credentials storage
+(pass) Storage Type Alignment > Twitter adapter should use secrets storage
+(pass) Storage Type Alignment > Twilio adapter should use secrets storage [0.14ms]
+(pass) Storage Type Alignment > Blooio adapter should use secrets storage
+(pass) Provider-Adapter Consistency > each provider should have a corresponding adapter
+(pass) Provider-Adapter Consistency > each adapter should have a corresponding provider
+
+tests/unit/oauth/errors.test.ts:
+(pass) OAuthError Class > constructor > should create error with required parameters [0.07ms]
+(pass) OAuthError Class > constructor > should create error with all parameters
+(pass) OAuthError Class > constructor > should extend Error class
+(pass) OAuthError Class > toResponse > should convert to response object with all fields
+(pass) OAuthError Class > toResponse > should convert to response with undefined optional fields
+(pass) OAuthError Class > httpStatus > should return correct HTTP status for each error code [0.15ms]
+(pass) ERROR_STATUS_MAP > should have all error codes mapped
+(pass) ERROR_STATUS_MAP > should map to valid HTTP status codes [0.04ms]
+(pass) Error Factory Functions > Errors.platformNotConnected > should create error with platform name [0.02ms]
+(pass) Error Factory Functions > Errors.platformNotConnected > should work with various platform names [0.01ms]
+(pass) Error Factory Functions > Errors.connectionNotFound > should create error with connection ID
+(pass) Error Factory Functions > Errors.connectionRevoked > should create error with platform name
+(pass) Error Factory Functions > Errors.connectionExpired > should create error with platform name [0.04ms]
+(pass) Error Factory Functions > Errors.tokenRefreshFailed > should create error without reason
+(pass) Error Factory Functions > Errors.tokenRefreshFailed > should create error with reason [0.02ms]
+(pass) Error Factory Functions > Errors.tokenDecryptionFailed > should create error with platform name
+(pass) Error Factory Functions > Errors.tokenInvalid > should create error with platform name [0.04ms]
+(pass) Error Factory Functions > Errors.platformNotConfigured > should create error with platform name [0.01ms]
+(pass) Error Factory Functions > Errors.platformNotSupported > should create error with platform name
+(pass) Error Factory Functions > Errors.unauthorized > should create unauthorized error
+(pass) Error Factory Functions > Errors.forbidden > should create forbidden error [0.05ms]
+(pass) Error Factory Functions > Errors.rateLimited > should create rate limited error with retry after
+(pass) Error Factory Functions > Errors.internalError > should create internal error with message
+(pass) Response Helper Functions > internalErrorResponse > should create response with default message
+(pass) Response Helper Functions > internalErrorResponse > should create response with custom message
+(pass) Response Helper Functions > validationErrorResponse > should create validation error response [0.07ms]
+(pass) OAuthErrorCode Enum > should have unique values
+(pass) OAuthErrorCode Enum > should have all expected error codes [0.01ms]
+
+tests/unit/oauth/provider-registry.test.ts:
+(pass) Provider Registry > OAUTH_PROVIDERS > should include all expected providers
+(pass) Provider Registry > OAUTH_PROVIDERS > should NOT include Discord (excluded by design)
+(pass) Provider Registry > OAUTH_PROVIDERS > should have required fields for each provider [0.12ms]
+(pass) Provider Registry > OAUTH_PROVIDERS > Google Provider > should have correct type
+(pass) Provider Registry > OAUTH_PROVIDERS > Google Provider > should require GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
+(pass) Provider Registry > OAUTH_PROVIDERS > Google Provider > should use platform_credentials storage
+(pass) Provider Registry > OAUTH_PROVIDERS > Google Provider > should have default scopes
+(pass) Provider Registry > OAUTH_PROVIDERS > Google Provider > should use generic routes
+(pass) Provider Registry > OAUTH_PROVIDERS > Twitter Provider > should have OAuth 1.0a type
+(pass) Provider Registry > OAUTH_PROVIDERS > Twitter Provider > should require Twitter API keys
+(pass) Provider Registry > OAUTH_PROVIDERS > Twitter Provider > should use secrets storage
+(pass) Provider Registry > OAUTH_PROVIDERS > Twitter Provider > should have secret patterns defined [0.02ms]
+(pass) Provider Registry > OAUTH_PROVIDERS > Twilio Provider > should have api_key type
+(pass) Provider Registry > OAUTH_PROVIDERS > Twilio Provider > should have empty envVars (user provides credentials) [0.01ms]
+(pass) Provider Registry > OAUTH_PROVIDERS > Twilio Provider > should use secrets storage
+(pass) Provider Registry > OAUTH_PROVIDERS > Twilio Provider > should have secret patterns defined
+(pass) Provider Registry > OAUTH_PROVIDERS > Twilio Provider > should have empty callback route (API key platforms)
+(pass) Provider Registry > OAUTH_PROVIDERS > Blooio Provider > should have api_key type
+(pass) Provider Registry > OAUTH_PROVIDERS > Blooio Provider > should have empty envVars (user provides credentials)
+(pass) Provider Registry > OAUTH_PROVIDERS > Blooio Provider > should use secrets storage
+(pass) Provider Registry > OAUTH_PROVIDERS > Blooio Provider > should have secret patterns defined
+(pass) Provider Registry > getProvider > should return provider for valid ID
+(pass) Provider Registry > getProvider > should return null for invalid ID
+(pass) Provider Registry > getProvider > should return null for empty string
+(pass) Provider Registry > getProvider > should be case-insensitive
+(pass) Provider Registry > getProvider > should return all expected providers
+(pass) Provider Registry > isProviderConfigured > should return true for API key providers (empty envVars)
+(pass) Provider Registry > isProviderConfigured > should return false when Google env vars are missing [0.18ms]
+(pass) Provider Registry > isProviderConfigured > should return true when all Google env vars are set [0.01ms]
+(pass) Provider Registry > isProviderConfigured > should return false when only some env vars are set [0.01ms]
+(pass) Provider Registry > isProviderConfigured > should return false when env vars are empty strings
+(pass) Provider Registry > isProviderConfigured > should return false when Twitter env vars are missing
+(pass) Provider Registry > isProviderConfigured > should return true when Twitter env vars are set [0.05ms]
+(pass) Provider Registry > getConfiguredProviders > should always include API key providers [0.03ms]
+(pass) Provider Registry > getConfiguredProviders > should include OAuth providers when configured [0.03ms]
+(pass) Provider Registry > getConfiguredProviders > should not include OAuth providers when not configured [0.04ms]
+(pass) Provider Registry > getAllProviderIds > should return all provider IDs
+(pass) Provider Registry > getAllProviderIds > should not include Discord
+(pass) Provider Registry > getAllProviderIds > should match keys of OAUTH_PROVIDERS [0.05ms]
+(pass) Provider Registry > isValidProvider > should return true for valid provider IDs [0.02ms]
+(pass) Provider Registry > isValidProvider > should return false for invalid provider IDs [0.01ms]
+(pass) Provider Registry > isValidProvider > should be case-insensitive
+
+tests/unit/oauth/oauth-service.test.ts:
+(pass) OAuth Service Logic > listProviders transformation > should transform provider config to info format [0.05ms]
+(pass) OAuth Service Logic > listProviders transformation > should include all expected providers [0.02ms]
+(pass) OAuth Service Logic > getMostRecentActive logic > should return null for empty array
+(pass) OAuth Service Logic > getMostRecentActive logic > should return null when no active connections
+(pass) OAuth Service Logic > getMostRecentActive logic > should return the only active connection
+(pass) OAuth Service Logic > getMostRecentActive logic > should return most recently used when lastUsedAt is set [0.14ms]
+(pass) OAuth Service Logic > getMostRecentActive logic > should fall back to linkedAt when lastUsedAt is undefined
+(pass) OAuth Service Logic > sortConnectionsByRecency logic > should return empty array for empty input
+(pass) OAuth Service Logic > sortConnectionsByRecency logic > should sort by lastUsedAt descending
+(pass) OAuth Service Logic > sortConnectionsByRecency logic > should use linkedAt when lastUsedAt is undefined
+(pass) OAuth Service Logic > sortConnectionsByRecency logic > should handle mixed lastUsedAt and linkedAt
+(pass) OAuth Service Logic > initiateAuth logic > should return requiresCredentials for API key platforms [0.11ms]
+(pass) OAuth Service Logic > initiateAuth logic > should generate auth URL for OAuth platforms
+(pass) OAuth Service Logic > Connection filtering > should filter connections by platform [0.06ms]
+(pass) OAuth Service Logic > Connection filtering > should filter connections by status [0.01ms]
+(pass) OAuth Service Logic > Token retrieval logic > should check cache before querying adapter
+(pass) OAuth Service Logic > Token retrieval logic > should invalidate cache on revoke
+(pass) OAuth Service Logic > Platform connection check > should check if any active connection exists for platform
+(pass) OAuth Service Logic > Connected platforms list > should return unique platforms with active connections
+(pass) OAuth Types > OAuthProviderType > should support oauth2, oauth1a, and api_key types
+(pass) OAuth Types > OAuthConnectionStatus > should have all expected statuses
+(pass) OAuth Types > OAuthConnectionSource > should distinguish platform_credentials from secrets
+
+tests/unit/oauth/token-cache.test.ts:
+(pass) Token Cache Logic > Cache Key Format > should generate keys in format oauth_token:orgId:connectionId [0.02ms]
+(pass) Token Cache Logic > Cache Key Format > should handle UUIDs in connection IDs [0.01ms]
+(pass) Token Cache Logic > Cache Key Format > should handle secrets-style connection IDs
+(pass) Token Cache Logic > TTL Calculation > should return default TTL when no expiry provided
+(pass) Token Cache Logic > TTL Calculation > should return 0 when token is already expired
+(pass) Token Cache Logic > TTL Calculation > should return 0 when token expires within 5 minutes
+(pass) Token Cache Logic > TTL Calculation > should return positive TTL when token expires after 5 minute buffer [0.03ms]
+(pass) Token Cache Logic > TTL Calculation > should cap TTL at 24 hours
+(pass) Token Cache Logic > TTL Calculation > should handle edge case at exactly 5 minutes
+(pass) Token Cache Logic > TTL Calculation > should handle token expiring just after 5 minute buffer
+(pass) Token Cache Logic > Expiry Buffer Logic > should invalidate when within 5 minute buffer [0.01ms]
+(pass) Token Cache Logic > Expiry Buffer Logic > should not invalidate when outside 5 minute buffer
+(pass) Token Cache Logic > Expiry Buffer Logic > should invalidate when already expired [0.01ms]
+(pass) Token Cache Logic > Expiry Buffer Logic > should invalidate at exactly 5 minutes
+(pass) Token Cache Logic > Expiry Buffer Logic > should not invalidate at 5 minutes 1 second
+(pass) Token Cache Logic > Cache Pattern Invalidation > should generate correct pattern for org invalidation
+(pass) Token Cache Logic > Cache Pattern Invalidation > should generate correct pattern for platform invalidation
+(pass) Token Cache Logic > Token Result Transformation > should mark token as fromCache=true when retrieved from cache [0.04ms]
+(pass) Token Cache Logic > Token Result Transformation > should mark token as fromCache=false when stored
+(pass) Token Cache Logic > Token Result Transformation > should preserve all token fields [0.02ms]
+(pass) Token Cache Logic > Date Serialization Handling > should handle Date objects from JSON deserialization [0.94ms]
+(pass) Token Cache Logic > Date Serialization Handling > should handle already-Date objects [0.03ms]
+(pass) Token Cache Logic > Date Serialization Handling > should handle undefined expiresAt [0.03ms]
+(pass) Token Cache Logic > OAuth 1.0a Token Handling > should support tokens without expiry (OAuth 1.0a) [0.03ms]
+(pass) Token Cache Logic > OAuth 1.0a Token Handling > should include accessTokenSecret in cached data [0.02ms]
+(pass) Token Cache Logic > Concurrent Access Safety > should handle multiple cache keys for same organization [0.03ms]
+(pass) Token Cache Logic > Concurrent Access Safety > should namespace keys by organization for isolation
+(pass) CachedToken Structure > should include cachedAt timestamp
+(pass) CachedToken Structure > should set fromCache=false when storing
+
+tests/unit/eliza-app/telegram-auth.test.ts:
+(pass) Telegram Auth Hash Generation > generates 64-character hex hash [1.31ms]
+(pass) Telegram Auth Hash Generation > same data produces same hash [0.05ms]
+(pass) Telegram Auth Hash Generation > different data produces different hash [0.02ms]
+(pass) Telegram Auth Hash Generation > different bot token produces different hash [0.02ms]
+(pass) Telegram Auth Hash Generation > fields are sorted alphabetically [0.01ms]
+(pass) Telegram Auth Hash Generation > optional fields affect hash when present [0.04ms]
+(pass) Auth Date Validation > current timestamp is valid
+(pass) Auth Date Validation > 1 hour old auth is valid
+(pass) Auth Date Validation > 23 hours old auth is valid
+(pass) Auth Date Validation > 25 hours old auth is expired [0.05ms]
+(pass) Auth Date Validation > future auth_date is invalid (negative age) [0.02ms]
+(pass) Hash Tampering Detection > modified id invalidates hash [0.03ms]
+(pass) Hash Tampering Detection > modified first_name invalidates hash [0.02ms]
+(pass) Hash Tampering Detection > modified auth_date invalidates hash [0.02ms]
+(pass) Hash Tampering Detection > single character change invalidates hash [0.01ms]
+(pass) Edge Cases > handles unicode in first_name [0.01ms]
+(pass) Edge Cases > handles empty username [0.01ms]
+(pass) Edge Cases > handles very long first_name
+(pass) Edge Cases > handles special characters in username [0.02ms]
+(pass) Edge Cases > handles max int32 for id [0.02ms]
+(pass) Edge Cases > handles photo_url field [0.02ms]
+(pass) Timing Safe Comparison > Buffer comparison for equal hashes [0.02ms]
+(pass) Timing Safe Comparison > Buffer comparison for different hashes
+(pass) Timing Safe Comparison > Buffer length must match for valid comparison
+
+tests/unit/eliza-app/cross-platform-linking.test.ts:
+(pass) Cross-Platform Account Linking > Two-platform combinations > Telegram first → link Discord (session-based) → same account [1.33ms]
+(pass) Cross-Platform Account Linking > Two-platform combinations > Telegram first → iMessage arrives (same phone) → same account [0.04ms]
+(pass) Cross-Platform Account Linking > Two-platform combinations > Discord first → link Telegram (session-based) → same account [0.07ms]
+(pass) Cross-Platform Account Linking > Two-platform combinations > Discord first (with phone) → iMessage arrives (same phone) → same account
+(pass) Cross-Platform Account Linking > Two-platform combinations > iMessage first → link Telegram (via findOrCreateByTelegramWithPhone) → same account [0.07ms]
+(pass) Cross-Platform Account Linking > Two-platform combinations > iMessage first → link Discord (via findOrCreateByDiscordId with phone) → same account
+(pass) Cross-Platform Account Linking > Two-platform combinations > iMessage first → link Discord (session-based) → same account
+(pass) Cross-Platform Account Linking > Three-platform combinations > Telegram → Discord → iMessage → single account [0.08ms]
+(pass) Cross-Platform Account Linking > Three-platform combinations > Telegram → iMessage → Discord → single account
+(pass) Cross-Platform Account Linking > Three-platform combinations > Discord → Telegram → iMessage → single account [0.04ms]
+(pass) Cross-Platform Account Linking > Three-platform combinations > Discord → iMessage → Telegram → single account
+(pass) Cross-Platform Account Linking > Three-platform combinations > iMessage → Telegram → Discord → single account [0.02ms]
+(pass) Cross-Platform Account Linking > Three-platform combinations > iMessage → Discord → Telegram → single account
+(pass) Cross-Platform Account Linking > Edge cases > Discord first (no phone) → link Telegram (with phone) → iMessage → all same account [0.05ms]
+(pass) Cross-Platform Account Linking > Edge cases > Two different users try to link same phone → conflict error [0.02ms]
+(pass) Cross-Platform Account Linking > Edge cases > Two different users try to link same Telegram ID → conflict error [0.01ms]
+(pass) Cross-Platform Account Linking > Edge cases > Two different users try to link same Discord ID → conflict error [0.03ms]
+(pass) Cross-Platform Account Linking > Edge cases > Session-based linking when platform already linked to same user → idempotent success [0.03ms]
+(pass) Cross-Platform Account Linking > Edge cases > Session-based linking when platform already linked to different user → conflict [0.03ms]
+(pass) Cross-Platform Account Linking > Edge cases > Discord OAuth with phone that matches Telegram user → links to existing (no session needed) [0.01ms]
+(pass) Cross-Platform Account Linking > Edge cases > Telegram OAuth with phone that matches Discord user → links to existing (no session needed) [0.03ms]
+(pass) Cross-Platform Account Linking > Edge cases > Discord first (no phone) → Telegram OAuth (no session) → creates separate accounts without phone bridge
+(pass) Cross-Platform Account Linking > Edge cases > Phone mismatch throws error for Telegram user with existing different phone [0.03ms]
+(pass) Cross-Platform Account Linking > Session-aware auth endpoint logic > Discord auth with valid session → links to existing account [0.02ms]
+(pass) Cross-Platform Account Linking > Session-aware auth endpoint logic > Discord auth without session → creates new account (standard flow)
+(pass) Cross-Platform Account Linking > Session-aware auth endpoint logic > Telegram auth with valid session → links to existing account
+(pass) Cross-Platform Account Linking > Session-aware auth endpoint logic > Telegram auth without session → creates new account (standard flow) [0.03ms]
+(pass) Cross-Platform Account Linking > Session-aware auth endpoint logic > Auth with expired/invalid session → falls through to create flow [0.02ms]
+(pass) Cross-Platform Account Linking > findOrCreateByDiscordId phone fallback > Discord with phone, no existing user → creates new user with both [0.02ms]
+(pass) Cross-Platform Account Linking > findOrCreateByDiscordId phone fallback > Discord without phone → creates user without phone
+(pass) Cross-Platform Account Linking > findOrCreateByDiscordId phone fallback > Discord with phone matching existing Telegram user → cross-links
+(pass) Cross-Platform Account Linking > findOrCreateByDiscordId phone fallback > Discord with phone matching existing iMessage user → cross-links [0.03ms]
+(pass) Cross-Platform Account Linking > findOrCreateByDiscordId phone fallback > Returning Discord user, phone provided, user has no phone yet → adds phone [0.02ms]
+(pass) Cross-Platform Account Linking > findOrCreateByDiscordId phone fallback > Discord with phone matching user that already has different discord → throws [0.04ms]
+(pass) Cross-Platform Account Linking > linkDiscordToUser > links Discord to user with no Discord [0.03ms]
+(pass) Cross-Platform Account Linking > linkDiscordToUser > returns success when Discord already linked to same user (idempotent) [0.02ms]
+(pass) Cross-Platform Account Linking > linkDiscordToUser > returns error when Discord linked to different user
+(pass) Cross-Platform Account Linking > findOrCreateByWhatsAppId > creates new user with WhatsApp ID and auto-derived phone [0.04ms]
+(pass) Cross-Platform Account Linking > findOrCreateByWhatsAppId > returns existing user when WhatsApp ID already exists
+(pass) Cross-Platform Account Linking > findOrCreateByWhatsAppId > links WhatsApp to existing phone user (Telegram-first)
+(pass) Cross-Platform Account Linking > findOrCreateByWhatsAppId > links WhatsApp to existing phone user (iMessage-first)
+(pass) Cross-Platform Account Linking > findOrCreateByWhatsAppId > all four platforms converge to single user [0.06ms]
+(pass) Cross-Platform Account Linking > linkWhatsAppToUser > links WhatsApp to user with no WhatsApp [0.03ms]
+(pass) Cross-Platform Account Linking > linkWhatsAppToUser > returns success when WhatsApp already linked to same user (idempotent)
+(pass) Cross-Platform Account Linking > linkWhatsAppToUser > returns error when WhatsApp linked to different user [0.03ms]
+
+tests/unit/eliza-app/webhook-validation.test.ts:
+(pass) Telegram Webhook Secret Verification > valid secret token passes verification
+(pass) Telegram Webhook Secret Verification > invalid secret token fails verification
+(pass) Telegram Webhook Secret Verification > timing-safe comparison prevents timing attacks [0.04ms]
+(pass) Telegram Webhook Secret Verification > empty secret token fails
+(pass) Telegram Webhook Secret Verification > null-byte injection attempt fails [0.02ms]
+(pass) Blooio Signature Verification > valid signature passes verification [0.02ms]
+(pass) Blooio Signature Verification > tampered payload fails verification [0.03ms]
+(pass) Blooio Signature Verification > wrong secret produces different signature
+(pass) Blooio Signature Verification > signature is 64-character hex
+(pass) Telegram Update Validation > valid private message update passes [0.36ms]
+(pass) Telegram Update Validation > update without message is valid
+(pass) Telegram Update Validation > missing update_id fails [0.10ms]
+(pass) Telegram Update Validation > invalid chat type fails [0.05ms]
+(pass) Telegram Update Validation > group message is parsed correctly [0.02ms]
+(pass) Blooio Webhook Validation > valid message.received event passes [0.13ms]
+(pass) Blooio Webhook Validation > valid message.sent event passes [0.01ms]
+(pass) Blooio Webhook Validation > invalid event type fails [0.02ms]
+(pass) Blooio Webhook Validation > missing event field fails [0.02ms]
+(pass) Blooio Webhook Validation > message with attachments passes [0.07ms]
+(pass) Blooio Webhook Validation > group message is identified [0.02ms]
+(pass) Idempotency Key Generation > Telegram idempotency key format
+(pass) Idempotency Key Generation > Blooio idempotency key format
+(pass) Idempotency Key Generation > same update_id produces same key
+(pass) Idempotency Key Generation > different update_ids produce different keys
+(pass) Command Parsing > /start command is detected
+(pass) Command Parsing > /help command is detected [0.04ms]
+(pass) Command Parsing > /status command is detected [0.01ms]
+(pass) Command Parsing > command with arguments is parsed [0.01ms]
+(pass) Command Parsing > regular message is not a command
+(pass) Command Parsing > message starting with / but not a command pattern
+(pass) Phone Number in Webhook > E.164 format phone number is valid
+(pass) Phone Number in Webhook > phone without + prefix is detected
+(pass) Phone Number in Webhook > international phone numbers
+
+tests/unit/eliza-app/connection-enforcement.test.ts:
+(pass) connection enforcement > does not false-positive on the single-letter x alias [0.27ms]
+(pass) connection enforcement > caches required connection checks and invalidates them after OAuth [0.23ms]
+(pass) connection enforcement > appends a provider-specific OAuth link for telegram nudges [0.47ms]
+(pass) connection enforcement > appends all required provider links on a generic nudge turn [0.11ms]
+(pass) connection enforcement > stores conversation history without persisting OAuth URLs [0.07ms]
+
+tests/unit/eliza-app/discord-user-service.test.ts:
+(pass) Discord User Service > generateSlugFromDiscord > generates slug with discord- prefix when username provided [0.04ms]
+(pass) Discord User Service > generateSlugFromDiscord > generates slug with discord- prefix when only discordId provided [0.06ms]
+(pass) Discord User Service > generateSlugFromDiscord > sanitizes special characters in username
+(pass) Discord User Service > generateSlugFromDiscord > converts username to lowercase [0.04ms]
+(pass) Discord User Service > generateSlugFromDiscord > handles unicode characters by removing them
+(pass) Discord User Service > generateSlugFromDiscord > generates unique slugs on multiple calls [0.04ms]
+(pass) Discord User Service > Discord user data handling > handles Discord user with all fields [0.02ms]
+(pass) Discord User Service > Discord user data handling > handles Discord user with minimal fields
+(pass) Discord User Service > Discord user data handling > handles null globalName and avatarUrl [0.01ms]
+(pass) Discord User Service > Discord avatar URL generation > generates correct avatar URL
+(pass) Discord User Service > Discord avatar URL generation > returns null when no avatar [0.03ms]
+(pass) Discord User Service > Discord avatar URL generation > handles various avatar hash formats
+(pass) Discord User Service > Display name resolution > uses globalName when available [0.02ms]
+(pass) Discord User Service > Display name resolution > falls back to username when globalName is null
+(pass) Discord User Service > Display name resolution > falls back to username when globalName is undefined
+(pass) Discord User Service > Display name resolution > falls back to username when globalName is empty string
+(pass) Discord User Service > Profile update detection > detects username change [0.03ms]
+(pass) Discord User Service > Profile update detection > detects globalName change [0.01ms]
+(pass) Discord User Service > Profile update detection > detects avatar change
+(pass) Discord User Service > Profile update detection > returns false when no changes [0.01ms]
+(pass) Discord User Service > Profile update detection > handles null to value transition
+(pass) Discord User Service > Profile update detection > handles value to null transition
+(pass) Discord User Service > Unique constraint error detection > detects unique constraint violation message [0.02ms]
+(pass) Discord User Service > Unique constraint error detection > detects duplicate key message
+(pass) Discord User Service > Unique constraint error detection > detects PostgreSQL error code 23505
+(pass) Discord User Service > Unique constraint error detection > returns false for other errors
+(pass) Discord User Service > Unique constraint error detection > returns false for non-Error objects
+(pass) Discord User Service > Organization name generation > generates workspace name from display name
+(pass) Discord User Service > Organization name generation > handles single word name [0.06ms]
+(pass) Discord User Service > Organization name generation > handles unicode characters
+(pass) Discord User Service > Organization name generation > handles emoji in name
+(pass) Discord ID validation > validates correct Discord ID format [0.02ms]
+(pass) Discord ID validation > rejects too short IDs
+(pass) Discord ID validation > rejects too long IDs
+(pass) Discord ID validation > rejects non-numeric IDs
+(pass) Discord ID validation > rejects empty string
+
+tests/unit/eliza-app/session-service.test.ts:
+(pass) JWT Token Creation > creates valid JWT with required fields [0.25ms]
+(pass) JWT Token Creation > token contains correct payload fields [0.20ms]
+(pass) JWT Token Creation > token has correct issuer [0.12ms]
+(pass) JWT Token Creation > token has correct audience [0.12ms]
+(pass) JWT Token Creation > token has correct subject (userId) [0.07ms]
+(pass) JWT Token Creation > token has iat (issued at) claim [0.11ms]
+(pass) JWT Token Creation > token has exp (expiration) claim [0.12ms]
+(pass) JWT Token Creation > optional telegramId is included when provided [0.09ms]
+(pass) JWT Token Creation > optional phoneNumber is included when provided [0.09ms]
+(pass) JWT Token Creation > optional fields are absent when not provided [0.12ms]
+(pass) JWT Token Validation > valid token passes verification [0.07ms]
+(pass) JWT Token Validation > expired token throws error [0.13ms]
+(pass) JWT Token Validation > token with wrong issuer is rejected [0.11ms]
+(pass) JWT Token Validation > token with wrong audience is rejected [0.10ms]
+(pass) JWT Token Validation > tampered token is rejected [0.15ms]
+(pass) JWT Token Validation > malformed token is rejected [0.03ms]
+(pass) JWT Token Validation > empty string token is rejected [0.02ms]
+(pass) JWT Token Validation > token signed with wrong key is rejected [0.13ms]
+(pass) Authorization Header Parsing > extracts token from 'Bearer <token>' format [0.03ms]
+(pass) Authorization Header Parsing > rejects non-Bearer auth schemes [0.02ms]
+(pass) Authorization Header Parsing > handles 'bearer' lowercase
+(pass) Authorization Header Parsing > handles extra whitespace after Bearer [0.01ms]
+(pass) Authorization Header Parsing > handles missing token after Bearer
+(pass) Session Duration > SESSION_DURATION_SECONDS is 7 days
+(pass) Session Duration > token expires in approximately 7 days [0.19ms]
+(pass) Edge Cases > handles UUID-format userId [0.11ms]
+(pass) Edge Cases > handles special characters in organizationId [0.09ms]
+(pass) Edge Cases > handles international phone numbers [0.09ms]
+(pass) Edge Cases > handles large telegramId (64-bit) [0.12ms]
+
+tests/unit/eliza-app/connection-success-route.test.ts:
+(pass) connection success route > redirects web connections back to dashboard chat [0.22ms]
+(pass) connection success route > renders a platform-specific success page for messaging channels [0.06ms]
+
+tests/unit/eliza-app/oauth-enforcement.test.ts:
+(pass) Phone Normalization - ACTUAL normalizePhoneNumber() > E.164 format passes through unchanged [0.17ms]
+(pass) Phone Normalization - ACTUAL normalizePhoneNumber() > 10-digit US number gets +1 prefix
+(pass) Phone Normalization - ACTUAL normalizePhoneNumber() > 11-digit US number (with leading 1) normalizes [0.14ms]
+(pass) Phone Normalization - ACTUAL normalizePhoneNumber() > formatted phone number is cleaned [0.14ms]
+(pass) Phone Normalization - ACTUAL normalizePhoneNumber() > international numbers are normalized [0.21ms]
+(pass) Phone Normalization - ACTUAL normalizePhoneNumber() > email addresses are lowercased (iMessage support)
+(pass) Phone Normalization - ACTUAL normalizePhoneNumber() > whitespace is trimmed [0.01ms]
+(pass) Phone Normalization - ACTUAL normalizePhoneNumber() > same phone in different formats normalizes to same value [0.19ms]
+(pass) Phone Validation - ACTUAL validatePhoneForAPI() > valid US phone returns normalized [0.04ms]
+(pass) Phone Validation - ACTUAL validatePhoneForAPI() > empty phone returns error
+(pass) Phone Validation - ACTUAL validatePhoneForAPI() > whitespace-only phone returns error
+(pass) E.164 Validation - ACTUAL isValidE164() > valid E.164 numbers
+(pass) E.164 Validation - ACTUAL isValidE164() > invalid formats
+(pass) Room ID Generation - ACTUAL generateElizaAppRoomId() > generates valid UUID format [0.08ms]
+(pass) Room ID Generation - ACTUAL generateElizaAppRoomId() > same inputs produce same room ID (deterministic) [0.02ms]
+(pass) Room ID Generation - ACTUAL generateElizaAppRoomId() > different users get different room IDs
+(pass) Room ID Generation - ACTUAL generateElizaAppRoomId() > same user on different platforms gets different room IDs
+(pass) Room ID Generation - ACTUAL generateElizaAppRoomId() > room ID is SHA256 based [0.04ms]
+(pass) Entity ID Generation - ACTUAL generateElizaAppEntityId() > generates valid UUID format [0.02ms]
+(pass) Entity ID Generation - ACTUAL generateElizaAppEntityId() > same identifier produces same entity ID
+(pass) Entity ID Generation - ACTUAL generateElizaAppEntityId() > different platforms produce different entity IDs (OLD behavior)
+(pass) Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE > Telegram rejection message exists in webhook (OAuth enforcement)
+(pass) Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE > Telegram rejection message includes get-started URL
+(pass) Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE > Status not connected message exists in webhook
+(pass) Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE > Telegram rejection message is welcoming (contains emoji)
+(pass) Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE > Get Started URL is present in rejection path of webhook code [0.06ms]
+(pass) Unified EntityId Architecture > entityId should be user.id (UUID from database)
+(pass) Unified EntityId Architecture > OLD approach: generateElizaAppEntityId creates DIFFERENT IDs per platform [0.01ms]
+(pass) Unified EntityId Architecture > NEW approach: user.id is same across platforms
+(pass) Telegram OAuth Enforcement Logic - Verified Against Webhook > Telegram webhook checks userWithOrg?.organization for null/undefined
+(pass) Command Detection - Verified Against Webhook > command detection matches webhook logic
+(pass) Telegram Chat Type Handling - Verified Against Webhook > only private chats are processed [0.06ms]
+(pass) Blooio Message Filtering - Verified Against Webhook > message filtering matches webhook logic
+(pass) Idempotency Key Format - Verified Against Webhook > Telegram key format [0.03ms]
+(pass) Idempotency Key Format - Verified Against Webhook > Blooio key format
+(pass) Idempotency Key Format - Verified Against Webhook > keys are namespaced differently
+(pass) Email Validation - ACTUAL isValidEmail() > valid email formats [0.02ms]
+(pass) Email Validation - ACTUAL isValidEmail() > invalid email formats - missing parts [0.02ms]
+(pass) Email Validation - ACTUAL isValidEmail() > invalid email formats - no TLD
+(pass) Email Validation - ACTUAL isValidEmail() > invalid email formats - empty/null [0.02ms]
+(pass) Email Validation - ACTUAL isValidEmail() > invalid email formats - too short/long
+(pass) Email Normalization - ACTUAL normalizeEmail() > lowercases and trims [0.01ms]
+(pass) Email Masking - ACTUAL maskEmailForLogging() > standard emails (5+ char prefix) [0.02ms]
+(pass) Email Masking - ACTUAL maskEmailForLogging() > short prefixes (3-4 chars)
+(pass) Email Masking - ACTUAL maskEmailForLogging() > very short prefixes (1-2 chars)
+(pass) Email Masking - ACTUAL maskEmailForLogging() > handles invalid formats gracefully
+(pass) Blooio Auto-Provision Logic > phone sender detection
+
+tests/unit/eliza-app/auth-endpoint.test.ts:
+(pass) Telegram Auth Request Schema > Valid Requests > minimal valid request passes [0.23ms]
+(pass) Telegram Auth Request Schema > Valid Requests > full valid request passes [0.02ms]
+(pass) Telegram Auth Request Schema > Valid Requests > unicode first_name is valid [0.01ms]
+(pass) Telegram Auth Request Schema > Valid Requests > max length first_name (256 chars) is valid
+(pass) Telegram Auth Request Schema > Valid Requests > max length username (32 chars) is valid
+(pass) Telegram Auth Request Schema > Invalid Requests - Missing Fields > missing id fails [0.05ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Missing Fields > missing first_name fails [0.04ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Missing Fields > missing auth_date fails [0.03ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Missing Fields > missing hash fails [0.03ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Wrong Types > string id fails [0.02ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Wrong Types > float id fails [0.03ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Wrong Types > negative id fails [0.03ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Wrong Types > zero id fails [0.02ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Wrong Types > string auth_date fails [0.02ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Wrong Types > number first_name fails [0.01ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Constraint Violations > empty first_name fails [0.02ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Constraint Violations > first_name over 256 chars fails [0.02ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Constraint Violations > username over 32 chars fails [0.03ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Constraint Violations > hash not 64 chars fails (63 chars) [0.02ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Constraint Violations > hash not 64 chars fails (65 chars) [0.02ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Constraint Violations > invalid photo_url fails [0.03ms]
+(pass) Telegram Auth Request Schema > Invalid Requests - Constraint Violations > photo_url over 2048 chars fails
+(pass) Telegram Auth Request Schema > Edge Cases > whitespace-only first_name passes (has length) [0.04ms]
+(pass) Telegram Auth Request Schema > Edge Cases > emoji in first_name is valid [0.01ms]
+(pass) Telegram Auth Request Schema > Edge Cases > null values for optional fields fail
+(pass) Telegram Auth Request Schema > Edge Cases > extra fields are stripped (passthrough not enabled)
+(pass) Auth Success Response Schema > valid success response passes [0.26ms]
+(pass) Auth Success Response Schema > new user response is valid
+(pass) Auth Success Response Schema > missing success field fails [0.04ms]
+(pass) Auth Error Response Schema > INVALID_JSON error response [0.05ms]
+(pass) Auth Error Response Schema > INVALID_REQUEST error response
+(pass) Auth Error Response Schema > INVALID_AUTH error response
+(pass) Auth Error Response Schema > success: true fails error schema
+(pass) HTTP Status Code Expectations > INVALID_JSON returns 400
+(pass) HTTP Status Code Expectations > INVALID_REQUEST returns 400
+(pass) HTTP Status Code Expectations > INVALID_AUTH returns 401
+(pass) HTTP Status Code Expectations > RATE_LIMITED returns 429
+(pass) HTTP Status Code Expectations > INTERNAL_ERROR returns 500
+
+tests/unit/eliza-app/whatsapp-webhook.test.ts:
+(pass) WhatsApp Webhook GET (Verification Handshake) > returns challenge when verification succeeds [0.03ms]
+(pass) WhatsApp Webhook GET (Verification Handshake) > returns null for wrong mode [0.01ms]
+(pass) WhatsApp Webhook GET (Verification Handshake) > returns null for wrong verify token
+(pass) WhatsApp Webhook GET (Verification Handshake) > returns null for missing challenge [0.02ms]
+(pass) WhatsApp Webhook GET (Verification Handshake) > returns null for null mode [0.03ms]
+(pass) WhatsApp Webhook POST (Message Processing) > validates signature and extracts messages [0.16ms]
+(pass) WhatsApp Webhook POST (Message Processing) > rejects message with invalid signature [0.02ms]
+(pass) WhatsApp Webhook POST (Message Processing) > handles payload with no messages (status update)
+(pass) WhatsApp Webhook POST (Message Processing) > extracts image message (type but no text) [0.05ms]
+(pass) WhatsApp Idempotency Key Generation > generates consistent idempotency key from message ID
+(pass) WhatsApp Idempotency Key Generation > different messages produce different keys
+
+tests/unit/eliza-app/whatsapp-auth.test.ts:
+(pass) WhatsApp Webhook Signature Verification > accepts valid signature [0.04ms]
+(pass) WhatsApp Webhook Signature Verification > rejects signature with wrong secret
+(pass) WhatsApp Webhook Signature Verification > rejects tampered payload [0.05ms]
+(pass) WhatsApp Webhook Signature Verification > rejects empty signature header [0.02ms]
+(pass) WhatsApp Webhook Signature Verification > rejects empty app secret
+(pass) WhatsApp Webhook Signature Verification > handles large payloads [0.16ms]
+(pass) WhatsApp Webhook Signature Verification > handles unicode in payload [0.02ms]
+(pass) WhatsApp Webhook Signature Verification > timing-safe comparison prevents length-based detection
+(pass) WhatsApp Webhook Subscription Verification Logic > verify_token match logic [0.02ms]
+(pass) WhatsApp Webhook Subscription Verification Logic > rejects wrong mode
+(pass) WhatsApp Webhook Subscription Verification Logic > rejects wrong verify token
+(pass) WhatsApp Webhook Subscription Verification Logic > rejects missing challenge
+
+tests/unit/eliza-app/discord-webhook.test.ts:
+(pass) Discord Webhook > Event type filtering > handles MESSAGE_CREATE events
+(pass) Discord Webhook > Event type filtering > skips MESSAGE_UPDATE events
+(pass) Discord Webhook > Event type filtering > skips MESSAGE_DELETE events
+(pass) Discord Webhook > Event type filtering > skips INTERACTION_CREATE events
+(pass) Discord Webhook > Event type filtering > skips unknown event types
+(pass) Discord Webhook > DM-only filtering > identifies DM message (null guild_id) [0.06ms]
+(pass) Discord Webhook > DM-only filtering > identifies DM message (undefined guild_id)
+(pass) Discord Webhook > DM-only filtering > identifies server message
+(pass) Discord Webhook > DM-only filtering > identifies server message (empty string is truthy in this context)
+(pass) Discord Webhook > Bot message filtering > identifies bot message
+(pass) Discord Webhook > Bot message filtering > identifies human message (bot: false) [0.04ms]
+(pass) Discord Webhook > Bot message filtering > identifies human message (bot undefined)
+(pass) Discord Webhook > Empty message handling > detects message with text content [0.01ms]
+(pass) Discord Webhook > Empty message handling > detects message with only whitespace as empty [0.02ms]
+(pass) Discord Webhook > Empty message handling > detects empty content string
+(pass) Discord Webhook > Empty message handling > detects message with attachments [0.01ms]
+(pass) Discord Webhook > Empty message handling > detects message with voice attachments
+(pass) Discord Webhook > Empty message handling > detects message with both text and attachments [0.01ms]
+(pass) Discord Webhook > Empty message handling > detects completely empty message
+(pass) Discord Webhook > Attachment processing > converts Discord attachment to Media format [0.02ms]
+(pass) Discord Webhook > Attachment processing > handles attachment without content_type [0.02ms]
+(pass) Discord Webhook > Attachment processing > handles attachment without filename
+(pass) Discord Webhook > Attachment processing > processes multiple attachments
+(pass) Discord Webhook > Attachment processing > handles empty attachments array [0.04ms]
+(pass) Discord Webhook > Voice attachment processing > processes voice attachment [0.02ms]
+(pass) Discord Webhook > Voice attachment processing > handles multiple voice attachments
+(pass) Discord Webhook > Discord message length limit > keeps short messages unchanged
+(pass) Discord Webhook > Discord message length limit > truncates messages at 2000 characters [0.02ms]
+(pass) Discord Webhook > Discord message length limit > handles exactly 2000 character messages
+(pass) Discord Webhook > Discord message length limit > handles empty messages
+(pass) Discord Webhook > Discord 429 retry logic > parses numeric Retry-After header [0.02ms]
+(pass) Discord Webhook > Discord 429 retry logic > returns default for null header
+(pass) Discord Webhook > Discord 429 retry logic > returns default for invalid header
+(pass) Discord Webhook > Discord 429 retry logic > handles decimal values
+(pass) Discord Webhook > Idempotency key generation > generates correct idempotency key format
+(pass) Discord Webhook > Idempotency key generation > includes event ID in key
+(pass) Discord Webhook > Room ID generation > generates consistent room ID for same inputs
+(pass) Discord Webhook > Room ID generation > generates different room IDs for different users [0.05ms]
+(pass) Discord Webhook > Room ID generation > includes platform in room ID
+(pass) Discord Webhook > Author data extraction > extracts all author data
+(pass) Discord Webhook > Author data extraction > handles missing global_name
+(pass) Discord Webhook > Author data extraction > handles null avatar
+(pass) Discord Webhook > Response content extraction > extracts string content directly
+(pass) Discord Webhook > Response content extraction > extracts text from object content
+(pass) Discord Webhook > Response content extraction > returns empty string for object without text
+(pass) Discord Webhook > Response content extraction > returns empty string for undefined text
+(pass) Discord Webhook > Response content extraction > handles empty string content
+(pass) Discord Event Payload Validation > validates correct payload structure [0.02ms]
+(pass) Discord Event Payload Validation > rejects payload missing event_type
+(pass) Discord Event Payload Validation > rejects payload missing event_id
+(pass) Discord Event Payload Validation > rejects payload missing data
+(pass) Discord Event Payload Validation > rejects payload missing author
+(pass) Discord Event Payload Validation > rejects null payload
+(pass) Discord Event Payload Validation > rejects non-object payload
+
+tests/unit/eliza-app/deterministic-uuid.test.ts:
+(pass) generateDeterministicUUID > produces valid UUID format [0.11ms]
+(pass) generateDeterministicUUID > is deterministic - same input produces same output [0.02ms]
+(pass) generateDeterministicUUID > different inputs produce different outputs
+(pass) generateDeterministicUUID > handles empty string input
+(pass) generateDeterministicUUID > handles unicode input
+(pass) generateDeterministicUUID > handles very long input [0.05ms]
+(pass) generateDeterministicUUID > handles special characters [0.02ms]
+(pass) generateDeterministicUUID > output is always lowercase
+(pass) generateElizaAppRoomId > generates valid UUID for Telegram room
+(pass) generateElizaAppRoomId > generates valid UUID for iMessage room
+(pass) generateElizaAppRoomId > same agent + user = same room ID [0.04ms]
+(pass) generateElizaAppRoomId > different users = different room IDs
+(pass) generateElizaAppRoomId > different agents = different room IDs for same user
+(pass) generateElizaAppRoomId > different channels = different room IDs for same identifier [0.04ms]
+(pass) generateElizaAppEntityId > generates valid UUID for Telegram user [0.02ms]
+(pass) generateElizaAppEntityId > generates valid UUID for iMessage user [0.02ms]
+(pass) generateElizaAppEntityId > same identifier = same entity ID
+(pass) generateElizaAppEntityId > different identifiers = different entity IDs
+(pass) generateElizaAppEntityId > different channels = different entity IDs for same identifier
+(pass) Cross-function consistency > room ID and entity ID are different for same user
+
+tests/unit/api/v1-public-routes.test.ts:
+(pass) User API > GET returns the authenticated user profile [0.35ms]
+(pass) User API > GET maps auth failures to 401 [0.14ms]
+(pass) User API > PATCH validates profile updates and normalizes empty avatars [0.58ms]
+(pass) User API > PATCH rejects invalid payloads [0.20ms]
+(pass) API Keys API > GET lists keys for the organization [0.15ms]
+(pass) API Keys API > POST validates create input [0.53ms]
+(pass) API Keys API > POST trims and transforms create input [0.12ms]
+(pass) API Keys API > PATCH rejects empty updates [0.31ms]
+(pass) API Keys API > PATCH blocks cross-organization updates [0.06ms]
+(pass) API Keys API > PATCH updates validated key fields [0.09ms]
+(pass) API Keys API > DELETE returns 404 when the key does not exist [0.10ms]
+(pass) API Keys API > DELETE deletes owned keys [0.05ms]
+(pass) API Keys API > POST regenerate returns the new plain key [0.13ms]
+(pass) Gallery API > GET validates query parameters [0.22ms]
+(pass) Gallery API > GET filters missing storage URLs and computes hasMore using the extra row [0.13ms]
+(pass) Models API > GET returns provider models with cache headers [0.08ms]
+(pass) Models API > GET creates an anonymous session when auth is missing [0.07ms]
+
+tests/unit/api/v1-app-agents-route.test.ts:
+(pass) POST /api/v1/app/agents > returns 409 when token-agent linkage races on unique constraint [1.07ms]
+
+tests/unit/api/v1-process-provisioning-jobs-route.test.ts:
+(pass) GET /api/v1/cron/process-provisioning-jobs > rejects requests with an invalid bearer token [0.32ms]
+(pass) GET /api/v1/cron/process-provisioning-jobs > processes jobs when the bearer token matches [0.05ms]
+(pass) GET /api/v1/cron/process-provisioning-jobs > returns 500 when CRON_SECRET is not configured
+
+tests/unit/api/v1-messages-route.test.ts:
+(pass) /api/v1/messages > maps auth failures to Anthropic authentication_error [0.53ms]
+(pass) /api/v1/messages > OPTIONS includes Anthropic and app credit headers [0.24ms]
+(pass) /api/v1/messages > returns Anthropic-shaped 400 for invalid JSON
+(pass) /api/v1/messages > maps Anthropic tool messages to model messages and uses maxOutputTokens [0.60ms]
+(pass) /api/v1/messages > streams tool_use blocks from fullStream and reports tool_use stop reason [1.71ms]
+
+tests/unit/api/jobs-route.test.ts:
+(pass) GET /api/v1/jobs/[jobId] > returns 404 for non-existent job [0.42ms]
+(pass) GET /api/v1/jobs/[jobId] > returns 404 if job belongs to different org
+(pass) GET /api/v1/jobs/[jobId] > returns full job data for owned job
+(pass) GET /api/v1/jobs/[jobId] > returns polling hints for in_progress job [0.23ms]
+(pass) GET /api/v1/jobs/[jobId] > returns shouldContinue=false for completed job [0.05ms]
+(pass) GET /api/v1/jobs/[jobId] > returns shouldContinue=false for failed job [0.05ms]
+(pass) GET /api/v1/jobs/[jobId] > returns 401 for auth errors [0.08ms]
+(pass) GET /api/v1/jobs/[jobId] > allows service-key callers to poll their org's jobs [0.06ms]
+(pass) GET /api/v1/jobs/[jobId] > returns 404 when service-key caller queries another org's job
+(pass) GET /api/v1/jobs/[jobId] > falls back to user auth when no service key is present [0.10ms]
+
+tests/unit/api/openapi-catalog.test.ts:
+(pass) Public API catalog > route discovery includes every documented endpoint [38.83ms]
+(pass) Public API catalog > openapi.json includes every documented endpoint and method [15.48ms]
+(pass) Public API catalog > openapi.json OPTIONS exposes CORS preflight headers [0.23ms]
+
+tests/unit/api/v1-generation-routes.test.ts:
+(pass) Prompt generation APIs > generate-prompts uses the provided seed in the system prompt [0.34ms]
+(pass) Prompt generation APIs > generate-prompts returns auth failures as 401 [0.29ms]
+(pass) Prompt generation APIs > character-assistant rejects empty message arrays [0.16ms]
+(pass) Prompt generation APIs > character-assistant includes the current character during edit mode [0.10ms]
+(pass) Image and video generation APIs > generate-image OPTIONS returns permissive CORS headers
+(pass) Image and video generation APIs > generate-image rejects empty prompts [0.90ms]
+(pass) Image and video generation APIs > generate-image supports anonymous fallback and uploads generated files [0.49ms]
+(pass) Image and video generation APIs > generate-image returns 402 when credits are insufficient [0.37ms]
+(pass) Image and video generation APIs > generate-video requires a configured Fal key [0.48ms]
+(pass) Image and video generation APIs > generate-video returns auth failures as 401 [0.20ms]
+(pass) Image and video generation APIs > generate-video uploads successful outputs and reconciles reserved credits [0.10ms]
+(pass) Chat API > rejects invalid chat message roles [0.41ms]
+(pass) Chat API > blocks users flagged by moderation
+(pass) Chat API > enforces anonymous limits [0.11ms]
+(pass) Chat API > returns 402 when reserved chat credits are unavailable [0.02ms]
+574 |     expect(response.status).toBe(200);
+575 |     expect(await response.text()).toBe("ui-stream");
+576 | 
+577 |     await lastOnFinishPromise;
+578 | 
+579 |     expect(reservation.reconcile).toHaveBeenCalledWith(0.3);
+                                        ^
+error: expect(received).toHaveBeenCalledWith(...expected)
+
+Expected: [ 0.3 ]
+But it was not called.
+      at <anonymous> (/Users/shawwalters/eliza-workspace/eliza-cloud-v2/tests/unit/api/v1-generation-routes.test.ts:579:35)
+(fail) Chat API > streams responses and persists usage metadata after completion [0.90ms]
+
+tests/unit/api/elevenlabs-routes.test.ts:
+(pass) Voice listing APIs > public voice listing filters out cloned voices [0.46ms]
+(pass) Voice listing APIs > user voice listing validates query parameters [0.59ms]
+(pass) Voice listing APIs > user voice listing paginates and reports hasMore [0.15ms]
+(pass) Single voice APIs > GET rejects non-UUID voice IDs [0.17ms]
+(pass) Single voice APIs > PATCH now rejects non-UUID voice IDs as well [0.12ms]
+(pass) Single voice APIs > DELETE maps missing voices to 404 [0.13ms]
+(pass) Voice cloning API > clone endpoint requires at least one file [0.43ms]
+(pass) Voice cloning API > clone endpoint validates settings JSON [0.59ms]
+(pass) Voice cloning API > clone endpoint returns 402 on insufficient credits [0.16ms]
+(pass) Voice cloning API > clone endpoint creates voices successfully [0.12ms]
+(pass) TTS and STT APIs > tts requires text [0.43ms]
+(pass) TTS and STT APIs > tts applies custom voice markup for organization-owned voices [0.23ms]
+(pass) TTS and STT APIs > stt requires an uploaded audio file [0.36ms]
+(pass) TTS and STT APIs > stt rejects file signature mismatches [0.08ms]
+(pass) TTS and STT APIs > stt accepts Safari video/webm containers and normalizes them to audio/webm [0.17ms]
+
+tests/unit/api/v1-agents-service-route.test.ts:
+(pass) POST /api/v1/agents > returns 409 when token-agent linkage races on unique constraint [0.88ms]
+(pass) POST /api/v1/agents > stores normalized token address in agent config and environment vars [0.12ms]
+
+tests/unit/x402/facilitator-service.test.ts:
+(pass) x402 Payment Payload Validation > amount validation > should reject when payment amount is less than required [0.13ms]
+(pass) x402 Payment Payload Validation > amount validation > should accept when payment amount equals required
+(pass) x402 Payment Payload Validation > amount validation > should accept when payment amount exceeds required
+(pass) x402 Payment Payload Validation > amount validation > should handle very large amounts without overflow [0.10ms]
+(pass) x402 Payment Payload Validation > payTo validation > should reject when payTo does not match
+(pass) x402 Payment Payload Validation > payTo validation > should be case-insensitive for payTo [0.02ms]
+(pass) x402 Payment Payload Validation > deadline validation > should reject expired deadlines [0.03ms]
+(pass) x402 Payment Payload Validation > deadline validation > should accept future deadlines [0.01ms]
+(pass) x402 Payment Payload Validation > scheme validation > should reject unsupported schemes
+(pass) x402 Payment Payload Validation > network validation > should validate CAIP-2 format [0.06ms]
+(pass) x402 Payment Payload Validation > network validation > should reject invalid CAIP-2 format
+(pass) Payment Header Encoding > should base64 encode a payment payload [0.04ms]
+(pass) Payment Header Encoding > should handle double-encoding gracefully [0.05ms]
+(pass) 402 Response Format > should include required fields in accepts array [0.03ms]
+(pass) 402 Response Format > should format price correctly (6 decimal USDC) [0.01ms]
+(pass) Edge Cases & Fuzz > should handle missing authorization fields
+(pass) Edge Cases & Fuzz > should handle empty signature
+(pass) Edge Cases & Fuzz > should handle non-hex signature [0.03ms]
+(pass) Edge Cases & Fuzz > should handle zero amount
+(pass) Edge Cases & Fuzz > should handle negative-looking amounts (as string) [0.01ms]
+(pass) Edge Cases & Fuzz > should handle malformed network identifiers
+(pass) Edge Cases & Fuzz > should handle unicode in description fields
+(pass) Edge Cases & Fuzz > should handle very long authorization nonces
+(pass) Middleware Integration > withX402Payment should be composable with withRateLimit [0.02ms]
+(pass) Middleware Integration > should parse X-PAYMENT header from different cases [0.01ms]
+
+tests/unit/x402/plugin-cloud-integration.test.ts:
+(pass) x402 Plugin ↔ Eliza Cloud Integration > should produce a payment header that passes cloud facilitator verification [5.41ms]
+(pass) x402 Plugin ↔ Eliza Cloud Integration > should reject a payment header with wrong network [1.49ms]
+(pass) x402 Plugin ↔ Eliza Cloud Integration > should reject a payment header with expired deadline [0.96ms]
+(pass) x402 Plugin ↔ Eliza Cloud Integration > should reject a payment header with insufficient amount [1.18ms]
+(pass) x402 Plugin ↔ Eliza Cloud Integration > should reject a tampered signature [1.37ms]
+(pass) x402 Plugin ↔ Eliza Cloud Integration > should verify payment from a different wallet fails payer check [2.57ms]
+
+lib/services/gateway-discord/__tests__/schemas.test.ts:
+(pass) DiscordEventTypeSchema > accepts valid event types [0.20ms]
+(pass) DiscordEventTypeSchema > rejects invalid event types [0.08ms]
+(pass) DiscordEventTypeSchema > rejects empty string
+(pass) DiscordEventTypeSchema > rejects non-string values [0.07ms]
+(pass) DiscordAuthorSchema > accepts valid author with required fields [0.22ms]
+(pass) DiscordAuthorSchema > accepts valid author with all optional fields
+(pass) DiscordAuthorSchema > accepts null avatar and global_name
+(pass) DiscordAuthorSchema > rejects author without id [0.08ms]
+(pass) DiscordAuthorSchema > rejects author without username [0.01ms]
+(pass) DiscordAuthorSchema > rejects empty id [0.07ms]
+(pass) DiscordAuthorSchema > rejects empty username
+(pass) DiscordMemberSchema > accepts valid member with nick [0.10ms]
+(pass) DiscordMemberSchema > accepts valid member with roles
+(pass) DiscordMemberSchema > accepts null nick
+(pass) DiscordMemberSchema > accepts empty object
+(pass) DiscordAttachmentSchema > accepts valid attachment with required fields [0.12ms]
+(pass) DiscordAttachmentSchema > accepts valid attachment with all optional fields
+(pass) DiscordAttachmentSchema > rejects invalid URL [0.05ms]
+(pass) DiscordAttachmentSchema > rejects negative size [0.07ms]
+(pass) DiscordAttachmentSchema > rejects zero size [0.03ms]
+(pass) DiscordAttachmentSchema > rejects empty id
+(pass) VoiceAttachmentSchema > accepts valid voice attachment [0.28ms]
+(pass) VoiceAttachmentSchema > rejects invalid datetime format [0.04ms]
+(pass) VoiceAttachmentSchema > rejects missing required fields [0.04ms]
+(pass) VoiceAttachmentSchema > rejects negative size [0.04ms]
+(pass) MessageCreateDataSchema > accepts valid message with required fields [0.24ms]
+(pass) MessageCreateDataSchema > accepts valid message with guild_id
+(pass) MessageCreateDataSchema > accepts null guild_id (DM)
+(pass) MessageCreateDataSchema > accepts message with attachments
+(pass) MessageCreateDataSchema > accepts message with embeds [0.15ms]
+(pass) MessageCreateDataSchema > accepts message with mentions [0.10ms]
+(pass) MessageCreateDataSchema > accepts message with referenced_message (reply) [0.08ms]
+(pass) MessageCreateDataSchema > accepts message with voice_attachments [0.03ms]
+(pass) MessageCreateDataSchema > accepts message with member data [0.03ms]
+(pass) MessageCreateDataSchema > rejects message without id [0.05ms]
+(pass) MessageCreateDataSchema > rejects message without channel_id [0.04ms]
+(pass) MessageCreateDataSchema > rejects message without author [0.04ms]
+(pass) DiscordEventPayloadSchema > validates connection_id as UUID [0.04ms]
+(pass) DiscordEventPayloadSchema > validates organization_id as UUID [0.02ms]
+(pass) DiscordEventPayloadSchema > validates event_type as enum [0.02ms]
+(pass) DiscordEventPayloadSchema > validates timestamp as datetime [0.01ms]
+(pass) DiscordEventPayloadSchema > validates event_id is non-empty [0.03ms]
+(pass) DiscordEventPayloadSchema > validates platform_connection_id is string [0.02ms]
+(pass) DiscordEventPayloadSchema > validates guild_id is string [0.01ms]
+(pass) DiscordEventPayloadSchema > validates channel_id is string
+(pass) ConnectionStatusUpdateSchema > accepts valid status update [0.14ms]
+(pass) ConnectionStatusUpdateSchema > accepts all valid statuses [0.04ms]
+(pass) ConnectionStatusUpdateSchema > accepts error_message with error status
+(pass) ConnectionStatusUpdateSchema > accepts bot_user_id with connected status
+(pass) ConnectionStatusUpdateSchema > rejects invalid pod_name with special characters
+(pass) ConnectionStatusUpdateSchema > rejects pod_name over 253 characters
+(pass) ConnectionStatusUpdateSchema > accepts pod_name at max 253 characters
+(pass) ConnectionStatusUpdateSchema > rejects empty pod_name
+(pass) ConnectionStatusUpdateSchema > rejects invalid status
+(pass) ConnectionStatusUpdateSchema > rejects invalid connection_id
+(pass) FailoverRequestSchema > accepts valid failover request [0.19ms]
+(pass) FailoverRequestSchema > accepts hyphenated pod names [0.05ms]
+(pass) FailoverRequestSchema > rejects invalid claiming_pod name
+(pass) FailoverRequestSchema > rejects invalid dead_pod name
+(pass) FailoverRequestSchema > rejects missing claiming_pod
+(pass) FailoverRequestSchema > rejects missing dead_pod
+
+lib/services/gateway-discord/__tests__/event-router.test.ts:
+(pass) sanitizeError logic > regex matches Discord token format [0.06ms]
+(pass) sanitizeError logic > redacts Discord bot tokens from error messages [0.29ms]
+(pass) sanitizeError logic > preserves non-token text in error messages [0.02ms]
+(pass) sanitizeError logic > token embedded in error message is redacted
+(pass) sanitizeError logic > handles Error objects [0.04ms]
+(pass) sanitizeError logic > handles multiple tokens in one message [0.01ms]
+(pass) sanitizeError logic > handles non-Error objects
+(pass) sanitizeError logic > regex does not match non-token strings
+(pass) truncateUtf16Safe logic > does not truncate strings under limit
+(pass) truncateUtf16Safe logic > truncates strings over limit
+(pass) truncateUtf16Safe logic > handles surrogate pairs correctly
+(pass) truncateUtf16Safe logic > preserves complete emoji when there is room
+(pass) truncateUtf16Safe logic > removes emoji if truncation would split it [0.10ms]
+(pass) channel filtering logic > enabledChannels empty allows all
+(pass) channel filtering logic > enabledChannels with matching channel allows
+(pass) channel filtering logic > enabledChannels without matching channel blocks
+(pass) channel filtering logic > disabledChannels blocks matching channel [0.01ms]
+(pass) channel filtering logic > disabledChannels allows non-matching channel [0.01ms]
+(pass) keyword matching logic > matches exact keyword [0.05ms]
+(pass) keyword matching logic > matches keyword with different case
+(pass) keyword matching logic > does not match partial word
+(pass) keyword matching logic > matches word at boundaries
+(pass) keyword matching logic > matches multiple keywords [0.05ms]
+(pass) keyword matching logic > returns false when no keywords match
+(pass) keyword matching logic > escapes regex special characters in keywords
+(pass) mention mode logic > detects bot mention in mentions array [0.03ms]
+(pass) mention mode logic > detects when bot is not mentioned
+(pass) mention mode logic > handles empty mentions array
+(pass) message processing - data transformation > MessageCreateDataSchema accepts attachments [0.10ms]
+(pass) message processing - data transformation > MessageCreateDataSchema accepts voice attachments [0.04ms]
+(pass) message processing - data transformation > MessageCreateDataSchema accepts combined attachments
+(pass) bot message filtering > detects bot messages
+(pass) bot message filtering > detects user messages
+(pass) bot message filtering > handles missing bot field
+
+lib/services/gateway-discord/__tests__/constants.test.ts:
+(pass) DEAD_POD_THRESHOLD_MS > has correct default value of 45 seconds [1.51ms]
+(pass) DEAD_POD_THRESHOLD_MS > is a positive number
+(pass) DEAD_POD_THRESHOLD_MS > is at least 3x typical heartbeat interval (15s) [0.06ms]
+(pass) DEAD_POD_THRESHOLD_MS > is less than pod state TTL (300s / 5 minutes)
+
+134 tests skipped:
+(skip) MessageRouterService > Phone Number Normalization > handles standard E.164 format in routing
+(skip) MessageRouterService > Phone Number Normalization > handles phone number without country code
+(skip) MessageRouterService > Phone Number Normalization > handles phone number with spaces and dashes
+(skip) MessageRouterService > Phone Number Normalization > handles email addresses for iMessage
+(skip) MessageRouterService > Phone Number Normalization > handles uppercase email addresses
+(skip) MessageRouterService > routeIncomingMessage > returns error when no phone mapping found
+(skip) MessageRouterService > routeIncomingMessage > includes error message in result
+(skip) MessageRouterService > routeIncomingMessage > handles message with media URLs
+(skip) MessageRouterService > routeIncomingMessage > handles message with metadata
+(skip) MessageRouterService > routeIncomingMessage > handles different message types
+(skip) MessageRouterService > routeIncomingMessage > handles iMessage type
+(skip) MessageRouterService > routeIncomingMessage > handles WhatsApp message type
+(skip) MessageRouterService > sendMessage > returns false for unknown provider
+(skip) MessageRouterService > sendMessage > handles Twilio provider (fails without credentials)
+(skip) MessageRouterService > sendMessage > handles Blooio provider (fails without credentials)
+(skip) MessageRouterService > sendMessage > handles WhatsApp provider (fails without credentials)
+(skip) MessageRouterService > sendMessage > handles message with media URLs
+(skip) MessageRouterService > getPhoneNumbers > returns array for organization
+(skip) MessageRouterService > getPhoneNumbers > returns empty array for non-existent organization
+(skip) MessageRouterService > getPhoneNumberById > returns null for non-existent phone number
+(skip) MessageRouterService > getPhoneNumberById > throws error for invalid UUID format
+(skip) MessageRouterService > deactivatePhoneNumber > does not throw for non-existent phone number
+(skip) MessageRouterService > Error Handling > handles empty message body
+(skip) MessageRouterService > Error Handling > handles undefined optional fields
+(skip) MessageRouterService > Error Handling > handles special characters in message body
+(skip) MessageRouterService > Error Handling > handles very long message body
+(skip) MessageRouterService > registerPhoneNumber > has correct method signature
+(skip) MessageRouterService > registerPhoneNumber > requires organizationId, agentId, phoneNumber, and provider
+(skip) MessageRouterService > updateMessageLog > has correct method signature
+(skip) MessageRouterService > markMessageFailed > has correct method signature
+(skip) MessageRouterService ID Generation > Entity ID Generation > generates consistent IDs for same phone number
+(skip) MessageRouterService ID Generation > Room ID Generation > generates consistent IDs regardless of direction
+(skip) MessageRouterService Concurrent Operations > handles concurrent message routing
+(skip) MessageRouterService Concurrent Operations > handles concurrent message sending
+(skip) MessageRouterService Concurrent Operations > handles concurrent phone number lookups
+(skip) MessageRouterService Provider Handling > correctly identifies Twilio messages
+(skip) MessageRouterService Provider Handling > correctly identifies Blooio messages
+(skip) MessageRouterService Provider Handling > handles provider message ID
+(skip) Idempotency Utility > isAlreadyProcessed > returns false for new keys
+(skip) Idempotency Utility > isAlreadyProcessed > returns true for processed keys
+(skip) Idempotency Utility > isAlreadyProcessed > handles empty key gracefully
+(skip) Idempotency Utility > isAlreadyProcessed > handles special characters in keys
+(skip) Idempotency Utility > markAsProcessed > marks a key as processed
+(skip) Idempotency Utility > markAsProcessed > accepts source parameter
+(skip) Idempotency Utility > markAsProcessed > uses default source when not provided
+(skip) Idempotency Utility > markAsProcessed > handles duplicate marking gracefully
+(skip) Idempotency Utility > getProcessedMessagesCount > returns a number
+(skip) Idempotency Utility > getProcessedMessagesCount > increases after marking a key
+(skip) Idempotency Utility > cleanupExpiredKeys > returns number of deleted keys
+(skip) Idempotency Utility > cleanupExpiredKeys > does not delete recent keys
+(skip) Idempotency Utility > clearProcessedMessages > clears all messages without error
+(skip) Idempotency Utility > (unnamed)
+(skip) tryClaimForProcessing > returns true for first claim
+(skip) tryClaimForProcessing > returns false for duplicate claim
+(skip) tryClaimForProcessing > handles concurrent claims correctly - only one wins
+(skip) tryClaimForProcessing > claimed key is visible to isAlreadyProcessed
+(skip) tryClaimForProcessing > uses default source when not provided
+(skip) tryClaimForProcessing > (unnamed)
+(skip) releaseProcessingClaim > allows re-claim after release
+(skip) releaseProcessingClaim > released key is no longer visible to isAlreadyProcessed
+(skip) releaseProcessingClaim > does not throw when releasing a non-existent key
+(skip) releaseProcessingClaim > (unnamed)
+(skip) Idempotency Security Tests > Replay Attack Prevention > prevents duplicate processing of same message
+(skip) Idempotency Security Tests > Replay Attack Prevention > uses unique keys for different message sources
+(skip) Idempotency Security Tests > Key Format Validation > handles very long keys
+(skip) Idempotency Security Tests > Key Format Validation > handles keys with special webhook-related characters
+(skip) 0049/0050 user identity backfill migrations > repairs chained stale Privy claims without changing unrelated identity fields
+(skip) BlooioAutomationService > validateApiKey > returns invalid when API key is empty
+(skip) BlooioAutomationService > validateApiKey > returns invalid when API key is whitespace
+(skip) BlooioAutomationService > invalidateStatusCache > clears cache for organization
+(skip) BlooioAutomationService > invalidateStatusCache > handles multiple invalidations
+(skip) BlooioAutomationService > getWebhookUrl > returns correct webhook URL format
+(skip) BlooioAutomationService > getWebhookUrl > includes organization ID in URL
+(skip) BlooioAutomationService > Chat ID Validation > normalizes chat IDs > handles phone numbers
+(skip) BlooioAutomationService > Chat ID Validation > normalizes chat IDs > handles email addresses
+(skip) BlooioAutomationService > Chat ID Validation > normalizes chat IDs > handles comma-separated chat IDs
+(skip) BlooioAutomationService > sendMessage > returns error when Blooio is not configured
+(skip) BlooioAutomationService > sendMessage > validates chat ID format
+(skip) BlooioAutomationService > sendMessage > handles group chat IDs
+(skip) BlooioAutomationService > sendMessage > handles message with attachments
+(skip) BlooioAutomationService > sendMessage > handles message with metadata
+(skip) BlooioAutomationService > isConfigured > returns false when no API key is stored
+(skip) BlooioAutomationService > getConnectionStatus > returns unconfigured status when no API key
+(skip) BlooioAutomationService > getConnectionStatus > caches status for performance
+(skip) BlooioAutomationService > getConnectionStatus > respects skipCache option
+(skip) BlooioAutomationService > getConnectionStatus > returns fromNumber when available
+(skip) BlooioAutomationService > Error Handling > handles empty organization ID gracefully
+(skip) BlooioAutomationService > Error Handling > handles special characters in organization ID
+(skip) BlooioAutomationService > Credential Methods > getApiKey > returns null when no API key stored
+(skip) BlooioAutomationService > Credential Methods > getWebhookSecret > returns null when no webhook secret stored
+(skip) BlooioAutomationService > Credential Methods > getFromNumber > returns null when no from number stored
+(skip) BlooioAutomationService > Message Request Handling > handles text-only message
+(skip) BlooioAutomationService > Message Request Handling > handles message with typing indicator
+(skip) BlooioAutomationService > Message Request Handling > handles message with idempotency key
+(skip) TwilioAutomationService > validateCredentials > returns invalid when accountSid is empty
+(skip) TwilioAutomationService > validateCredentials > returns invalid when authToken is empty
+(skip) TwilioAutomationService > validateCredentials > returns invalid when both are empty
+(skip) TwilioAutomationService > invalidateStatusCache > clears cache for organization
+(skip) TwilioAutomationService > invalidateStatusCache > handles multiple invalidations
+(skip) TwilioAutomationService > getWebhookUrl > returns correct webhook URL format
+(skip) TwilioAutomationService > getWebhookUrl > includes organization ID in URL
+(skip) TwilioAutomationService > sendMessage > returns error when Twilio is not configured
+(skip) TwilioAutomationService > sendMessage > validates E.164 phone number format
+(skip) TwilioAutomationService > sendMessage > accepts valid E.164 format
+(skip) TwilioAutomationService > sendMessage > handles message with media URLs
+(skip) TwilioAutomationService > sendMessage > handles message with multiple media URLs
+(skip) TwilioAutomationService > sendMessage > handles message with status callback
+(skip) TwilioAutomationService > isConfigured > returns false when no credentials stored
+(skip) TwilioAutomationService > getConnectionStatus > returns unconfigured status when no credentials
+(skip) TwilioAutomationService > getConnectionStatus > caches status for performance
+(skip) TwilioAutomationService > getConnectionStatus > respects skipCache option
+(skip) TwilioAutomationService > getConnectionStatus > includes phoneNumber when available
+(skip) TwilioAutomationService > Credential Retrieval Methods > getAccountSid > returns null when no credential stored
+(skip) TwilioAutomationService > Credential Retrieval Methods > getAuthToken > returns null when no credential stored
+(skip) TwilioAutomationService > Credential Retrieval Methods > getPhoneNumber > returns null when no phone number stored
+(skip) TwilioAutomationService > Error Handling > handles empty organization ID
+(skip) TwilioAutomationService > Error Handling > handles special characters in organization ID
+(skip) TwilioAutomationService > Phone Number Validation > rejects phone number without plus sign
+(skip) TwilioAutomationService > Phone Number Validation > rejects phone number with spaces
+(skip) TwilioAutomationService > Phone Number Validation > rejects phone number with dashes
+(skip) TwilioAutomationService > Phone Number Validation > rejects phone number with parentheses
+(skip) TwilioAutomationService > Phone Number Validation > accepts international phone number
+(skip) TwilioAutomationService > Message Request Handling > handles body-only message
+(skip) TwilioAutomationService > Message Request Handling > handles empty body with media
+(skip) TwilioAutomationService > Message Request Handling > handles very long message body
+(skip) TwilioAutomationService > Message Request Handling > handles unicode in message body
+(skip) TwilioAutomationService > Credential Lifecycle > exposes storeCredentials method
+(skip) TwilioAutomationService > Credential Lifecycle > exposes removeCredentials method
+(skip) TwilioAutomationService Cache Behavior > cache TTL is reasonable (5 minutes)
+(skip) TwilioAutomationService Cache Behavior > skipCache forces fresh fetch
+(skip) TwilioAutomationService Cache Behavior > invalidateStatusCache clears cache
+(skip) TwilioAutomationService Edge Cases > handles concurrent status checks for same org
+(skip) TwilioAutomationService Edge Cases > handles concurrent status checks for different orgs
+(skip) TwilioAutomationService Edge Cases > handles concurrent message sends
+
+
+1 tests failed:
+(fail) Chat API > streams responses and persists usage metadata after completion [0.90ms]
+
+ 1728 pass
+ 134 skip
+ 1 fail
+ 4305 expect() calls
+Ran 1863 tests across 101 files. [6.37s]
+error: script "test:repo-unit:bulk" exited with code 1

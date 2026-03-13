@@ -68,8 +68,8 @@ function buildCachedEntry<T>(value: T, staleTTL: number): CachedEntry<T> {
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKey: mockRequireAuthOrApiKey,
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
-  invalidatePrivyTokenCache: async () => {},
-  invalidateAllPrivyTokenCaches: async () => {},
+  invalidatePrivyTokenCache: async () => { },
+  invalidateAllPrivyTokenCaches: async () => { },
   verifyAuthTokenCached: async () => null,
   getPrivyClient: () => {
     throw new Error("Privy client not available in model catalog cache test");
@@ -129,10 +129,10 @@ describe("Model catalog cache E2E", () => {
     cache.getWithSWR = mockCacheGetWithSWR;
     cache.set = mockCacheSet;
     cache.isAvailable = mockCacheIsAvailable;
-    logger.info = () => {};
-    logger.warn = () => {};
-    logger.error = () => {};
-    logger.debug = () => {};
+    logger.info = () => { };
+    logger.warn = () => { };
+    logger.error = () => { };
+    logger.debug = () => { };
 
     mockRequireAuthOrApiKey.mockResolvedValue({
       user: { id: "user-1", organization_id: "org-1" },
@@ -212,10 +212,10 @@ describe("Model catalog cache E2E", () => {
 
   test("serves repeated /api/v1/models requests from the shared cached catalog", async () => {
     const firstResponse = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
+      new NextRequest("http://localhost:3333/api/v1/models"),
     );
     const secondResponse = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
+      new NextRequest("http://localhost:3333/api/v1/models"),
     );
 
     expect(firstResponse.status).toBe(200);
@@ -233,15 +233,15 @@ describe("Model catalog cache E2E", () => {
   });
 
   test("reuses the warmed catalog across /models, /models/status, and /models/[...model]", async () => {
-    await getModels(new NextRequest("http://localhost:3000/api/v1/models"));
+    await getModels(new NextRequest("http://localhost:3333/api/v1/models"));
 
     const statusResponse = await getModelStatus(
-      jsonRequest("http://localhost:3000/api/v1/models/status", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/models/status", "POST", {
         modelIds: ["openai/gpt-5", "anthropic/claude-sonnet-4.6"],
       }),
     );
     const detailResponse = await getModelDetail(
-      new NextRequest("http://localhost:3000/api/v1/models/openai/gpt-5"),
+      new NextRequest("http://localhost:3333/api/v1/models/openai/gpt-5"),
       { params: Promise.resolve({ model: ["openai", "gpt-5"] }) },
     );
 
@@ -262,7 +262,7 @@ describe("Model catalog cache E2E", () => {
 
   test("cron refresh repopulates the cache and updates later route responses", async () => {
     const initialResponse = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
+      new NextRequest("http://localhost:3333/api/v1/models"),
     );
     const initialBody = await initialResponse.json();
 
@@ -279,7 +279,7 @@ describe("Model catalog cache E2E", () => {
     ];
 
     const cronResponse = await refreshModelCatalog(
-      new NextRequest("http://localhost:3000/api/v1/cron/refresh-model-catalog", {
+      new NextRequest("http://localhost:3333/api/v1/cron/refresh-model-catalog", {
         method: "GET",
         headers: {
           authorization: `Bearer ${process.env.CRON_SECRET}`,
@@ -287,7 +287,7 @@ describe("Model catalog cache E2E", () => {
       }),
     );
     const refreshedResponse = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
+      new NextRequest("http://localhost:3333/api/v1/models"),
     );
 
     expect(initialBody.data).toHaveLength(2);

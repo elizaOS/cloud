@@ -153,7 +153,7 @@ mock.module("@/lib/services/discord", () => ({
 
 mock.module("@fal-ai/client", () => ({
   fal: {
-    config: () => {},
+    config: () => { },
     subscribe: mockFalSubscribe,
   },
 }));
@@ -168,10 +168,10 @@ mock.module("@/lib/middleware/rate-limit", () => ({
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
+    info: () => { },
+    warn: () => { },
+    error: () => { },
+    debug: () => { },
   },
 }));
 
@@ -299,7 +299,7 @@ beforeEach(() => {
     }
 
     return {
-      fullStream: (async function* () {})(),
+      fullStream: (async function* () { })(),
       toUIMessageStreamResponse: () => new Response("ui-stream"),
       toTextStreamResponse: () => new Response('["prompt-one","prompt-two"]'),
     };
@@ -328,7 +328,7 @@ afterEach(() => {
 describe("Prompt generation APIs", () => {
   test("generate-prompts uses the provided seed in the system prompt", async () => {
     const response = await generatePrompts(
-      jsonRequest("http://localhost:3000/api/v1/generate-prompts", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/generate-prompts", "POST", {
         seed: 12345,
       }),
     );
@@ -346,7 +346,7 @@ describe("Prompt generation APIs", () => {
     );
 
     const response = await generatePrompts(
-      jsonRequest("http://localhost:3000/api/v1/generate-prompts", "POST", {}),
+      jsonRequest("http://localhost:3333/api/v1/generate-prompts", "POST", {}),
     );
 
     expect(response.status).toBe(401);
@@ -355,7 +355,7 @@ describe("Prompt generation APIs", () => {
   test("character-assistant rejects empty message arrays", async () => {
     const response = await characterAssistant(
       jsonRequest(
-        "http://localhost:3000/api/v1/character-assistant",
+        "http://localhost:3333/api/v1/character-assistant",
         "POST",
         { messages: [] },
       ),
@@ -369,7 +369,7 @@ describe("Prompt generation APIs", () => {
   test("character-assistant includes the current character during edit mode", async () => {
     const response = await characterAssistant(
       jsonRequest(
-        "http://localhost:3000/api/v1/character-assistant",
+        "http://localhost:3333/api/v1/character-assistant",
         "POST",
         {
           messages: [{ role: "user", parts: [{ type: "text", text: "Refine it" }] }],
@@ -388,7 +388,7 @@ describe("Prompt generation APIs", () => {
 describe("Image and video generation APIs", () => {
   test("generate-image OPTIONS returns permissive CORS headers", async () => {
     const response = await generateImageOptions(
-      jsonRequest("http://localhost:3000/api/v1/generate-image", "OPTIONS"),
+      jsonRequest("http://localhost:3333/api/v1/generate-image", "OPTIONS"),
     );
 
     expect(response.status).toBe(204);
@@ -398,7 +398,7 @@ describe("Image and video generation APIs", () => {
 
   test("generate-image rejects empty prompts", async () => {
     const response = await generateImage(
-      jsonRequest("http://localhost:3000/api/v1/generate-image", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/generate-image", "POST", {
         prompt: "",
       }),
     );
@@ -425,7 +425,7 @@ describe("Image and video generation APIs", () => {
     }));
 
     const response = await generateImage(
-      jsonRequest("http://localhost:3000/api/v1/generate-image", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/generate-image", "POST", {
         prompt: "A bright skyline",
       }),
     );
@@ -441,7 +441,7 @@ describe("Image and video generation APIs", () => {
     mockCreditsReserve.mockRejectedValue(new MockInsufficientCreditsError(2));
 
     const response = await generateImage(
-      jsonRequest("http://localhost:3000/api/v1/generate-image", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/generate-image", "POST", {
         prompt: "Need a hero image",
       }),
     );
@@ -455,7 +455,7 @@ describe("Image and video generation APIs", () => {
     delete process.env.FAL_KEY;
 
     const response = await generateVideo(
-      jsonRequest("http://localhost:3000/api/v1/generate-video", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/generate-video", "POST", {
         prompt: "Orbiting satellite",
       }),
     );
@@ -469,7 +469,7 @@ describe("Image and video generation APIs", () => {
     );
 
     const response = await generateVideo(
-      jsonRequest("http://localhost:3000/api/v1/generate-video", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/generate-video", "POST", {
         prompt: "Orbiting satellite",
       }),
     );
@@ -482,7 +482,7 @@ describe("Image and video generation APIs", () => {
     mockCreditsReserve.mockResolvedValue(reservation);
 
     const response = await generateVideo(
-      jsonRequest("http://localhost:3000/api/v1/generate-video", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/generate-video", "POST", {
         prompt: "Orbiting satellite",
         model: "fal-ai/veo3",
       }),
@@ -498,7 +498,7 @@ describe("Image and video generation APIs", () => {
 describe("Chat API", () => {
   test("rejects invalid chat message roles", async () => {
     const response = await chat(
-      jsonRequest("http://localhost:3000/api/v1/chat", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/chat", "POST", {
         messages: [{ role: "hacker", content: "hi" }],
       }),
     );
@@ -512,7 +512,7 @@ describe("Chat API", () => {
     mockShouldBlockUser.mockResolvedValue(true);
 
     const response = await chat(
-      jsonRequest("http://localhost:3000/api/v1/chat", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/chat", "POST", {
         messages: [{ role: "user", content: "hello" }],
       }),
     );
@@ -532,7 +532,7 @@ describe("Chat API", () => {
     });
 
     const response = await chat(
-      jsonRequest("http://localhost:3000/api/v1/chat", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/chat", "POST", {
         messages: [{ role: "user", content: "hello" }],
       }),
     );
@@ -546,7 +546,7 @@ describe("Chat API", () => {
     mockCreditsReserve.mockRejectedValue(new MockInsufficientCreditsError(1));
 
     const response = await chat(
-      jsonRequest("http://localhost:3000/api/v1/chat", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/chat", "POST", {
         messages: [{ role: "user", content: "hello" }],
       }),
     );
@@ -559,7 +559,7 @@ describe("Chat API", () => {
     mockCreditsReserve.mockResolvedValue(reservation);
 
     const response = await chat(
-      jsonRequest("http://localhost:3000/api/v1/chat", "POST", {
+      jsonRequest("http://localhost:3333/api/v1/chat", "POST", {
         messages: [
           {
             role: "user",

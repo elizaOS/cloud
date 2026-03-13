@@ -181,7 +181,7 @@ export function registerContainerTools(server: McpServer): void {
           .min(1)
           .max(65535)
           .optional()
-          .default(3000)
+          .default(3333)
           .describe("Port"),
         cpu: z
           .number()

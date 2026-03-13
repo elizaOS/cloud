@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 
-const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
+const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3333";
 const API_KEY = process.env.TEST_API_KEY;
 const TEST_APP_ID = process.env.TEST_APP_ID;
 

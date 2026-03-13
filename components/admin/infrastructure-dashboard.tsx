@@ -590,12 +590,10 @@ export function InfrastructureDashboard() {
                 </p>
               </>
             ) : (
-              <>
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
                   <WifiOff className="h-4 w-4 text-red-500" />
                   <span className="text-sm text-muted-foreground">Unavailable</span>
                 </div>
-              </>
             )}
           </CardContent>
         </Card>

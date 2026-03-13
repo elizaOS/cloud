@@ -14,7 +14,7 @@ import { whatsappAdapter } from "./adapters/whatsapp";
 import type { PlatformAdapter, Platform } from "./adapters/types";
 import { logger } from "./logger";
 
-const PORT = Number(process.env.PORT ?? 3000);
+const PORT = Number(process.env.PORT ?? 3333);
 const POD_NAME =
   process.env.POD_NAME ?? process.env.HOSTNAME ?? "webhook-local";
 

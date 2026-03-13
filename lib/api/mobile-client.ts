@@ -45,7 +45,7 @@ export function getApiBaseUrl(): string {
 
   // Server-side rendering
   if (typeof window === "undefined") {
-    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
   }
 
   // Web client uses same origin

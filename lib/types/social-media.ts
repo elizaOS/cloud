@@ -420,7 +420,7 @@ export const PLATFORM_CAPABILITIES: Record<
     supportsText: true,
     supportsImages: true,
     supportsVideo: true,
-    maxTextLength: 3000,
+    maxTextLength: 3333,
     maxImages: 9,
   },
   mastodon: {

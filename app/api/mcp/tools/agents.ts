@@ -125,8 +125,8 @@ export function registerAgentTools(server: McpServer): void {
 
         const actualCost = Math.ceil(
           (response.usage?.inputTokens || estimatedInputTokens) *
-            AGENT_CHAT_INPUT_TOKEN_COST +
-            (response.usage?.outputTokens || 0) * AGENT_CHAT_OUTPUT_TOKEN_COST,
+          AGENT_CHAT_INPUT_TOKEN_COST +
+          (response.usage?.outputTokens || 0) * AGENT_CHAT_OUTPUT_TOKEN_COST,
         );
 
         await reservation?.reconcile(actualCost);
@@ -155,8 +155,8 @@ export function registerAgentTools(server: McpServer): void {
           creditsUsed: actualCost,
           ...(streaming &&
             response.streaming && {
-              streamUrl: response.streaming.sseUrl,
-            }),
+            streamUrl: response.streaming.sseUrl,
+          }),
           usage: response.usage,
         });
       } catch (error) {
@@ -221,7 +221,7 @@ export function registerAgentTools(server: McpServer): void {
     async ({ roomId }) => {
       try {
         const baseUrl =
-          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
         const sseUrl = `${baseUrl}/api/mcp/stream?eventType=agent&resourceId=${roomId}`;
 
         return jsonResponse({

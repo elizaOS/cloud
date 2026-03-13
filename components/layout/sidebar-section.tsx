@@ -78,9 +78,7 @@ export function SidebarNavigationSection({
     return null;
   }
 
-  // Check if this section is "coming soon" (disabled)
-  const isComingSoon =
-    section.title?.toLowerCase() === "monetization";
+  const isComingSoon = false;
 
   // Hide coming soon sections when collapsed
   if (isCollapsed && isComingSoon) {

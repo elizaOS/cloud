@@ -21,19 +21,19 @@ const podName = process.env.POD_NAME ?? `gateway-${hostname()}`;
 if (!process.env.POD_NAME) {
   logger.warn(
     "POD_NAME not set - using hostname fallback. This is only suitable for local development. " +
-      "In production, set POD_NAME via K8s downward API to ensure proper failover.",
+    "In production, set POD_NAME via K8s downward API to ensure proper failover.",
     { podName },
   );
 }
 
-const port = parseInt(process.env.PORT ?? "3000", 10);
+const port = parseInt(process.env.PORT ?? "3333", 10);
 
 // Validate required environment variables - fail fast on misconfiguration
 // GATEWAY_BOOTSTRAP_SECRET is required for initial JWT token acquisition
 if (!process.env.GATEWAY_BOOTSTRAP_SECRET) {
   logger.error(
     "GATEWAY_BOOTSTRAP_SECRET environment variable is required. " +
-      "This secret is used to acquire JWT tokens for API authentication.",
+    "This secret is used to acquire JWT tokens for API authentication.",
   );
   process.exit(1);
 }

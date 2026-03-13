@@ -39,7 +39,7 @@ describe("Public API catalog", () => {
 
   test("openapi.json OPTIONS exposes CORS preflight headers", async () => {
     const response = await OPTIONS(
-      jsonRequest("http://localhost:3000/api/openapi.json", "OPTIONS"),
+      jsonRequest("http://localhost:3333/api/openapi.json", "OPTIONS"),
     );
 
     expect(response.status).toBe(204);

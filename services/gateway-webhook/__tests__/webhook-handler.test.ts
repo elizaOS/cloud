@@ -16,8 +16,8 @@ const mockProjectEnv = new Map<string, string>();
 mock.module("../src/project-config", () => ({
   getProjectEnv: (project: string, key: string): string =>
     mockProjectEnv.get(`${project}:${key}`) ?? "",
-  initProjectConfig: async () => {},
-  shutdownProjectConfig: () => {},
+  initProjectConfig: async () => { },
+  shutdownProjectConfig: () => { },
 }));
 
 // Mock server-router (Redis + K8s API + pod forwarding)
@@ -28,7 +28,7 @@ const mockIdentity = {
 };
 let mockServerRoute: { serverName: string; serverUrl: string } | null = {
   serverName: "eliza-server-1",
-  serverUrl: "http://eliza-server-1.default.svc:3000",
+  serverUrl: "http://eliza-server-1.default.svc:3333",
 };
 let mockForwardResponse = "Hello from the agent!";
 let mockForwardError: Error | null = null;
@@ -40,13 +40,13 @@ mock.module("../src/server-router", () => ({
     if (mockForwardError) throw mockForwardError;
     return mockForwardResponse;
   },
-  refreshKedaActivity: async () => {},
+  refreshKedaActivity: async () => { },
 }));
 
 // Mock hash-router (imported transitively by server-router but we mock the whole module)
 mock.module("../src/hash-router", () => ({
-  getHashTargets: async () => ["10.0.0.1:3000"],
-  refreshHashRing: async () => {},
+  getHashTargets: async () => ["10.0.0.1:3333"],
+  refreshHashRing: async () => { },
 }));
 
 import { handleWebhook } from "../src/webhook-handler";
@@ -137,7 +137,7 @@ describe("handleWebhook", () => {
 
     mockServerRoute = {
       serverName: "eliza-server-1",
-      serverUrl: "http://eliza-server-1.default.svc:3000",
+      serverUrl: "http://eliza-server-1.default.svc:3333",
     };
     mockForwardResponse = "Hello from the agent!";
     mockForwardError = null;

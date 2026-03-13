@@ -160,11 +160,11 @@ async function seedLocalDev() {
     console.log("   Your session references the old remote database.");
     console.log("\n📋 Steps to fix:");
     console.log("   1. Open browser DevTools (F12)");
-    console.log("   2. Application → Cookies → http://localhost:3000");
+    console.log("   2. Application → Cookies → http://localhost:3333");
     console.log("   3. Click 'Clear all cookies'");
-    console.log("   4. Close all localhost:3000 tabs");
+    console.log("   4. Close all localhost:3333 tabs");
     console.log("   5. Run: bun run dev");
-    console.log("   6. Open fresh tab: http://localhost:3000");
+    console.log("   6. Open fresh tab: http://localhost:3333");
   } catch (error) {
     console.error(
       "\n❌ Seeding failed:",

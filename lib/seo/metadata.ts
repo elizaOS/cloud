@@ -27,7 +27,7 @@ function getBaseUrl(): string {
   }
 
   // Priority 3: Local development fallback
-  return "http://localhost:3000";
+  return "http://localhost:3333";
 }
 
 /**

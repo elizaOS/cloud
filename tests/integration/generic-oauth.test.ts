@@ -29,7 +29,7 @@ import {
 } from "../infrastructure/test-data-factory";
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
-const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3333";
 const TIMEOUT = 15000;
 
 describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {

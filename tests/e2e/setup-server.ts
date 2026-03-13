@@ -1,6 +1,6 @@
 import type { Subprocess } from "bun";
 
-const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3333";
 const HEALTH_ENDPOINT = `${SERVER_URL}/api/health`;
 // Cold Next.js webpack boots can take noticeably longer after large test suites
 // or when the first request has to compile the health route.
@@ -144,7 +144,7 @@ async function stopServer(): Promise<void> {
 
   // Always wait for the port to be released, even without a process —
   // something else may still hold the port.
-  await waitForPortRelease(3000);
+  await waitForPortRelease(3333);
 }
 
 export async function ensureServer(): Promise<void> {
@@ -171,7 +171,7 @@ export async function ensureServer(): Promise<void> {
     }
 
     // Ensure the port is free before spawning.
-    await waitForPortRelease(3000);
+    await waitForPortRelease(3333);
 
     startedServer = true;
     serverExitError = null;
@@ -181,7 +181,7 @@ export async function ensureServer(): Promise<void> {
       env: {
         ...process.env,
         NODE_ENV: "development",
-        PORT: "3000",
+        PORT: "3333",
       },
     });
 

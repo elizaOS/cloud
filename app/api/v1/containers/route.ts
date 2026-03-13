@@ -37,7 +37,7 @@ const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
   project_name: z.string().min(1).max(50), // Project identifier for multi-project support
   description: z.string().optional(),
-  port: z.number().int().min(1).max(65535).default(3000),
+  port: z.number().int().min(1).max(65535).default(3333),
   desired_count: z.number().int().min(1).max(10).default(1),
   cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.small's 2 vCPUs)
   memory: z.number().int().min(256).max(2048).default(1792), // Memory in MB (1792 MB = 1.75 GiB, 87.5% of t4g.small's 2 GiB)

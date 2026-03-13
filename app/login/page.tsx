@@ -273,7 +273,7 @@ function LoginPageContent() {
       const timeout = setTimeout(() => {
         setIsProcessingOAuth(false);
         sessionStorage.removeItem("oauth_login_pending");
-      }, 3000);
+      }, 3333);
       return () => clearTimeout(timeout);
     }
   }, [isAuthReady, isAuthenticated, isProcessingOAuth, loadingButton]);

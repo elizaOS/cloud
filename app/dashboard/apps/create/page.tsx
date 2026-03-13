@@ -157,11 +157,10 @@ const ChatMessage = memo(function ChatMessage({
       className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
     >
       <div
-        className={`${
-          msg.role === "user"
+        className={`${msg.role === "user"
             ? "w-fit max-w-full py-2 xl:py-2.5 px-3 xl:px-4 bg-white/[0.04] border border-white/[0.08] rounded-2xl"
             : "w-fit max-w-full py-2.5 xl:py-3 px-3 xl:px-4 rounded-2xl"
-        }`}
+          }`}
       >
         {/* Header - only show for processing state */}
         {isProcessing && (
@@ -172,7 +171,7 @@ const ChatMessage = memo(function ChatMessage({
             </span>
           </div>
         )}
-        
+
         {/* Image attachments preview */}
         {msg.images && msg.images.length > 0 && (
           <div className={`flex flex-wrap gap-2 ${msg.content ? 'mb-2' : ''}`}>
@@ -192,7 +191,7 @@ const ChatMessage = memo(function ChatMessage({
             ))}
           </div>
         )}
-        
+
         {/* Text content */}
         {msg.content && (
           <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto [&>*:last-child]:mb-0">
@@ -1102,9 +1101,9 @@ export default function AppCreatorPage() {
             : "Your app is being deployed to production",
           action: data.productionUrl
             ? {
-                label: "Open",
-                onClick: () => window.open(data.productionUrl, "_blank"),
-              }
+              label: "Open",
+              onClick: () => window.open(data.productionUrl, "_blank"),
+            }
             : undefined,
         });
         addLog(`Deployment started: ${data.deploymentId}`, "success");
@@ -1512,7 +1511,7 @@ export default function AppCreatorPage() {
     const interval = setInterval(checkSandboxHealth, 15000);
 
     // Initial check after a short delay
-    const initialCheck = setTimeout(checkSandboxHealth, 3000);
+    const initialCheck = setTimeout(checkSandboxHealth, 3333);
 
     return () => {
       clearInterval(interval);
@@ -1594,7 +1593,7 @@ export default function AppCreatorPage() {
       }
     };
 
-    const interval = setInterval(fetchLogs, 3000);
+    const interval = setInterval(fetchLogs, 3333);
     fetchLogs();
 
     return () => {
@@ -1608,7 +1607,7 @@ export default function AppCreatorPage() {
     const generatedAppName = !isEditMode
       ? `${generateRandomName()}-${nanoid(6)}`
       : appName;
-    
+
     // Update the appName state so it's available for display
     if (!isEditMode) {
       setAppName(generatedAppName);
@@ -1623,7 +1622,7 @@ export default function AppCreatorPage() {
 
     const shouldAutoScaffold =
       !isEditMode && (appDescription || templateType !== "blank");
-    
+
     // Check if description is too vague/short to build meaningfully
     const isDescriptionVague = appDescription && (
       appDescription.trim().length < 20 ||
@@ -1631,14 +1630,14 @@ export default function AppCreatorPage() {
       /^[a-z]{10,}$/i.test(appDescription.trim()) || // gibberish like "sjhfbvjslahdfbljashfbl"
       /^[bcdfghjklmnpqrstvwxyz]{5,}$/i.test(appDescription.trim()) // all consonants
     );
-    
+
     // User's message (what they see in chat) - just their raw input
     const initialPrompt = shouldAutoScaffold
       ? appDescription
         ? appDescription // Just show their raw description
         : `Set up the initial ${templateType} app structure with all the core features, components, and styling.`
       : undefined;
-    
+
     // Description sent to system prompt - includes clarification instructions if vague
     const effectiveDescription = appDescription
       ? isDescriptionVague
@@ -1662,10 +1661,10 @@ export default function AppCreatorPage() {
           linkedAgentIds: undefined,
           sourceContext: sourceContext
             ? {
-                type: sourceContext.type,
-                id: sourceContext.id,
-                name: sourceContext.name,
-              }
+              type: sourceContext.type,
+              id: sourceContext.id,
+              name: sourceContext.name,
+            }
             : undefined,
         }),
       });
@@ -1932,7 +1931,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   setMessages((prev) =>
                     prev.map((m) =>
                       (m as Message & { _thinkingId?: number })._thinkingId ===
-                      thinkingId
+                        thinkingId
                         ? { ...m, content: progressContent }
                         : m,
                     ),
@@ -2125,7 +2124,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
       const currentImages = images || useChatInput.getState().images;
       const selectedModel = useModelSelection.getState().selectedModel;
       const text = promptText || currentInput.trim();
-      
+
       // Allow sending with text or images (or both)
       const hasContent = text || currentImages.length > 0;
       if (!hasContent || !session || isLoading) return;
@@ -2145,11 +2144,11 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
         role: "user",
         content: text || "",
         timestamp: new Date().toISOString(),
-        images: currentImages.length > 0 
-          ? currentImages.map(img => ({ 
-              id: img.id, 
-              previewUrl: img.blobUrl || img.previewUrl // Use blobUrl for persistence, fallback to previewUrl
-            }))
+        images: currentImages.length > 0
+          ? currentImages.map(img => ({
+            id: img.id,
+            previewUrl: img.blobUrl || img.previewUrl // Use blobUrl for persistence, fallback to previewUrl
+          }))
           : undefined,
       };
       setMessages((prev) => [...prev, userMessage]);
@@ -2279,8 +2278,8 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              prompt: text || "Please analyze the attached image(s) and help me with this design.", 
+            body: JSON.stringify({
+              prompt: text || "Please analyze the attached image(s) and help me with this design.",
               model: selectedModel,
               images: currentImages.filter(img => img.base64).map(img => ({
                 base64: img.base64,
@@ -2915,14 +2914,13 @@ ANTHROPIC_API_KEY=your_key_here`}
                     What do you want to build?
                   </Label>
                   <span
-                    className={`text-[10px] font-mono ${
-                      appDescription.length > 500
+                    className={`text-[10px] font-mono ${appDescription.length > 500
                         ? "text-red-400"
                         : appDescription.length < MIN_DESCRIPTION_LENGTH &&
-                            appDescription.length > 0
+                          appDescription.length > 0
                           ? "text-amber-400"
                           : "text-white/40"
-                    }`}
+                      }`}
                   >
                     {appDescription.length}/500
                   </span>
@@ -2931,16 +2929,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                   value={appDescription}
                   onChange={(e) => setAppDescription(e.target.value)}
                   placeholder="Describe what you want to build..."
-                  className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
-                    appDescription.length > 500
+                  className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${appDescription.length > 500
                       ? "border-red-500/50 focus:border-red-500"
                       : appDescription.length > 0 &&
-                          appDescription.length < MIN_DESCRIPTION_LENGTH
+                        appDescription.length < MIN_DESCRIPTION_LENGTH
                         ? "border-amber-500/30 focus:border-amber-500"
                         : appDescription.length >= MIN_DESCRIPTION_LENGTH
                           ? "border-emerald-500/30 focus:border-emerald-500"
                           : "border-white/10 focus:border-[#FF5800]"
-                  }`}
+                    }`}
                 />
                 {appDescription.length > 0 &&
                   appDescription.length < MIN_DESCRIPTION_LENGTH && (
@@ -3065,22 +3062,20 @@ ANTHROPIC_API_KEY=your_key_here`}
         <div className="flex items-center gap-1 mx-2">
           <button
             onClick={() => setMobilePanel("chat")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              mobilePanel === "chat"
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${mobilePanel === "chat"
                 ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
                 : "text-white/50 hover:text-white/70 hover:bg-white/5"
-            }`}
+              }`}
           >
             <MessageSquare className="h-3.5 w-3.5" />
             Chat
           </button>
           <button
             onClick={() => setMobilePanel("preview")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              mobilePanel === "preview"
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${mobilePanel === "preview"
                 ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
                 : "text-white/50 hover:text-white/70 hover:bg-white/5"
-            }`}
+              }`}
           >
             <Monitor className="h-3.5 w-3.5" />
             Preview
@@ -3103,22 +3098,20 @@ ANTHROPIC_API_KEY=your_key_here`}
               <>
                 <div className="px-2 py-1.5 flex items-center gap-2">
                   <Timer
-                    className={`h-3.5 w-3.5 ${
-                      timeRemaining === "Expired"
+                    className={`h-3.5 w-3.5 ${timeRemaining === "Expired"
                         ? "text-red-400"
                         : parseInt(timeRemaining.split(":")[0] || "30") <= 5
                           ? "text-yellow-400"
                           : "text-white/60"
-                    }`}
+                      }`}
                   />
                   <span
-                    className={`text-xs font-mono ${
-                      timeRemaining === "Expired"
+                    className={`text-xs font-mono ${timeRemaining === "Expired"
                         ? "text-red-400"
                         : parseInt(timeRemaining.split(":")[0] || "30") <= 5
                           ? "text-yellow-400"
                           : "text-white/60"
-                    }`}
+                      }`}
                   >
                     {timeRemaining} remaining
                   </span>
@@ -3342,13 +3335,12 @@ ANTHROPIC_API_KEY=your_key_here`}
         <div className="flex items-center gap-2">
           {timeRemaining && (
             <span
-              className={`flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded ${
-                timeRemaining === "Expired"
+              className={`flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded ${timeRemaining === "Expired"
                   ? "text-red-400 bg-red-500/10"
                   : parseInt(timeRemaining.split(":")[0] || "30") <= 5
                     ? "text-yellow-400 bg-yellow-500/10"
                     : "text-white/60 bg-white/5"
-              }`}
+                }`}
             >
               <Timer className="h-3 w-3" />
               {timeRemaining}
@@ -3486,13 +3478,12 @@ ANTHROPIC_API_KEY=your_key_here`}
       <div className="flex-1 flex overflow-hidden">
         {/* CHAT PANEL - visible on desktop (w-1/2), toggled on mobile/tablet */}
         <div
-          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${
-            isFullscreen
+          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${isFullscreen
               ? "w-0 hidden"
               : mobilePanel === "chat"
                 ? "w-full xl:w-1/2"
                 : "hidden xl:flex xl:w-1/2"
-          }`}
+            }`}
         >
           <div
             ref={messagesContainerRef}
@@ -3521,35 +3512,32 @@ ANTHROPIC_API_KEY=your_key_here`}
 
         {/* PREVIEW PANEL - visible on desktop (flex-1), toggled on mobile/tablet */}
         <div
-          className={`flex-1 flex flex-col overflow-hidden ${
-            isFullscreen
+          className={`flex-1 flex flex-col overflow-hidden ${isFullscreen
               ? "w-full"
               : mobilePanel === "preview"
                 ? "w-full xl:flex"
                 : "hidden xl:flex"
-          }`}
+            }`}
         >
           {/* Mobile/Tablet Preview Tabs */}
           <div className="flex-shrink-0 flex xl:hidden items-center gap-1.5 px-2 py-2 border-b border-white/10 bg-black/20 overflow-x-auto">
             <div className="flex bg-white/5 rounded-md p-0.5 flex-shrink-0">
               <button
                 onClick={() => setPreviewTab("preview")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                  previewTab === "preview"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${previewTab === "preview"
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white/70"
-                }`}
+                  }`}
               >
                 <Monitor className="h-3.5 w-3.5" />
                 Preview
               </button>
               <button
                 onClick={() => setPreviewTab("console")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                  previewTab === "console"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${previewTab === "console"
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white/70"
-                }`}
+                  }`}
               >
                 <Terminal className="h-3.5 w-3.5" />
                 Console
@@ -3561,22 +3549,20 @@ ANTHROPIC_API_KEY=your_key_here`}
               </button>
               <button
                 onClick={() => setPreviewTab("files")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                  previewTab === "files"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${previewTab === "files"
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white/70"
-                }`}
+                  }`}
               >
                 <FolderCode className="h-3.5 w-3.5" />
                 Files
               </button>
               <button
                 onClick={() => setPreviewTab("history")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                  previewTab === "history"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${previewTab === "history"
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white/70"
-                }`}
+                  }`}
               >
                 <History className="h-3.5 w-3.5" />
                 History
@@ -3624,22 +3610,20 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div className="flex bg-white/5 rounded-md p-0.5">
               <button
                 onClick={() => setPreviewTab("preview")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  previewTab === "preview"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${previewTab === "preview"
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white/70"
-                }`}
+                  }`}
               >
                 <Monitor className="h-3.5 w-3.5" />
                 Preview
               </button>
               <button
                 onClick={() => setPreviewTab("console")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  previewTab === "console"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${previewTab === "console"
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white/70"
-                }`}
+                  }`}
               >
                 <Terminal className="h-3.5 w-3.5" />
                 Console
@@ -3651,22 +3635,20 @@ ANTHROPIC_API_KEY=your_key_here`}
               </button>
               <button
                 onClick={() => setPreviewTab("files")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  previewTab === "files"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${previewTab === "files"
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white/70"
-                }`}
+                  }`}
               >
                 <FolderCode className="h-3.5 w-3.5" />
                 Files
               </button>
               <button
                 onClick={() => setPreviewTab("history")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  previewTab === "history"
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${previewTab === "history"
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white/70"
-                }`}
+                  }`}
               >
                 <History className="h-3.5 w-3.5" />
                 History
@@ -3712,24 +3694,22 @@ ANTHROPIC_API_KEY=your_key_here`}
             {/* Preview iframe - always mounted when session exists to prevent reload flicker */}
             {session?.sandboxUrl && (
               <div
-                className={`absolute inset-0 transition-opacity duration-300 ${
-                  previewTab === "preview"
+                className={`absolute inset-0 transition-opacity duration-300 ${previewTab === "preview"
                     ? "opacity-100 z-10"
                     : "opacity-0 z-0 pointer-events-none"
-                }`}
+                  }`}
               >
                 {/* Building overlay - Show until first generation completes */}
                 <div
-                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 z-20 ${
-                    iframeLoaded && previewTab === "preview" && hasCompletedFirstGeneration
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 z-20 ${iframeLoaded && previewTab === "preview" && hasCompletedFirstGeneration
                       ? "opacity-0 pointer-events-none"
                       : "opacity-100"
-                  }`}
+                    }`}
                 >
                   {/* Background with gradient and grid */}
                   <div className="absolute inset-0 bg-gradient-to-br from-[#0f0f12] via-[#0a0a0d] to-[#080810]" />
                   {/* Subtle grid pattern */}
-                  <div 
+                  <div
                     className="absolute inset-0 opacity-[0.03]"
                     style={{
                       backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
@@ -3738,7 +3718,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   />
                   {/* Subtle radial glow */}
                   <div className="absolute inset-0 bg-gradient-radial from-[#FF5800]/5 via-transparent to-transparent" style={{ background: 'radial-gradient(circle at 50% 40%, rgba(255,88,0,0.08) 0%, transparent 50%)' }} />
-                  
+
                   <div className="text-center relative z-10">
                     <div className="mb-6">
                       <Sparkles className="h-12 w-12 text-[#FF5800] mx-auto animate-pulse" style={{ opacity: 0.4 }} strokeWidth={1.5} />

@@ -225,7 +225,7 @@ describe("Internal API Middleware", () => {
   function createMockRequest(
     authHeader?: string,
     method = "POST",
-    url = "http://localhost:3000/api/internal/test"
+    url = "http://localhost:3333/api/internal/test"
   ): NextRequest {
     const headers = new Headers();
     if (authHeader) {

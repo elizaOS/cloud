@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3333";
 
 test("health endpoint is reachable without authentication", async () => {
   const response = await fetch(`${SERVER_URL}/api/health`);
