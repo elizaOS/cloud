@@ -16,7 +16,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { BrandButton } from "@elizaos/ui";
 import UserMenu from "./user-menu";
 import { usePageHeader } from "@elizaos/ui";
-import { QuickCreateDialog } from "@/components/builders/quick-create-dialog";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -95,11 +94,6 @@ function HeaderComponent({
           </div>
         )}
       </div>
-
-      <QuickCreateDialog
-        open={showQuickCreate}
-        onOpenChange={setShowQuickCreate}
-      />
     </header>
   );
 }

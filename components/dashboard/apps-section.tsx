@@ -22,7 +22,6 @@ import { /* Sparkles, */ Activity, Users, Info } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { StatusBadge, EmptyState } from "@elizaos/ui";
-// import { QuickCreateDialog } from "@/components/builders/quick-create-dialog";
 
 interface App {
   id: string;

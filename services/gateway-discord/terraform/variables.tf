@@ -148,7 +148,7 @@ variable "github_org" {
 variable "github_repo" {
   description = "GitHub repository name"
   type        = string
-  default     = "eliza-cloud-v2"
+  default     = "cloud"
 }
 
 variable "create_oidc_provider" {
