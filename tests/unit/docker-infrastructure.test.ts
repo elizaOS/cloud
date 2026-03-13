@@ -4,7 +4,7 @@
  * Tests the utility functions extracted to docker-sandbox-utils.ts.
  */
 
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import {
   shellQuote,
   validateAgentId,
@@ -20,14 +20,52 @@ import {
 // Tests
 // ---------------------------------------------------------------------------
 
-async function importSandboxProviderModule() {
-  mock.restore();
-  return import(
-    new URL(
-      `../../lib/services/sandbox-provider.ts?test=${Date.now()}`,
-      import.meta.url,
-    ).href
-  );
+const sandboxProviderModuleUrl = new URL(
+  "../../lib/services/sandbox-provider.ts",
+  import.meta.url,
+).href;
+
+function runSandboxProviderFactory(providerEnv?: string) {
+  const env = { ...process.env };
+
+  if (providerEnv === undefined) {
+    delete env.MILADY_SANDBOX_PROVIDER;
+    delete env.MILAIDY_SANDBOX_PROVIDER;
+  } else {
+    env.MILADY_SANDBOX_PROVIDER = providerEnv;
+    delete env.MILAIDY_SANDBOX_PROVIDER;
+  }
+
+  const result = Bun.spawnSync({
+    cmd: [
+      "bun",
+      "-e",
+      `
+        const mod = await import(${JSON.stringify(`${sandboxProviderModuleUrl}?test=${Date.now()}`)});
+        const { createSandboxProvider } = mod;
+        try {
+          const provider = createSandboxProvider();
+          console.log(JSON.stringify({ ok: true, name: provider.constructor?.name ?? null }));
+        } catch (error) {
+          console.log(JSON.stringify({ ok: false, message: error instanceof Error ? error.message : String(error) }));
+        }
+      `,
+    ],
+    cwd: process.cwd(),
+    env,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  const stdout = new TextDecoder().decode(result.stdout).trim();
+  const stderr = new TextDecoder().decode(result.stderr).trim();
+
+  expect(result.exitCode).toBe(0);
+  expect(stderr).toBe("");
+
+  return JSON.parse(stdout) as
+    | { ok: true; name: string | null }
+    | { ok: false; message: string };
 }
 
 describe("Docker Infrastructure - Pure Functions", () => {
@@ -335,81 +373,46 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
   // -------------------------------------------------------------------------
   describe("createSandboxProvider factory", () => {
-    let savedEnv: string | undefined;
-    let savedLegacyEnv: string | undefined;
-
-    beforeEach(() => {
-      savedEnv = process.env.MILADY_SANDBOX_PROVIDER;
-      savedLegacyEnv = process.env.MILAIDY_SANDBOX_PROVIDER;
-      delete process.env.MILADY_SANDBOX_PROVIDER;
-      delete process.env.MILAIDY_SANDBOX_PROVIDER;
-      mock.restore();
+    test("defaults to VercelSandboxProvider when env var is unset", () => {
+      const result = runSandboxProviderFactory();
+      expect(result).toEqual({ ok: true, name: "VercelSandboxProvider" });
     });
 
-    afterEach(() => {
-      if (savedEnv === undefined) {
-        delete process.env.MILADY_SANDBOX_PROVIDER;
+    test("returns VercelSandboxProvider for MILADY_SANDBOX_PROVIDER=vercel", () => {
+      const result = runSandboxProviderFactory("vercel");
+      expect(result).toEqual({ ok: true, name: "VercelSandboxProvider" });
+    });
+
+    test("returns DockerSandboxProvider for MILADY_SANDBOX_PROVIDER=docker", () => {
+      const result = runSandboxProviderFactory("docker");
+      if (result.ok) {
+        expect(result.name).toBe("DockerSandboxProvider");
       } else {
-        process.env.MILADY_SANDBOX_PROVIDER = savedEnv;
+        expect(result.message).not.toContain("Unknown sandbox provider");
       }
+    });
 
-      if (savedLegacyEnv === undefined) {
-        delete process.env.MILAIDY_SANDBOX_PROVIDER;
+    test("throws for an unknown provider name", () => {
+      const result = runSandboxProviderFactory("unknown");
+      expect(result).toEqual({
+        ok: false,
+        message:
+          'Unknown sandbox provider: "unknown". Supported values: vercel, docker',
+      });
+    });
+
+    test("is case-insensitive (Docker → docker)", () => {
+      const result = runSandboxProviderFactory("Docker");
+      if (result.ok) {
+        expect(result.name).toBe("DockerSandboxProvider");
       } else {
-        process.env.MILAIDY_SANDBOX_PROVIDER = savedLegacyEnv;
-      }
-
-      mock.restore();
-    });
-
-    test("defaults to VercelSandboxProvider when env var is unset", async () => {
-      const { createSandboxProvider } = await importSandboxProviderModule();
-      const provider = createSandboxProvider();
-      expect(provider.constructor.name).toBe("VercelSandboxProvider");
-    });
-
-    test("returns VercelSandboxProvider for MILADY_SANDBOX_PROVIDER=vercel", async () => {
-      process.env.MILADY_SANDBOX_PROVIDER = "vercel";
-      const { createSandboxProvider } = await importSandboxProviderModule();
-      const provider = createSandboxProvider();
-      expect(provider.constructor.name).toBe("VercelSandboxProvider");
-    });
-
-    test("returns DockerSandboxProvider for MILADY_SANDBOX_PROVIDER=docker", async () => {
-      process.env.MILADY_SANDBOX_PROVIDER = "docker";
-      const { createSandboxProvider } = await importSandboxProviderModule();
-      try {
-        const provider = createSandboxProvider();
-        expect(provider.constructor.name).toBe("DockerSandboxProvider");
-      } catch (err) {
-        // If DockerSandboxProvider can't be constructed in test env, at least
-        // verify the factory attempted to create it (no "Unknown provider" error)
-        expect(String(err)).not.toContain("Unknown sandbox provider");
+        expect(result.message).not.toContain("Unknown sandbox provider");
       }
     });
 
-    test("throws for an unknown provider name", async () => {
-      process.env.MILADY_SANDBOX_PROVIDER = "unknown";
-      const { createSandboxProvider } = await importSandboxProviderModule();
-      expect(() => createSandboxProvider()).toThrow(/Unknown sandbox provider/);
-    });
-
-    test("is case-insensitive (Docker → docker)", async () => {
-      process.env.MILADY_SANDBOX_PROVIDER = "Docker";
-      const { createSandboxProvider } = await importSandboxProviderModule();
-      try {
-        const provider = createSandboxProvider();
-        expect(provider.constructor.name).toBe("DockerSandboxProvider");
-      } catch (err) {
-        expect(String(err)).not.toContain("Unknown sandbox provider");
-      }
-    });
-
-    test("is case-insensitive (VERCEL → vercel)", async () => {
-      process.env.MILADY_SANDBOX_PROVIDER = "VERCEL";
-      const { createSandboxProvider } = await importSandboxProviderModule();
-      const provider = createSandboxProvider();
-      expect(provider.constructor.name).toBe("VercelSandboxProvider");
+    test("is case-insensitive (VERCEL → vercel)", () => {
+      const result = runSandboxProviderFactory("VERCEL");
+      expect(result).toEqual({ ok: true, name: "VercelSandboxProvider" });
     });
   });
 });
