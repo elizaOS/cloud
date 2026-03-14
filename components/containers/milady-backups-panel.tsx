@@ -111,7 +111,16 @@ export function MiladyBackupsPanel({
     fetchBackups();
   }, [fetchBackups]);
 
-  const latestBackup = backups[0] ?? null;
+  const latestBackup = useMemo(
+    () =>
+      backups.reduce<BackupRecord | null>((latest, backup) => {
+        if (!latest) return backup;
+        return new Date(backup.createdAt) > new Date(latest.createdAt)
+          ? backup
+          : latest;
+      }, null),
+    [backups],
+  );
   const manualCount = useMemo(
     () => backups.filter((backup) => backup.snapshotType === "manual").length,
     [backups],

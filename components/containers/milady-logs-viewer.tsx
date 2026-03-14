@@ -166,7 +166,7 @@ export function MiladyLogsViewer({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
   const statusHint = STATUS_MESSAGES[status] ?? null;

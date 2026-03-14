@@ -92,10 +92,15 @@ function sanitizeProjectNameSegment(value: string): string {
 }
 
 export class MiladySandboxService {
-  private provider: SandboxProvider;
+  private provider?: SandboxProvider;
 
   constructor(provider?: SandboxProvider) {
-    this.provider = provider ?? createSandboxProvider();
+    this.provider = provider;
+  }
+
+  private getProvider(): SandboxProvider {
+    this.provider ??= createSandboxProvider();
+    return this.provider;
   }
 
   // Agent CRUD
@@ -165,7 +170,7 @@ export class MiladySandboxService {
 
       if (rec.sandbox_id) {
         try {
-          await this.provider.stop(rec.sandbox_id);
+          await this.getProvider().stop(rec.sandbox_id);
         } catch (e) {
           const errorMessage = e instanceof Error ? e.message : String(e);
           if (!this.isIgnorableSandboxStopError(e)) {
@@ -270,7 +275,7 @@ export class MiladySandboxService {
 
       try {
         // 2. Sandbox (via provider)
-        handle = await this.provider.create({
+        handle = await this.getProvider().create({
           agentId: rec.id,
           agentName: rec.agent_name ?? "CloudAgent",
           environmentVars: {
@@ -291,7 +296,7 @@ export class MiladySandboxService {
 
       try {
         // 3. Health check (via provider)
-        if (!(await this.provider.checkHealth(handle.healthUrl))) {
+        if (!(await this.getProvider().checkHealth(handle.healthUrl))) {
           throw new Error("Sandbox health check timed out");
         }
 
@@ -365,12 +370,15 @@ export class MiladySandboxService {
           },
         );
 
-        await this.provider.stop(handle.sandboxId).catch((stopErr) => {
-          logger.error("[milady-sandbox] Ghost container cleanup failed", {
-            sandboxId: handle.sandboxId,
-            error: stopErr instanceof Error ? stopErr.message : String(stopErr),
+        await this.getProvider()
+          .stop(handle.sandboxId)
+          .catch((stopErr) => {
+            logger.error("[milady-sandbox] Ghost container cleanup failed", {
+              sandboxId: handle.sandboxId,
+              error:
+                stopErr instanceof Error ? stopErr.message : String(stopErr),
+            });
           });
-        });
 
         // Check if it's a unique constraint error (port collision) -> retry
         const isUniqueConstraintError =
@@ -696,21 +704,23 @@ export class MiladySandboxService {
       return { success: true, backup };
     }
 
-    const latestBackup = await miladySandboxesRepository.getLatestBackup(
-      rec.id,
-    );
-    if (!latestBackup) {
-      return { success: false, error: "No backup found" };
-    }
+    if (backupId) {
+      const latestBackup = await miladySandboxesRepository.getLatestBackup(
+        rec.id,
+      );
+      if (!latestBackup) {
+        return { success: false, error: "No backup found" };
+      }
 
-    if (backup.id !== latestBackup.id) {
-      return {
-        success: false,
-        error: "Stopped agents can only restore the latest backup",
-      };
-    }
+      if (backup.id !== latestBackup.id) {
+        return {
+          success: false,
+          error: "Stopped agents can only restore the latest backup",
+        };
+      }
 
-    backup = latestBackup;
+      backup = latestBackup;
+    }
 
     const prov = await this.provision(agentId, orgId);
     return prov.success
@@ -833,13 +843,15 @@ export class MiladySandboxService {
       }
 
       if (rec.sandbox_id) {
-        await this.provider.stop(rec.sandbox_id).catch((e) => {
-          logger.warn("[milady-sandbox] Stop failed during shutdown", {
-            sandboxId: rec.sandbox_id,
-            status: rec.status,
-            error: e instanceof Error ? e.message : String(e),
+        await this.getProvider()
+          .stop(rec.sandbox_id)
+          .catch((e) => {
+            logger.warn("[milady-sandbox] Stop failed during shutdown", {
+              sandboxId: rec.sandbox_id,
+              status: rec.status,
+              error: e instanceof Error ? e.message : String(e),
+            });
           });
-        });
       }
 
       await tx.execute(sql`

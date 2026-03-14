@@ -46,6 +46,9 @@ function applyPath(baseUrl: string, path = "/"): string {
   return url.toString();
 }
 
+// Server-only: reads process.env. Do not import in client components.
+// For client use, pass canonical_web_ui_url from the server and call
+// getClientSafeMiladyAgentWebUiUrl instead.
 export function getMiladyAgentPublicWebUiUrl(
   sandbox: Pick<MiladySandbox, "id" | "headscale_ip">,
   options: MiladyWebUiUrlOptions = {},
