@@ -302,7 +302,7 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
           className,
         )}
       >
-        {/* Header with Logo */}
+        {/* Header with Logo and Collapse Toggle */}
         <div className="relative flex h-14 mb-2 shrink-0 grow-0 items-center justify-between px-3">
           <Link
             href="/dashboard"

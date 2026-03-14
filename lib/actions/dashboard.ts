@@ -4,7 +4,6 @@
 
 "use server";
 
-import { cache } from "react";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { requireAuthWithOrg } from "@/lib/auth";
 import type { AgentStats } from "@/lib/cache/agent-state-cache";
@@ -39,6 +38,7 @@ export interface DashboardData {
     apiCalls24h: number;
     imageGenerations: number;
     videoGenerations: number;
+    creditBalance: number;
   };
   onboarding: {
     hasAgents: boolean;
@@ -110,16 +110,16 @@ async function fetchDashboardDataInternal(
   const organizationId = user.organization_id!;
 
   // Fetch only the data needed for the new dashboard
-  const [generationStats, userCharacters, containers, apiKeys, userRooms, apps] = await Promise.all(
-    [
+  const [generationStats, userCharacters, containers, apiKeys, userRooms, apps, org] =
+    await Promise.all([
       generationsService.getStats(organizationId),
       charactersService.listByUser(user.id),
       listContainers(organizationId),
       apiKeysService.listByOrganization(organizationId),
       roomsService.getRoomsForEntity(user.id),
       appsService.listByOrganization(organizationId),
-    ],
-  );
+      organizationsRepository.findById(organizationId),
+    ]);
 
   const chatRoomCount = userRooms.length;
 
@@ -169,6 +169,7 @@ async function fetchDashboardDataInternal(
       apiCalls24h,
       imageGenerations,
       videoGenerations,
+      creditBalance: org ? Number(org.credit_balance) : 0,
     },
     onboarding: {
       hasAgents: userCharacters.length > 0,

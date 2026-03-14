@@ -16,7 +16,8 @@ import {
   UserCog,
   Video,
   Wallet,
-} from "lucide-react";
+} from "lucide-react"
+
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
 

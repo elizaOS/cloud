@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+
 import { Suspense } from "react";
 import { AgentsSection, AgentsSectionSkeleton } from "@/components/dashboard/agents-section";
+import {
+  DashboardActionCards,
+  DashboardActionCardsSkeleton,
+} from "@/components/dashboard/dashboard-action-cards";
+import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
+import { getDashboardData } from "@/lib/actions/dashboard";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import {
   ContainersSection,
   ContainersSectionSkeleton,
 } from "@/components/dashboard/containers-section";
-import { DashboardActionCards } from "@/components/dashboard/dashboard-action-cards";
-import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
-import { getDashboardData } from "@/lib/actions/dashboard";
-import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.dashboard,
@@ -20,7 +24,7 @@ export const metadata: Metadata = generatePageMetadata({
 export const dynamic = "force-dynamic";
 
 /**
- * Main dashboard page displaying action cards, user's agents and containers.
+ * Main dashboard page displaying quick actions, agents, and containers.
  *
  * @returns Dashboard page with action cards, agents, and containers sections.
  */
@@ -41,8 +45,16 @@ export default async function DashboardPage() {
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
       <main className="mx-auto w-full max-w-[1400px]">
-        <DashboardActionCards creditBalance={data.creditBalance} />
         <div className="space-y-8 mt-8">
+          {/* Quick Action Cards */}
+          <section>
+            <Suspense fallback={<DashboardActionCardsSkeleton />}>
+              <DashboardActionCards
+                creditBalance={data.stats.creditBalance}
+              />
+            </Suspense>
+          </section>
+
           <section>
             <Suspense fallback={<AgentsSectionSkeleton />}>
               <AgentsSection agents={data.agents} />
@@ -59,3 +71,4 @@ export default async function DashboardPage() {
     </DashboardPageWrapper>
   );
 }
+

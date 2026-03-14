@@ -87,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     pathname?.startsWith("/dashboard/chat") || pathname?.startsWith("/dashboard/build");
 
   // Pages that need full width without padding
-  const _isFullWidthPage = isAppCreatePage;
+  const isFullWidthPage = isAppCreatePage;
 
   // For chat/build pages, render children directly without standard layout
   if (isCustomLayoutPage) {
@@ -105,7 +105,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <PageHeaderProvider>
         <div className="dashboard-theme flex h-screen w-full bg-neutral-950">
           {/* Sidebar */}
-          <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
+          <Sidebar
+            isOpen={sidebarOpen}
+            onToggle={handleToggleSidebar}
+          />
 
           {/* Main Content */}
           <div className="flex flex-1 max-md:pl-3 py-3 pr-3 flex-col overflow-hidden gap-1.5 md:gap-3">
