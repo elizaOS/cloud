@@ -32,26 +32,20 @@
  * ============================================================================
  */
 
+import bs58 from "bs58";
+import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { type Address, createPublicClient, createWalletClient, http, parseUnits } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { dbRead, dbWrite } from "@/db/client";
 import { tokenRedemptions } from "@/db/schemas/token-redemptions";
-import { eq, and, lt, sql, isNull, or } from "drizzle-orm";
+import { ELIZA_DECIMALS, ERC20_ABI, EVM_CHAINS } from "@/lib/config/token-constants";
 import { logger } from "@/lib/utils/logger";
 import {
-  elizaTokenPriceService,
   ELIZA_TOKEN_ADDRESSES,
+  elizaTokenPriceService,
   type SupportedNetwork,
 } from "./eliza-token-price";
-import {
-  createPublicClient,
-  createWalletClient,
-  http,
-  parseUnits,
-  type Address,
-} from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import bs58 from "bs58";
 import { payoutAlertsService } from "./payout-alerts";
-import { ELIZA_DECIMALS, EVM_CHAINS, ERC20_ABI } from "@/lib/config/token-constants";
 
 // Configuration
 const PAYOUT_CONFIG = {
@@ -107,8 +101,7 @@ export class PayoutProcessorService {
 
   constructor() {
     // Load EVM private key (support both naming conventions)
-    const evmKey =
-      process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+    const evmKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
     if (evmKey) {
       this.evmPrivateKey = evmKey.startsWith("0x")
         ? (evmKey as `0x${string}`)
@@ -129,8 +122,7 @@ export class PayoutProcessorService {
           require("@solana/web3.js") as typeof import("@solana/web3.js");
         const decoded = bs58.decode(solanaKey);
         this.solanaKeypair = Keypair.fromSecretKey(decoded);
-        const solanaRpc =
-          process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+        const solanaRpc = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
         this.solanaConnection = new Connection(solanaRpc, "confirmed");
         logger.info("[PayoutProcessor] Solana hot wallet configured");
       } catch (error) {
@@ -146,9 +138,7 @@ export class PayoutProcessorService {
     } else {
       this.solanaKeypair = null;
       this.solanaConnection = null;
-      logger.warn(
-        "[PayoutProcessor] SOLANA_PAYOUT_PRIVATE_KEY not set - Solana payouts disabled",
-      );
+      logger.warn("[PayoutProcessor] SOLANA_PAYOUT_PRIVATE_KEY not set - Solana payouts disabled");
     }
   }
 
@@ -178,9 +168,7 @@ export class PayoutProcessorService {
     // Check if any payout method is configured
     const config = this.isConfigured();
     if (!config.any) {
-      logger.warn(
-        "[PayoutProcessor] No payout wallets configured - skipping batch processing",
-      );
+      logger.warn("[PayoutProcessor] No payout wallets configured - skipping batch processing");
       return stats;
     }
 
@@ -223,11 +211,7 @@ export class PayoutProcessorService {
         await this.markCompleted(redemption.id, result.txHash!);
         stats.succeeded++;
       } else {
-        await this.markFailed(
-          redemption.id,
-          result.error!,
-          result.retryable ?? true,
-        );
+        await this.markFailed(redemption.id, result.error!, result.retryable ?? true);
         stats.failed++;
       }
     }
@@ -248,12 +232,7 @@ export class PayoutProcessorService {
         processing_worker_id: PAYOUT_CONFIG.WORKER_ID,
         updated_at: new Date(),
       })
-      .where(
-        and(
-          eq(tokenRedemptions.id, redemptionId),
-          eq(tokenRedemptions.status, "approved"),
-        ),
-      )
+      .where(and(eq(tokenRedemptions.id, redemptionId), eq(tokenRedemptions.status, "approved")))
       .returning();
 
     return !!updated;
@@ -277,10 +256,7 @@ export class PayoutProcessorService {
     }
 
     // Re-validate current price
-    const priceValidation = await this.validatePrice(
-      network,
-      Number(redemption.eliza_price_usd),
-    );
+    const priceValidation = await this.validatePrice(network, Number(redemption.eliza_price_usd));
     if (!priceValidation.valid) {
       return {
         success: false,
@@ -431,11 +407,8 @@ export class PayoutProcessorService {
       };
     }
 
-    const {
-      PublicKey,
-      Transaction,
-      sendAndConfirmTransaction,
-    } = require("@solana/web3.js") as typeof import("@solana/web3.js");
+    const { PublicKey, Transaction, sendAndConfirmTransaction } =
+      require("@solana/web3.js") as typeof import("@solana/web3.js");
     const {
       createTransferInstruction,
       getAssociatedTokenAddress,
@@ -446,22 +419,14 @@ export class PayoutProcessorService {
     const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
     const toAddress = new PublicKey(redemption.payout_address);
     const amount = BigInt(
-      Math.floor(
-        Number(redemption.eliza_amount) * Math.pow(10, ELIZA_DECIMALS.solana),
-      ),
+      Math.floor(Number(redemption.eliza_amount) * 10 ** ELIZA_DECIMALS.solana),
     );
 
     // Get source token account (hot wallet's ATA)
-    const sourceAta = await getAssociatedTokenAddress(
-      mintAddress,
-      this.solanaKeypair.publicKey,
-    );
+    const sourceAta = await getAssociatedTokenAddress(mintAddress, this.solanaKeypair.publicKey);
 
     // Get or create destination token account
-    const destinationAta = await getAssociatedTokenAddress(
-      mintAddress,
-      toAddress,
-    );
+    const destinationAta = await getAssociatedTokenAddress(mintAddress, toAddress);
 
     const transaction = new Transaction();
 
@@ -490,12 +455,7 @@ export class PayoutProcessorService {
 
     // Add transfer instruction
     transaction.add(
-      createTransferInstruction(
-        sourceAta,
-        destinationAta,
-        this.solanaKeypair.publicKey,
-        amount,
-      ),
+      createTransferInstruction(sourceAta, destinationAta, this.solanaKeypair.publicKey, amount),
     );
 
     // Send and confirm transaction
@@ -519,10 +479,7 @@ export class PayoutProcessorService {
   /**
    * Mark redemption as completed.
    */
-  private async markCompleted(
-    redemptionId: string,
-    txHash: string,
-  ): Promise<void> {
+  private async markCompleted(redemptionId: string, txHash: string): Promise<void> {
     await dbWrite
       .update(tokenRedemptions)
       .set({
@@ -595,9 +552,7 @@ export class PayoutProcessorService {
       const account = privateKeyToAccount(this.evmPrivateKey);
 
       for (const [network, chain] of Object.entries(EVM_CHAINS)) {
-        const tokenAddress = ELIZA_TOKEN_ADDRESSES[
-          network as SupportedNetwork
-        ] as Address;
+        const tokenAddress = ELIZA_TOKEN_ADDRESSES[network as SupportedNetwork] as Address;
 
         const publicClient = createPublicClient({
           chain,
@@ -612,8 +567,7 @@ export class PayoutProcessorService {
         });
 
         const balanceFormatted =
-          Number(balance) /
-          Math.pow(10, ELIZA_DECIMALS[network as keyof typeof ELIZA_DECIMALS]);
+          Number(balance) / 10 ** ELIZA_DECIMALS[network as keyof typeof ELIZA_DECIMALS];
         result.evm.balances[network] = balanceFormatted;
 
         if (balanceFormatted < PAYOUT_CONFIG.MIN_HOT_WALLET_BALANCE) {
@@ -632,26 +586,18 @@ export class PayoutProcessorService {
         }
       }
     } else {
-      logger.info(
-        "[PayoutProcessor] EVM wallet not configured - skipping EVM balance check",
-      );
+      logger.info("[PayoutProcessor] EVM wallet not configured - skipping EVM balance check");
     }
 
     // Check Solana wallet
     if (this.solanaKeypair && this.solanaConnection) {
-      const { PublicKey } =
-        require("@solana/web3.js") as typeof import("@solana/web3.js");
+      const { PublicKey } = require("@solana/web3.js") as typeof import("@solana/web3.js");
       const { getAssociatedTokenAddress, getAccount } =
         require("@solana/spl-token") as typeof import("@solana/spl-token");
       const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
-      const ata = await getAssociatedTokenAddress(
-        mintAddress,
-        this.solanaKeypair.publicKey,
-      );
+      const ata = await getAssociatedTokenAddress(mintAddress, this.solanaKeypair.publicKey);
 
-      const account = await getAccount(this.solanaConnection, ata).catch(
-        () => null,
-      );
+      const account = await getAccount(this.solanaConnection, ata).catch(() => null);
 
       if (!account) {
         logger.warn("[PayoutProcessor] Solana token account not found", {
@@ -659,8 +605,7 @@ export class PayoutProcessorService {
         });
         result.solana.balance = 0;
       } else {
-        const balanceFormatted =
-          Number(account.amount) / Math.pow(10, ELIZA_DECIMALS.solana);
+        const balanceFormatted = Number(account.amount) / 10 ** ELIZA_DECIMALS.solana;
         result.solana.balance = balanceFormatted;
 
         if (balanceFormatted < PAYOUT_CONFIG.MIN_HOT_WALLET_BALANCE) {
@@ -679,9 +624,7 @@ export class PayoutProcessorService {
         }
       }
     } else {
-      logger.info(
-        "[PayoutProcessor] Solana wallet not configured - skipping Solana balance check",
-      );
+      logger.info("[PayoutProcessor] Solana wallet not configured - skipping Solana balance check");
     }
 
     return result;
@@ -699,13 +642,10 @@ function getPayoutProcessorService() {
 }
 
 // Export a lazy singleton proxy so invalid config does not break module evaluation.
-export const payoutProcessorService = new Proxy(
-  {} as PayoutProcessorService,
-  {
-    get(_target, property) {
-      const service = getPayoutProcessorService();
-      const value = Reflect.get(service, property, service);
-      return typeof value === "function" ? value.bind(service) : value;
-    },
+export const payoutProcessorService = new Proxy({} as PayoutProcessorService, {
+  get(_target, property) {
+    const service = getPayoutProcessorService();
+    const value = Reflect.get(service, property, service);
+    return typeof value === "function" ? value.bind(service) : value;
   },
-);
+});

@@ -5,14 +5,11 @@
  * Used to inform users and admins about payout availability.
  */
 
-import { logger } from "@/lib/utils/logger";
-import {
-  ELIZA_TOKEN_ADDRESSES,
-  type SupportedNetwork,
-} from "./eliza-token-price";
-import { createPublicClient, http, parseAbi, type Address } from "viem";
+import { type Address, createPublicClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { ELIZA_DECIMALS, EVM_CHAINS } from "@/lib/config/token-constants";
+import { logger } from "@/lib/utils/logger";
+import { ELIZA_TOKEN_ADDRESSES, type SupportedNetwork } from "./eliza-token-price";
 
 // ============================================================================
 // TYPES
@@ -58,12 +55,7 @@ class PayoutStatusService {
    */
   async getStatus(forceRefresh = false): Promise<PayoutSystemStatus> {
     // Return cached if valid
-    if (
-      !forceRefresh &&
-      this.cachedStatus &&
-      this.cacheExpiry &&
-      new Date() < this.cacheExpiry
-    ) {
+    if (!forceRefresh && this.cachedStatus && this.cacheExpiry && new Date() < this.cacheExpiry) {
       return this.cachedStatus;
     }
 
@@ -71,11 +63,8 @@ class PayoutStatusService {
     const warnings: string[] = [];
 
     // Check EVM networks (support both naming conventions)
-    const evmPrivateKey =
-      process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
-    const evmWalletAddress = evmPrivateKey
-      ? this.getEvmWalletAddress(evmPrivateKey)
-      : null;
+    const evmPrivateKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+    const evmWalletAddress = evmPrivateKey ? this.getEvmWalletAddress(evmPrivateKey) : null;
 
     for (const network of ["ethereum", "base", "bnb"] as const) {
       const status = await this.checkEvmNetwork(network, evmWalletAddress);
@@ -100,9 +89,7 @@ class PayoutStatusService {
     }
 
     // Determine overall operational status
-    const operationalNetworks = networks.filter(
-      (n) => n.status === "operational",
-    );
+    const operationalNetworks = networks.filter((n) => n.status === "operational");
     const operational = operationalNetworks.length > 0;
 
     // Add general warnings
@@ -157,9 +144,7 @@ class PayoutStatusService {
    * Get user-friendly message for payout unavailability
    */
   getUserMessage(network?: SupportedNetwork): string | null {
-    const evmConfigured = !!(
-      process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY
-    );
+    const evmConfigured = !!(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY);
     const solanaConfigured = !!process.env.SOLANA_PAYOUT_PRIVATE_KEY;
 
     if (!evmConfigured && !solanaConfigured) {
@@ -224,9 +209,7 @@ class PayoutStatusService {
       transport: http(),
     });
 
-    const ERC20_ABI = parseAbi([
-      "function balanceOf(address account) view returns (uint256)",
-    ]);
+    const ERC20_ABI = parseAbi(["function balanceOf(address account) view returns (uint256)"]);
 
     let balance = 0;
     let error: string | null = null;
@@ -243,7 +226,7 @@ class PayoutStatusService {
         return BigInt(0);
       });
 
-    balance = Number(rawBalance) / Math.pow(10, decimals);
+    balance = Number(rawBalance) / 10 ** decimals;
 
     if (error) {
       logger.warn(`[PayoutStatus] Failed to check ${network} balance`, {
@@ -295,9 +278,7 @@ class PayoutStatusService {
     };
   }
 
-  private async checkSolanaNetwork(
-    walletAddress: string | null,
-  ): Promise<NetworkStatus> {
+  private async checkSolanaNetwork(walletAddress: string | null): Promise<NetworkStatus> {
     if (!walletAddress) {
       return {
         network: "solana",
@@ -310,8 +291,7 @@ class PayoutStatusService {
       };
     }
 
-    const solanaRpc =
-      process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+    const solanaRpc = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
     const { Connection, PublicKey } =
       require("@solana/web3.js") as typeof import("@solana/web3.js");
     const { getAssociatedTokenAddress, getAccount } =
@@ -337,7 +317,7 @@ class PayoutStatusService {
       };
     }
 
-    balance = Number(account.amount) / Math.pow(10, ELIZA_DECIMALS.solana);
+    balance = Number(account.amount) / 10 ** ELIZA_DECIMALS.solana;
 
     if (balance === 0) {
       return {

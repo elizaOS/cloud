@@ -13,9 +13,9 @@
  * - Cost savings: Reduces AI API calls for expensive operations
  */
 
-import { cache } from "./client";
-import { logger } from "@/lib/utils/logger";
 import { createHash } from "crypto";
+import { logger } from "@/lib/utils/logger";
+import { cache } from "./client";
 
 // Tool-specific cache TTLs (in seconds)
 // Longer TTLs for stable data, shorter for frequently changing data
@@ -143,9 +143,7 @@ export async function invalidateToolCache(
     // Invalidate all cache entries for this tool and org (pattern-based)
     // Note: This requires scanning keys, which can be slow
     // For now, we'll skip this optimization and rely on TTL expiration
-    logger.debug(
-      `[MCPToolCache] Skipping pattern-based invalidation for ${toolName}`,
-    );
+    logger.debug(`[MCPToolCache] Skipping pattern-based invalidation for ${toolName}`);
   }
 }
 
@@ -175,11 +173,7 @@ export async function getToolCacheStats(toolName?: string): Promise<{
  * Build cache key for tool result
  * Includes tool name, params hash, and org ID for proper scoping
  */
-function buildToolCacheKey(
-  toolName: string,
-  params: unknown,
-  organizationId: string,
-): string {
+function buildToolCacheKey(toolName: string, params: unknown, organizationId: string): string {
   // Hash params to create stable, compact key
   // Sort keys to ensure consistent hashing regardless of param order
   const paramsHash = hashParams(params);

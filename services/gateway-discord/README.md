@@ -179,12 +179,12 @@ cd services/gateway-discord
 # Install dependencies
 bun install
 
-# Start with hot reload (runs on port 3001 by default)
+# Start with hot reload (runs on port 3000 by default)
 bun run dev
 ```
 
 The gateway will:
-- Start on port 3001 (scripts default to this to avoid conflict with Eliza Cloud on 3000)
+- Start on port 3000 (scripts default to this to avoid conflict with Eliza Cloud on 3000)
 - Poll `http://localhost:3000/api/internal/discord/gateway/assignments` every 30s
 - Forward events to `http://localhost:3000/api/internal/discord/events`
 - Send heartbeats every 15s
@@ -195,7 +195,7 @@ The gateway will:
 #### Option 2: Production Mode
 
 ```bash
-bun run start  # Runs on port 3001 by default
+bun run start  # Runs on port 3000 by default
 ```
 
 #### Option 3: Docker
@@ -214,7 +214,7 @@ bun run docker:down
 Or manually:
 ```bash
 docker build -t gateway-discord:local .
-docker run -p 3001:3000 --env-file .env gateway-discord:local
+docker run -p 3000:3000 --env-file .env gateway-discord:local
 ```
 
 #### Option 4: Docker Compose
@@ -223,7 +223,7 @@ docker run -p 3001:3000 --env-file .env gateway-discord:local
 docker compose up -d
 ```
 
-This maps port 3001 on your host to 3000 in the container.
+This maps port 3000 on your host to 3000 in the container.
 
 ### Registering a Discord Bot Connection
 
@@ -359,13 +359,13 @@ The gateway also supports a single system-wide **Eliza App Bot** (DM-only) along
 **Port Reference:**
 | Running Method | Gateway Port | Notes |
 |----------------|--------------|-------|
-| Local (`bun run dev`) | `http://localhost:3001` | Scripts default to port 3001 |
-| Docker (`docker compose up`) | `http://localhost:3001` | Mapped from container's internal port 3000 |
+| Local (`bun run dev`) | `http://localhost:3000` | Scripts default to port 3000 |
+| Docker (`docker compose up`) | `http://localhost:3000` | Mapped from container's internal port 3000 |
 
 #### 1. Check Gateway Health
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:3000/health
 ```
 
 Expected response:
@@ -389,7 +389,7 @@ Expected response:
 #### 2. Check Gateway Status
 
 ```bash
-curl http://localhost:3001/status
+curl http://localhost:3000/status
 ```
 
 Shows detailed information about all active connections.
@@ -397,7 +397,7 @@ Shows detailed information about all active connections.
 #### 3. Check Prometheus Metrics
 
 ```bash
-curl http://localhost:3001/metrics
+curl http://localhost:3000/metrics
 ```
 
 Returns metrics in Prometheus format for monitoring.
@@ -488,11 +488,11 @@ ELIZA_CLOUD_URL → NEXT_PUBLIC_APP_URL → https://elizacloud.ai
 ### Scripts
 
 ```bash
-# Development (uses root ../../.env.local, runs on port 3001)
+# Development (uses root ../../.env.local, runs on port 3000)
 bun run dev          # Development with hot reload, uses root .env.local
 bun run start        # Production mode, uses root .env.local
 
-# Development (uses local .env in this directory, runs on port 3001)
+# Development (uses local .env in this directory, runs on port 3000)
 bun run dev:local    # Development with hot reload, uses local .env
 bun run start:local  # Production mode, uses local .env
 

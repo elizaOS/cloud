@@ -121,10 +121,7 @@ mock.module("@/lib/middleware/cors-apps", () => ({
   createPreflightResponse: () => new Response(null, { status: 204 }),
 }));
 
-import {
-  OPTIONS as messagesOptions,
-  POST as messagesPost,
-} from "@/app/api/v1/messages/route";
+import { OPTIONS as messagesOptions, POST as messagesPost } from "@/app/api/v1/messages/route";
 
 const reservation = {
   reservedAmount: 1,
@@ -169,9 +166,7 @@ beforeEach(() => {
   mockCreateAnonymousReservation.mockReturnValue(reservation);
   mockCalculateCost.mockResolvedValue({ totalCost: 0.25 });
   mockGetProviderFromModel.mockReturnValue("anthropic");
-  mockNormalizeModelName.mockImplementation((model: string) =>
-    model.replace(/^anthropic\//, ""),
-  );
+  mockNormalizeModelName.mockImplementation((model: string) => model.replace(/^anthropic\//, ""));
   mockGetSafeModelParams.mockImplementation(
     (_model: string, params: Record<string, unknown>) => params,
   );
@@ -211,15 +206,9 @@ describe("/api/v1/messages", () => {
     );
 
     expect(response.status).toBe(204);
-    expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
-      "X-App-Id",
-    );
-    expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
-      "anthropic-version",
-    );
-    expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
-      "anthropic-beta",
-    );
+    expect(response.headers.get("Access-Control-Allow-Headers")).toContain("X-App-Id");
+    expect(response.headers.get("Access-Control-Allow-Headers")).toContain("anthropic-version");
+    expect(response.headers.get("Access-Control-Allow-Headers")).toContain("anthropic-beta");
   });
 
   test("returns Anthropic-shaped 400 for invalid JSON", async () => {

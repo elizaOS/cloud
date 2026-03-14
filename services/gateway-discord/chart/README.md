@@ -125,7 +125,7 @@ helm status gateway-discord -n gateway-discord
 ```yaml
 # Image configuration
 image:
-  repository: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
+  repository: ghcr.io/elizaos/cloud/gateway-discord
   tag: latest
 
 # Resource limits
@@ -258,7 +258,7 @@ Create `github-actions-role-trust-policy.json`:
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:elizaOS/eliza-cloud-v2:*"
+          "token.actions.githubusercontent.com:sub": "repo:elizaOS/cloud:*"
         }
       }
     }

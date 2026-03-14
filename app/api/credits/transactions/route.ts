@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { creditsService } from "@/lib/services/credits";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/credits/transactions
@@ -17,10 +17,7 @@ async function handleGET(req: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "No organization found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "No organization found" }, { status: 404 });
     }
 
     const searchParams = req.nextUrl.searchParams;
@@ -39,15 +36,12 @@ async function handleGET(req: NextRequest) {
 
     if (hours !== null) {
       const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
-      transactions = allTransactions.filter(
-        (t) => new Date(t.created_at) >= cutoffTime,
-      );
+      transactions = allTransactions.filter((t) => new Date(t.created_at) >= cutoffTime);
     }
 
     const periodStart = hours
       ? new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
-      : transactions[transactions.length - 1]?.created_at ||
-        new Date().toISOString();
+      : transactions[transactions.length - 1]?.created_at || new Date().toISOString();
 
     const periodEnd = new Date().toISOString();
 
@@ -77,10 +71,7 @@ async function handleGET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch transactions" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
   }
 }
 

@@ -1,7 +1,14 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
-  boolean, index, integer, jsonb, pgTable, text, timestamp, uuid,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 export type DockerNodeStatus = "healthy" | "degraded" | "offline" | "unknown";
 

@@ -4,11 +4,11 @@
  * Handles all database operations for rooms without spinning up runtime.
  */
 
-import { dbRead, dbWrite } from "@/db/client";
-import { roomTable, participantTable, memoryTable } from "@/db/schemas/eliza";
-import { userCharacters } from "@/db/schemas/user-characters";
-import { eq, inArray, sql, and } from "drizzle-orm";
 import type { Room as BaseRoom } from "@elizaos/core";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { dbRead, dbWrite } from "@/db/client";
+import { memoryTable, participantTable, roomTable } from "@/db/schemas/eliza";
+import { userCharacters } from "@/db/schemas/user-characters";
 
 /**
  * Room type from elizaOS core.
@@ -77,11 +77,7 @@ export class RoomsRepository {
    * Gets a room by ID.
    */
   async findById(roomId: string): Promise<Room | null> {
-    const result = await dbRead
-      .select()
-      .from(roomTable)
-      .where(eq(roomTable.id, roomId))
-      .limit(1);
+    const result = await dbRead.select().from(roomTable).where(eq(roomTable.id, roomId)).limit(1);
 
     return (result[0] || null) as Room | null;
   }
@@ -92,10 +88,7 @@ export class RoomsRepository {
   async findByIds(roomIds: string[]): Promise<Room[]> {
     if (roomIds.length === 0) return [];
 
-    const results = await dbRead
-      .select()
-      .from(roomTable)
-      .where(inArray(roomTable.id, roomIds));
+    const results = await dbRead.select().from(roomTable).where(inArray(roomTable.id, roomIds));
 
     return results as Room[];
   }
@@ -104,10 +97,7 @@ export class RoomsRepository {
    * Finds rooms by agent ID, sorted by last activity.
    */
   async findByAgentId(agentId: string, limit = 50): Promise<Room[]> {
-    const results = await dbRead
-      .select()
-      .from(roomTable)
-      .where(eq(roomTable.agentId, agentId));
+    const results = await dbRead.select().from(roomTable).where(eq(roomTable.agentId, agentId));
 
     // Sort by lastTime from metadata in memory
     const sorted = results.sort((a, b) => {
@@ -181,10 +171,7 @@ export class RoomsRepository {
    * Counts rooms for an agent.
    */
   async countByAgentId(agentId: string): Promise<number> {
-    const results = await dbRead
-      .select()
-      .from(roomTable)
-      .where(eq(roomTable.agentId, agentId));
+    const results = await dbRead.select().from(roomTable).where(eq(roomTable.agentId, agentId));
 
     return results.length;
   }
@@ -192,10 +179,7 @@ export class RoomsRepository {
   /**
    * Updates room metadata by merging with existing metadata.
    */
-  async updateMetadata(
-    roomId: string,
-    metadata: Record<string, unknown>,
-  ): Promise<void> {
+  async updateMetadata(roomId: string, metadata: Record<string, unknown>): Promise<void> {
     // Read current metadata
     const room = await this.findById(roomId);
     if (!room) return;
@@ -223,9 +207,7 @@ export class RoomsRepository {
    * @param entityId - The user's ID (from auth).
    * @returns Rooms with preview data, sorted by most recent activity.
    */
-  async findRoomsWithPreviewForEntity(
-    entityId: string,
-  ): Promise<RoomWithPreview[]> {
+  async findRoomsWithPreviewForEntity(entityId: string): Promise<RoomWithPreview[]> {
     // Use a subquery to get the latest message per room
     const latestMessagesSubquery = dbRead
       .select({
@@ -258,10 +240,7 @@ export class RoomsRepository {
       .innerJoin(roomTable, eq(participantTable.roomId, roomTable.id))
       .leftJoin(
         latestMessagesSubquery,
-        and(
-          eq(latestMessagesSubquery.roomId, roomTable.id),
-          eq(latestMessagesSubquery.rn, 1),
-        ),
+        and(eq(latestMessagesSubquery.roomId, roomTable.id), eq(latestMessagesSubquery.rn, 1)),
       )
       .leftJoin(userCharacters, eq(roomTable.agentId, userCharacters.id))
       .where(eq(participantTable.entityId, entityId));

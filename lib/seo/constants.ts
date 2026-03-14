@@ -35,13 +35,7 @@ export const ROUTE_METADATA = {
     title: "ELIZA CLOUD - AI Agent Development Platform",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
-    keywords: [
-      "AI platform",
-      "agent development",
-      "elizaOS",
-      "AI hosting",
-      "LLM deployment",
-    ],
+    keywords: ["AI platform", "agent development", "elizaOS", "AI hosting", "LLM deployment"],
   },
   dashboard: {
     title: "Dashboard",
@@ -53,13 +47,7 @@ export const ROUTE_METADATA = {
     title: "Containers",
     description:
       "Deploy and manage elizaOS containers on AWS ECS. Monitor health, view logs, and scale your deployments.",
-    keywords: [
-      "containers",
-      "deployment",
-      "AWS ECS",
-      "Docker",
-      "elizaOS deploy",
-    ],
+    keywords: ["containers", "deployment", "AWS ECS", "Docker", "elizaOS deploy"],
   },
   eliza: {
     title: "Chat",
@@ -71,23 +59,13 @@ export const ROUTE_METADATA = {
     title: "Character Creator",
     description:
       "Create custom AI characters with our AI-assisted builder. Define personality, knowledge, and behaviors for your agents.",
-    keywords: [
-      "character creator",
-      "AI characters",
-      "agent builder",
-      "elizaOS characters",
-    ],
+    keywords: ["character creator", "AI characters", "agent builder", "elizaOS characters"],
   },
   myAgents: {
     title: "My Agents",
     description:
       "Manage and interact with your personal AI agents. View, deploy, and chat with your characters.",
-    keywords: [
-      "my agents",
-      "personal agents",
-      "AI characters",
-      "agent management",
-    ],
+    keywords: ["my agents", "personal agents", "AI characters", "agent management"],
   },
   textGeneration: {
     title: "Text Generation",
@@ -111,13 +89,7 @@ export const ROUTE_METADATA = {
     title: "Voice Cloning",
     description:
       "Clone voices with ElevenLabs integration. Create custom voices for your AI agents.",
-    keywords: [
-      "voice cloning",
-      "ElevenLabs",
-      "voice AI",
-      "TTS",
-      "voice synthesis",
-    ],
+    keywords: ["voice cloning", "ElevenLabs", "voice AI", "TTS", "voice synthesis"],
   },
   apiExplorer: {
     title: "API Explorer",
@@ -133,8 +105,7 @@ export const ROUTE_METADATA = {
   },
   apiKeys: {
     title: "API Keys",
-    description:
-      "Generate and manage API keys for programmatic access to ELIZA CLOUD.",
+    description: "Generate and manage API keys for programmatic access to ELIZA CLOUD.",
     keywords: ["API keys", "authentication", "API access", "tokens"],
   },
   analytics: {
@@ -157,8 +128,7 @@ export const ROUTE_METADATA = {
   },
   account: {
     title: "Account Settings",
-    description:
-      "Manage your account settings, profile, and preferences on ELIZA CLOUD.",
+    description: "Manage your account settings, profile, and preferences on ELIZA CLOUD.",
     keywords: ["account", "settings", "profile", "preferences"],
   },
 } as const;

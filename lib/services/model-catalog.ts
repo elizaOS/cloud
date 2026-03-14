@@ -1,10 +1,6 @@
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL, CacheTTL } from "@/lib/cache/keys";
-import {
-  GROQ_NATIVE_MODELS,
-  mergeCatalogModels,
-  type CatalogModel,
-} from "@/lib/models";
+import { type CatalogModel, GROQ_NATIVE_MODELS, mergeCatalogModels } from "@/lib/models";
 import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
 import type { OpenAIModelsResponse } from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
@@ -70,9 +66,7 @@ export async function getCachedMergedModelCatalog(): Promise<CatalogModel[]> {
   return mergeCatalogModels(gatewayModels, GROQ_NATIVE_MODELS);
 }
 
-export async function getCachedGatewayModelById(
-  modelId: string,
-): Promise<CatalogModel | null> {
+export async function getCachedGatewayModelById(modelId: string): Promise<CatalogModel | null> {
   const gatewayModels = await getCachedGatewayModelCatalog();
 
   return gatewayModels.find((model) => model.id === modelId) ?? null;

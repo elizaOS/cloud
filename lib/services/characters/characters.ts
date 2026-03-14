@@ -4,29 +4,29 @@
  * PERFORMANCE: Character data is cached in Redis for fast runtime access.
  */
 
+import type { Agent } from "@elizaos/core";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { dbRead, dbWrite } from "@/db/client";
 import {
-  userCharactersRepository,
-  type UserCharacter,
   type NewUserCharacter,
+  type UserCharacter,
+  userCharactersRepository,
 } from "@/db/repositories";
 import { agentsRepository } from "@/db/repositories/agents/agents";
-import { usersService } from "../users";
-import { logger } from "@/lib/utils/logger";
-import { dbRead, dbWrite } from "@/db/client";
 import { elizaRoomCharactersTable, userCharacters, users } from "@/db/schemas";
-import { memoryTable, roomTable, participantTable } from "@/db/schemas/eliza";
-import { eq, and, ne, inArray, sql } from "drizzle-orm";
-import type { ElizaCharacter } from "@/lib/types";
-import type { Agent } from "@elizaos/core";
+import { memoryTable, participantTable, roomTable } from "@/db/schemas/eliza";
 import { cache } from "@/lib/cache/client";
 import { InMemoryLRUCache } from "@/lib/cache/in-memory-lru-cache";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import type { ElizaCharacter } from "@/lib/types";
 import {
-  generateUsernameFromName,
   generateUniqueUsername,
-  validateUsername,
+  generateUsernameFromName,
   RESERVED_USERNAMES,
+  validateUsername,
 } from "@/lib/utils/agent-username";
+import { logger } from "@/lib/utils/logger";
+import { usersService } from "../users";
 
 // Cache key for character data (longer TTL since characters rarely change)
 const characterCacheKey = (id: string) => `character:data:${id}`;
@@ -86,8 +86,7 @@ export class CharactersService {
   async invalidateCache(id: string): Promise<void> {
     inMemoryCharCache.delete(id);
     // Import dynamically to avoid circular dependency
-    const { invalidateCharacterCache } =
-      await import("@/lib/cache/character-cache");
+    const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
 
     await Promise.all([
       // Invalidate the simple character cache key
@@ -100,10 +99,7 @@ export class CharactersService {
     logger.info(`[Characters] Cache invalidated for character: ${id}`);
   }
 
-  async getByIdForUser(
-    characterId: string,
-    userId: string,
-  ): Promise<UserCharacter | null> {
+  async getByIdForUser(characterId: string, userId: string): Promise<UserCharacter | null> {
     const character = await userCharactersRepository.findById(characterId);
 
     if (!character || character.user_id !== userId) {
@@ -140,10 +136,7 @@ export class CharactersService {
     options?: { source?: "cloud" },
   ): Promise<UserCharacter[]> {
     const source = options?.source ?? "cloud";
-    return await userCharactersRepository.listByOrganization(
-      organizationId,
-      source,
-    );
+    return await userCharactersRepository.listByOrganization(organizationId, source);
   }
 
   async listPublic(): Promise<UserCharacter[]> {
@@ -209,9 +202,7 @@ export class CharactersService {
     let username = data.username;
     if (!username) {
       username = await this.generateUniqueUsername(data.name);
-      logger.info(
-        `[Characters] Generated username: @${username} for "${data.name}"`,
-      );
+      logger.info(`[Characters] Generated username: @${username} for "${data.name}"`);
     } else {
       // Validate provided username
       const validation = validateUsername(username);
@@ -257,10 +248,7 @@ export class CharactersService {
     return character;
   }
 
-  async update(
-    id: string,
-    data: Partial<NewUserCharacter>,
-  ): Promise<UserCharacter | undefined> {
+  async update(id: string, data: Partial<NewUserCharacter>): Promise<UserCharacter | undefined> {
     const updated = await userCharactersRepository.update(id, data);
     // Invalidate cache on update
     if (updated) {
@@ -286,16 +274,11 @@ export class CharactersService {
     if (updates.username !== undefined) {
       if (updates.username === null) {
         // Allow clearing username - no validation needed
-        logger.info(
-          `[Characters] Username cleared: @${character.username} → null`,
-        );
+        logger.info(`[Characters] Username cleared: @${character.username} → null`);
       } else {
         const normalizedUsername = updates.username.toLowerCase();
         if (normalizedUsername !== character.username) {
-          const validation = await this.validateUsernameForUpdate(
-            normalizedUsername,
-            characterId,
-          );
+          const validation = await this.validateUsernameForUpdate(normalizedUsername, characterId);
           if (!validation.valid) {
             throw new Error(`Invalid username: ${validation.error}`);
           }
@@ -355,9 +338,7 @@ export class CharactersService {
    */
   toElizaCharacter(character: UserCharacter): ElizaCharacter {
     // Extract affiliate data from character_data if present
-    const characterData = character.character_data as
-      | Record<string, unknown>
-      | undefined;
+    const characterData = character.character_data as Record<string, unknown> | undefined;
     const affiliateData = characterData?.affiliate as
       | { vibe?: string; affiliateId?: string; [key: string]: unknown }
       | undefined;
@@ -398,10 +379,7 @@ export class CharactersService {
               Array.isArray(ex) &&
               ex.every(
                 (msg) =>
-                  typeof msg === "object" &&
-                  msg !== null &&
-                  "name" in msg &&
-                  "content" in msg,
+                  typeof msg === "object" && msg !== null && "name" in msg && "content" in msg,
               ),
           )
         ) {
@@ -412,16 +390,12 @@ export class CharactersService {
       postExamples: character.post_examples as string[] | undefined,
       topics: character.topics as string[] | undefined,
       adjectives: character.adjectives as string[] | undefined,
-      knowledge: character.knowledge as
-        | (string | { path: string; shared?: boolean })[]
-        | undefined,
+      knowledge: character.knowledge as (string | { path: string; shared?: boolean })[] | undefined,
       plugins: character.plugins as string[] | undefined,
       settings: mergedSettings as
         | Record<string, string | number | boolean | Record<string, unknown>>
         | undefined,
-      secrets: character.secrets as
-        | Record<string, string | number | boolean>
-        | undefined,
+      secrets: character.secrets as Record<string, string | number | boolean> | undefined,
       style: character.style as
         | {
             all?: string[];
@@ -460,8 +434,7 @@ export class CharactersService {
     }
 
     // Check if owned by an affiliate anonymous user
-    const isAffiliateUser =
-      owner.email?.includes("@anonymous.elizacloud.ai") || false;
+    const isAffiliateUser = owner.email?.includes("@anonymous.elizacloud.ai") || false;
     const isAnonymous = owner.is_anonymous === true;
     const hasNoPrivyId = !owner.privy_user_id;
 
@@ -493,19 +466,14 @@ export class CharactersService {
     const claimCheck = await this.isClaimableAffiliateCharacter(characterId);
 
     if (!claimCheck.claimable) {
-      logger.info(
-        `[Characters] Character ${characterId} not claimable: ${claimCheck.reason}`,
-      );
+      logger.info(`[Characters] Character ${characterId} not claimable: ${claimCheck.reason}`);
       return { success: false, message: claimCheck.reason || "Not claimable" };
     }
 
     const previousOwnerId = claimCheck.ownerId;
-    logger.info(
-      `[Characters] 🎯 Claiming affiliate character ${characterId} for user ${userId}`,
-      {
-        previousOwnerId,
-      },
-    );
+    logger.info(`[Characters] 🎯 Claiming affiliate character ${characterId} for user ${userId}`, {
+      previousOwnerId,
+    });
 
     // Transfer character ownership
     const updated = await userCharactersRepository.update(characterId, {
@@ -534,25 +502,19 @@ export class CharactersService {
         .returning({ room_id: elizaRoomCharactersTable.room_id });
 
       if (roomUpdateResult.length > 0) {
-        logger.info(
-          `[Characters] Transferred ${roomUpdateResult.length} room association(s)`,
-          {
-            characterId,
-            fromUserId: previousOwnerId,
-            toUserId: userId,
-          },
-        );
+        logger.info(`[Characters] Transferred ${roomUpdateResult.length} room association(s)`, {
+          characterId,
+          fromUserId: previousOwnerId,
+          toUserId: userId,
+        });
       }
     }
 
-    logger.info(
-      `[Characters] ✅ Successfully claimed character ${characterId}`,
-      {
-        characterName: updated.name,
-        newOwnerId: userId,
-        newOrgId: organizationId,
-      },
-    );
+    logger.info(`[Characters] ✅ Successfully claimed character ${characterId}`, {
+      characterName: updated.name,
+      newOwnerId: userId,
+      newOrgId: organizationId,
+    });
 
     return {
       success: true,
@@ -604,9 +566,7 @@ export class CharactersService {
         avatar_url: userCharacters.avatar_url,
         bio: userCharacters.bio,
         owner_id: userCharacters.user_id,
-        owner_name: sql<
-          string | null
-        >`COALESCE(${users.name}, ${users.nickname})`.as("owner_name"),
+        owner_name: sql<string | null>`COALESCE(${users.name}, ${users.nickname})`.as("owner_name"),
         last_interaction_time: sql<string>`MAX(${memoryTable.createdAt})`.as(
           "last_interaction_time",
         ),
@@ -687,9 +647,7 @@ export class CharactersService {
     const messageResult = await dbRead
       .select({ count: sql<number>`count(*)` })
       .from(memoryTable)
-      .where(
-        and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId)),
-      );
+      .where(and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId)));
     const messageCount = messageResult[0]?.count ?? 0;
 
     // Get rooms count for this user+agent combination
@@ -697,12 +655,7 @@ export class CharactersService {
       .select({ count: sql<number>`count(*)` })
       .from(roomTable)
       .innerJoin(participantTable, eq(roomTable.id, participantTable.roomId))
-      .where(
-        and(
-          eq(roomTable.agentId, agentId),
-          eq(participantTable.entityId, userId),
-        ),
-      );
+      .where(and(eq(roomTable.agentId, agentId), eq(participantTable.entityId, userId)));
     const roomCount = roomResult[0]?.count ?? 0;
 
     return {
@@ -749,10 +702,7 @@ export class CharactersService {
 
     // Verify this is a saved agent (not owned by user)
     const agent = await dbRead.query.userCharacters.findFirst({
-      where: and(
-        eq(userCharacters.id, agentId),
-        ne(userCharacters.user_id, userId),
-      ),
+      where: and(eq(userCharacters.id, agentId), ne(userCharacters.user_id, userId)),
     });
 
     if (!agent) {
@@ -764,18 +714,13 @@ export class CharactersService {
       .select({ roomId: participantTable.roomId })
       .from(participantTable)
       .innerJoin(roomTable, eq(participantTable.roomId, roomTable.id))
-      .where(
-        and(
-          eq(participantTable.entityId, userId),
-          eq(roomTable.agentId, agentId),
-        ),
-      );
+      .where(and(eq(participantTable.entityId, userId), eq(roomTable.agentId, agentId)));
 
     const roomIds = userRooms.map((r) => r.roomId);
 
     // Use transaction to ensure atomicity of all delete operations
-    const { deletedMemories, deletedParticipants, deletedRooms } =
-      await dbWrite.transaction(async (tx) => {
+    const { deletedMemories, deletedParticipants, deletedRooms } = await dbWrite.transaction(
+      async (tx) => {
         let memoryCount = 0;
         let participantCount = 0;
         let roomCount = 0;
@@ -786,12 +731,7 @@ export class CharactersService {
           // the agent's memories and other users' data
           const memoryResult = await tx
             .delete(memoryTable)
-            .where(
-              and(
-                eq(memoryTable.entityId, userId),
-                inArray(memoryTable.roomId, roomIds),
-              ),
-            )
+            .where(and(eq(memoryTable.entityId, userId), inArray(memoryTable.roomId, roomIds)))
             .returning({ id: memoryTable.id });
           memoryCount = memoryResult.length;
 
@@ -799,10 +739,7 @@ export class CharactersService {
           const participantResult = await tx
             .delete(participantTable)
             .where(
-              and(
-                eq(participantTable.entityId, userId),
-                inArray(participantTable.roomId, roomIds),
-              ),
+              and(eq(participantTable.entityId, userId), inArray(participantTable.roomId, roomIds)),
             )
             .returning({ id: participantTable.id });
           participantCount = participantResult.length;
@@ -826,16 +763,12 @@ export class CharactersService {
 
           // Find rooms with no remaining participants (count = 0 or not in results)
           const emptyRoomIds = roomIds.filter(
-            (roomId) =>
-              !participantCountMap.has(roomId) ||
-              participantCountMap.get(roomId) === 0,
+            (roomId) => !participantCountMap.has(roomId) || participantCountMap.get(roomId) === 0,
           );
 
           // Delete all empty rooms in a single batch query
           if (emptyRoomIds.length > 0) {
-            await tx
-              .delete(roomTable)
-              .where(inArray(roomTable.id, emptyRoomIds));
+            await tx.delete(roomTable).where(inArray(roomTable.id, emptyRoomIds));
             roomCount = emptyRoomIds.length;
           }
         }
@@ -844,12 +777,7 @@ export class CharactersService {
         // that might be in other rooms (e.g., world rooms, etc.)
         const directMemoryResult = await tx
           .delete(memoryTable)
-          .where(
-            and(
-              eq(memoryTable.entityId, userId),
-              eq(memoryTable.agentId, agentId),
-            ),
-          )
+          .where(and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId)))
           .returning({ id: memoryTable.id });
         memoryCount += directMemoryResult.length;
 
@@ -858,7 +786,8 @@ export class CharactersService {
           deletedParticipants: participantCount,
           deletedRooms: roomCount,
         };
-      });
+      },
+    );
 
     logger.info("[Characters] Removed saved agent:", {
       userId,

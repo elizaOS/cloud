@@ -9,7 +9,7 @@
  * - extractBearerToken utility
  */
 
-import { describe, test, expect, beforeAll, afterAll, mock } from "bun:test";
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import { NextRequest, NextResponse } from "next/server";
 
 // Store original env
@@ -90,9 +90,7 @@ describe("Internal JWT Authentication", () => {
 
   describe("JWT Signing and Verification", () => {
     test("signs and verifies a valid token", async () => {
-      const { signInternalToken, verifyInternalToken } = await import(
-        "@/lib/auth/jwt-internal"
-      );
+      const { signInternalToken, verifyInternalToken } = await import("@/lib/auth/jwt-internal");
 
       const { access_token, token_type, expires_in } = await signInternalToken({
         subject: "test-pod-1",
@@ -124,9 +122,7 @@ describe("Internal JWT Authentication", () => {
     });
 
     test("signs token without optional service field", async () => {
-      const { signInternalToken, verifyInternalToken } = await import(
-        "@/lib/auth/jwt-internal"
-      );
+      const { signInternalToken, verifyInternalToken } = await import("@/lib/auth/jwt-internal");
 
       const { access_token } = await signInternalToken({
         subject: "test-pod",
@@ -138,9 +134,7 @@ describe("Internal JWT Authentication", () => {
     });
 
     test("rejects token with invalid signature", async () => {
-      const { signInternalToken, verifyInternalToken } = await import(
-        "@/lib/auth/jwt-internal"
-      );
+      const { signInternalToken, verifyInternalToken } = await import("@/lib/auth/jwt-internal");
 
       const { access_token } = await signInternalToken({
         subject: "test-pod",
@@ -225,7 +219,7 @@ describe("Internal API Middleware", () => {
   function createMockRequest(
     authHeader?: string,
     method = "POST",
-    url = "http://localhost:3000/api/internal/test"
+    url = "http://localhost:3000/api/internal/test",
   ): NextRequest {
     const headers = new Headers();
     if (authHeader) {
@@ -316,10 +310,12 @@ describe("Internal API Middleware", () => {
       });
 
       let receivedAuth: { podName: string; service?: string } | null = null;
-      const handler = mock(async (req: NextRequest, auth: { podName: string; service?: string }) => {
-        receivedAuth = auth;
-        return NextResponse.json({ success: true });
-      });
+      const handler = mock(
+        async (req: NextRequest, auth: { podName: string; service?: string }) => {
+          receivedAuth = auth;
+          return NextResponse.json({ success: true });
+        },
+      );
 
       const wrappedHandler = withInternalAuth(handler);
       const request = createMockRequest(`Bearer ${access_token}`);
@@ -381,7 +377,7 @@ describe("Internal API Middleware", () => {
         async (req: NextRequest, auth: { podName: string }, ...args: unknown[]) => {
           receivedArgs = args;
           return NextResponse.json({ success: true });
-        }
+        },
       );
 
       const wrappedHandler = withInternalAuth(handler);
@@ -408,9 +404,7 @@ describe("Token Security Properties", () => {
   });
 
   test("each token has a unique JTI (JWT ID)", async () => {
-    const { signInternalToken, verifyInternalToken } = await import(
-      "@/lib/auth/jwt-internal"
-    );
+    const { signInternalToken, verifyInternalToken } = await import("@/lib/auth/jwt-internal");
 
     const token1 = await signInternalToken({ subject: "pod-1" });
     const token2 = await signInternalToken({ subject: "pod-1" });
@@ -424,9 +418,7 @@ describe("Token Security Properties", () => {
   });
 
   test("token contains correct issuer and audience", async () => {
-    const { signInternalToken, verifyInternalToken } = await import(
-      "@/lib/auth/jwt-internal"
-    );
+    const { signInternalToken, verifyInternalToken } = await import("@/lib/auth/jwt-internal");
 
     const { access_token } = await signInternalToken({ subject: "pod-1" });
     const result = await verifyInternalToken(access_token);
@@ -436,9 +428,7 @@ describe("Token Security Properties", () => {
   });
 
   test("token has iat (issued at) claim", async () => {
-    const { signInternalToken, verifyInternalToken } = await import(
-      "@/lib/auth/jwt-internal"
-    );
+    const { signInternalToken, verifyInternalToken } = await import("@/lib/auth/jwt-internal");
 
     const before = Math.floor(Date.now() / 1000);
     const { access_token } = await signInternalToken({ subject: "pod-1" });
@@ -451,8 +441,9 @@ describe("Token Security Properties", () => {
   });
 
   test("token has exp (expiration) claim set to iat + lifetime", async () => {
-    const { signInternalToken, verifyInternalToken, TOKEN_LIFETIME_SECONDS } =
-      await import("@/lib/auth/jwt-internal");
+    const { signInternalToken, verifyInternalToken, TOKEN_LIFETIME_SECONDS } = await import(
+      "@/lib/auth/jwt-internal"
+    );
 
     const { access_token } = await signInternalToken({ subject: "pod-1" });
     const result = await verifyInternalToken(access_token);

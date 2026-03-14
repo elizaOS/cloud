@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAddress } from "viem";
-import { cache } from "@/lib/cache/client";
-import { validateAndConsumeSIWE } from "@/lib/utils/siwe-helpers";
-import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
-import { apiKeysService } from "@/lib/services/api-keys";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { logger } from "@/lib/utils/logger";
 import type { Organization } from "@/db/repositories/organizations";
+import { cache } from "@/lib/cache/client";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
+import { logger } from "@/lib/utils/logger";
+import { validateAndConsumeSIWE } from "@/lib/utils/siwe-helpers";
 
 interface VerifyBody {
   message: string;
@@ -29,9 +29,7 @@ function buildResponse(
       wallet_address: user.wallet_address,
       organization_id: user.organization_id,
     },
-    organization: org
-      ? { id: org.id, name: org.name, slug: org.slug }
-      : null,
+    organization: org ? { id: org.id, name: org.name, slug: org.slug } : null,
   });
 }
 
@@ -42,18 +40,12 @@ function buildResponse(
  */
 async function handler(request: NextRequest) {
   if (!cache.isAvailable()) {
-    return NextResponse.json(
-      { error: "Service temporarily unavailable" },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "Service temporarily unavailable" }, { status: 503 });
   }
 
   const body = (await request.json().catch(() => null)) as VerifyBody | null;
   if (!body?.message || !body?.signature) {
-    return NextResponse.json(
-      { error: "message and signature are required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "message and signature are required" }, { status: 400 });
   }
 
   let address: string;
@@ -64,10 +56,7 @@ async function handler(request: NextRequest) {
     logger.warn("[SIWE Verify] Validation failed", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json(
-      { error: "SIWE verification failed" },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "SIWE verification failed" }, { status: 401 });
   }
 
   const { user, isNewAccount } = await findOrCreateUserByWalletAddress(address);
@@ -75,7 +64,7 @@ async function handler(request: NextRequest) {
   if (!user.organization_id) {
     return NextResponse.json(
       { error: "Organization creation failed - please try again" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -85,7 +74,7 @@ async function handler(request: NextRequest) {
   const { plainKey } = await apiKeysService.create({
     user_id: user.id,
     organization_id: user.organization_id,
-    name: "SIWE sign-in", 
+    name: "SIWE sign-in",
     is_active: true,
   });
 

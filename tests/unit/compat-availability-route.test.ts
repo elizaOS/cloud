@@ -49,9 +49,7 @@ describe("compat availability route", () => {
   });
 
   test("omits per-node topology for unauthenticated requests", async () => {
-    const response = await GET(
-      new NextRequest("https://example.com/api/compat/availability"),
-    );
+    const response = await GET(new NextRequest("https://example.com/api/compat/availability"));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -95,9 +93,7 @@ describe("compat availability route", () => {
       user: { id: "user-1", organization_id: "org-1" },
     });
 
-    const response = await GET(
-      new NextRequest("https://example.com/api/compat/availability"),
-    );
+    const response = await GET(new NextRequest("https://example.com/api/compat/availability"));
     const body = await response.json();
 
     expect(response.status).toBe(200);

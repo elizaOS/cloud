@@ -1,13 +1,13 @@
 import {
   type HandlerCallback,
-  type Memory,
   type IAgentRuntime,
-  type State,
   logger,
+  type Memory,
   ModelType,
+  type State,
 } from "@elizaos/core";
-import { parseJSON } from "./json";
 import { DEFAULT_MAX_RETRIES, type ValidationResult } from "../types";
+import { parseJSON } from "./json";
 
 export interface WithModelRetryOptions<T> {
   runtime: IAgentRuntime;
@@ -15,7 +15,12 @@ export interface WithModelRetryOptions<T> {
   state: State;
   input: string | object;
   validationFn: (data: unknown) => ValidationResult<T>;
-  createFeedbackPromptFn: (original: string | object, error: string, state: State, userMsg: string) => string;
+  createFeedbackPromptFn: (
+    original: string | object,
+    error: string,
+    state: State,
+    userMsg: string,
+  ) => string;
   callback?: HandlerCallback;
   failureMsg?: string;
   retryCount?: number;
@@ -63,7 +68,11 @@ export async function withModelRetry<T>({
     }
 
     if (callback && failureMsg) {
-      await callback({ text: failureMsg, thought: "Parse failed after retries", actions: ["REPLY"] });
+      await callback({
+        text: failureMsg,
+        thought: "Parse failed after retries",
+        actions: ["REPLY"],
+      });
     }
     return null;
   }
@@ -71,13 +80,21 @@ export async function withModelRetry<T>({
 
 function getMaxRetries(runtime: IAgentRuntime): number {
   try {
-    const mcp = runtime.getSetting("mcp") as Record<string, unknown> | string | boolean | number | null;
+    const mcp = runtime.getSetting("mcp") as
+      | Record<string, unknown>
+      | string
+      | boolean
+      | number
+      | null;
     if (mcp && typeof mcp === "object" && "maxRetries" in mcp && mcp.maxRetries !== undefined) {
       const val = Number(mcp.maxRetries);
       if (!isNaN(val) && val >= 0) return val;
     }
   } catch (e) {
-    logger.debug({ error: e instanceof Error ? e.message : e }, "[Retry] Failed to get maxRetries setting");
+    logger.debug(
+      { error: e instanceof Error ? e.message : e },
+      "[Retry] Failed to get maxRetries setting",
+    );
   }
   return DEFAULT_MAX_RETRIES;
 }

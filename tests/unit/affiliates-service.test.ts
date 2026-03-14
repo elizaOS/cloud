@@ -56,10 +56,9 @@ describe("affiliatesService", () => {
     mockGetAffiliateCodeByUserId.mockResolvedValueOnce(null);
     mockCreateAffiliateCodeIfNotExists
       .mockRejectedValueOnce(
-        Object.assign(
-          new Error("duplicate key value violates unique constraint"),
-          { code: "23505" },
-        ),
+        Object.assign(new Error("duplicate key value violates unique constraint"), {
+          code: "23505",
+        }),
       )
       .mockResolvedValueOnce({
         id: "affiliate-code-id",
@@ -94,10 +93,7 @@ describe("affiliatesService", () => {
       affiliate_code_id: "affiliate-code-id",
     });
 
-    const result = await affiliatesService.linkUserToAffiliateCode(
-      "buyer-user",
-      " aff-test01 ",
-    );
+    const result = await affiliatesService.linkUserToAffiliateCode("buyer-user", " aff-test01 ");
 
     expect(mockGetAffiliateCodeByCode).toHaveBeenCalledWith("AFF-TEST01");
     expect(mockLinkUserToAffiliate).not.toHaveBeenCalled();

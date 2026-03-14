@@ -6,11 +6,11 @@
  * the cached runtime must be invalidated so the next request gets fresh config.
  */
 
+import { agentStateCache } from "@/lib/cache/agent-state-cache";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys } from "@/lib/cache/keys";
-import { logger } from "@/lib/utils/logger";
-import { agentStateCache } from "@/lib/cache/agent-state-cache";
 import { invalidateRuntime } from "@/lib/eliza/runtime-factory";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Invalidates all character-related caches INCLUDING the in-memory runtime.
@@ -23,12 +23,8 @@ import { invalidateRuntime } from "@/lib/eliza/runtime-factory";
  *
  * @param characterId - The character ID to invalidate.
  */
-export async function invalidateCharacterCache(
-  characterId: string,
-): Promise<void> {
-  logger.debug(
-    `[Character Cache] Invalidating all caches for character ${characterId}`,
-  );
+export async function invalidateCharacterCache(characterId: string): Promise<void> {
+  logger.debug(`[Character Cache] Invalidating all caches for character ${characterId}`);
 
   await Promise.all([
     // CRITICAL: Invalidate the in-memory runtime cache

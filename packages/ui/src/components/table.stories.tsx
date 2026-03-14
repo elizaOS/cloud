@@ -1,17 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 const meta: Meta = {
   title: "Primitives/Table",
   parameters: { backgrounds: { default: "dark" } },
-  decorators: [(Story) => <div style={{ maxWidth: 700, padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 700, padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 export default meta;
 
@@ -37,7 +36,11 @@ export const Default: StoryObj = {
             <TableCell>{row.status}</TableCell>
             <TableCell>{row.role}</TableCell>
             <TableCell className="text-right">
-              <button style={{ color: "#FF5800", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
+              <button
+                style={{ color: "#FF5800", background: "none", border: "none", cursor: "pointer" }}
+              >
+                Edit
+              </button>
             </TableCell>
           </TableRow>
         ))}

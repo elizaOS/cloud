@@ -9,27 +9,16 @@
  * - Testnet: ethereum-sepolia, base-sepolia, bnb-testnet, solana-devnet
  */
 
-import type { Address, Chain } from "viem";
+import type { Chain } from "viem";
+import { base, baseSepolia, bsc, bscTestnet, mainnet, sepolia } from "viem/chains";
 import { logger } from "@/lib/utils/logger";
-import {
-  mainnet,
-  base,
-  bsc,
-  sepolia,
-  baseSepolia,
-  bscTestnet,
-} from "viem/chains";
 
 // ============================================================================
 // NETWORK TYPES
 // ============================================================================
 
 export type MainnetNetwork = "ethereum" | "base" | "bnb" | "solana";
-export type TestnetNetwork =
-  | "ethereum-sepolia"
-  | "base-sepolia"
-  | "bnb-testnet"
-  | "solana-devnet";
+export type TestnetNetwork = "ethereum-sepolia" | "base-sepolia" | "bnb-testnet" | "solana-devnet";
 export type PayoutNetwork = MainnetNetwork | TestnetNetwork;
 
 // ============================================================================
@@ -73,16 +62,12 @@ export const ELIZA_TOKEN_ADDRESSES: Record<PayoutNetwork, string> = {
   // Testnet - Use test tokens or deploy your own for testing
   // These are placeholder addresses - deploy test ERC20 for actual testing
   "ethereum-sepolia":
-    process.env.ELIZA_TOKEN_SEPOLIA ||
-    "0x0000000000000000000000000000000000000000",
+    process.env.ELIZA_TOKEN_SEPOLIA || "0x0000000000000000000000000000000000000000",
   "base-sepolia":
-    process.env.ELIZA_TOKEN_BASE_SEPOLIA ||
-    "0x0000000000000000000000000000000000000000",
+    process.env.ELIZA_TOKEN_BASE_SEPOLIA || "0x0000000000000000000000000000000000000000",
   "bnb-testnet":
-    process.env.ELIZA_TOKEN_BNB_TESTNET ||
-    "0x0000000000000000000000000000000000000000",
-  "solana-devnet":
-    process.env.ELIZA_TOKEN_SOLANA_DEVNET || "11111111111111111111111111111111", // Placeholder
+    process.env.ELIZA_TOKEN_BNB_TESTNET || "0x0000000000000000000000000000000000000000",
+  "solana-devnet": process.env.ELIZA_TOKEN_SOLANA_DEVNET || "11111111111111111111111111111111", // Placeholder
 };
 
 // ============================================================================
@@ -191,9 +176,7 @@ export const NETWORK_CONFIGS: Record<PayoutNetwork, NetworkConfig> = {
     chainId: 97,
     chain: bscTestnet,
     isTestnet: true,
-    rpcUrl:
-      process.env.BNB_TESTNET_RPC_URL ||
-      "https://data-seed-prebsc-1-s1.binance.org:8545",
+    rpcUrl: process.env.BNB_TESTNET_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545",
     blockExplorer: "https://testnet.bscscan.com",
     tokenAddress: ELIZA_TOKEN_ADDRESSES["bnb-testnet"],
     tokenDecimals: 9, // Match mainnet decimals
@@ -208,8 +191,7 @@ export const NETWORK_CONFIGS: Record<PayoutNetwork, NetworkConfig> = {
     chainId: 0,
     chain: null,
     isTestnet: true,
-    rpcUrl:
-      process.env.SOLANA_DEVNET_RPC_URL || "https://api.devnet.solana.com",
+    rpcUrl: process.env.SOLANA_DEVNET_RPC_URL || "https://api.devnet.solana.com",
     blockExplorer: "https://solscan.io?cluster=devnet",
     tokenAddress: ELIZA_TOKEN_ADDRESSES["solana-devnet"],
     tokenDecimals: 9,
@@ -254,9 +236,7 @@ export function getAvailableNetworks(): PayoutNetwork[] {
 /**
  * Map a mainnet network to its testnet equivalent
  */
-export function getTestnetEquivalent(
-  mainnetNetwork: MainnetNetwork,
-): TestnetNetwork {
+export function getTestnetEquivalent(mainnetNetwork: MainnetNetwork): TestnetNetwork {
   const mapping: Record<MainnetNetwork, TestnetNetwork> = {
     ethereum: "ethereum-sepolia",
     base: "base-sepolia",
@@ -269,9 +249,7 @@ export function getTestnetEquivalent(
 /**
  * Map a testnet network to its mainnet equivalent
  */
-export function getMainnetEquivalent(
-  testnetNetwork: TestnetNetwork,
-): MainnetNetwork {
+export function getMainnetEquivalent(testnetNetwork: TestnetNetwork): MainnetNetwork {
   const mapping: Record<TestnetNetwork, MainnetNetwork> = {
     "ethereum-sepolia": "ethereum",
     "base-sepolia": "base",
@@ -295,9 +273,7 @@ export function resolveNetwork(network: PayoutNetwork): PayoutNetwork {
 
   // If we're in mainnet mode and given a testnet network, warn but allow
   if (!isTestnetMode() && config.isTestnet) {
-    logger.warn(
-      `[Payout] Warning: Using testnet network ${network} in mainnet mode`,
-    );
+    logger.warn(`[Payout] Warning: Using testnet network ${network} in mainnet mode`);
   }
 
   return network;
@@ -325,18 +301,12 @@ export function isNetworkConfigured(network: PayoutNetwork): boolean {
   // Check wallet is configured
   if (config.chain) {
     // EVM network
-    if (
-      !process.env.EVM_PAYOUT_PRIVATE_KEY &&
-      !process.env.EVM_PAYOUT_WALLET_ADDRESS
-    ) {
+    if (!process.env.EVM_PAYOUT_PRIVATE_KEY && !process.env.EVM_PAYOUT_WALLET_ADDRESS) {
       return false;
     }
   } else {
     // Solana
-    if (
-      !process.env.SOLANA_PAYOUT_PRIVATE_KEY &&
-      !process.env.SOLANA_PAYOUT_WALLET_ADDRESS
-    ) {
+    if (!process.env.SOLANA_PAYOUT_PRIVATE_KEY && !process.env.SOLANA_PAYOUT_WALLET_ADDRESS) {
       return false;
     }
   }
@@ -365,9 +335,7 @@ export function isValidNetwork(network: string): network is PayoutNetwork {
 /**
  * Assert a network is valid or throw
  */
-export function assertValidNetwork(
-  network: string,
-): asserts network is PayoutNetwork {
+export function assertValidNetwork(network: string): asserts network is PayoutNetwork {
   if (!isValidNetwork(network)) {
     throw new Error(
       `Invalid network: ${network}. Valid networks: ${Object.keys(NETWORK_CONFIGS).join(", ")}`,
@@ -389,10 +357,7 @@ export function getNetworkDisplayName(network: PayoutNetwork): string {
 /**
  * Get block explorer URL for a transaction
  */
-export function getExplorerTxUrl(
-  network: PayoutNetwork,
-  txHash: string,
-): string {
+export function getExplorerTxUrl(network: PayoutNetwork, txHash: string): string {
   const config = NETWORK_CONFIGS[network];
   if (config.chain) {
     return `${config.blockExplorer}/tx/${txHash}`;
@@ -405,10 +370,7 @@ export function getExplorerTxUrl(
 /**
  * Get block explorer URL for an address
  */
-export function getExplorerAddressUrl(
-  network: PayoutNetwork,
-  address: string,
-): string {
+export function getExplorerAddressUrl(network: PayoutNetwork, address: string): string {
   const config = NETWORK_CONFIGS[network];
   if (config.chain) {
     return `${config.blockExplorer}/address/${address}`;

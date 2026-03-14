@@ -10,26 +10,28 @@
  * - iMessage: lookup by phone_number (same phone entered during Telegram OAuth)
  */
 
-import { usersRepository, type UserWithOrganization } from "@/db/repositories/users";
 import { organizationsRepository } from "@/db/repositories/organizations";
+import { type UserWithOrganization, usersRepository } from "@/db/repositories/users";
+import type { Organization } from "@/db/schemas/organizations";
+import type { NewUser, User } from "@/db/schemas/users";
+import { apiKeysService } from "@/lib/services/api-keys";
 import { creditsService } from "@/lib/services/credits";
 import { redeemSignupCode } from "@/lib/services/signup-code";
-import { apiKeysService } from "@/lib/services/api-keys";
+import { isValidEmail, maskEmailForLogging } from "@/lib/utils/email-validation";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
-import { isValidEmail, maskEmailForLogging } from "@/lib/utils/email-validation";
 import type { TelegramAuthData } from "./telegram-auth";
-import type { User, NewUser } from "@/db/schemas/users";
-import type { Organization } from "@/db/schemas/organizations";
 
 const ELIZA_APP_INITIAL_CREDITS = 5.0;
 
 function isUniqueConstraintError(error: unknown): boolean {
   if (error instanceof Error) {
     // PostgreSQL unique violation error code
-    return error.message.includes("unique constraint") ||
-           error.message.includes("duplicate key") ||
-           (error as { code?: string }).code === "23505";
+    return (
+      error.message.includes("unique constraint") ||
+      error.message.includes("duplicate key") ||
+      (error as { code?: string }).code === "23505"
+    );
   }
   return false;
 }
@@ -55,7 +57,11 @@ function generateSlugFromPhone(phoneNumber: string): string {
 }
 
 function generateSlugFromEmail(email: string): string {
-  const prefix = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
+  const prefix = email
+    .split("@")[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 8);
   const random = Math.random().toString(36).substring(2, 8);
   const timestamp = Date.now().toString(36).slice(-4);
   return `email-${prefix}-${timestamp}${random}`;
@@ -75,10 +81,7 @@ function generateSlugFromWhatsApp(whatsappId: string): string {
   return `wa-${lastFour}-${timestamp}${random}`;
 }
 
-async function ensureUniqueSlug(
-  generateFn: () => string,
-  maxAttempts = 10,
-): Promise<string> {
+async function ensureUniqueSlug(generateFn: () => string, maxAttempts = 10): Promise<string> {
   let slug = generateFn();
   let attempts = 0;
 
@@ -238,17 +241,21 @@ class ElizaAppUserService {
     }
 
     // Scenario 2: Check if user exists by phone_number (iMessage-first user linking Telegram)
-    const existingPhoneUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+    const existingPhoneUser =
+      await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
 
     if (existingPhoneUser && existingPhoneUser.organization) {
       // Re-check telegram_id to prevent race condition (TOCTOU)
       // Another request may have linked a different Telegram account between auth check and now
       if (existingPhoneUser.telegram_id && existingPhoneUser.telegram_id !== telegramId) {
-        logger.warn("[ElizaAppUserService] Phone user already linked to different Telegram (race)", {
-          phoneUserId: existingPhoneUser.id,
-          existingTelegramId: existingPhoneUser.telegram_id,
-          newTelegramId: telegramId,
-        });
+        logger.warn(
+          "[ElizaAppUserService] Phone user already linked to different Telegram (race)",
+          {
+            phoneUserId: existingPhoneUser.id,
+            existingTelegramId: existingPhoneUser.telegram_id,
+            newTelegramId: telegramId,
+          },
+        );
         throw new Error("PHONE_ALREADY_LINKED");
       }
 
@@ -261,9 +268,9 @@ class ElizaAppUserService {
           telegram_photo_url: telegramData.photo_url,
           // Update name if user only had phone-based name like "User ***1234"
           name: existingPhoneUser.name?.startsWith("User ***")
-            ? (telegramData.last_name
-                ? `${telegramData.first_name} ${telegramData.last_name}`
-                : telegramData.first_name)
+            ? telegramData.last_name
+              ? `${telegramData.first_name} ${telegramData.last_name}`
+              : telegramData.first_name
             : existingPhoneUser.name,
           updated_at: new Date(),
         });
@@ -333,7 +340,8 @@ class ElizaAppUserService {
         }
 
         // Constraint may have been on phone_number (same phone, different Telegram ID)
-        const userByPhone = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+        const userByPhone =
+          await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
         if (userByPhone && userByPhone.organization) {
           logger.warn("[ElizaAppUserService] Phone already linked by race condition", {
             telegramId,
@@ -413,9 +421,10 @@ class ElizaAppUserService {
 
     // Create display name from email (mask middle part)
     const emailPrefix = normalizedEmail.split("@")[0];
-    const maskedPrefix = emailPrefix.length > 4
-      ? `${emailPrefix.slice(0, 2)}***${emailPrefix.slice(-2)}`
-      : `${emailPrefix.slice(0, 1)}***`;
+    const maskedPrefix =
+      emailPrefix.length > 4
+        ? `${emailPrefix.slice(0, 2)}***${emailPrefix.slice(-2)}`
+        : `${emailPrefix.slice(0, 1)}***`;
     const displayName = `User ${maskedPrefix}`;
     const organizationName = `${maskedPrefix}'s Workspace`;
 
@@ -508,11 +517,17 @@ class ElizaAppUserService {
         updates.discord_username = discordData.username;
         needsUpdate = true;
       }
-      if (discordData.globalName !== undefined && discordData.globalName !== existingUser.discord_global_name) {
+      if (
+        discordData.globalName !== undefined &&
+        discordData.globalName !== existingUser.discord_global_name
+      ) {
         updates.discord_global_name = discordData.globalName || undefined;
         needsUpdate = true;
       }
-      if (discordData.avatarUrl !== undefined && discordData.avatarUrl !== existingUser.discord_avatar_url) {
+      if (
+        discordData.avatarUrl !== undefined &&
+        discordData.avatarUrl !== existingUser.discord_avatar_url
+      ) {
         updates.discord_avatar_url = discordData.avatarUrl || undefined;
         needsUpdate = true;
       }
@@ -550,11 +565,14 @@ class ElizaAppUserService {
             }
           }
           // Profile update is non-critical - log warning and continue with stale data
-          logger.warn("[ElizaAppUserService] Failed to update Discord profile, continuing with stale data", {
-            userId: existingUser.id,
-            discordId,
-            error: error instanceof Error ? error.message : String(error),
-          });
+          logger.warn(
+            "[ElizaAppUserService] Failed to update Discord profile, continuing with stale data",
+            {
+              userId: existingUser.id,
+              discordId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
         }
       }
 
@@ -571,16 +589,20 @@ class ElizaAppUserService {
 
     // Scenario 2: Check if user exists by phone_number (Telegram/iMessage-first user linking Discord)
     if (normalizedPhone) {
-      const existingPhoneUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+      const existingPhoneUser =
+        await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
 
       if (existingPhoneUser && existingPhoneUser.organization) {
         // Re-check discord_id to prevent race condition (TOCTOU)
         if (existingPhoneUser.discord_id && existingPhoneUser.discord_id !== discordId) {
-          logger.warn("[ElizaAppUserService] Phone user already linked to different Discord (race)", {
-            phoneUserId: existingPhoneUser.id,
-            existingDiscordId: existingPhoneUser.discord_id,
-            newDiscordId: discordId,
-          });
+          logger.warn(
+            "[ElizaAppUserService] Phone user already linked to different Discord (race)",
+            {
+              phoneUserId: existingPhoneUser.id,
+              existingDiscordId: existingPhoneUser.discord_id,
+              newDiscordId: discordId,
+            },
+          );
           throw new Error("DISCORD_ALREADY_LINKED");
         }
 
@@ -604,15 +626,19 @@ class ElizaAppUserService {
           throw error;
         }
 
-        logger.info("[ElizaAppUserService] Linked Discord to existing phone user (cross-platform)", {
-          userId: existingPhoneUser.id,
-          discordId,
-          username: discordData.username,
-          phone: `***${normalizedPhone.slice(-4)}`,
-        });
+        logger.info(
+          "[ElizaAppUserService] Linked Discord to existing phone user (cross-platform)",
+          {
+            userId: existingPhoneUser.id,
+            discordId,
+            username: discordData.username,
+            phone: `***${normalizedPhone.slice(-4)}`,
+          },
+        );
 
         // Refetch to get updated data
-        const updatedUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+        const updatedUser =
+          await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
         return {
           user: updatedUser!,
           organization: updatedUser!.organization!,
@@ -653,7 +679,8 @@ class ElizaAppUserService {
 
         // Constraint may have been on phone_number
         if (normalizedPhone) {
-          const userByPhone = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+          const userByPhone =
+            await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
           if (userByPhone && userByPhone.organization) {
             logger.warn("[ElizaAppUserService] Phone already linked by race condition", {
               discordId,
@@ -676,7 +703,7 @@ class ElizaAppUserService {
       username?: string;
       globalName?: string | null;
       avatarUrl?: string | null;
-    }
+    },
   ): Promise<void> {
     const updates: Partial<NewUser> = { updated_at: new Date() };
 
@@ -720,10 +747,11 @@ class ElizaAppUserService {
 
   async linkPhoneToUser(
     userId: string,
-    phoneNumber: string
+    phoneNumber: string,
   ): Promise<{ success: boolean; error?: string }> {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    const existingPhoneUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+    const existingPhoneUser =
+      await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
 
     if (existingPhoneUser) {
       if (existingPhoneUser.id === userId) {
@@ -775,7 +803,7 @@ class ElizaAppUserService {
    */
   async linkEmailToUser(
     userId: string,
-    email: string
+    email: string,
   ): Promise<{ success: boolean; error?: string }> {
     const normalizedEmail = email.toLowerCase().trim();
 
@@ -832,7 +860,7 @@ class ElizaAppUserService {
 
   async linkTelegramToUser(
     userId: string,
-    telegramData: TelegramAuthData
+    telegramData: TelegramAuthData,
   ): Promise<{ success: boolean; error?: string }> {
     const telegramId = String(telegramData.id);
     const existingTelegramUser = await usersRepository.findByTelegramIdWithOrganization(telegramId);
@@ -893,7 +921,7 @@ class ElizaAppUserService {
       username: string;
       globalName?: string | null;
       avatarUrl?: string | null;
-    }
+    },
   ): Promise<{ success: boolean; error?: string }> {
     const { discordId, username, globalName, avatarUrl } = discordData;
 
@@ -1010,11 +1038,14 @@ class ElizaAppUserService {
     if (existingPhoneUser && existingPhoneUser.organization) {
       // Re-check whatsapp_id to prevent race condition (TOCTOU)
       if (existingPhoneUser.whatsapp_id && existingPhoneUser.whatsapp_id !== whatsappId) {
-        logger.warn("[ElizaAppUserService] Phone user already linked to different WhatsApp (race)", {
-          phoneUserId: existingPhoneUser.id,
-          existingWhatsAppId: existingPhoneUser.whatsapp_id,
-          newWhatsAppId: whatsappId,
-        });
+        logger.warn(
+          "[ElizaAppUserService] Phone user already linked to different WhatsApp (race)",
+          {
+            phoneUserId: existingPhoneUser.id,
+            existingWhatsAppId: existingPhoneUser.whatsapp_id,
+            newWhatsAppId: whatsappId,
+          },
+        );
         throw new Error("WHATSAPP_ALREADY_LINKED");
       }
 
@@ -1107,7 +1138,7 @@ class ElizaAppUserService {
     whatsappData: {
       whatsappId: string;
       name?: string;
-    }
+    },
   ): Promise<{ success: boolean; error?: string }> {
     const { whatsappId, name } = whatsappData;
 

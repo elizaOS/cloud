@@ -16,38 +16,16 @@
  * admin engagement dashboard.
  */
 
+import { and, count, countDistinct, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
-import {
-  dailyMetrics,
-  type DailyMetric,
-  type MetricsPlatform,
-} from "@/db/schemas/daily-metrics";
-import {
-  retentionCohorts,
-  type RetentionCohort,
-} from "@/db/schemas/retention-cohorts";
-import { users } from "@/db/schemas/users";
-import { userIdentities } from "@/db/schemas/user-identities";
+import { type DailyMetric, dailyMetrics, type MetricsPlatform } from "@/db/schemas/daily-metrics";
+import { memoryTable, roomTable } from "@/db/schemas/eliza";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
-import {
-  roomTable,
-  participantTable,
-  memoryTable,
-} from "@/db/schemas/eliza";
-import {
-  sql,
-  eq,
-  and,
-  gte,
-  lt,
-  ne,
-  isNull,
-  inArray,
-  count,
-  countDistinct,
-} from "drizzle-orm";
+import { type RetentionCohort, retentionCohorts } from "@/db/schemas/retention-cohorts";
+import { userIdentities } from "@/db/schemas/user-identities";
+import { users } from "@/db/schemas/users";
 import { cache } from "@/lib/cache/client";
-import { CacheKeys, CacheTTL, CacheStaleTTL } from "@/lib/cache/keys";
+import { CacheKeys, CacheStaleTTL, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -114,9 +92,7 @@ class UserMetricsService {
   /**
    * Count unique active users across all platforms in the given window.
    */
-  async getActiveUsers(
-    timeRange: "day" | "7d" | "30d",
-  ): Promise<ActiveUsersResult> {
+  async getActiveUsers(timeRange: "day" | "7d" | "30d"): Promise<ActiveUsersResult> {
     const cacheKey = CacheKeys.userMetrics.activeUsers(timeRange);
     const cached = await cache.getWithSWR<ActiveUsersResult>(
       cacheKey,
@@ -127,9 +103,7 @@ class UserMetricsService {
     return cached ?? this._queryActiveUsers(timeRange);
   }
 
-  private async _queryActiveUsers(
-    timeRange: "day" | "7d" | "30d",
-  ): Promise<ActiveUsersResult> {
+  private async _queryActiveUsers(timeRange: "day" | "7d" | "30d"): Promise<ActiveUsersResult> {
     const since = this._rangeSince(timeRange);
 
     // Count distinct message *senders* (memoryTable.entityId) rather than
@@ -252,10 +226,7 @@ class UserMetricsService {
   // PRE-COMPUTED READS
   // =========================================================================
 
-  async getDailyMetrics(
-    startDate: Date,
-    endDate: Date,
-  ): Promise<DailyMetric[]> {
+  async getDailyMetrics(startDate: Date, endDate: Date): Promise<DailyMetric[]> {
     const key = CacheKeys.userMetrics.daily(
       startDate.toISOString().split("T")[0],
       endDate.toISOString().split("T")[0],
@@ -266,19 +237,14 @@ class UserMetricsService {
     const rows = await dbRead
       .select()
       .from(dailyMetrics)
-      .where(
-        and(gte(dailyMetrics.date, startDate), lt(dailyMetrics.date, endDate)),
-      )
+      .where(and(gte(dailyMetrics.date, startDate), lt(dailyMetrics.date, endDate)))
       .orderBy(dailyMetrics.date);
 
     await cache.set(key, rows, CacheTTL.userMetrics.daily);
     return rows;
   }
 
-  async getRetentionCohorts(
-    startDate: Date,
-    endDate: Date,
-  ): Promise<RetentionCohort[]> {
+  async getRetentionCohorts(startDate: Date, endDate: Date): Promise<RetentionCohort[]> {
     const key = CacheKeys.userMetrics.retention(
       startDate.toISOString().split("T")[0],
       endDate.toISOString().split("T")[0],
@@ -346,13 +312,8 @@ class UserMetricsService {
 
     // Weighted average: totalMessages / totalDAU avoids the averaging-averages
     // problem where low-DAU days get the same weight as high-DAU days.
-    const recentAll = dailyTrend.filter(
-      (d) => d.platform === null && d.dau > 0,
-    );
-    const totalMessages = recentAll.reduce(
-      (s, d) => s + d.total_messages,
-      0,
-    );
+    const recentAll = dailyTrend.filter((d) => d.platform === null && d.dau > 0);
+    const totalMessages = recentAll.reduce((s, d) => s + d.total_messages, 0);
     const totalDau = recentAll.reduce((s, d) => s + d.dau, 0);
     const avgMessagesPerUser = totalDau > 0 ? totalMessages / totalDau : 0;
 
@@ -387,27 +348,13 @@ class UserMetricsService {
       date: dayStart.toISOString(),
     });
 
-    const perPlatform: Array<MetricsPlatform> = [
-      "web",
-      "telegram",
-      "discord",
-      "imessage",
-      "sms",
-    ];
+    const perPlatform: Array<MetricsPlatform> = ["web", "telegram", "discord", "imessage", "sms"];
 
     // Compute per-platform rows in parallel (independent queries).
     await Promise.all(
       perPlatform.map(async (platform) => {
-        const { dau, totalMessages } = await this._countDayActivity(
-          dayStart,
-          dayEnd,
-          platform,
-        );
-        const newSignups = await this._countNewSignups(
-          dayStart,
-          dayEnd,
-          platform,
-        );
+        const { dau, totalMessages } = await this._countDayActivity(dayStart, dayEnd, platform);
+        const newSignups = await this._countNewSignups(dayStart, dayEnd, platform);
         const messagesPerUser = dau > 0 ? totalMessages / dau : 0;
 
         await dbWrite
@@ -434,11 +381,7 @@ class UserMetricsService {
 
     // Compute aggregate (NULL platform) row last to avoid race with the
     // read-then-write pattern if parallelized.
-    const { dau, totalMessages } = await this._countDayActivity(
-      dayStart,
-      dayEnd,
-      null,
-    );
+    const { dau, totalMessages } = await this._countDayActivity(dayStart, dayEnd, null);
     const newSignups = await this._countNewSignups(dayStart, dayEnd, null);
     const messagesPerUser = dau > 0 ? totalMessages / dau : 0;
     const values = {
@@ -451,20 +394,13 @@ class UserMetricsService {
     const existing = await dbRead
       .select()
       .from(dailyMetrics)
-      .where(
-        and(eq(dailyMetrics.date, dayStart), isNull(dailyMetrics.platform)),
-      )
+      .where(and(eq(dailyMetrics.date, dayStart), isNull(dailyMetrics.platform)))
       .limit(1);
 
     if (existing.length > 0) {
-      await dbWrite
-        .update(dailyMetrics)
-        .set(values)
-        .where(eq(dailyMetrics.id, existing[0].id));
+      await dbWrite.update(dailyMetrics).set(values).where(eq(dailyMetrics.id, existing[0].id));
     } else {
-      await dbWrite
-        .insert(dailyMetrics)
-        .values({ date: dayStart, platform: null, ...values });
+      await dbWrite.insert(dailyMetrics).values({ date: dayStart, platform: null, ...values });
     }
   }
 
@@ -493,9 +429,7 @@ class UserMetricsService {
 
     // Each window targets a different cohort_date row, so they're independent.
     await Promise.all(
-      windows.map(({ field, daysAgo }) =>
-        this._computeRetentionWindow(field, daysAgo, dayStart),
-      ),
+      windows.map(({ field, daysAgo }) => this._computeRetentionWindow(field, daysAgo, dayStart)),
     );
   }
 
@@ -538,12 +472,7 @@ class UserMetricsService {
     const existing = await dbRead
       .select()
       .from(retentionCohorts)
-      .where(
-        and(
-          eq(retentionCohorts.cohort_date, cohortDate),
-          isNull(retentionCohorts.platform),
-        ),
-      )
+      .where(and(eq(retentionCohorts.cohort_date, cohortDate), isNull(retentionCohorts.platform)))
       .limit(1);
 
     if (existing.length > 0) {
@@ -590,8 +519,7 @@ class UserMetricsService {
     dayEnd: Date,
     platform: MetricsPlatform | null,
   ): Promise<{ dau: number; totalMessages: number }> {
-    const sources =
-      platform === null ? ALL_SOURCES : PLATFORM_TO_SOURCES[platform];
+    const sources = platform === null ? ALL_SOURCES : PLATFORM_TO_SOURCES[platform];
 
     if (sources.length === 0) {
       return { dau: 0, totalMessages: 0 };

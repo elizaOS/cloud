@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import {
-  getEnhancedAnalyticsData,
-  getProjectionsData,
-} from "@/lib/actions/analytics-enhanced";
-import { requireAuth } from "@/lib/auth";
 import { AnalyticsPageClient } from "@/components/analytics/analytics-page-client";
+import { getEnhancedAnalyticsData, getProjectionsData } from "@/lib/actions/analytics-enhanced";
+import { requireAuth } from "@/lib/auth";
 
 // Force dynamic rendering for authenticated pages
 export const dynamic = "force-dynamic";
@@ -38,9 +35,7 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
   const searchParams = await props.searchParams;
 
   const filters = {
-    startDate: searchParams.startDate
-      ? new Date(searchParams.startDate)
-      : undefined,
+    startDate: searchParams.startDate ? new Date(searchParams.startDate) : undefined,
     endDate: searchParams.endDate ? new Date(searchParams.endDate) : undefined,
     granularity: searchParams.granularity || ("day" as const),
     timeRange: searchParams.timeRange || ("weekly" as const),

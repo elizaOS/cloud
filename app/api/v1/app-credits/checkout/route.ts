@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
 import {
   assertAllowedAbsoluteRedirectUrl,
   getDefaultPlatformRedirectOrigins,
 } from "@/lib/security/redirect-validation";
-import { z } from "zod";
+import { appsService } from "@/lib/services/apps";
 import { requireStripe } from "@/lib/stripe";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -151,8 +151,7 @@ export async function POST(request: NextRequest) {
       { headers: corsHeaders },
     );
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to create checkout";
+    const errorMessage = error instanceof Error ? error.message : "Failed to create checkout";
     const isAuthError =
       errorMessage.includes("Unauthorized") ||
       errorMessage.includes("Authentication required") ||
@@ -162,8 +161,7 @@ export async function POST(request: NextRequest) {
       errorMessage.includes("Wallet authentication failed") ||
       errorMessage.includes("Forbidden");
     const isValidationError =
-      errorMessage.includes("Invalid success_url") ||
-      errorMessage.includes("Invalid cancel_url");
+      errorMessage.includes("Invalid success_url") || errorMessage.includes("Invalid cancel_url");
 
     if (isAuthError) {
       return NextResponse.json(

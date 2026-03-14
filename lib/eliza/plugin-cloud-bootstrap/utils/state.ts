@@ -1,4 +1,4 @@
-import type { IAgentRuntime, Memory, State, ActionResult } from "@elizaos/core";
+import type { ActionResult, IAgentRuntime, Memory, State } from "@elizaos/core";
 import { logger } from "@elizaos/core";
 import type { MultiStepActionResult } from "../types";
 
@@ -7,12 +7,9 @@ export async function refreshStateAfterAction(
   runtime: IAgentRuntime,
   message: Memory,
   currentState: State,
-  actionResults: MultiStepActionResult[]
+  actionResults: MultiStepActionResult[],
 ): Promise<State> {
-  const refreshedState = await runtime.composeState(message, [
-    "RECENT_MESSAGES",
-    "ACTION_STATE",
-  ]);
+  const refreshedState = await runtime.composeState(message, ["RECENT_MESSAGES", "ACTION_STATE"]);
 
   refreshedState.data.actionResults = actionResults as ActionResult[];
 
@@ -28,10 +25,7 @@ export async function refreshStateAfterAction(
  * WARNING: Uses internal elizaOS API - may break on core version upgrades.
  * Returns empty array on failure with warning logged.
  */
-export function getActionResultsFromCache(
-  runtime: IAgentRuntime,
-  messageId: string
-): unknown[] {
+export function getActionResultsFromCache(runtime: IAgentRuntime, messageId: string): unknown[] {
   const runtimeWithCache = runtime as unknown as {
     stateCache?: Map<string, { values?: { actionResults?: unknown[] } }>;
   };
@@ -39,14 +33,14 @@ export function getActionResultsFromCache(
   if (!runtimeWithCache.stateCache) {
     logger.warn(
       `[getActionResultsFromCache] runtime.stateCache not found - elizaOS internal API may have changed. ` +
-      `Action results will not be captured. Check @elizaos/core version compatibility.`
+        `Action results will not be captured. Check @elizaos/core version compatibility.`,
     );
     return [];
   }
 
   const cacheKey = `${messageId}_action_results`;
   const cachedState = runtimeWithCache.stateCache.get(cacheKey);
-  
+
   if (!cachedState) {
     logger.debug(`[getActionResultsFromCache] No cached state for key: ${cacheKey}`);
     return [];
@@ -54,7 +48,9 @@ export function getActionResultsFromCache(
 
   const results = cachedState.values?.actionResults;
   if (!results) {
-    logger.debug(`[getActionResultsFromCache] Cached state exists but no actionResults for: ${cacheKey}`);
+    logger.debug(
+      `[getActionResultsFromCache] Cached state exists but no actionResults for: ${cacheKey}`,
+    );
     return [];
   }
 

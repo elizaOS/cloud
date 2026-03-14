@@ -3,18 +3,18 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
-import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-config";
 import { userCharactersRepository } from "@/db/repositories/characters";
-import { requireCompatAuth } from "../../_lib/auth";
-import { handleCompatError } from "../../_lib/error-handler";
 import {
-  toCompatAgent,
-  toCompatOpResult,
   envelope,
   errorEnvelope,
+  toCompatAgent,
+  toCompatOpResult,
 } from "@/lib/api/compat-envelope";
+import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-config";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { logger } from "@/lib/utils/logger";
+import { requireCompatAuth } from "../../_lib/auth";
+import { handleCompatError } from "../../_lib/error-handler";
 
 export const dynamic = "force-dynamic";
 
@@ -25,10 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const agent = await miladySandboxService.getAgent(
-      agentId,
-      user.organization_id,
-    );
+    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
       return NextResponse.json(errorEnvelope("Agent not found"), {
         status: 404,
@@ -46,10 +43,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const deleted = await miladySandboxService.deleteAgent(
-      agentId,
-      user.organization_id,
-    );
+    const deleted = await miladySandboxService.deleteAgent(agentId, user.organization_id);
     if (!deleted.success) {
       const status =
         deleted.error === "Agent not found"
@@ -61,12 +55,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     const characterId = deleted.deletedSandbox.character_id;
-    const sandboxConfig = deleted.deletedSandbox.agent_config as Record<
-      string,
-      unknown
-    > | null;
-    const reusesExistingCharacter =
-      reusesExistingMiladyCharacter(sandboxConfig);
+    const sandboxConfig = deleted.deletedSandbox.agent_config as Record<string, unknown> | null;
+    const reusesExistingCharacter = reusesExistingMiladyCharacter(sandboxConfig);
 
     // Clean up the linked character row so the token_address unique constraint
     // is released. Best-effort: log but don't fail the delete if cleanup fails.
@@ -78,14 +68,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
           characterId,
         });
       } catch (charErr) {
-        logger.warn(
-          "[compat] Failed to clean up linked character after agent delete",
-          {
-            agentId,
-            characterId,
-            error: charErr instanceof Error ? charErr.message : String(charErr),
-          },
-        );
+        logger.warn("[compat] Failed to clean up linked character after agent delete", {
+          agentId,
+          characterId,
+          error: charErr instanceof Error ? charErr.message : String(charErr),
+        });
       }
     }
 
@@ -93,9 +80,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       agentId,
       orgId: user.organization_id,
     });
-    return NextResponse.json(
-      envelope(toCompatOpResult(agentId, "delete", true)),
-    );
+    return NextResponse.json(envelope(toCompatOpResult(agentId, "delete", true)));
   } catch (err) {
     return handleCompatError(err);
   }

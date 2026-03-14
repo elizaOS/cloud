@@ -17,8 +17,8 @@
  */
 
 import { exec } from "node:child_process";
+import { readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
@@ -56,10 +56,7 @@ async function getDirectoriesToCheck(): Promise<string[]> {
   return ["db", ...libSubdirs, ...componentSubdirs, ...appSubdirs];
 }
 
-async function createTempTsconfig(
-  directory: string,
-  baseTsconfig: object,
-): Promise<string> {
+async function createTempTsconfig(directory: string, baseTsconfig: object): Promise<string> {
   const safeDirectoryName = directory.replace(/[\\/]/g, ".");
   const tempPath = `tsconfig.${safeDirectoryName}.temp.json`;
 
@@ -72,12 +69,7 @@ async function createTempTsconfig(
       skipLibCheck: true,
       skipDefaultLibCheck: true,
     },
-    include: [
-      "next-env.d.ts",
-      "types/**/*.d.ts",
-      `${directory}/**/*.ts`,
-      `${directory}/**/*.tsx`,
-    ],
+    include: ["next-env.d.ts", "types/**/*.d.ts", `${directory}/**/*.ts`, `${directory}/**/*.tsx`],
     // Keep the same excludes (include __tests__ so bun:test files are not type-checked with node types)
     exclude: [
       "node_modules",
@@ -101,10 +93,7 @@ async function createTempTsconfig(
   return tempPath;
 }
 
-async function checkDirectory(
-  directory: string,
-  baseTsconfig: object,
-): Promise<CheckResult> {
+async function checkDirectory(directory: string, baseTsconfig: object): Promise<CheckResult> {
   const start = Date.now();
   let tempConfigPath: string | null = null;
 
@@ -136,9 +125,7 @@ async function checkDirectory(
           error.message
         : String(error);
 
-    console.log(
-      `   ✗ ${directory}/ has errors (${(duration / 1000).toFixed(1)}s)`,
-    );
+    console.log(`   ✗ ${directory}/ has errors (${(duration / 1000).toFixed(1)}s)`);
 
     return { directory, success: false, output, duration };
   } finally {

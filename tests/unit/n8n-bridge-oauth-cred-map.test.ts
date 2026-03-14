@@ -5,10 +5,10 @@
  * Verifies n8n credential type → cloud platform mapping.
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
-  mapCredTypeToCloudPlatform,
   getCredPrefixesForPlatform,
+  mapCredTypeToCloudPlatform,
 } from "@/lib/eliza/plugin-n8n-bridge/oauth-cred-map";
 
 describe("mapCredTypeToCloudPlatform", () => {
@@ -21,9 +21,7 @@ describe("mapCredTypeToCloudPlatform", () => {
   test("maps google credentials to google", () => {
     expect(mapCredTypeToCloudPlatform("googleSheetsOAuth2Api")).toBe("google");
     expect(mapCredTypeToCloudPlatform("googleDriveOAuth2Api")).toBe("google");
-    expect(mapCredTypeToCloudPlatform("googleCalendarOAuth2Api")).toBe(
-      "google",
-    );
+    expect(mapCredTypeToCloudPlatform("googleCalendarOAuth2Api")).toBe("google");
     expect(mapCredTypeToCloudPlatform("googleDocsOAuth2Api")).toBe("google");
     expect(mapCredTypeToCloudPlatform("googleApi")).toBe("google");
   });

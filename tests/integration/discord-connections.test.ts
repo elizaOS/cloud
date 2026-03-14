@@ -9,7 +9,7 @@
  * - Set TEST_CHARACTER_ID (valid character UUID in your organization)
  */
 
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { config } from "dotenv";
 
 const preservedDatabaseUrl = process.env.DATABASE_URL;
@@ -61,7 +61,9 @@ beforeAll(async () => {
 afterAll(async () => {
   // Clean up created connections
   if (apiKeyValid && createdConnectionIds.length > 0) {
-    console.log(`[Discord Connections Tests] Cleaning up ${createdConnectionIds.length} test connections`);
+    console.log(
+      `[Discord Connections Tests] Cleaning up ${createdConnectionIds.length} test connections`,
+    );
     for (const id of createdConnectionIds) {
       try {
         await fetch(`${SERVER_URL}/api/v1/discord/connections/${id}`, {
@@ -379,11 +381,9 @@ describe("Discord Connections Update API", () => {
     createdConnectionIds.push(connectionId);
 
     // Update the connection
-    const res = await fetchWithAuth(
-      `/api/v1/discord/connections/${connectionId}`,
-      "PATCH",
-      { isActive: false },
-    );
+    const res = await fetchWithAuth(`/api/v1/discord/connections/${connectionId}`, "PATCH", {
+      isActive: false,
+    });
     expect(res.status).toBe(200);
 
     const data = await res.json();
@@ -409,11 +409,9 @@ describe("Discord Connections Update API", () => {
     createdConnectionIds.push(connectionId);
 
     // Update the metadata
-    const res = await fetchWithAuth(
-      `/api/v1/discord/connections/${connectionId}`,
-      "PATCH",
-      { metadata: { responseMode: "mention" } },
-    );
+    const res = await fetchWithAuth(`/api/v1/discord/connections/${connectionId}`, "PATCH", {
+      metadata: { responseMode: "mention" },
+    });
     expect(res.status).toBe(200);
 
     const data = await res.json();
@@ -457,10 +455,7 @@ describe("Discord Connections Delete API", () => {
     const connectionId = createData.connection.id;
 
     // Delete the connection
-    const res = await fetchWithAuth(
-      `/api/v1/discord/connections/${connectionId}`,
-      "DELETE",
-    );
+    const res = await fetchWithAuth(`/api/v1/discord/connections/${connectionId}`, "DELETE");
     expect(res.status).toBe(200);
 
     const data = await res.json();

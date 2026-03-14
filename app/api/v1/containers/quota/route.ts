@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { listContainers } from "@/lib/services/containers";
 import {
-  CONTAINER_PRICING,
   CONTAINER_LIMITS,
-  getMaxContainersForOrg,
-  calculateDeploymentCost,
+  CONTAINER_PRICING,
   calculateDailyContainerCost,
+  calculateDeploymentCost,
+  getMaxContainersForOrg,
 } from "@/lib/constants/pricing";
+import { listContainers } from "@/lib/services/containers";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +49,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate current daily costs for all running containers
-    const runningContainers = existingContainers.filter(
-      (c) => c.status === "running",
-    );
+    const runningContainers = existingContainers.filter((c) => c.status === "running");
     const currentDailyBurn = runningContainers.reduce((total, container) => {
       return (
         total +
@@ -66,9 +64,7 @@ export async function GET(request: NextRequest) {
     // Calculate days of runway
     const currentBalance = Number(user.organization.credit_balance);
     const daysOfRunway =
-      currentDailyBurn > 0
-        ? Math.floor(currentBalance / currentDailyBurn)
-        : Infinity;
+      currentDailyBurn > 0 ? Math.floor(currentBalance / currentDailyBurn) : Infinity;
 
     return NextResponse.json({
       success: true,
@@ -104,8 +100,7 @@ export async function GET(request: NextRequest) {
         },
         limits: {
           maxImageSize: CONTAINER_LIMITS.MAX_IMAGE_SIZE_BYTES,
-          maxInstancesPerContainer:
-            CONTAINER_LIMITS.MAX_INSTANCES_PER_CONTAINER,
+          maxInstancesPerContainer: CONTAINER_LIMITS.MAX_INSTANCES_PER_CONTAINER,
           maxEnvVars: CONTAINER_LIMITS.MAX_ENV_VARS,
         },
       },

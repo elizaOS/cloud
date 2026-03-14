@@ -6,7 +6,7 @@
  * and proper error responses.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
 import { verifyCronSecret } from "@/lib/api/cron-auth";
 
@@ -135,12 +135,7 @@ describe("verifyCronSecret", () => {
     });
 
     it("accepts valid secret with various log prefixes", () => {
-      const prefixes = [
-        "[AgentBudgets Cron]",
-        "[Health Check Cron]",
-        "[Test]",
-        "",
-      ];
+      const prefixes = ["[AgentBudgets Cron]", "[Health Check Cron]", "[Test]", ""];
 
       for (const prefix of prefixes) {
         const request = mockRequest(`Bearer ${TEST_SECRET}`);

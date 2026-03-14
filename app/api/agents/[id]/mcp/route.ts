@@ -13,23 +13,16 @@
  * When monetization is enabled, the agent creator earns their markup percentage.
  */
 
+import { gateway } from "@ai-sdk/gateway";
+import { streamText } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  creditsService,
-  InsufficientCreditsError,
-} from "@/lib/services/credits";
-import type { CreditReservation } from "@/lib/services/credits";
-import { charactersService } from "@/lib/services/characters/characters";
-import { streamText } from "ai";
-import { gateway } from "@ai-sdk/gateway";
-import {
-  calculateCost,
-  getProviderFromModel,
-  estimateTokens,
-} from "@/lib/pricing";
+import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
+import { charactersService } from "@/lib/services/characters/characters";
+import type { CreditReservation } from "@/lib/services/credits";
+import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
@@ -53,10 +46,7 @@ const MCPRequestSchema = z.object({
  * GET /api/agents/{id}/mcp
  * Returns MCP server metadata
  */
-export async function GET(
-  request: NextRequest,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
   const character = await charactersService.getById(id);
@@ -65,16 +55,11 @@ export async function GET(
   }
 
   if (!character.is_public || !character.mcp_enabled) {
-    return NextResponse.json(
-      { error: "MCP not accessible for this agent" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "MCP not accessible for this agent" }, { status: 403 });
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-  const bioText = Array.isArray(character.bio)
-    ? character.bio.join("\n")
-    : character.bio;
+  const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
 
   const markupPct = Number(character.inference_markup_percentage || 0);
 
@@ -139,10 +124,7 @@ export async function GET(
  * POST /api/agents/{id}/mcp
  * MCP protocol handler
  */
-export async function POST(
-  request: NextRequest,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
   const character = await charactersService.getById(id);
@@ -185,9 +167,7 @@ export async function POST(
   const { method, params, id: rpcId } = validation.data;
 
   // Authenticate with API key or session
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
-    () => null,
-  );
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
 
   if (!authResult) {
     return NextResponse.json(
@@ -294,9 +274,7 @@ async function handleToolCall(
   };
 
   if (name === "get_info") {
-    const bioText = Array.isArray(character.bio)
-      ? character.bio.join("\n")
-      : character.bio;
+    const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
 
     return NextResponse.json({
       jsonrpc: "2.0",
@@ -331,11 +309,8 @@ async function handleToolCall(
       });
     }
 
-    const bioText = Array.isArray(character.bio)
-      ? character.bio.join("\n")
-      : character.bio;
-    const systemPrompt =
-      character.system || `You are ${character.name}. ${bioText}`;
+    const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
+    const systemPrompt = character.system || `You are ${character.name}. ${bioText}`;
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
@@ -408,14 +383,11 @@ async function handleToolCall(
           protocol: "mcp",
         });
 
-        logger.info(
-          "[Agent MCP] Creator earnings credited to redeemable balance",
-          {
-            agentId: character.id,
-            ownerId: character.user_id,
-            earnings: actualCreatorMarkup,
-          },
-        );
+        logger.info("[Agent MCP] Creator earnings credited to redeemable balance", {
+          agentId: character.id,
+          ownerId: character.user_id,
+          earnings: actualCreatorMarkup,
+        });
       }
 
       // Reconcile with actual cost (handles refund or overage)
@@ -478,8 +450,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
     },
   });
 }

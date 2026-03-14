@@ -3,14 +3,14 @@ import {
   type ActionResult,
   type HandlerCallback,
   type IAgentRuntime,
+  logger,
   type Memory,
   type State,
-  logger,
 } from "@elizaos/core";
+import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
 import type { McpService } from "../service";
 import { MCP_SERVICE_NAME } from "../types";
 import { createMcpToolAction } from "./dynamic-tool-actions";
-import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
 
 // ─── SEARCH_ACTIONS ─────────────────────────────────────────────────────────
 
@@ -41,8 +41,7 @@ export const searchActionsAction: ActionWithParams = {
     },
     platform: {
       type: "string",
-      description:
-        "Filter results to a single connected platform. Omit to search all.",
+      description: "Filter results to a single connected platform. Omit to search all.",
       required: false,
       enum: [
         "google",
@@ -142,11 +141,7 @@ export const searchActionsAction: ActionWithParams = {
         alreadyRegistered.push(entry.actionName);
         continue;
       }
-      const action = createMcpToolAction(
-        entry.serverName,
-        entry.tool,
-        existingNames,
-      );
+      const action = createMcpToolAction(entry.serverName, entry.tool, existingNames);
       runtime.registerAction(action);
       existingNames.add(action.name);
       newlyRegistered.push(action.name);
@@ -274,10 +269,7 @@ export const listConnectionsAction: Action = {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      logger.error(
-        { error: msg },
-        "[LIST_CONNECTIONS] Failed to fetch connections",
-      );
+      logger.error({ error: msg }, "[LIST_CONNECTIONS] Failed to fetch connections");
       if (msg.includes("Cannot find module")) {
         return { success: false, error: "OAuth service not available" };
       }

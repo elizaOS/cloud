@@ -22,8 +22,6 @@ export interface DockerNodeEnv {
 // Constants
 // ---------------------------------------------------------------------------
 
-
-
 export const BRIDGE_PORT_MIN = 18790;
 export const BRIDGE_PORT_MAX = 19790;
 export const WEBUI_PORT_MIN = 20000;
@@ -60,15 +58,11 @@ export function validateAgentId(agentId: string): void {
 /** Validate an agent name: printable characters, 1-64 chars, no shell metacharacters. */
 export function validateAgentName(name: string): void {
   if (!name || name.length > 64) {
-    throw new Error(
-      `Invalid agent name: must be 1-64 characters.`,
-    );
+    throw new Error(`Invalid agent name: must be 1-64 characters.`);
   }
   // Block characters that could break shell commands even inside quotes
   if (/[\x00-\x1f\x7f]/.test(name)) {
-    throw new Error(
-      `Invalid agent name "${name}": contains control characters.`,
-    );
+    throw new Error(`Invalid agent name "${name}": contains control characters.`);
   }
 }
 
@@ -140,7 +134,7 @@ export function parseDockerNodes(): DockerNodeEnv[] {
   if (!raw) {
     throw new Error(
       "[docker-sandbox] MILADY_DOCKER_NODES env var is not set. " +
-      'Expected format: "nodeId:hostname:capacity,..."',
+        'Expected format: "nodeId:hostname:capacity,..."',
     );
   }
 
@@ -156,18 +150,14 @@ export function parseDockerNodes(): DockerNodeEnv[] {
 
     const parts = trimmed.split(":");
     if (parts.length < 3) {
-      logger.warn(
-        `[docker-sandbox] Skipping malformed node entry: "${trimmed}"`,
-      );
+      logger.warn(`[docker-sandbox] Skipping malformed node entry: "${trimmed}"`);
       continue;
     }
 
     const [nodeId, hostname, capacityStr] = parts;
     const capacity = parseInt(capacityStr!, 10);
     if (!nodeId || !hostname || isNaN(capacity) || capacity <= 0) {
-      logger.warn(
-        `[docker-sandbox] Skipping invalid node entry: "${trimmed}"`,
-      );
+      logger.warn(`[docker-sandbox] Skipping invalid node entry: "${trimmed}"`);
       continue;
     }
 
@@ -175,9 +165,7 @@ export function parseDockerNodes(): DockerNodeEnv[] {
   }
 
   if (nodes.length === 0) {
-    throw new Error(
-      "[docker-sandbox] No valid nodes parsed from MILADY_DOCKER_NODES",
-    );
+    throw new Error("[docker-sandbox] No valid nodes parsed from MILADY_DOCKER_NODES");
   }
 
   _cachedDockerNodes = nodes;

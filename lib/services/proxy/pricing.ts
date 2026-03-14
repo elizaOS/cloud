@@ -19,9 +19,7 @@ export class PricingNotFoundError extends Error {
   }
 }
 
-async function loadPricingMap(
-  serviceId: string,
-): Promise<Record<string, string>> {
+async function loadPricingMap(serviceId: string): Promise<Record<string, string>> {
   const existingLoad = inflightPricingLoads.get(serviceId);
   if (existingLoad) {
     return existingLoad;
@@ -29,8 +27,7 @@ async function loadPricingMap(
 
   const cacheKey = `service-pricing:${serviceId}`;
   const loadPromise = (async () => {
-    const pricingRecords =
-      await servicePricingRepository.listByService(serviceId);
+    const pricingRecords = await servicePricingRepository.listByService(serviceId);
     const pricingMap: Record<string, string> = {};
 
     if (pricingRecords.length === 0) {
@@ -56,10 +53,7 @@ async function loadPricingMap(
   return loadPromise;
 }
 
-export async function getServiceMethodCost(
-  serviceId: string,
-  method: string,
-): Promise<number> {
+export async function getServiceMethodCost(serviceId: string, method: string): Promise<number> {
   const cacheKey = `service-pricing:${serviceId}`;
 
   const cached = await cache.get<Record<string, string>>(cacheKey);
@@ -92,9 +86,7 @@ export async function getServiceMethodCost(
   return Number(cost);
 }
 
-export async function invalidateServicePricingCache(
-  serviceId: string,
-): Promise<void> {
+export async function invalidateServicePricingCache(serviceId: string): Promise<void> {
   const cacheKey = `service-pricing:${serviceId}`;
   inflightPricingLoads.delete(serviceId);
   await cache.del(cacheKey);
@@ -139,8 +131,5 @@ export async function calculateBatchCost(
     }),
   );
 
-  return methods.reduce(
-    (total, method) => total + (costMap.get(method) ?? 0),
-    0,
-  );
+  return methods.reduce((total, method) => total + (costMap.get(method) ?? 0), 0);
 }

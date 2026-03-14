@@ -5,27 +5,27 @@
  * Uses local database (same as running server).
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mcpTestCharacter } from "../fixtures/mcp-test-character";
 import {
-  hasDatabaseUrl,
-  hasRuntimeModelCredentials,
-  getConnectionString,
-  verifyConnection,
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   createTestRuntime,
   createTestUser,
-  sendTestMessage,
-  getMcpService,
-  waitForMcpReady,
-  startTimer,
   endTimer,
+  getConnectionString,
+  getMcpService,
+  hasDatabaseUrl,
+  hasRuntimeModelCredentials,
   logTimings,
+  sendTestMessage,
+  startTimer,
+  type TestDataSet,
   type TestRuntimeResult,
   type TestUserContext,
-  type TestDataSet,
+  verifyConnection,
+  waitForMcpReady,
 } from "../infrastructure";
-import { mcpTestCharacter } from "../fixtures/mcp-test-character";
 
 // Test state
 let connectionString: string;
@@ -80,9 +80,7 @@ async function cleanupTestEnvironment(): Promise<void> {
     await testRuntimeResult.cleanup();
   }
   if (testData && connectionString) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(
-      () => {},
-    );
+    await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
   }
   logTimings("MCP Loading Tests", timings);
   console.log("✅ Cleanup complete\n");
@@ -149,10 +147,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Plugin Loading - Production Flow", () =
   it("should create test user with elizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(
-      testRuntimeResult.runtime,
-      "MCPTestUser",
-    );
+    testUserContext = await createTestUser(testRuntimeResult.runtime, "MCPTestUser");
 
     timings.userCreation = endTimer("user_creation");
 

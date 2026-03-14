@@ -39,9 +39,7 @@ function initStripe(): Stripe | null {
   const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
 
   if (!secretKey) {
-    stripeInitError = new Error(
-      "STRIPE_SECRET_KEY is not set in environment variables",
-    );
+    stripeInitError = new Error("STRIPE_SECRET_KEY is not set in environment variables");
     return null;
   }
 
@@ -70,10 +68,7 @@ function initStripe(): Stripe | null {
 export function getStripe(): Stripe {
   const instance = initStripe();
   if (!instance) {
-    throw (
-      stripeInitError ||
-      new Error("STRIPE_SECRET_KEY is not set in environment variables")
-    );
+    throw stripeInitError || new Error("STRIPE_SECRET_KEY is not set in environment variables");
   }
   return instance;
 }
@@ -99,10 +94,7 @@ function createDeferredErrorProxy(): unknown {
       return createDeferredErrorProxy();
     },
     apply() {
-      throw (
-        stripeInitError ||
-        new Error("STRIPE_SECRET_KEY is not set in environment variables")
-      );
+      throw stripeInitError || new Error("STRIPE_SECRET_KEY is not set in environment variables");
     },
   });
 }

@@ -13,7 +13,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
-import { headscaleClient, HeadscaleClient } from "./headscale-client";
+import { HeadscaleClient, headscaleClient } from "./headscale-client";
 
 /** Initial polling interval when waiting for VPN registration (ms). */
 const POLL_INTERVAL_INITIAL_MS = 1_000;
@@ -25,8 +25,7 @@ const POLL_INTERVAL_MAX_MS = 8_000;
 const DEFAULT_REGISTRATION_TIMEOUT_MS = 60_000;
 
 /** Headscale server URL passed to containers so tailscale can find the coord server. */
-const HEADSCALE_URL =
-  process.env.HEADSCALE_API_URL || "http://localhost:8081";
+const HEADSCALE_URL = process.env.HEADSCALE_API_URL || "http://localhost:8081";
 
 export class HeadscaleIntegration {
   private client: HeadscaleClient;
@@ -60,10 +59,11 @@ export class HeadscaleIntegration {
 
       // Sanitize agentId for use as a DNS-safe Tailscale hostname:
       // replace non-alphanumeric chars with hyphens, strip leading/trailing hyphens, truncate to 63 chars
-      const tsHostname = agentId
-        .replace(/[^a-zA-Z0-9-]/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 63) || "agent";
+      const tsHostname =
+        agentId
+          .replace(/[^a-zA-Z0-9-]/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 63) || "agent";
 
       const envVars: Record<string, string> = {
         HEADSCALE_URL,
@@ -73,17 +73,12 @@ export class HeadscaleIntegration {
         TS_EXTRA_ARGS: "--accept-routes",
       };
 
-      logger.info(
-        `[headscale-integration] VPN prepared for agent ${agentId}`,
-      );
+      logger.info(`[headscale-integration] VPN prepared for agent ${agentId}`);
 
       return { preAuthKey: preAuthKeyObj.key, envVars };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
-      logger.error(
-        `[headscale-integration] failed to prepare VPN for ${agentId}:`,
-        msg,
-      );
+      logger.error(`[headscale-integration] failed to prepare VPN for ${agentId}:`, msg);
       throw error;
     }
   }
@@ -116,9 +111,7 @@ export class HeadscaleIntegration {
 
         if (node && node.ipAddresses.length > 0) {
           const ip = node.ipAddresses[0];
-          logger.info(
-            `[headscale-integration] VPN registered for ${agentId}: ${ip}`,
-          );
+          logger.info(`[headscale-integration] VPN registered for ${agentId}: ${ip}`);
           return ip;
         }
       } catch (err) {
@@ -131,9 +124,7 @@ export class HeadscaleIntegration {
           return null; // bail early, retrying won't help
         }
         // Transient errors (network, timeout) — keep polling
-        logger.debug(
-          `[headscale-integration] Poll error for ${agentId}: ${msg}`,
-        );
+        logger.debug(`[headscale-integration] Poll error for ${agentId}: ${msg}`);
       }
 
       // Exponential backoff with jitter to avoid thundering-herd on
@@ -145,9 +136,7 @@ export class HeadscaleIntegration {
       interval = Math.min(interval * 1.5, POLL_INTERVAL_MAX_MS);
     }
 
-    logger.warn(
-      `[headscale-integration] VPN registration timeout for ${agentId}`,
-    );
+    logger.warn(`[headscale-integration] VPN registration timeout for ${agentId}`);
     return null;
   }
 
@@ -158,9 +147,7 @@ export class HeadscaleIntegration {
    * Silently succeeds if the node was already removed.
    */
   async cleanupContainerVPN(agentId: string): Promise<void> {
-    logger.info(
-      `[headscale-integration] cleaning up VPN node for ${agentId}`,
-    );
+    logger.info(`[headscale-integration] cleaning up VPN node for ${agentId}`);
 
     try {
       const node = await this.client.getNodeByName(agentId);
@@ -173,15 +160,10 @@ export class HeadscaleIntegration {
       }
 
       await this.client.deleteNode(node.id);
-      logger.info(
-        `[headscale-integration] VPN node cleaned up for ${agentId}`,
-      );
+      logger.info(`[headscale-integration] VPN node cleaned up for ${agentId}`);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
-      logger.warn(
-        `[headscale-integration] error cleaning up VPN for ${agentId}:`,
-        msg,
-      );
+      logger.warn(`[headscale-integration] error cleaning up VPN for ${agentId}:`, msg);
       // Don't rethrow — cleanup failures should not block container deletion
     }
   }
@@ -196,10 +178,7 @@ export class HeadscaleIntegration {
       return await this.client.getNodeIP(agentId);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
-      logger.warn(
-        `[headscale-integration] error getting VPN IP for ${agentId}:`,
-        msg,
-      );
+      logger.warn(`[headscale-integration] error getting VPN IP for ${agentId}:`, msg);
       return null;
     }
   }

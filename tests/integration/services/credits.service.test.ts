@@ -13,31 +13,24 @@
  * @see https://martinfowler.com/bliki/UnitTest.html (Sociable vs Solitary)
  */
 
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-} from "bun:test";
-import { v4 as uuidv4 } from "uuid";
-import { dbWrite, dbRead } from "@/db/client";
-import { organizations } from "@/db/schemas/organizations";
-import { creditTransactions } from "@/db/schemas/credit-transactions";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
+import { v4 as uuidv4 } from "uuid";
+import { dbRead } from "@/db/client";
+import { creditTransactions } from "@/db/schemas/credit-transactions";
+import { organizations } from "@/db/schemas/organizations";
 import {
-  creditsService,
   COST_BUFFER,
-  MIN_RESERVATION,
+  creditsService,
   InsufficientCreditsError,
+  MIN_RESERVATION,
 } from "@/lib/services/credits";
+import { getConnectionString } from "@/tests/helpers/local-database";
 import {
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   type TestDataSet,
 } from "@/tests/helpers/test-data-factory";
-import { getConnectionString } from "@/tests/helpers/local-database";
 
 describe("CreditsService", () => {
   let connectionString: string;
@@ -142,9 +135,7 @@ describe("CreditsService", () => {
       const org = await dbRead.query.organizations.findFirst({
         where: eq(organizations.id, testData.organization.id),
       });
-      expect(Number(org?.credit_balance)).toBe(
-        testData.organization.creditBalance + amount,
-      );
+      expect(Number(org?.credit_balance)).toBe(testData.organization.creditBalance + amount);
 
       // Cleanup
       await cleanupTestData(connectionString, testData.organization.id);
@@ -216,9 +207,7 @@ describe("CreditsService", () => {
       const org = await dbRead.query.organizations.findFirst({
         where: eq(organizations.id, testData.organization.id),
       });
-      expect(Number(org?.credit_balance)).toBe(
-        testData.organization.creditBalance,
-      );
+      expect(Number(org?.credit_balance)).toBe(testData.organization.creditBalance);
 
       // Cleanup
       await cleanupTestData(connectionString, testData.organization.id);
@@ -312,12 +301,8 @@ describe("CreditsService", () => {
       const results = await Promise.allSettled(promises);
 
       // Assert: Count successes and failures
-      const successes = results.filter(
-        (r) => r.status === "fulfilled" && r.value.success,
-      );
-      const failures = results.filter(
-        (r) => r.status === "fulfilled" && !r.value.success,
-      );
+      const successes = results.filter((r) => r.status === "fulfilled" && r.value.success);
+      const failures = results.filter((r) => r.status === "fulfilled" && !r.value.success);
 
       // Exactly 10 should succeed (we have $10, each deduction is $1)
       expect(successes.length).toBe(10);
@@ -332,10 +317,7 @@ describe("CreditsService", () => {
 
       // Verify transaction count
       const transactions = await dbRead.query.creditTransactions.findMany({
-        where: eq(
-          creditTransactions.organization_id,
-          raceTestData.organization.id,
-        ),
+        where: eq(creditTransactions.organization_id, raceTestData.organization.id),
       });
       const debitTransactions = transactions.filter((t) => t.type === "debit");
       expect(debitTransactions.length).toBe(10);
@@ -388,9 +370,7 @@ describe("CreditsService", () => {
 
       // Assert
       expect(result.transaction.type).toBe("refund");
-      expect(result.transaction.description).toBe(
-        "Refund for failed operation",
-      );
+      expect(result.transaction.description).toBe("Refund for failed operation");
       expect(result.transaction.metadata).toEqual({
         reason: "operation_failed",
       });
@@ -432,8 +412,7 @@ describe("CreditsService", () => {
         description: "Reserve for test",
       });
 
-      const balanceAfterReservation =
-        testData.organization.creditBalance - reserved;
+      const balanceAfterReservation = testData.organization.creditBalance - reserved;
 
       // Act
       await creditsService.reconcile({
@@ -447,9 +426,7 @@ describe("CreditsService", () => {
       const org = await dbRead.query.organizations.findFirst({
         where: eq(organizations.id, testData.organization.id),
       });
-      expect(Number(org?.credit_balance)).toBe(
-        balanceAfterReservation + expectedRefund,
-      );
+      expect(Number(org?.credit_balance)).toBe(balanceAfterReservation + expectedRefund);
 
       // Cleanup
       await cleanupTestData(connectionString, testData.organization.id);
@@ -468,8 +445,7 @@ describe("CreditsService", () => {
         description: "Reserve for test",
       });
 
-      const balanceAfterReservation =
-        testData.organization.creditBalance - reserved;
+      const balanceAfterReservation = testData.organization.creditBalance - reserved;
 
       // Act
       await creditsService.reconcile({
@@ -483,9 +459,7 @@ describe("CreditsService", () => {
       const org = await dbRead.query.organizations.findFirst({
         where: eq(organizations.id, testData.organization.id),
       });
-      expect(Number(org?.credit_balance)).toBe(
-        balanceAfterReservation - expectedOverage,
-      );
+      expect(Number(org?.credit_balance)).toBe(balanceAfterReservation - expectedOverage);
 
       // Cleanup
       await cleanupTestData(connectionString, testData.organization.id);
@@ -503,8 +477,7 @@ describe("CreditsService", () => {
         description: "Reserve for test",
       });
 
-      const balanceAfterReservation =
-        testData.organization.creditBalance - reserved;
+      const balanceAfterReservation = testData.organization.creditBalance - reserved;
 
       // Act
       await creditsService.reconcile({

@@ -5,7 +5,7 @@
  * Verifies that the Zod schema properly validates state objects.
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 
 // Recreate the schema used in the Google callback route for testing
@@ -131,8 +131,8 @@ describe("OAuth State Schema Validation", () => {
 
       // Zod strips unknown properties, so this should pass but without __proto__
       const result = OAuthStateSchema.parse(protoAttempt) as Record<string, unknown>;
-      expect(Object.prototype.hasOwnProperty.call(result, "__proto__")).toBe(false);
-      expect(Object.prototype.hasOwnProperty.call(result, "isAdmin")).toBe(false);
+      expect(Object.hasOwn(result, "__proto__")).toBe(false);
+      expect(Object.hasOwn(result, "isAdmin")).toBe(false);
     });
 
     it("handles deeply nested malicious objects", () => {

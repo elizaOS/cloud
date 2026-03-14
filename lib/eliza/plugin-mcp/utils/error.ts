@@ -1,15 +1,15 @@
 import {
+  type ActionResult,
+  composePromptFromState,
   type HandlerCallback,
   type IAgentRuntime,
+  logger,
   type Memory,
   ModelType,
-  composePromptFromState,
-  logger,
-  type ActionResult,
   type State,
-} from '@elizaos/core';
-import { errorAnalysisPrompt } from '../templates/errorAnalysisPrompt';
-import type { McpProvider } from '../types';
+} from "@elizaos/core";
+import { errorAnalysisPrompt } from "../templates/errorAnalysisPrompt";
+import type { McpProvider } from "../types";
 
 export async function handleMcpError(
   state: State,
@@ -17,8 +17,8 @@ export async function handleMcpError(
   error: unknown,
   runtime: IAgentRuntime,
   message: Memory,
-  type: 'tool' | 'resource',
-  callback?: HandlerCallback
+  type: "tool" | "resource",
+  callback?: HandlerCallback,
 ): Promise<ActionResult> {
   const errorMessage = error instanceof Error ? error.message : String(error);
   logger.error({ error, mcpType: type }, `MCP ${type} error: ${errorMessage}`);
@@ -31,7 +31,12 @@ export async function handleMcpError(
       const prompt = composePromptFromState({
         state: {
           ...state,
-          values: { ...state.values, mcpProvider, userMessage: message.content.text || '', error: errorMessage },
+          values: {
+            ...state.values,
+            mcpProvider,
+            userMessage: message.content.text || "",
+            error: errorMessage,
+          },
         },
         template: errorAnalysisPrompt,
       });
@@ -40,13 +45,20 @@ export async function handleMcpError(
       // Use fallback
     }
 
-    await callback({ thought: `MCP ${type} error: ${errorMessage}`, text: responseText, actions: ['REPLY'] });
+    await callback({
+      thought: `MCP ${type} error: ${errorMessage}`,
+      text: responseText,
+      actions: ["REPLY"],
+    });
   }
 
   return {
     text: `Failed to execute MCP ${type}`,
     values: { success: false, error: errorMessage, errorType: type },
-    data: { actionName: type === 'tool' ? 'CALL_MCP_TOOL' : 'READ_MCP_RESOURCE', error: errorMessage },
+    data: {
+      actionName: type === "tool" ? "CALL_MCP_TOOL" : "READ_MCP_RESOURCE",
+      error: errorMessage,
+    },
     success: false,
     error: error instanceof Error ? error : new Error(errorMessage),
   };

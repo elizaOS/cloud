@@ -1,8 +1,8 @@
-import { eq, desc, and, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
-  creditTransactions,
   type CreditTransaction,
+  creditTransactions,
   type NewCreditTransaction,
 } from "../schemas/credit-transactions";
 
@@ -31,9 +31,7 @@ export class CreditTransactionsRepository {
   /**
    * Finds a credit transaction by Stripe payment intent ID.
    */
-  async findByStripePaymentIntent(
-    paymentIntentId: string,
-  ): Promise<CreditTransaction | undefined> {
+  async findByStripePaymentIntent(paymentIntentId: string): Promise<CreditTransaction | undefined> {
     return await dbRead.query.creditTransactions.findFirst({
       where: eq(creditTransactions.stripe_payment_intent_id, paymentIntentId),
     });
@@ -42,10 +40,7 @@ export class CreditTransactionsRepository {
   /**
    * Lists credit transactions for an organization, ordered by creation date.
    */
-  async listByOrganization(
-    organizationId: string,
-    limit?: number,
-  ): Promise<CreditTransaction[]> {
+  async listByOrganization(organizationId: string, limit?: number): Promise<CreditTransaction[]> {
     return await dbRead.query.creditTransactions.findMany({
       where: eq(creditTransactions.organization_id, organizationId),
       orderBy: desc(creditTransactions.created_at),
@@ -96,10 +91,7 @@ export class CreditTransactionsRepository {
    * Creates a new credit transaction.
    */
   async create(data: NewCreditTransaction): Promise<CreditTransaction> {
-    const [transaction] = await dbWrite
-      .insert(creditTransactions)
-      .values(data)
-      .returning();
+    const [transaction] = await dbWrite.insert(creditTransactions).values(data).returning();
     return transaction;
   }
 }

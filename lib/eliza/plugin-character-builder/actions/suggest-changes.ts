@@ -1,19 +1,18 @@
 import {
   type Action,
   type ActionExample,
+  composePromptFromState,
   type HandlerCallback,
   type IAgentRuntime,
-  type Memory,
-  type State,
-  type UUID,
   logger,
-  composePromptFromState,
-  parseKeyValueXml,
+  type Memory,
   ModelType,
+  parseKeyValueXml,
+  type State,
 } from "@elizaos/core";
-import { MESSAGE_EXAMPLES_FORMAT_INSTRUCTIONS } from "../providers/character-guide";
-import { cleanPrompt } from "../../shared/utils/helpers";
 import type { StreamChunkCallback } from "../../shared/types";
+import { cleanPrompt } from "../../shared/utils/helpers";
+import { MESSAGE_EXAMPLES_FORMAT_INSTRUCTIONS } from "../providers/character-guide";
 
 /**
  * SUGGEST_CHANGES Action
@@ -179,9 +178,7 @@ Note: This is the LIVE state from the user's form. If marked "(UNSAVED)", change
  * Expands dot notation keys into nested objects.
  * e.g., { "style.all": [...] } becomes { style: { all: [...] } }
  */
-function expandDotNotation(
-  obj: Record<string, unknown>,
-): Record<string, unknown> {
+function expandDotNotation(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
@@ -210,11 +207,7 @@ export const suggestChangesAction = {
   name: "SUGGEST_CHANGES",
   description:
     "User is asking about character design, requesting modifications, or needs guidance on best practices. Use for: 'make it funnier', 'improve the bio', 'how should I structure the system prompt?', 'add personality traits', 'what makes a good character?'. Provides expert guidance with field-level changes for interactive preview. Does NOT save changes.",
-  validate: async (
-    _runtime: IAgentRuntime,
-    _message: Memory,
-    _state?: State,
-  ) => {
+  validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
     return true;
   },
   handler: async (
@@ -224,12 +217,8 @@ export const suggestChangesAction = {
     options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    const onStreamChunk = options?.onStreamChunk as
-      | StreamChunkCallback
-      | undefined;
-    logger.info(
-      `[SUGGEST_CHANGES] Generating expert guidance, streaming=${!!onStreamChunk}`,
-    );
+    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    logger.info(`[SUGGEST_CHANGES] Generating expert guidance, streaming=${!!onStreamChunk}`);
 
     // Include both guides - agent determines what's relevant from conversation context
     state = await runtime.composeState(message, [
@@ -303,10 +292,8 @@ export const suggestChangesAction = {
         logger.info(
           `[SUGGEST_CHANGES] Parsed changes for fields: ${Object.keys(parsed).join(", ")}`,
         );
-      } catch (parseError) {
-        logger.warn(
-          "[SUGGEST_CHANGES] Failed to parse changes JSON, sending guidance only",
-        );
+      } catch (_parseError) {
+        logger.warn("[SUGGEST_CHANGES] Failed to parse changes JSON, sending guidance only");
         changes = null;
       }
     }

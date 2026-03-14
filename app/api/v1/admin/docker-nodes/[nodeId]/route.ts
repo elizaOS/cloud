@@ -8,14 +8,14 @@
  * Requires admin role.
  */
 
+import { and, eq, ne } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
-import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
-import { dbRead } from "@/db/helpers";
-import { miladySandboxes } from "@/db/schemas/milady-sandboxes";
-import { eq, and, ne } from "drizzle-orm";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { dbRead } from "@/db/helpers";
+import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
+import { miladySandboxes } from "@/db/schemas/milady-sandboxes";
+import { requireAdmin } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -35,12 +35,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 403 },
-    );
+    const message = error instanceof Error ? error.message : "Admin access required";
+    return NextResponse.json({ success: false, error: message }, { status: 403 });
   }
 
   const { nodeId } = await params;
@@ -130,12 +126,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 403 },
-    );
+    const message = error instanceof Error ? error.message : "Admin access required";
+    return NextResponse.json({ success: false, error: message }, { status: 403 });
   }
 
   const { nodeId } = await params;
@@ -144,10 +136,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
   const parsed = updateNodeSchema.safeParse(body);
@@ -171,7 +160,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { hostname, enabled, capacity, sshPort, sshUser, hostKeyFingerprint, metadata } = parsed.data;
+    const { hostname, enabled, capacity, sshPort, sshUser, hostKeyFingerprint, metadata } =
+      parsed.data;
 
     const updateData: Record<string, unknown> = {};
     if (hostname !== undefined) updateData.hostname = hostname;
@@ -234,12 +224,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 403 },
-    );
+    const message = error instanceof Error ? error.message : "Admin access required";
+    return NextResponse.json({ success: false, error: message }, { status: 403 });
   }
 
   const { nodeId } = await params;
@@ -257,12 +243,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const activeContainers = await dbRead
       .select({ id: miladySandboxes.id })
       .from(miladySandboxes)
-      .where(
-        and(
-          eq(miladySandboxes.node_id, nodeId),
-          ne(miladySandboxes.status, "stopped"),
-        ),
-      );
+      .where(and(eq(miladySandboxes.node_id, nodeId), ne(miladySandboxes.status, "stopped")));
 
     if (activeContainers.length > 0) {
       return NextResponse.json(

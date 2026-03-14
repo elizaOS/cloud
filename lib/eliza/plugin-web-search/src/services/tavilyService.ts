@@ -35,10 +35,7 @@ export class TavilyService extends Service implements ITavilyService {
     // No persistent connections to close for Tavily client
   }
 
-  async search(
-    query: string,
-    options?: SearchOptions,
-  ): Promise<SearchResponse> {
+  async search(query: string, options?: SearchOptions): Promise<SearchResponse> {
     try {
       if (!this.tavilyClient) {
         throw new Error("TavilyService not initialized");

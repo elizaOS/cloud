@@ -2,19 +2,19 @@
  * LinkedIn Provider - UGC Post API
  */
 
-import { logger } from "@/lib/utils/logger";
-import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { withRetry } from "../rate-limit";
 import type {
-  SocialMediaProvider,
-  SocialCredentials,
-  PostContent,
-  PostResult,
-  PlatformPostOptions,
-  PostAnalytics,
   AccountAnalytics,
   MediaAttachment,
+  PlatformPostOptions,
+  PostAnalytics,
+  PostContent,
+  PostResult,
+  SocialCredentials,
+  SocialMediaProvider,
 } from "@/lib/types/social-media";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
+import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 
 const LINKEDIN_API_BASE = "https://api.linkedin.com/v2";
 
@@ -47,9 +47,7 @@ async function linkedinApiRequest<T>(
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${LINKEDIN_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${LINKEDIN_API_BASE}${endpoint}`;
 
   const { data } = await withRetry<T | { id: string }>(
     () =>
@@ -91,10 +89,7 @@ export const linkedinProvider: SocialMediaProvider = {
     }
 
     try {
-      const profile = await linkedinApiRequest<LinkedInProfile>(
-        "/me",
-        credentials.accessToken,
-      );
+      const profile = await linkedinApiRequest<LinkedInProfile>("/me", credentials.accessToken);
 
       return {
         valid: true,
@@ -164,9 +159,7 @@ export const linkedinProvider: SocialMediaProvider = {
 
       // Handle link share
       if (content.link) {
-        (ugcPost.specificContent as Record<string, unknown>)[
-          "com.linkedin.ugc.ShareContent"
-        ] = {
+        (ugcPost.specificContent as Record<string, unknown>)["com.linkedin.ugc.ShareContent"] = {
           shareCommentary: { text: content.text },
           shareMediaCategory: "ARTICLE",
           media: [
@@ -174,9 +167,7 @@ export const linkedinProvider: SocialMediaProvider = {
               status: "READY",
               originalUrl: content.link,
               title: { text: content.linkTitle || content.link },
-              description: content.linkDescription
-                ? { text: content.linkDescription }
-                : undefined,
+              description: content.linkDescription ? { text: content.linkDescription } : undefined,
             },
           ],
         };
@@ -194,26 +185,25 @@ export const linkedinProvider: SocialMediaProvider = {
           if (media.url) {
             // For URL-based images, we need to register and upload
             // Register upload
-            const registerResponse =
-              await linkedinApiRequest<LinkedInUploadResponse>(
-                "/assets?action=registerUpload",
-                credentials.accessToken,
-                {
-                  method: "POST",
-                  body: JSON.stringify({
-                    registerUploadRequest: {
-                      recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
-                      owner: authorUrn,
-                      serviceRelationships: [
-                        {
-                          relationshipType: "OWNER",
-                          identifier: "urn:li:userGeneratedContent",
-                        },
-                      ],
-                    },
-                  }),
-                },
-              );
+            const registerResponse = await linkedinApiRequest<LinkedInUploadResponse>(
+              "/assets?action=registerUpload",
+              credentials.accessToken,
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  registerUploadRequest: {
+                    recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
+                    owner: authorUrn,
+                    serviceRelationships: [
+                      {
+                        relationshipType: "OWNER",
+                        identifier: "urn:li:userGeneratedContent",
+                      },
+                    ],
+                  },
+                }),
+              },
+            );
 
             const uploadUrl =
               registerResponse.value.uploadMechanism[
@@ -243,9 +233,7 @@ export const linkedinProvider: SocialMediaProvider = {
         }
 
         if (mediaAssets.length > 0) {
-          (ugcPost.specificContent as Record<string, unknown>)[
-            "com.linkedin.ugc.ShareContent"
-          ] = {
+          (ugcPost.specificContent as Record<string, unknown>)["com.linkedin.ugc.ShareContent"] = {
             shareCommentary: { text: content.text },
             shareMediaCategory: "IMAGE",
             media: mediaAssets,
@@ -287,11 +275,9 @@ export const linkedinProvider: SocialMediaProvider = {
     }
 
     try {
-      await linkedinApiRequest(
-        `/ugcPosts/${encodeURIComponent(postId)}`,
-        credentials.accessToken,
-        { method: "DELETE" },
-      );
+      await linkedinApiRequest(`/ugcPosts/${encodeURIComponent(postId)}`, credentials.accessToken, {
+        method: "DELETE",
+      });
 
       return { success: true };
     } catch (error) {
@@ -317,10 +303,7 @@ export const linkedinProvider: SocialMediaProvider = {
           likesSummary?: { totalLikes: number };
           commentsSummary?: { totalComments: number };
         }>;
-      }>(
-        `/socialActions/${encodeURIComponent(postId)}`,
-        credentials.accessToken,
-      );
+      }>(`/socialActions/${encodeURIComponent(postId)}`, credentials.accessToken);
 
       const element = response.elements?.[0];
       if (!element) return null;
@@ -339,18 +322,13 @@ export const linkedinProvider: SocialMediaProvider = {
     }
   },
 
-  async getAccountAnalytics(
-    credentials: SocialCredentials,
-  ): Promise<AccountAnalytics | null> {
+  async getAccountAnalytics(credentials: SocialCredentials): Promise<AccountAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
     }
 
     try {
-      const profile = await linkedinApiRequest<LinkedInProfile>(
-        "/me",
-        credentials.accessToken,
-      );
+      const profile = await linkedinApiRequest<LinkedInProfile>("/me", credentials.accessToken);
 
       // LinkedIn doesn't provide follower counts via the basic API
       // Would need Marketing API for that

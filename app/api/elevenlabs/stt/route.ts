@@ -1,17 +1,17 @@
+import { fileTypeFromBuffer } from "file-type";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getElevenLabsService } from "@/lib/services/elevenlabs";
-import { usageService } from "@/lib/services/usage";
+import { calculateSTTCost } from "@/lib/pricing";
 import {
+  type CreditReservation,
   creditsService,
   InsufficientCreditsError,
-  type CreditReservation,
 } from "@/lib/services/credits";
-import { calculateSTTCost } from "@/lib/pricing";
+import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
-import { fileTypeFromBuffer } from "file-type";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
@@ -41,10 +41,7 @@ const ALLOWED_AUDIO_SIGNATURES = new Set([
 
 // Estimate audio duration from file size and format
 // This is a rough approximation for cost estimation
-function estimateAudioDurationMinutes(
-  fileSizeBytes: number,
-  mimeType: string,
-): number {
+function estimateAudioDurationMinutes(fileSizeBytes: number, mimeType: string): number {
   // Average bitrates by format (conservative estimates)
   const bitratesKbps: Record<string, number> = {
     "audio/mpeg": 128, // MP3 at 128kbps
@@ -88,10 +85,7 @@ export async function POST(request: NextRequest) {
     const languageCode = formData.get("languageCode") as string | undefined;
 
     if (!audioFile) {
-      return NextResponse.json(
-        { error: "No audio file provided" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "No audio file provided" }, { status: 400 });
     }
 
     // Validate file size
@@ -123,9 +117,7 @@ export async function POST(request: NextRequest) {
     const fileTypeResult = await fileTypeFromBuffer(buffer);
 
     if (!fileTypeResult) {
-      logger.warn(
-        `[STT API] Unable to detect file type for ${audioFile.name} - rejecting`,
-      );
+      logger.warn(`[STT API] Unable to detect file type for ${audioFile.name} - rejecting`);
       return NextResponse.json(
         {
           error:
@@ -162,10 +154,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Estimate audio duration and calculate cost (includes 20% platform markup)
-    const estimatedDurationMinutes = estimateAudioDurationMinutes(
-      audioFile.size,
-      finalMimeType,
-    );
+    const estimatedDurationMinutes = estimateAudioDurationMinutes(audioFile.size, finalMimeType);
     const estimatedCost = calculateSTTCost(estimatedDurationMinutes);
 
     // Reserve credits BEFORE transcription
@@ -206,9 +195,7 @@ export async function POST(request: NextRequest) {
     // Reconcile with estimated cost (STT pricing is duration-based, we estimated earlier)
     await reservation.reconcile(estimatedCost);
 
-    logger.info(
-      `[STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`,
-    );
+    logger.info(`[STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`);
 
     // Track usage (background, non-blocking)
     (async () => {
@@ -256,10 +243,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (status !== 500) {
-      return NextResponse.json(
-        { error: getSafeErrorMessage(error) },
-        { status },
-      );
+      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
     }
 
     if (error instanceof Error) {
@@ -303,10 +287,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (errorMessage.includes("elevenlabs_api_key")) {
-        return NextResponse.json(
-          { error: "Service not configured" },
-          { status: 500 },
-        );
+        return NextResponse.json({ error: "Service not configured" }, { status: 500 });
       }
     }
 

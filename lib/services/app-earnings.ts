@@ -2,11 +2,7 @@
  * Service for managing app earnings and revenue tracking.
  */
 
-import {
-  appEarningsRepository,
-  type AppEarnings,
-  type AppEarningsTransaction,
-} from "@/db/repositories/app-earnings";
+import { type AppEarningsTransaction, appEarningsRepository } from "@/db/repositories/app-earnings";
 import { appsRepository } from "@/db/repositories/apps";
 import { logger } from "@/lib/utils/logger";
 
@@ -62,39 +58,18 @@ export class AppEarningsService {
     allTime: EarningsBreakdown;
   }> {
     const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(startOfDay);
     startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const allTimeStart = new Date(2020, 0, 1); // Far past date
 
-    const [todayTotals, weekTotals, monthTotals, allTimeTotals] =
-      await Promise.all([
-        appEarningsRepository.getTransactionTotalsByType(
-          appId,
-          startOfDay,
-          now,
-        ),
-        appEarningsRepository.getTransactionTotalsByType(
-          appId,
-          startOfWeek,
-          now,
-        ),
-        appEarningsRepository.getTransactionTotalsByType(
-          appId,
-          startOfMonth,
-          now,
-        ),
-        appEarningsRepository.getTransactionTotalsByType(
-          appId,
-          allTimeStart,
-          now,
-        ),
-      ]);
+    const [todayTotals, weekTotals, monthTotals, allTimeTotals] = await Promise.all([
+      appEarningsRepository.getTransactionTotalsByType(appId, startOfDay, now),
+      appEarningsRepository.getTransactionTotalsByType(appId, startOfWeek, now),
+      appEarningsRepository.getTransactionTotalsByType(appId, startOfMonth, now),
+      appEarningsRepository.getTransactionTotalsByType(appId, allTimeStart, now),
+    ]);
 
     return {
       today: {
@@ -139,11 +114,7 @@ export class AppEarningsService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const data = await appEarningsRepository.getDailyEarnings(
-      appId,
-      startDate,
-      endDate,
-    );
+    const data = await appEarningsRepository.getDailyEarnings(appId, startDate, endDate);
 
     return data.map((d) => ({
       date: d.date,
@@ -158,11 +129,7 @@ export class AppEarningsService {
     options?: {
       limit?: number;
       offset?: number;
-      type?:
-        | "inference_markup"
-        | "purchase_share"
-        | "withdrawal"
-        | "adjustment";
+      type?: "inference_markup" | "purchase_share" | "withdrawal" | "adjustment";
     },
   ): Promise<AppEarningsTransaction[]> {
     if (options?.type) {
@@ -215,11 +182,10 @@ export class AppEarningsService {
   ): Promise<{ success: boolean; message: string; transactionId?: string }> {
     // Idempotency check: return existing transaction if key was already used
     if (idempotencyKey) {
-      const existing =
-        await appEarningsRepository.findTransactionByIdempotencyKey(
-          appId,
-          idempotencyKey,
-        );
+      const existing = await appEarningsRepository.findTransactionByIdempotencyKey(
+        appId,
+        idempotencyKey,
+      );
       if (existing) {
         logger.info("[AppEarnings] Idempotent withdrawal request (duplicate)", {
           appId,

@@ -9,12 +9,12 @@
  * - Concurrent request isolation
  */
 
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
 
 // Mock fetch globally for API tests
 const originalFetch = globalThis.fetch;
-let mockFetchResponses: Map<string, { status: number; body: any }> = new Map();
+const mockFetchResponses: Map<string, { status: number; body: any }> = new Map();
 
 function setupMockFetch() {
   globalThis.fetch = mock(async (url: string | URL | Request, init?: RequestInit) => {
@@ -45,16 +45,20 @@ function resetMockFetch() {
 
 // Mock OAuth service
 const mockOAuthService = {
-  getValidTokenByPlatform: mock(async ({ organizationId, platform }: { organizationId: string; platform: string }) => {
-    if (platform !== "google") {
-      throw new Error(`Unknown platform: ${platform}`);
-    }
-    // By default, throw "not connected" - tests can override
-    throw new Error("No active connection found for google");
-  }),
-  listConnections: mock(async ({ organizationId, platform }: { organizationId: string; platform?: string }) => {
-    return [];
-  }),
+  getValidTokenByPlatform: mock(
+    async ({ organizationId, platform }: { organizationId: string; platform: string }) => {
+      if (platform !== "google") {
+        throw new Error(`Unknown platform: ${platform}`);
+      }
+      // By default, throw "not connected" - tests can override
+      throw new Error("No active connection found for google");
+    },
+  ),
+  listConnections: mock(
+    async ({ organizationId, platform }: { organizationId: string; platform?: string }) => {
+      return [];
+    },
+  ),
   isPlatformConnected: mock(async (organizationId: string, platform: string) => {
     return false;
   }),
@@ -522,22 +526,22 @@ describe("Google MCP Tools", () => {
         accessToken: "mock-token-123",
       }));
 
-      let requestCount = 0;
+      let _requestCount = 0;
       globalThis.fetch = mock(async (url: string) => {
         // First call: list messages
         if (url.includes("/messages?")) {
           return new Response(
             JSON.stringify({ messages: [{ id: "msg-1" }, { id: "msg-2" }, { id: "msg-3" }] }),
-            { status: 200, headers: { "Content-Type": "application/json" } }
+            { status: 200, headers: { "Content-Type": "application/json" } },
           );
         }
         // Individual message fetches: fail one
-        requestCount++;
+        _requestCount++;
         if (url.includes("msg-2")) {
-          return new Response(
-            JSON.stringify({ error: { message: "Message not found" } }),
-            { status: 404, headers: { "Content-Type": "application/json" } }
-          );
+          return new Response(JSON.stringify({ error: { message: "Message not found" } }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
         }
         return new Response(
           JSON.stringify({
@@ -546,7 +550,7 @@ describe("Google MCP Tools", () => {
             snippet: "Test",
             payload: { headers: [] },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }) as typeof fetch;
 
@@ -892,8 +896,12 @@ describe("Google MCP Tools", () => {
         if (url.includes("calendar/v3")) {
           capturedBody = JSON.parse(init?.body as string);
           return new Response(
-            JSON.stringify({ id: "event-123", htmlLink: "https://cal.google.com", status: "confirmed" }),
-            { status: 200, headers: { "Content-Type": "application/json" } }
+            JSON.stringify({
+              id: "event-123",
+              htmlLink: "https://cal.google.com",
+              status: "confirmed",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
           );
         }
         return new Response("", { status: 404 });
@@ -1144,7 +1152,7 @@ describe("Google MCP Tools", () => {
       await authContextStorage.run(createMockAuth(), async () => {
         return handler({
           to: "recipient@example.com",
-          subject: "Test: Special chars & symbols <> \"quotes\"",
+          subject: 'Test: Special chars & symbols <> "quotes"',
           body: "Body with émojis 🎉 and ünïcödé",
         });
       });

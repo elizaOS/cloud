@@ -80,16 +80,21 @@ describe("POST /api/v1/agents", () => {
     );
 
     const response = await POST(
-      jsonRequest("https://example.com/api/v1/agents", "POST", {
-        tokenContractAddress: "0xAbCdEf1234567890aBCDef1234567890ABCDef12",
-        chain: "base",
-        chainId: 8453,
-        tokenName: "Test Token",
-        tokenTicker: "TEST",
-        launchType: "native",
-      }, {
-        "X-Service-Key": "test-service-key",
-      }),
+      jsonRequest(
+        "https://example.com/api/v1/agents",
+        "POST",
+        {
+          tokenContractAddress: "0xAbCdEf1234567890aBCDef1234567890ABCDef12",
+          chain: "base",
+          chainId: 8453,
+          tokenName: "Test Token",
+          tokenTicker: "TEST",
+          launchType: "native",
+        },
+        {
+          "X-Service-Key": "test-service-key",
+        },
+      ),
     );
 
     expect(response.status).toBe(409);
@@ -115,16 +120,21 @@ describe("POST /api/v1/agents", () => {
     mockEnqueueMiladyProvision.mockResolvedValueOnce({ id: "job-1" });
 
     const response = await POST(
-      jsonRequest("https://example.com/api/v1/agents", "POST", {
-        tokenContractAddress: "0xAbCdEf1234567890aBCDef1234567890ABCDef12",
-        chain: "base",
-        chainId: 8453,
-        tokenName: "Test Token",
-        tokenTicker: "TEST",
-        launchType: "native",
-      }, {
-        "X-Service-Key": "test-service-key",
-      }),
+      jsonRequest(
+        "https://example.com/api/v1/agents",
+        "POST",
+        {
+          tokenContractAddress: "0xAbCdEf1234567890aBCDef1234567890ABCDef12",
+          chain: "base",
+          chainId: 8453,
+          tokenName: "Test Token",
+          tokenTicker: "TEST",
+          launchType: "native",
+        },
+        {
+          "X-Service-Key": "test-service-key",
+        },
+      ),
     );
 
     expect(response.status).toBe(202);

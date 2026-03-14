@@ -1,11 +1,7 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type {
-  Resource,
-  ResourceTemplate,
-  Tool,
-} from "@modelcontextprotocol/sdk/types.js";
+import type { Resource, ResourceTemplate, Tool } from "@modelcontextprotocol/sdk/types.js";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -143,16 +139,11 @@ export interface CachedServerSchema {
 
 // ─── Validation ──────────────────────────────────────────────────────────────
 
-export type ValidationResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+export type ValidationResult<T> = { success: true; data: T } | { success: false; error: string };
 
 export const ResourceSelectionSchema = {
   type: "object",
-  oneOf: [
-    { required: ["serverName", "uri"] },
-    { required: ["noResourceAvailable"] },
-  ],
+  oneOf: [{ required: ["serverName", "uri"] }, { required: ["noResourceAvailable"] }],
   properties: {
     serverName: { type: "string", minLength: 1 },
     uri: { type: "string", minLength: 1 },

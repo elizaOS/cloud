@@ -1,12 +1,4 @@
-import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
-  spyOn,
-  mock,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import type { WebhookConfig } from "../src/adapters/types";
 
 // ── Mock external boundaries ─────────────────────────────────────
@@ -49,10 +41,9 @@ mock.module("../src/hash-router", () => ({
   refreshHashRing: async () => {},
 }));
 
-import { handleWebhook } from "../src/webhook-handler";
 import { telegramAdapter } from "../src/adapters/telegram";
 import { twilioAdapter } from "../src/adapters/twilio";
-import { whatsappAdapter } from "../src/adapters/whatsapp";
+import { handleWebhook } from "../src/webhook-handler";
 
 // ── Fake Redis ───────────────────────────────────────────────────
 
@@ -144,8 +135,7 @@ describe("handleWebhook", () => {
 
     // Mock fetch for adapter.sendReply calls — return fresh Response per call
     fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
-      async () =>
-        new Response(JSON.stringify({ ok: true, result: { message_id: 1 } })),
+      async () => new Response(JSON.stringify({ ok: true, result: { message_id: 1 } })),
     );
   });
 
@@ -163,12 +153,7 @@ describe("handleWebhook", () => {
       getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
     };
 
-    const res = await handleWebhook(
-      makeTelegramRequest(),
-      telegramAdapter,
-      deps,
-      "cloud",
-    );
+    const res = await handleWebhook(makeTelegramRequest(), telegramAdapter, deps, "cloud");
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ ok: true });
@@ -186,9 +171,7 @@ describe("handleWebhook", () => {
   });
 
   test("Twilio flow returns TwiML 200 on valid request", async () => {
-    const verifySpy = spyOn(twilioAdapter, "verifyWebhook").mockResolvedValue(
-      true,
-    );
+    const verifySpy = spyOn(twilioAdapter, "verifyWebhook").mockResolvedValue(true);
 
     const redis = createFakeRedis();
     const deps = {
@@ -197,12 +180,7 @@ describe("handleWebhook", () => {
       getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
     };
 
-    const res = await handleWebhook(
-      makeTwilioRequest(),
-      twilioAdapter,
-      deps,
-      "cloud",
-    );
+    const res = await handleWebhook(makeTwilioRequest(), twilioAdapter, deps, "cloud");
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("text/xml");
     const body = await res.text();
@@ -223,12 +201,7 @@ describe("handleWebhook", () => {
       getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
     };
 
-    const res = await handleWebhook(
-      makeTelegramRequest(),
-      telegramAdapter,
-      deps,
-      "cloud",
-    );
+    const res = await handleWebhook(makeTelegramRequest(), telegramAdapter, deps, "cloud");
     expect(res.status).toBe(200);
 
     // sendReply should NOT have been called (only sendTypingIndicator might fire)
@@ -339,12 +312,7 @@ describe("handleWebhook", () => {
       getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
     };
 
-    const res = await handleWebhook(
-      makeTelegramRequest(),
-      telegramAdapter,
-      deps,
-      "cloud",
-    );
+    const res = await handleWebhook(makeTelegramRequest(), telegramAdapter, deps, "cloud");
     expect(res.status).toBe(200);
     await flush();
     // No sendReply should have been called
@@ -366,12 +334,7 @@ describe("handleWebhook", () => {
       getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
     };
 
-    const res = await handleWebhook(
-      makeTelegramRequest(),
-      telegramAdapter,
-      deps,
-      "cloud",
-    );
+    const res = await handleWebhook(makeTelegramRequest(), telegramAdapter, deps, "cloud");
     expect(res.status).toBe(200);
     await flush();
   });
@@ -404,12 +367,7 @@ describe("handleWebhook", () => {
       getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
     };
 
-    const res = await handleWebhook(
-      makeTelegramRequest(),
-      telegramAdapter,
-      deps,
-      "cloud",
-    );
+    const res = await handleWebhook(makeTelegramRequest(), telegramAdapter, deps, "cloud");
     // Should still return 200 (ack to platform) even if reply fails
     expect(res.status).toBe(200);
     await flush();
@@ -424,30 +382,24 @@ describe("handleWebhook", () => {
       botToken: "agent-bot-token",
       webhookSecret: "agent-secret",
     };
-    redis.store.set(
-      "webhook-config:telegram:agent:agent-abc",
-      JSON.stringify(agentConfig),
-    );
+    redis.store.set("webhook-config:telegram:agent:agent-abc", JSON.stringify(agentConfig));
 
-    const req = new Request(
-      "http://localhost/webhook/cloud/telegram/agent-abc",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-telegram-bot-api-secret-token": "agent-secret",
-        },
-        body: JSON.stringify({
-          update_id: 600,
-          message: {
-            message_id: 1,
-            from: { id: 42, first_name: "Alice" },
-            chat: { id: 42, type: "private" },
-            text: "Hi from dedicated bot user",
-          },
-        }),
+    const req = new Request("http://localhost/webhook/cloud/telegram/agent-abc", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-telegram-bot-api-secret-token": "agent-secret",
       },
-    );
+      body: JSON.stringify({
+        update_id: 600,
+        message: {
+          message_id: 1,
+          from: { id: 42, first_name: "Alice" },
+          chat: { id: 42, type: "private" },
+          text: "Hi from dedicated bot user",
+        },
+      }),
+    });
 
     const deps = {
       redis: redis as any,
@@ -455,13 +407,7 @@ describe("handleWebhook", () => {
       getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
     };
 
-    const res = await handleWebhook(
-      req,
-      telegramAdapter,
-      deps,
-      "cloud",
-      "agent-abc",
-    );
+    const res = await handleWebhook(req, telegramAdapter, deps, "cloud", "agent-abc");
     expect(res.status).toBe(200);
     await flush();
   });

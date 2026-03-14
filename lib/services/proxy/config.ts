@@ -57,7 +57,9 @@ export const PROXY_CONFIG = {
   MARKET_DATA_BASE_URL: process.env.MARKET_DATA_BASE_URL || "https://public-api.birdeye.so",
   MARKET_DATA_TIMEOUT_MS: parseInt(process.env.MARKET_DATA_TIMEOUT_MS || "15000"),
   MARKET_DATA_MAX_RETRIES: parseInt(process.env.MARKET_DATA_MAX_RETRIES || "3"),
-  MARKET_DATA_INITIAL_RETRY_DELAY_MS: parseInt(process.env.MARKET_DATA_INITIAL_RETRY_DELAY_MS || "500"),
+  MARKET_DATA_INITIAL_RETRY_DELAY_MS: parseInt(
+    process.env.MARKET_DATA_INITIAL_RETRY_DELAY_MS || "500",
+  ),
 
   // Alchemy EVM RPC configuration
   ALCHEMY_TIMEOUT_MS: parseInt(process.env.ALCHEMY_TIMEOUT_MS || "25000"),

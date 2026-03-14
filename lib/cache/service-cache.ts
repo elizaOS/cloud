@@ -3,8 +3,8 @@
  * Provides consistent caching patterns for frequently accessed data.
  */
 
-import { cache } from "./client";
 import { logger } from "@/lib/utils/logger";
+import { cache } from "./client";
 
 /**
  * Cache TTL configurations for different data types (in seconds).
@@ -44,8 +44,7 @@ export const CacheKeys = {
   organizationSettings: (orgId: string) => `org:${orgId}:settings`,
   characterList: (orgId: string) => `org:${orgId}:characters`,
   character: (characterId: string) => `character:${characterId}`,
-  modelPricing: (provider?: string) =>
-    provider ? `pricing:${provider}` : "pricing:all",
+  modelPricing: (provider?: string) => (provider ? `pricing:${provider}` : "pricing:all"),
   apiKey: (keyId: string) => `apikey:${keyId}`,
   creditBalance: (orgId: string) => `org:${orgId}:credits`,
   containerStatus: (containerId: string) => `container:${containerId}:status`,
@@ -86,9 +85,7 @@ export async function withCache<T>(
   // Store in cache (fire and forget)
   cache
     .set(key, data, ttl)
-    .catch((error) =>
-      logger.error(`[Cache] Error writing to cache for key ${key}:`, error),
-    );
+    .catch((error) => logger.error(`[Cache] Error writing to cache for key ${key}:`, error));
 
   return data;
 }
@@ -112,10 +109,7 @@ export async function withStaleWhileRevalidate<T>(
   try {
     return await cache.getWithSWR<T>(key, staleTime, fetcher, ttl);
   } catch (error) {
-    logger.error(
-      `[Cache] Error in stale-while-revalidate for key ${key}:`,
-      error,
-    );
+    logger.error(`[Cache] Error in stale-while-revalidate for key ${key}:`, error);
     // Fallback to direct fetch
     return await fetcher();
   }
@@ -165,12 +159,7 @@ export async function withBatchCache<T>(
       Array.from(freshData.entries()).map(([key, data]) =>
         cache
           .set(key, data, ttl)
-          .catch((error) =>
-            logger.error(
-              `[Cache] Error writing to cache for key ${key}:`,
-              error,
-            ),
-          ),
+          .catch((error) => logger.error(`[Cache] Error writing to cache for key ${key}:`, error)),
       ),
     );
 

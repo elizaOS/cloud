@@ -1,13 +1,5 @@
-import {
-  index,
-  integer,
-  pgTable,
-  text,
-  timestamp,
-  unique,
-  uuid,
-} from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { index, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
 /**
@@ -39,17 +31,11 @@ export const organizationEncryptionKeys = pgTable(
     rotated_at: timestamp("rotated_at"),
   },
   (table) => ({
-    orgUnique: unique("organization_encryption_keys_org_unique").on(
-      table.organization_id,
-    ),
+    orgUnique: unique("organization_encryption_keys_org_unique").on(table.organization_id),
     orgIdx: index("org_encryption_keys_org_idx").on(table.organization_id),
   }),
 );
 
 // Type inference
-export type OrganizationEncryptionKey = InferSelectModel<
-  typeof organizationEncryptionKeys
->;
-export type NewOrganizationEncryptionKey = InferInsertModel<
-  typeof organizationEncryptionKeys
->;
+export type OrganizationEncryptionKey = InferSelectModel<typeof organizationEncryptionKeys>;
+export type NewOrganizationEncryptionKey = InferInsertModel<typeof organizationEncryptionKeys>;

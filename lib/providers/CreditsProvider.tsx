@@ -7,18 +7,18 @@
  * for credit balance across all components that need it.
  */
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-  useRef,
-  useMemo,
-  type ReactNode,
-} from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { usePathname } from "next/navigation";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { logger } from "@/lib/utils/logger";
 
 interface CreditsContextValue {
@@ -163,9 +163,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         authErrorCountRef.current++;
 
         if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
-          logger.warn(
-            "[CreditsProvider] Too many auth errors after refresh, logging out",
-          );
+          logger.warn("[CreditsProvider] Too many auth errors after refresh, logging out");
           // Set logout flag BEFORE stopping polling to prevent race conditions
           isLoggingOutRef.current = true;
           stopPolling();
@@ -258,12 +256,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (
-      ready &&
-      authenticated &&
-      !isPollingPausedRef.current &&
-      !shouldDeferAuthenticatedFetches
-    ) {
+    if (ready && authenticated && !isPollingPausedRef.current && !shouldDeferAuthenticatedFetches) {
       // Defer initial fetch to avoid cascading renders
       queueMicrotask(() => {
         fetchBalance();
@@ -303,9 +296,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     [creditBalance, isConnected, isLoading, error, lastUpdate, fetchBalance],
   );
 
-  return (
-    <CreditsContext.Provider value={value}>{children}</CreditsContext.Provider>
-  );
+  return <CreditsContext.Provider value={value}>{children}</CreditsContext.Provider>;
 }
 
 /**

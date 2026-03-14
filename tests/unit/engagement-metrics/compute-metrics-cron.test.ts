@@ -7,7 +7,7 @@
  * - Error handling
  */
 
-import { describe, test, expect, beforeEach, mock, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 // ─── Mock Setup ──────────────────────────────────────────────────────────────
@@ -142,9 +142,7 @@ describe("Compute Metrics Cron", () => {
     });
 
     test("returns 500 when computation fails", async () => {
-      mockComputeDailyMetrics.mockRejectedValue(
-        new Error("DB connection failed"),
-      );
+      mockComputeDailyMetrics.mockRejectedValue(new Error("DB connection failed"));
 
       const req = makeRequest(VALID_SECRET);
       const res = await GET(req);
@@ -164,5 +162,4 @@ describe("Compute Metrics Cron", () => {
       expect(body.error).toBe("Metrics computation failed");
     });
   });
-
 });

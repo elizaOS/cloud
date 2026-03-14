@@ -23,6 +23,8 @@ const mockListApiKeys = mock();
 const mockCreateApiKey = mock();
 const mockCheckSignupAbuse = mock();
 const mockRecordSignupMetadata = mock();
+const mockListCharactersByOrg = mock();
+const mockCreateCharacter = mock();
 
 function makeUniqueViolationError(
   message: string,
@@ -116,6 +118,27 @@ mock.module("@/lib/utils/default-user-avatar", () => ({
   getRandomUserAvatar: () => "avatar.png",
 }));
 
+mock.module("@/lib/services/characters/characters", () => ({
+  charactersService: {
+    listByOrganization: mockListCharactersByOrg,
+    create: mockCreateCharacter,
+  },
+}));
+
+mock.module("@/lib/utils/default-eliza-character", () => ({
+  getDefaultElizaCharacterData: () => ({
+    name: "Eliza",
+    bio: ["test bio"],
+    system: "test system",
+    avatar_url: "https://example.com/eliza.png",
+    character_data: {},
+    settings: {},
+    is_template: false,
+    is_public: false,
+    source: "cloud",
+  }),
+}));
+
 describe("syncUserFromPrivy", () => {
   beforeEach(() => {
     mockGetByPrivyId.mockReset();
@@ -139,6 +162,8 @@ describe("syncUserFromPrivy", () => {
     mockCreateApiKey.mockReset();
     mockCheckSignupAbuse.mockReset();
     mockRecordSignupMetadata.mockReset();
+    mockListCharactersByOrg.mockReset();
+    mockCreateCharacter.mockReset();
 
     mockGetByEmailWithOrganization.mockResolvedValue(undefined);
     mockGetByPrivyIdForWrite.mockResolvedValue(undefined);
@@ -157,6 +182,8 @@ describe("syncUserFromPrivy", () => {
     mockLogUserSignup.mockResolvedValue(undefined);
     mockCheckSignupAbuse.mockResolvedValue({ allowed: true });
     mockRecordSignupMetadata.mockResolvedValue(undefined);
+    mockListCharactersByOrg.mockResolvedValue([]);
+    mockCreateCharacter.mockResolvedValue({ id: "char-default", name: "Eliza" });
     process.env.INITIAL_FREE_CREDITS = "5";
   });
 
@@ -198,10 +225,7 @@ describe("syncUserFromPrivy", () => {
         organization_id: "org-new",
       }),
     );
-    expect(mockUpsertPrivyIdentity).toHaveBeenCalledWith(
-      "user-new",
-      "did:privy:new-user",
-    );
+    expect(mockUpsertPrivyIdentity).toHaveBeenCalledWith("user-new", "did:privy:new-user");
     expect(result).toEqual(hydratedUser);
   });
 
@@ -243,10 +267,7 @@ describe("syncUserFromPrivy", () => {
         privy_user_id: "did:privy:new-user",
       }),
     );
-    expect(mockUpsertPrivyIdentity).toHaveBeenCalledWith(
-      "user-existing",
-      "did:privy:new-user",
-    );
+    expect(mockUpsertPrivyIdentity).toHaveBeenCalledWith("user-existing", "did:privy:new-user");
     expect(result).toEqual(linkedUser);
   });
 
@@ -632,9 +653,7 @@ describe("syncUserFromPrivy", () => {
       privy_user_id: "did:privy:new-user",
       organization_id: "org-new",
     });
-    mockUpsertPrivyIdentity.mockRejectedValue(
-      new Error("Column privy_user_id cannot be null"),
-    );
+    mockUpsertPrivyIdentity.mockRejectedValue(new Error("Column privy_user_id cannot be null"));
 
     const { syncUserFromPrivy } = await import("@/lib/privy-sync");
 

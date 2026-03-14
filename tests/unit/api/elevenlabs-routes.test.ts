@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-import {
-  createFile,
-  formDataRequest,
-  jsonRequest,
-  routeParams,
-} from "./route-test-helpers";
+import { createFile, formDataRequest, jsonRequest, routeParams } from "./route-test-helpers";
 
 class MockInsufficientCreditsError extends Error {
   required: number;
@@ -32,8 +27,7 @@ const mockUsageCreate = mock();
 const mockCreditsReserve = mock();
 const mockFileTypeFromBuffer = mock();
 
-let voiceLookupRows: Array<{ id: string; name: string; organizationId: string }> =
-  [];
+let voiceLookupRows: Array<{ id: string; name: string; organizationId: string }> = [];
 
 const reservationFactory = () => ({
   reconcile: mock().mockResolvedValue(undefined),
@@ -127,16 +121,16 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { GET as listPublicVoices } from "@/app/api/elevenlabs/voices/route";
-import { GET as listUserVoices } from "@/app/api/elevenlabs/voices/user/route";
+import { POST as stt } from "@/app/api/elevenlabs/stt/route";
+import { POST as tts } from "@/app/api/elevenlabs/tts/route";
 import {
-  GET as getVoice,
   DELETE as deleteVoice,
+  GET as getVoice,
   PATCH as patchVoice,
 } from "@/app/api/elevenlabs/voices/[id]/route";
 import { POST as cloneVoice } from "@/app/api/elevenlabs/voices/clone/route";
-import { POST as tts } from "@/app/api/elevenlabs/tts/route";
-import { POST as stt } from "@/app/api/elevenlabs/stt/route";
+import { GET as listPublicVoices } from "@/app/api/elevenlabs/voices/route";
+import { GET as listUserVoices } from "@/app/api/elevenlabs/voices/user/route";
 
 const authenticatedUser = {
   id: "user-1",
@@ -255,10 +249,7 @@ describe("Voice listing APIs", () => {
 
   test("user voice listing validates query parameters", async () => {
     const response = await listUserVoices(
-      jsonRequest(
-        "http://localhost:3000/api/elevenlabs/voices/user?cloneType=weird",
-        "GET",
-      ),
+      jsonRequest("http://localhost:3000/api/elevenlabs/voices/user?cloneType=weird", "GET"),
     );
 
     expect(response.status).toBe(400);
@@ -266,10 +257,7 @@ describe("Voice listing APIs", () => {
 
   test("user voice listing paginates and reports hasMore", async () => {
     const response = await listUserVoices(
-      jsonRequest(
-        "http://localhost:3000/api/elevenlabs/voices/user?limit=1&offset=0",
-        "GET",
-      ),
+      jsonRequest("http://localhost:3000/api/elevenlabs/voices/user?limit=1&offset=0", "GET"),
     );
 
     expect(response.status).toBe(200);

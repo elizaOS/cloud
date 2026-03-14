@@ -1,15 +1,8 @@
-import {
-  index,
-  numeric,
-  pgTable,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { index, numeric, pgTable, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { apps } from "./apps";
-import { users } from "./users";
 import { organizations } from "./organizations";
+import { users } from "./users";
 
 /**
  * App credit balances table schema.
@@ -35,9 +28,7 @@ export const appCreditBalances = pgTable(
     total_purchased: numeric("total_purchased", { precision: 10, scale: 2 })
       .notNull()
       .default("0.00"),
-    total_spent: numeric("total_spent", { precision: 10, scale: 2 })
-      .notNull()
-      .default("0.00"),
+    total_spent: numeric("total_spent", { precision: 10, scale: 2 }).notNull().default("0.00"),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },

@@ -5,22 +5,22 @@
  * This verifies the production code path: UserContext -> RuntimeFactory -> MCP plugin injection.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import {
-  hasDatabaseUrl,
-  getConnectionString,
-  verifyConnection,
-  createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
-  runtimeFactory,
-  invalidateRuntime,
-  AgentMode,
-  buildUserContext,
-} from "../../../infrastructure";
-import type { UserContext } from "../../../../lib/eliza/user-context";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { Client } from "pg";
 import { v4 as uuidv4 } from "uuid";
+import type { UserContext } from "../../../../lib/eliza/user-context";
+import {
+  AgentMode,
+  buildUserContext,
+  cleanupTestData,
+  createTestDataSet,
+  getConnectionString,
+  hasDatabaseUrl,
+  invalidateRuntime,
+  runtimeFactory,
+  type TestDataSet,
+  verifyConnection,
+} from "../../../infrastructure";
 
 let connectionString: string;
 let testData: TestDataSet;
@@ -52,18 +52,17 @@ async function cleanupEnvironment(): Promise<void> {
     const client = new Client({ connectionString });
     await client.connect();
     try {
-      await client.query(
-        `DELETE FROM oauth_sessions WHERE organization_id = $1`,
-        [testData.organization.id]
-      );
+      await client.query(`DELETE FROM oauth_sessions WHERE organization_id = $1`, [
+        testData.organization.id,
+      ]);
     } catch (e) {
       console.warn(`OAuth cleanup warning: ${e}`);
     } finally {
       await client.end();
     }
 
-    await cleanupTestData(connectionString, testData.organization.id).catch(
-      (err) => console.warn(`Cleanup warning: ${err}`)
+    await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+      console.warn(`Cleanup warning: ${err}`),
     );
   }
 }
@@ -75,7 +74,7 @@ async function cleanupEnvironment(): Promise<void> {
 async function createOAuthSession(
   orgId: string,
   userId: string,
-  provider: string
+  provider: string,
 ): Promise<string> {
   const client = new Client({ connectionString });
   await client.connect();
@@ -100,7 +99,7 @@ async function createOAuthSession(
         "mock_dek",
         "mock_nonce",
         "mock_auth_tag",
-      ]
+      ],
     );
     return sessionId;
   } finally {
@@ -144,7 +143,9 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
         expect(googleServer.headers?.["X-API-Key"]).toBeUndefined();
       }
 
-      console.log("✅ No user API key persisted in MCP settings for user without OAuth connections");
+      console.log(
+        "✅ No user API key persisted in MCP settings for user without OAuth connections",
+      );
     } finally {
       await invalidateRuntime(runtime.agentId as string);
     }
@@ -152,11 +153,7 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
 
   it("should inject MCP plugin when user has Google OAuth connection", async () => {
     // Create OAuth session in database
-    await createOAuthSession(
-      testData.organization.id,
-      testData.user.id,
-      "google"
-    );
+    await createOAuthSession(testData.organization.id, testData.user.id, "google");
 
     // Create context WITH oauth connections
     const userContext: UserContext = {

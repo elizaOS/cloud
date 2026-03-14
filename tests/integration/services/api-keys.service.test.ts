@@ -14,24 +14,17 @@
  *
  */
 
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-} from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
+import { API_KEY_PREFIX_LENGTH } from "@/lib/pricing";
 import { apiKeysService } from "@/lib/services/api-keys";
+import { getConnectionString } from "@/tests/helpers/local-database";
 import {
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   type TestDataSet,
 } from "@/tests/helpers/test-data-factory";
-import { getConnectionString } from "@/tests/helpers/local-database";
-import { API_KEY_PREFIX_LENGTH } from "@/lib/pricing";
-import crypto from "crypto";
 
 describe("ApiKeysService", () => {
   let connectionString: string;
@@ -100,10 +93,7 @@ describe("ApiKeysService", () => {
       const generated = apiKeysService.generateApiKey();
 
       // Act - Manually compute hash
-      const manualHash = crypto
-        .createHash("sha256")
-        .update(generated.key)
-        .digest("hex");
+      const manualHash = crypto.createHash("sha256").update(generated.key).digest("hex");
 
       // Assert
       expect(generated.hash).toBe(manualHash);
@@ -342,10 +332,7 @@ describe("ApiKeysService", () => {
       const { apiKey, plainKey } = await apiKeysService.create(keyData);
 
       // Assert - The stored key_hash should be SHA256 of plainKey
-      const expectedHash = crypto
-        .createHash("sha256")
-        .update(plainKey)
-        .digest("hex");
+      const expectedHash = crypto.createHash("sha256").update(plainKey).digest("hex");
       expect(apiKey.key_hash).toBe(expectedHash);
 
       // Cleanup

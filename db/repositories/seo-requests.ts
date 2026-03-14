@@ -1,13 +1,13 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../client";
 import {
-  seoRequests,
-  type SeoRequest,
   type NewSeoRequest,
+  type SeoRequest,
   seoRequestStatusEnum,
+  seoRequests,
 } from "../schemas/seo";
 
-export type { SeoRequest, NewSeoRequest };
+export type { NewSeoRequest, SeoRequest };
 
 export class SeoRequestsRepository {
   async findById(id: string): Promise<SeoRequest | undefined> {

@@ -8,8 +8,8 @@
  * - Cleans up expired audio files
  */
 
-import { MessageFlags, type Attachment } from "discord.js";
-import { put, del, list } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
+import { type Attachment, MessageFlags } from "discord.js";
 import { logger } from "./logger";
 
 /**
@@ -28,8 +28,7 @@ function parseIntEnv(name: string, defaultValue: number): number {
 
 const VOICE_AUDIO_TTL_SECONDS = parseIntEnv("VOICE_AUDIO_TTL_SECONDS", 3600);
 
-const VOICE_STORAGE_PATH_PREFIX =
-  process.env.VOICE_STORAGE_PATH_PREFIX ?? "discord-voice";
+const VOICE_STORAGE_PATH_PREFIX = process.env.VOICE_STORAGE_PATH_PREFIX ?? "discord-voice";
 
 const CLEANUP_INTERVAL_MS = parseIntEnv("VOICE_CLEANUP_INTERVAL_MS", 900_000); // 15 minutes
 
@@ -68,10 +67,7 @@ export interface VoiceAttachmentMetadata {
  * Checks if an attachment is a voice message.
  */
 function isVoiceAttachment(attachment: Attachment): boolean {
-  return (
-    attachment.contentType?.startsWith("audio/") ||
-    attachment.name?.endsWith(".ogg")
-  );
+  return attachment.contentType?.startsWith("audio/") || attachment.name?.endsWith(".ogg");
 }
 
 /**
@@ -81,19 +77,17 @@ export function hasVoiceAttachments(
   attachments: ReadonlyMap<string, Attachment> | readonly Attachment[],
   flags?: { bitfield: number } | null,
 ): boolean {
-  if (
-    flags &&
-    (flags.bitfield & MessageFlags.IsVoiceMessage) !== 0
-  ) {
+  if (flags && (flags.bitfield & MessageFlags.IsVoiceMessage) !== 0) {
     return true;
   }
 
-  const attachmentArray = attachments instanceof Map 
-    ? Array.from(attachments.values()) 
-    : Array.isArray(attachments) 
-      ? attachments 
-      : [];
-  
+  const attachmentArray =
+    attachments instanceof Map
+      ? Array.from(attachments.values())
+      : Array.isArray(attachments)
+        ? attachments
+        : [];
+
   return attachmentArray.length > 0 && attachmentArray.some(isVoiceAttachment);
 }
 
@@ -169,8 +163,7 @@ export class VoiceMessageHandler {
       throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
     }
 
-    const contentType =
-      attachment.contentType ?? "audio/ogg; codecs=opus";
+    const contentType = attachment.contentType ?? "audio/ogg; codecs=opus";
     // Sanitize filename to prevent path traversal attacks
     const rawFilename = attachment.name ?? `voice-${attachment.id}.ogg`;
     const safeFilename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -217,11 +210,12 @@ export class VoiceMessageHandler {
       return [];
     }
 
-    const attachmentArray = attachments instanceof Map 
-      ? Array.from(attachments.values()) 
-      : Array.isArray(attachments) 
-        ? attachments 
-        : [];
+    const attachmentArray =
+      attachments instanceof Map
+        ? Array.from(attachments.values())
+        : Array.isArray(attachments)
+          ? attachments
+          : [];
 
     const voiceAttachments = attachmentArray.filter(isVoiceAttachment);
     if (voiceAttachments.length === 0) {
@@ -250,16 +244,12 @@ export class VoiceMessageHandler {
           expires_at: result.value.expiresAt.toISOString(),
           size: result.value.size,
           content_type: result.value.contentType,
-          filename:
-            voiceAttachments[index].name ??
-            `voice-${voiceAttachments[index].id}.ogg`,
+          filename: voiceAttachments[index].name ?? `voice-${voiceAttachments[index].id}.ogg`,
         });
       } else {
         const attachmentId = voiceAttachments[index].id;
         const errorMessage =
-          result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason);
+          result.reason instanceof Error ? result.reason.message : String(result.reason);
         failed.push({ attachmentId, error: errorMessage });
         logger.error("Failed to process voice attachment", {
           connectionId,
@@ -326,9 +316,7 @@ export class VoiceMessageHandler {
       return 0;
     }
 
-    const deleteResults = await Promise.allSettled(
-      expiredBlobs.map((blob) => del(blob.url)),
-    );
+    const deleteResults = await Promise.allSettled(expiredBlobs.map((blob) => del(blob.url)));
 
     let deletedCount = 0;
     const failed: Array<{ url: string; error: string }> = [];
@@ -344,9 +332,7 @@ export class VoiceMessageHandler {
       } else {
         const blob = expiredBlobs[index];
         const errorMessage =
-          result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason);
+          result.reason instanceof Error ? result.reason.message : String(result.reason);
         failed.push({ url: blob.url, error: errorMessage });
         logger.error("Failed to delete expired voice audio file", {
           url: blob.url,

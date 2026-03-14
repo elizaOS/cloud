@@ -4,22 +4,19 @@
 
 "use server";
 
+import { generateProjectionAlerts, generateProjections } from "@/lib/analytics/projections";
 import { requireAuthWithOrg } from "@/lib/auth";
 import {
+  getCostTrending,
+  getModelBreakdown,
+  getProviderBreakdown,
+  getTrendData,
+  getUsageByUser,
   getUsageStatsSafe,
   getUsageTimeSeries,
-  getUsageByUser,
-  getCostTrending,
-  getProviderBreakdown,
-  getModelBreakdown,
-  getTrendData,
   type TimeGranularity,
 } from "@/lib/services/analytics";
 import { organizationsService } from "@/lib/services/organizations";
-import {
-  generateProjections,
-  generateProjectionAlerts,
-} from "@/lib/analytics/projections";
 
 /**
  * Enhanced filters for analytics queries with time range presets.
@@ -41,9 +38,7 @@ export interface EnhancedAnalyticsFilters {
  * @param filters - Optional filters including time range presets.
  * @returns Enhanced analytics data with breakdowns and trends.
  */
-export async function getEnhancedAnalyticsData(
-  filters: EnhancedAnalyticsFilters = {},
-) {
+export async function getEnhancedAnalyticsData(filters: EnhancedAnalyticsFilters = {}) {
   const user = await requireAuthWithOrg();
   const organizationId = user.organization_id!;
 
@@ -146,11 +141,7 @@ export async function getProjectionsData(periods: number = 7) {
 
   const creditBalance = Number(org?.credit_balance || 0);
   const projections = generateProjections(historicalData, periods);
-  const alerts = generateProjectionAlerts(
-    historicalData,
-    projections,
-    creditBalance,
-  );
+  const alerts = generateProjectionAlerts(historicalData, projections, creditBalance);
 
   return {
     historicalData,
@@ -160,7 +151,5 @@ export async function getProjectionsData(periods: number = 7) {
   };
 }
 
-export type EnhancedAnalyticsData = Awaited<
-  ReturnType<typeof getEnhancedAnalyticsData>
->;
+export type EnhancedAnalyticsData = Awaited<ReturnType<typeof getEnhancedAnalyticsData>>;
 export type ProjectionsData = Awaited<ReturnType<typeof getProjectionsData>>;

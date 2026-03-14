@@ -1,8 +1,3 @@
-/**
- * Composable list skeleton for loading states.
- * Replaces per-feature skeleton components with a reusable pattern.
- */
-import * as React from "react";
 import { cn } from "../lib/utils";
 
 interface ListSkeletonProps {
@@ -14,27 +9,17 @@ interface ListSkeletonProps {
   className?: string;
 }
 
-function ListSkeleton({
-  rows = 3,
-  variant = "card",
-  className,
-}: ListSkeletonProps) {
+function ListSkeleton({ rows = 3, variant = "card", className }: ListSkeletonProps) {
   return (
-    <div
-      data-slot="list-skeleton"
-      className={cn("space-y-4", className)}
-    >
+    <div data-slot="list-skeleton" className={cn("space-y-4", className)}>
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
           className={cn(
             "animate-pulse",
-            variant === "card" &&
-              "flex items-center justify-between p-4 bg-white/5 rounded-lg",
-            variant === "table" &&
-              "flex items-center gap-4 px-4 py-3 border-b border-white/5",
-            variant === "list" &&
-              "flex items-center gap-3 p-3",
+            variant === "card" && "flex items-center justify-between p-4 bg-white/5 rounded-lg",
+            variant === "table" && "flex items-center gap-4 px-4 py-3 border-b border-white/5",
+            variant === "list" && "flex items-center gap-3 p-3",
           )}
         >
           <div className="flex items-center gap-4 flex-1">
@@ -54,5 +39,5 @@ function ListSkeleton({
   );
 }
 
-export { ListSkeleton };
 export type { ListSkeletonProps };
+export { ListSkeleton };

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import type { ServiceConfig, ServiceHandler } from "../types";
-import { getServiceMethodCost, calculateBatchCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
 import { retryFetch } from "../fetch";
+import { calculateBatchCost, getServiceMethodCost } from "../pricing";
+import type { ServiceConfig, ServiceHandler } from "../types";
 import { solanaRpcConfig, solanaRpcHandler } from "./solana-rpc";
 
 /**
@@ -210,8 +210,7 @@ function buildEvmRpcHandler(chain: string): ServiceHandler {
       throw new Error("ALCHEMY_API_KEY not configured");
     }
 
-    const slugMap =
-      network === "mainnet" ? ALCHEMY_SLUGS : ALCHEMY_TESTNET_SLUGS;
+    const slugMap = network === "mainnet" ? ALCHEMY_SLUGS : ALCHEMY_TESTNET_SLUGS;
     const slug = slugMap[chain];
 
     if (!slug) {
@@ -271,10 +270,7 @@ function buildEvmRpcHandler(chain: string): ServiceHandler {
 /**
  * Supported RPC chains (Solana + all Alchemy EVM chains)
  */
-export const SUPPORTED_RPC_CHAINS = new Set([
-  "solana",
-  ...Object.keys(ALCHEMY_SLUGS),
-]);
+export const SUPPORTED_RPC_CHAINS = new Set(["solana", ...Object.keys(ALCHEMY_SLUGS)]);
 
 /**
  * Check if chain is supported for RPC

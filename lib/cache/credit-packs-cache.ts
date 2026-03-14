@@ -2,9 +2,9 @@
  * Cache for credit packs - these rarely change and can be cached aggressively.
  */
 
-import { cache as cacheClient } from "./client";
-import { logger } from "@/lib/utils/logger";
 import type { CreditPack } from "@/db/repositories";
+import { logger } from "@/lib/utils/logger";
+import { cache as cacheClient } from "./client";
 
 const CACHE_KEY = "credit-packs:active";
 const CACHE_TTL = 3600; // 1 hour - credit packs rarely change
@@ -27,10 +27,7 @@ export class CreditPacksCache {
   /**
    * Cache active credit packs.
    */
-  async setActiveCreditPacks(
-    packs: CreditPack[],
-    ttl: number = CACHE_TTL,
-  ): Promise<void> {
+  async setActiveCreditPacks(packs: CreditPack[], ttl: number = CACHE_TTL): Promise<void> {
     await cacheClient.set(CACHE_KEY, packs, ttl);
     logger.debug("[CreditPacks Cache] Cached active credit packs");
   }
@@ -47,14 +44,8 @@ export class CreditPacksCache {
    * Get cached credit packs with stale-while-revalidate.
    * Returns cached data immediately (even if stale) while refreshing in background.
    */
-  async getWithSWR(
-    fetchFn: () => Promise<CreditPack[]>,
-  ): Promise<CreditPack[]> {
-    const result = await cacheClient.getWithSWR<CreditPack[]>(
-      CACHE_KEY,
-      CACHE_TTL,
-      fetchFn,
-    );
+  async getWithSWR(fetchFn: () => Promise<CreditPack[]>): Promise<CreditPack[]> {
+    const result = await cacheClient.getWithSWR<CreditPack[]>(CACHE_KEY, CACHE_TTL, fetchFn);
     return result || [];
   }
 }

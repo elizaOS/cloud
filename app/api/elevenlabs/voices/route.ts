@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuth } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 /**
  * GET /api/elevenlabs/voices
@@ -45,20 +45,11 @@ export async function GET() {
     const status = getErrorStatusCode(error);
 
     if (status !== 500) {
-      return NextResponse.json(
-        { error: getSafeErrorMessage(error) },
-        { status },
-      );
+      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
     }
 
-    if (
-      error instanceof Error &&
-      error.message.includes("ELEVENLABS_API_KEY")
-    ) {
-      return NextResponse.json(
-        { error: "Service not configured" },
-        { status: 500 },
-      );
+    if (error instanceof Error && error.message.includes("ELEVENLABS_API_KEY")) {
+      return NextResponse.json({ error: "Service not configured" }, { status: 500 });
     }
 
     return NextResponse.json(

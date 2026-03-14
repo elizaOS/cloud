@@ -1,17 +1,16 @@
 /** GENERATE_IMAGE Action - Generates an image based on a prompt. */
 import {
-  type Action,
   type ActionExample,
+  type ActionResult,
+  ContentType,
   composePromptFromState,
   type HandlerCallback,
   type IAgentRuntime,
+  logger,
   type Memory,
   ModelType,
-  type State,
-  ContentType,
   parseKeyValueXml,
-  type ActionResult,
-  logger,
+  type State,
 } from "@elizaos/core";
 import { v4 } from "uuid";
 import type { ActionWithParams } from "../types";
@@ -52,18 +51,24 @@ function getFileExtension(url: string): string {
 
 function extractParams(message: Memory, state?: State): Record<string, unknown> {
   const content = message.content as Record<string, unknown>;
-  return (content.actionParams || content.actionInput || state?.data?.actionParams || state?.data?.generateimage || {}) as Record<string, unknown>;
+  return (content.actionParams ||
+    content.actionInput ||
+    state?.data?.actionParams ||
+    state?.data?.generateimage ||
+    {}) as Record<string, unknown>;
 }
 
 export const generateImageAction: ActionWithParams = {
   name: "GENERATE_IMAGE",
   similes: ["DRAW", "CREATE_IMAGE", "RENDER_IMAGE", "VISUALIZE"],
-  description: "Generates an image based on a prompt. Use when the user wants to visualize, illustrate, or see something visually.",
+  description:
+    "Generates an image based on a prompt. Use when the user wants to visualize, illustrate, or see something visually.",
 
   parameters: {
     prompt: {
       type: "string",
-      description: "Optional direct prompt for image generation. If not provided, will extract from conversation.",
+      description:
+        "Optional direct prompt for image generation. If not provided, will extract from conversation.",
       required: false,
     },
   },
@@ -85,9 +90,10 @@ export const generateImageAction: ActionWithParams = {
     const content = message.content as Record<string, unknown>;
     const actionParams = content.actionParams as Record<string, unknown> | undefined;
     const actionInput = content.actionInput as Record<string, unknown> | undefined;
-    const hasText = typeof message.content.text === "string" && message.content.text.trim().length > 0;
+    const hasText =
+      typeof message.content.text === "string" && message.content.text.trim().length > 0;
     const hasPromptParam = actionParams?.prompt || actionInput?.prompt;
-    
+
     if (!hasText && !hasPromptParam) {
       logger.debug("[GENERATE_IMAGE] No text content or prompt parameter available");
       return false;
@@ -102,13 +108,13 @@ export const generateImageAction: ActionWithParams = {
     state?: State,
     _options?: unknown,
     callback?: HandlerCallback,
-    responses?: Memory[]
+    responses?: Memory[],
   ): Promise<ActionResult> => {
     const params = extractParams(message, state);
     const providedPrompt = params.prompt as string | undefined;
 
     logger.info(
-      `[GENERATE_IMAGE] Starting image generation${providedPrompt ? ` with prompt: "${providedPrompt.substring(0, 50)}..."` : " from conversation"}`
+      `[GENERATE_IMAGE] Starting image generation${providedPrompt ? ` with prompt: "${providedPrompt.substring(0, 50)}..."` : " from conversation"}`,
     );
 
     const allProviders = responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
@@ -130,9 +136,10 @@ export const generateImageAction: ActionWithParams = {
 
     const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
     const parsedXml = parseKeyValueXml(promptResponse);
-    const imagePrompt: string = typeof parsedXml?.prompt === "string"
-      ? parsedXml.prompt
-      : providedPrompt || "Unable to generate descriptive prompt for image";
+    const imagePrompt: string =
+      typeof parsedXml?.prompt === "string"
+        ? parsedXml.prompt
+        : providedPrompt || "Unable to generate descriptive prompt for image";
 
     logger.info(`[GENERATE_IMAGE] Using prompt: "${imagePrompt}"`);
 
@@ -158,7 +165,12 @@ export const generateImageAction: ActionWithParams = {
     const fileName = `Generated_Image_${timestamp}.${extension}`;
     const attachmentId = v4();
 
-    const attachment = { id: attachmentId, url: imageUrl, title: fileName, contentType: ContentType.IMAGE };
+    const attachment = {
+      id: attachmentId,
+      url: imageUrl,
+      title: fileName,
+      contentType: ContentType.IMAGE,
+    };
 
     if (callback) {
       await callback({
@@ -174,7 +186,12 @@ export const generateImageAction: ActionWithParams = {
     return {
       text: `Generated image: "${imagePrompt}"`,
       values: { success: true, imageGenerated: true, imageUrl, prompt: imagePrompt },
-      data: { actionName: "GENERATE_IMAGE", imageUrl, prompt: imagePrompt, attachments: [attachment] },
+      data: {
+        actionName: "GENERATE_IMAGE",
+        imageUrl,
+        prompt: imagePrompt,
+        attachments: [attachment],
+      },
       success: true,
     };
   },

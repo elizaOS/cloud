@@ -2,28 +2,9 @@
  * Structured data (JSON-LD) schema generation for SEO.
  */
 
-import type { StructuredDataOptions } from "./types";
+import { getAppUrl } from "@/lib/utils/app-url";
 import { SEO_CONSTANTS } from "./constants";
-
-/**
- * Gets the base URL for the application.
- *
- * @returns Base URL with priority: NEXT_PUBLIC_APP_URL > VERCEL_URL > localhost.
- */
-function getBaseUrl(): string {
-  // Priority 1: Explicitly set app URL (recommended for production)
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL;
-  }
-
-  // Priority 2: Vercel automatic URL (for deployments without explicit URL)
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  // Priority 3: Local development fallback
-  return "http://localhost:3000";
-}
+import type { StructuredDataOptions } from "./types";
 
 /**
  * Generates Organization schema.org JSON-LD.
@@ -31,7 +12,7 @@ function getBaseUrl(): string {
  * @returns Organization structured data object.
  */
 export function generateOrganizationSchema() {
-  const baseUrl = getBaseUrl();
+  const baseUrl = getAppUrl();
 
   return {
     "@context": "https://schema.org",
@@ -55,7 +36,7 @@ export function generateOrganizationSchema() {
  * @returns WebApplication structured data object.
  */
 export function generateWebApplicationSchema() {
-  const baseUrl = getBaseUrl();
+  const baseUrl = getAppUrl();
 
   return {
     "@context": "https://schema.org",
@@ -98,7 +79,7 @@ export function generateProductSchema(
   imageUrl: string,
   category: string = "AI Agent",
 ) {
-  const baseUrl = getBaseUrl();
+  const _baseUrl = getAppUrl();
 
   return {
     "@context": "https://schema.org",
@@ -162,7 +143,7 @@ export function generateArticleSchema(
       name: SEO_CONSTANTS.siteName,
       logo: {
         "@type": "ImageObject",
-        url: `${getBaseUrl()}/og/default.png`,
+        url: `${getAppUrl()}/og/default.png`,
       },
     },
   };
@@ -174,10 +155,8 @@ export function generateArticleSchema(
  * @param items - Array of breadcrumb items with name and URL.
  * @returns BreadcrumbList structured data object.
  */
-export function generateBreadcrumbSchema(
-  items: Array<{ name: string; url: string }>,
-) {
-  const baseUrl = getBaseUrl();
+export function generateBreadcrumbSchema(items: Array<{ name: string; url: string }>) {
+  const baseUrl = getAppUrl();
 
   return {
     "@context": "https://schema.org",
@@ -197,10 +176,8 @@ export function generateBreadcrumbSchema(
  * @param options - Structured data options.
  * @returns Structured data object matching the specified type.
  */
-export function generateStructuredData(
-  options: StructuredDataOptions,
-): Record<string, unknown> {
-  const baseUrl = getBaseUrl();
+export function generateStructuredData(options: StructuredDataOptions): Record<string, unknown> {
+  const baseUrl = getAppUrl();
 
   switch (options.type) {
     case "Organization":

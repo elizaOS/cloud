@@ -63,14 +63,11 @@ mock.module("ai", () => ({
 }));
 
 mock.module("@ai-sdk/openai", () => ({
-  openai: Object.assign(
-    (model: string) => `openai:${model}`,
-    {
-      tools: {
-        imageGeneration: () => "image-generation-tool",
-      },
+  openai: Object.assign((model: string) => `openai:${model}`, {
+    tools: {
+      imageGeneration: () => "image-generation-tool",
     },
-  ),
+  }),
 }));
 
 mock.module("@ai-sdk/gateway", () => ({
@@ -175,14 +172,14 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import {
-  OPTIONS as generateImageOptions,
-  POST as generateImage,
-} from "@/app/api/v1/generate-image/route";
-import { POST as generateVideo } from "@/app/api/v1/generate-video/route";
-import { POST as chat } from "@/app/api/v1/chat/route";
 import { POST as characterAssistant } from "@/app/api/v1/character-assistant/route";
+import { POST as chat } from "@/app/api/v1/chat/route";
+import {
+  POST as generateImage,
+  OPTIONS as generateImageOptions,
+} from "@/app/api/v1/generate-image/route";
 import { POST as generatePrompts } from "@/app/api/v1/generate-prompts/route";
+import { POST as generateVideo } from "@/app/api/v1/generate-video/route";
 
 const authenticatedUser = {
   id: "user-1",
@@ -341,9 +338,7 @@ describe("Prompt generation APIs", () => {
   });
 
   test("generate-prompts returns auth failures as 401", async () => {
-    mockRequireAuth.mockRejectedValue(
-      new Error("Unauthorized: Authentication required"),
-    );
+    mockRequireAuth.mockRejectedValue(new Error("Unauthorized: Authentication required"));
 
     const response = await generatePrompts(
       jsonRequest("http://localhost:3000/api/v1/generate-prompts", "POST", {}),
@@ -354,11 +349,7 @@ describe("Prompt generation APIs", () => {
 
   test("character-assistant rejects empty message arrays", async () => {
     const response = await characterAssistant(
-      jsonRequest(
-        "http://localhost:3000/api/v1/character-assistant",
-        "POST",
-        { messages: [] },
-      ),
+      jsonRequest("http://localhost:3000/api/v1/character-assistant", "POST", { messages: [] }),
     );
 
     expect(response.status).toBe(400);
@@ -368,15 +359,11 @@ describe("Prompt generation APIs", () => {
 
   test("character-assistant includes the current character during edit mode", async () => {
     const response = await characterAssistant(
-      jsonRequest(
-        "http://localhost:3000/api/v1/character-assistant",
-        "POST",
-        {
-          messages: [{ role: "user", parts: [{ type: "text", text: "Refine it" }] }],
-          isEditMode: true,
-          character: { name: "Astra", bio: "Space guide" },
-        },
-      ),
+      jsonRequest("http://localhost:3000/api/v1/character-assistant", "POST", {
+        messages: [{ role: "user", parts: [{ type: "text", text: "Refine it" }] }],
+        isEditMode: true,
+        character: { name: "Astra", bio: "Space guide" },
+      }),
     );
 
     expect(response.status).toBe(200);
@@ -407,9 +394,7 @@ describe("Image and video generation APIs", () => {
   });
 
   test("generate-image supports anonymous fallback and uploads generated files", async () => {
-    mockRequireAuthOrApiKey.mockRejectedValue(
-      new Error("Unauthorized: Authentication required"),
-    );
+    mockRequireAuthOrApiKey.mockRejectedValue(new Error("Unauthorized: Authentication required"));
     mockStreamText.mockImplementation(() => ({
       fullStream: (async function* () {
         yield {
@@ -521,9 +506,7 @@ describe("Chat API", () => {
   });
 
   test("enforces anonymous limits", async () => {
-    mockRequireAuthOrApiKey.mockRejectedValue(
-      new Error("Unauthorized: Authentication required"),
-    );
+    mockRequireAuthOrApiKey.mockRejectedValue(new Error("Unauthorized: Authentication required"));
     mockCheckAnonymousLimit.mockResolvedValue({
       allowed: false,
       reason: "message_limit",

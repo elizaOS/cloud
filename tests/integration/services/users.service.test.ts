@@ -16,26 +16,19 @@
  *
  */
 
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-} from "bun:test";
-import { v4 as uuidv4 } from "uuid";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
+import { v4 as uuidv4 } from "uuid";
 import { dbWrite } from "@/db/helpers";
 import { userIdentities } from "@/db/schemas/user-identities";
-import { usersService } from "@/lib/services/users";
 import { organizationsService } from "@/lib/services/organizations";
+import { usersService } from "@/lib/services/users";
+import { getConnectionString } from "@/tests/helpers/local-database";
 import {
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   type TestDataSet,
 } from "@/tests/helpers/test-data-factory";
-import { getConnectionString } from "@/tests/helpers/local-database";
 
 describe("UsersService", () => {
   let connectionString: string;
@@ -299,14 +292,10 @@ describe("UsersService", () => {
         ]);
 
         expect(
-          [firstResult.status, secondResult.status].filter(
-            (status) => status === "fulfilled",
-          ),
+          [firstResult.status, secondResult.status].filter((status) => status === "fulfilled"),
         ).toHaveLength(1);
         expect(
-          [firstResult.status, secondResult.status].filter(
-            (status) => status === "rejected",
-          ),
+          [firstResult.status, secondResult.status].filter((status) => status === "rejected"),
         ).toHaveLength(1);
 
         const user = await usersService.getByPrivyId(privyId);
@@ -593,7 +582,7 @@ describe("UsersService", () => {
   describe("delete", () => {
     test("deletes user from organization", async () => {
       // Arrange - Create a second user so org doesn't get deleted
-      const secondUser = await usersService.create({
+      const _secondUser = await usersService.create({
         email: `second-${uuidv4()}@test.local`,
         organization_id: testData.organization.id,
         role: "member",
@@ -625,9 +614,7 @@ describe("UsersService", () => {
       const fakeUserId = uuidv4();
 
       // Act & Assert
-      await expect(usersService.delete(fakeUserId)).rejects.toThrow(
-        `User ${fakeUserId} not found`,
-      );
+      await expect(usersService.delete(fakeUserId)).rejects.toThrow(`User ${fakeUserId} not found`);
 
       // Cleanup
       await cleanupTestData(connectionString, testData.organization.id);

@@ -1,12 +1,12 @@
+import { and, eq, sql } from "drizzle-orm";
 import { dbRead } from "@/db/client";
-import { organizations } from "@/db/schemas/organizations";
-import { eq, and, sql } from "drizzle-orm";
-import { requireStripe } from "@/lib/stripe";
-import { organizationsRepository, usersRepository } from "@/db/repositories";
 import type { Organization } from "@/db/repositories";
-import { emailService } from "./email";
-import { logger } from "@/lib/utils/logger";
+import { organizationsRepository, usersRepository } from "@/db/repositories";
+import { organizations } from "@/db/schemas/organizations";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { requireStripe } from "@/lib/stripe";
+import { logger } from "@/lib/utils/logger";
+import { emailService } from "./email";
 
 export const AUTO_TOP_UP_LIMITS = {
   MIN_AMOUNT: 1,
@@ -35,14 +35,10 @@ export interface AutoTopUpCheckResult {
 export class AutoTopUpService {
   validateSettings(amount: number, threshold: number): void {
     if (amount < AUTO_TOP_UP_LIMITS.MIN_AMOUNT) {
-      throw new Error(
-        `Auto top-up amount must be at least $${AUTO_TOP_UP_LIMITS.MIN_AMOUNT}`,
-      );
+      throw new Error(`Auto top-up amount must be at least $${AUTO_TOP_UP_LIMITS.MIN_AMOUNT}`);
     }
     if (amount > AUTO_TOP_UP_LIMITS.MAX_AMOUNT) {
-      throw new Error(
-        `Auto top-up amount cannot exceed $${AUTO_TOP_UP_LIMITS.MAX_AMOUNT}`,
-      );
+      throw new Error(`Auto top-up amount cannot exceed $${AUTO_TOP_UP_LIMITS.MAX_AMOUNT}`);
     }
     if (threshold < AUTO_TOP_UP_LIMITS.MIN_THRESHOLD) {
       throw new Error(
@@ -50,9 +46,7 @@ export class AutoTopUpService {
       );
     }
     if (threshold > AUTO_TOP_UP_LIMITS.MAX_THRESHOLD) {
-      throw new Error(
-        `Auto top-up threshold cannot exceed $${AUTO_TOP_UP_LIMITS.MAX_THRESHOLD}`,
-      );
+      throw new Error(`Auto top-up threshold cannot exceed $${AUTO_TOP_UP_LIMITS.MAX_THRESHOLD}`);
     }
     if (!Number.isFinite(amount) || !Number.isFinite(threshold)) {
       throw new Error("Auto top-up settings must be valid numbers");
@@ -63,9 +57,7 @@ export class AutoTopUpService {
     const startTime = new Date();
     const results: AutoTopUpResult[] = [];
 
-    logger.info(
-      `[AutoTopUp] Starting auto top-up check at ${startTime.toISOString()}`,
-    );
+    logger.info(`[AutoTopUp] Starting auto top-up check at ${startTime.toISOString()}`);
 
     const orgsNeedingTopUp = await dbRead
       .select()
@@ -77,9 +69,7 @@ export class AutoTopUpService {
         ),
       );
 
-    logger.info(
-      `[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`,
-    );
+    logger.info(`[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`);
 
     const settledResults = await Promise.allSettled(
       orgsNeedingTopUp.map((org) => this.executeAutoTopUp(org)),
@@ -93,10 +83,7 @@ export class AutoTopUpService {
         results.push({
           organizationId: "unknown",
           success: false,
-          error:
-            settled.reason instanceof Error
-              ? settled.reason.message
-              : String(settled.reason),
+          error: settled.reason instanceof Error ? settled.reason.message : String(settled.reason),
         });
       }
     }
@@ -135,16 +122,10 @@ export class AutoTopUpService {
       const userId = billingUser?.id || (users.length > 0 ? users[0].id : null);
       trackingId = userId || `org:${organizationId}`;
     } catch (userLookupError) {
-      logger.warn(
-        `[AutoTopUp] Failed to fetch users for analytics, using org ID`,
-        {
-          organizationId,
-          error:
-            userLookupError instanceof Error
-              ? userLookupError.message
-              : "Unknown error",
-        },
-      );
+      logger.warn(`[AutoTopUp] Failed to fetch users for analytics, using org ID`, {
+        organizationId,
+        error: userLookupError instanceof Error ? userLookupError.message : "Unknown error",
+      });
     }
 
     const currentBalance = Number(org.credit_balance);
@@ -174,18 +155,13 @@ export class AutoTopUpService {
     }
 
     if (!org.stripe_default_payment_method) {
-      logger.error(
-        `[AutoTopUp] Org ${organizationId} missing default payment method`,
-      );
+      logger.error(`[AutoTopUp] Org ${organizationId} missing default payment method`);
       trackServerEvent(trackingId, "auto_topup_failed", {
         organization_id: organizationId,
         error_reason: "missing_payment_method",
         amount: topUpAmount,
       });
-      await this.disableAutoTopUp(
-        organizationId,
-        "Missing default payment method",
-      );
+      await this.disableAutoTopUp(organizationId, "Missing default payment method");
       return {
         organizationId,
         success: false,
@@ -195,9 +171,7 @@ export class AutoTopUpService {
 
     const amount = Number(org.auto_top_up_amount || 0);
     if (amount <= 0 || amount > AUTO_TOP_UP_LIMITS.MAX_AMOUNT) {
-      logger.error(
-        `[AutoTopUp] Org ${organizationId} has invalid top-up amount: ${amount}`,
-      );
+      logger.error(`[AutoTopUp] Org ${organizationId} has invalid top-up amount: ${amount}`);
       trackServerEvent(trackingId, "auto_topup_failed", {
         organization_id: organizationId,
         error_reason: "invalid_amount",
@@ -243,10 +217,7 @@ export class AutoTopUpService {
         }
       }
     } catch (e) {
-      logger.error(
-        `[AutoTopUp] Failed to lookup affiliate for org ${organizationId}`,
-        e,
-      );
+      logger.error(`[AutoTopUp] Failed to lookup affiliate for org ${organizationId}`, e);
     }
 
     totalAmount = amount + affiliateFeeAmount + platformFeeAmount;
@@ -296,9 +267,7 @@ export class AutoTopUpService {
       { idempotencyKey },
     );
 
-    logger.info(
-      `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
-    );
+    logger.info(`[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`);
 
     if (paymentIntent.status === "succeeded") {
       const previousBalance = Number(org.credit_balance);
@@ -325,16 +294,8 @@ export class AutoTopUpService {
         credits_added: amount,
       });
 
-      logger.info(
-        `[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`,
-      );
-      this.queueAutoTopUpSuccessEmail(
-        org,
-        amount,
-        previousBalance,
-        newBalance,
-        paymentIntent.id,
-      );
+      logger.info(`[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`);
+      this.queueAutoTopUpSuccessEmail(org, amount, previousBalance, newBalance, paymentIntent.id);
 
       return {
         organizationId,
@@ -356,10 +317,7 @@ export class AutoTopUpService {
         error_reason: `Payment ${paymentIntent.status}`,
       });
 
-      await this.disableAutoTopUp(
-        organizationId,
-        `Payment ${paymentIntent.status}`,
-      );
+      await this.disableAutoTopUp(organizationId, `Payment ${paymentIntent.status}`);
       return {
         organizationId,
         success: false,
@@ -384,13 +342,8 @@ export class AutoTopUpService {
     }
   }
 
-  private async disableAutoTopUp(
-    organizationId: string,
-    reason: string,
-  ): Promise<void> {
-    logger.info(
-      `[AutoTopUp] Disabling auto top-up for org ${organizationId}: ${reason}`,
-    );
+  private async disableAutoTopUp(organizationId: string, reason: string): Promise<void> {
+    logger.info(`[AutoTopUp] Disabling auto top-up for org ${organizationId}: ${reason}`);
 
     const org = await organizationsRepository.findById(organizationId);
     if (!org) {
@@ -413,25 +366,19 @@ export class AutoTopUpService {
     newBalance: number,
     paymentIntentId: string,
   ): Promise<void> {
-    logger.info(
-      `[AutoTopUp] queueAutoTopUpSuccessEmail START for org ${org.id}`,
-    );
+    logger.info(`[AutoTopUp] queueAutoTopUpSuccessEmail START for org ${org.id}`);
 
     const recipientEmail = await this.getUserEmail(org.id);
     logger.info(`[AutoTopUp] User email: ${recipientEmail || "NONE"}`);
 
     if (!recipientEmail) {
-      logger.error(
-        `[AutoTopUp] CRITICAL: No user email for org ${org.id} - EMAIL NOT SENT`,
-      );
+      logger.error(`[AutoTopUp] CRITICAL: No user email for org ${org.id} - EMAIL NOT SENT`);
       return;
     }
 
     let paymentMethodDisplay = "Card on file";
     if (org.stripe_default_payment_method) {
-      const pm = await requireStripe().paymentMethods.retrieve(
-        org.stripe_default_payment_method,
-      );
+      const pm = await requireStripe().paymentMethods.retrieve(org.stripe_default_payment_method);
       if (pm.card) {
         paymentMethodDisplay = `${pm.card.brand} ••••${pm.card.last4}`;
       }
@@ -449,29 +396,20 @@ export class AutoTopUpService {
       billingUrl: `${appUrl}/dashboard/settings`,
     };
 
-    logger.info(
-      `[AutoTopUp] Calling emailService.sendAutoTopUpSuccessEmail with:`,
-    );
+    logger.info(`[AutoTopUp] Calling emailService.sendAutoTopUpSuccessEmail with:`);
     logger.info(JSON.stringify(emailData, null, 2));
 
     const result = await emailService.sendAutoTopUpSuccessEmail(emailData);
 
     logger.info(`[AutoTopUp] Email service returned: ${result}`);
     if (result) {
-      logger.info(
-        `[AutoTopUp] ✓ SUCCESS: Auto top-up email sent to ${recipientEmail}`,
-      );
+      logger.info(`[AutoTopUp] ✓ SUCCESS: Auto top-up email sent to ${recipientEmail}`);
     } else {
-      logger.error(
-        `[AutoTopUp] ✗ FAILED: Email service returned false for ${recipientEmail}`,
-      );
+      logger.error(`[AutoTopUp] ✗ FAILED: Email service returned false for ${recipientEmail}`);
     }
   }
 
-  private async queueAutoTopUpDisabledEmail(
-    org: Organization,
-    reason: string,
-  ): Promise<void> {
+  private async queueAutoTopUpDisabledEmail(org: Organization, reason: string): Promise<void> {
     const recipientEmail = await this.getUserEmail(org.id);
     if (!recipientEmail) {
       logger.error(`[AutoTopUp] No user email for org ${org.id}`);
@@ -539,16 +477,14 @@ export class AutoTopUpService {
       }
 
       const amount = settings.amount ?? Number(org.auto_top_up_amount || 0);
-      const threshold =
-        settings.threshold ?? Number(org.auto_top_up_threshold || 0);
+      const threshold = settings.threshold ?? Number(org.auto_top_up_threshold || 0);
 
       this.validateSettings(amount, threshold);
     }
 
     if (settings.amount !== undefined || settings.threshold !== undefined) {
       const amount = settings.amount ?? Number(org.auto_top_up_amount || 0);
-      const threshold =
-        settings.threshold ?? Number(org.auto_top_up_threshold || 0);
+      const threshold = settings.threshold ?? Number(org.auto_top_up_threshold || 0);
       this.validateSettings(amount, threshold);
     }
 
@@ -568,10 +504,7 @@ export class AutoTopUpService {
 
     await organizationsRepository.update(organizationId, updates);
 
-    logger.info(
-      `[AutoTopUp] Updated settings for org ${organizationId}:`,
-      updates,
-    );
+    logger.info(`[AutoTopUp] Updated settings for org ${organizationId}:`, updates);
   }
 }
 

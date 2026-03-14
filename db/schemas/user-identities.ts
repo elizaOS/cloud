@@ -1,12 +1,5 @@
-import {
-  boolean,
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 /**
@@ -59,30 +52,16 @@ export const userIdentities = pgTable(
   },
   (table) => ({
     user_idx: index("user_identities_user_idx").on(table.user_id),
-    privy_user_id_idx: index("user_identities_privy_user_id_idx").on(
-      table.privy_user_id,
-    ),
-    is_anonymous_idx: index("user_identities_is_anonymous_idx").on(
-      table.is_anonymous,
-    ),
+    privy_user_id_idx: index("user_identities_privy_user_id_idx").on(table.privy_user_id),
+    is_anonymous_idx: index("user_identities_is_anonymous_idx").on(table.is_anonymous),
     anonymous_session_idx: index("user_identities_anonymous_session_idx").on(
       table.anonymous_session_id,
     ),
-    expires_at_idx: index("user_identities_expires_at_idx").on(
-      table.expires_at,
-    ),
-    telegram_id_idx: index("user_identities_telegram_id_idx").on(
-      table.telegram_id,
-    ),
-    phone_number_idx: index("user_identities_phone_number_idx").on(
-      table.phone_number,
-    ),
-    discord_id_idx: index("user_identities_discord_id_idx").on(
-      table.discord_id,
-    ),
-    whatsapp_id_idx: index("user_identities_whatsapp_id_idx").on(
-      table.whatsapp_id,
-    ),
+    expires_at_idx: index("user_identities_expires_at_idx").on(table.expires_at),
+    telegram_id_idx: index("user_identities_telegram_id_idx").on(table.telegram_id),
+    phone_number_idx: index("user_identities_phone_number_idx").on(table.phone_number),
+    discord_id_idx: index("user_identities_discord_id_idx").on(table.discord_id),
+    whatsapp_id_idx: index("user_identities_whatsapp_id_idx").on(table.whatsapp_id),
   }),
 );
 

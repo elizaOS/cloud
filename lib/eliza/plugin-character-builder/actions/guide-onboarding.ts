@@ -1,19 +1,18 @@
 import {
   type Action,
   type ActionExample,
+  composePromptFromState,
   type HandlerCallback,
   type IAgentRuntime,
-  type Memory,
-  type State,
-  type UUID,
   logger,
-  composePromptFromState,
-  parseKeyValueXml,
+  type Memory,
   ModelType,
+  parseKeyValueXml,
+  type State,
 } from "@elizaos/core";
+import type { StreamChunkCallback } from "../../shared/types";
 import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
 import { isOnboarded, markOnboarded } from "../utils/onboarding-state";
-import type { StreamChunkCallback } from "../../shared/types";
 
 /**
  * GUIDE_ONBOARDING Action
@@ -71,9 +70,7 @@ After running once, it's disabled - use BUILDER_CHAT for follow-up questions.`,
     callback: HandlerCallback,
   ): Promise<void> => {
     const entityId = message.entityId as string;
-    const onStreamChunk = options?.onStreamChunk as
-      | StreamChunkCallback
-      | undefined;
+    const _onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
 
     state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
 
@@ -83,9 +80,7 @@ After running once, it's disabled - use BUILDER_CHAT for follow-up questions.`,
       composePromptFromState({ state, template: onboardingSystemPrompt }),
     );
 
-    const prompt = cleanPrompt(
-      composePromptFromState({ state, template: onboardingTemplate }),
-    );
+    const prompt = cleanPrompt(composePromptFromState({ state, template: onboardingTemplate }));
 
     const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
     runtime.character.system = originalSystemPrompt;

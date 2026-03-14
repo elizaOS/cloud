@@ -15,10 +15,6 @@ export const metadata: Metadata = generatePageMetadata({
  *
  * @param children - The login page content.
  */
-export default function LoginLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function LoginLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

@@ -2,19 +2,19 @@
  * Unit tests for compat-envelope field mapping layer.
  */
 
-import { afterEach, beforeEach, describe, test, expect } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import type { MiladySandbox } from "../../db/schemas/milady-sandboxes";
 import {
-  toCompatAgent,
-  toCompatCreateResult,
-  toCompatOpResult,
-  toCompatJob,
-  toCompatStatus,
-  toCompatUsage,
-  mapStatus,
   envelope,
   errorEnvelope,
+  mapStatus,
+  toCompatAgent,
+  toCompatCreateResult,
+  toCompatJob,
+  toCompatOpResult,
+  toCompatStatus,
+  toCompatUsage,
 } from "../../lib/api/compat-envelope";
-import type { MiladySandbox } from "../../db/schemas/milady-sandboxes";
 
 const savedAgentBaseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
@@ -109,9 +109,7 @@ describe("toCompatAgent", () => {
   test("uses configurable agent base domain for web UI links", () => {
     process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "agents.example.com";
     const agent = toCompatAgent(makeSandbox());
-    expect(agent.webUiUrl).toBe(
-      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.agents.example.com",
-    );
+    expect(agent.webUiUrl).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.agents.example.com");
   });
 
   test("last_heartbeat_at is null when never heartbeated", () => {
@@ -168,10 +166,12 @@ describe("toCompatJob", () => {
     expect(job.jobId).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
     expect(job.type).toBe("create-agent");
     expect(job.status).toBe("completed");
-    expect(job.result).toEqual(expect.objectContaining({
-      agentId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-      bridgeUrl: "http://10.0.0.5:18800",
-    }));
+    expect(job.result).toEqual(
+      expect.objectContaining({
+        agentId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        bridgeUrl: "http://10.0.0.5:18800",
+      }),
+    );
     expect(job.error).toBeNull();
     expect(job.completedAt).toBeTruthy();
     expect(job.retryCount).toBe(0);
@@ -207,11 +207,13 @@ describe("toCompatJob", () => {
   });
 
   test("maps error sandbox to failed job", () => {
-    const job = toCompatJob(makeSandbox({
-      status: "error",
-      error_message: "Container health check timed out",
-      error_count: 3,
-    }));
+    const job = toCompatJob(
+      makeSandbox({
+        status: "error",
+        error_message: "Container health check timed out",
+        error_count: 3,
+      }),
+    );
     expect(job.status).toBe("failed");
     expect(job.state).toBe("failed");
     expect(job.error).toBe("Container health check timed out");
@@ -260,19 +262,23 @@ describe("toCompatUsage", () => {
   });
 
   test("returns non-zero uptime for running agent", () => {
-    const usage = toCompatUsage(makeSandbox({
-      status: "running",
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    }));
+    const usage = toCompatUsage(
+      makeSandbox({
+        status: "running",
+        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      }),
+    );
     expect(usage.uptimeHours).toBeGreaterThan(1.9);
     expect(usage.uptimeHours).toBeLessThan(2.1);
     expect(usage.status).toBe("running");
   });
 
   test("extracts funding source from agent_config", () => {
-    const usage = toCompatUsage(makeSandbox({
-      agent_config: { billing: { mode: "waifu_treasury_subsidy" } },
-    }));
+    const usage = toCompatUsage(
+      makeSandbox({
+        agent_config: { billing: { mode: "waifu_treasury_subsidy" } },
+      }),
+    );
     expect(usage.fundingSource).toBe("waifu_treasury_subsidy");
   });
 
@@ -283,7 +289,8 @@ describe("toCompatUsage", () => {
 
 describe("mapStatus", () => {
   test("pending -> queued", () => expect(mapStatus("pending")).toBe("queued"));
-  test("provisioning -> provisioning", () => expect(mapStatus("provisioning")).toBe("provisioning"));
+  test("provisioning -> provisioning", () =>
+    expect(mapStatus("provisioning")).toBe("provisioning"));
   test("running -> running", () => expect(mapStatus("running")).toBe("running"));
   test("stopped -> stopped", () => expect(mapStatus("stopped")).toBe("stopped"));
   test("disconnected -> stopped", () => expect(mapStatus("disconnected")).toBe("stopped"));

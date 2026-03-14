@@ -15,15 +15,9 @@
  * (encrypted with KMS) — never stored as a plain environment variable in production.
  */
 
-import {
-  createPublicClient,
-  http,
-  type Chain,
-  type Hex,
-  type PublicClient,
-} from "viem";
-import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
-import { base, baseSepolia, mainnet, sepolia, bsc, bscTestnet } from "viem/chains";
+import { type Chain, createPublicClient, type Hex, http, type PublicClient } from "viem";
+import { type PrivateKeyAccount, privateKeyToAccount } from "viem/accounts";
+import { base, baseSepolia, bsc, bscTestnet, mainnet, sepolia } from "viem/chains";
 import { logger } from "@/lib/utils/logger";
 
 // Types
@@ -222,17 +216,13 @@ class X402FacilitatorService {
 
     const privateKey = await this.loadFacilitatorKey();
     if (!privateKey) {
-      logger.warn(
-        "[x402-facilitator] No facilitator private key configured. Service disabled.",
-      );
+      logger.warn("[x402-facilitator] No facilitator private key configured. Service disabled.");
       return;
     }
 
     try {
       this.account = privateKeyToAccount(privateKey as Hex);
-      logger.info(
-        `[x402-facilitator] Signer initialized: ${this.account.address}`,
-      );
+      logger.info(`[x402-facilitator] Signer initialized: ${this.account.address}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(`[x402-facilitator] Failed to initialize signer: ${msg}`);
@@ -259,9 +249,7 @@ class X402FacilitatorService {
       }
     }
 
-    logger.info(
-      `[x402-facilitator] Enabled networks: ${this.enabledNetworks.join(", ")}`,
-    );
+    logger.info(`[x402-facilitator] Enabled networks: ${this.enabledNetworks.join(", ")}`);
     this.initialized = true;
   }
 
@@ -352,10 +340,7 @@ class X402FacilitatorService {
     }
 
     // 4. Validate payTo
-    if (
-      accepted.payTo.toLowerCase() !==
-      paymentRequirements.payTo.toLowerCase()
-    ) {
+    if (accepted.payTo.toLowerCase() !== paymentRequirements.payTo.toLowerCase()) {
       return {
         isValid: false,
         invalidReason: "payto_mismatch",
@@ -548,15 +533,51 @@ class X402FacilitatorService {
 
       if (accepted.scheme === "upto") {
         // ERC-2612: permit() then transferFrom()
-        const permitAbi = [{ inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }, { name: "value", type: "uint256" }, { name: "deadline", type: "uint256" }, { name: "v", type: "uint8" }, { name: "r", type: "bytes32" }, { name: "s", type: "bytes32" }], name: "permit", outputs: [], stateMutability: "nonpayable", type: "function" }] as const;
-        const transferFromAbi = [{ inputs: [{ name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" }], name: "transferFrom", outputs: [{ name: "", type: "bool" }], stateMutability: "nonpayable", type: "function" }] as const;
+        const permitAbi = [
+          {
+            inputs: [
+              { name: "owner", type: "address" },
+              { name: "spender", type: "address" },
+              { name: "value", type: "uint256" },
+              { name: "deadline", type: "uint256" },
+              { name: "v", type: "uint8" },
+              { name: "r", type: "bytes32" },
+              { name: "s", type: "bytes32" },
+            ],
+            name: "permit",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+          },
+        ] as const;
+        const transferFromAbi = [
+          {
+            inputs: [
+              { name: "from", type: "address" },
+              { name: "to", type: "address" },
+              { name: "value", type: "uint256" },
+            ],
+            name: "transferFrom",
+            outputs: [{ name: "", type: "bool" }],
+            stateMutability: "nonpayable",
+            type: "function",
+          },
+        ] as const;
 
         // Step 1: Submit permit
         const permitTx = await walletClient.writeContract({
           address: networkConfig.usdcAddress,
           abi: permitAbi,
           functionName: "permit",
-          args: [authorization.from as Hex, this.account.address, BigInt(authorization.value), BigInt(authorization.validBefore), v, r, s],
+          args: [
+            authorization.from as Hex,
+            this.account.address,
+            BigInt(authorization.value),
+            BigInt(authorization.validBefore),
+            v,
+            r,
+            s,
+          ],
         });
         logger.info("[x402-facilitator] Permit TX submitted: " + permitTx);
 
@@ -569,13 +590,41 @@ class X402FacilitatorService {
         });
       } else {
         // EIP-3009: transferWithAuthorization()
-        const transferWithAuthorizationAbi = [{ inputs: [{ name: "from", type: "address" }, { name: "to", type: "address" }, { name: "value", type: "uint256" }, { name: "validAfter", type: "uint256" }, { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" }, { name: "v", type: "uint8" }, { name: "r", type: "bytes32" }, { name: "s", type: "bytes32" }], name: "transferWithAuthorization", outputs: [], stateMutability: "nonpayable", type: "function" }] as const;
+        const transferWithAuthorizationAbi = [
+          {
+            inputs: [
+              { name: "from", type: "address" },
+              { name: "to", type: "address" },
+              { name: "value", type: "uint256" },
+              { name: "validAfter", type: "uint256" },
+              { name: "validBefore", type: "uint256" },
+              { name: "nonce", type: "bytes32" },
+              { name: "v", type: "uint8" },
+              { name: "r", type: "bytes32" },
+              { name: "s", type: "bytes32" },
+            ],
+            name: "transferWithAuthorization",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+          },
+        ] as const;
 
         txHash = await walletClient.writeContract({
           address: networkConfig.usdcAddress,
           abi: transferWithAuthorizationAbi,
           functionName: "transferWithAuthorization",
-          args: [authorization.from as Hex, authorization.to as Hex, BigInt(authorization.value), BigInt(authorization.validAfter ?? "0"), BigInt(authorization.validBefore), authorization.nonce as Hex, v, r, s],
+          args: [
+            authorization.from as Hex,
+            authorization.to as Hex,
+            BigInt(authorization.value),
+            BigInt(authorization.validAfter ?? "0"),
+            BigInt(authorization.validBefore),
+            authorization.nonce as Hex,
+            v,
+            r,
+            s,
+          ],
         });
       }
 
@@ -630,13 +679,9 @@ class X402FacilitatorService {
       const { secretsService } = await import("@/lib/services/secrets");
       if (secretsService) {
         // Try org-level facilitator key
-        const key = await secretsService
-          .get("system", "FACILITATOR_PRIVATE_KEY")
-          .catch(() => null);
+        const key = await secretsService.get("system", "FACILITATOR_PRIVATE_KEY").catch(() => null);
         if (key) {
-          logger.info(
-            "[x402-facilitator] Loaded key from secrets service (encrypted)",
-          );
+          logger.info("[x402-facilitator] Loaded key from secrets service (encrypted)");
           return key;
         }
       }
@@ -645,15 +690,13 @@ class X402FacilitatorService {
     }
 
     // Fallback to environment variable (development)
-    const envKey =
-      process.env.FACILITATOR_PRIVATE_KEY ??
-      process.env.X402_FACILITATOR_PRIVATE_KEY;
+    const envKey = process.env.FACILITATOR_PRIVATE_KEY ?? process.env.X402_FACILITATOR_PRIVATE_KEY;
 
     if (envKey) {
       if (process.env.NODE_ENV === "production") {
         logger.warn(
           "[x402-facilitator] Using env var for private key in production. " +
-          "Consider using the secrets service for better security.",
+            "Consider using the secrets service for better security.",
         );
       }
       return envKey;

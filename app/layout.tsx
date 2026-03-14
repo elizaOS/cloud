@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@elizaos/ui";
-import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
+import { DM_Mono, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import NextTopLoader from "nextjs-toploader";
-import PrivyProvider from "@/lib/providers/PrivyProvider";
+import { Toaster } from "sonner";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import { PostHogProvider } from "@/lib/providers/PostHogProvider";
-import localFont from "next/font/local";
-import { DM_Mono, Inter } from "next/font/google";
+import PrivyProvider from "@/lib/providers/PrivyProvider";
 
 // DM Mono for landing page
 const dmMono = DM_Mono({
@@ -62,9 +62,7 @@ const sfPro = localFont({
  */
 const baseUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000");
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
 export const metadata: Metadata = {
   title: {

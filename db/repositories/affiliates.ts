@@ -1,13 +1,13 @@
+import { asc, eq, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import {
-  affiliateCodes,
-  userAffiliates,
   type AffiliateCode,
-  type UserAffiliate,
+  affiliateCodes,
   type NewAffiliateCode,
   type NewUserAffiliate,
+  type UserAffiliate,
+  userAffiliates,
 } from "@/db/schemas/affiliates";
-import { asc, eq, sql } from "drizzle-orm";
 
 export class AffiliatesRepository {
   async createAffiliateCode(data: NewAffiliateCode): Promise<AffiliateCode> {
@@ -15,9 +15,7 @@ export class AffiliatesRepository {
     return result[0];
   }
 
-  async createAffiliateCodeIfNotExists(
-    data: NewAffiliateCode,
-  ): Promise<AffiliateCode | null> {
+  async createAffiliateCodeIfNotExists(data: NewAffiliateCode): Promise<AffiliateCode | null> {
     return dbWrite.transaction(async (tx) => {
       await tx.execute(
         sql`SELECT pg_advisory_xact_lock(hashtext(${`affiliate_code:${data.user_id}`}))`,
@@ -34,10 +32,7 @@ export class AffiliatesRepository {
         return existing;
       }
 
-      const [created] = await tx
-        .insert(affiliateCodes)
-        .values(data)
-        .returning();
+      const [created] = await tx.insert(affiliateCodes).values(data).returning();
 
       return created ?? null;
     });

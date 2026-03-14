@@ -4,12 +4,12 @@
  * Tests for phone number normalization and validation utilities.
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
   isValidE164,
   isValidEmail,
-  normalizeToE164,
   normalizePhoneNumber,
+  normalizeToE164,
   parsePhoneNumber,
   validatePhoneForAPI,
 } from "@/lib/utils/phone-normalization";

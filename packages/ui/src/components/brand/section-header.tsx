@@ -51,10 +51,7 @@ export function SectionHeader({
           style={{ backgroundColor: "#FF5800" }}
         />
         <p
-          className={cn(
-            "text-xl uppercase tracking-wider font-normal",
-            labelClassName,
-          )}
+          className={cn("text-xl uppercase tracking-wider font-normal", labelClassName)}
           style={{
             color: "#E1E1E1",
             lineHeight: "26px",
@@ -100,10 +97,7 @@ export function SectionLabel({
 }) {
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <span
-        className="inline-block w-2 h-2"
-        style={{ backgroundColor: "#FF5800" }}
-      />
+      <span className="inline-block w-2 h-2" style={{ backgroundColor: "#FF5800" }} />
       <span
         className="text-xl uppercase font-normal"
         style={{

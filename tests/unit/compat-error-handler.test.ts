@@ -9,7 +9,7 @@
  * - Non-Error throws get generic 500
  */
 
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 // Mock logger before importing error-handler
 mock.module("@/lib/utils/logger", () => ({
@@ -136,7 +136,9 @@ describe("handleCompatError", () => {
   });
 
   test("DB connection error → 500 with generic message", async () => {
-    const res = handleCompatError(new Error("connection refused to postgres://secret:pass@db:5432"));
+    const res = handleCompatError(
+      new Error("connection refused to postgres://secret:pass@db:5432"),
+    );
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toBe("Internal server error");

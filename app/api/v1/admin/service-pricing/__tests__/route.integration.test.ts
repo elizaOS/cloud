@@ -1,15 +1,14 @@
-
 /**
  * Integration tests for Service Pricing Admin API
- * 
+ *
  * Covers:
  * - Auth: admin vs non-admin access
  * - PUT upsert behavior
  * - Cache invalidation effects
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies before imports
 vi.mock("@/lib/api/admin-auth", () => ({
@@ -35,8 +34,8 @@ vi.mock("@/lib/utils/logger", () => ({
   },
 }));
 
-import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { servicePricingRepository } from "@/db/repositories";
+import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { GET, PUT } from "../route";
 
@@ -158,14 +157,11 @@ describe("Service Pricing Admin API - Integration", () => {
     });
 
     it("rejects invalid JSON body", async () => {
-      const request = new NextRequest(
-        new URL("http://localhost/api/v1/admin/service-pricing"),
-        {
-          method: "PUT",
-          body: "not json",
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      const request = new NextRequest(new URL("http://localhost/api/v1/admin/service-pricing"), {
+        method: "PUT",
+        body: "not json",
+        headers: { "Content-Type": "application/json" },
+      });
       const response = await PUT(request);
       expect(response.status).toBe(400);
     });

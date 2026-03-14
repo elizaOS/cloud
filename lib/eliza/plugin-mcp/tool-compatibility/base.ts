@@ -1,6 +1,6 @@
-import type { JSONSchema7 } from 'json-schema';
+import type { JSONSchema7 } from "json-schema";
 
-export type ModelProvider = 'openai' | 'anthropic' | 'google' | 'openrouter' | 'unknown';
+export type ModelProvider = "openai" | "anthropic" | "google" | "openrouter" | "unknown";
 
 export interface ModelInfo {
   provider: ModelProvider;
@@ -26,14 +26,14 @@ export abstract class McpToolCompatibility {
     const processed = { ...schema };
 
     switch (processed.type) {
-      case 'string':
+      case "string":
         return this.processTypeSchema(processed, this.getUnsupportedStringProperties());
-      case 'number':
-      case 'integer':
+      case "number":
+      case "integer":
         return this.processTypeSchema(processed, this.getUnsupportedNumberProperties());
-      case 'array':
+      case "array":
         return this.processArraySchema(processed);
-      case 'object':
+      case "object":
         return this.processObjectSchema(processed);
       default:
         return this.processGenericSchema(processed);
@@ -45,9 +45,21 @@ export abstract class McpToolCompatibility {
     const constraints: Record<string, unknown> = {};
 
     // Extract all constraint properties
-    for (const prop of ['minLength', 'maxLength', 'pattern', 'format', 'enum',
-                        'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf',
-                        'minItems', 'maxItems', 'uniqueItems']) {
+    for (const prop of [
+      "minLength",
+      "maxLength",
+      "pattern",
+      "format",
+      "enum",
+      "minimum",
+      "maximum",
+      "exclusiveMinimum",
+      "exclusiveMaximum",
+      "multipleOf",
+      "minItems",
+      "maxItems",
+      "uniqueItems",
+    ]) {
       if (schema[prop as keyof JSONSchema7] !== undefined) {
         constraints[prop] = schema[prop as keyof JSONSchema7];
       }
@@ -67,7 +79,7 @@ export abstract class McpToolCompatibility {
   protected processArraySchema(schema: JSONSchema7): JSONSchema7 {
     const processed = this.processTypeSchema(schema, this.getUnsupportedArrayProperties());
 
-    if (schema.items && typeof schema.items === 'object' && !Array.isArray(schema.items)) {
+    if (schema.items && typeof schema.items === "object" && !Array.isArray(schema.items)) {
       processed.items = this.processSchema(schema.items as JSONSchema7);
     }
 
@@ -80,9 +92,10 @@ export abstract class McpToolCompatibility {
     if (schema.properties) {
       processed.properties = {};
       for (const [key, prop] of Object.entries(schema.properties)) {
-        processed.properties[key] = typeof prop === 'object' && !Array.isArray(prop)
-          ? this.processSchema(prop as JSONSchema7)
-          : prop;
+        processed.properties[key] =
+          typeof prop === "object" && !Array.isArray(prop)
+            ? this.processSchema(prop as JSONSchema7)
+            : prop;
       }
     }
 
@@ -92,10 +105,10 @@ export abstract class McpToolCompatibility {
   protected processGenericSchema(schema: JSONSchema7): JSONSchema7 {
     const processed = { ...schema };
 
-    for (const key of ['oneOf', 'anyOf', 'allOf'] as const) {
+    for (const key of ["oneOf", "anyOf", "allOf"] as const) {
       if (Array.isArray(schema[key])) {
         (processed as Record<string, unknown>)[key] = schema[key]!.map((s: any) =>
-          typeof s === 'object' ? this.processSchema(s as JSONSchema7) : s
+          typeof s === "object" ? this.processSchema(s as JSONSchema7) : s,
         );
       }
     }
@@ -103,7 +116,10 @@ export abstract class McpToolCompatibility {
     return processed;
   }
 
-  protected mergeDescription(original: string | undefined, constraints: Record<string, unknown>): string {
+  protected mergeDescription(
+    original: string | undefined,
+    constraints: Record<string, unknown>,
+  ): string {
     const json = JSON.stringify(constraints);
     return original ? `${original}\n${json}` : json;
   }

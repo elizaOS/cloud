@@ -1,23 +1,23 @@
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/helpers";
 import {
-  miladySandboxes,
-  miladySandboxBackups,
-  type MiladySandbox,
-  type NewMiladySandbox,
-  type MiladySandboxBackup,
-  type NewMiladySandboxBackup,
-  type MiladySandboxStatus,
   type MiladyBackupSnapshotType,
+  type MiladySandbox,
+  type MiladySandboxBackup,
+  type MiladySandboxStatus,
+  miladySandboxBackups,
+  miladySandboxes,
+  type NewMiladySandbox,
+  type NewMiladySandboxBackup,
 } from "@/db/schemas/milady-sandboxes";
-import { eq, and, desc, sql, inArray, notInArray } from "drizzle-orm";
 
 export type {
-  MiladySandbox,
-  NewMiladySandbox,
-  MiladySandboxBackup,
-  NewMiladySandboxBackup,
-  MiladySandboxStatus,
   MiladyBackupSnapshotType,
+  MiladySandbox,
+  MiladySandboxBackup,
+  MiladySandboxStatus,
+  NewMiladySandbox,
+  NewMiladySandboxBackup,
 };
 
 export class MiladySandboxesRepository {
@@ -32,36 +32,20 @@ export class MiladySandboxesRepository {
     return r;
   }
 
-  async findByIdAndOrg(
-    id: string,
-    orgId: string,
-  ): Promise<MiladySandbox | undefined> {
+  async findByIdAndOrg(id: string, orgId: string): Promise<MiladySandbox | undefined> {
     const [r] = await dbRead
       .select()
       .from(miladySandboxes)
-      .where(
-        and(
-          eq(miladySandboxes.id, id),
-          eq(miladySandboxes.organization_id, orgId),
-        ),
-      )
+      .where(and(eq(miladySandboxes.id, id), eq(miladySandboxes.organization_id, orgId)))
       .limit(1);
     return r;
   }
 
-  async findByIdAndOrgForWrite(
-    id: string,
-    orgId: string,
-  ): Promise<MiladySandbox | undefined> {
+  async findByIdAndOrgForWrite(id: string, orgId: string): Promise<MiladySandbox | undefined> {
     const [r] = await dbWrite
       .select()
       .from(miladySandboxes)
-      .where(
-        and(
-          eq(miladySandboxes.id, id),
-          eq(miladySandboxes.organization_id, orgId),
-        ),
-      )
+      .where(and(eq(miladySandboxes.id, id), eq(miladySandboxes.organization_id, orgId)))
       .limit(1);
     return r;
   }
@@ -97,10 +81,7 @@ export class MiladySandboxesRepository {
       );
   }
 
-  async findRunningSandbox(
-    id: string,
-    orgId: string,
-  ): Promise<MiladySandbox | undefined> {
+  async findRunningSandbox(id: string, orgId: string): Promise<MiladySandbox | undefined> {
     const [r] = await dbRead
       .select()
       .from(miladySandboxes)
@@ -123,10 +104,7 @@ export class MiladySandboxesRepository {
     return r;
   }
 
-  async update(
-    id: string,
-    data: Partial<NewMiladySandbox>,
-  ): Promise<MiladySandbox | undefined> {
+  async update(id: string, data: Partial<NewMiladySandbox>): Promise<MiladySandbox | undefined> {
     const [r] = await dbWrite
       .update(miladySandboxes)
       .set({ ...data, updated_at: new Date() })
@@ -157,33 +135,20 @@ export class MiladySandboxesRepository {
   async delete(id: string, orgId: string): Promise<boolean> {
     const r = await dbWrite
       .delete(miladySandboxes)
-      .where(
-        and(
-          eq(miladySandboxes.id, id),
-          eq(miladySandboxes.organization_id, orgId),
-        ),
-      )
+      .where(and(eq(miladySandboxes.id, id), eq(miladySandboxes.organization_id, orgId)))
       .returning({ id: miladySandboxes.id });
     return r.length > 0;
   }
 
   // Backups
 
-  async createBackup(
-    data: NewMiladySandboxBackup,
-  ): Promise<MiladySandboxBackup> {
-    const [r] = await dbWrite
-      .insert(miladySandboxBackups)
-      .values(data)
-      .returning();
+  async createBackup(data: NewMiladySandboxBackup): Promise<MiladySandboxBackup> {
+    const [r] = await dbWrite.insert(miladySandboxBackups).values(data).returning();
     if (!r) throw new Error("Failed to create backup");
     return r;
   }
 
-  async listBackups(
-    sandboxRecordId: string,
-    limit = 10,
-  ): Promise<MiladySandboxBackup[]> {
+  async listBackups(sandboxRecordId: string, limit = 10): Promise<MiladySandboxBackup[]> {
     return dbRead
       .select()
       .from(miladySandboxBackups)
@@ -192,9 +157,7 @@ export class MiladySandboxesRepository {
       .limit(limit);
   }
 
-  async getLatestBackup(
-    sandboxRecordId: string,
-  ): Promise<MiladySandboxBackup | undefined> {
+  async getLatestBackup(sandboxRecordId: string): Promise<MiladySandboxBackup | undefined> {
     const [r] = await dbRead
       .select()
       .from(miladySandboxBackups)
@@ -204,9 +167,7 @@ export class MiladySandboxesRepository {
     return r;
   }
 
-  async getBackupById(
-    backupId: string,
-  ): Promise<MiladySandboxBackup | undefined> {
+  async getBackupById(backupId: string): Promise<MiladySandboxBackup | undefined> {
     const [r] = await dbRead
       .select()
       .from(miladySandboxBackups)

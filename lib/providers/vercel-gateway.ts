@@ -4,12 +4,8 @@
  * Provides OpenAI-compatible API access through Vercel AI Gateway.
  */
 
-import type {
-  AIProvider,
-  OpenAIChatRequest,
-  OpenAIEmbeddingsRequest,
-} from "./types";
 import { logger } from "@/lib/utils/logger";
+import type { AIProvider, OpenAIChatRequest, OpenAIEmbeddingsRequest } from "./types";
 
 /**
  * Gateway error response structure.
@@ -41,10 +37,7 @@ export class VercelGatewayProvider implements AIProvider {
   /**
    * Make a request to the gateway with timeout and better error handling
    */
-  private async fetchWithTimeout(
-    url: string,
-    options: RequestInit,
-  ): Promise<Response> {
+  private async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 

@@ -5,9 +5,9 @@
  */
 
 import { appsRepository } from "@/db/repositories/apps";
+import { logger } from "@/lib/utils/logger";
 import { appsService } from "./apps";
 import { creditsService } from "./credits";
-import { logger } from "@/lib/utils/logger";
 
 /**
  * Data for tracking app signups.
@@ -49,10 +49,7 @@ export class AppSignupTrackingService {
     }
 
     // Create or update app user record
-    const existingAppUser = await appsRepository.findAppUser(
-      appId,
-      data.userId,
-    );
+    const existingAppUser = await appsRepository.findAppUser(appId, data.userId);
 
     if (existingAppUser) {
       // User already exists for this app, just update metadata
@@ -106,9 +103,7 @@ export class AppSignupTrackingService {
     // Check cookies
     if (cookies) {
       const storedCode =
-        cookies.get("affiliate_code") ||
-        cookies.get("ref_code") ||
-        cookies.get("app_code");
+        cookies.get("affiliate_code") || cookies.get("ref_code") || cookies.get("app_code");
 
       if (storedCode) return storedCode;
     }
@@ -141,7 +136,7 @@ export class AppSignupTrackingService {
       // Get all apps and try to match URL
       // Note: This is not the most efficient approach for large numbers of apps
       // In production, you might want to index apps by domain
-      const hostname = new URL(urlToMatch).hostname;
+      const _hostname = new URL(urlToMatch).hostname;
 
       // For demo purposes, we'll skip the full lookup
       // In production, implement proper URL matching

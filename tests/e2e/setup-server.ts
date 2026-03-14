@@ -18,10 +18,7 @@ let serverExitError: Error | null = null;
 
 async function isServerRunning(): Promise<boolean> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    HEALTHCHECK_TIMEOUT_MS,
-  );
+  const timeoutId = setTimeout(() => controller.abort(), HEALTHCHECK_TIMEOUT_MS);
 
   try {
     const response = await baseFetch(HEALTH_ENDPOINT, {
@@ -51,7 +48,10 @@ async function waitForServer(timeoutMs: number): Promise<void> {
   throw new Error(`Server failed to start within ${timeoutMs / 1000}s`);
 }
 
-function pipeServerLogs(stream: ReadableStream<Uint8Array> | null, label: "stdout" | "stderr"): void {
+function pipeServerLogs(
+  stream: ReadableStream<Uint8Array> | null,
+  label: "stdout" | "stderr",
+): void {
   if (!stream) return;
 
   const reader = stream.getReader();
@@ -133,10 +133,7 @@ async function stopServer(): Promise<void> {
 
     // Wait for the process to actually exit
     try {
-      await Promise.race([
-        proc.exited,
-        Bun.sleep(5_000),
-      ]);
+      await Promise.race([proc.exited, Bun.sleep(5_000)]);
     } catch {
       // ignore
     }
@@ -272,7 +269,11 @@ globalThis.fetch = fetchWithServer;
 process.on("exit", () => {
   // Sync-only: forcefully kill the server process if still running
   if (serverProcess) {
-    try { process.kill(-serverProcess.pid, "SIGKILL"); } catch { /* already dead */ }
+    try {
+      process.kill(-serverProcess.pid, "SIGKILL");
+    } catch {
+      /* already dead */
+    }
   }
 });
 process.on("SIGINT", () => {

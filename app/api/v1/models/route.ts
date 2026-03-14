@@ -1,11 +1,8 @@
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { logger } from "@/lib/utils/logger";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
-import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
 import type { NextRequest } from "next/server";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
+import { logger } from "@/lib/utils/logger";
 
 // This route uses cookies for auth, so it must be dynamic
 export const dynamic = "force-dynamic";
@@ -24,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Support both authenticated and anonymous users
     try {
       await requireAuthOrApiKey(request);
-    } catch (error) {
+    } catch (_error) {
       // Fallback to anonymous user
       const anonData = await getAnonymousUser();
       if (!anonData) {

@@ -5,8 +5,8 @@
  */
 
 import { EventEmitter } from "events";
-import { redisCreditEventEmitter } from "./credit-events-redis";
 import type { CreditUpdateEvent } from "./credit-events-redis";
+import { redisCreditEventEmitter } from "./credit-events-redis";
 
 export type { CreditUpdateEvent };
 
@@ -64,9 +64,7 @@ class CreditEventEmitter {
       process.env.NODE_ENV === "production" ||
       process.env.FORCE_REDIS_EVENTS === "true";
 
-    const redisConfigured = !!(
-      process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
-    );
+    const redisConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
     const useRedis = isServerless && redisConfigured;
 

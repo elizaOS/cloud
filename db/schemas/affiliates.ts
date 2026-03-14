@@ -1,6 +1,9 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  check,
   index,
   numeric,
   pgTable,
@@ -8,10 +11,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
-  check,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { users } from "./users";
 
 /**
@@ -26,10 +26,12 @@ export const affiliateCodes = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     code: text("code").notNull().unique(),
-    parent_referral_id: uuid("parent_referral_id")
-      .references((): AnyPgColumn => affiliateCodes.id, {
+    parent_referral_id: uuid("parent_referral_id").references(
+      (): AnyPgColumn => affiliateCodes.id,
+      {
         onDelete: "set null",
-      }),
+      },
+    ),
     markup_percent: numeric("markup_percent", { precision: 6, scale: 2 })
       .notNull()
       .default("20.00"), // Default 20% markup
@@ -43,9 +45,9 @@ export const affiliateCodes = pgTable(
     // Ensure markup is between 0 and 1000% to match API validation and migration 0029
     markup_percent_range: check(
       "markup_percent_range",
-      sql`${table.markup_percent} >= 0 AND ${table.markup_percent} <= 1000`
+      sql`${table.markup_percent} >= 0 AND ${table.markup_percent} <= 1000`,
     ),
-  })
+  }),
 );
 
 /**
@@ -67,7 +69,7 @@ export const userAffiliates = pgTable(
   (table) => ({
     user_unique: uniqueIndex("user_affiliates_user_idx").on(table.user_id),
     affiliate_idx: index("user_affiliates_affiliate_idx").on(table.affiliate_code_id),
-  })
+  }),
 );
 
 export type AffiliateCode = InferSelectModel<typeof affiliateCodes>;

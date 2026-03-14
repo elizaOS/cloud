@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { userMetricsService } from "@/lib/services/user-metrics";
 import { logger } from "@/lib/utils/logger";
 
@@ -24,8 +24,7 @@ async function handleGetMetrics(request: NextRequest): Promise<NextResponse> {
   try {
     auth = await requireAdmin(request);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
+    const message = error instanceof Error ? error.message : "Admin access required";
     return NextResponse.json({ error: message }, { status: 403 });
   }
 
@@ -48,19 +47,13 @@ async function handleGetMetrics(request: NextRequest): Promise<NextResponse> {
   try {
     switch (view) {
       case "overview":
-        return NextResponse.json(
-          await userMetricsService.getMetricsOverview(rangeDays),
-        );
+        return NextResponse.json(await userMetricsService.getMetricsOverview(rangeDays));
 
       case "daily":
-        return NextResponse.json(
-          await userMetricsService.getDailyMetrics(startDate, now),
-        );
+        return NextResponse.json(await userMetricsService.getDailyMetrics(startDate, now));
 
       case "retention":
-        return NextResponse.json(
-          await userMetricsService.getRetentionCohorts(startDate, now),
-        );
+        return NextResponse.json(await userMetricsService.getRetentionCohorts(startDate, now));
 
       case "active": {
         const activeRangeMap: Record<string, "day" | "7d" | "30d"> = {
@@ -69,26 +62,17 @@ async function handleGetMetrics(request: NextRequest): Promise<NextResponse> {
           "90d": "30d",
         };
         const range = activeRangeMap[timeRange] ?? "day";
-        return NextResponse.json(
-          await userMetricsService.getActiveUsers(range),
-        );
+        return NextResponse.json(await userMetricsService.getActiveUsers(range));
       }
 
       case "signups":
-        return NextResponse.json(
-          await userMetricsService.getNewSignups(startDate, now),
-        );
+        return NextResponse.json(await userMetricsService.getNewSignups(startDate, now));
 
       case "oauth":
-        return NextResponse.json(
-          await userMetricsService.getOAuthConnectionRate(),
-        );
+        return NextResponse.json(await userMetricsService.getOAuthConnectionRate());
 
       default:
-        return NextResponse.json(
-          { error: "Unknown view parameter" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Unknown view parameter" }, { status: 400 });
     }
   } catch (error) {
     logger.error("[Admin Metrics API] Query failed", {
@@ -96,10 +80,7 @@ async function handleGetMetrics(request: NextRequest): Promise<NextResponse> {
       timeRange,
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      { error: "Failed to fetch metrics" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch metrics" }, { status: 500 });
   }
 }
 

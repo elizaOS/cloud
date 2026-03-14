@@ -4,10 +4,10 @@
  */
 
 import { AgentRuntime, type Media } from "@elizaos/core";
-import { runtimeFactory } from "./runtime-factory";
-import { createMessageHandler, type MessageResult } from "./message-handler";
-import { userContextService, type UserContext } from "./user-context";
 import { AgentMode } from "./agent-mode-types";
+import { createMessageHandler, type MessageResult } from "./message-handler";
+import { runtimeFactory } from "./runtime-factory";
+import { type UserContext, userContextService } from "./user-context";
 
 /**
  * Get default system runtime.
@@ -22,9 +22,7 @@ export async function getRuntime(): Promise<AgentRuntime> {
  * Get runtime for a specific character.
  * @deprecated Use runtimeFactory.createRuntimeForUser() with proper UserContext
  */
-export async function getRuntimeForCharacter(
-  characterId?: string,
-): Promise<AgentRuntime> {
+export async function getRuntimeForCharacter(characterId?: string): Promise<AgentRuntime> {
   const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
   if (characterId) {
     systemContext.characterId = characterId;

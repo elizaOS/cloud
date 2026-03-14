@@ -3,12 +3,12 @@
  */
 
 import {
-  conversationsRepository,
   type Conversation,
-  type NewConversation,
   type ConversationMessage,
-  type NewConversationMessage,
   type ConversationWithMessages,
+  conversationsRepository,
+  type NewConversation,
+  type NewConversationMessage,
 } from "@/db/repositories";
 
 /**
@@ -19,9 +19,7 @@ export class ConversationsService {
     return await conversationsRepository.findById(id);
   }
 
-  async getWithMessages(
-    id: string,
-  ): Promise<ConversationWithMessages | undefined> {
+  async getWithMessages(id: string): Promise<ConversationWithMessages | undefined> {
     return await conversationsRepository.findWithMessages(id);
   }
 
@@ -29,24 +27,15 @@ export class ConversationsService {
     return await conversationsRepository.listByUser(userId, limit);
   }
 
-  async listByOrganization(
-    organizationId: string,
-    limit?: number,
-  ): Promise<Conversation[]> {
-    return await conversationsRepository.listByOrganization(
-      organizationId,
-      limit,
-    );
+  async listByOrganization(organizationId: string, limit?: number): Promise<Conversation[]> {
+    return await conversationsRepository.listByOrganization(organizationId, limit);
   }
 
   async create(data: NewConversation): Promise<Conversation> {
     return await conversationsRepository.create(data);
   }
 
-  async update(
-    id: string,
-    data: Partial<NewConversation>,
-  ): Promise<Conversation | undefined> {
+  async update(id: string, data: Partial<NewConversation>): Promise<Conversation | undefined> {
     return await conversationsRepository.update(id, data);
   }
 
@@ -91,10 +80,7 @@ export class ConversationsService {
     conversationId: string,
     data: Omit<NewConversationMessage, "sequence_number" | "conversation_id">,
   ): Promise<ConversationMessage> {
-    return await conversationsRepository.addMessageWithSequence(
-      conversationId,
-      data,
-    );
+    return await conversationsRepository.addMessageWithSequence(conversationId, data);
   }
 }
 

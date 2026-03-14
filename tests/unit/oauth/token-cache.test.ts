@@ -5,10 +5,10 @@
  * Note: These tests focus on the logic without requiring a real Redis instance.
  */
 
-import { describe, it, expect, mock, beforeEach } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 
 // Mock the cache module before importing token-cache
-const mockCache = {
+const _mockCache = {
   get: mock(() => null),
   set: mock(() => Promise.resolve()),
   del: mock(() => Promise.resolve()),
@@ -82,7 +82,7 @@ describe("Token Cache Logic", () => {
     it("should return positive TTL when token expires after 5 minute buffer", () => {
       const expiresIn1Hour = new Date(Date.now() + 60 * 60 * 1000);
       const ttl = calculateTTL(expiresIn1Hour);
-      
+
       // Should be approximately 55 minutes (60 - 5 buffer)
       expect(ttl).toBeGreaterThan(50 * 60);
       expect(ttl).toBeLessThanOrEqual(55 * 60);
@@ -91,14 +91,14 @@ describe("Token Cache Logic", () => {
     it("should cap TTL at 24 hours", () => {
       const expiresIn48Hours = new Date(Date.now() + 48 * 60 * 60 * 1000);
       const ttl = calculateTTL(expiresIn48Hours);
-      
+
       expect(ttl).toBe(MAX_TTL_SECONDS);
     });
 
     it("should handle edge case at exactly 5 minutes", () => {
       const expiresIn5Min = new Date(Date.now() + 5 * 60 * 1000);
       const ttl = calculateTTL(expiresIn5Min);
-      
+
       // At exactly 5 minutes, buffer time equals now, so TTL should be 0
       expect(ttl).toBe(0);
     });
@@ -106,7 +106,7 @@ describe("Token Cache Logic", () => {
     it("should handle token expiring just after 5 minute buffer", () => {
       const expiresIn6Min = new Date(Date.now() + 6 * 60 * 1000);
       const ttl = calculateTTL(expiresIn6Min);
-      
+
       // Should have about 1 minute of TTL
       expect(ttl).toBeGreaterThan(0);
       expect(ttl).toBeLessThan(2 * 60);
@@ -150,7 +150,7 @@ describe("Token Cache Logic", () => {
     it("should generate correct pattern for org invalidation", () => {
       const orgId = "org-123";
       const pattern = `oauth_token:${orgId}:*`;
-      
+
       expect(pattern).toBe("oauth_token:org-123:*");
     });
 
@@ -158,7 +158,7 @@ describe("Token Cache Logic", () => {
       const orgId = "org-123";
       const platform = "twitter";
       const pattern = `oauth_token:${orgId}:${platform}:*`;
-      
+
       expect(pattern).toBe("oauth_token:org-123:twitter:*");
     });
   });
@@ -253,7 +253,7 @@ describe("Token Cache Logic", () => {
   describe("OAuth 1.0a Token Handling", () => {
     it("should support tokens without expiry (OAuth 1.0a)", () => {
       // OAuth 1.0a tokens (Twitter) don't have expiry
-      const token = {
+      const _token = {
         accessToken: "oauth1-token",
         accessTokenSecret: "oauth1-secret",
         scopes: [],

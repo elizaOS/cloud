@@ -1,6 +1,6 @@
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/helpers";
-import { anonymousSessions, type AnonymousSession } from "@/db/schemas";
-import { eq, and, lt, gte, sql } from "drizzle-orm";
+import { type AnonymousSession, anonymousSessions } from "@/db/schemas";
 
 /**
  * Repository for anonymous session database operations.
@@ -113,13 +113,8 @@ export class AnonymousSessionsRepository {
    *
    * @throws Error if session not found.
    */
-  async incrementHourlyCount(
-    sessionId: string,
-  ): Promise<{ allowed: boolean; remaining: number }> {
-    const hourlyLimit = Number.parseInt(
-      process.env.ANON_HOURLY_LIMIT || "10",
-      10,
-    );
+  async incrementHourlyCount(sessionId: string): Promise<{ allowed: boolean; remaining: number }> {
+    const hourlyLimit = Number.parseInt(process.env.ANON_HOURLY_LIMIT || "10", 10);
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 

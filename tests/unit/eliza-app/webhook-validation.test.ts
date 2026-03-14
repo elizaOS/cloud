@@ -9,8 +9,8 @@
  * - Idempotency handling
  */
 
-import { describe, test, expect } from "bun:test";
-import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { describe, expect, test } from "bun:test";
+import { createHmac, timingSafeEqual } from "crypto";
 import { z } from "zod";
 
 // Telegram webhook schemas
@@ -49,10 +49,14 @@ const blooioWebhookSchema = z.object({
   recipient: z.string().optional(),
   text: z.string().optional(),
   is_group: z.boolean().optional(),
-  attachments: z.array(z.object({
-    type: z.string(),
-    url: z.string().optional(),
-  })).optional(),
+  attachments: z
+    .array(
+      z.object({
+        type: z.string(),
+        url: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 describe("Telegram Webhook Secret Verification", () => {
@@ -81,11 +85,11 @@ describe("Telegram Webhook Secret Verification", () => {
 
   test("timing-safe comparison prevents timing attacks", () => {
     const secret = "correct-secret-token";
-    const expectedBuffer = Buffer.from(secret);
+    const _expectedBuffer = Buffer.from(secret);
 
     // These should take similar time to compare
     const almostCorrect = "correct-secret-toke!";
-    const completelyWrong = "xxxxxxxxxxxxxxxxxxxxxx";
+    const _completelyWrong = "xxxxxxxxxxxxxxxxxxxxxx";
 
     // Both have same length as secret
     expect(almostCorrect.length).toBe(secret.length);
@@ -396,14 +400,14 @@ describe("Phone Number in Webhook", () => {
 
   test("international phone numbers", () => {
     const phones = [
-      "+442071234567",  // UK
-      "+33123456789",   // France
-      "+81312345678",   // Japan
-      "+14155551234",   // US
+      "+442071234567", // UK
+      "+33123456789", // France
+      "+81312345678", // Japan
+      "+14155551234", // US
     ];
     const e164Regex = /^\+[1-9]\d{1,14}$/;
 
-    phones.forEach(phone => {
+    phones.forEach((phone) => {
       expect(phone).toMatch(e164Regex);
     });
   });

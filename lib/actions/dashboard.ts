@@ -4,19 +4,20 @@
 
 "use server";
 
+import { cache } from "react";
+import { organizationsRepository } from "@/db/repositories/organizations";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { generationsService } from "@/lib/services/generations";
-import { charactersService } from "@/lib/services/characters/characters";
-import { listContainers } from "@/lib/services/containers";
-import { apiKeysService } from "@/lib/services/api-keys";
-import { characterDeploymentDiscoveryService } from "@/lib/services/deployments";
-import { roomsService } from "@/lib/services/agents/rooms";
-import { usageService } from "@/lib/services/usage";
-import { appsService } from "@/lib/services/apps";
+import type { AgentStats } from "@/lib/cache/agent-state-cache";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
-import { cache } from "react";
-import type { AgentStats } from "@/lib/cache/agent-state-cache";
+import { roomsService } from "@/lib/services/agents/rooms";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { appsService } from "@/lib/services/apps";
+import { charactersService } from "@/lib/services/characters/characters";
+import { listContainers } from "@/lib/services/containers";
+import { characterDeploymentDiscoveryService } from "@/lib/services/deployments";
+import { generationsService } from "@/lib/services/generations";
+import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -82,6 +83,19 @@ export interface DashboardData {
     created_at: Date;
     updated_at: Date;
   }>;
+  creditBalance: number;
+}
+
+/**
+ * Fetches the credit balance for an organization.
+ */
+async function getCreditBalance(organizationId: string): Promise<number> {
+  try {
+    const org = await organizationsRepository.findById(organizationId);
+    return org ? Number(org.credit_balance) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /**
@@ -96,29 +110,22 @@ async function fetchDashboardDataInternal(
   const organizationId = user.organization_id!;
 
   // Fetch only the data needed for the new dashboard
-  const [
-    generationStats,
-    userCharacters,
-    containers,
-    apiKeys,
-    userRooms,
-    apps,
-  ] = await Promise.all([
-    generationsService.getStats(organizationId),
-    charactersService.listByUser(user.id),
-    listContainers(organizationId),
-    apiKeysService.listByOrganization(organizationId),
-    roomsService.getRoomsForEntity(user.id),
-    appsService.listByOrganization(organizationId),
-  ]);
+  const [generationStats, userCharacters, containers, apiKeys, userRooms, apps] = await Promise.all(
+    [
+      generationsService.getStats(organizationId),
+      charactersService.listByUser(user.id),
+      listContainers(organizationId),
+      apiKeysService.listByOrganization(organizationId),
+      roomsService.getRoomsForEntity(user.id),
+      appsService.listByOrganization(organizationId),
+    ],
+  );
 
   const chatRoomCount = userRooms.length;
 
   const totalGenerations = generationStats.totalGenerations;
-  const imageGenerations =
-    generationStats.byType.find((t) => t.type === "image")?.count || 0;
-  const videoGenerations =
-    generationStats.byType.find((t) => t.type === "video")?.count || 0;
+  const imageGenerations = generationStats.byType.find((t) => t.type === "image")?.count || 0;
+  const videoGenerations = generationStats.byType.find((t) => t.type === "video")?.count || 0;
 
   // Get actual 24h API call count from usage records
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -136,9 +143,7 @@ async function fetchDashboardDataInternal(
   if (characterIds.length > 0) {
     try {
       const statsMap =
-        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
-          characterIds,
-        );
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(characterIds);
       statsMap.forEach((stats, id) => {
         // Note: Both `status` (from AgentStats) and `deploymentStatus` (added by DashboardAgentStats)
         // are required - they have the same value but satisfy different type requirements
@@ -210,6 +215,7 @@ async function fetchDashboardDataInternal(
       created_at: a.created_at,
       updated_at: a.updated_at,
     })),
+    creditBalance: await getCreditBalance(organizationId),
   };
 }
 
@@ -226,10 +232,8 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const cacheKey = CacheKeys.org.dashboard(organizationId);
 
   // Use stale-while-revalidate pattern
-  const data = await cacheClient.getWithSWR(
-    cacheKey,
-    CacheStaleTTL.org.dashboard,
-    () => fetchDashboardDataInternal(user),
+  const data = await cacheClient.getWithSWR(cacheKey, CacheStaleTTL.org.dashboard, () =>
+    fetchDashboardDataInternal(user),
   );
 
   // Fallback to direct fetch if cache returns null

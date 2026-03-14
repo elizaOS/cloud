@@ -50,24 +50,26 @@ export interface TwilioWebhookEvent {
  * Zod schema for validating Twilio webhook payloads
  * Twilio sends form data which is converted to an object
  */
-export const TwilioWebhookEventSchema = z.object({
-  MessageSid: z.string().min(1, "MessageSid is required"),
-  AccountSid: z.string().min(1, "AccountSid is required"),
-  From: z.string().min(1, "From is required"),
-  To: z.string().min(1, "To is required"),
-  Body: z.string().optional(),
-  NumMedia: z.string().optional(),
-  MediaUrl0: z.string().optional(),
-  MediaUrl1: z.string().optional(),
-  MediaUrl2: z.string().optional(),
-  MediaContentType0: z.string().optional(),
-  MediaContentType1: z.string().optional(),
-  MediaContentType2: z.string().optional(),
-  FromCity: z.string().optional(),
-  FromState: z.string().optional(),
-  FromCountry: z.string().optional(),
-  FromZip: z.string().optional(),
-}).passthrough(); // Allow additional fields Twilio might send
+export const TwilioWebhookEventSchema = z
+  .object({
+    MessageSid: z.string().min(1, "MessageSid is required"),
+    AccountSid: z.string().min(1, "AccountSid is required"),
+    From: z.string().min(1, "From is required"),
+    To: z.string().min(1, "To is required"),
+    Body: z.string().optional(),
+    NumMedia: z.string().optional(),
+    MediaUrl0: z.string().optional(),
+    MediaUrl1: z.string().optional(),
+    MediaUrl2: z.string().optional(),
+    MediaContentType0: z.string().optional(),
+    MediaContentType1: z.string().optional(),
+    MediaContentType2: z.string().optional(),
+    FromCity: z.string().optional(),
+    FromState: z.string().optional(),
+    FromCountry: z.string().optional(),
+    FromZip: z.string().optional(),
+  })
+  .passthrough(); // Allow additional fields Twilio might send
 
 /**
  * Parse and validate a Twilio webhook payload
@@ -150,16 +152,10 @@ export async function verifyTwilioSignature(
       false,
       ["sign"],
     );
-    const signatureBuffer = await crypto.subtle.sign(
-      "HMAC",
-      key,
-      encoder.encode(data),
-    );
+    const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
 
     // Convert to base64
-    const computedSignature = btoa(
-      String.fromCharCode(...new Uint8Array(signatureBuffer)),
-    );
+    const computedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
 
     // Use constant-time comparison to prevent timing attacks
     // Pad both strings to the same length to avoid timing leaks from length differences
@@ -210,8 +206,7 @@ export function isValidMediaUrl(url: string): boolean {
     }
     // Must be from allowed domain
     return ALLOWED_MEDIA_DOMAINS.some(
-      (domain) =>
-        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
     );
   } catch {
     return false;

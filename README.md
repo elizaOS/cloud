@@ -138,7 +138,7 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 ### Directory Structure
 
 ```
-eliza-cloud-v2/
+cloud/
 ├── app/                      # Next.js App Router
 │   ├── api/                  # API routes
 │   │   ├── v1/              # Versioned API
@@ -396,7 +396,7 @@ The platform uses a single database with integrated schemas:
 ### 1. Clone and Install
 
 ```bash
-cd eliza-cloud-v2
+cd cloud
 bun install
 ```
 

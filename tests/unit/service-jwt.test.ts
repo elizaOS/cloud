@@ -2,9 +2,9 @@
  * Unit tests for service JWT verification.
  */
 
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import * as jose from "jose";
-import { verifyServiceJwt, isServiceJwtEnabled } from "@/lib/auth/service-jwt";
+import { isServiceJwtEnabled, verifyServiceJwt } from "@/lib/auth/service-jwt";
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
@@ -85,10 +85,7 @@ describe("Service JWT Auth", () => {
       });
 
       process.env.MILADY_SERVICE_JWT_SECRET = "rotated-secret";
-      const secondToken = await signToken(
-        { userId: "waifu:second" },
-        "rotated-secret",
-      );
+      const secondToken = await signToken({ userId: "waifu:second" }, "rotated-secret");
 
       expect(await verifyServiceJwt(`Bearer ${secondToken}`)).toEqual({
         userId: "waifu:second",

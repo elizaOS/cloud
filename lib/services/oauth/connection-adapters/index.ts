@@ -7,8 +7,8 @@
  * - Generic providers (Linear, Notion, etc.) use platform_credentials via generic adapter
  */
 
-import type { OAuthConnection, TokenResult } from "../types";
 import { getProvider } from "../provider-registry";
+import type { OAuthConnection, TokenResult } from "../types";
 
 export interface ConnectionAdapter {
   platform: string;
@@ -18,17 +18,17 @@ export interface ConnectionAdapter {
   ownsConnection(connectionId: string): Promise<boolean>;
 }
 
-import { twitterAdapter } from "./twitter-adapter";
-import { twilioAdapter } from "./twilio-adapter";
 import { blooioAdapter } from "./blooio-adapter";
 import {
   createGenericAdapter,
-  linearAdapter,
-  notionAdapter,
   githubAdapter,
-  slackAdapter,
+  linearAdapter,
   microsoftAdapter,
+  notionAdapter,
+  slackAdapter,
 } from "./generic-adapter";
+import { twilioAdapter } from "./twilio-adapter";
+import { twitterAdapter } from "./twitter-adapter";
 
 // Google now uses the generic adapter (migrated from legacy google-adapter)
 const googleAdapter = createGenericAdapter("google");

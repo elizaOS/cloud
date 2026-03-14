@@ -41,7 +41,7 @@ export function AnimatedCounter({
       const progress = Math.min(elapsed / duration, 1);
 
       // Easing function (ease-out cubic)
-      const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+      const easeOutCubic = 1 - (1 - progress) ** 3;
 
       const currentValue = startValue + (endValue - startValue) * easeOutCubic;
       setDisplayValue(currentValue);
@@ -66,12 +66,7 @@ export function AnimatedCounter({
   const formattedValue = displayValue.toFixed(decimals);
 
   return (
-    <span
-      className={cn(
-        "tabular-nums font-mono transition-opacity duration-300",
-        className
-      )}
-    >
+    <span className={cn("tabular-nums font-mono transition-opacity duration-300", className)}>
       {prefix}
       {formattedValue}
       {suffix}
@@ -98,14 +93,7 @@ export function AnimatedCounterWithLabel({
 }: AnimatedCounterWithLabelProps) {
   return (
     <div className="flex flex-col">
-      <span
-        className={cn(
-          "text-xs text-neutral-500 mb-1",
-          labelClassName
-        )}
-      >
-        {label}
-      </span>
+      <span className={cn("text-xs text-neutral-500 mb-1", labelClassName)}>{label}</span>
       <AnimatedCounter
         {...counterProps}
         className={cn("text-xl font-semibold text-white", valueClassName)}
@@ -114,7 +102,7 @@ export function AnimatedCounterWithLabel({
         <span
           className={cn(
             "text-xs mt-1 flex items-center gap-1",
-            trend.value >= 0 ? "text-emerald-400" : "text-red-400"
+            trend.value >= 0 ? "text-emerald-400" : "text-red-400",
           )}
         >
           <span>{trend.value >= 0 ? "↑" : "↓"}</span>

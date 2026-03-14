@@ -10,11 +10,12 @@
  */
 
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { eq } from "drizzle-orm";
 import * as schema from "../db/schemas";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -30,9 +31,7 @@ console.log("====================\n");
 // Create a direct pg connection (bypassing Neon serverless)
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: DATABASE_URL.includes("neon.tech")
-    ? { rejectUnauthorized: false }
-    : undefined,
+  ssl: DATABASE_URL.includes("neon.tech") ? { rejectUnauthorized: false } : undefined,
 });
 
 const db = drizzle(pool, { schema });
@@ -40,9 +39,7 @@ const db = drizzle(pool, { schema });
 async function testConnection(): Promise<boolean> {
   console.log("📡 Testing database connection...");
   try {
-    const result = await pool.query(
-      "SELECT NOW() as now, current_database() as db",
-    );
+    const result = await pool.query("SELECT NOW() as now, current_database() as db");
     console.log(`✅ Connected to database: ${result.rows[0].db}`);
     console.log(`   Server time: ${result.rows[0].now}\n`);
     return true;
@@ -229,7 +226,7 @@ async function main() {
       break;
 
     case "create":
-    case "fix":
+    case "fix": {
       const existing = await checkUser(privyUserId);
       if (existing) {
         console.log("⚠️  User already exists, skipping creation");
@@ -239,6 +236,7 @@ async function main() {
       // Verify it worked
       await checkUserWithOrg(privyUserId);
       break;
+    }
 
     case "raw":
       await rawQuery(privyUserId);
@@ -249,15 +247,9 @@ async function main() {
       console.log(
         "  bun run scripts/debug-auth.ts test              # Test connection & list users",
       );
-      console.log(
-        "  bun run scripts/debug-auth.ts check <privy_id>  # Check if user exists",
-      );
-      console.log(
-        "  bun run scripts/debug-auth.ts fix <privy_id>    # Create user if missing",
-      );
-      console.log(
-        "  bun run scripts/debug-auth.ts raw <privy_id>    # Run raw SQL query",
-      );
+      console.log("  bun run scripts/debug-auth.ts check <privy_id>  # Check if user exists");
+      console.log("  bun run scripts/debug-auth.ts fix <privy_id>    # Create user if missing");
+      console.log("  bun run scripts/debug-auth.ts raw <privy_id>    # Run raw SQL query");
   }
 
   await pool.end();

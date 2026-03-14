@@ -2,11 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { NextRequest } from "next/server";
 
-import {
-  flushMicrotasks,
-  jsonRequest,
-  routeParams,
-} from "./route-test-helpers";
+import { flushMicrotasks, jsonRequest, routeParams } from "./route-test-helpers";
 
 const mockRequireAuth = mock();
 const mockRequireAuthWithOrg = mock();
@@ -87,18 +83,12 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { GET as getUser, PATCH as patchUser } from "@/app/api/v1/user/route";
-import {
-  GET as getApiKeys,
-  POST as postApiKeys,
-} from "@/app/api/v1/api-keys/route";
-import {
-  DELETE as deleteApiKey,
-  PATCH as patchApiKey,
-} from "@/app/api/v1/api-keys/[id]/route";
 import { POST as regenerateApiKey } from "@/app/api/v1/api-keys/[id]/regenerate/route";
+import { DELETE as deleteApiKey, PATCH as patchApiKey } from "@/app/api/v1/api-keys/[id]/route";
+import { GET as getApiKeys, POST as postApiKeys } from "@/app/api/v1/api-keys/route";
 import { GET as getGallery } from "@/app/api/v1/gallery/route";
 import { GET as getModels } from "@/app/api/v1/models/route";
+import { GET as getUser, PATCH as patchUser } from "@/app/api/v1/user/route";
 
 const baseUser = {
   id: "user-1",
@@ -212,9 +202,7 @@ beforeEach(() => {
 
 describe("User API", () => {
   test("GET returns the authenticated user profile", async () => {
-    const response = await getUser(
-      new NextRequest("http://localhost:3000/api/v1/user"),
-    );
+    const response = await getUser(new NextRequest("http://localhost:3000/api/v1/user"));
     expect(response.status).toBe(200);
 
     const body = await response.json();
@@ -224,13 +212,9 @@ describe("User API", () => {
   });
 
   test("GET maps auth failures to 401", async () => {
-    mockRequireAuth.mockRejectedValue(
-      new Error("Unauthorized: Authentication required"),
-    );
+    mockRequireAuth.mockRejectedValue(new Error("Unauthorized: Authentication required"));
 
-    const response = await getUser(
-      new NextRequest("http://localhost:3000/api/v1/user"),
-    );
+    const response = await getUser(new NextRequest("http://localhost:3000/api/v1/user"));
     expect(response.status).toBe(401);
 
     const body = await response.json();
@@ -388,10 +372,7 @@ describe("API Keys API", () => {
     });
 
     const response = await regenerateApiKey(
-      jsonRequest(
-        "http://localhost:3000/api/v1/api-keys/key-1/regenerate",
-        "POST",
-      ),
+      jsonRequest("http://localhost:3000/api/v1/api-keys/key-1/regenerate", "POST"),
       routeParams({ id: "key-1" }),
     );
 
@@ -500,9 +481,7 @@ describe("Gallery API", () => {
 
 describe("Models API", () => {
   test("GET returns provider models with cache headers", async () => {
-    const response = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
-    );
+    const response = await getModels(new NextRequest("http://localhost:3000/api/v1/models"));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toContain("s-maxage=3600");
@@ -512,14 +491,10 @@ describe("Models API", () => {
   });
 
   test("GET creates an anonymous session when auth is missing", async () => {
-    mockRequireAuthOrApiKey.mockRejectedValue(
-      new Error("Unauthorized: Authentication required"),
-    );
+    mockRequireAuthOrApiKey.mockRejectedValue(new Error("Unauthorized: Authentication required"));
     mockGetAnonymousUser.mockResolvedValue(null);
 
-    const response = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
-    );
+    const response = await getModels(new NextRequest("http://localhost:3000/api/v1/models"));
 
     expect(response.status).toBe(200);
     expect(mockGetOrCreateAnonymousUser).toHaveBeenCalled();

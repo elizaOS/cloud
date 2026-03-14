@@ -8,7 +8,7 @@
  * - Authenticated flows require TEST_API_KEY env var
  */
 
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect } from "@playwright/test";
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
@@ -34,10 +34,9 @@ export function hasApiKey(): boolean {
 export async function createAnonymousSession(
   request: ReturnType<typeof base.extend>["request"] extends infer R ? R : never,
 ): Promise<{ sessionToken: string; userId: string }> {
-  const response = await (request as any).post(
-    `${BASE_URL}/api/auth/create-anonymous-session`,
-    { headers: { "Content-Type": "application/json" } },
-  );
+  const response = await (request as any).post(`${BASE_URL}/api/auth/create-anonymous-session`, {
+    headers: { "Content-Type": "application/json" },
+  });
   expect(response.status()).toBe(200);
   const body = await response.json();
   return {

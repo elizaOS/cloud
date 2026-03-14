@@ -7,31 +7,30 @@
  * Run with: bun test tests/runtime/integration/runtime-factory/caching.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 import {
-  // Local database
-  hasDatabaseUrl,
-  getConnectionString,
-  verifyConnection,
-  // Test data
-  createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
-  // Production RuntimeFactory
-  runtimeFactory,
-  invalidateRuntime,
-  isRuntimeCached,
-  getRuntimeCacheStats,
   AgentMode,
   // Test helpers
   buildUserContext,
-  type TestRuntime,
+  cleanupTestData,
+  // Test data
+  createTestDataSet,
+  endTimer,
+  getConnectionString,
+  getRuntimeCacheStats,
+  // Local database
+  hasDatabaseUrl,
+  invalidateRuntime,
+  isRuntimeCached,
+  logTimings,
+  // Production RuntimeFactory
+  runtimeFactory,
   // Timing
   startTimer,
-  endTimer,
-  logTimings,
+  type TestDataSet,
+  verifyConnection,
 } from "../../../infrastructure";
-import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================
 // Local Test State (isolated to this file)
@@ -77,8 +76,8 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
   afterAll(async () => {
     console.log("\nCleaning up caching test...");
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("Caching Tests", timings);
@@ -124,9 +123,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
     const stats = getRuntimeCacheStats();
     expect(stats).toBeDefined();
     expect(stats.runtime).toBeDefined();
-    console.log(
-      `\nCache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`,
-    );
+    console.log(`\nCache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`);
   });
 });
 
@@ -174,10 +171,9 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Performance Benchmarks", () =
   afterAll(async () => {
     console.log("\nCleaning up performance benchmark test...");
     if (localTestData && localConnectionString) {
-      await cleanupTestData(
-        localConnectionString,
-        localTestData.organization.id,
-      ).catch((err) => console.warn(`Data cleanup warning: ${err}`));
+      await cleanupTestData(localConnectionString, localTestData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
+      );
     }
     logTimings("Performance Benchmark Tests", localTimings);
   });

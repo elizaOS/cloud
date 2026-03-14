@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { invoicesService } from "@/lib/services/invoices";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/invoices/[id]
@@ -14,28 +14,19 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
  * @param context - Route context containing the invoice ID parameter.
  * @returns Formatted invoice details or error if not found/unauthorized.
  */
-async function handleGetInvoice(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+async function handleGetInvoice(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { params } = context;
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "No organization found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "No organization found" }, { status: 404 });
     }
 
     const { id } = await params;
 
     if (!id) {
-      return NextResponse.json(
-        { error: "Invoice ID is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invoice ID is required" }, { status: 400 });
     }
 
     const invoice = await invoicesService.getById(id);
@@ -45,10 +36,7 @@ async function handleGetInvoice(
     }
 
     if (invoice.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { error: "Unauthorized access to invoice" },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Unauthorized access to invoice" }, { status: 403 });
     }
 
     const formattedInvoice = {
@@ -64,9 +52,7 @@ async function handleGetInvoice(
       invoiceNumber: invoice.invoice_number,
       invoicePdf: invoice.invoice_pdf,
       hostedInvoiceUrl: invoice.hosted_invoice_url,
-      creditsAdded: invoice.credits_added
-        ? Number(invoice.credits_added)
-        : undefined,
+      creditsAdded: invoice.credits_added ? Number(invoice.credits_added) : undefined,
       metadata: invoice.metadata,
       createdAt: invoice.created_at.toISOString(),
       updatedAt: invoice.updated_at.toISOString(),
@@ -82,18 +68,9 @@ async function handleGetInvoice(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch invoice" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch invoice" }, { status: 500 });
   }
 }
 
-export const GET = (
-  req: NextRequest,
-  context?: { params: Promise<{ id: string }> },
-) =>
-  withRateLimit(
-    (r: NextRequest) => handleGetInvoice(r, context!),
-    RateLimitPresets.STANDARD,
-  )(req);
+export const GET = (req: NextRequest, context?: { params: Promise<{ id: string }> }) =>
+  withRateLimit((r: NextRequest) => handleGetInvoice(r, context!), RateLimitPresets.STANDARD)(req);

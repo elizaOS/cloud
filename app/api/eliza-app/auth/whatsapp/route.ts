@@ -11,16 +11,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import {
-  elizaAppUserService,
   elizaAppSessionService,
+  elizaAppUserService,
   type ValidatedSession,
 } from "@/lib/services/eliza-app";
+import { logger } from "@/lib/utils/logger";
 
 const whatsappAuthSchema = z.object({
-  whatsapp_id: z.string()
+  whatsapp_id: z
+    .string()
     .min(7, "WhatsApp ID must be at least 7 digits")
     .max(15, "WhatsApp ID must be at most 15 digits")
     .regex(/^\d+$/, "WhatsApp ID must contain only digits"),
@@ -91,10 +92,9 @@ async function handleWhatsAppAuth(
     existingUserId: existingSession.userId,
   });
 
-  const linkResult = await elizaAppUserService.linkWhatsAppToUser(
-    existingSession.userId,
-    { whatsappId },
-  );
+  const linkResult = await elizaAppUserService.linkWhatsAppToUser(existingSession.userId, {
+    whatsappId,
+  });
 
   if (!linkResult.success) {
     return NextResponse.json(

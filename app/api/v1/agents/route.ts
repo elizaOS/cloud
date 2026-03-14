@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
+import { z } from "zod";
+import { userCharactersRepository } from "@/db/repositories/characters";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
+import { charactersService } from "@/lib/services/characters/characters";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
-import { userCharactersRepository } from "@/db/repositories/characters";
-import { charactersService } from "@/lib/services/characters/characters";
-import { normalizeTokenAddress } from "@/lib/utils/token-address";
 import { isUniqueConstraintError } from "@/lib/utils/db-errors";
-import { z } from "zod";
+import { logger } from "@/lib/utils/logger";
+import { normalizeTokenAddress } from "@/lib/utils/token-address";
 
 export const dynamic = "force-dynamic";
 // Reduced from 120s for async default; sync fallback still needs headroom.
@@ -64,10 +64,7 @@ export async function POST(request: NextRequest) {
     logger.error("[service-api] Service key config error", {
       error: e instanceof Error ? e.message : String(e),
     });
-    return NextResponse.json(
-      { error: "Service authentication misconfigured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
   }
 
   const body = await request.json().catch(() => null);
@@ -88,10 +85,7 @@ export async function POST(request: NextRequest) {
   const agentName = p.character?.name || p.tokenName;
 
   // Normalise the token address so EVM checksum variants are treated as equal.
-  const normalizedTokenAddress = normalizeTokenAddress(
-    p.tokenContractAddress,
-    p.chain,
-  );
+  const normalizedTokenAddress = normalizeTokenAddress(p.tokenContractAddress, p.chain);
 
   logger.info("[service-api] Provisioning agent", {
     token: normalizedTokenAddress,
@@ -198,10 +192,7 @@ export async function POST(request: NextRequest) {
 
   // ── Sync fallback (legacy) ────────────────────────────────────────
   if (sync) {
-    const result = await miladySandboxService.provision(
-      agent.id,
-      identity.organizationId,
-    );
+    const result = await miladySandboxService.provision(agent.id, identity.organizationId);
 
     if (!result.success) {
       logger.error("[service-api] Provision failed", {

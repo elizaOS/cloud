@@ -1,7 +1,6 @@
-
 /**
  * Tests for Admin Service Pricing API
- * 
+ *
  * Covers:
  * - Authentication (admin vs non-admin)
  * - PUT upsert behavior
@@ -9,7 +8,7 @@
  * - GET listing and audit history
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies
 vi.mock("@/lib/api/admin-auth", () => ({
@@ -36,10 +35,10 @@ vi.mock("@/lib/utils/logger", () => ({
   },
 }));
 
-import { requireAdmin } from "@/lib/auth";
 import { servicePricingRepository } from "@/db/repositories";
-import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
+import { requireAdmin } from "@/lib/auth";
+import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 
 const mockedRequireAdmin = vi.mocked(requireAdmin);
 const mockedRepo = vi.mocked(servicePricingRepository);

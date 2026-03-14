@@ -3,10 +3,7 @@
  */
 
 import { beforeAll, describe, expect, test } from "bun:test";
-import type {
-  CreditReservation,
-  ReserveCreditsParams,
-} from "@/lib/services/credits";
+import type { CreditReservation, ReserveCreditsParams } from "@/lib/services/credits";
 
 type CreditsSnapshot = {
   constants: {

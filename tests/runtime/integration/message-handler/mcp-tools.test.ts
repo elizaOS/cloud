@@ -11,37 +11,37 @@
  *   DEBUG_TRACING=true  - Enable debug tracing (set in .env)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 import {
-  // Local database
-  hasDatabaseUrl,
-  hasRuntimeModelCredentials,
-  getConnectionString,
-  verifyConnection,
+  cleanupTestData,
   // Test data
   createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
   // Test runtime
   createTestRuntime,
   createTestUser,
-  sendTestMessage,
+  endTimer,
+  getConnectionString,
   getMcpService,
-  waitForMcpReady,
-  type TestRuntimeResult,
-  type TestUserContext,
+  // Local database
+  hasDatabaseUrl,
+  hasRuntimeModelCredentials,
+  logTimings,
+  sendTestMessage,
   // Timing
   startTimer,
-  endTimer,
-  logTimings,
+  type TestDataSet,
+  type TestRuntimeResult,
+  type TestUserContext,
+  verifyConnection,
+  waitForMcpReady,
 } from "../../../infrastructure";
 import {
-  isDebugTracingEnabled,
-  getLatestDebugTrace,
-  renderDebugTrace,
   clearDebugTraces,
+  getLatestDebugTrace,
+  isDebugTracingEnabled,
+  renderDebugTrace,
 } from "../../../infrastructure/test-runtime";
-import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================
 // MCP Plugin Loading Tests
@@ -95,8 +95,8 @@ describe.skipIf(skipLiveModelSuite)("MCP Plugin Loading - Production Flow", () =
       await testRuntimeResult.cleanup();
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("MCP Plugin Loading Tests", timings);
@@ -159,10 +159,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Plugin Loading - Production Flow", () =
   it("should create test user with elizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(
-      testRuntimeResult.runtime,
-      "MCPLoadingTestUser",
-    );
+    testUserContext = await createTestUser(testRuntimeResult.runtime, "MCPLoadingTestUser");
 
     timings.userCreation = endTimer("user_creation");
 
@@ -263,8 +260,8 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
       await testRuntimeResult.cleanup();
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("MCP Trending Tokens Tests", timings);
@@ -335,10 +332,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
   it("should create test user with elizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(
-      testRuntimeResult.runtime,
-      "TrendingTestUser",
-    );
+    testUserContext = await createTestUser(testRuntimeResult.runtime, "TrendingTestUser");
 
     timings.userCreation = endTimer("user_creation");
 
@@ -354,9 +348,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
 
   it("should process 'can you get trending tokens' with debug tracing", async () => {
     const debugEnabled = isDebugTracingEnabled();
-    console.log(
-      `\nProcessing message with debug tracing ${debugEnabled ? "ENABLED" : "DISABLED"}`,
-    );
+    console.log(`\nProcessing message with debug tracing ${debugEnabled ? "ENABLED" : "DISABLED"}`);
 
     // Clear any existing traces
     clearDebugTraces();
@@ -410,9 +402,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
         console.log(`   Status: ${trace.status}`);
         console.log(`   Agent Mode: ${trace.agentMode}`);
         console.log(`   Steps: ${trace.steps?.length || 0}`);
-        console.log(
-          `   Duration: ${trace.endedAt ? trace.endedAt - trace.startedAt : "N/A"}ms`,
-        );
+        console.log(`   Duration: ${trace.endedAt ? trace.endedAt - trace.startedAt : "N/A"}ms`);
 
         if (trace.failure) {
           console.log(`\nFailure detected:`);
@@ -421,9 +411,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
           console.log(`   Step: ${trace.failure.step}`);
         }
       } else {
-        console.log(
-          "\nNo debug trace captured (trace may not have been generated)",
-        );
+        console.log("\nNo debug trace captured (trace may not have been generated)");
       }
     }
 
@@ -472,9 +460,7 @@ describe.skipIf(!hasDatabaseUrl)("Debug Tracing Status", () => {
     console.log("DEBUG TRACING STATUS");
     console.log("=".repeat(60));
     console.log(`Enabled: ${debugEnabled ? "YES" : "NO"}`);
-    console.log(
-      `Environment: DEBUG_TRACING=${process.env.DEBUG_TRACING || "not set"}`,
-    );
+    console.log(`Environment: DEBUG_TRACING=${process.env.DEBUG_TRACING || "not set"}`);
     console.log("=".repeat(60));
 
     if (!debugEnabled) {

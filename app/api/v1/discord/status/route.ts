@@ -28,9 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   }
 
-  const status = await discordAutomationService.getConnectionStatus(
-    user.organization_id,
-  );
+  const status = await discordAutomationService.getConnectionStatus(user.organization_id);
 
   return NextResponse.json({
     // configured = can users add bot to new servers (OAuth flow)

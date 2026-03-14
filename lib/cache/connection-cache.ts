@@ -1,5 +1,5 @@
-import { cache } from "./client";
 import { logger } from "@/lib/utils/logger";
+import { cache } from "./client";
 
 /**
  * Connection Cache Service
@@ -22,9 +22,7 @@ export class ConnectionCache {
     // Cleanup memory cache every 10 minutes to prevent unbounded growth
     setInterval(() => {
       if (this.memoryCache.size > 10000) {
-        logger.warn(
-          "[Connection Cache] Memory cache exceeded 10k entries, clearing...",
-        );
+        logger.warn("[Connection Cache] Memory cache exceeded 10k entries, clearing...");
         this.memoryCache.clear();
       }
     }, 600000);

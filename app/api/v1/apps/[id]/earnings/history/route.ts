@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
-import { appEarningsService } from "@/lib/services/app-earnings";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { appEarningsService } from "@/lib/services/app-earnings";
+import { appsService } from "@/lib/services/apps";
+import { logger } from "@/lib/utils/logger";
 
 const QuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
-  type: z
-    .enum(["inference_markup", "purchase_share", "withdrawal", "adjustment"])
-    .optional(),
+  type: z.enum(["inference_markup", "purchase_share", "withdrawal", "adjustment"]).optional(),
 });
 
 /**
@@ -28,10 +26,7 @@ const QuerySchema = z.object({
  * @param params - Route parameters containing the app ID.
  * @returns Transaction history with pagination information.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -105,10 +100,7 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to get earnings history",
+        error: error instanceof Error ? error.message : "Failed to get earnings history",
       },
       { status: 500 },
     );

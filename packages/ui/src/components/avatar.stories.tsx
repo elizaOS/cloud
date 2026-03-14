@@ -1,10 +1,10 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { Avatar, AvatarFallback, AvatarImage } from './avatar';
+import type { Meta, StoryObj } from "@storybook/react";
+import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
 
 const meta: Meta<typeof Avatar> = {
-  title: 'Components/Avatar',
+  title: "Components/Avatar",
   component: Avatar,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
 };
 
 export default meta;

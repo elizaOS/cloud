@@ -185,12 +185,13 @@ export const Errors = {
       retryAfter,
     ),
 
-  internalError: (message: string) =>
-    new OAuthError(OAuthErrorCode.INTERNAL_ERROR, message, false),
+  internalError: (message: string) => new OAuthError(OAuthErrorCode.INTERNAL_ERROR, message, false),
 };
 
 /** Create a standard internal error response */
-export function internalErrorResponse(message = "An unexpected error occurred"): OAuthErrorResponse {
+export function internalErrorResponse(
+  message = "An unexpected error occurred",
+): OAuthErrorResponse {
   return {
     error: "INTERNAL_ERROR",
     code: OAuthErrorCode.INTERNAL_ERROR,

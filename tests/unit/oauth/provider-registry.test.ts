@@ -4,14 +4,14 @@
  * Tests provider configuration, environment variable detection, and provider lookup.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
-  OAUTH_PROVIDERS,
+  getAllProviderIds,
+  getConfiguredProviders,
   getProvider,
   isProviderConfigured,
-  getConfiguredProviders,
-  getAllProviderIds,
   isValidProvider,
+  OAUTH_PROVIDERS,
 } from "@/lib/services/oauth/provider-registry";
 
 describe("Provider Registry", () => {

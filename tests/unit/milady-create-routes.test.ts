@@ -45,8 +45,8 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { POST as postV1MiladyAgent } from "@/app/api/v1/milaidy/agents/route";
 import { POST as postCompatAgent } from "@/app/api/compat/agents/route";
+import { POST as postV1MiladyAgent } from "@/app/api/v1/milaidy/agents/route";
 
 describe("Milady create routes reserved config stripping", () => {
   const savedAutoProvision = process.env.WAIFU_AUTO_PROVISION;

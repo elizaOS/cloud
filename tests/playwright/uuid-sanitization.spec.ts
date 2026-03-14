@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * UUID Sanitization E2E Tests
@@ -16,16 +16,12 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
 test.describe("UUID Sanitization - Dashboard Chat", () => {
   test.describe("Malformed characterId Handling", () => {
-    test("dashboard chat handles characterId with trailing backslash", async ({
-      page,
-    }) => {
+    test("dashboard chat handles characterId with trailing backslash", async ({ page }) => {
       // This is the exact pattern from production error logs
       // URL: ?characterId=17c8b876-86a0-465d-9794-2aea244f4239%5C
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C"; // %5C = backslash
 
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${malformedId}`,
-      );
+      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=${malformedId}`);
 
       // Should NOT return 500 (the original bug)
       expect(response?.status()).not.toBe(500);
@@ -34,60 +30,42 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       expect(response?.status()).toBe(200);
     });
 
-    test("dashboard chat handles characterId with double backslash", async ({
-      page,
-    }) => {
+    test("dashboard chat handles characterId with double backslash", async ({ page }) => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C%5C";
 
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${malformedId}`,
-      );
+      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=${malformedId}`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
     });
 
-    test("dashboard chat handles characterId with trailing forward slash", async ({
-      page,
-    }) => {
+    test("dashboard chat handles characterId with trailing forward slash", async ({ page }) => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%2F"; // %2F = forward slash
 
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${malformedId}`,
-      );
+      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=${malformedId}`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
     });
 
-    test("dashboard chat handles completely invalid characterId", async ({
-      page,
-    }) => {
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=not-a-valid-uuid`,
-      );
+    test("dashboard chat handles completely invalid characterId", async ({ page }) => {
+      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=not-a-valid-uuid`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
     });
 
     test("dashboard chat handles empty characterId", async ({ page }) => {
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=`,
-      );
+      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=`);
 
       expect(response?.status()).toBe(200);
     });
 
-    test("dashboard chat works with valid characterId format", async ({
-      page,
-    }) => {
+    test("dashboard chat works with valid characterId format", async ({ page }) => {
       // Valid UUID that likely doesn't exist - should still not 500
       const validUuid = "00000000-0000-4000-8000-000000000000";
 
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${validUuid}`,
-      );
+      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=${validUuid}`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
@@ -95,23 +73,17 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
   });
 
   test.describe("Malformed roomId Handling", () => {
-    test("dashboard chat handles roomId with trailing backslash", async ({
-      page,
-    }) => {
+    test("dashboard chat handles roomId with trailing backslash", async ({ page }) => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C";
 
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?roomId=${malformedId}`,
-      );
+      const response = await page.goto(`${BASE_URL}/dashboard/chat?roomId=${malformedId}`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
     });
 
     test("dashboard chat handles invalid roomId", async ({ page }) => {
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?roomId=invalid-room-id`,
-      );
+      const response = await page.goto(`${BASE_URL}/dashboard/chat?roomId=invalid-room-id`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
@@ -119,9 +91,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
   });
 
   test.describe("No Console Errors on Malformed Input", () => {
-    test("no critical JS errors with malformed characterId", async ({
-      page,
-    }) => {
+    test("no critical JS errors with malformed characterId", async ({ page }) => {
       const errors: string[] = [];
       page.on("pageerror", (err) => errors.push(err.message));
 
@@ -144,9 +114,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
   });
 
   test.describe("SQL Injection Prevention", () => {
-    test("dashboard chat safely handles SQL-like characterId", async ({
-      page,
-    }) => {
+    test("dashboard chat safely handles SQL-like characterId", async ({ page }) => {
       // Attempt SQL injection via characterId parameter
       const maliciousId = "'; DROP TABLE users; --";
 
@@ -159,9 +127,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       expect(response?.status()).toBe(200);
     });
 
-    test("dashboard chat safely handles unicode in characterId", async ({
-      page,
-    }) => {
+    test("dashboard chat safely handles unicode in characterId", async ({ page }) => {
       const unicodeId = "test-id-\u0000-null-byte";
 
       const response = await page.goto(
@@ -182,9 +148,7 @@ test.describe("UUID Sanitization - API Response", () => {
     expect(data).toHaveProperty("registry");
   });
 
-  test("MCP registry shows eliza-platform as coming_soon", async ({
-    request,
-  }) => {
+  test("MCP registry shows eliza-platform as coming_soon", async ({ request }) => {
     const response = await request.get(`${BASE_URL}/api/mcp/registry`);
     const data = await response.json();
 

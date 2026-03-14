@@ -1,14 +1,14 @@
 /**
  * GET /api/compat/jobs/[jobId] — synthesized job status
  *
- * eliza-cloud-v2 has no async job system — jobId IS the agent ID.
+ * cloud has no async job system — jobId IS the agent ID.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { envelope, errorEnvelope, toCompatJob } from "@/lib/api/compat-envelope";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { requireCompatAuth } from "../../_lib/auth";
 import { handleCompatError } from "../../_lib/error-handler";
-import { toCompatJob, envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
 

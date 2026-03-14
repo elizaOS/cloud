@@ -1,16 +1,15 @@
 import {
   type Action,
   type ActionResult,
-  type HandlerCallback,
   type IAgentRuntime,
+  logger,
   type Memory,
   type State,
-  logger,
 } from "@elizaos/core";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { McpService } from "../service";
 import { MCP_SERVICE_NAME } from "../types";
-import { generateSimiles, makeUniqueActionName, toActionName } from "../utils/action-naming";
+import { generateSimiles, makeUniqueActionName } from "../utils/action-naming";
 import { checkMcpOAuthAccess } from "../utils/mcp";
 import { processToolResult } from "../utils/processing";
 import {
@@ -37,7 +36,7 @@ function extractParams(message: Memory, state?: State): Record<string, unknown> 
 export function createMcpToolAction(
   serverName: string,
   tool: Tool,
-  existingNames: Set<string>
+  existingNames: Set<string>,
 ): McpToolAction {
   const actionName = makeUniqueActionName(serverName, tool.name, existingNames);
   const description = `${tool.description || `Execute ${tool.name}`} (MCP: ${serverName}/${tool.name})`;
@@ -99,7 +98,7 @@ export function createMcpToolAction(
         serverName,
         tool.name,
         runtime,
-        message.entityId
+        message.entityId,
       );
 
       if (result.isError) {
@@ -160,21 +159,21 @@ export function createMcpToolAction(
 export function createMcpToolActions(
   serverName: string,
   tools: Tool[],
-  existingNames: Set<string>
+  existingNames: Set<string>,
 ): McpToolAction[] {
   const actions = tools.map((tool) => {
     const action = createMcpToolAction(serverName, tool, existingNames);
     existingNames.add(action.name);
     logger.debug(
       { actionName: action.name, serverName, toolName: tool.name },
-      "[MCP] Created action"
+      "[MCP] Created action",
     );
     return action;
   });
 
   logger.info(
     { serverName, toolCount: actions.length },
-    `[MCP] Created ${actions.length} actions for ${serverName}`
+    `[MCP] Created ${actions.length} actions for ${serverName}`,
   );
   return actions;
 }
@@ -185,6 +184,6 @@ export function isMcpToolAction(action: Action): action is McpToolAction {
 
 export function getMcpToolActionsForServer(actions: Action[], serverName: string): McpToolAction[] {
   return actions.filter(
-    (a): a is McpToolAction => isMcpToolAction(a) && a._mcpMeta.serverName === serverName
+    (a): a is McpToolAction => isMcpToolAction(a) && a._mcpMeta.serverName === serverName,
   );
 }

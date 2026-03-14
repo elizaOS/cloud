@@ -4,23 +4,20 @@
  * Tests error classes, factory functions, HTTP status mapping, and response formatting.
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
-  OAuthError,
-  OAuthErrorCode,
   ERROR_STATUS_MAP,
   Errors,
   internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
   validationErrorResponse,
 } from "@/lib/services/oauth/errors";
 
 describe("OAuthError Class", () => {
   describe("constructor", () => {
     it("should create error with required parameters", () => {
-      const error = new OAuthError(
-        OAuthErrorCode.CONNECTION_NOT_FOUND,
-        "Connection not found",
-      );
+      const error = new OAuthError(OAuthErrorCode.CONNECTION_NOT_FOUND, "Connection not found");
 
       expect(error.code).toBe(OAuthErrorCode.CONNECTION_NOT_FOUND);
       expect(error.message).toBe("Connection not found");
@@ -47,10 +44,7 @@ describe("OAuthError Class", () => {
     });
 
     it("should extend Error class", () => {
-      const error = new OAuthError(
-        OAuthErrorCode.INTERNAL_ERROR,
-        "Test error",
-      );
+      const error = new OAuthError(OAuthErrorCode.INTERNAL_ERROR, "Test error");
 
       expect(error instanceof Error).toBe(true);
       expect(error instanceof OAuthError).toBe(true);
@@ -78,10 +72,7 @@ describe("OAuthError Class", () => {
     });
 
     it("should convert to response with undefined optional fields", () => {
-      const error = new OAuthError(
-        OAuthErrorCode.UNAUTHORIZED,
-        "Not authorized",
-      );
+      const error = new OAuthError(OAuthErrorCode.UNAUTHORIZED, "Not authorized");
 
       const response = error.toResponse();
 

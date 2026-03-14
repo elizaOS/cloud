@@ -5,7 +5,7 @@
  * Sessions are stateless JWTs with user and organization information.
  */
 
-import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import { type JWTPayload, jwtVerify, SignJWT } from "jose";
 import { logger } from "@/lib/utils/logger";
 import { elizaAppConfig } from "./config";
 
@@ -44,7 +44,12 @@ class ElizaAppSessionService {
   async createSession(
     userId: string,
     organizationId: string,
-    identifiers?: { telegramId?: string; discordId?: string; whatsappId?: string; phoneNumber?: string },
+    identifiers?: {
+      telegramId?: string;
+      discordId?: string;
+      whatsappId?: string;
+      phoneNumber?: string;
+    },
   ): Promise<SessionResult> {
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = new Date((now + SESSION_DURATION_SECONDS) * 1000);
@@ -78,14 +83,10 @@ class ElizaAppSessionService {
 
   async validateSession(token: string): Promise<ValidatedSession | null> {
     try {
-      const { payload } = await jwtVerify<ElizaAppSessionPayload>(
-        token,
-        this.getSecretKey(),
-        {
-          issuer: JWT_ISSUER,
-          audience: JWT_AUDIENCE,
-        },
-      );
+      const { payload } = await jwtVerify<ElizaAppSessionPayload>(token, this.getSecretKey(), {
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+      });
 
       if (!payload.userId || !payload.organizationId) {
         logger.warn("[ElizaAppSession] Token missing required fields");

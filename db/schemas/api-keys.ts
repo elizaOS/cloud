@@ -1,3 +1,4 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -9,7 +10,6 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 
@@ -47,9 +47,7 @@ export const apiKeys = pgTable(
     key_idx: index("api_keys_key_idx").on(table.key),
     key_hash_idx: uniqueIndex("api_keys_key_hash_idx").on(table.key_hash),
     key_prefix_idx: index("api_keys_key_prefix_idx").on(table.key_prefix),
-    organization_idx: index("api_keys_organization_idx").on(
-      table.organization_id,
-    ),
+    organization_idx: index("api_keys_organization_idx").on(table.organization_id),
     user_idx: index("api_keys_user_idx").on(table.user_id),
   }),
 );

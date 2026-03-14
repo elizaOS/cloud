@@ -11,26 +11,24 @@
 
 import crypto from "crypto";
 import { cache } from "@/lib/cache/client";
+import {
+  WHATSAPP_ACCESS_TOKEN,
+  WHATSAPP_APP_SECRET,
+  WHATSAPP_BUSINESS_PHONE,
+  WHATSAPP_PHONE_NUMBER_ID,
+  WHATSAPP_VERIFY_TOKEN,
+} from "@/lib/constants/secrets";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import {
-  WHATSAPP_ACCESS_TOKEN,
-  WHATSAPP_PHONE_NUMBER_ID,
-  WHATSAPP_APP_SECRET,
-  WHATSAPP_VERIFY_TOKEN,
-  WHATSAPP_BUSINESS_PHONE,
-} from "@/lib/constants/secrets";
-import {
-  WHATSAPP_API_BASE,
   sendWhatsAppMessage,
   verifyWhatsAppSignature,
+  WHATSAPP_API_BASE,
 } from "@/lib/utils/whatsapp-api";
 
 // Use ELIZA_API_URL (ngrok) for local dev webhooks, otherwise NEXT_PUBLIC_APP_URL
 const WEBHOOK_BASE_URL =
-  process.env.ELIZA_API_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  "https://eliza.gg";
+  process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
 
 const META_REQUEST_TIMEOUT_MS = 10_000;
 const STATUS_CACHE_TTL_SECONDS = 5 * 60;
@@ -177,12 +175,7 @@ class WhatsAppAutomationService {
           const existingSecrets = await secretsService.list(organizationId);
           const existingSecret = existingSecrets.find((s) => s.name === name);
           if (existingSecret) {
-            await secretsService.rotate(
-              existingSecret.id,
-              organizationId,
-              value,
-              audit,
-            );
+            await secretsService.rotate(existingSecret.id, organizationId, value, audit);
           } else {
             throw err;
           }
@@ -193,10 +186,12 @@ class WhatsAppAutomationService {
     };
 
     const previousValueEntries = await Promise.all(
-      secretEntries.map(async ([name]): Promise<[string, string | null]> => [
-        name,
-        await secretsService.get(organizationId, name),
-      ]),
+      secretEntries.map(
+        async ([name]): Promise<[string, string | null]> => [
+          name,
+          await secretsService.get(organizationId, name),
+        ],
+      ),
     );
     const previousValues = new Map<string, string | null>(previousValueEntries);
 
@@ -237,10 +232,7 @@ class WhatsAppAutomationService {
   /**
    * Remove WhatsApp credentials (disconnect).
    */
-  async removeCredentials(
-    organizationId: string,
-    userId: string,
-  ): Promise<void> {
+  async removeCredentials(organizationId: string, userId: string): Promise<void> {
     const audit = {
       actorType: "user" as const,
       actorId: userId,
@@ -393,11 +385,7 @@ class WhatsAppAutomationService {
         connected: false,
         configured: false,
       };
-      await cache.set(
-        this.getStatusCacheKey(organizationId),
-        status,
-        STATUS_CACHE_TTL_SECONDS,
-      );
+      await cache.set(this.getStatusCacheKey(organizationId), status, STATUS_CACHE_TTL_SECONDS);
       return status;
     }
 
@@ -410,11 +398,7 @@ class WhatsAppAutomationService {
         configured: true,
         businessPhone: businessPhone || validation.phoneDisplay || undefined,
       };
-      await cache.set(
-        this.getStatusCacheKey(organizationId),
-        status,
-        STATUS_CACHE_TTL_SECONDS,
-      );
+      await cache.set(this.getStatusCacheKey(organizationId), status, STATUS_CACHE_TTL_SECONDS);
       return status;
     }
 
@@ -425,11 +409,7 @@ class WhatsAppAutomationService {
       businessPhone: businessPhone || undefined,
       error: validation.error || "Access token may be invalid. Try reconnecting.",
     };
-    await cache.set(
-      this.getStatusCacheKey(organizationId),
-      status,
-      STATUS_ERROR_CACHE_TTL_SECONDS,
-    );
+    await cache.set(this.getStatusCacheKey(organizationId), status, STATUS_ERROR_CACHE_TTL_SECONDS);
     return status;
   }
 

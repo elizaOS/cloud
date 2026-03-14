@@ -1,6 +1,6 @@
+import { and, eq, lt, notInArray } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import { appSandboxSessions } from "@/db/schemas/app-sandboxes";
-import { lt, and, notInArray, eq } from "drizzle-orm";
 import { sandboxService } from "@/lib/services/sandbox";
 import { logger } from "@/lib/utils/logger";
 
@@ -66,10 +66,7 @@ export async function cleanupExpiredSandboxes(): Promise<{
     });
 
     for (const session of activeSessions) {
-      if (
-        session.sandbox_id &&
-        !activeSandboxIds.includes(session.sandbox_id)
-      ) {
+      if (session.sandbox_id && !activeSandboxIds.includes(session.sandbox_id)) {
         try {
           await dbWrite
             .update(appSandboxSessions)

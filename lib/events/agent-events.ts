@@ -4,20 +4,15 @@
  * Publishes events to Redis for real-time updates across serverless instances.
  */
 
+import type { Memory, UUID } from "@elizaos/core";
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
-import type { Memory, UUID } from "@elizaos/core";
 
 /**
  * Agent event structure.
  */
 export interface AgentEvent {
-  type:
-    | "message_received"
-    | "response_started"
-    | "response_chunk"
-    | "response_complete"
-    | "error";
+  type: "message_received" | "response_started" | "response_chunk" | "response_complete" | "error";
   roomId: string;
   timestamp: Date;
   data: Record<string, unknown>;
@@ -90,11 +85,7 @@ class AgentEventEmitter {
     void this.publishEvent(roomId, event);
   }
 
-  async emitResponseChunk(
-    roomId: string,
-    chunk: string,
-    tokenIndex: number,
-  ): Promise<void> {
+  async emitResponseChunk(roomId: string, chunk: string, tokenIndex: number): Promise<void> {
     if (!this.enabled || !this.redis) return;
 
     const event: AgentEvent = {

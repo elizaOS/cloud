@@ -12,9 +12,7 @@ const DEFAULT_ENV_FILE = ".env.local";
 /**
  * Read environment variables from a .env file
  */
-export function readEnvFile(
-  envFile: string = DEFAULT_ENV_FILE,
-): Record<string, string> {
+export function readEnvFile(envFile: string = DEFAULT_ENV_FILE): Record<string, string> {
   if (!existsSync(envFile)) return {};
 
   const content = readFileSync(envFile, "utf-8");

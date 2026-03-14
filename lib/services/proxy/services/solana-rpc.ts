@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import type { ProxyRequestBody, JsonRpcRequest, JsonRpcBatchRequest } from "../types";
-import type { ServiceConfig, ServiceHandler } from "../types";
-import { getServiceMethodCost } from "../pricing";
-import { PROXY_CONFIG } from "../config";
 import { servicePricingRepository } from "@/db/repositories";
 import { cache } from "@/lib/cache/client";
+import { logger } from "@/lib/utils/logger";
+import { PROXY_CONFIG } from "../config";
+import { getServiceMethodCost } from "../pricing";
+import type {
+  JsonRpcBatchRequest,
+  JsonRpcRequest,
+  ProxyRequestBody,
+  ServiceConfig,
+  ServiceHandler,
+} from "../types";
 
 // Methods that should not be cached (mutations and rapidly changing data)
 const NON_CACHEABLE_METHODS = new Set([
@@ -21,34 +26,49 @@ const NON_CACHEABLE_METHODS = new Set([
 // real upstream spend. These methods use RPC_EXPENSIVE_MAX_RETRIES (default 2).
 const EXPENSIVE_METHODS = new Set([
   // Tier 2 — DAS API (10 credits)
-  "getAsset", "getAssetsByOwner", "searchAssets", "getTokenAccounts",
-  "getAssetProof", "getAssetProofBatch", "getAssetsByAuthority",
-  "getAssetsByCreator", "getAssetsByGroup", "getAssetBatch",
-  "getSignaturesForAsset", "getNftEditions",
+  "getAsset",
+  "getAssetsByOwner",
+  "searchAssets",
+  "getTokenAccounts",
+  "getAssetProof",
+  "getAssetProofBatch",
+  "getAssetsByAuthority",
+  "getAssetsByCreator",
+  "getAssetsByGroup",
+  "getAssetBatch",
+  "getSignaturesForAsset",
+  "getNftEditions",
   // Tier 2 — Complex/Historical (10 credits)
-  "getProgramAccounts", "getBlock", "getBlocks", "getBlocksWithLimit",
-  "getTransaction", "getSignaturesForAddress", "getBlockTime", "getInflationReward",
+  "getProgramAccounts",
+  "getBlock",
+  "getBlocks",
+  "getBlocksWithLimit",
+  "getTransaction",
+  "getSignaturesForAddress",
+  "getBlockTime",
+  "getInflationReward",
   // Tier 3 — Enhanced/ZK (100 credits)
-  "getTransactionsForAddress", "getValidityProof",
+  "getTransactionsForAddress",
+  "getValidityProof",
 ]);
 
 /**
  * Hardcoded Fallback Whitelist
- * 
+ *
  * MAINTENANCE NOTE: This is now a FALLBACK ONLY.
- * 
+ *
  * Primary method authorization comes from the database (service_pricing table).
  * Any method with an active pricing entry (is_active=true) is automatically allowed.
- * 
+ *
  * This hardcoded list serves as:
  * 1. Emergency fallback if database is unreachable
  * 2. Bootstrap/seed data reference
  * 3. Documentation of supported methods
- * 
+ *
  * To add new methods:
  * ✅ Add pricing entry via admin API: POST /api/v1/admin/service-pricing
  * ❌ DO NOT edit this list (unless updating fallback)
- * 
+ *
  * @see getActiveMethodsFromDatabase() for the primary authorization logic
  */
 const HARDCODED_FALLBACK_METHODS = new Set([
@@ -99,7 +119,7 @@ const HARDCODED_FALLBACK_METHODS = new Set([
   "requestAirdrop",
   "sendTransaction",
   "simulateTransaction",
-  
+
   // Tier 2 - DAS API (explicitly priced)
   "getAsset",
   "getAssetsByOwner",
@@ -113,7 +133,7 @@ const HARDCODED_FALLBACK_METHODS = new Set([
   "getAssetBatch",
   "getSignaturesForAsset",
   "getNftEditions",
-  
+
   // Tier 2 - Complex/Historical (explicitly priced)
   "getProgramAccounts",
   "getBlock",
@@ -123,7 +143,7 @@ const HARDCODED_FALLBACK_METHODS = new Set([
   "getSignaturesForAddress",
   "getBlockTime",
   "getInflationReward",
-  
+
   // Tier 3 - Enhanced/ZK (explicitly priced)
   "getTransactionsForAddress",
   "getValidityProof",
@@ -138,17 +158,17 @@ const ALLOWED_METHODS_CACHE_TTL = 60;
 
 /**
  * Gets allowed methods from database (with caching)
- * 
+ *
  * Strategy:
  * 1. Check cache (60s TTL) - fast path for most requests
  * 2. Query database for active methods
  * 3. Fallback to hardcoded list if DB fails
- * 
+ *
  * Performance:
  * - Cache hit: ~1ms (no DB query)
  * - Cache miss: ~10-50ms (DB query)
  * - DB failure: Falls back to hardcoded list immediately
- * 
+ *
  * @returns Set of allowed method names
  */
 async function getAllowedMethods(): Promise<Set<string>> {
@@ -174,11 +194,7 @@ async function getAllowedMethods(): Promise<Set<string>> {
     }
 
     // Cache the result
-    await cache.set(
-      ALLOWED_METHODS_CACHE_KEY,
-      activeMethods,
-      ALLOWED_METHODS_CACHE_TTL
-    );
+    await cache.set(ALLOWED_METHODS_CACHE_KEY, activeMethods, ALLOWED_METHODS_CACHE_TTL);
 
     logger.info("[Solana RPC] Loaded allowed methods from database", {
       count: activeMethods.length,
@@ -192,17 +208,17 @@ async function getAllowedMethods(): Promise<Set<string>> {
       error: error instanceof Error ? error.message : "Unknown error",
       fallback_count: HARDCODED_FALLBACK_METHODS.size,
     });
-    
+
     return HARDCODED_FALLBACK_METHODS;
   }
 }
 
 /**
  * Checks if a method is allowed
- * 
+ *
  * Uses database-driven whitelist with hardcoded fallback.
  * Results are cached for 60 seconds to minimize DB load.
- * 
+ *
  * @param method - RPC method name to check
  * @returns true if method is allowed
  */
@@ -231,12 +247,12 @@ async function extractMethodFromBody(body: ProxyRequestBody): Promise<string> {
   }
 
   const method = body.method;
-  
+
   // Validate method is in database-driven whitelist (with caching)
   const allowed = await isMethodAllowed(method);
   if (!allowed) {
     throw new Error(
-      `Method '${method}' is not supported. See /api/v1/solana/methods for allowed methods.`
+      `Method '${method}' is not supported. See /api/v1/solana/methods for allowed methods.`,
     );
   }
 
@@ -255,7 +271,7 @@ async function calculateBatchCost(body: JsonRpcBatchRequest): Promise<number> {
 
     if (!allowedMethods.has(method)) {
       throw new Error(
-        `Batch contains unsupported method '${method}'. See /api/v1/solana/methods for allowed methods.`
+        `Batch contains unsupported method '${method}'. See /api/v1/solana/methods for allowed methods.`,
       );
     }
 
@@ -266,13 +282,10 @@ async function calculateBatchCost(body: JsonRpcBatchRequest): Promise<number> {
     Array.from(methodCounts.keys()).map(async (method) => ({
       method,
       cost: await getServiceMethodCost("solana-rpc", method),
-    }))
+    })),
   );
 
-  return costs.reduce(
-    (total, { method, cost }) => total + cost * methodCounts.get(method)!,
-    0
-  );
+  return costs.reduce((total, { method, cost }) => total + cost * methodCounts.get(method)!, 0);
 }
 
 export const solanaRpcConfig: ServiceConfig = {
@@ -377,7 +390,7 @@ interface FetchResult {
 async function fetchWithRetry(
   url: string,
   body: JsonRpcRequest | JsonRpcBatchRequest,
-  maxRetries?: number
+  maxRetries?: number,
 ): Promise<FetchResult> {
   const fetchLogs: FetchAttemptLog[] = [];
   const sanitized = sanitizeUrl(url);
@@ -420,7 +433,7 @@ async function fetchWithRetry(
       fetchLogs.push({
         attempt,
         url: sanitized,
-        error: isTimeout ? "TimeoutError" : (error instanceof Error ? error.message : String(error)),
+        error: isTimeout ? "TimeoutError" : error instanceof Error ? error.message : String(error),
         durationMs: Date.now() - start,
       });
 
@@ -429,7 +442,7 @@ async function fetchWithRetry(
     }
 
     if (attempt < maxAttempts) {
-      const delayMs = Math.min(initialDelay * Math.pow(2, attempt - 1), maxDelay);
+      const delayMs = Math.min(initialDelay * 2 ** (attempt - 1), maxDelay);
       logger.warn("[Solana RPC] Retrying", { attempt, delayMs, url: sanitized });
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
@@ -439,10 +452,7 @@ async function fetchWithRetry(
   throw lastError!;
 }
 
-export const solanaRpcHandler: ServiceHandler = async ({
-  body,
-  searchParams,
-}) => {
+export const solanaRpcHandler: ServiceHandler = async ({ body, searchParams }) => {
   if (!body) {
     throw new Error("Invalid JSON-RPC request: body is required");
   }
@@ -473,14 +483,14 @@ export const solanaRpcHandler: ServiceHandler = async ({
     throw new Error("SOLANA_RPC_PROVIDER_API_KEY not configured");
   }
 
-  const primaryBaseUrl = network === "mainnet" 
-    ? PROXY_CONFIG.HELIUS_MAINNET_URL 
-    : PROXY_CONFIG.HELIUS_DEVNET_URL;
-  
-  const fallbackBaseUrl = network === "mainnet"
-    ? PROXY_CONFIG.HELIUS_MAINNET_FALLBACK_URL
-    : PROXY_CONFIG.HELIUS_DEVNET_FALLBACK_URL;
-  
+  const primaryBaseUrl =
+    network === "mainnet" ? PROXY_CONFIG.HELIUS_MAINNET_URL : PROXY_CONFIG.HELIUS_DEVNET_URL;
+
+  const fallbackBaseUrl =
+    network === "mainnet"
+      ? PROXY_CONFIG.HELIUS_MAINNET_FALLBACK_URL
+      : PROXY_CONFIG.HELIUS_DEVNET_FALLBACK_URL;
+
   const primaryUrl = `${primaryBaseUrl}/?api-key=${apiKey}`;
   const maxRetries = getMaxRetries(rpcBody);
   const fetchLogs: FetchAttemptLog[] = [];

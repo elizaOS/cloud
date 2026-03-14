@@ -22,34 +22,25 @@
  * Use getOrCreateSessionUser() from @/lib/session for new code.
  */
 
-import { nanoid } from "nanoid";
 import { createHash } from "node:crypto";
-import { cookies, headers } from "next/headers";
-import { usersService } from "@/lib/services/users";
-import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
-import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
-import { logger } from "@/lib/utils/logger";
-import type { UserWithOrganization } from "@/lib/types";
-import { userIdentities } from "@/db/schemas/user-identities";
-import { dbRead } from "@/db/helpers";
 import { eq } from "drizzle-orm";
+import { nanoid } from "nanoid";
+import { cookies, headers } from "next/headers";
+import { dbRead } from "@/db/helpers";
+import { userIdentities } from "@/db/schemas/user-identities";
+import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { usersService } from "@/lib/services/users";
+import type { UserWithOrganization } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
 // Constants - can be overridden via environment variables
 const ANON_SESSION_COOKIE = "eliza-anon-session";
-const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(
-  process.env.ANON_SESSION_EXPIRY_DAYS || "7",
-  10,
-);
+const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(process.env.ANON_SESSION_EXPIRY_DAYS || "7", 10);
 // Affiliate flow uses ANON_MESSAGE_LIMIT (5 messages)
 // Public agent chat uses PUBLIC_CHAT_MESSAGE_LIMIT (3 messages)
-const PUBLIC_CHAT_MESSAGE_LIMIT = Number.parseInt(
-  process.env.PUBLIC_CHAT_MESSAGE_LIMIT || "3",
-  10,
-);
-const ANON_HOURLY_LIMIT = Number.parseInt(
-  process.env.ANON_HOURLY_LIMIT || "10",
-  10,
-);
+const PUBLIC_CHAT_MESSAGE_LIMIT = Number.parseInt(process.env.PUBLIC_CHAT_MESSAGE_LIMIT || "3", 10);
+const ANON_HOURLY_LIMIT = Number.parseInt(process.env.ANON_HOURLY_LIMIT || "10", 10);
 
 /**
  * Type for anonymous user (no organization)
@@ -79,10 +70,7 @@ async function getClientIp(): Promise<string | undefined> {
     return realIp;
   }
   // Fallback to x-forwarded-for (first IP in the chain)
-  const forwardedFor = headersList
-    .get("x-forwarded-for")
-    ?.split(",")[0]
-    ?.trim();
+  const forwardedFor = headersList.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwardedFor || undefined;
 }
 
@@ -151,9 +139,7 @@ export async function getOrCreateAnonymousUser(): Promise<{
   }
 
   const newSessionToken = nanoid(32);
-  const expiresAt = new Date(
-    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-  );
+  const expiresAt = new Date(Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
   const ipAddress = await getClientIp();
   const userAgent = await getUserAgent();
   // NOTE: IP-based anonymous-session abuse checks intentionally removed.
@@ -214,9 +200,7 @@ export async function checkAnonymousLimit(sessionId: string): Promise<{
     };
   }
 
-  const rateLimitResult = await anonymousSessionsService.checkRateLimit(
-    session.id,
-  );
+  const rateLimitResult = await anonymousSessionsService.checkRateLimit(session.id);
 
   if (!rateLimitResult.allowed) {
     return {

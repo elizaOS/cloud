@@ -64,12 +64,14 @@ const WhatsAppWebhookMessageSchema = z.object({
   timestamp: z.string(),
   type: z.string(),
   text: z.object({ body: z.string() }).optional(),
-  image: z.object({
-    id: z.string(),
-    mime_type: z.string().optional(),
-    sha256: z.string().optional(),
-    caption: z.string().optional(),
-  }).optional(),
+  image: z
+    .object({
+      id: z.string(),
+      mime_type: z.string().optional(),
+      sha256: z.string().optional(),
+      caption: z.string().optional(),
+    })
+    .optional(),
 });
 
 const WhatsAppWebhookContactSchema = z.object({
@@ -85,12 +87,16 @@ const WhatsAppWebhookValueSchema = z.object({
   }),
   contacts: z.array(WhatsAppWebhookContactSchema).optional(),
   messages: z.array(WhatsAppWebhookMessageSchema).optional(),
-  statuses: z.array(z.object({
-    id: z.string(),
-    status: z.string(),
-    timestamp: z.string(),
-    recipient_id: z.string(),
-  })).optional(),
+  statuses: z
+    .array(
+      z.object({
+        id: z.string(),
+        status: z.string(),
+        timestamp: z.string(),
+        recipient_id: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 const WhatsAppWebhookChangeSchema = z.object({
@@ -134,10 +140,7 @@ export function verifyWhatsAppSignature(
     const expectedSignature = signatureHeader.replace("sha256=", "");
 
     // Compute HMAC-SHA256
-    const computedSignature = crypto
-      .createHmac("sha256", appSecret)
-      .update(rawBody)
-      .digest("hex");
+    const computedSignature = crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
 
     // Use constant-time comparison to prevent timing attacks
     const expectedBuffer = Buffer.from(expectedSignature, "hex");
@@ -169,7 +172,9 @@ export function parseWhatsAppWebhookPayload(data: unknown): WhatsAppWebhookPaylo
  * Extract incoming messages from a parsed WhatsApp webhook payload.
  * Returns an array of simplified message objects.
  */
-export function extractWhatsAppMessages(payload: WhatsAppWebhookPayload): WhatsAppIncomingMessage[] {
+export function extractWhatsAppMessages(
+  payload: WhatsAppWebhookPayload,
+): WhatsAppIncomingMessage[] {
   const messages: WhatsAppIncomingMessage[] = [];
 
   for (const entry of payload.entry) {

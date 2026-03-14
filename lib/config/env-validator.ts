@@ -4,8 +4,8 @@
  * Validates required environment variables on application startup.
  */
 
-import { logger } from "@/lib/utils/logger";
 import { shouldBlockDevnetBypass } from "@/lib/config/deployment-environment";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Error information for a validation failure.
@@ -87,8 +87,7 @@ const ENV_VARS = {
   STRIPE_SECRET_KEY: {
     required: false,
     description: "Stripe secret key for payments",
-    validate: (value: string) =>
-      value.startsWith("sk_test_") || value.startsWith("sk_live_"),
+    validate: (value: string) => value.startsWith("sk_test_") || value.startsWith("sk_live_"),
     errorMessage: "Must start with 'sk_test_' or 'sk_live_'",
   },
   STRIPE_WEBHOOK_SECRET: {
@@ -124,8 +123,7 @@ const ENV_VARS = {
   // Cron Jobs
   CRON_SECRET: {
     required: true,
-    description:
-      "Secret for authenticating cron job requests (required for production security)",
+    description: "Secret for authenticating cron job requests (required for production security)",
     validate: (value: string) => value.length >= 32,
     errorMessage: "Must be at least 32 characters for security",
   },
@@ -133,8 +131,7 @@ const ENV_VARS = {
   // Solana RPC
   SOLANA_RPC_PROVIDER_API_KEY: {
     required: false,
-    description:
-      "Solana RPC provider API key (enables Solana blockchain access)",
+    description: "Solana RPC provider API key (enables Solana blockchain access)",
     validate: (value: string) => value.trim().length > 0,
     errorMessage: "Must not be empty",
   },
@@ -142,8 +139,7 @@ const ENV_VARS = {
   // Market Data API
   MARKET_DATA_PROVIDER_API_KEY: {
     required: false,
-    description:
-      "Market data API key (enables multi-chain token price and market data)",
+    description: "Market data API key (enables multi-chain token price and market data)",
     validate: (value: string) => value.trim().length > 0,
     errorMessage: "Must not be empty",
   },
@@ -151,8 +147,7 @@ const ENV_VARS = {
   // Alchemy EVM RPC
   ALCHEMY_API_KEY: {
     required: false,
-    description:
-      "Alchemy API key (enables EVM blockchain access via /api/v1/rpc/*)",
+    description: "Alchemy API key (enables EVM blockchain access via /api/v1/rpc/*)",
     validate: (value: string) => value.trim().length > 0,
     errorMessage: "Must not be empty",
   },
@@ -195,9 +190,7 @@ export function validateEnvironment(): EnvValidationResult {
     // Validate format if validator is provided
     if ("validate" in config && config.validate && !config.validate(value)) {
       const errorMsg =
-        "errorMessage" in config && config.errorMessage
-          ? config.errorMessage
-          : "Invalid format";
+        "errorMessage" in config && config.errorMessage ? config.errorMessage : "Invalid format";
       if (config.required) {
         errors.push({
           variable,
@@ -247,9 +240,7 @@ export function requireValidEnvironment(): void {
       console.error(`  - ${error.message}`);
     }
     console.error("");
-    console.error(
-      "Please check your .env.local file and set the required variables.",
-    );
+    console.error("Please check your .env.local file and set the required variables.");
     console.error("See .env.example for reference.");
     throw new Error("Invalid environment configuration");
   }
@@ -291,9 +282,7 @@ export function isFeatureConfigured(feature: string): boolean {
         process.env.AWS_VPC_ID
       );
     case "stripe":
-      return !!(
-        process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET
-      );
+      return !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET);
     case "crypto":
       return !!process.env.OXAPAY_MERCHANT_API_KEY;
     case "cron":

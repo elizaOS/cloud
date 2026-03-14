@@ -1,18 +1,17 @@
 import {
   type Action,
   type ActionExample,
+  composePromptFromState,
   type HandlerCallback,
   type IAgentRuntime,
-  type Memory,
-  type State,
-  type UUID,
   logger,
-  composePromptFromState,
-  parseKeyValueXml,
+  type Memory,
   ModelType,
+  parseKeyValueXml,
+  type State,
 } from "@elizaos/core";
-import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
 import type { StreamChunkCallback } from "../../shared/types";
+import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
 
 /**
  * BUILDER_CHAT Action
@@ -110,11 +109,7 @@ DO NOT USE when:
 - User confirms they want to save → use CREATE_CHARACTER or SAVE_CHANGES
 
 This is your main tool for understanding what the user wants before taking action.`,
-  validate: async (
-    _runtime: IAgentRuntime,
-    _message: Memory,
-    _state?: State,
-  ) => {
+  validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
     return true;
   },
   handler: async (
@@ -126,13 +121,9 @@ This is your main tool for understanding what the user wants before taking actio
   ): Promise<void> => {
     const creatorMode = isCreatorMode(runtime);
     const modeLabel = creatorMode ? "Creator" : "Build";
-    const onStreamChunk = options?.onStreamChunk as
-      | StreamChunkCallback
-      | undefined;
+    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
 
-    logger.info(
-      `[BUILDER_CHAT] ${modeLabel} mode conversation, streaming=${!!onStreamChunk}`,
-    );
+    logger.info(`[BUILDER_CHAT] ${modeLabel} mode conversation, streaming=${!!onStreamChunk}`);
 
     state = await runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",
@@ -150,16 +141,12 @@ This is your main tool for understanding what the user wants before taking actio
 
     const originalSystemPrompt = runtime.character.system;
 
-    const systemTemplate = creatorMode
-      ? creatorModeSystemPrompt
-      : buildModeSystemPrompt;
+    const systemTemplate = creatorMode ? creatorModeSystemPrompt : buildModeSystemPrompt;
     runtime.character.system = cleanPrompt(
       composePromptFromState({ state, template: systemTemplate }),
     );
 
-    const prompt = cleanPrompt(
-      composePromptFromState({ state, template: chatTemplate }),
-    );
+    const prompt = cleanPrompt(composePromptFromState({ state, template: chatTemplate }));
 
     const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
     runtime.character.system = originalSystemPrompt;

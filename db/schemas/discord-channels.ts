@@ -1,13 +1,5 @@
-import {
-  boolean,
-  index,
-  integer,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { boolean, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
 /**
@@ -37,21 +29,14 @@ export const discordChannels = pgTable(
     can_attach_files: boolean("can_attach_files").default(true).notNull(),
     is_nsfw: boolean("is_nsfw").default(false).notNull(),
 
-    created_at: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    updated_at: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("discord_channels_organization_id_idx").on(table.organization_id),
     index("discord_channels_guild_id_idx").on(table.guild_id),
     index("discord_channels_channel_id_idx").on(table.channel_id),
-    index("discord_channels_guild_channel_idx").on(
-      table.guild_id,
-      table.channel_id,
-    ),
+    index("discord_channels_guild_channel_idx").on(table.guild_id, table.channel_id),
   ],
 );
 

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { cache } from "@/lib/cache/client";
 import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
 import { twitterAutomationService } from "@/lib/services/twitter-automation";
-import { cache } from "@/lib/cache/client";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;

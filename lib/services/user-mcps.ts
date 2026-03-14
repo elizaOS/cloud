@@ -6,18 +6,14 @@
  */
 
 import crypto from "crypto";
-import {
-  userMcpsRepository,
-  mcpUsageRepository,
-  type UserMcp,
-} from "@/db/repositories";
-import { creditsService } from "./credits";
-import { containersService } from "./containers";
-import { redeemableEarningsService } from "./redeemable-earnings";
-import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
-import { logger } from "@/lib/utils/logger";
+import { mcpUsageRepository, type UserMcp, userMcpsRepository } from "@/db/repositories";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
+import { logger } from "@/lib/utils/logger";
+import { containersService } from "./containers";
+import { creditsService } from "./credits";
+import { redeemableEarningsService } from "./redeemable-earnings";
 
 // ============================================================================
 // Types
@@ -135,10 +131,7 @@ class UserMcpsService {
   async create(params: CreateMcpParams): Promise<UserMcp> {
     // Validate container exists if using container endpoint
     if (params.endpointType === "container" && params.containerId) {
-      const container = await containersService.getById(
-        params.containerId,
-        params.organizationId,
-      );
+      const container = await containersService.getById(params.containerId, params.organizationId);
       if (!container) {
         throw new Error("Container not found");
       }
@@ -152,10 +145,7 @@ class UserMcpsService {
     }
 
     // Check slug uniqueness
-    const existing = await userMcpsRepository.getBySlug(
-      params.slug,
-      params.organizationId,
-    );
+    const existing = await userMcpsRepository.getBySlug(params.slug, params.organizationId);
     if (existing) {
       throw new Error(`MCP with slug "${params.slug}" already exists`);
     }
@@ -177,11 +167,8 @@ class UserMcpsService {
       credits_per_request: params.creditsPerRequest?.toString() ?? "1.0000",
       x402_price_usd: params.x402PriceUsd?.toString() ?? "0.000100",
       x402_enabled: params.x402Enabled ?? false,
-      creator_share_percentage:
-        params.creatorSharePercentage?.toString() ?? "80.00",
-      platform_share_percentage: (
-        100 - (params.creatorSharePercentage ?? 80)
-      ).toString(),
+      creator_share_percentage: params.creatorSharePercentage?.toString() ?? "80.00",
+      platform_share_percentage: (100 - (params.creatorSharePercentage ?? 80)).toString(),
       documentation_url: params.documentationUrl,
       source_code_url: params.sourceCodeUrl,
       support_email: params.supportEmail,
@@ -219,10 +206,7 @@ class UserMcpsService {
   /**
    * Get MCP by slug and organization
    */
-  async getBySlug(
-    slug: string,
-    organizationId: string,
-  ): Promise<UserMcp | null> {
+  async getBySlug(slug: string, organizationId: string): Promise<UserMcp | null> {
     const cacheKey = CacheKeys.mcp.bySlug(organizationId, slug);
     const cached = await cache.get<UserMcp>(cacheKey);
     if (cached) return cached;
@@ -263,11 +247,7 @@ class UserMcpsService {
   /**
    * Update an MCP
    */
-  async update(
-    id: string,
-    organizationId: string,
-    params: UpdateMcpParams,
-  ): Promise<UserMcp> {
+  async update(id: string, organizationId: string, params: UpdateMcpParams): Promise<UserMcp> {
     const mcp = await userMcpsRepository.getById(id);
     if (!mcp) {
       throw new Error("MCP not found");
@@ -279,36 +259,26 @@ class UserMcpsService {
     const updateData: Partial<UserMcp> = {};
 
     if (params.name !== undefined) updateData.name = params.name;
-    if (params.description !== undefined)
-      updateData.description = params.description;
+    if (params.description !== undefined) updateData.description = params.description;
     if (params.version !== undefined) updateData.version = params.version;
     if (params.category !== undefined) updateData.category = params.category;
-    if (params.endpointPath !== undefined)
-      updateData.endpoint_path = params.endpointPath;
-    if (params.transportType !== undefined)
-      updateData.transport_type = params.transportType;
+    if (params.endpointPath !== undefined) updateData.endpoint_path = params.endpointPath;
+    if (params.transportType !== undefined) updateData.transport_type = params.transportType;
     if (params.tools !== undefined) updateData.tools = params.tools;
-    if (params.pricingType !== undefined)
-      updateData.pricing_type = params.pricingType;
+    if (params.pricingType !== undefined) updateData.pricing_type = params.pricingType;
     if (params.creditsPerRequest !== undefined)
       updateData.credits_per_request = params.creditsPerRequest.toString();
     if (params.x402PriceUsd !== undefined)
       updateData.x402_price_usd = params.x402PriceUsd.toString();
-    if (params.x402Enabled !== undefined)
-      updateData.x402_enabled = params.x402Enabled;
+    if (params.x402Enabled !== undefined) updateData.x402_enabled = params.x402Enabled;
     if (params.creatorSharePercentage !== undefined) {
-      updateData.creator_share_percentage =
-        params.creatorSharePercentage.toString();
-      updateData.platform_share_percentage = (
-        100 - params.creatorSharePercentage
-      ).toString();
+      updateData.creator_share_percentage = params.creatorSharePercentage.toString();
+      updateData.platform_share_percentage = (100 - params.creatorSharePercentage).toString();
     }
     if (params.documentationUrl !== undefined)
       updateData.documentation_url = params.documentationUrl;
-    if (params.sourceCodeUrl !== undefined)
-      updateData.source_code_url = params.sourceCodeUrl;
-    if (params.supportEmail !== undefined)
-      updateData.support_email = params.supportEmail;
+    if (params.sourceCodeUrl !== undefined) updateData.source_code_url = params.sourceCodeUrl;
+    if (params.supportEmail !== undefined) updateData.support_email = params.supportEmail;
     if (params.tags !== undefined) updateData.tags = params.tags;
     if (params.icon !== undefined) updateData.icon = params.icon;
     if (params.color !== undefined) updateData.color = params.color;
@@ -461,14 +431,13 @@ class UserMcpsService {
       }
     }
 
-    const totalCreditsToDeduct =
-      creditsCharged + affiliateFeeCredits + platformFeeCredits;
+    const totalCreditsToDeduct = creditsCharged + affiliateFeeCredits + platformFeeCredits;
 
     const creatorSharePct = Number(mcp.creator_share_percentage) / 100;
     const platformSharePct = Number(mcp.platform_share_percentage) / 100;
 
     const creatorEarnings = creditsCharged * creatorSharePct;
-    const platformEarnings = (creditsCharged * platformSharePct) + platformFeeCredits;
+    const platformEarnings = creditsCharged * platformSharePct + platformFeeCredits;
 
     // Charge the consumer
     if (params.paymentType === "credits" && totalCreditsToDeduct > 0) {
@@ -504,7 +473,7 @@ class UserMcpsService {
         metadata: {
           buyer_user_id: params.userId,
           buyer_org_id: params.organizationId,
-          mcp_id: mcp.id
+          mcp_id: mcp.id,
         },
       });
     }
@@ -567,11 +536,7 @@ class UserMcpsService {
     });
 
     // Update MCP stats
-    await userMcpsRepository.incrementUsage(
-      params.mcpId,
-      creatorEarnings,
-      x402AmountUsd,
-    );
+    await userMcpsRepository.incrementUsage(params.mcpId, creatorEarnings, x402AmountUsd);
 
     logger.info("[UserMcps] Recorded usage", {
       mcpId: params.mcpId,
@@ -596,9 +561,7 @@ class UserMcpsService {
    * Use this when credits have already been deducted by the caller.
    * This only handles revenue distribution and usage tracking.
    */
-  async recordUsageWithoutDeduction(
-    params: UseMcpWithoutDeductionParams,
-  ): Promise<UseMcpResult> {
+  async recordUsageWithoutDeduction(params: UseMcpWithoutDeductionParams): Promise<UseMcpResult> {
     const mcp = await userMcpsRepository.getById(params.mcpId);
     if (!mcp) {
       throw new Error("MCP not found");
@@ -611,16 +574,11 @@ class UserMcpsService {
     const platformSharePct = Number(mcp.platform_share_percentage) / 100;
 
     const creatorEarnings = creditsCharged * creatorSharePct;
-    const platformEarnings =
-      creditsCharged * platformSharePct + platformFeeCredits;
+    const platformEarnings = creditsCharged * platformSharePct + platformFeeCredits;
 
     const CREDITS_PER_DOLLAR = 100; // 1 cent = 1 credit
 
-    if (
-      affiliateFeeCredits > 0 &&
-      params.affiliateOwnerId &&
-      params.affiliateCodeId
-    ) {
+    if (affiliateFeeCredits > 0 && params.affiliateOwnerId && params.affiliateCodeId) {
       const sourceSuffix =
         typeof params.metadata?.preChargeTransactionId === "string"
           ? params.metadata.preChargeTransactionId
@@ -636,8 +594,7 @@ class UserMcpsService {
           buyer_user_id: params.userId,
           buyer_org_id: params.organizationId,
           mcp_id: mcp.id,
-          total_credits_charged:
-            creditsCharged + affiliateFeeCredits + platformFeeCredits,
+          total_credits_charged: creditsCharged + affiliateFeeCredits + platformFeeCredits,
         },
       });
 

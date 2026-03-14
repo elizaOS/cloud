@@ -1,10 +1,10 @@
-import { logger } from "@/lib/utils/logger";
-import { appsService, AppNameConflictError } from "./apps";
-import { githubReposService } from "./github-repos";
-import { vercelDeploymentsService } from "./vercel-deployments";
-import { discordService } from "./discord";
-import { usersService } from "./users";
 import type { App } from "@/db/repositories/apps";
+import { logger } from "@/lib/utils/logger";
+import { AppNameConflictError, appsService } from "./apps";
+import { discordService } from "./discord";
+import { githubReposService } from "./github-repos";
+import { usersService } from "./users";
+import { vercelDeploymentsService } from "./vercel-deployments";
 
 /**
  * App Factory Service
@@ -63,10 +63,7 @@ export class AppFactoryService {
    * This is the primary method for app creation that should be used
    * throughout the application to ensure consistency.
    */
-  async createApp(
-    data: CreateAppInput,
-    options: CreateAppOptions = {},
-  ): Promise<CreateAppResult> {
+  async createApp(data: CreateAppInput, options: CreateAppOptions = {}): Promise<CreateAppResult> {
     const {
       createGitHubRepo = true,
       repoPrivate = true,
@@ -127,8 +124,7 @@ export class AppFactoryService {
       const repoTask = (async () => {
         try {
           const repoName =
-            options.repoName ||
-            githubReposService.generateRepoName(app.id, app.slug);
+            options.repoName || githubReposService.generateRepoName(app.id, app.slug);
 
           logger.info("AppFactory: Creating GitHub repo", {
             appId: app.id,
@@ -151,9 +147,7 @@ export class AppFactoryService {
           });
         } catch (repoError) {
           const errorMessage =
-            repoError instanceof Error
-              ? repoError.message
-              : "Unknown error creating GitHub repo";
+            repoError instanceof Error ? repoError.message : "Unknown error creating GitHub repo";
 
           errors.push(`GitHub repo creation failed: ${errorMessage}`);
 
@@ -175,11 +169,10 @@ export class AppFactoryService {
             preferredSubdomain,
           });
 
-          const subdomainResult =
-            await vercelDeploymentsService.assignSubdomain(
-              app.id,
-              preferredSubdomain || app.slug,
-            );
+          const subdomainResult = await vercelDeploymentsService.assignSubdomain(
+            app.id,
+            preferredSubdomain || app.slug,
+          );
 
           if (subdomainResult.success && subdomainResult.subdomain) {
             subdomain = subdomainResult.subdomain;
@@ -194,9 +187,7 @@ export class AppFactoryService {
               productionUrl,
             });
           } else {
-            errors.push(
-              `Subdomain assignment failed: ${subdomainResult.error || "Unknown error"}`,
-            );
+            errors.push(`Subdomain assignment failed: ${subdomainResult.error || "Unknown error"}`);
             logger.warn("AppFactory: Failed to assign subdomain", {
               appId: app.id,
               error: subdomainResult.error,
@@ -274,13 +265,10 @@ export class AppFactoryService {
           });
         });
     } else {
-      logger.info(
-        "AppFactory: Skipping Discord notification for draft app (no production URL)",
-        {
-          appId: app.id,
-          appUrl: finalAppUrl,
-        },
-      );
+      logger.info("AppFactory: Skipping Discord notification for draft app (no production URL)", {
+        appId: app.id,
+        appUrl: finalAppUrl,
+      });
     }
 
     return {
@@ -299,9 +287,7 @@ export class AppFactoryService {
    * Create an app without GitHub repository.
    * Use this for apps that don't need version control.
    */
-  async createAppWithoutRepo(
-    data: CreateAppInput,
-  ): Promise<{ app: App; apiKey: string }> {
+  async createAppWithoutRepo(data: CreateAppInput): Promise<{ app: App; apiKey: string }> {
     return appsService.create(data);
   }
 
@@ -355,15 +341,11 @@ export class AppFactoryService {
 
       return { githubRepo: repoInfo.fullName, created: true };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      logger.error(
-        "AppFactory: Failed to create GitHub repo for existing app",
-        {
-          appId,
-          error: errorMessage,
-        },
-      );
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      logger.error("AppFactory: Failed to create GitHub repo for existing app", {
+        appId,
+        error: errorMessage,
+      });
       return { githubRepo: null, created: false, error: errorMessage };
     }
   }
@@ -398,8 +380,7 @@ export class AppFactoryService {
           githubRepo: app.github_repo,
         });
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         errors.push(`Failed to delete GitHub repo: ${errorMessage}`);
         logger.warn("AppFactory: Failed to delete GitHub repo", {
           appId,

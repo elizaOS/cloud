@@ -11,20 +11,16 @@ const TEST_IMAGE_URL =
 const API_KEY = process.argv[2] || process.env.TEST_API_KEY;
 
 if (!API_KEY) {
-  console.error(
-    "❌ Please provide an API key as argument or TEST_API_KEY env var",
-  );
+  console.error("❌ Please provide an API key as argument or TEST_API_KEY env var");
   console.error("Usage: bun scripts/test-image-simple.ts <API_KEY>");
   process.exit(1);
 }
 
 async function testImageDescription() {
-  const baseUrl = "http://localhost:3000/api/v1";
+  const baseUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/v1`;
 
   console.log("🚀 Starting image description test...\n");
-  console.log(
-    "🖼️  Testing image description with /chat/completions endpoint...",
-  );
+  console.log("🖼️  Testing image description with /chat/completions endpoint...");
   console.log(`📍 Base URL: ${baseUrl}`);
   console.log(`🔑 Using API key: ${API_KEY.substring(0, 10)}...`);
 
@@ -63,9 +59,7 @@ async function testImageDescription() {
       body: JSON.stringify(requestBody),
     });
 
-    console.log(
-      `\n📥 Response status: ${response.status} ${response.statusText}`,
-    );
+    console.log(`\n📥 Response status: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -93,9 +87,7 @@ async function testImageDescription() {
         content.toLowerCase().includes("vitalik"));
 
     if (!hasImageDescription) {
-      console.warn(
-        "\n⚠️  Warning: Response doesn't seem to describe the image properly",
-      );
+      console.warn("\n⚠️  Warning: Response doesn't seem to describe the image properly");
       console.warn("This might indicate the image wasn't processed correctly");
     } else {
       console.log("\n✨ Image was successfully processed and described!");

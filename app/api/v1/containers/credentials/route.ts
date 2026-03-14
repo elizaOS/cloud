@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { getECRManager } from "@/lib/services/ecr";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +37,7 @@ async function handleECRCredentials(request: NextRequest) {
     const ecrManager = getECRManager();
 
     // Generate ECR repository name
-    const repositoryName =
-      `elizaos/${user.organization_id}/${projectId}`.toLowerCase();
+    const repositoryName = `elizaos/${user.organization_id}/${projectId}`.toLowerCase();
 
     // Create or get ECR repository
     const repository = await ecrManager.createRepository(repositoryName);
@@ -67,10 +66,7 @@ async function handleECRCredentials(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to get ECR credentials",
+        error: error instanceof Error ? error.message : "Failed to get ECR credentials",
       },
       { status: 500 },
     );
@@ -78,7 +74,4 @@ async function handleECRCredentials(request: NextRequest) {
 }
 
 // Export rate-limited handler
-export const POST = withRateLimit(
-  handleECRCredentials,
-  RateLimitPresets.STRICT,
-);
+export const POST = withRateLimit(handleECRCredentials, RateLimitPresets.STRICT);

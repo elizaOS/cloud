@@ -6,9 +6,9 @@
  */
 
 import "dotenv/config";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { organizations } from "@/db/schemas/organizations";
-import { eq } from "drizzle-orm";
 
 async function setBillingEmail(orgId: string, email: string) {
   try {

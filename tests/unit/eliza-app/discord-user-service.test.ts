@@ -9,7 +9,7 @@
  * - Race condition handling (unique constraint errors)
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 describe("Discord User Service", () => {
   describe("generateSlugFromDiscord", () => {
@@ -156,8 +156,10 @@ describe("Discord User Service", () => {
 
     const needsProfileUpdate = (existing: ExistingUser, newData: NewUserData): boolean => {
       if (newData.username && newData.username !== existing.discord_username) return true;
-      if (newData.globalName !== undefined && newData.globalName !== existing.discord_global_name) return true;
-      if (newData.avatarUrl !== undefined && newData.avatarUrl !== existing.discord_avatar_url) return true;
+      if (newData.globalName !== undefined && newData.globalName !== existing.discord_global_name)
+        return true;
+      if (newData.avatarUrl !== undefined && newData.avatarUrl !== existing.discord_avatar_url)
+        return true;
       return false;
     };
 
@@ -174,7 +176,10 @@ describe("Discord User Service", () => {
     });
 
     test("detects avatar change", () => {
-      const existing: ExistingUser = { discord_username: "user", discord_avatar_url: "https://old.png" };
+      const existing: ExistingUser = {
+        discord_username: "user",
+        discord_avatar_url: "https://old.png",
+      };
       const newData: NewUserData = { username: "user", avatarUrl: "https://new.png" };
       expect(needsProfileUpdate(existing, newData)).toBe(true);
     });
@@ -209,9 +214,11 @@ describe("Discord User Service", () => {
   describe("Unique constraint error detection", () => {
     const isUniqueConstraintError = (error: unknown): boolean => {
       if (error instanceof Error) {
-        return error.message.includes("unique constraint") ||
+        return (
+          error.message.includes("unique constraint") ||
           error.message.includes("duplicate key") ||
-          (error as { code?: string }).code === "23505";
+          (error as { code?: string }).code === "23505"
+        );
       }
       return false;
     };

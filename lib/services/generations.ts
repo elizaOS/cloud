@@ -2,11 +2,7 @@
  * Service for managing AI generation records (images, videos, etc.).
  */
 
-import {
-  generationsRepository,
-  type Generation,
-  type NewGeneration,
-} from "@/db/repositories";
+import { type Generation, generationsRepository, type NewGeneration } from "@/db/repositories";
 
 /**
  * Service for tracking and managing AI generation jobs.
@@ -20,14 +16,8 @@ export class GenerationsService {
     return await generationsRepository.findByJobId(jobId);
   }
 
-  async listByOrganization(
-    organizationId: string,
-    limit?: number,
-  ): Promise<Generation[]> {
-    return await generationsRepository.listByOrganization(
-      organizationId,
-      limit,
-    );
+  async listByOrganization(organizationId: string, limit?: number): Promise<Generation[]> {
+    return await generationsRepository.listByOrganization(organizationId, limit);
   }
 
   async listByOrganizationAndType(
@@ -35,11 +25,7 @@ export class GenerationsService {
     type: string,
     limit?: number,
   ): Promise<Generation[]> {
-    return await generationsRepository.listByOrganizationAndType(
-      organizationId,
-      type,
-      limit,
-    );
+    return await generationsRepository.listByOrganizationAndType(organizationId, type, limit);
   }
 
   async listByOrganizationAndStatus(
@@ -52,29 +38,18 @@ export class GenerationsService {
       offset?: number;
     },
   ): Promise<Generation[]> {
-    return await generationsRepository.listByOrganizationAndStatus(
-      organizationId,
-      status,
-      options,
-    );
+    return await generationsRepository.listByOrganizationAndStatus(organizationId, status, options);
   }
 
   async create(data: NewGeneration): Promise<Generation> {
     return await generationsRepository.create(data);
   }
 
-  async update(
-    id: string,
-    data: Partial<NewGeneration>,
-  ): Promise<Generation | undefined> {
+  async update(id: string, data: Partial<NewGeneration>): Promise<Generation | undefined> {
     return await generationsRepository.update(id, data);
   }
 
-  async updateStatus(
-    id: string,
-    status: string,
-    error?: string,
-  ): Promise<Generation | undefined> {
+  async updateStatus(id: string, status: string, error?: string): Promise<Generation | undefined> {
     const updateData: Partial<NewGeneration> = {
       status,
       error,
@@ -111,11 +86,7 @@ export class GenerationsService {
       totalCredits: number;
     }>;
   }> {
-    return await generationsRepository.getStats(
-      organizationId,
-      startDate,
-      endDate,
-    );
+    return await generationsRepository.getStats(organizationId, startDate, endDate);
   }
 }
 

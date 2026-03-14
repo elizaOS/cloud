@@ -8,7 +8,7 @@
  * - Webhook subscription verification (GET handshake)
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { createHmac } from "crypto";
 import { verifyWhatsAppSignature } from "../../../lib/utils/whatsapp-api";
 

@@ -9,7 +9,7 @@
  * - Server running at TEST_SERVER_URL (default: http://localhost:3000)
  */
 
-import { describe, test, expect, beforeAll } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
@@ -38,9 +38,7 @@ async function fetchWithAuth(
 // Validate API key before running tests
 beforeAll(async () => {
   if (!API_KEY) {
-    console.log(
-      "[Promotion Preview Tests] No TEST_API_KEY set - auth tests will skip",
-    );
+    console.log("[Promotion Preview Tests] No TEST_API_KEY set - auth tests will skip");
     return;
   }
 
@@ -49,9 +47,7 @@ beforeAll(async () => {
   apiKeyValid = res.status !== 401;
 
   if (!apiKeyValid) {
-    console.log(
-      "[Promotion Preview Tests] TEST_API_KEY is invalid - auth tests will skip",
-    );
+    console.log("[Promotion Preview Tests] TEST_API_KEY is invalid - auth tests will skip");
   } else {
     console.log("[Promotion Preview Tests] TEST_API_KEY is valid");
   }
@@ -61,14 +57,11 @@ describe("Promotion Preview API", () => {
   const FAKE_APP_ID = "00000000-0000-0000-0000-000000000000";
 
   test("returns 401 without auth", async () => {
-    const res = await fetch(
-      `${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/promote/preview`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platforms: ["discord"], count: 1 }),
-      },
-    );
+    const res = await fetch(`${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/promote/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platforms: ["discord"], count: 1 }),
+    });
     expect(res.status).toBe(401);
   });
 
@@ -96,11 +89,10 @@ describe("Promotion Preview API", () => {
       return;
     }
 
-    const res = await fetchWithAuth(
-      `/api/v1/apps/${FAKE_APP_ID}/promote/preview`,
-      "POST",
-      { platforms: [], count: 1 },
-    );
+    const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/promote/preview`, "POST", {
+      platforms: [],
+      count: 1,
+    });
     expect(res.status).toBe(400);
 
     const data = await res.json();
@@ -113,11 +105,10 @@ describe("Promotion Preview API", () => {
       return;
     }
 
-    const res = await fetchWithAuth(
-      `/api/v1/apps/${FAKE_APP_ID}/promote/preview`,
-      "POST",
-      { platforms: ["invalid_platform"], count: 1 },
-    );
+    const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/promote/preview`, "POST", {
+      platforms: ["invalid_platform"],
+      count: 1,
+    });
     expect(res.status).toBe(400);
 
     const data = await res.json();
@@ -147,11 +138,10 @@ describe("Promotion Preview API", () => {
       return;
     }
 
-    const res = await fetchWithAuth(
-      `/api/v1/apps/${FAKE_APP_ID}/promote/preview`,
-      "POST",
-      { platforms: ["discord"], count: 1 },
-    );
+    const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/promote/preview`, "POST", {
+      platforms: ["discord"],
+      count: 1,
+    });
     expect(res.status).toBe(404);
 
     const data = await res.json();
@@ -169,11 +159,10 @@ describe("Promotion Preview API", () => {
     const validPlatforms = ["discord", "telegram", "twitter"];
 
     for (const platform of validPlatforms) {
-      const res = await fetchWithAuth(
-        `/api/v1/apps/${FAKE_APP_ID}/promote/preview`,
-        "POST",
-        { platforms: [platform], count: 1 },
-      );
+      const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/promote/preview`, "POST", {
+        platforms: [platform],
+        count: 1,
+      });
       // Should fail with 404 (app not found), not 400 (invalid request)
       expect(res.status).toBe(404);
     }
@@ -185,11 +174,10 @@ describe("Promotion Preview API", () => {
       return;
     }
 
-    const res = await fetchWithAuth(
-      `/api/v1/apps/${FAKE_APP_ID}/promote/preview`,
-      "POST",
-      { platforms: ["discord", "telegram", "twitter"], count: 2 },
-    );
+    const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/promote/preview`, "POST", {
+      platforms: ["discord", "telegram", "twitter"],
+      count: 2,
+    });
     // Should fail with 404 (app not found), not 400 (invalid request)
     expect(res.status).toBe(404);
   });

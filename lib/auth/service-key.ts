@@ -10,9 +10,9 @@
  *   WAIFU_SERVICE_USER_ID   — user id used as the creator of service-provisioned agents
  */
 
+import crypto from "crypto";
 import type { NextRequest } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import crypto from "crypto";
 
 export interface ServiceKeyIdentity {
   /** The organization that owns resources created through this service key. */

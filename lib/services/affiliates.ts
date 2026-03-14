@@ -1,9 +1,9 @@
+import { nanoid } from "nanoid";
 import { affiliatesRepository } from "@/db/repositories/affiliates";
 import type { AffiliateCode, UserAffiliate } from "@/db/schemas/affiliates";
-import { logger } from "@/lib/utils/logger";
-import { nanoid } from "nanoid";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { logger } from "@/lib/utils/logger";
 
 // Error codes for consistent error handling
 export const ERRORS = {
@@ -20,8 +20,7 @@ function normalizeAffiliateCode(code: string): string {
 function isUniqueViolation(error: unknown): boolean {
   const code = error instanceof Error ? Reflect.get(error, "code") : undefined;
   return (
-    code === "23505" ||
-    (error instanceof Error && error.message.includes("unique constraint"))
+    code === "23505" || (error instanceof Error && error.message.includes("unique constraint"))
   );
 }
 
@@ -51,16 +50,10 @@ export class AffiliatesService {
   /**
    * Generates or returns an existing affiliate code for the user.
    */
-  async getOrCreateAffiliateCode(
-    userId: string,
-    markupPercent?: number,
-  ): Promise<AffiliateCode> {
+  async getOrCreateAffiliateCode(userId: string, markupPercent?: number): Promise<AffiliateCode> {
     let affiliateCode = await this.getAffiliateCode(userId);
     if (affiliateCode) {
-      if (
-        markupPercent !== undefined &&
-        Number(affiliateCode.markup_percent) !== markupPercent
-      ) {
+      if (markupPercent !== undefined && Number(affiliateCode.markup_percent) !== markupPercent) {
         return this.updateMarkup(userId, markupPercent);
       }
       return affiliateCode;
@@ -119,10 +112,7 @@ export class AffiliatesService {
       throw new Error("Failed to generate a unique affiliate code");
     }
 
-    if (
-      markupPercent !== undefined &&
-      Number(affiliateCode.markup_percent) !== markupPercent
-    ) {
+    if (markupPercent !== undefined && Number(affiliateCode.markup_percent) !== markupPercent) {
       return this.updateMarkup(userId, markupPercent);
     }
 
@@ -164,11 +154,11 @@ export class AffiliatesService {
    */
   async linkUserToAffiliateCode(userId: string, code: string): Promise<UserAffiliate> {
     const normalizedCode = normalizeAffiliateCode(code);
-    
+
     // Check cache for affiliate code by code string
     const codeCacheKey = CacheKeys.affiliate.codeByCode(normalizedCode);
     let affiliateCode = await cache.get<AffiliateCode | { __none: true }>(codeCacheKey);
-    
+
     if (!affiliateCode) {
       const dbCode = await affiliatesRepository.getAffiliateCodeByCode(normalizedCode);
       affiliateCode = dbCode || { __none: true };
@@ -229,7 +219,7 @@ export class AffiliatesService {
   async getReferrer(userId: string): Promise<AffiliateCode | null> {
     const linkCacheKey = CacheKeys.affiliate.linkByUserId(userId);
     let link = await cache.get<UserAffiliate | { __none: true }>(linkCacheKey);
-    
+
     if (!link) {
       const dbLink = await affiliatesRepository.getUserAffiliate(userId);
       link = dbLink || { __none: true };
@@ -254,7 +244,7 @@ export class AffiliatesService {
     if ("__none" in affiliateCode || !(affiliateCode as AffiliateCode).is_active) {
       return null;
     }
-    
+
     return affiliateCode as AffiliateCode;
   }
 }

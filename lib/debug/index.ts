@@ -33,74 +33,65 @@
  * ```
  */
 
-// Types
-export {
-  // Event types
-  DebugEventType,
-  type DebugEventTypeValue,
-
-  // Step types
-  type DebugStepType,
-  type DebugStepData,
-  type StateCompositionStepData,
-  type PromptCompositionStepData,
-  type ModelCallStepData,
-  type ParseResultStepData,
-  type ActionExecutionStepData,
-  type IterationBoundaryStepData,
-
-  // Trace types
-  type DebugStep,
-  type DebugTrace,
-  type DebugTraceSummary,
-  type DebugFailure,
-  type TraceStatus,
-  type FailureType,
-
-  // Event payloads
-  type DebugStateComposedPayload,
-  type DebugPromptComposedPayload,
-  type DebugParseResultPayload,
-  type DebugIterationPayload,
-  type DebugModelCallStartPayload,
-  type DebugModelCallEndPayload,
-
-  // Render types
-  type DebugRenderView,
-  type DebugTraceRenderOptions,
-
-  // Test integration types
-  type TestMessageDebugOptions,
-  type TestMessageDebugResult,
-} from "./types";
-
 // Collector
 export {
   DebugTraceCollector,
-  registerCollector,
-  getCollector,
-  removeCollector,
   getActiveCollectorCount,
+  getCollector,
+  registerCollector,
+  removeCollector,
 } from "./collector";
-
-// Store
-export {
-  DebugTraceStore,
-  debugTraceStore,
-  storeDebugTrace,
-  getDebugTrace,
-  getLatestDebugTrace,
-  listDebugTraces,
-  clearDebugTraces,
-  getDebugTraceStoreStats,
-} from "./store";
-
-// Renderer
-export { DebugTraceRenderer, renderDebugTrace } from "./renderer";
-
 // Plugin
 export {
   debugPlugin,
-  isDebugTracingEnabled,
   getDebugPluginIfEnabled,
+  isDebugTracingEnabled,
 } from "./plugin";
+// Renderer
+export { DebugTraceRenderer, renderDebugTrace } from "./renderer";
+// Store
+export {
+  clearDebugTraces,
+  DebugTraceStore,
+  debugTraceStore,
+  getDebugTrace,
+  getDebugTraceStoreStats,
+  getLatestDebugTrace,
+  listDebugTraces,
+  storeDebugTrace,
+} from "./store";
+// Types
+export {
+  type ActionExecutionStepData,
+  // Event types
+  DebugEventType,
+  type DebugEventTypeValue,
+  type DebugFailure,
+  type DebugIterationPayload,
+  type DebugModelCallEndPayload,
+  type DebugModelCallStartPayload,
+  type DebugParseResultPayload,
+  type DebugPromptComposedPayload,
+  // Render types
+  type DebugRenderView,
+  // Event payloads
+  type DebugStateComposedPayload,
+  // Trace types
+  type DebugStep,
+  type DebugStepData,
+  // Step types
+  type DebugStepType,
+  type DebugTrace,
+  type DebugTraceRenderOptions,
+  type DebugTraceSummary,
+  type FailureType,
+  type IterationBoundaryStepData,
+  type ModelCallStepData,
+  type ParseResultStepData,
+  type PromptCompositionStepData,
+  type StateCompositionStepData,
+  // Test integration types
+  type TestMessageDebugOptions,
+  type TestMessageDebugResult,
+  type TraceStatus,
+} from "./types";

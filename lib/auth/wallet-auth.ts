@@ -4,15 +4,17 @@
  * Unknown wallets are created on first valid signature (findOrCreateUserByWalletAddress).
  */
 import { NextRequest } from "next/server";
-import { verifyMessage, getAddress } from "viem";
-import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
-import type { UserWithOrganization } from "@/lib/types";
+import { getAddress, verifyMessage } from "viem";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
+import type { UserWithOrganization } from "@/lib/types";
 
 const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // WHY: limits replay window while allowing clock skew
 
-export async function verifyWalletSignature(request: NextRequest): Promise<UserWithOrganization | null> {
+export async function verifyWalletSignature(
+  request: NextRequest,
+): Promise<UserWithOrganization | null> {
   const rawWalletAddress = request.headers.get("X-Wallet-Address") || "";
   const timestampStr = request.headers.get("X-Timestamp") || "";
   const signature = request.headers.get("X-Wallet-Signature") || "";

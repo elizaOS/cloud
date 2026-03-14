@@ -1,3 +1,4 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   decimal,
   index,
@@ -8,7 +9,6 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
  * Provider health table schema.
@@ -24,10 +24,7 @@ export const providerHealth = pgTable(
     last_checked: timestamp("last_checked").notNull().defaultNow(),
     response_time: integer("response_time"),
     error_rate: decimal("error_rate", { precision: 5, scale: 4 }).default("0"),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },

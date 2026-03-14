@@ -5,9 +5,10 @@
  * @param props - Brand button props including variant and size
  * @param props.asChild - If true, renders as a child component using Radix Slot
  */
-import * as React from "react";
+
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
 import { cn } from "../../lib/utils";
 
 const brandButtonVariants = cva(
@@ -22,8 +23,7 @@ const brandButtonVariants = cva(
         ghost:
           "bg-transparent text-white/70 hover:border-white/10 hover:bg-white/5 hover:text-white",
         // Outlined button with white border
-        outline:
-          "border-white/15 bg-black/40 text-white hover:border-white/30 hover:bg-white/5",
+        outline: "border-white/15 bg-black/40 text-white hover:border-white/30 hover:bg-white/5",
         // Icon button with border
         icon: "h-10 w-10 border-white/15 bg-black/40 hover:border-white/30 hover:bg-white/5",
         // Icon button with orange accent
@@ -45,8 +45,7 @@ const brandButtonVariants = cva(
 );
 
 export interface BrandButtonProps
-  extends
-    React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof brandButtonVariants> {
   asChild?: boolean;
 }

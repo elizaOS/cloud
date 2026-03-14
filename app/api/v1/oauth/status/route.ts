@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { oauthService } from "@/lib/services/oauth";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
-import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +16,7 @@ type LegacyServiceStatus = {
   error?: string;
 };
 
-async function getGoogleStatus(
-  organizationId: string,
-): Promise<LegacyServiceStatus> {
+async function getGoogleStatus(organizationId: string): Promise<LegacyServiceStatus> {
   try {
     const connections = await oauthService.listConnections({
       organizationId,
@@ -40,13 +38,9 @@ async function getGoogleStatus(
   }
 }
 
-async function getTwilioStatus(
-  organizationId: string,
-): Promise<LegacyServiceStatus> {
+async function getTwilioStatus(organizationId: string): Promise<LegacyServiceStatus> {
   try {
-    const status = await twilioAutomationService.getConnectionStatus(
-      organizationId,
-    );
+    const status = await twilioAutomationService.getConnectionStatus(organizationId);
 
     return {
       id: "twilio",
@@ -63,13 +57,9 @@ async function getTwilioStatus(
   }
 }
 
-async function getBlooioStatus(
-  organizationId: string,
-): Promise<LegacyServiceStatus> {
+async function getBlooioStatus(organizationId: string): Promise<LegacyServiceStatus> {
   try {
-    const status = await blooioAutomationService.getConnectionStatus(
-      organizationId,
-    );
+    const status = await blooioAutomationService.getConnectionStatus(organizationId);
 
     return {
       id: "blooio",
@@ -103,9 +93,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
     });
 
-    return NextResponse.json(
-      { error: "Failed to fetch OAuth status" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch OAuth status" }, { status: 500 });
   }
 }

@@ -8,8 +8,8 @@
  * elizaOS uses 9 decimals on ALL networks (EVM + Solana).
  */
 
-import { mainnet, base, bsc, type Chain } from "viem/chains";
 import { parseAbi } from "viem";
+import { base, bsc, type Chain, mainnet } from "viem/chains";
 import type { SupportedNetwork } from "@/lib/services/eliza-token-price";
 
 // Token decimals per network (elizaOS uses 9 decimals on all networks)

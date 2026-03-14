@@ -4,7 +4,7 @@
  * Tests for getCorsHeaders() to validate origin allowlist behavior.
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { getCorsHeaders } from "@/lib/utils/cors";
 
 describe("getCorsHeaders", () => {
@@ -23,9 +23,7 @@ describe("getCorsHeaders", () => {
 
     it("reflects www subdomain as allowed origin", () => {
       const headers = getCorsHeaders("https://www.eliza.gg");
-      expect(headers["Access-Control-Allow-Origin"]).toBe(
-        "https://www.eliza.gg",
-      );
+      expect(headers["Access-Control-Allow-Origin"]).toBe("https://www.eliza.gg");
     });
 
     it("sets Access-Control-Allow-Credentials for allowed origins", () => {
@@ -81,9 +79,7 @@ describe("getCorsHeaders", () => {
       const headers = getCorsHeaders(null);
       expect(headers["Access-Control-Allow-Headers"]).toBeDefined();
       expect(headers["Access-Control-Allow-Headers"]).toContain("X-API-Key");
-      expect(headers["Access-Control-Allow-Headers"]).toContain(
-        "Authorization",
-      );
+      expect(headers["Access-Control-Allow-Headers"]).toContain("Authorization");
       expect(headers["Access-Control-Allow-Headers"]).toContain("Content-Type");
     });
 

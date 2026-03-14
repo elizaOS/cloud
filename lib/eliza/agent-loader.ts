@@ -1,26 +1,26 @@
-import type { Character, Plugin, Provider, Action } from "@elizaos/core";
+import type { Action, Character, Plugin, Provider } from "@elizaos/core";
+import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
-import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
-import mcpPlugin from "./plugin-mcp";
-import { cloudBootstrapPlugin } from "./plugin-cloud-bootstrap";
-import { affiliatePlugin } from "./plugin-affiliate";
-import { chatPlaygroundPlugin } from "./plugin-chat-playground";
-import { characterBuilderPlugin } from "./plugin-character-builder";
-import { charactersService } from "@/lib/services/characters/characters";
 import { memoriesRepository } from "@/db/repositories/agents/memories";
+import { charactersService } from "@/lib/services/characters/characters";
 import type { ElizaCharacter } from "@/lib/types";
-import defaultAgent from "./agent";
-import { getElizaCloudApiUrl, buildElevenLabsSettings } from "./config";
 import { logger } from "@/lib/utils/logger";
+import defaultAgent from "./agent";
 import {
-  AgentMode,
   AGENT_MODE_PLUGINS,
-  SETTINGS_PLUGIN_MAP,
+  AgentMode,
   getConditionalPlugins,
-  requiresAssistantMode,
   hasAffiliateData,
+  requiresAssistantMode,
+  SETTINGS_PLUGIN_MAP,
 } from "./agent-mode-types";
+import { buildElevenLabsSettings, getElizaCloudApiUrl } from "./config";
+import { affiliatePlugin } from "./plugin-affiliate";
+import { characterBuilderPlugin } from "./plugin-character-builder";
+import { chatPlaygroundPlugin } from "./plugin-chat-playground";
+import { cloudBootstrapPlugin } from "./plugin-cloud-bootstrap";
+import mcpPlugin from "./plugin-mcp";
 import { cloudN8nPlugin } from "./plugin-n8n";
 
 // Plugin cache - preloaded at module init to eliminate dynamic import latency
@@ -35,15 +35,10 @@ async function preloadPlugins(): Promise<void> {
   try {
     // Only preload web-search plugin (local version)
     // Knowledge plugin is loaded on-demand when documents exist
-    const webSearchModule = await import("./plugin-web-search/src").catch(
-      (e) => {
-        logger.warn(
-          "[AgentLoader] Failed to preload local web-search plugin:",
-          e,
-        );
-        return null;
-      },
-    );
+    const webSearchModule = await import("./plugin-web-search/src").catch((e) => {
+      logger.warn("[AgentLoader] Failed to preload local web-search plugin:", e);
+      return null;
+    });
 
     if (webSearchModule) {
       _webSearchPlugin = asPlugin(webSearchModule.webSearchPlugin);
@@ -85,10 +80,7 @@ async function resolveEffectiveMode(
 
   // Query document count once - needed for multiple checks and plugin resolution
   // Note: no roomId filter — we want agent-level document count across all rooms
-  const documentCount = await memoriesRepository.countByType(
-    characterId,
-    "documents",
-  );
+  const documentCount = await memoriesRepository.countByType(characterId, "documents");
 
   // Already ASSISTANT mode - no upgrade needed
   if (requestedMode === AgentMode.ASSISTANT) {
@@ -142,9 +134,7 @@ async function getWebSearchPlugin(): Promise<Plugin> {
 }
 
 /** Cast external plugin to local Plugin type for cross-version compatibility. */
-function asPlugin<T extends { name: string; description: string }>(
-  plugin: T,
-): Plugin {
+function asPlugin<T extends { name: string; description: string }>(plugin: T): Plugin {
   return plugin as Plugin;
 }
 
@@ -177,10 +167,7 @@ export class AgentLoader {
 
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
     const character = this.buildCharacter(elizaCharacter);
-    const characterSettings = (elizaCharacter.settings ?? {}) as Record<
-      string,
-      unknown
-    >;
+    const characterSettings = (elizaCharacter.settings ?? {}) as Record<string, unknown>;
     const characterPlugins = elizaCharacter.plugins || [];
 
     if (options?.webSearchEnabled) {
@@ -226,26 +213,15 @@ export class AgentLoader {
       characterSettings,
       [],
     );
-    const plugins = await this.resolvePlugins(
-      modeResolution.mode,
-      [],
-      characterSettings,
-    );
+    const plugins = await this.resolvePlugins(modeResolution.mode, [], characterSettings);
     return { character: defaultAgent.character, plugins, modeResolution };
   }
 
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
-    const characterId =
-      elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
-    const charSettings = (elizaCharacter.settings || {}) as Record<
-      string,
-      unknown
-    >;
+    const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
+    const charSettings = (elizaCharacter.settings || {}) as Record<string, unknown>;
 
-    const settings: Record<
-      string,
-      string | boolean | number | Record<string, unknown>
-    > = {
+    const settings: Record<string, string | boolean | number | Record<string, unknown>> = {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
@@ -284,9 +260,7 @@ export class AgentLoader {
     const plugins: Plugin[] = [];
     const isAffiliate = hasAffiliateData(characterSettings);
 
-    const conditionalPlugins = isAffiliate
-      ? []
-      : getConditionalPlugins(characterSettings);
+    const conditionalPlugins = isAffiliate ? [] : getConditionalPlugins(characterSettings);
 
     const modePlugins = AGENT_MODE_PLUGINS[agentMode].map((pluginName) => {
       if (isAffiliate && pluginName === "@eliza-cloud/plugin-assistant") {
@@ -295,11 +269,7 @@ export class AgentLoader {
       return pluginName;
     });
 
-    const allPluginNames = [
-      ...modePlugins,
-      ...characterPlugins,
-      ...conditionalPlugins,
-    ];
+    const allPluginNames = [...modePlugins, ...characterPlugins, ...conditionalPlugins];
 
     // Only load knowledge plugin when documents actually exist
     // Upload capability is handled separately — no need to init the full plugin

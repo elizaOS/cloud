@@ -9,7 +9,7 @@
  * - Failover scenarios
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 // ============================================
 // Constants (matching gateway-manager.ts defaults)
@@ -198,8 +198,12 @@ describe("Leader Election Logic", () => {
 
       return {
         getState: (): LeadershipState => ({ isLeader, podName }),
-        becomeLeader: () => { isLeader = true; },
-        loseLeadership: () => { isLeader = false; },
+        becomeLeader: () => {
+          isLeader = true;
+        },
+        loseLeadership: () => {
+          isLeader = false;
+        },
         isCurrentlyLeader: () => isLeader,
       };
     };
@@ -236,8 +240,9 @@ describe("Leader Election Logic", () => {
       // When leader dies, worst case is:
       // - Lock just renewed (TTL full)
       // - Next check by other pod at max interval
-      const maxFailoverMs = ELIZA_APP_LEADER_TTL_SECONDS * 1000 + ELIZA_APP_LEADER_CHECK_INTERVAL_MS;
-      expect(maxFailoverMs).toBe(13000); // 10s TTL + 3s check = 13s max
+      const maxFailoverMs =
+        ELIZA_APP_LEADER_TTL_SECONDS * 1000 + ELIZA_APP_LEADER_CHECK_INTERVAL_MS;
+      expect(maxFailoverMs).toBe(13333); // 10s TTL + 3.333s check = 13.333s max
     });
 
     test("minimum failover time calculation", () => {
@@ -248,9 +253,9 @@ describe("Leader Election Logic", () => {
 
     test("average failover time estimation", () => {
       // On average: half of TTL remaining + half of check interval
-      const avgFailoverMs = (ELIZA_APP_LEADER_TTL_SECONDS * 1000) / 2 +
-                           ELIZA_APP_LEADER_CHECK_INTERVAL_MS / 2;
-      expect(avgFailoverMs).toBe(6500); // 5s + 1.5s = 6.5s average
+      const avgFailoverMs =
+        (ELIZA_APP_LEADER_TTL_SECONDS * 1000) / 2 + ELIZA_APP_LEADER_CHECK_INTERVAL_MS / 2;
+      expect(avgFailoverMs).toBe(6666.5); // 5s + 1.666s = 6.6665s average
     });
   });
 });
@@ -280,8 +285,8 @@ describe("Discord Partials for DM Support", () => {
   // Partials enum values from Discord.js
   // These are required for DM support because DM channels are not cached by default
   const REQUIRED_PARTIALS = {
-    Channel: 0,  // Partials.Channel - required for DM channel events
-    Message: 2,  // Partials.Message - required for partial message events
+    Channel: 0, // Partials.Channel - required for DM channel events
+    Message: 2, // Partials.Message - required for partial message events
   };
 
   test("Channel partial is required for DM events", () => {
@@ -323,30 +328,38 @@ describe("Environment Variable Configuration", () => {
   });
 
   test("detects Redis configuration", () => {
-    expect(hasRedisConfig({
-      KV_REST_API_URL: "https://redis.example.com",
-      KV_REST_API_TOKEN: "token",
-    })).toBe(true);
+    expect(
+      hasRedisConfig({
+        KV_REST_API_URL: "https://redis.example.com",
+        KV_REST_API_TOKEN: "token",
+      }),
+    ).toBe(true);
     expect(hasRedisConfig({ KV_REST_API_URL: "url" })).toBe(false);
     expect(hasRedisConfig({ KV_REST_API_TOKEN: "token" })).toBe(false);
     expect(hasRedisConfig({})).toBe(false);
   });
 
   test("leader election requires both bot and Redis config", () => {
-    expect(canEnableLeaderElection({
-      ELIZA_APP_DISCORD_BOT_TOKEN: "token",
-      KV_REST_API_URL: "url",
-      KV_REST_API_TOKEN: "token",
-    })).toBe(true);
+    expect(
+      canEnableLeaderElection({
+        ELIZA_APP_DISCORD_BOT_TOKEN: "token",
+        KV_REST_API_URL: "url",
+        KV_REST_API_TOKEN: "token",
+      }),
+    ).toBe(true);
 
-    expect(canEnableLeaderElection({
-      ELIZA_APP_DISCORD_BOT_TOKEN: "token",
-    })).toBe(false);
+    expect(
+      canEnableLeaderElection({
+        ELIZA_APP_DISCORD_BOT_TOKEN: "token",
+      }),
+    ).toBe(false);
 
-    expect(canEnableLeaderElection({
-      KV_REST_API_URL: "url",
-      KV_REST_API_TOKEN: "token",
-    })).toBe(false);
+    expect(
+      canEnableLeaderElection({
+        KV_REST_API_URL: "url",
+        KV_REST_API_TOKEN: "token",
+      }),
+    ).toBe(false);
   });
 });
 
@@ -531,22 +544,12 @@ describe("Webhook Forwarding", () => {
   });
 
   test("guild_id is always null for DM forwarding", () => {
-    const payload = createForwardPayload(
-      "123",
-      "456",
-      { id: "789", username: "user" },
-      "test",
-    );
+    const payload = createForwardPayload("123", "456", { id: "789", username: "user" }, "test");
     expect(payload.data.guild_id).toBeNull();
   });
 
   test("bot flag is always false for forwarded messages", () => {
-    const payload = createForwardPayload(
-      "123",
-      "456",
-      { id: "789", username: "user" },
-      "test",
-    );
+    const payload = createForwardPayload("123", "456", { id: "789", username: "user" }, "test");
     expect(payload.data.author.bot).toBe(false);
   });
 });

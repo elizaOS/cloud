@@ -3,11 +3,11 @@
  */
 
 import {
-  usersRepository,
+  type NewUser,
   organizationsRepository,
   type User,
-  type NewUser,
   type UserWithOrganization,
+  usersRepository,
 } from "@/db/repositories";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
@@ -48,9 +48,7 @@ export class UsersService {
     const walletAddress = user.wallet_address;
     if (typeof walletAddress === "string") {
       promises.push(cache.del(CacheKeys.user.byWalletAddress(walletAddress)));
-      promises.push(
-        cache.del(CacheKeys.user.byWalletAddressWithOrg(walletAddress)),
-      );
+      promises.push(cache.del(CacheKeys.user.byWalletAddressWithOrg(walletAddress)));
     }
     await Promise.all(promises);
     logger.debug("[UsersService] Invalidated cache for user:", user.id);
@@ -86,9 +84,7 @@ export class UsersService {
     return user;
   }
 
-  async getByPrivyId(
-    privyUserId: string,
-  ): Promise<UserWithOrganization | undefined> {
+  async getByPrivyId(privyUserId: string): Promise<UserWithOrganization | undefined> {
     const cacheKey = CacheKeys.user.byPrivyId(privyUserId);
     const cached = await cache.get<UserWithOrganization>(cacheKey);
     if (cached) {
@@ -97,8 +93,7 @@ export class UsersService {
     }
 
     try {
-      const user =
-        await usersRepository.findByPrivyIdWithOrganization(privyUserId);
+      const user = await usersRepository.findByPrivyIdWithOrganization(privyUserId);
       if (user) {
         await cache.set(cacheKey, user, CacheTTL.user.byPrivyId);
         logger.debug("[UsersService] Cached user data by privyId");
@@ -107,13 +102,10 @@ export class UsersService {
     } catch (error) {
       const errorDetails = getErrorDetails(error);
 
-      logger.warn(
-        "[UsersService] Read-path Privy lookup failed, retrying on primary",
-        {
-          privyUserId,
-          ...errorDetails,
-        },
-      );
+      logger.warn("[UsersService] Read-path Privy lookup failed, retrying on primary", {
+        privyUserId,
+        ...errorDetails,
+      });
 
       try {
         return await this.getByPrivyIdForWrite(privyUserId);
@@ -128,18 +120,11 @@ export class UsersService {
     }
   }
 
-  async getByPrivyIdForWrite(
-    privyUserId: string,
-  ): Promise<UserWithOrganization | undefined> {
-    const user =
-      await usersRepository.findByPrivyIdWithOrganizationForWrite(privyUserId);
+  async getByPrivyIdForWrite(privyUserId: string): Promise<UserWithOrganization | undefined> {
+    const user = await usersRepository.findByPrivyIdWithOrganizationForWrite(privyUserId);
     if (user) {
       await Promise.all([
-        cache.set(
-          CacheKeys.user.byPrivyId(privyUserId),
-          user,
-          CacheTTL.user.byPrivyId,
-        ),
+        cache.set(CacheKeys.user.byPrivyId(privyUserId), user, CacheTTL.user.byPrivyId),
         cache.set(
           CacheKeys.user.byPrivyIdWithOrg(privyUserId),
           user,
@@ -157,9 +142,7 @@ export class UsersService {
     return await usersRepository.findIdentityByPrivyIdForWrite(privyUserId);
   }
 
-  async getWithOrganization(
-    userId: string,
-  ): Promise<UserWithOrganization | undefined> {
+  async getWithOrganization(userId: string): Promise<UserWithOrganization | undefined> {
     const cacheKey = CacheKeys.user.withOrg(userId);
     const cached = await cache.get<UserWithOrganization>(cacheKey);
     if (cached) {
@@ -174,9 +157,7 @@ export class UsersService {
     return user;
   }
 
-  async getByEmailWithOrganization(
-    email: string,
-  ): Promise<UserWithOrganization | undefined> {
+  async getByEmailWithOrganization(email: string): Promise<UserWithOrganization | undefined> {
     const cacheKey = CacheKeys.user.byEmailWithOrg(email);
     const cached = await cache.get<UserWithOrganization>(cacheKey);
     if (cached) {
@@ -215,8 +196,7 @@ export class UsersService {
       logger.debug("[UsersService] Cache hit for user byWalletAddressWithOrg");
       return cached;
     }
-    const user =
-      await usersRepository.findByWalletAddressWithOrganization(walletAddress);
+    const user = await usersRepository.findByWalletAddressWithOrganization(walletAddress);
     if (user) {
       await cache.set(cacheKey, user, CacheTTL.user.byWalletAddressWithOrg);
       logger.debug("[UsersService] Cached user data byWalletAddressWithOrg");
@@ -244,12 +224,8 @@ export class UsersService {
     return result;
   }
 
-  async upsertPrivyIdentity(
-    userId: string,
-    privyUserId: string,
-  ): Promise<void> {
-    const existingIdentity =
-      await usersRepository.findIdentityByUserIdForWrite(userId);
+  async upsertPrivyIdentity(userId: string, privyUserId: string): Promise<void> {
+    const existingIdentity = await usersRepository.findIdentityByUserIdForWrite(userId);
 
     // Existing authenticated users hit this path on every Privy-backed request.
     // Once the projection already points at the canonical Privy ID, avoid the
@@ -273,15 +249,10 @@ export class UsersService {
       cache.del(CacheKeys.user.byPrivyIdWithOrg(privyUserId)),
     ];
 
-    if (
-      existingIdentity?.privy_user_id &&
-      existingIdentity.privy_user_id !== privyUserId
-    ) {
+    if (existingIdentity?.privy_user_id && existingIdentity.privy_user_id !== privyUserId) {
       cacheDeletes.push(
         cache.del(CacheKeys.user.byPrivyId(existingIdentity.privy_user_id)),
-        cache.del(
-          CacheKeys.user.byPrivyIdWithOrg(existingIdentity.privy_user_id),
-        ),
+        cache.del(CacheKeys.user.byPrivyIdWithOrg(existingIdentity.privy_user_id)),
       );
     }
 
@@ -302,8 +273,7 @@ export class UsersService {
 
     // Check if this was the last user in the organization
     if (organizationId) {
-      const remainingUsers =
-        await usersRepository.listByOrganization(organizationId);
+      const remainingUsers = await usersRepository.listByOrganization(organizationId);
 
       // If no users remain, delete the organization
       if (remainingUsers.length === 0) {

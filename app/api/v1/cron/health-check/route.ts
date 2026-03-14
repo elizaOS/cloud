@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyCronSecret } from "@/lib/api/cron-auth";
 import { monitorAllContainers } from "@/lib/services/health-monitor";
 import { logger } from "@/lib/utils/logger";
-import { verifyCronSecret } from "@/lib/api/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -28,9 +28,7 @@ async function handleHealthCheck(request: NextRequest) {
     const authError = verifyCronSecret(request, "[Health Check Cron]");
     if (authError) return authError;
 
-    logger.info(
-      "[Health Check Cron] Starting scheduled container health check",
-    );
+    logger.info("[Health Check Cron] Starting scheduled container health check");
 
     const results = await monitorAllContainers({
       checkIntervalMs: 60000,

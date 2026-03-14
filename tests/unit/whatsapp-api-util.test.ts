@@ -9,16 +9,16 @@
  * - WhatsApp ID validation
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { createHmac } from "crypto";
 import {
-  verifyWhatsAppSignature,
-  parseWhatsAppWebhookPayload,
-  extractWhatsAppMessages,
-  whatsappIdToE164,
   e164ToWhatsappId,
+  extractWhatsAppMessages,
   isValidWhatsAppId,
+  parseWhatsAppWebhookPayload,
+  verifyWhatsAppSignature,
   type WhatsAppWebhookPayload,
+  whatsappIdToE164,
 } from "../../lib/utils/whatsapp-api";
 
 // ============================================================================
@@ -125,15 +125,11 @@ describe("WhatsApp Webhook Payload Parsing", () => {
   });
 
   test("rejects payload with wrong object type", () => {
-    expect(() =>
-      parseWhatsAppWebhookPayload({ ...validPayload, object: "page" })
-    ).toThrow();
+    expect(() => parseWhatsAppWebhookPayload({ ...validPayload, object: "page" })).toThrow();
   });
 
   test("rejects payload with missing entry", () => {
-    expect(() =>
-      parseWhatsAppWebhookPayload({ object: "whatsapp_business_account" })
-    ).toThrow();
+    expect(() => parseWhatsAppWebhookPayload({ object: "whatsapp_business_account" })).toThrow();
   });
 
   test("rejects invalid JSON structure", () => {
@@ -277,9 +273,7 @@ describe("WhatsApp Message Extraction", () => {
                   display_phone_number: "+14245074963",
                   phone_number_id: "phone_id_123",
                 },
-                contacts: [
-                  { profile: { name: "User A" }, wa_id: "14245071111" },
-                ],
+                contacts: [{ profile: { name: "User A" }, wa_id: "14245071111" }],
                 messages: [
                   {
                     id: "wamid.msg1",

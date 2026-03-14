@@ -53,9 +53,7 @@ export class Tier2ToolIndex {
     let entries = results.map((r) => this.tools[r.index]);
 
     if (platform) {
-      entries = entries.filter(
-        (e) => e.platform.toLowerCase() === platform.toLowerCase()
-      );
+      entries = entries.filter((e) => e.platform.toLowerCase() === platform.toLowerCase());
     }
 
     return entries.slice(offset, offset + limit);

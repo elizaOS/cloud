@@ -7,11 +7,11 @@
  */
 
 import type { NextRequest } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { oauthService } from "@/lib/services/oauth";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -22,7 +22,11 @@ interface McpHandlerResponse {
 }
 
 function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
-  return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
+  return (
+    typeof resp === "object" &&
+    resp !== null &&
+    typeof (resp as McpHandlerResponse).status === "number"
+  );
 }
 
 async function getGitHubMcpHandler() {
@@ -30,7 +34,10 @@ async function getGitHubMcpHandler() {
   const { z } = await import("zod");
 
   async function getGitHubToken(organizationId: string): Promise<string> {
-    const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "github" });
+    const result = await oauthService.getValidTokenByPlatform({
+      organizationId,
+      platform: "github",
+    });
     return result.accessToken;
   }
 
@@ -69,7 +76,10 @@ async function getGitHubMcpHandler() {
   }
 
   function errorResult(msg: string) {
-    return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      isError: true,
+    };
   }
 
   function buildQuery(params: Record<string, string | number | boolean | undefined>) {
@@ -86,16 +96,31 @@ async function getGitHubMcpHandler() {
       server.tool("github_status", "Check GitHub OAuth connection status", {}, async () => {
         try {
           const orgId = getOrgId();
-          const connections = await oauthService.listConnections({ organizationId: orgId, platform: "github" });
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            platform: "github",
+          });
           const active = connections.find((c) => c.status === "active");
           if (!active) {
             const expired = connections.find((c) => c.status === "expired");
             if (expired) {
-              return jsonResult({ connected: false, status: "expired", message: "GitHub connection expired. Please reconnect in Settings > Connections." });
+              return jsonResult({
+                connected: false,
+                status: "expired",
+                message: "GitHub connection expired. Please reconnect in Settings > Connections.",
+              });
             }
-            return jsonResult({ connected: false, message: "GitHub not connected. Connect in Settings > Connections." });
+            return jsonResult({
+              connected: false,
+              message: "GitHub not connected. Connect in Settings > Connections.",
+            });
           }
-          return jsonResult({ connected: true, email: active.email, scopes: active.scopes, linkedAt: active.linkedAt });
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+            linkedAt: active.linkedAt,
+          });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
@@ -116,7 +141,10 @@ async function getGitHubMcpHandler() {
           try {
             const orgId = getOrgId();
             const base = org ? `/orgs/${org}/repos` : "/user/repos";
-            const data = await githubFetch(orgId, `${base}${buildQuery({ type, sort, direction, per_page, page })}`);
+            const data = await githubFetch(
+              orgId,
+              `${base}${buildQuery({ type, sort, direction, per_page, page })}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -232,7 +260,10 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, ...params }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/issues${buildQuery(params)}`);
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/issues${buildQuery(params)}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -243,7 +274,11 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_get_issue",
         "Get issue",
-        { owner: z.string().min(1), repo: z.string().min(1), issue_number: z.number().int().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          issue_number: z.number().int().min(1),
+        },
         async ({ owner, repo, issue_number }) => {
           try {
             const orgId = getOrgId();
@@ -298,10 +333,14 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, issue_number, ...rest }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/issues/${issue_number}`, {
-              method: "PATCH",
-              body: JSON.stringify(rest),
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/issues/${issue_number}`,
+              {
+                method: "PATCH",
+                body: JSON.stringify(rest),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -312,14 +351,22 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_close_issue",
         "Close issue",
-        { owner: z.string().min(1), repo: z.string().min(1), issue_number: z.number().int().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          issue_number: z.number().int().min(1),
+        },
         async ({ owner, repo, issue_number }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/issues/${issue_number}`, {
-              method: "PATCH",
-              body: JSON.stringify({ state: "closed" }),
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/issues/${issue_number}`,
+              {
+                method: "PATCH",
+                body: JSON.stringify({ state: "closed" }),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -339,10 +386,14 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, issue_number, lock_reason }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/issues/${issue_number}/lock`, {
-              method: "PUT",
-              body: lock_reason ? JSON.stringify({ lock_reason }) : undefined,
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/issues/${issue_number}/lock`,
+              {
+                method: "PUT",
+                body: lock_reason ? JSON.stringify({ lock_reason }) : undefined,
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -377,14 +428,23 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_create_issue_comment",
         "Create issue comment",
-        { owner: z.string().min(1), repo: z.string().min(1), issue_number: z.number().int().min(1), body: z.string().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          issue_number: z.number().int().min(1),
+          body: z.string().min(1),
+        },
         async ({ owner, repo, issue_number, body }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/issues/${issue_number}/comments`, {
-              method: "POST",
-              body: JSON.stringify({ body }),
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/issues/${issue_number}/comments`,
+              {
+                method: "POST",
+                body: JSON.stringify({ body }),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -395,14 +455,23 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_update_issue_comment",
         "Update issue comment",
-        { owner: z.string().min(1), repo: z.string().min(1), comment_id: z.number().int().min(1), body: z.string().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          comment_id: z.number().int().min(1),
+          body: z.string().min(1),
+        },
         async ({ owner, repo, comment_id, body }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/issues/comments/${comment_id}`, {
-              method: "PATCH",
-              body: JSON.stringify({ body }),
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/issues/comments/${comment_id}`,
+              {
+                method: "PATCH",
+                body: JSON.stringify({ body }),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -417,7 +486,11 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, comment_id }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/issues/comments/${comment_id}`, { method: "DELETE" });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/issues/comments/${comment_id}`,
+              { method: "DELETE" },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -442,7 +515,10 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, ...params }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/pulls${buildQuery(params)}`);
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/pulls${buildQuery(params)}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -532,10 +608,14 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, pull_number, commit_title, commit_message, merge_method }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/pulls/${pull_number}/merge`, {
-              method: "PUT",
-              body: JSON.stringify({ commit_title, commit_message, merge_method }),
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/pulls/${pull_number}/merge`,
+              {
+                method: "PUT",
+                body: JSON.stringify({ commit_title, commit_message, merge_method }),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -581,10 +661,14 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, pull_number, body, event, comments }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/pulls/${pull_number}/reviews`, {
-              method: "POST",
-              body: JSON.stringify({ body, event, comments }),
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/pulls/${pull_number}/reviews`,
+              {
+                method: "POST",
+                body: JSON.stringify({ body, event, comments }),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -604,7 +688,10 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, per_page, page }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/labels${buildQuery({ per_page, page })}`);
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/labels${buildQuery({ per_page, page })}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -615,7 +702,13 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_create_label",
         "Create label",
-        { owner: z.string().min(1), repo: z.string().min(1), name: z.string().min(1), color: z.string().min(1), description: z.string().optional() },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          name: z.string().min(1),
+          color: z.string().min(1),
+          description: z.string().optional(),
+        },
         async ({ owner, repo, name, color, description }) => {
           try {
             const orgId = getOrgId();
@@ -633,14 +726,25 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_update_label",
         "Update label",
-        { owner: z.string().min(1), repo: z.string().min(1), name: z.string().min(1), new_name: z.string().optional(), color: z.string().optional(), description: z.string().optional() },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          name: z.string().min(1),
+          new_name: z.string().optional(),
+          color: z.string().optional(),
+          description: z.string().optional(),
+        },
         async ({ owner, repo, name, new_name, color, description }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`, {
-              method: "PATCH",
-              body: JSON.stringify({ new_name, color, description }),
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`,
+              {
+                method: "PATCH",
+                body: JSON.stringify({ new_name, color, description }),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -655,7 +759,11 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, name }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`, { method: "DELETE" });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`,
+              { method: "DELETE" },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -678,7 +786,10 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, ...params }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/milestones${buildQuery(params)}`);
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/milestones${buildQuery(params)}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -726,10 +837,14 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, milestone_number, ...rest }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/milestones/${milestone_number}`, {
-              method: "PATCH",
-              body: JSON.stringify(rest),
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/milestones/${milestone_number}`,
+              {
+                method: "PATCH",
+                body: JSON.stringify(rest),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -740,11 +855,19 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_delete_milestone",
         "Delete milestone",
-        { owner: z.string().min(1), repo: z.string().min(1), milestone_number: z.number().int().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          milestone_number: z.number().int().min(1),
+        },
         async ({ owner, repo, milestone_number }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/milestones/${milestone_number}`, { method: "DELETE" });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/milestones/${milestone_number}`,
+              { method: "DELETE" },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -755,7 +878,10 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_list_orgs",
         "List user orgs",
-        { per_page: z.number().int().min(1).max(100).optional(), page: z.number().int().min(1).optional() },
+        {
+          per_page: z.number().int().min(1).max(100).optional(),
+          page: z.number().int().min(1).optional(),
+        },
         async ({ per_page, page }) => {
           try {
             const orgId = getOrgId();
@@ -785,11 +911,18 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_list_org_members",
         "List org members",
-        { org: z.string().min(1), per_page: z.number().int().min(1).max(100).optional(), page: z.number().int().min(1).optional() },
+        {
+          org: z.string().min(1),
+          per_page: z.number().int().min(1).max(100).optional(),
+          page: z.number().int().min(1).optional(),
+        },
         async ({ org, per_page, page }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/orgs/${org}/members${buildQuery({ per_page, page })}`);
+            const data = await githubFetch(
+              orgId,
+              `/orgs/${org}/members${buildQuery({ per_page, page })}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -800,11 +933,18 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_list_teams",
         "List teams",
-        { org: z.string().min(1), per_page: z.number().int().min(1).max(100).optional(), page: z.number().int().min(1).optional() },
+        {
+          org: z.string().min(1),
+          per_page: z.number().int().min(1).max(100).optional(),
+          page: z.number().int().min(1).optional(),
+        },
         async ({ org, per_page, page }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/orgs/${org}/teams${buildQuery({ per_page, page })}`);
+            const data = await githubFetch(
+              orgId,
+              `/orgs/${org}/teams${buildQuery({ per_page, page })}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -830,11 +970,19 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_list_team_members",
         "List team members",
-        { org: z.string().min(1), team_slug: z.string().min(1), per_page: z.number().int().min(1).max(100).optional(), page: z.number().int().min(1).optional() },
+        {
+          org: z.string().min(1),
+          team_slug: z.string().min(1),
+          per_page: z.number().int().min(1).max(100).optional(),
+          page: z.number().int().min(1).optional(),
+        },
         async ({ org, team_slug, per_page, page }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/orgs/${org}/teams/${team_slug}/members${buildQuery({ per_page, page })}`);
+            const data = await githubFetch(
+              orgId,
+              `/orgs/${org}/teams/${team_slug}/members${buildQuery({ per_page, page })}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -854,7 +1002,10 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, per_page, page }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/branches${buildQuery({ per_page, page })}`);
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/branches${buildQuery({ per_page, page })}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -869,7 +1020,10 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, branch }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`);
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -884,9 +1038,13 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, branch }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
-              method: "DELETE",
-            });
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/git/refs/heads/${branch}`,
+              {
+                method: "DELETE",
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -911,7 +1069,10 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, ...params }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/commits${buildQuery(params)}`);
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/commits${buildQuery(params)}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -937,11 +1098,19 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_get_file",
         "Get file contents",
-        { owner: z.string().min(1), repo: z.string().min(1), path: z.string().min(1), ref: z.string().optional() },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          path: z.string().min(1),
+          ref: z.string().optional(),
+        },
         async ({ owner, repo, path, ref }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/contents/${path}${buildQuery({ ref })}`);
+            const data = await githubFetch(
+              orgId,
+              `/repos/${owner}/${repo}/contents/${path}${buildQuery({ ref })}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -997,7 +1166,14 @@ async function getGitHubMcpHandler() {
             const encodedContent = Buffer.from(content).toString("base64");
             const data = await githubFetch(orgId, `/repos/${owner}/${repo}/contents/${path}`, {
               method: "PUT",
-              body: JSON.stringify({ message, content: encodedContent, sha, branch, committer, author }),
+              body: JSON.stringify({
+                message,
+                content: encodedContent,
+                sha,
+                branch,
+                committer,
+                author,
+              }),
             });
             return jsonResult(data);
           } catch (e) {
@@ -1034,16 +1210,23 @@ async function getGitHubMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { streamableHttpEndpoint: "/api/mcps/github/streamable-http", disableSse: true, maxDuration: 60 },
+    {
+      streamableHttpEndpoint: "/api/mcps/github/streamable-http",
+      disableSse: true,
+      maxDuration: 60,
+    },
   );
 }
 
-async function handleRequest(req: NextRequest, { params }: { params: Promise<{ transport: string }> }): Promise<Response> {
+async function handleRequest(
+  req: NextRequest,
+  { params }: { params: Promise<{ transport: string }> },
+): Promise<Response> {
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
       JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
-      { status: 405, headers: { "Content-Type": "application/json" } }
+      { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -1053,26 +1236,40 @@ async function handleRequest(req: NextRequest, { params }: { params: Promise<{ t
     const rateLimitKey = `mcp:ratelimit:github:${authResult.user.organization_id}`;
     const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
     if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), { status: 429, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const handler = await getGitHubMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
-      return new Response(JSON.stringify({ error: "invalid_response" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "invalid_response" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    mcpResponse.headers?.forEach((v: string, k: string) => { headers[k] = v; });
+    mcpResponse.headers?.forEach((v: string, k: string) => {
+      headers[k] = v;
+    });
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     logger.error(`[GitHubMCP] ${msg}`);
     const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(JSON.stringify({ error: isAuth ? "authentication_required" : "internal_error", message: msg }), { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: isAuth ? "authentication_required" : "internal_error",
+        message: msg,
+      }),
+      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 }
 

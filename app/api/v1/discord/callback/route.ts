@@ -25,11 +25,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Parse state for return URL (do this early for error redirects)
   const defaultReturnPath = "/dashboard/settings?tab=connections";
-  let returnTarget = resolveSafeRedirectTarget(
-    undefined,
-    baseUrl,
-    defaultReturnPath,
-  );
+  let returnTarget = resolveSafeRedirectTarget(undefined, baseUrl, defaultReturnPath);
   if (state) {
     try {
       const stateData = JSON.parse(Buffer.from(state, "base64").toString());

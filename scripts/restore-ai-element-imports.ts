@@ -1,8 +1,8 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-const dir = 'packages/ui/src/components/ai-elements';
-const files = fs.readdirSync(dir).filter(f => f.endsWith('.tsx') || f.endsWith('.ts'));
+const dir = "packages/ui/src/components/ai-elements";
+const files = fs.readdirSync(dir).filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"));
 
 // Maps broken string to original string
 const restores: Record<string, string> = {
@@ -13,9 +13,9 @@ const restores: Record<string, string> = {
   'from "..xt/image"': 'from "next/image"', // (if any next/images were somehow reverted but they shouldn't be)
 };
 
-files.forEach(file => {
+files.forEach((file) => {
   const filePath = path.join(dir, file);
-  let content = fs.readFileSync(filePath, 'utf8');
+  let content = fs.readFileSync(filePath, "utf8");
   let modified = false;
 
   for (const [broken, fixed] of Object.entries(restores)) {

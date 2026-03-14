@@ -1,5 +1,4 @@
-import { test, expect } from "@playwright/test";
-import { smokeTestPage } from "../fixtures/page-helpers";
+import { expect, test } from "@playwright/test";
 
 /**
  * Anonymous Chat Flow E2E Test
@@ -41,9 +40,7 @@ test.describe("Anonymous Chat Flow", () => {
 
     const criticalErrors = errors.filter(
       (e) =>
-        !e.includes("WalletConnect") &&
-        !e.includes("hydration") &&
-        !e.includes("ResizeObserver"),
+        !e.includes("WalletConnect") && !e.includes("hydration") && !e.includes("ResizeObserver"),
     );
     expect(criticalErrors).toHaveLength(0);
   });

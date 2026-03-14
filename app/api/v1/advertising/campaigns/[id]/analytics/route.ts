@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { advertisingService } from "@/lib/services/advertising";
-import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +24,7 @@ const DateRangeSchema = z
   .refine(
     (data) => {
       if (data.startDate && data.endDate) {
-        const range =
-          new Date(data.endDate).getTime() - new Date(data.startDate).getTime();
+        const range = new Date(data.endDate).getTime() - new Date(data.startDate).getTime();
         return range <= MAX_DATE_RANGE_MS;
       }
       return true;
@@ -68,11 +67,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         }
       : undefined;
 
-  const metrics = await advertisingService.getCampaignMetrics(
-    id,
-    user.organization_id!,
-    dateRange,
-  );
+  const metrics = await advertisingService.getCampaignMetrics(id, user.organization_id!, dateRange);
 
   return NextResponse.json({
     campaignId: id,

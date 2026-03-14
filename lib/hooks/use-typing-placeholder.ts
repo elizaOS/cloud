@@ -3,7 +3,7 @@
  * Types out sentences character by character, then deletes them before moving to the next.
  */
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function useTypingPlaceholder(
   sentences: string[],
@@ -19,11 +19,10 @@ export function useTypingPlaceholder(
 
   // Reset when resetKey changes
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset typing state on key change
     setPlaceholder("");
     setSentenceIndex(0);
     setIsTyping(true);
-  }, [resetKey]);
+  }, []);
 
   useEffect(() => {
     const currentSentence = sentences[sentenceIndex];

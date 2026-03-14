@@ -157,9 +157,7 @@ export async function* parseSSEStream(
 /**
  * Collect all SSE events from a response into an array
  */
-export async function collectSSEEvents(
-  response: Response,
-): Promise<SSEEvent[]> {
+export async function collectSSEEvents(response: Response): Promise<SSEEvent[]> {
   const events: SSEEvent[] = [];
   for await (const event of parseSSEStream(response)) {
     events.push(event);
@@ -170,9 +168,7 @@ export async function collectSSEEvents(
 /**
  * Parse SSE events into structured streaming message events
  */
-export async function parseStreamingResponse(
-  response: Response,
-): Promise<StreamingMessageEvents> {
+export async function parseStreamingResponse(response: Response): Promise<StreamingMessageEvents> {
   const result: StreamingMessageEvents = {
     chunks: [],
     reasoningChunks: [],
@@ -203,9 +199,7 @@ export async function parseStreamingResponse(
         break;
 
       case "reasoning":
-        result.reasoningChunks.push(
-          data as StreamingMessageEvents["reasoningChunks"][0],
-        );
+        result.reasoningChunks.push(data as StreamingMessageEvents["reasoningChunks"][0]);
         break;
 
       case "warning":
@@ -256,9 +250,7 @@ export class TestApiClient {
   /**
    * Get default headers for requests
    */
-  private getHeaders(
-    customHeaders?: Record<string, string>,
-  ): Record<string, string> {
+  private getHeaders(customHeaders?: Record<string, string>): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...customHeaders,
@@ -281,10 +273,7 @@ export class TestApiClient {
   async get(path: string, options?: RequestOptions): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      options?.timeout || this.defaultTimeout,
-    );
+    const timeout = setTimeout(() => controller.abort(), options?.timeout || this.defaultTimeout);
 
     try {
       const response = await fetch(url, {
@@ -301,17 +290,10 @@ export class TestApiClient {
   /**
    * Make a POST request
    */
-  async post(
-    path: string,
-    body: unknown,
-    options?: RequestOptions,
-  ): Promise<Response> {
+  async post(path: string, body: unknown, options?: RequestOptions): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      options?.timeout || this.defaultTimeout,
-    );
+    const timeout = setTimeout(() => controller.abort(), options?.timeout || this.defaultTimeout);
 
     try {
       const response = await fetch(url, {
@@ -332,10 +314,7 @@ export class TestApiClient {
   async delete(path: string, options?: RequestOptions): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      options?.timeout || this.defaultTimeout,
-    );
+    const timeout = setTimeout(() => controller.abort(), options?.timeout || this.defaultTimeout);
 
     try {
       const response = await fetch(url, {
@@ -406,9 +385,7 @@ export class TestApiClient {
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
-      throw new Error(
-        `Failed to create room: ${response.status} - ${JSON.stringify(errorBody)}`,
-      );
+      throw new Error(`Failed to create room: ${response.status} - ${JSON.stringify(errorBody)}`);
     }
 
     const data = await response.json();
@@ -466,9 +443,7 @@ export class StreamingError extends Error {
 /**
  * Create a test API client
  */
-export function createTestApiClient(
-  options: TestApiClientOptions,
-): TestApiClient {
+export function createTestApiClient(options: TestApiClientOptions): TestApiClient {
   return new TestApiClient(options);
 }
 

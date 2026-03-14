@@ -12,7 +12,7 @@
  * Run with: DATABASE_URL=... TEST_BASE_URL=... bun test tests/integration/whatsapp-webhook-e2e.test.ts
  */
 
-import { describe, it, expect, beforeAll } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import * as crypto from "crypto";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
@@ -121,25 +121,31 @@ describe("WhatsApp Webhook E2E Tests", () => {
     it("accepts valid webhook payload with proper signature", async () => {
       const payload = JSON.stringify({
         object: "whatsapp_business_account",
-        entry: [{
-          id: "test_biz_account",
-          changes: [{
-            value: {
-              messaging_product: "whatsapp",
-              metadata: {
-                display_phone_number: "+14245074963",
-                phone_number_id: "test_phone_id",
+        entry: [
+          {
+            id: "test_biz_account",
+            changes: [
+              {
+                value: {
+                  messaging_product: "whatsapp",
+                  metadata: {
+                    display_phone_number: "+14245074963",
+                    phone_number_id: "test_phone_id",
+                  },
+                  statuses: [
+                    {
+                      id: "wamid.test",
+                      status: "delivered",
+                      timestamp: "1706745600",
+                      recipient_id: "14155551234",
+                    },
+                  ],
+                },
+                field: "messages",
               },
-              statuses: [{
-                id: "wamid.test",
-                status: "delivered",
-                timestamp: "1706745600",
-                recipient_id: "14155551234",
-              }],
-            },
-            field: "messages",
-          }],
-        }],
+            ],
+          },
+        ],
       });
       const signature = makeSignature(payload, APP_SECRET);
 

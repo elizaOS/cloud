@@ -8,29 +8,28 @@
  * - Admin-only: Docker container logs via /api/v1/admin/docker-containers/[id]/logs
  */
 
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import Link from "next/link";
+import { Badge, BrandButton, BrandCard } from "@elizaos/ui";
 import {
-  ArrowLeft,
-  Server,
-  Cloud,
-  Network,
-  Terminal,
-  Clock,
-  AlertCircle,
-  ExternalLink,
-  Database,
-  Cpu,
   Activity,
+  AlertCircle,
+  ArrowLeft,
+  Clock,
+  Cloud,
+  Cpu,
+  Database,
+  ExternalLink,
+  Network,
+  Server,
+  Terminal,
 } from "lucide-react";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
-import { adminService } from "@/lib/services/admin";
-import { BrandCard, BrandButton } from "@elizaos/ui";
-import { Badge } from "@elizaos/ui";
-import { DockerLogsViewer } from "@/components/containers/docker-logs-viewer";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { MiladyAgentActions } from "@/components/containers/agent-actions";
+import { DockerLogsViewer } from "@/components/containers/docker-logs-viewer";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { adminService } from "@/lib/services/admin";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 
 export const dynamic = "force-dynamic";
 
@@ -83,10 +82,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       ? `http://${agent.headscale_ip}:${agent.web_ui_port ?? agent.bridge_port}`
       : null;
 
-  const sshCommand =
-    agent.headscale_ip
-      ? `ssh root@${agent.headscale_ip}`
-      : null;
+  const sshCommand = agent.headscale_ip ? `ssh root@${agent.headscale_ip}` : null;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -216,10 +212,10 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
               {agent.database_status === "ready"
                 ? "Connected"
                 : agent.database_status === "provisioning"
-                ? "Setting up"
-                : agent.database_status === "none"
-                ? "Not configured"
-                : "Error"}
+                  ? "Setting up"
+                  : agent.database_status === "none"
+                    ? "Not configured"
+                    : "Error"}
             </p>
           </div>
         </BrandCard>
@@ -473,10 +469,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       )}
 
       {/* ── Actions card ── */}
-      <MiladyAgentActions
-        agentId={agent.id}
-        status={agent.status}
-      />
+      <MiladyAgentActions agentId={agent.id} status={agent.status} />
 
       {/* ── Admin: Docker Logs ── */}
       {isAdmin && isDockerBacked && agent.container_name && agent.node_id && (
@@ -511,10 +504,10 @@ function InfoBlock({
     highlight === "green"
       ? "text-green-400"
       : highlight === "blue"
-      ? "text-blue-400"
-      : highlight === "orange"
-      ? "text-orange-400"
-      : "text-white";
+        ? "text-blue-400"
+        : highlight === "orange"
+          ? "text-orange-400"
+          : "text-white";
 
   return (
     <div className="flex items-start gap-3 p-4 rounded-none border border-white/10 bg-black/20">

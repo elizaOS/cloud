@@ -135,9 +135,8 @@ describe("MiladySandboxService follow-ups", () => {
       .mockResolvedValueOnce({ rows: [sandbox] })
       .mockResolvedValueOnce({ rows: [{ id: "job-1" }] });
 
-    mockTransaction.mockImplementation(
-      async (fn: (tx: { execute: typeof execute }) => unknown) =>
-        fn({ execute }),
+    mockTransaction.mockImplementation(async (fn: (tx: { execute: typeof execute }) => unknown) =>
+      fn({ execute }),
     );
 
     const result = await service.shutdown("agent-1", "org-1");
@@ -223,9 +222,8 @@ describe("MiladySandboxService follow-ups", () => {
       .mockResolvedValueOnce({ rows: [sandbox] })
       .mockResolvedValueOnce({ rows: [{ id: "job-1" }] });
 
-    mockTransaction.mockImplementation(
-      async (fn: (tx: { execute: typeof execute }) => unknown) =>
-        fn({ execute }),
+    mockTransaction.mockImplementation(async (fn: (tx: { execute: typeof execute }) => unknown) =>
+      fn({ execute }),
     );
 
     const result = await service.deleteAgent("agent-1", "org-1");

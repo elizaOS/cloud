@@ -9,8 +9,7 @@
 
 import { logger } from "@/lib/utils/logger";
 
-const HEADSCALE_API_URL =
-  process.env.HEADSCALE_API_URL || "http://localhost:8081";
+const HEADSCALE_API_URL = process.env.HEADSCALE_API_URL || "http://localhost:8081";
 const HEADSCALE_API_KEY = process.env.HEADSCALE_API_KEY || "";
 const HEADSCALE_USER = process.env.HEADSCALE_USER || "milady";
 
@@ -100,10 +99,7 @@ export class HeadscaleClient {
   /** List all registered nodes. */
   async listNodes(): Promise<HeadscaleNode[]> {
     try {
-      const data = await this.request<{ nodes?: HeadscaleNode[] }>(
-        "GET",
-        "/api/v1/node",
-      );
+      const data = await this.request<{ nodes?: HeadscaleNode[] }>("GET", "/api/v1/node");
       return data.nodes ?? [];
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -129,10 +125,7 @@ export class HeadscaleClient {
   async deleteNode(nodeId: string): Promise<void> {
     try {
       logger.info(`[headscale] deleting node ${nodeId}`);
-      await this.request<Record<string, unknown>>(
-        "DELETE",
-        `/api/v1/node/${nodeId}`,
-      );
+      await this.request<Record<string, unknown>>("DELETE", `/api/v1/node/${nodeId}`);
       logger.info(`[headscale] deleted node ${nodeId}`);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -149,18 +142,11 @@ export class HeadscaleClient {
   /** Set ACL tags on a node (PUT /api/v1/node/{nodeId}/tags). */
   async setNodeTags(nodeId: string, tags: string[]): Promise<void> {
     try {
-      await this.request<Record<string, unknown>>(
-        "POST",
-        `/api/v1/node/${nodeId}/tags`,
-        { tags },
-      );
+      await this.request<Record<string, unknown>>("POST", `/api/v1/node/${nodeId}/tags`, { tags });
       logger.info(`[headscale] set tags on node ${nodeId}: ${tags.join(", ")}`);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
-      logger.error(
-        `[headscale] error setting tags on node ${nodeId}:`,
-        msg,
-      );
+      logger.error(`[headscale] error setting tags on node ${nodeId}:`, msg);
       throw error;
     }
   }
@@ -183,17 +169,11 @@ export class HeadscaleClient {
     expiration?: string;
     aclTags?: string[];
   }): Promise<HeadscalePreAuthKey> {
-    const {
-      reusable = false,
-      ephemeral = false,
-      expiration,
-      aclTags = ["tag:agent"],
-    } = opts ?? {};
+    const { reusable = false, ephemeral = false, expiration, aclTags = ["tag:agent"] } = opts ?? {};
 
     // 10-minute window is sufficient for container boot + VPN enrollment.
     // Previous 24h was unnecessarily large for single-use ephemeral keys.
-    const expirationTime =
-      expiration ?? new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const expirationTime = expiration ?? new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     const userId = await this.resolveUserId();
 
@@ -237,18 +217,13 @@ export class HeadscaleClient {
   /** List all advertised routes across nodes. */
   async listRoutes(): Promise<HeadscaleRoute[]> {
     try {
-      const data = await this.request<{ routes?: HeadscaleRoute[] }>(
-        "GET",
-        "/api/v1/routes",
-      );
+      const data = await this.request<{ routes?: HeadscaleRoute[] }>("GET", "/api/v1/routes");
       return data.routes ?? [];
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       // Some older Headscale versions may not support /routes
       if (msg.includes("404")) {
-        logger.warn(
-          "[headscale] routes endpoint not supported; returning empty list",
-        );
+        logger.warn("[headscale] routes endpoint not supported; returning empty list");
         return [];
       }
       logger.error("[headscale] error listing routes:", msg);
@@ -259,10 +234,7 @@ export class HeadscaleClient {
   /** Enable an advertised route by its ID. */
   async enableRoute(routeId: string): Promise<void> {
     try {
-      await this.request<Record<string, unknown>>(
-        "POST",
-        `/api/v1/routes/${routeId}/enable`,
-      );
+      await this.request<Record<string, unknown>>("POST", `/api/v1/routes/${routeId}/enable`);
       logger.info(`[headscale] enabled route ${routeId}`);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -279,11 +251,7 @@ export class HeadscaleClient {
    * Generic HTTP request helper for the Headscale REST API.
    * All requests include the Bearer token and an abort timeout.
    */
-  private async request<T>(
-    method: string,
-    path: string,
-    body?: unknown,
-  ): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const url = `${this.baseUrl}${path}`;
 
     const headers: Record<string, string> = {
@@ -307,9 +275,7 @@ export class HeadscaleClient {
       const text = await resp.text().catch(() => "");
       // Log raw body at debug level only — don't leak it into error messages
       logger.debug(`[headscale] API error body for ${method} ${path}:`, { body: text });
-      throw new Error(
-        `Headscale API ${method} ${path} failed: ${resp.status} ${resp.statusText}`,
-      );
+      throw new Error(`Headscale API ${method} ${path} failed: ${resp.status} ${resp.statusText}`);
     }
 
     // Some endpoints (DELETE) may not return a body
@@ -337,14 +303,10 @@ export class HeadscaleClient {
     }>("GET", "/api/v1/user");
 
     const users = data.users ?? [];
-    const match = users.find(
-      (u) => u.name === this.user || String(u.id) === this.user,
-    );
+    const match = users.find((u) => u.name === this.user || String(u.id) === this.user);
 
     if (!match?.id || !/^\d+$/.test(String(match.id))) {
-      throw new Error(
-        `[headscale] user not found or invalid: ${this.user}`,
-      );
+      throw new Error(`[headscale] user not found or invalid: ${this.user}`);
     }
 
     return Number(match.id);

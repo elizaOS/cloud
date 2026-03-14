@@ -5,17 +5,16 @@
  * New code should import from '@/lib/prompts' directly.
  */
 
-export {
-  buildSystemPrompt as buildSystemPrompt,
-  getExamplePrompts as getExamplePrompts,
-  type TemplateType,
-  BASE_SYSTEM_PROMPT,
-  TEMPLATE_PROMPTS,
-  TEMPLATE_EXAMPLES as EXAMPLE_PROMPTS,
-} from "@/lib/prompts";
-
 // Legacy type alias
 export type { TemplateType as keyof } from "@/lib/prompts";
+export {
+  BASE_SYSTEM_PROMPT,
+  buildSystemPrompt,
+  getExamplePrompts,
+  TEMPLATE_EXAMPLES as EXAMPLE_PROMPTS,
+  TEMPLATE_PROMPTS,
+  type TemplateType,
+} from "@/lib/prompts";
 
 // Legacy function wrapper
 export function getSystemPrompt(templateType: string = "blank"): string {

@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import crypto from "crypto";
 import { twilioAdapter } from "../../src/adapters/twilio";
-import type { WebhookConfig, ChatEvent } from "../../src/adapters/types";
+import type { ChatEvent, WebhookConfig } from "../../src/adapters/types";
 
 function computeTwilioSignature(
   authToken: string,
@@ -57,9 +57,7 @@ describe("twilioAdapter", () => {
           "content-type": "application/x-www-form-urlencoded",
         },
       });
-      expect(await twilioAdapter.verifyWebhook(req, rawBody, config)).toBe(
-        true,
-      );
+      expect(await twilioAdapter.verifyWebhook(req, rawBody, config)).toBe(true);
     });
 
     test("rejects wrong signature", async () => {
@@ -71,9 +69,7 @@ describe("twilioAdapter", () => {
         method: "POST",
         headers: { "x-twilio-signature": "bogus-signature" },
       });
-      expect(await twilioAdapter.verifyWebhook(req, "Body=test", config)).toBe(
-        false,
-      );
+      expect(await twilioAdapter.verifyWebhook(req, "Body=test", config)).toBe(false);
     });
 
     test("uses X-Forwarded-Proto and X-Forwarded-Host for URL reconstruction", async () => {
@@ -92,11 +88,7 @@ describe("twilioAdapter", () => {
       const reconstructed = new URL(internalUrl);
       reconstructed.protocol = "https:";
       reconstructed.host = "public.example.com";
-      const sig = computeTwilioSignature(
-        authToken,
-        reconstructed.toString(),
-        params,
-      );
+      const sig = computeTwilioSignature(authToken, reconstructed.toString(), params);
 
       const config: WebhookConfig = { agentId: "a", authToken };
       const req = new Request(internalUrl, {
@@ -107,9 +99,7 @@ describe("twilioAdapter", () => {
           "x-forwarded-host": "public.example.com",
         },
       });
-      expect(await twilioAdapter.verifyWebhook(req, rawBody, config)).toBe(
-        true,
-      );
+      expect(await twilioAdapter.verifyWebhook(req, rawBody, config)).toBe(true);
     });
 
     test("returns false when authToken not configured", async () => {
@@ -131,9 +121,7 @@ describe("twilioAdapter", () => {
         Body: "Hello via SMS",
         NumMedia: "0",
       };
-      const event = await twilioAdapter.extractEvent(
-        makeTwilioFormBody(params),
-      );
+      const event = await twilioAdapter.extractEvent(makeTwilioFormBody(params));
       expect(event).toEqual({
         platform: "twilio",
         messageId: "SM100",
@@ -156,9 +144,7 @@ describe("twilioAdapter", () => {
         MediaUrl0: "https://api.twilio.com/media/img1.jpg",
         MediaUrl1: "https://media.twiliocdn.com/media/img2.jpg",
       };
-      const event = await twilioAdapter.extractEvent(
-        makeTwilioFormBody(params),
-      );
+      const event = await twilioAdapter.extractEvent(makeTwilioFormBody(params));
       expect(event!.text).toBe(
         "[media: https://api.twilio.com/media/img1.jpg, https://media.twiliocdn.com/media/img2.jpg]",
       );
@@ -179,9 +165,7 @@ describe("twilioAdapter", () => {
         MediaUrl0: "https://evil.com/steal-data.jpg",
       };
       // No valid media + no body → null
-      expect(
-        await twilioAdapter.extractEvent(makeTwilioFormBody(params)),
-      ).toBeNull();
+      expect(await twilioAdapter.extractEvent(makeTwilioFormBody(params))).toBeNull();
     });
 
     test("returns null for empty body and no media", async () => {
@@ -192,15 +176,11 @@ describe("twilioAdapter", () => {
         To: "+18005551234",
         NumMedia: "0",
       };
-      expect(
-        await twilioAdapter.extractEvent(makeTwilioFormBody(params)),
-      ).toBeNull();
+      expect(await twilioAdapter.extractEvent(makeTwilioFormBody(params))).toBeNull();
     });
 
     test("returns null for invalid form data (missing MessageSid)", async () => {
-      expect(
-        await twilioAdapter.extractEvent("From=+15551234567&Body=hi"),
-      ).toBeNull();
+      expect(await twilioAdapter.extractEvent("From=+15551234567&Body=hi")).toBeNull();
     });
   });
 
@@ -229,15 +209,11 @@ describe("twilioAdapter", () => {
       await twilioAdapter.sendReply(config, makeEvent(), "Reply text");
 
       const [url, opts] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe(
-        "https://api.twilio.com/2010-04-01/Accounts/AC001/Messages.json",
-      );
+      expect(url).toBe("https://api.twilio.com/2010-04-01/Accounts/AC001/Messages.json");
       expect(opts.method).toBe("POST");
 
       const expectedAuth = Buffer.from("AC001:secret").toString("base64");
-      expect((opts.headers as Record<string, string>).Authorization).toBe(
-        `Basic ${expectedAuth}`,
-      );
+      expect((opts.headers as Record<string, string>).Authorization).toBe(`Basic ${expectedAuth}`);
 
       const body = new URLSearchParams(opts.body as string);
       expect(body.get("To")).toBe("+15551234567");
@@ -247,9 +223,9 @@ describe("twilioAdapter", () => {
 
     test("throws when credentials are missing", async () => {
       const config: WebhookConfig = { agentId: "a" };
-      expect(
-        twilioAdapter.sendReply(config, makeEvent(), "reply"),
-      ).rejects.toThrow("Missing Twilio credentials");
+      expect(twilioAdapter.sendReply(config, makeEvent(), "reply")).rejects.toThrow(
+        "Missing Twilio credentials",
+      );
     });
 
     test("throws on non-ok response", async () => {
@@ -263,9 +239,9 @@ describe("twilioAdapter", () => {
         authToken: "bad",
         phoneNumber: "+18005551234",
       };
-      expect(
-        twilioAdapter.sendReply(config, makeEvent(), "reply"),
-      ).rejects.toThrow("Twilio send error (401)");
+      expect(twilioAdapter.sendReply(config, makeEvent(), "reply")).rejects.toThrow(
+        "Twilio send error (401)",
+      );
     });
   });
 

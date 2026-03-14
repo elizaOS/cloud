@@ -9,9 +9,7 @@ export interface ResourceSelection {
   noResourceAvailable?: boolean;
 }
 
-export function validateResourceSelection(
-  selection: unknown
-): ValidationResult<ResourceSelection> {
+export function validateResourceSelection(selection: unknown): ValidationResult<ResourceSelection> {
   return validateJsonSchema<ResourceSelection>(selection, ResourceSelectionSchema);
 }
 
@@ -19,7 +17,7 @@ export function createResourceSelectionFeedbackPrompt(
   originalResponse: string,
   errorMessage: string,
   composedState: State,
-  userMessage: string
+  userMessage: string,
 ): string {
   let description = "";
 

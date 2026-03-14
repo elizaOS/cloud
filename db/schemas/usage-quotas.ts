@@ -1,13 +1,5 @@
-import {
-  boolean,
-  index,
-  numeric,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { boolean, index, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
 /**
@@ -35,9 +27,7 @@ export const usageQuotas = pgTable(
       scale: 2,
     }).notNull(),
 
-    current_usage: numeric("current_usage", { precision: 10, scale: 2 })
-      .default("0.00")
-      .notNull(),
+    current_usage: numeric("current_usage", { precision: 10, scale: 2 }).default("0.00").notNull(),
 
     period_start: timestamp("period_start").notNull(),
 
@@ -52,10 +42,7 @@ export const usageQuotas = pgTable(
   (table) => ({
     org_id_idx: index("usage_quotas_org_id_idx").on(table.organization_id),
     quota_type_idx: index("usage_quotas_quota_type_idx").on(table.quota_type),
-    period_idx: index("usage_quotas_period_idx").on(
-      table.period_start,
-      table.period_end,
-    ),
+    period_idx: index("usage_quotas_period_idx").on(table.period_start, table.period_end),
     active_idx: index("usage_quotas_active_idx").on(table.is_active),
   }),
 );

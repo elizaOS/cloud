@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 // Reduced from 120s — async path returns 202 immediately.
@@ -27,10 +27,7 @@ function sanitizeProvisionFailureMessage(
   return "Provisioning failed";
 }
 
-function sanitizeEnqueueFailureMessage(
-  error: string,
-  status: 404 | 409 | 500,
-): string {
+function sanitizeEnqueueFailureMessage(error: string, status: 404 | 409 | 500): string {
   if (status !== 500) {
     return error;
   }
@@ -67,22 +64,12 @@ export async function POST(
   });
 
   // Fast path: check if already running (no job needed)
-  const existing = await miladySandboxService.getAgentForWrite(
-    agentId,
-    user.organization_id!,
-  );
+  const existing = await miladySandboxService.getAgentForWrite(agentId, user.organization_id!);
   if (!existing) {
-    return NextResponse.json(
-      { success: false, error: "Agent not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
   }
 
-  if (
-    existing.status === "running" &&
-    existing.bridge_url &&
-    existing.health_url
-  ) {
+  if (existing.status === "running" && existing.bridge_url && existing.health_url) {
     return NextResponse.json({
       success: true,
       data: {
@@ -97,10 +84,7 @@ export async function POST(
 
   // ── Sync fallback (legacy) ────────────────────────────────────────
   if (sync) {
-    const result = await miladySandboxService.provision(
-      agentId,
-      user.organization_id!,
-    );
+    const result = await miladySandboxService.provision(agentId, user.organization_id!);
 
     if (!result.success) {
       const status = getProvisionFailureStatus(result.error);
@@ -114,10 +98,7 @@ export async function POST(
         });
       }
 
-      return NextResponse.json(
-        { success: false, error: clientError },
-        { status },
-      );
+      return NextResponse.json({ success: false, error: clientError }, { status });
     }
 
     return NextResponse.json({

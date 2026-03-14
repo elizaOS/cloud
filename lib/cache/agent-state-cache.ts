@@ -2,12 +2,12 @@
  * Agent state cache for Eliza agent runtime data.
  */
 
+import type { Memory, UUID } from "@elizaos/core";
+import type { DiscoveredCharacterInfo } from "@/lib/services/deployments/discovery";
+import type { ElizaCharacter } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 import { cache as cacheClient } from "./client";
 import { CacheKeys, CacheTTL } from "./keys";
-import { logger } from "@/lib/utils/logger";
-import type { Memory, UUID } from "@elizaos/core";
-import type { ElizaCharacter } from "@/lib/types";
-import type { DiscoveredCharacterInfo } from "@/lib/services/deployments/discovery";
 
 /**
  * Serializable message format for caching.
@@ -130,14 +130,9 @@ export class AgentStateCache {
               source?: string;
             };
             return {
-              text:
-                typeof content.text === "string"
-                  ? content.text
-                  : String(msg.content),
-              action:
-                typeof content.action === "string" ? content.action : undefined,
-              source:
-                typeof content.source === "string" ? content.source : undefined,
+              text: typeof content.text === "string" ? content.text : String(msg.content),
+              action: typeof content.action === "string" ? content.action : undefined,
+              source: typeof content.source === "string" ? content.source : undefined,
             };
           }
           return {
@@ -188,10 +183,7 @@ export class AgentStateCache {
    * @param agentId - Agent/character ID
    * @param character - Character data
    */
-  async setCharacterData(
-    agentId: string,
-    character: ElizaCharacter,
-  ): Promise<void> {
+  async setCharacterData(agentId: string, character: ElizaCharacter): Promise<void> {
     const key = CacheKeys.agent.characterData(agentId);
 
     await cacheClient.set(key, character, CacheTTL.agent.characterData);
@@ -206,9 +198,7 @@ export class AgentStateCache {
     const key = CacheKeys.agent.characterData(agentId);
 
     await cacheClient.del(key);
-    logger.debug(
-      `[Agent State Cache] Invalidated character data for ${agentId}`,
-    );
+    logger.debug(`[Agent State Cache] Invalidated character data for ${agentId}`);
   }
 
   /**
@@ -219,9 +209,7 @@ export class AgentStateCache {
   async getUserSession(entityId: string): Promise<UserSession | null> {
     const key = CacheKeys.agent.userSession(entityId);
 
-    const cached = await cacheClient.get<
-      UserSession & { lastActivity: string }
-    >(key);
+    const cached = await cacheClient.get<UserSession & { lastActivity: string }>(key);
     if (!cached) return null;
 
     const session: UserSession = {
@@ -251,9 +239,7 @@ export class AgentStateCache {
   async getAgentStats(agentId: string): Promise<AgentStats | null> {
     const key = CacheKeys.agent.agentStats(agentId);
 
-    const cached = await cacheClient.get<
-      AgentStats & { lastActiveAt: string | null }
-    >(key);
+    const cached = await cacheClient.get<AgentStats & { lastActiveAt: string | null }>(key);
     if (!cached) return null;
 
     try {
@@ -270,16 +256,11 @@ export class AgentStateCache {
 
       const stats: AgentStats = {
         ...cached,
-        lastActiveAt: cached.lastActiveAt
-          ? new Date(cached.lastActiveAt)
-          : null,
+        lastActiveAt: cached.lastActiveAt ? new Date(cached.lastActiveAt) : null,
       };
       return stats;
     } catch (error) {
-      logger.error(
-        `[Agent State Cache] Error getting agent stats for ${agentId}:`,
-        error,
-      );
+      logger.error(`[Agent State Cache] Error getting agent stats for ${agentId}:`, error);
       return null;
     }
   }
@@ -301,16 +282,12 @@ export class AgentStateCache {
    * @param agentIds - Array of agent IDs
    * @returns Map of agentId to stats (null values for cache misses)
    */
-  async getAgentStatsBatch(
-    agentIds: string[],
-  ): Promise<Map<string, AgentStats | null>> {
+  async getAgentStatsBatch(agentIds: string[]): Promise<Map<string, AgentStats | null>> {
     const result = new Map<string, AgentStats | null>();
     if (agentIds.length === 0) return result;
 
     const keys = agentIds.map((id) => CacheKeys.agent.agentStats(id));
-    const cachedValues = await cacheClient.mget<
-      AgentStats & { lastActiveAt: string | null }
-    >(keys);
+    const cachedValues = await cacheClient.mget<AgentStats & { lastActiveAt: string | null }>(keys);
 
     const staleKeys: string[] = [];
 
@@ -335,9 +312,7 @@ export class AgentStateCache {
 
       const stats: AgentStats = {
         ...cached,
-        lastActiveAt: cached.lastActiveAt
-          ? new Date(cached.lastActiveAt)
-          : null,
+        lastActiveAt: cached.lastActiveAt ? new Date(cached.lastActiveAt) : null,
       };
       result.set(agentId, stats);
     }
@@ -356,10 +331,7 @@ export class AgentStateCache {
    * @param filterHash - Hash of filter parameters
    * @returns Cached agent list or null if not found
    */
-  async getAgentList(
-    orgId: string,
-    filterHash: string,
-  ): Promise<DiscoveredCharacterInfo[] | null> {
+  async getAgentList(orgId: string, filterHash: string): Promise<DiscoveredCharacterInfo[] | null> {
     const key = CacheKeys.agent.agentList(orgId, filterHash);
 
     const cached = await cacheClient.get<DiscoveredCharacterInfo[]>(key);
@@ -382,9 +354,7 @@ export class AgentStateCache {
     const key = CacheKeys.agent.agentList(orgId, filterHash);
 
     await cacheClient.set(key, agents, CacheTTL.agent.agentList);
-    logger.debug(
-      `[Agent State Cache] Cached agent list for ${orgId} (${agents.length} agents)`,
-    );
+    logger.debug(`[Agent State Cache] Cached agent list for ${orgId} (${agents.length} agents)`);
   }
 
   /**
@@ -394,9 +364,7 @@ export class AgentStateCache {
   async invalidateAgentList(orgId: string): Promise<void> {
     // Need to invalidate all variations of filter hashes
     // In production, you might want to track filter hashes or use a pattern delete
-    logger.debug(
-      `[Agent State Cache] Invalidating agent lists for org ${orgId}`,
-    );
+    logger.debug(`[Agent State Cache] Invalidating agent lists for org ${orgId}`);
     // For now, we rely on TTL expiry
     // Could implement pattern matching delete if needed
   }

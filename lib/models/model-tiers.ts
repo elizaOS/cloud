@@ -86,14 +86,7 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
       outputPer1k: 0.005,
       currency: "USD",
     },
-    capabilities: [
-      "text",
-      "code",
-      "reasoning",
-      "vision",
-      "function_calling",
-      "long_context",
-    ],
+    capabilities: ["text", "code", "reasoning", "vision", "function_calling", "long_context"],
     contextWindow: 200000,
     recommended: true,
   },
@@ -109,14 +102,7 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
       outputPer1k: 0.075,
       currency: "USD",
     },
-    capabilities: [
-      "text",
-      "code",
-      "reasoning",
-      "vision",
-      "function_calling",
-      "long_context",
-    ],
+    capabilities: ["text", "code", "reasoning", "vision", "function_calling", "long_context"],
     contextWindow: 200000,
   },
 } as const;
@@ -188,25 +174,25 @@ export const IMAGE_TIERS: {
   description: string;
   model: ImageModel;
 }[] = [
-    {
-      id: "fast",
-      name: "Fast",
-      description: "Fastest for quick images",
-      model: IMAGE_MODELS[0],
-    },
-    {
-      id: "pro",
-      name: "Pro",
-      description: "Best for everyday images",
-      model: IMAGE_MODELS[1],
-    },
-    {
-      id: "ultra",
-      name: "Ultra",
-      description: "Most capable for complex images",
-      model: IMAGE_MODELS[2],
-    },
-  ];
+  {
+    id: "fast",
+    name: "Fast",
+    description: "Fastest for quick images",
+    model: IMAGE_MODELS[0],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    description: "Best for everyday images",
+    model: IMAGE_MODELS[1],
+  },
+  {
+    id: "ultra",
+    name: "Ultra",
+    description: "Most capable for complex images",
+    model: IMAGE_MODELS[2],
+  },
+];
 
 /** Additional image models shown in "More models" submenu */
 export const ADDITIONAL_IMAGE_MODELS: ImageModel[] = [
@@ -487,22 +473,17 @@ export function estimateTierCost(
 /**
  * Check if a tier has a specific capability
  */
-export function tierHasCapability(
-  tier: ModelTier,
-  capability: ModelCapability,
-): boolean {
+export function tierHasCapability(tier: ModelTier, capability: ModelCapability): boolean {
   return MODEL_TIERS[tier].capabilities.includes(capability);
 }
 
 /**
  * Get all tiers that have a specific capability
  */
-export function getTiersWithCapability(
-  capability: ModelCapability,
-): ModelTier[] {
-  return MODEL_TIER_LIST.filter((config) =>
-    config.capabilities.includes(capability),
-  ).map((config) => config.id);
+export function getTiersWithCapability(capability: ModelCapability): ModelTier[] {
+  return MODEL_TIER_LIST.filter((config) => config.capabilities.includes(capability)).map(
+    (config) => config.id,
+  );
 }
 
 /**

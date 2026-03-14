@@ -9,20 +9,15 @@
  *
  * CRITICAL: These tests exercise real code paths, not mocks.
  */
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { dbRead, dbWrite } from "@/db/client";
-import { users } from "@/db/schemas/users";
-import { organizations } from "@/db/schemas/organizations";
-import { entitySettings } from "@/db/schemas/entity-settings";
-import { apiKeys } from "@/db/schemas/api-keys";
-import { eq, and } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { getRequestContext, runWithRequestContext, type UUID } from "@elizaos/core";
 import { createHash } from "crypto";
-import {
-  runWithRequestContext,
-  getRequestContext,
-  type RequestContext,
-  type UUID,
-} from "@elizaos/core";
+import { eq } from "drizzle-orm";
+import { dbWrite } from "@/db/client";
+import { apiKeys } from "@/db/schemas/api-keys";
+import { entitySettings } from "@/db/schemas/entity-settings";
+import { organizations } from "@/db/schemas/organizations";
+import { users } from "@/db/schemas/users";
 import { entitySettingsService } from "@/lib/services/entity-settings";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { getEncryptionService } from "@/lib/services/secrets";
@@ -160,7 +155,7 @@ async function cleanupTestFixtures(fixtures: TestFixtures): Promise<void> {
   for (const userId of userIds) {
     try {
       await entitySettingsCache.invalidateUser(userId as string);
-    } catch (e) {
+    } catch (_e) {
       // Ignore cache errors during cleanup
     }
   }
@@ -181,14 +176,14 @@ describe("Entity Settings Isolation", () => {
       const resultA = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       // Prefetch settings for User B
       const resultB = await entitySettingsService.prefetch(
         fixtures.userB.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       // Verify User A's settings
@@ -203,7 +198,7 @@ describe("Entity Settings Isolation", () => {
 
       // Critical assertion: settings are NOT the same
       expect(resultA.settings.get("ELIZAOS_API_KEY")).not.toBe(
-        resultB.settings.get("ELIZAOS_API_KEY")
+        resultB.settings.get("ELIZAOS_API_KEY"),
       );
     });
 
@@ -212,12 +207,12 @@ describe("Entity Settings Isolation", () => {
       const settingsA = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
       const settingsB = await entitySettingsService.prefetch(
         fixtures.userB.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       // Values captured inside each context
@@ -235,7 +230,7 @@ describe("Entity Settings Isolation", () => {
         () => {
           const ctx = getRequestContext();
           capturedApiKeyA = ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string;
-        }
+        },
       );
 
       // Run User B's context
@@ -249,7 +244,7 @@ describe("Entity Settings Isolation", () => {
         () => {
           const ctx = getRequestContext();
           capturedApiKeyB = ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string;
-        }
+        },
       );
 
       // Verify isolation
@@ -283,7 +278,7 @@ describe("Entity Settings Isolation", () => {
             const settings = await entitySettingsService.prefetch(
               user.id,
               fixtures.agentId,
-              fixtures.organization.id
+              fixtures.organization.id,
             );
 
             return runWithRequestContext(
@@ -308,9 +303,9 @@ describe("Entity Settings Isolation", () => {
                 });
 
                 return actualApiKey;
-              }
+              },
             );
-          })()
+          })(),
         );
       }
 
@@ -328,7 +323,7 @@ describe("Entity Settings Isolation", () => {
           acc[r.userId] = (acc[r.userId] || 0) + 1;
           return acc;
         },
-        {} as Record<string, number>
+        {} as Record<string, number>,
       );
 
       expect(countByUser[fixtures.userA.id]).toBe(10);
@@ -340,7 +335,7 @@ describe("Entity Settings Isolation", () => {
       const settings = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       const capturedKeys: string[] = [];
@@ -382,7 +377,7 @@ describe("Entity Settings Isolation", () => {
               capturedKeys.push(ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string);
             })(),
           ]);
-        }
+        },
       );
 
       // All captured keys should be User A's key
@@ -402,23 +397,19 @@ describe("Entity Settings Isolation", () => {
       const result1 = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       // Second call - cache hit
       const result2 = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       // Should return equivalent data
-      expect(result1.settings.get("ELIZAOS_API_KEY")).toBe(
-        result2.settings.get("ELIZAOS_API_KEY")
-      );
-      expect(result1.settings.get("CUSTOM_SETTING")).toBe(
-        result2.settings.get("CUSTOM_SETTING")
-      );
+      expect(result1.settings.get("ELIZAOS_API_KEY")).toBe(result2.settings.get("ELIZAOS_API_KEY"));
+      expect(result1.settings.get("CUSTOM_SETTING")).toBe(result2.settings.get("CUSTOM_SETTING"));
     });
 
     test("cache invalidation forces fresh fetch", async () => {
@@ -426,7 +417,7 @@ describe("Entity Settings Isolation", () => {
       await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       // Update the setting in database
@@ -441,7 +432,7 @@ describe("Entity Settings Isolation", () => {
       const result = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       expect(result.settings.get("CUSTOM_SETTING")).toBe(newValue);
@@ -469,14 +460,14 @@ describe("Entity Settings Isolation", () => {
       const result1 = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       // Prefetch for agent2
       const result2 = await entitySettingsService.prefetch(
         fixtures.userA.id,
         agentId2,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       // Original agent should NOT have the agent-specific setting
@@ -518,7 +509,7 @@ describe("Entity Settings Isolation", () => {
       const result = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       expect(result.settings.get("PRIORITY_TEST")).toBe(agentSpecificValue);
@@ -549,7 +540,7 @@ describe("Entity Settings Isolation", () => {
       const result = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       // Entity setting should take precedence
@@ -566,7 +557,7 @@ describe("Entity Settings Isolation", () => {
       const result2 = await entitySettingsService.prefetch(
         fixtures.userA.id,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
       expect(result2.settings.get("ELIZAOS_API_KEY")).toBe(fixtures.userA.apiKey);
       expect(result2.sources["ELIZAOS_API_KEY"]).toBe("api_keys");
@@ -581,7 +572,7 @@ describe("Entity Settings Isolation", () => {
       const result = await entitySettingsService.prefetch(
         fakeUserId,
         fixtures.agentId,
-        fixtures.organization.id
+        fixtures.organization.id,
       );
 
       expect(result.settings.size).toBe(0);
@@ -596,7 +587,7 @@ describe("Entity Settings Isolation", () => {
           userId: fakeUserId,
           key: "TEST",
           value: "value",
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -635,10 +626,7 @@ describe("Entity Settings Isolation", () => {
       expect(globalSettings.find((s) => s.key === "AGENT_ONLY")).toBeUndefined();
 
       // List agent-specific only
-      const agentSettings = await entitySettingsService.list(
-        fixtures.userA.id,
-        fixtures.agentId
-      );
+      const agentSettings = await entitySettingsService.list(fixtures.userA.id, fixtures.agentId);
       expect(agentSettings.find((s) => s.key === "AGENT_ONLY")).toBeDefined();
 
       // Cleanup
@@ -675,7 +663,7 @@ describe("Stress Test: High Concurrency", () => {
         const settings = await entitySettingsService.prefetch(
           user.id,
           stressFixtures.agentId,
-          stressFixtures.organization.id
+          stressFixtures.organization.id,
         );
 
         return runWithRequestContext(
@@ -712,12 +700,12 @@ describe("Stress Test: High Concurrency", () => {
 
             if (!apiKeyMatch || !customMatch) {
               errors.push(
-                `User ${user.id}: expected API key ${user.apiKey}, got ${checks[0]}, ${checks[1]}; custom: expected ${user.customSetting}, got ${checks[2]}`
+                `User ${user.id}: expected API key ${user.apiKey}, got ${checks[0]}, ${checks[1]}; custom: expected ${user.customSetting}, got ${checks[2]}`,
               );
             }
 
             results.push({ userId: user.id, match: apiKeyMatch && customMatch });
-          }
+          },
         );
       } catch (error) {
         errors.push(`User ${user.id}: ${error}`);

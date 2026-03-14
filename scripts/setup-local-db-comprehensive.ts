@@ -1,8 +1,8 @@
 import { exec } from "node:child_process";
-import { promisify } from "node:util";
-import pg from "pg";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { promisify } from "node:util";
+import pg from "pg";
 import { getLocalDockerDatabaseUrl } from "../db/database-url";
 
 const execAsync = promisify(exec);
@@ -94,9 +94,7 @@ async function checkPgVector() {
     await client.connect();
 
     // Check if extension exists
-    const result = await client.query(
-      "SELECT * FROM pg_extension WHERE extname = 'vector'",
-    );
+    const result = await client.query("SELECT * FROM pg_extension WHERE extname = 'vector'");
 
     if (result.rows.length > 0) {
       log("✓ pgvector extension is installed");
@@ -177,9 +175,7 @@ async function checkTables() {
     await client.end();
 
     const existingTables = result.rows.map((row) => row.table_name);
-    const missingTables = requiredTables.filter(
-      (table) => !existingTables.includes(table),
-    );
+    const missingTables = requiredTables.filter((table) => !existingTables.includes(table));
 
     if (missingTables.length === 0) {
       log(`✓ All required tables exist (${requiredTables.length} tables)`);
@@ -196,7 +192,7 @@ async function checkTables() {
 
 // Note: This function is available for manual development seeding but not called by default
 // Uncomment the call at the end of main() if you want to seed data
-async function seedData() {
+async function _seedData() {
   log("Seeding development data...");
   try {
     const oldEnv = process.env.DATABASE_URL;
@@ -280,9 +276,7 @@ async function main() {
   console.log("Your local database is ready!");
   console.log(`Connection string: ${LOCAL_DATABASE_URL}`);
   console.log("\nNext steps:");
-  console.log(
-    "1. Make sure DATABASE_URL in .env.local points to the local database",
-  );
+  console.log("1. Make sure DATABASE_URL in .env.local points to the local database");
   console.log("2. Run 'bun run dev' to start the development server");
   console.log("3. Visit http://localhost:3000/dashboard");
   console.log("\nUseful commands:");

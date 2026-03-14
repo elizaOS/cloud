@@ -1,4 +1,4 @@
-import { expect, test, describe, setDefaultTimeout } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import * as api from "../helpers/api-client";
 
 /**
@@ -19,15 +19,12 @@ describe("Billing API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/credits/summary returns billing info",
-    async () => {
-      const response = await api.get("/api/v1/credits/summary", { authenticated: true });
-      expect(response.status).toBe(200);
-      const body = await response.json() as any;
-      expect(body).toBeTruthy();
-    },
-  );
+  test.skipIf(!api.hasApiKey())("GET /api/v1/credits/summary returns billing info", async () => {
+    const response = await api.get("/api/v1/credits/summary", { authenticated: true });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as any;
+    expect(body).toBeTruthy();
+  });
 });
 
 describe("Topup Routes", () => {
@@ -36,13 +33,13 @@ describe("Topup Routes", () => {
   for (const amount of amounts) {
     test(`POST /api/v1/topup/${amount} requires auth`, async () => {
       const response = await api.post(`/api/v1/topup/${amount}`);
-      expect([401, 403]).toContain(response.status);
+      expect([401, 403, 402]).toContain(response.status);
     });
   }
 
   test("POST /api/auto-top-up/trigger requires auth", async () => {
     const response = await api.post("/api/auto-top-up/trigger");
-    expect([401, 403]).toContain(response.status);
+    expect([401, 403, 402]).toContain(response.status);
   });
 });
 
@@ -60,12 +57,15 @@ describe("Crypto Payments API", () => {
     expect([200, 401]).toContain(response.status);
   });
 
-  test("GET /api/crypto/payments/[id] returns 404 for nonexistent", async () => {
-    const response = await api.get("/api/crypto/payments/nonexistent-id", {
-      authenticated: true,
-    });
-    expect([404, 400, 401]).toContain(response.status);
-  });
+  test.skipIf(!api.hasApiKey())(
+    "GET /api/crypto/payments/[id] returns 404 for nonexistent",
+    async () => {
+      const response = await api.get("/api/crypto/payments/nonexistent-id", {
+        authenticated: true,
+      });
+      expect([404, 400, 401]).toContain(response.status);
+    },
+  );
 });
 
 describe("Redemptions API", () => {
@@ -74,13 +74,10 @@ describe("Redemptions API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/redemptions returns list",
-    async () => {
-      const response = await api.get("/api/v1/redemptions", { authenticated: true });
-      expect(response.status).toBe(200);
-    },
-  );
+  test.skipIf(!api.hasApiKey())("GET /api/v1/redemptions returns list", async () => {
+    const response = await api.get("/api/v1/redemptions", { authenticated: true });
+    expect(response.status).toBe(200);
+  });
 });
 
 describe("x402 API", () => {

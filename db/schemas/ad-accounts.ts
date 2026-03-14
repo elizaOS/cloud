@@ -1,15 +1,8 @@
-import {
-  index,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
-import { users } from "./users";
 import { secrets } from "./secrets";
+import { users } from "./users";
 
 /**
  * Ad platform type.
@@ -19,11 +12,7 @@ export type AdPlatform = "meta" | "google" | "tiktok";
 /**
  * Ad account status.
  */
-export type AdAccountStatus =
-  | "active"
-  | "suspended"
-  | "disconnected"
-  | "pending";
+export type AdAccountStatus = "active" | "suspended" | "disconnected" | "pending";
 
 /**
  * Ad accounts table schema.
@@ -51,14 +40,12 @@ export const adAccounts = pgTable(
     account_name: text("account_name").notNull(),
 
     // Encrypted tokens stored in secrets table
-    access_token_secret_id: uuid("access_token_secret_id").references(
-      () => secrets.id,
-      { onDelete: "set null" },
-    ),
-    refresh_token_secret_id: uuid("refresh_token_secret_id").references(
-      () => secrets.id,
-      { onDelete: "set null" },
-    ),
+    access_token_secret_id: uuid("access_token_secret_id").references(() => secrets.id, {
+      onDelete: "set null",
+    }),
+    refresh_token_secret_id: uuid("refresh_token_secret_id").references(() => secrets.id, {
+      onDelete: "set null",
+    }),
 
     // Token expiration tracking
     token_expires_at: timestamp("token_expires_at"),
@@ -89,17 +76,13 @@ export const adAccounts = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("ad_accounts_organization_idx").on(
-      table.organization_id,
-    ),
+    organization_idx: index("ad_accounts_organization_idx").on(table.organization_id),
     platform_idx: index("ad_accounts_platform_idx").on(table.platform),
     org_platform_idx: index("ad_accounts_org_platform_idx").on(
       table.organization_id,
       table.platform,
     ),
-    external_id_idx: index("ad_accounts_external_id_idx").on(
-      table.external_account_id,
-    ),
+    external_id_idx: index("ad_accounts_external_id_idx").on(table.external_account_id),
     status_idx: index("ad_accounts_status_idx").on(table.status),
   }),
 );

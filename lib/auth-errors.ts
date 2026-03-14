@@ -1,4 +1,3 @@
-
 /**
  * Typed error classes for authentication/authorization failures.
  * Used by requireAdmin and route error handlers for robust status mapping.

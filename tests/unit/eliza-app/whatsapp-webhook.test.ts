@@ -7,12 +7,12 @@
  * - Idempotency: Duplicate message handling
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { createHmac } from "crypto";
 import {
-  verifyWhatsAppSignature,
-  parseWhatsAppWebhookPayload,
   extractWhatsAppMessages,
+  parseWhatsAppWebhookPayload,
+  verifyWhatsAppSignature,
   type WhatsAppWebhookPayload,
 } from "../../../lib/utils/whatsapp-api";
 
@@ -67,27 +67,33 @@ describe("WhatsApp Webhook POST (Message Processing)", () => {
   test("validates signature and extracts messages", () => {
     const payload = {
       object: "whatsapp_business_account",
-      entry: [{
-        id: "biz_account_id",
-        changes: [{
-          value: {
-            messaging_product: "whatsapp",
-            metadata: {
-              display_phone_number: "+14245074963",
-              phone_number_id: "phone_123",
+      entry: [
+        {
+          id: "biz_account_id",
+          changes: [
+            {
+              value: {
+                messaging_product: "whatsapp",
+                metadata: {
+                  display_phone_number: "+14245074963",
+                  phone_number_id: "phone_123",
+                },
+                contacts: [{ profile: { name: "Test User" }, wa_id: "14155551234" }],
+                messages: [
+                  {
+                    id: "wamid.test123",
+                    from: "14155551234",
+                    timestamp: "1706745600",
+                    type: "text",
+                    text: { body: "Hello!" },
+                  },
+                ],
+              },
+              field: "messages",
             },
-            contacts: [{ profile: { name: "Test User" }, wa_id: "14155551234" }],
-            messages: [{
-              id: "wamid.test123",
-              from: "14155551234",
-              timestamp: "1706745600",
-              type: "text",
-              text: { body: "Hello!" },
-            }],
-          },
-          field: "messages",
-        }],
-      }],
+          ],
+        },
+      ],
     };
 
     const body = JSON.stringify(payload);
@@ -117,25 +123,31 @@ describe("WhatsApp Webhook POST (Message Processing)", () => {
   test("handles payload with no messages (status update)", () => {
     const payload: WhatsAppWebhookPayload = {
       object: "whatsapp_business_account",
-      entry: [{
-        id: "biz_account_id",
-        changes: [{
-          value: {
-            messaging_product: "whatsapp",
-            metadata: {
-              display_phone_number: "+14245074963",
-              phone_number_id: "phone_123",
+      entry: [
+        {
+          id: "biz_account_id",
+          changes: [
+            {
+              value: {
+                messaging_product: "whatsapp",
+                metadata: {
+                  display_phone_number: "+14245074963",
+                  phone_number_id: "phone_123",
+                },
+                statuses: [
+                  {
+                    id: "wamid.test123",
+                    status: "delivered",
+                    timestamp: "1706745600",
+                    recipient_id: "14155551234",
+                  },
+                ],
+              },
+              field: "messages",
             },
-            statuses: [{
-              id: "wamid.test123",
-              status: "delivered",
-              timestamp: "1706745600",
-              recipient_id: "14155551234",
-            }],
-          },
-          field: "messages",
-        }],
-      }],
+          ],
+        },
+      ],
     };
 
     const messages = extractWhatsAppMessages(payload);
@@ -145,30 +157,36 @@ describe("WhatsApp Webhook POST (Message Processing)", () => {
   test("extracts image message (type but no text)", () => {
     const payload: WhatsAppWebhookPayload = {
       object: "whatsapp_business_account",
-      entry: [{
-        id: "biz_account_id",
-        changes: [{
-          value: {
-            messaging_product: "whatsapp",
-            metadata: {
-              display_phone_number: "+14245074963",
-              phone_number_id: "phone_123",
-            },
-            contacts: [{ profile: { name: "Photo User" }, wa_id: "14155551234" }],
-            messages: [{
-              id: "wamid.img123",
-              from: "14155551234",
-              timestamp: "1706745600",
-              type: "image",
-              image: {
-                id: "img_media_id",
-                mime_type: "image/jpeg",
+      entry: [
+        {
+          id: "biz_account_id",
+          changes: [
+            {
+              value: {
+                messaging_product: "whatsapp",
+                metadata: {
+                  display_phone_number: "+14245074963",
+                  phone_number_id: "phone_123",
+                },
+                contacts: [{ profile: { name: "Photo User" }, wa_id: "14155551234" }],
+                messages: [
+                  {
+                    id: "wamid.img123",
+                    from: "14155551234",
+                    timestamp: "1706745600",
+                    type: "image",
+                    image: {
+                      id: "img_media_id",
+                      mime_type: "image/jpeg",
+                    },
+                  },
+                ],
               },
-            }],
-          },
-          field: "messages",
-        }],
-      }],
+              field: "messages",
+            },
+          ],
+        },
+      ],
     };
 
     const messages = extractWhatsAppMessages(payload);

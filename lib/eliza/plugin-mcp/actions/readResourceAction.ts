@@ -1,13 +1,13 @@
 import {
   type Action,
   type ActionResult,
+  composePromptFromState,
   type HandlerCallback,
   type IAgentRuntime,
+  logger,
   type Memory,
   ModelType,
   type State,
-  composePromptFromState,
-  logger,
 } from "@elizaos/core";
 import type { McpService } from "../service";
 import { resourceSelectionTemplate } from "../templates/resourceSelectionTemplate";
@@ -19,11 +19,11 @@ import {
   processResourceResult,
   sendInitialResponse,
 } from "../utils/processing";
+import type { ResourceSelection } from "../utils/validation";
 import {
   createResourceSelectionFeedbackPrompt,
   validateResourceSelection,
 } from "../utils/validation";
-import type { ResourceSelection } from "../utils/validation";
 import { withModelRetry } from "../utils/wrapper";
 
 function createResourceSelectionPrompt(composedState: State, userMessage: string): string {
@@ -89,7 +89,7 @@ export const readResourceAction: Action = {
       servers.length > 0 &&
       servers.some(
         (server: McpServer) =>
-          server.status === "connected" && server.resources && server.resources.length > 0
+          server.status === "connected" && server.resources && server.resources.length > 0,
       )
     );
   },
@@ -99,7 +99,7 @@ export const readResourceAction: Action = {
     message: Memory,
     _state?: State,
     _options?: { [key: string]: unknown },
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     const composedState = await runtime.composeState(message, ["RECENT_MESSAGES", "MCP"]);
 
@@ -115,7 +115,7 @@ export const readResourceAction: Action = {
 
       const resourceSelectionPrompt = createResourceSelectionPrompt(
         composedState,
-        message.content.text || ""
+        message.content.text || "",
       );
 
       const resourceSelection = await runtime.useModel(ModelType.TEXT_SMALL, {
@@ -134,7 +134,7 @@ export const readResourceAction: Action = {
             originalResponse as string,
             errorMessage,
             state,
-            userMessage
+            userMessage,
           ),
         failureMsg: `I'm having trouble finding the resource you're looking for. Could you provide more details about what you need?`,
         retryCount: 0,
@@ -179,7 +179,12 @@ export const readResourceAction: Action = {
       const result = await mcpService.readResource(serverName, uri);
       logger.debug(`Read resource ${uri} from server ${serverName}`);
 
-      const { resourceContent, resourceMeta } = processResourceResult(result as { contents: Array<{ uri: string; mimeType?: string; text?: string; blob?: string }> }, uri);
+      const { resourceContent, resourceMeta } = processResourceResult(
+        result as {
+          contents: Array<{ uri: string; mimeType?: string; text?: string; blob?: string }>;
+        },
+        uri,
+      );
 
       await handleResourceAnalysis(
         runtime,
@@ -188,7 +193,7 @@ export const readResourceAction: Action = {
         serverName,
         resourceContent,
         resourceMeta,
-        callback
+        callback,
       );
 
       return {
@@ -217,7 +222,7 @@ export const readResourceAction: Action = {
         runtime,
         message,
         "resource",
-        callback
+        callback,
       );
     }
   },

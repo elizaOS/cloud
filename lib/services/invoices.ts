@@ -2,9 +2,9 @@
  * Service for managing invoices from Stripe payments.
  */
 
+import { desc, eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
-import { invoices, type Invoice, type NewInvoice } from "@/db/schemas";
-import { eq, desc } from "drizzle-orm";
+import { type Invoice, invoices, type NewInvoice } from "@/db/schemas";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -30,9 +30,7 @@ class InvoicesService {
     return invoice;
   }
 
-  async getByStripeInvoiceId(
-    stripeInvoiceId: string,
-  ): Promise<Invoice | undefined> {
+  async getByStripeInvoiceId(stripeInvoiceId: string): Promise<Invoice | undefined> {
     const [invoice] = await dbRead
       .select()
       .from(invoices)
@@ -72,11 +70,7 @@ class InvoicesService {
   }
 
   async getById(id: string): Promise<Invoice | undefined> {
-    const [invoice] = await dbRead
-      .select()
-      .from(invoices)
-      .where(eq(invoices.id, id))
-      .limit(1);
+    const [invoice] = await dbRead.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 
     return invoice;
   }

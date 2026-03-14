@@ -8,16 +8,14 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { ALLOWED_DIRECTORIES, isPathAllowed } from "./security";
 import type { SandboxInstance } from "./types";
-import { isPathAllowed, ALLOWED_DIRECTORIES } from "./security";
 
 /**
  * Convert a ReadableStream to string.
  * Used to process file content from sandbox.readFile()
  */
-async function streamToString(
-  stream: ReadableStream<Uint8Array>,
-): Promise<string> {
+async function streamToString(stream: ReadableStream<Uint8Array>): Promise<string> {
   const reader = stream.getReader();
   const decoder = new TextDecoder("utf-8");
   const chunks: string[] = [];
@@ -86,10 +84,7 @@ export async function writeFileViaSh(
 
   try {
     // Use native SDK methods (preferred)
-    if (
-      typeof sandbox.mkDir === "function" &&
-      typeof sandbox.writeFiles === "function"
-    ) {
+    if (typeof sandbox.mkDir === "function" && typeof sandbox.writeFiles === "function") {
       // Create directory if needed
       if (dir) {
         await sandbox.mkDir(dir);
@@ -153,9 +148,7 @@ export async function writeFilesViaSh(
     }
   }
 
-  const validFiles = files.filter(
-    (f) => !failed.some((ff) => ff.path === f.path),
-  );
+  const validFiles = files.filter((f) => !failed.some((ff) => ff.path === f.path));
 
   if (validFiles.length === 0) {
     return { written, failed };
@@ -194,13 +187,10 @@ export async function writeFilesViaSh(
       return { written, failed };
     }
   } catch (error) {
-    logger.debug(
-      "Native batch writeFiles failed, falling back to individual writes",
-      {
-        fileCount: validFiles.length,
-        error: error instanceof Error ? error.message : "Unknown",
-      },
-    );
+    logger.debug("Native batch writeFiles failed, falling back to individual writes", {
+      fileCount: validFiles.length,
+      error: error instanceof Error ? error.message : "Unknown",
+    });
   }
 
   // Fallback: write files individually
@@ -223,10 +213,7 @@ export async function writeFilesViaSh(
  * Create a directory in the sandbox using native SDK method.
  * Falls back to shell command if native method is unavailable.
  */
-export async function mkDirViaSh(
-  sandbox: SandboxInstance,
-  dirPath: string,
-): Promise<void> {
+export async function mkDirViaSh(sandbox: SandboxInstance, dirPath: string): Promise<void> {
   try {
     // Use native SDK method (preferred)
     if (typeof sandbox.mkDir === "function") {
@@ -248,10 +235,7 @@ export async function mkDirViaSh(
  * List files in a directory, excluding common non-source directories.
  * Uses shell command as SDK doesn't have a native list method.
  */
-export async function listFilesViaSh(
-  sandbox: SandboxInstance,
-  dirPath: string,
-): Promise<string[]> {
+export async function listFilesViaSh(sandbox: SandboxInstance, dirPath: string): Promise<string[]> {
   const excludes = [
     ".git",
     ".next",
@@ -269,7 +253,5 @@ export async function listFilesViaSh(
     cmd: "sh",
     args: ["-c", findCmd],
   });
-  return result.exitCode === 0
-    ? (await result.stdout()).split("\n").filter(Boolean)
-    : [];
+  return result.exitCode === 0 ? (await result.stdout()).split("\n").filter(Boolean) : [];
 }

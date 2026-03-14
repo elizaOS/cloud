@@ -7,33 +7,33 @@
  * Run with: bun test tests/runtime/integration/runtime-factory/build-mode.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 import {
-  // Local database
-  hasDatabaseUrl,
-  hasRuntimeModelCredentials,
-  getConnectionString,
-  verifyConnection,
-  // Test data
-  createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
-  // Production RuntimeFactory
-  runtimeFactory,
-  invalidateRuntime,
   AgentMode,
   // Test helpers
   buildUserContext,
+  cleanupTestData,
+  // Test data
+  createTestDataSet,
   createTestUser,
+  endTimer,
+  getConnectionString,
+  // Local database
+  hasDatabaseUrl,
+  hasRuntimeModelCredentials,
+  invalidateRuntime,
+  logTimings,
+  // Production RuntimeFactory
+  runtimeFactory,
   sendTestMessage,
-  type TestRuntime,
-  type TestUserContext,
   // Timing
   startTimer,
-  endTimer,
-  logTimings,
+  type TestDataSet,
+  type TestRuntime,
+  type TestUserContext,
+  verifyConnection,
 } from "../../../infrastructure";
-import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================
 // Local Test State (isolated to this file)
@@ -87,8 +87,8 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - BUILD Mode", () => {
       );
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("BUILD Mode Tests", timings);

@@ -40,9 +40,7 @@ export async function vercelApiRequest<T>(
     const error = await response.json().catch(() => ({
       error: { message: response.statusText },
     }));
-    throw new Error(
-      error.error?.message || `Vercel API error: ${response.status}`,
-    );
+    throw new Error(error.error?.message || `Vercel API error: ${response.status}`);
   }
 
   return response.json();

@@ -4,14 +4,9 @@
  * Handles tracking and aggregation of app usage analytics
  */
 
-import {
-  appsRepository,
-  type AppAnalytics,
-  type NewAppAnalytics,
-} from "@/db/repositories/apps";
-import { usageRecordsRepository } from "@/db/repositories/usage-records";
-import { logger } from "@/lib/utils/logger";
+import { appsRepository, type NewAppAnalytics } from "@/db/repositories/apps";
 import type { App } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
 export class AppAnalyticsService {
   /**
@@ -48,12 +43,7 @@ export class AppAnalyticsService {
 
     // Track app user activity if userId is provided
     if (userId) {
-      await appsRepository.trackAppUserActivity(
-        appId,
-        userId,
-        creditsUsed,
-        metadata,
-      );
+      await appsRepository.trackAppUserActivity(appId, userId, creditsUsed, metadata);
     }
 
     logger.info("Tracked app request", {

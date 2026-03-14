@@ -8,10 +8,10 @@
  * See docs/signup-codes.md for design WHYs and API.
  */
 
-import { creditsService } from "@/lib/services/credits";
 import { creditTransactionsRepository } from "@/db/repositories/credit-transactions";
-import { logger } from "@/lib/utils/logger";
+import { creditsService } from "@/lib/services/credits";
 import { isUniqueConstraintError } from "@/lib/utils/db-errors";
+import { logger } from "@/lib/utils/logger";
 
 export const ERRORS = {
   INVALID_CODE: "Invalid signup code",
@@ -29,11 +29,8 @@ function loadCodes(): Map<string, number> {
   try {
     data = JSON.parse(raw) as SignupCodesConfig;
   } catch (err) {
-    const message =
-      err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    logger.warn(
-      `[SignupCode] Invalid SIGNUP_CODES_JSON (${message}), using no codes`,
-    );
+    const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    logger.warn(`[SignupCode] Invalid SIGNUP_CODES_JSON (${message}), using no codes`);
     return new Map();
   }
   const codes = data.codes;
@@ -77,10 +74,7 @@ function redactCode(code: string): string {
   return s.slice(0, 2) + "***";
 }
 
-export async function redeemSignupCode(
-  organizationId: string,
-  code: string,
-): Promise<number> {
+export async function redeemSignupCode(organizationId: string, code: string): Promise<number> {
   const bonus = getBonusForCode(code);
   if (bonus === undefined) {
     throw new Error(ERRORS.INVALID_CODE);

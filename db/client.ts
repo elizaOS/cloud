@@ -47,15 +47,15 @@
  * @module db/client
  */
 
-import { drizzle as drizzleNode } from "drizzle-orm/node-postgres";
-import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
-import { Pool as PgPool } from "pg";
 import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
-import * as schema from "./schemas";
-import { applyDatabaseUrlFallback } from "./database-url";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { drizzle as drizzleNode } from "drizzle-orm/node-postgres";
+import { Pool as PgPool } from "pg";
 import ws from "ws";
+import { applyDatabaseUrlFallback } from "./database-url";
+import * as schema from "./schemas";
 
 // ============================================================================
 // Types
@@ -142,11 +142,7 @@ function detectRegion(): DatabaseRegion {
 
   // Check explicit override
   const explicitRegion = process.env.DATABASE_REGION?.toLowerCase();
-  if (
-    explicitRegion === "eu" ||
-    explicitRegion === "na" ||
-    explicitRegion === "apac"
-  ) {
+  if (explicitRegion === "eu" || explicitRegion === "na" || explicitRegion === "apac") {
     return explicitRegion;
   }
 
@@ -182,10 +178,7 @@ export function getCurrentRegion(): DatabaseRegion {
  * Write routing:
  * - ALL requests → DATABASE_URL (NA primary)
  */
-function getDatabaseUrl(
-  region: DatabaseRegion,
-  role: DatabaseRole,
-): string {
+function getDatabaseUrl(region: DatabaseRegion, role: DatabaseRole): string {
   // CRITICAL: Writes ALWAYS go to the primary database (NA)
   // EU is read-only via logical replication, so we must never write there
   if (role === "write") {
@@ -428,18 +421,14 @@ export function getDbConnectionInfo() {
 /**
  * Execute a read query (uses read replica)
  */
-export async function withReadDb<T>(
-  fn: (db: Database) => Promise<T>,
-): Promise<T> {
+export async function withReadDb<T>(fn: (db: Database) => Promise<T>): Promise<T> {
   return fn(connectionManager.getReadConnection());
 }
 
 /**
  * Execute a write query (uses primary)
  */
-export async function withWriteDb<T>(
-  fn: (db: Database) => Promise<T>,
-): Promise<T> {
+export async function withWriteDb<T>(fn: (db: Database) => Promise<T>): Promise<T> {
   return fn(connectionManager.getWriteConnection());
 }
 

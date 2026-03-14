@@ -4,7 +4,7 @@
  * Tests verification logic, network registry, and edge cases.
  * Uses bun:test to match the existing test framework.
  */
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // Test Types (mirror the service's internal types)
@@ -47,14 +47,16 @@ interface PaymentRequirements {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function createValidPayload(overrides?: Partial<{
-  network: string;
-  amount: string;
-  payTo: string;
-  from: string;
-  validBefore: string;
-  scheme: string;
-}>): PaymentPayload {
+function createValidPayload(
+  overrides?: Partial<{
+    network: string;
+    amount: string;
+    payTo: string;
+    from: string;
+    validBefore: string;
+    scheme: string;
+  }>,
+): PaymentPayload {
   const futureDeadline = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
 
   return {
@@ -146,10 +148,7 @@ describe("x402 Payment Payload Validation", () => {
         payTo: "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
       });
 
-      expect(
-        payload.accepted.payTo.toLowerCase() !==
-          requirements.payTo.toLowerCase(),
-      ).toBe(true);
+      expect(payload.accepted.payTo.toLowerCase() !== requirements.payTo.toLowerCase()).toBe(true);
     });
 
     it("should be case-insensitive for payTo", () => {
@@ -160,10 +159,7 @@ describe("x402 Payment Payload Validation", () => {
         payTo: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       });
 
-      expect(
-        payload.accepted.payTo.toLowerCase() ===
-          requirements.payTo.toLowerCase(),
-      ).toBe(true);
+      expect(payload.accepted.payTo.toLowerCase() === requirements.payTo.toLowerCase()).toBe(true);
     });
   });
 
@@ -173,9 +169,7 @@ describe("x402 Payment Payload Validation", () => {
       const payload = createValidPayload({ validBefore: pastDeadline.toString() });
 
       const now = Math.floor(Date.now() / 1000);
-      expect(BigInt(payload.payload.authorization.validBefore) <= BigInt(now)).toBe(
-        true,
-      );
+      expect(BigInt(payload.payload.authorization.validBefore) <= BigInt(now)).toBe(true);
     });
 
     it("should accept future deadlines", () => {
@@ -185,9 +179,7 @@ describe("x402 Payment Payload Validation", () => {
       });
 
       const now = Math.floor(Date.now() / 1000);
-      expect(BigInt(payload.payload.authorization.validBefore) > BigInt(now)).toBe(
-        true,
-      );
+      expect(BigInt(payload.payload.authorization.validBefore) > BigInt(now)).toBe(true);
     });
   });
 
@@ -202,12 +194,7 @@ describe("x402 Payment Payload Validation", () => {
 
   describe("network validation", () => {
     it("should validate CAIP-2 format", () => {
-      const validNetworks = [
-        "eip155:8453",
-        "eip155:84532",
-        "eip155:1",
-        "eip155:11155111",
-      ];
+      const validNetworks = ["eip155:8453", "eip155:84532", "eip155:1", "eip155:11155111"];
 
       for (const network of validNetworks) {
         expect(network).toMatch(/^eip155:\d+$/);
@@ -291,10 +278,10 @@ describe("402 Response Format", () => {
   it("should format price correctly (6 decimal USDC)", () => {
     const testCases = [
       { usd: 0.01, baseUnits: "10000" },
-      { usd: 0.10, baseUnits: "100000" },
-      { usd: 1.00, baseUnits: "1000000" },
-      { usd: 10.00, baseUnits: "10000000" },
-      { usd: 100.00, baseUnits: "100000000" },
+      { usd: 0.1, baseUnits: "100000" },
+      { usd: 1.0, baseUnits: "1000000" },
+      { usd: 10.0, baseUnits: "10000000" },
+      { usd: 100.0, baseUnits: "100000000" },
     ];
 
     for (const { usd, baseUnits } of testCases) {
@@ -315,9 +302,7 @@ describe("Edge Cases & Fuzz", () => {
     const broken = { ...payload };
     (broken.payload as Record<string, unknown>).authorization = {};
 
-    expect(
-      (broken.payload.authorization as Record<string, unknown>).from,
-    ).toBeUndefined();
+    expect((broken.payload.authorization as Record<string, unknown>).from).toBeUndefined();
   });
 
   it("should handle empty signature", () => {

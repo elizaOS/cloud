@@ -20,11 +20,7 @@ function extractJsonFromAiResponse(text: string): string {
   return cleaned.slice(jsonStart, jsonEnd + 1);
 }
 
-export function parseAiJson<T>(
-  text: string,
-  schema: z.ZodType<T>,
-  context?: string,
-): T {
+export function parseAiJson<T>(text: string, schema: z.ZodType<T>, context?: string): T {
   const extracted = extractJsonFromAiResponse(text);
 
   let parsed: unknown;
@@ -38,12 +34,8 @@ export function parseAiJson<T>(
 
   const result = schema.safeParse(parsed);
   if (!result.success) {
-    const issues = result.error.issues
-      .map((i) => `${i.path.join(".")}: ${i.message}`)
-      .join(", ");
-    throw new Error(
-      `AI response validation failed${context ? ` (${context})` : ""}: ${issues}`,
-    );
+    const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
+    throw new Error(`AI response validation failed${context ? ` (${context})` : ""}: ${issues}`);
   }
 
   return result.data;

@@ -1,22 +1,15 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
-import { getDashboardData } from "@/lib/actions/dashboard";
-import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
-import {
-  AgentsSection,
-  AgentsSectionSkeleton,
-} from "@/components/dashboard/agents-section";
+import { Suspense } from "react";
+import { AgentsSection, AgentsSectionSkeleton } from "@/components/dashboard/agents-section";
 import {
   ContainersSection,
   ContainersSectionSkeleton,
 } from "@/components/dashboard/containers-section";
-// import {
-//   AppsSection,
-//   AppsSectionSkeleton,
-// } from "@/components/dashboard/apps-section";
-import { SurveyBanner } from "@/components/dashboard/survey-banner";
+import { DashboardActionCards } from "@/components/dashboard/dashboard-action-cards";
+import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
+import { getDashboardData } from "@/lib/actions/dashboard";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.dashboard,
@@ -27,9 +20,9 @@ export const metadata: Metadata = generatePageMetadata({
 export const dynamic = "force-dynamic";
 
 /**
- * Main dashboard page displaying user's agents and containers.
+ * Main dashboard page displaying action cards, user's agents and containers.
  *
- * @returns Dashboard page with agents and containers sections.
+ * @returns Dashboard page with action cards, agents, and containers sections.
  */
 export default async function DashboardPage() {
   let data;
@@ -38,8 +31,7 @@ export default async function DashboardPage() {
   } catch (error) {
     if (
       error instanceof Error &&
-      (error.message.includes("Unauthorized") ||
-        error.message.includes("Forbidden"))
+      (error.message.includes("Unauthorized") || error.message.includes("Forbidden"))
     ) {
       redirect("/login");
     }
@@ -49,14 +41,8 @@ export default async function DashboardPage() {
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
       <main className="mx-auto w-full max-w-[1400px]">
-        <SurveyBanner className="mb-6" />
-        <div className="space-y-8">
-          {/* <section>
-            <Suspense fallback={<AppsSectionSkeleton />}>
-              <AppsSection apps={data.apps ?? []} />
-            </Suspense>
-          </section> */}
-
+        <DashboardActionCards creditBalance={data.creditBalance} />
+        <div className="space-y-8 mt-8">
           <section>
             <Suspense fallback={<AgentsSectionSkeleton />}>
               <AgentsSection agents={data.agents} />

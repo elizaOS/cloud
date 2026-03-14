@@ -4,18 +4,17 @@
  * Tests the main OAuth service class behavior and logic.
  */
 
-import { describe, it, expect } from "bun:test";
-import type {
-  OAuthConnection,
-  OAuthProviderInfo,
-} from "@/lib/services/oauth/types";
+import { describe, expect, it } from "bun:test";
 import { OAUTH_PROVIDERS } from "@/lib/services/oauth/provider-registry";
+import type { OAuthConnection, OAuthProviderInfo } from "@/lib/services/oauth/types";
 
 describe("OAuth Service Logic", () => {
   describe("listProviders transformation", () => {
     it("should transform provider config to info format", () => {
       // Simulate the transformation logic
-      const transformProvider = (provider: (typeof OAUTH_PROVIDERS)[string]): OAuthProviderInfo => ({
+      const transformProvider = (
+        provider: (typeof OAUTH_PROVIDERS)[string],
+      ): OAuthProviderInfo => ({
         id: provider.id,
         name: provider.name,
         description: provider.description,
@@ -147,7 +146,7 @@ describe("OAuth Service Logic", () => {
 
     it("should handle mixed lastUsedAt and linkedAt", () => {
       const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 3600000);
+      const _oneHourAgo = new Date(now.getTime() - 3600000);
       const twoHoursAgo = new Date(now.getTime() - 7200000);
 
       const conn1 = createMockConnection("active", "1", {
@@ -229,13 +228,7 @@ describe("OAuth Service Logic", () => {
       // 4. Cache the result
       // 5. Return token
 
-      const flowSteps = [
-        "checkCache",
-        "findAdapter",
-        "getToken",
-        "cacheToken",
-        "returnToken",
-      ];
+      const flowSteps = ["checkCache", "findAdapter", "getToken", "cacheToken", "returnToken"];
 
       expect(flowSteps[0]).toBe("checkCache");
       expect(flowSteps[flowSteps.length - 1]).toBe("returnToken");
@@ -279,9 +272,7 @@ describe("OAuth Service Logic", () => {
       ];
 
       const activePlatforms = [
-        ...new Set(
-          connections.filter((c) => c.status === "active").map((c) => c.platform),
-        ),
+        ...new Set(connections.filter((c) => c.status === "active").map((c) => c.platform)),
       ];
 
       expect(activePlatforms).toContain("google");
@@ -336,7 +327,7 @@ describe("OAuth Types", () => {
 
   describe("OAuthConnectionSource", () => {
     it("should distinguish platform_credentials from secrets", () => {
-      const sources = ["platform_credentials", "secrets"];
+      const _sources = ["platform_credentials", "secrets"];
 
       // Google uses platform_credentials
       expect(OAUTH_PROVIDERS.google.storage).toBe("platform_credentials");

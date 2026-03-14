@@ -21,9 +21,9 @@ export interface RetryFetchOptions {
  */
 function sanitizeUrl(url: string): string {
   return url
-    .replace(/api-key=[^&]+/gi, "api-key=***")   // Helius: ?api-key=xxx
-    .replace(/\/v2\/[^/?]+/, "/v2/***")           // Alchemy RPC: /v2/{key}
-    .replace(/\/v3\/[^/?]+/, "/v3/***");          // Alchemy NFT: /v3/{key}/...
+    .replace(/api-key=[^&]+/gi, "api-key=***") // Helius: ?api-key=xxx
+    .replace(/\/v2\/[^/?]+/, "/v2/***") // Alchemy RPC: /v2/{key}
+    .replace(/\/v3\/[^/?]+/, "/v3/***"); // Alchemy NFT: /v3/{key}/...
 }
 
 /**
@@ -50,10 +50,7 @@ function sanitizeUrl(url: string): string {
  * - 404 Not Found: resource doesn't exist, retrying won't help
  * - 5xx errors ARE retriable: server issues may be transient
  */
-export async function retryFetch(
-  opts: RetryFetchOptions,
-  attempt: number = 1,
-): Promise<Response> {
+export async function retryFetch(opts: RetryFetchOptions, attempt: number = 1): Promise<Response> {
   const {
     url,
     init,
@@ -82,7 +79,7 @@ export async function retryFetch(
     }
 
     if (attempt < maxRetries) {
-      const delayMs = initialDelayMs * Math.pow(2, attempt - 1);
+      const delayMs = initialDelayMs * 2 ** (attempt - 1);
       logger.warn(`[${serviceTag}] Retriable error, retrying`, {
         attempt,
         status: response.status,
@@ -100,7 +97,7 @@ export async function retryFetch(
       logger.warn(`[${serviceTag}] Timeout`, { attempt, url: sanitizedUrl });
 
       if (attempt < maxRetries) {
-        const delayMs = initialDelayMs * Math.pow(2, attempt - 1);
+        const delayMs = initialDelayMs * 2 ** (attempt - 1);
         logger.info(`[${serviceTag}] Retrying after timeout`, {
           attempt,
           delayMs,

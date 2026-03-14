@@ -1,12 +1,12 @@
+import { eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
-  organizationEncryptionKeys,
-  type OrganizationEncryptionKey,
   type NewOrganizationEncryptionKey,
+  type OrganizationEncryptionKey,
+  organizationEncryptionKeys,
 } from "../schemas";
-import { eq } from "drizzle-orm";
 
-export type { OrganizationEncryptionKey, NewOrganizationEncryptionKey };
+export type { NewOrganizationEncryptionKey, OrganizationEncryptionKey };
 
 /**
  * Repository for organization encryption key database operations.
@@ -22,9 +22,7 @@ export class OrganizationEncryptionKeysRepository {
   /**
    * Finds an encryption key by organization ID.
    */
-  async findByOrgId(
-    organizationId: string,
-  ): Promise<OrganizationEncryptionKey | undefined> {
+  async findByOrgId(organizationId: string): Promise<OrganizationEncryptionKey | undefined> {
     return await dbRead.query.organizationEncryptionKeys.findFirst({
       where: eq(organizationEncryptionKeys.organization_id, organizationId),
     });
@@ -47,9 +45,7 @@ export class OrganizationEncryptionKeysRepository {
    * Creates a new encryption key for an organization.
    * Uses onConflictDoNothing to handle race conditions safely.
    */
-  async create(
-    data: NewOrganizationEncryptionKey,
-  ): Promise<OrganizationEncryptionKey | null> {
+  async create(data: NewOrganizationEncryptionKey): Promise<OrganizationEncryptionKey | null> {
     const [created] = await dbWrite
       .insert(organizationEncryptionKeys)
       .values(data)
@@ -75,5 +71,4 @@ export class OrganizationEncryptionKeysRepository {
 }
 
 // Singleton export
-export const organizationEncryptionKeysRepository =
-  new OrganizationEncryptionKeysRepository();
+export const organizationEncryptionKeysRepository = new OrganizationEncryptionKeysRepository();

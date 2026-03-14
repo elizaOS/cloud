@@ -14,18 +14,15 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { withRateLimit } from "@/lib/middleware/rate-limit";
-import {
-  getProvider,
-  isProviderConfigured,
-} from "@/lib/services/oauth/provider-registry";
-import { handleOAuth2Callback } from "@/lib/services/oauth/providers";
-import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
-import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
-import { incrementOAuthVersion } from "@/lib/services/oauth/cache-version";
+import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
+import { withRateLimit } from "@/lib/middleware/rate-limit";
 import { connectionEnforcementService } from "@/lib/services/eliza-app";
+import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
+import { incrementOAuthVersion } from "@/lib/services/oauth/cache-version";
+import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
+import { handleOAuth2Callback } from "@/lib/services/oauth/providers";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -107,10 +104,7 @@ async function handleCallback(
   context?: { params: Promise<{ platform: string }> },
 ): Promise<NextResponse> {
   if (!context?.params) {
-    return NextResponse.json(
-      { error: "Missing route parameters" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing route parameters" }, { status: 400 });
   }
   const { platform } = await context.params;
   const platformLower = platform.toLowerCase();
@@ -124,25 +118,19 @@ async function handleCallback(
 
   if (!provider) {
     logger.error(`[OAuth ${platform}] Unknown platform in callback`);
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `oauth_error=unknown_platform`),
-    );
+    return NextResponse.redirect(appendParam(defaultRedirect, `oauth_error=unknown_platform`));
   }
 
   // Check if provider uses generic routes
   if (!provider.useGenericRoutes) {
     logger.error(`[OAuth ${platform}] Callback received for legacy provider`);
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `oauth_error=legacy_provider`),
-    );
+    return NextResponse.redirect(appendParam(defaultRedirect, `oauth_error=legacy_provider`));
   }
 
   // Check if provider is configured
   if (!isProviderConfigured(provider)) {
     logger.error(`[OAuth ${platform}] Provider not configured in callback`);
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `oauth_error=not_configured`),
-    );
+    return NextResponse.redirect(appendParam(defaultRedirect, `oauth_error=not_configured`));
   }
 
   // Handle OAuth errors from provider
@@ -165,9 +153,7 @@ async function handleCallback(
 
   if (!code || !state) {
     logger.error(`[OAuth ${platform}] Missing code or state in callback`);
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `${platform}_error=missing_params`),
-    );
+    return NextResponse.redirect(appendParam(defaultRedirect, `${platform}_error=missing_params`));
   }
 
   logger.info(`[OAuth ${platform}] Processing callback`, {
@@ -179,21 +165,14 @@ async function handleCallback(
     const result = await handleOAuth2Callback(provider, code, state);
 
     // Validate redirect URL
-    let redirectUrl =
-      result.redirectUrl || "/dashboard/settings?tab=connections";
+    let redirectUrl = result.redirectUrl || "/dashboard/settings?tab=connections";
 
     if (!isValidRedirectUrl(redirectUrl, baseUrl)) {
-      logger.error(
-        `[OAuth ${platform}] SECURITY: Invalid redirect URL attempted`,
-        {
-          redirectUrl,
-          organizationId: result.organizationId,
-          ip:
-            request.headers.get("x-forwarded-for") ||
-            request.headers.get("x-real-ip") ||
-            "unknown",
-        },
-      );
+      logger.error(`[OAuth ${platform}] SECURITY: Invalid redirect URL attempted`, {
+        redirectUrl,
+        organizationId: result.organizationId,
+        ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
+      });
       redirectUrl = "/dashboard/settings?tab=connections";
     }
 
@@ -211,9 +190,7 @@ async function handleCallback(
         entitySettingsCache.invalidateUser(result.userId),
         edgeRuntimeCache.bumpMcpVersion(result.organizationId),
         incrementOAuthVersion(result.organizationId, platformLower),
-        connectionEnforcementService.invalidateRequiredConnectionCache(
-          result.organizationId,
-        ),
+        connectionEnforcementService.invalidateRequiredConnectionCache(result.organizationId),
       ]);
     } catch (e) {
       logger.warn(`[OAuth ${platform}] Cache invalidation failed`, {
@@ -236,12 +213,8 @@ async function handleCallback(
     });
 
     const errorMessage =
-      error instanceof Error
-        ? encodeURIComponent(error.message)
-        : "callback_failed";
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `${platform}_error=${errorMessage}`),
-    );
+      error instanceof Error ? encodeURIComponent(error.message) : "callback_failed";
+    return NextResponse.redirect(appendParam(defaultRedirect, `${platform}_error=${errorMessage}`));
   }
 }
 

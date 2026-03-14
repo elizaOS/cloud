@@ -1,13 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import crypto from "crypto";
+import type { ChatEvent, WebhookConfig } from "../../src/adapters/types";
 import { whatsappAdapter } from "../../src/adapters/whatsapp";
-import type { WebhookConfig, ChatEvent } from "../../src/adapters/types";
 
 function computeWhatsAppSignature(appSecret: string, rawBody: string): string {
-  return (
-    "sha256=" +
-    crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")
-  );
+  return "sha256=" + crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
 }
 
 function makeWhatsAppPayload(
@@ -81,9 +78,7 @@ describe("whatsappAdapter", () => {
         method: "POST",
         headers: { "x-hub-signature-256": sig },
       });
-      expect(await whatsappAdapter.verifyWebhook(req, rawBody, config)).toBe(
-        true,
-      );
+      expect(await whatsappAdapter.verifyWebhook(req, rawBody, config)).toBe(true);
     });
 
     test("rejects tampered body", async () => {
@@ -96,9 +91,7 @@ describe("whatsappAdapter", () => {
         method: "POST",
         headers: { "x-hub-signature-256": sig },
       });
-      expect(
-        await whatsappAdapter.verifyWebhook(req, '{"tampered":1}', config),
-      ).toBe(false);
+      expect(await whatsappAdapter.verifyWebhook(req, '{"tampered":1}', config)).toBe(false);
     });
 
     test("rejects missing signature header", async () => {
@@ -107,17 +100,13 @@ describe("whatsappAdapter", () => {
         appSecret: "secret",
       };
       const req = new Request("http://localhost/webhook", { method: "POST" });
-      expect(await whatsappAdapter.verifyWebhook(req, "{}", config)).toBe(
-        false,
-      );
+      expect(await whatsappAdapter.verifyWebhook(req, "{}", config)).toBe(false);
     });
 
     test("returns false when appSecret not configured", async () => {
       const config: WebhookConfig = { agentId: "a" };
       const req = new Request("http://localhost/webhook", { method: "POST" });
-      expect(await whatsappAdapter.verifyWebhook(req, "{}", config)).toBe(
-        false,
-      );
+      expect(await whatsappAdapter.verifyWebhook(req, "{}", config)).toBe(false);
     });
 
     test("rejects invalid hex in signature", async () => {
@@ -129,9 +118,7 @@ describe("whatsappAdapter", () => {
         method: "POST",
         headers: { "x-hub-signature-256": "sha256=not-hex-at-all!" },
       });
-      expect(await whatsappAdapter.verifyWebhook(req, "{}", config)).toBe(
-        false,
-      );
+      expect(await whatsappAdapter.verifyWebhook(req, "{}", config)).toBe(false);
     });
   });
 
@@ -181,9 +168,7 @@ describe("whatsappAdapter", () => {
           },
         ],
       };
-      expect(
-        await whatsappAdapter.extractEvent(JSON.stringify(payload)),
-      ).toBeNull();
+      expect(await whatsappAdapter.extractEvent(JSON.stringify(payload))).toBeNull();
     });
 
     test("returns null for non-text message types", async () => {
@@ -195,9 +180,7 @@ describe("whatsappAdapter", () => {
           timestamp: "1234567890",
         },
       ]);
-      expect(
-        await whatsappAdapter.extractEvent(JSON.stringify(payload)),
-      ).toBeNull();
+      expect(await whatsappAdapter.extractEvent(JSON.stringify(payload))).toBeNull();
     });
 
     test("returns null when field is not messages", async () => {
@@ -221,9 +204,7 @@ describe("whatsappAdapter", () => {
           },
         ],
       };
-      expect(
-        await whatsappAdapter.extractEvent(JSON.stringify(payload)),
-      ).toBeNull();
+      expect(await whatsappAdapter.extractEvent(JSON.stringify(payload))).toBeNull();
     });
 
     test("returns null for invalid JSON", async () => {
@@ -232,9 +213,7 @@ describe("whatsappAdapter", () => {
 
     test("returns null for non-whatsapp_business_account object", async () => {
       expect(
-        await whatsappAdapter.extractEvent(
-          JSON.stringify({ object: "page", entry: [] }),
-        ),
+        await whatsappAdapter.extractEvent(JSON.stringify({ object: "page", entry: [] })),
       ).toBeNull();
     });
 
@@ -321,9 +300,7 @@ describe("whatsappAdapter", () => {
 
       const [url, opts] = fetchSpy.mock.calls[0] as [string, RequestInit];
       expect(url).toBe("https://graph.facebook.com/v21.0/PH_ID/messages");
-      expect((opts.headers as Record<string, string>).Authorization).toBe(
-        "Bearer META_TOKEN",
-      );
+      expect((opts.headers as Record<string, string>).Authorization).toBe("Bearer META_TOKEN");
       const body = JSON.parse(opts.body as string);
       expect(body).toEqual({
         messaging_product: "whatsapp",
@@ -336,9 +313,9 @@ describe("whatsappAdapter", () => {
 
     test("throws when credentials are missing", async () => {
       const config: WebhookConfig = { agentId: "a" };
-      expect(
-        whatsappAdapter.sendReply(config, makeEvent(), "reply"),
-      ).rejects.toThrow("Missing WhatsApp credentials");
+      expect(whatsappAdapter.sendReply(config, makeEvent(), "reply")).rejects.toThrow(
+        "Missing WhatsApp credentials",
+      );
     });
 
     test("throws on non-ok response", async () => {
@@ -351,9 +328,9 @@ describe("whatsappAdapter", () => {
         accessToken: "bad-token",
         phoneNumberId: "PH_ID",
       };
-      expect(
-        whatsappAdapter.sendReply(config, makeEvent(), "reply"),
-      ).rejects.toThrow("WhatsApp send error (401)");
+      expect(whatsappAdapter.sendReply(config, makeEvent(), "reply")).rejects.toThrow(
+        "WhatsApp send error (401)",
+      );
     });
   });
 

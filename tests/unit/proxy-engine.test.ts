@@ -66,8 +66,7 @@ mock.module("@/lib/utils/logger", () => ({
 }));
 
 mock.module("@/lib/middleware/rate-limit", () => ({
-  withRateLimit: (handler: (request: NextRequest) => Promise<Response>) =>
-    handler,
+  withRateLimit: (handler: (request: NextRequest) => Promise<Response>) => handler,
 }));
 
 import { createHandler } from "@/lib/services/proxy/engine";
@@ -210,9 +209,7 @@ describe("proxy engine", () => {
   });
 
   test("maps auth failures to 401 responses", async () => {
-    mockRequireAuthOrApiKeyWithOrg.mockRejectedValue(
-      new AuthenticationError(),
-    );
+    mockRequireAuthOrApiKeyWithOrg.mockRejectedValue(new AuthenticationError());
 
     const handler = createHandler(
       {

@@ -1,25 +1,25 @@
-import { usersService } from "@/lib/services/users";
-import { apiKeysService } from "@/lib/services/api-keys";
-import { userSessionsService } from "@/lib/services/user-sessions";
-import { syncUserFromPrivy } from "./privy-sync";
-import type { UserWithOrganization, ApiKey } from "@/lib/types";
-import type { Organization } from "@/db/schemas/organizations";
-import { cache } from "react";
+import crypto from "crypto";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import crypto from "crypto";
+import { cache } from "react";
+import type { Organization } from "@/db/schemas/organizations";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
+import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
 import { cache as redisCache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
-import { logger } from "@/lib/utils/logger";
-import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
-import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
-import {
-  verifyAuthTokenCached,
-  invalidatePrivyTokenCache,
-  getUserFromIdToken,
-  getUserById,
-} from "./auth/privy-client";
 import { adminService } from "@/lib/services/admin";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { userSessionsService } from "@/lib/services/user-sessions";
+import { usersService } from "@/lib/services/users";
+import type { ApiKey, UserWithOrganization } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
+import {
+  getUserById,
+  getUserFromIdToken,
+  invalidatePrivyTokenCache,
+  verifyAuthTokenCached,
+} from "./auth/privy-client";
+import { syncUserFromPrivy } from "./privy-sync";
 
 // Re-export Organization type for convenience
 export type { Organization };
@@ -28,20 +28,14 @@ export type { Organization };
  * Hash a token for use as cache key (never store raw tokens)
  */
 function hashToken(token: string): string {
-  return crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex")
-    .substring(0, 32);
+  return crypto.createHash("sha256").update(token).digest("hex").substring(0, 32);
 }
 
 /**
  * Invalidate user session cache (call when user/org data changes)
  * @param sessionToken - The session token to invalidate cache for
  */
-export async function invalidateUserSessionCache(
-  sessionToken: string,
-): Promise<void> {
+export async function invalidateUserSessionCache(sessionToken: string): Promise<void> {
   const tokenHash = hashToken(sessionToken);
   const cacheKey = CacheKeys.session.user(tokenHash);
   await redisCache.del(cacheKey);
@@ -53,9 +47,7 @@ export async function invalidateUserSessionCache(
  * Call this on logout to ensure immediate invalidation
  * @param sessionToken - The Privy auth token to invalidate
  */
-export async function invalidateSessionCaches(
-  sessionToken: string,
-): Promise<void> {
+export async function invalidateSessionCaches(sessionToken: string): Promise<void> {
   await invalidatePrivyTokenCache(sessionToken);
   logger.debug("[AUTH] Invalidated all session caches (Privy + user)");
 }
@@ -64,10 +56,7 @@ export async function invalidateSessionCaches(
  * Ensure user has a default API key for programmatic access
  * Creates one if it doesn't exist (for existing users who registered before auto-generation)
  */
-async function ensureUserHasApiKey(
-  userId: string,
-  organizationId: string,
-): Promise<void> {
+async function ensureUserHasApiKey(userId: string, organizationId: string): Promise<void> {
   // Validate inputs
   if (!userId || userId.trim() === "") {
     logger.warn("[Auth] Invalid userId, skipping API key check");
@@ -75,9 +64,7 @@ async function ensureUserHasApiKey(
   }
 
   if (!organizationId || organizationId.trim() === "") {
-    logger.warn(
-      `[Auth] No organization for user ${userId}, skipping API key check`,
-    );
+    logger.warn(`[Auth] No organization for user ${userId}, skipping API key check`);
     return;
   }
 
@@ -122,133 +109,115 @@ export type AuthResult = {
  *
  * This handles the race condition where webhooks haven't fired yet.
  */
-export const getCurrentUser = cache(
-  async (): Promise<UserWithOrganization | null> => {
-    try {
-      // Get the auth token from cookies
-      const cookieStore = await cookies();
-      const authToken = cookieStore.get("privy-token");
+export const getCurrentUser = cache(async (): Promise<UserWithOrganization | null> => {
+  try {
+    // Get the auth token from cookies
+    const cookieStore = await cookies();
+    const authToken = cookieStore.get("privy-token");
 
-      if (!authToken) {
-        return null;
-      }
-
-      const tokenHash = hashToken(authToken.value);
-      const cacheKey = CacheKeys.session.user(tokenHash);
-
-      // Check Redis cache first - avoids both Privy API AND DB calls
-      const cachedUser = await redisCache.get<UserWithOrganization>(cacheKey);
-      if (cachedUser) {
-        logger.debug("[AUTH] Cache hit for user session");
-
-        // Update session tracking in background (non-blocking)
-        if (cachedUser.organization_id) {
-          void trackSessionActivity(
-            cachedUser.id,
-            cachedUser.organization_id,
-            authToken.value,
-          );
-        }
-
-        return cachedUser;
-      }
-
-      logger.debug("[AUTH] Cache miss, verifying with Privy (cached)");
-
-      // Verify the token with Privy using cached verification
-      // This caches the Privy API response to avoid repeated network calls
-      const verifiedClaims = await verifyAuthTokenCached(authToken.value);
-
-      if (!verifiedClaims) {
-        return null;
-      }
-
-      // Get user from database by Privy ID
-      let user = await usersService.getByPrivyId(verifiedClaims.userId);
-
-      // Just-in-time sync: If user doesn't exist, fetch from Privy and create
-      // This handles race conditions where webhooks haven't fired yet
-      if (!user) {
-        logger.info(
-          "[AUTH] User not in DB, starting JIT sync for:",
-          verifiedClaims.userId,
-        );
-
-        try {
-          let privyUser = null;
-
-          // Try efficient method first: use privy-id-token to avoid rate limits
-          const idToken = cookieStore.get("privy-id-token");
-          if (idToken?.value) {
-            logger.debug("[AUTH] Using privy-id-token for user lookup");
-            try {
-              privyUser = await getUserFromIdToken(idToken.value);
-            } catch (idTokenError) {
-              logger.warn(
-                "[AUTH] privy-id-token method failed, will fallback to userId",
-              );
-            }
-          }
-
-          // Fallback: use userId directly (counts against rate limits)
-          if (!privyUser) {
-            logger.debug("[AUTH] Using userId for user lookup (fallback)");
-            privyUser = await getUserById(verifiedClaims.userId);
-          }
-
-          if (privyUser) {
-            user = await syncUserFromPrivy(privyUser);
-            logger.info("[AUTH] ✓ JIT sync complete:", {
-              userId: user.id,
-              orgId: user.organization_id,
-            });
-          } else {
-            logger.error("[AUTH] ✗ Privy returned null for user");
-          }
-        } catch (privyError) {
-          logger.error(
-            "[AUTH] ✗ Failed to fetch user from Privy:",
-            privyError instanceof Error ? privyError.message : privyError,
-          );
-        }
-      }
-
-      if (!user) {
-        return null;
-      }
-
-      // Cache the user data in Redis (5 min TTL)
-      await redisCache.set(cacheKey, user, CacheTTL.session.user);
-      logger.debug("[AUTH] Cached user session data");
-
-      // Handle session tracking and API key in background (non-blocking)
-      if (user.organization_id) {
-        void trackSessionActivity(
-          user.id,
-          user.organization_id,
-          authToken.value,
-        );
-        void ensureUserHasApiKey(user.id, user.organization_id);
-      } else {
-        logger.error("[AUTH] ✗ User missing organization_id:", user.id);
-      }
-
-      return user;
-    } catch (error) {
-      logger.error(
-        "[AUTH] ✗ Error:",
-        error instanceof Error ? error.message : error,
-      );
-      if (error instanceof Error && error.cause) {
-        logger.error(
-          "[AUTH] ✗ Root cause:",
-          error.cause instanceof Error ? error.cause.message : error.cause,
-        );
-      }
+    if (!authToken) {
       return null;
     }
-  },
-);
+
+    const tokenHash = hashToken(authToken.value);
+    const cacheKey = CacheKeys.session.user(tokenHash);
+
+    // Check Redis cache first - avoids both Privy API AND DB calls
+    const cachedUser = await redisCache.get<UserWithOrganization>(cacheKey);
+    if (cachedUser) {
+      logger.debug("[AUTH] Cache hit for user session");
+
+      // Update session tracking in background (non-blocking)
+      if (cachedUser.organization_id) {
+        void trackSessionActivity(cachedUser.id, cachedUser.organization_id, authToken.value);
+      }
+
+      return cachedUser;
+    }
+
+    logger.debug("[AUTH] Cache miss, verifying with Privy (cached)");
+
+    // Verify the token with Privy using cached verification
+    // This caches the Privy API response to avoid repeated network calls
+    const verifiedClaims = await verifyAuthTokenCached(authToken.value);
+
+    if (!verifiedClaims) {
+      return null;
+    }
+
+    // Get user from database by Privy ID
+    let user = await usersService.getByPrivyId(verifiedClaims.userId);
+
+    // Just-in-time sync: If user doesn't exist, fetch from Privy and create
+    // This handles race conditions where webhooks haven't fired yet
+    if (!user) {
+      logger.info("[AUTH] User not in DB, starting JIT sync for:", verifiedClaims.userId);
+
+      try {
+        let privyUser = null;
+
+        // Try efficient method first: use privy-id-token to avoid rate limits
+        const idToken = cookieStore.get("privy-id-token");
+        if (idToken?.value) {
+          logger.debug("[AUTH] Using privy-id-token for user lookup");
+          try {
+            privyUser = await getUserFromIdToken(idToken.value);
+          } catch (_idTokenError) {
+            logger.warn("[AUTH] privy-id-token method failed, will fallback to userId");
+          }
+        }
+
+        // Fallback: use userId directly (counts against rate limits)
+        if (!privyUser) {
+          logger.debug("[AUTH] Using userId for user lookup (fallback)");
+          privyUser = await getUserById(verifiedClaims.userId);
+        }
+
+        if (privyUser) {
+          user = await syncUserFromPrivy(privyUser);
+          logger.info("[AUTH] ✓ JIT sync complete:", {
+            userId: user.id,
+            orgId: user.organization_id,
+          });
+        } else {
+          logger.error("[AUTH] ✗ Privy returned null for user");
+        }
+      } catch (privyError) {
+        logger.error(
+          "[AUTH] ✗ Failed to fetch user from Privy:",
+          privyError instanceof Error ? privyError.message : privyError,
+        );
+      }
+    }
+
+    if (!user) {
+      return null;
+    }
+
+    // Cache the user data in Redis (5 min TTL)
+    await redisCache.set(cacheKey, user, CacheTTL.session.user);
+    logger.debug("[AUTH] Cached user session data");
+
+    // Handle session tracking and API key in background (non-blocking)
+    if (user.organization_id) {
+      void trackSessionActivity(user.id, user.organization_id, authToken.value);
+      void ensureUserHasApiKey(user.id, user.organization_id);
+    } else {
+      logger.error("[AUTH] ✗ User missing organization_id:", user.id);
+    }
+
+    return user;
+  } catch (error) {
+    logger.error("[AUTH] ✗ Error:", error instanceof Error ? error.message : error);
+    if (error instanceof Error && error.cause) {
+      logger.error(
+        "[AUTH] ✗ Root cause:",
+        error.cause instanceof Error ? error.cause.message : error.cause,
+      );
+    }
+    return null;
+  }
+});
 
 /**
  * Track session activity in background (non-blocking, debounced)
@@ -340,9 +309,7 @@ export async function requireAuthWithOrg(): Promise<
   }
 
   if (!user.organization_id) {
-    throw new ForbiddenError(
-      "This feature requires a full account. Please sign up to continue.",
-    );
+    throw new ForbiddenError("This feature requires a full account. Please sign up to continue.");
   }
 
   if (!user.organization || !user.organization?.is_active) {
@@ -358,15 +325,11 @@ export async function requireAuthWithOrg(): Promise<
 /**
  * Require user to belong to a specific organization
  */
-export async function requireOrganization(
-  organizationId: string,
-): Promise<UserWithOrganization> {
+export async function requireOrganization(organizationId: string): Promise<UserWithOrganization> {
   const user = await requireAuth();
 
   if (user.organization_id !== organizationId) {
-    throw new ForbiddenError(
-      `User does not have access to organization ${organizationId}`,
-    );
+    throw new ForbiddenError(`User does not have access to organization ${organizationId}`);
   }
 
   if (!user.organization?.is_active) {
@@ -379,9 +342,7 @@ export async function requireOrganization(
 /**
  * Require user to have a specific role
  */
-export async function requireRole(
-  allowedRoles: string[],
-): Promise<UserWithOrganization> {
+export async function requireRole(allowedRoles: string[]): Promise<UserWithOrganization> {
   const user = await requireAuth();
 
   if (!allowedRoles.includes(user.role)) {
@@ -397,9 +358,7 @@ export async function requireRole(
  * Validate an API key and return the associated user with full org checks.
  * Shared helper to avoid duplicated validation in X-API-Key and Bearer flows.
  */
-async function validateAndGetApiKeyUser(
-  apiKey: ApiKey,
-): Promise<{ user: UserWithOrganization }> {
+async function validateAndGetApiKeyUser(apiKey: ApiKey): Promise<{ user: UserWithOrganization }> {
   if (!apiKey.is_active) {
     throw new ForbiddenError("API key is inactive");
   }
@@ -438,9 +397,7 @@ function looksLikeJwt(token: string): boolean {
  * Supports X-API-Key header and Authorization: Bearer header (API key or JWT)
  * Note: This allows anonymous users. Use requireAuthOrApiKeyWithOrg for paid features.
  */
-export async function requireAuthOrApiKey(
-  request: NextRequest,
-): Promise<AuthResult> {
+export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthResult> {
   // Try wallet signature authentication first (if headers present)
   const hasWalletHeaders =
     request.headers.get("X-Wallet-Address") &&
@@ -462,10 +419,7 @@ export async function requireAuthOrApiKey(
       };
     } catch (e) {
       // Always fail closed when wallet headers are present
-      logger.error(
-        "[AUTH] Wallet auth failed with headers present - failing closed:",
-        e,
-      );
+      logger.error("[AUTH] Wallet auth failed with headers present - failing closed:", e);
       // Preserve service errors but clean auth errors for security
       if (e instanceof Error && e.message.includes("Service temporarily")) {
         throw e; // Propagate service outage errors
@@ -578,9 +532,7 @@ export async function requireAuthOrApiKeyWithOrg(request: NextRequest): Promise<
   const result = await requireAuthOrApiKey(request);
 
   if (!result.user.organization_id || !result.user.organization) {
-    throw new ForbiddenError(
-      "This feature requires a full account. Please sign up to continue.",
-    );
+    throw new ForbiddenError("This feature requires a full account. Please sign up to continue.");
   }
 
   return result as AuthResult & {
@@ -634,15 +586,11 @@ export interface AdminAuthResult {
   role: string | null;
 }
 
-export async function requireAdmin(
-  request: NextRequest,
-): Promise<AdminAuthResult> {
+export async function requireAdmin(request: NextRequest): Promise<AdminAuthResult> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   if (!user.wallet_address) {
-    throw new AuthenticationError(
-      "Wallet connection required for admin access",
-    );
+    throw new AuthenticationError("Wallet connection required for admin access");
   }
 
   const isAdmin = await adminService.isAdmin(user.wallet_address);
@@ -657,8 +605,8 @@ export async function requireAdmin(
 
 // Re-export Privy client utilities for advanced use cases
 export {
-  verifyAuthTokenCached,
-  invalidatePrivyTokenCache,
-  invalidateAllPrivyTokenCaches,
   getPrivyClient,
+  invalidateAllPrivyTokenCaches,
+  invalidatePrivyTokenCache,
+  verifyAuthTokenCached,
 } from "./auth/privy-client";

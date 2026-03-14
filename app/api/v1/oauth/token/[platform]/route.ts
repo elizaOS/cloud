@@ -8,11 +8,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
-  oauthService,
-  OAuthError,
   Errors,
   internalErrorResponse,
   isValidProvider,
+  OAuthError,
+  oauthService,
 } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 

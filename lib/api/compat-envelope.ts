@@ -27,8 +27,7 @@ function getAgentWebUiUrl(sandbox: MiladySandbox): string | null {
     return null;
   }
 
-  const configuredDomain =
-    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ?? "agents.example.com";
+  const configuredDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ?? "agents.example.com";
   const normalizedDomain = configuredDomain
     .trim()
     .replace(/^https?:\/\//, "")
@@ -150,9 +149,7 @@ export function toCompatOpResult(
   return {
     jobId: agentId,
     status: success ? "completed" : "failed",
-    message: success
-      ? `agent ${action} completed`
-      : `agent ${action} failed`,
+    message: success ? `agent ${action} completed` : `agent ${action} failed`,
   };
 }
 
@@ -220,7 +217,7 @@ export function toCompatJob(sandbox: MiladySandbox): CompatJobShape {
     status: jobStatus,
     data,
     result: isTerminal
-        ? {
+      ? {
           agentId: sandbox.id,
           agentName: sandbox.agent_name,
           status: compatStatus,
@@ -346,9 +343,7 @@ export function mapStatus(status: MiladySandboxStatus): string {
  * is conveyed separately via `data.status` / `result.status` in the job
  * payload (see `toCompatJob`).
  */
-function mapStatusToJobStatus(
-  status: MiladySandboxStatus,
-): CompatJobShape["status"] {
+function mapStatusToJobStatus(status: MiladySandboxStatus): CompatJobShape["status"] {
   switch (status) {
     case "pending":
       return "queued";
@@ -356,9 +351,9 @@ function mapStatusToJobStatus(
       return "processing";
     case "running":
       return "completed";
-    case "stopped":         // provisioning succeeded; agent later stopped
+    case "stopped": // provisioning succeeded; agent later stopped
       return "completed";
-    case "disconnected":    // provisioning succeeded; agent later disconnected
+    case "disconnected": // provisioning succeeded; agent later disconnected
       return "completed";
     case "error":
       return "failed";

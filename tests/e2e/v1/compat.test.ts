@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as api from "../helpers/api-client";
 import { NONEXISTENT_UUID } from "../helpers/test-data";
 
@@ -14,55 +14,40 @@ describe("Compat Agents API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "GET /api/compat/agents returns agents list",
-    async () => {
-      const response = await api.get("/api/compat/agents", {
-        authenticated: true,
-      });
-      expect(response.status).toBe(200);
-    },
-  );
+  test.skipIf(!api.hasApiKey())("GET /api/compat/agents returns agents list", async () => {
+    const response = await api.get("/api/compat/agents", {
+      authenticated: true,
+    });
+    expect(response.status).toBe(200);
+  });
 
   test("GET /api/compat/agents/[id] handles nonexistent", async () => {
-    const response = await api.get(
-      `/api/compat/agents/${NONEXISTENT_UUID}`,
-    );
+    const response = await api.get(`/api/compat/agents/${NONEXISTENT_UUID}`);
     expect([404, 401, 403]).toContain(response.status);
   });
 
   test("GET /api/compat/agents/[id]/status handles nonexistent", async () => {
-    const response = await api.get(
-      `/api/compat/agents/${NONEXISTENT_UUID}/status`,
-    );
+    const response = await api.get(`/api/compat/agents/${NONEXISTENT_UUID}/status`);
     expect([404, 401, 403]).toContain(response.status);
   });
 
   test("GET /api/compat/agents/[id]/logs handles nonexistent", async () => {
-    const response = await api.get(
-      `/api/compat/agents/${NONEXISTENT_UUID}/logs`,
-    );
+    const response = await api.get(`/api/compat/agents/${NONEXISTENT_UUID}/logs`);
     expect([404, 401, 403]).toContain(response.status);
   });
 
   test("POST /api/compat/agents/[id]/restart requires auth", async () => {
-    const response = await api.post(
-      `/api/compat/agents/${NONEXISTENT_UUID}/restart`,
-    );
+    const response = await api.post(`/api/compat/agents/${NONEXISTENT_UUID}/restart`);
     expect([401, 403]).toContain(response.status);
   });
 
   test("POST /api/compat/agents/[id]/resume requires auth", async () => {
-    const response = await api.post(
-      `/api/compat/agents/${NONEXISTENT_UUID}/resume`,
-    );
+    const response = await api.post(`/api/compat/agents/${NONEXISTENT_UUID}/resume`);
     expect([401, 403]).toContain(response.status);
   });
 
   test("POST /api/compat/agents/[id]/suspend requires auth", async () => {
-    const response = await api.post(
-      `/api/compat/agents/${NONEXISTENT_UUID}/suspend`,
-    );
+    const response = await api.post(`/api/compat/agents/${NONEXISTENT_UUID}/suspend`);
     expect([401, 403]).toContain(response.status);
   });
 });
@@ -76,9 +61,7 @@ describe("Compat Availability API", () => {
 
 describe("Compat Jobs API", () => {
   test("GET /api/compat/jobs/[id] handles nonexistent", async () => {
-    const response = await api.get(
-      `/api/compat/jobs/${NONEXISTENT_UUID}`,
-    );
+    const response = await api.get(`/api/compat/jobs/${NONEXISTENT_UUID}`);
     expect([404, 401, 403]).toContain(response.status);
   });
 });

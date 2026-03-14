@@ -1,22 +1,21 @@
 import { ImageResponse } from "next/og";
-import { logger } from "@/lib/utils/logger";
 import { NextRequest } from "next/server";
+import { logger } from "@/lib/utils/logger";
 
 // Brand colors matching the platform design system
 const BRAND_ORANGE = "#FF5800";
-const BRAND_BLUE = "#0B35F1";
+const _BRAND_BLUE = "#0B35F1";
 const BRAND_BG = "#0A0A0A";
 const BRAND_SURFACE = "#252527";
 const BRAND_BORDER = "#E1E1E1";
 
 // Brand gradient using actual platform colors
-const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_BG} 0%, ${BRAND_SURFACE} 100%)`;
-const BRAND_ACCENT_GRADIENT = `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #FF7A33 100%)`;
+const _BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_BG} 0%, ${BRAND_SURFACE} 100%)`;
+const _BRAND_ACCENT_GRADIENT = `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #FF7A33 100%)`;
 
 // System monospace font stack - works reliably for OG image rendering
 // Optimized for technical/code aesthetic matching platform
-const MONO_FONT =
-  "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace";
+const MONO_FONT = "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace";
 
 /**
  * GET /api/og
@@ -39,8 +38,7 @@ export async function GET(request: NextRequest) {
 
     const type = searchParams.get("type") || "default";
     const title = searchParams.get("title") || "ELIZA CLOUD";
-    const description =
-      searchParams.get("description") || "AI Agent Development Platform";
+    const description = searchParams.get("description") || "AI Agent Development Platform";
     const name = searchParams.get("name");
     const characterName = searchParams.get("characterName");
 

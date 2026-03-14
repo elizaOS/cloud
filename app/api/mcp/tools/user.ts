@@ -7,7 +7,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v3";
 import { usersService } from "@/lib/services/users";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 export function registerUserTools(server: McpServer): void {
   server.registerTool(
@@ -31,9 +31,7 @@ export function registerUserTools(server: McpServer): void {
           },
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to get user profile",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to get user profile");
       }
     },
   );
@@ -43,12 +41,7 @@ export function registerUserTools(server: McpServer): void {
     {
       description: "Update user profile. FREE tool.",
       inputSchema: {
-        name: z
-          .string()
-          .min(1)
-          .max(100)
-          .optional()
-          .describe("New display name"),
+        name: z.string().min(1).max(100).optional().describe("New display name"),
       },
     },
     async ({ name }) => {
@@ -59,9 +52,7 @@ export function registerUserTools(server: McpServer): void {
         }
         return jsonResponse({ success: true });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to update profile",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to update profile");
       }
     },
   );

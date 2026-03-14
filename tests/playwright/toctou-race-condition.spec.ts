@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * TOCTOU Race Condition Test
@@ -40,14 +40,11 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
    * ACTUAL (bug): All 5 requests succeed, balance goes negative or
    *               some deductions fail silently
    */
-  test("parallel requests should not over-consume credits", async ({
-    request,
-  }) => {
+  test("parallel requests should not over-consume credits", async ({ request }) => {
     // 1. Get initial balance
-    const balanceResponse = await request.get(
-      `${CLOUD_URL}/api/v1/miniapp/billing`,
-      { headers: authHeaders() },
-    );
+    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+      headers: authHeaders(),
+    });
     expect(balanceResponse.status()).toBe(200);
     const { billing } = await balanceResponse.json();
     const initialBalance = parseFloat(billing.creditBalance);
@@ -63,9 +60,7 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
     // 2. Calculate how many requests SHOULD fit in the balance
     // Actual cost per request is ~$0.02 for gpt-4o-mini short message
     const actualCostPerRequest = 0.02;
-    const maxPossibleRequests = Math.floor(
-      initialBalance / actualCostPerRequest,
-    );
+    const maxPossibleRequests = Math.floor(initialBalance / actualCostPerRequest);
 
     // We'll send 50 parallel requests to maximize race condition window
     // With TOCTOU bug: many more than maxPossibleRequests may succeed
@@ -96,12 +91,8 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
 
     // 5. Count successes vs failures
     const successes = responses.filter((r) => r.status() === 200).length;
-    const insufficientCredits = responses.filter(
-      (r) => r.status() === 402,
-    ).length;
-    const otherErrors = responses.filter(
-      (r) => r.status() !== 200 && r.status() !== 402,
-    ).length;
+    const insufficientCredits = responses.filter((r) => r.status() === 402).length;
+    const otherErrors = responses.filter((r) => r.status() !== 200 && r.status() !== 402).length;
 
     console.log(`✅ Successes: ${successes}`);
     console.log(`❌ Insufficient credits (402): ${insufficientCredits}`);
@@ -109,17 +100,14 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
 
     // 6. Get final balance
     await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for deductions
-    const finalBalanceResponse = await request.get(
-      `${CLOUD_URL}/api/v1/miniapp/billing`,
-      { headers: authHeaders() },
-    );
+    const finalBalanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+      headers: authHeaders(),
+    });
     const { billing: finalBilling } = await finalBalanceResponse.json();
     const finalBalance = parseFloat(finalBilling.creditBalance);
 
     console.log(`📊 Final balance: $${finalBalance.toFixed(4)}`);
-    console.log(
-      `💰 Total deducted: $${(initialBalance - finalBalance).toFixed(4)}`,
-    );
+    console.log(`💰 Total deducted: $${(initialBalance - finalBalance).toFixed(4)}`);
 
     // 7. THE BUG ASSERTION
     // If TOCTOU bug exists: successes > maxPossibleRequests (over-consumption)
@@ -155,14 +143,11 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
   /**
    * Test specifically for streaming endpoints where the window is larger
    */
-  test("streaming requests should deduct credits atomically", async ({
-    request,
-  }) => {
+  test("streaming requests should deduct credits atomically", async ({ request }) => {
     // Get initial balance
-    const balanceResponse = await request.get(
-      `${CLOUD_URL}/api/v1/miniapp/billing`,
-      { headers: authHeaders() },
-    );
+    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+      headers: authHeaders(),
+    });
     const { billing } = await balanceResponse.json();
     const initialBalance = parseFloat(billing.creditBalance);
 
@@ -196,20 +181,18 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Check final balance
-    const finalBalanceResponse = await request.get(
-      `${CLOUD_URL}/api/v1/miniapp/billing`,
-      { headers: authHeaders() },
-    );
+    const finalBalanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
+      headers: authHeaders(),
+    });
     const { billing: finalBilling } = await finalBalanceResponse.json();
     const finalBalance = parseFloat(finalBilling.creditBalance);
 
     console.log(`📊 Final balance: $${finalBalance.toFixed(4)}`);
 
     // Balance should not be negative
-    expect(
-      finalBalance,
-      "Balance should not go negative after streaming",
-    ).toBeGreaterThanOrEqual(-0.01);
+    expect(finalBalance, "Balance should not go negative after streaming").toBeGreaterThanOrEqual(
+      -0.01,
+    );
   });
 });
 
@@ -220,9 +203,7 @@ test.describe("MCP Endpoint - Correct Pattern (Reference)", () => {
    * This test shows that /api/mcp correctly handles concurrent requests
    * because it uses the deduct-before pattern
    */
-  test("MCP deduct-before pattern handles concurrency correctly", async ({
-    request,
-  }) => {
+  test("MCP deduct-before pattern handles concurrency correctly", async ({ request }) => {
     // This is the reference implementation that works correctly
     // The other endpoints should be fixed to match this pattern
     console.log("ℹ️ /api/mcp uses deduct-before pattern - this is the target");

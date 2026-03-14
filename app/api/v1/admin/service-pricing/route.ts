@@ -1,4 +1,3 @@
-
 /**
  * Admin Service Pricing Management API
  *
@@ -21,17 +20,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminWithResponse } from "@/lib/api/admin-auth";
+import { z } from "zod";
 import { servicePricingRepository } from "@/db/repositories";
+import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireAdminWithResponse(
-    request,
-    "[Admin] Service pricing auth error",
-  );
+  const authResult = await requireAdminWithResponse(request, "[Admin] Service pricing auth error");
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -40,10 +36,7 @@ export async function GET(request: NextRequest) {
   const serviceId = url.searchParams.get("service_id");
 
   if (!serviceId) {
-    return NextResponse.json(
-      { error: "service_id query parameter is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "service_id query parameter is required" }, { status: 400 });
   }
 
   try {
@@ -64,10 +57,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[Admin] Service pricing GET error", { error, serviceId });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -77,17 +67,16 @@ const UpsertSchema = z.object({
   cost: z.number().positive(),
   reason: z.string(),
   description: z.string().optional(),
-  metadata: z.record(z.string().max(100), z.union([z.string().max(1000), z.number(), z.boolean(), z.null()])).refine(
-    (val) => Object.keys(val).length <= 20,
-    { message: "Metadata cannot have more than 20 keys" },
-  ).optional(),
+  metadata: z
+    .record(z.string().max(100), z.union([z.string().max(1000), z.number(), z.boolean(), z.null()]))
+    .refine((val) => Object.keys(val).length <= 20, {
+      message: "Metadata cannot have more than 20 keys",
+    })
+    .optional(),
 });
 
 export async function PUT(request: NextRequest) {
-  const authResult = await requireAdminWithResponse(
-    request,
-    "[Admin] Service pricing auth error",
-  );
+  const authResult = await requireAdminWithResponse(request, "[Admin] Service pricing auth error");
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -163,9 +152,6 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[Admin] Service pricing PUT error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

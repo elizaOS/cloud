@@ -19,19 +19,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { executeWithBody } from "@/lib/services/proxy/engine";
-import {
-  applyCorsHeaders,
-  handleCorsOptions,
-} from "@/lib/services/proxy/cors";
-import {
-  marketDataConfig,
-  marketDataHandler,
-} from "@/lib/services/proxy/services/market-data";
-import {
-  isValidChain,
-  isValidAddress,
-} from "@/lib/services/proxy/services/address-validation";
+import { isValidAddress, isValidChain } from "@/lib/services/proxy/services/address-validation";
+import { marketDataConfig, marketDataHandler } from "@/lib/services/proxy/services/market-data";
 
 // WHY 30s maxDuration:
 // - Vercel serverless functions default to 10s

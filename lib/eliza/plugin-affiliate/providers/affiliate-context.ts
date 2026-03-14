@@ -162,21 +162,15 @@ export const affiliateContextProvider: Provider = {
     // Vibe personality
     if (vibe && VIBE_PERSONALITIES[vibe]) {
       const vibeConfig = VIBE_PERSONALITIES[vibe];
-      contextLines.push(
-        `[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`,
-      );
-      contextLines.push(
-        `Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`,
-      );
+      contextLines.push(`[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`);
+      contextLines.push(`Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`);
       contextLines.push("");
     }
 
     // Backstory (truncated)
     if (backstory?.trim()) {
       const short = backstory.trim().slice(0, 200);
-      contextLines.push(
-        `[Backstory] ${short}${backstory.length > 200 ? "..." : ""}`,
-      );
+      contextLines.push(`[Backstory] ${short}${backstory.length > 200 ? "..." : ""}`);
       contextLines.push("");
     }
 

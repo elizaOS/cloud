@@ -5,13 +5,13 @@
  */
 
 import { getAddress } from "viem";
-import { usersService } from "@/lib/services/users";
-import { organizationsService } from "@/lib/services/organizations";
-import { creditsService } from "@/lib/services/credits";
-import { usersRepository } from "@/db/repositories/users";
+import type { Organization } from "@/db/repositories/organizations";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import type { UserWithOrganization } from "@/db/repositories/users";
-import type { Organization } from "@/db/repositories/organizations";
+import { usersRepository } from "@/db/repositories/users";
+import { creditsService } from "@/lib/services/credits";
+import { organizationsService } from "@/lib/services/organizations";
+import { usersService } from "@/lib/services/users";
 
 const INITIAL_FREE_CREDITS = ((): number => {
   const v = process.env.INITIAL_FREE_CREDITS;
@@ -72,8 +72,7 @@ export async function findOrCreateUserByWalletAddress(
     } catch (e) {
       // Note: Handle race condition where two concurrent requests try to create the same org
       const isUniqueViolation =
-        e instanceof Error &&
-        (e.message.includes("unique") || e.message.includes("duplicate"));
+        e instanceof Error && (e.message.includes("unique") || e.message.includes("duplicate"));
       if (!isUniqueViolation) throw e;
 
       // Important: For race conditions, retry finding the org that won the race
@@ -98,8 +97,7 @@ export async function findOrCreateUserByWalletAddress(
   } catch (e) {
     /* WHY handle unique violation: two concurrent signups for same wallet; second should see the first's user. */
     const isUniqueViolation =
-      e instanceof Error &&
-      (e.message.includes("unique") || e.message.includes("duplicate"));
+      e instanceof Error && (e.message.includes("unique") || e.message.includes("duplicate"));
     if (!isUniqueViolation) throw e;
     const raced = await usersService.getByWalletAddressWithOrganization(address);
     if (!raced) throw e;

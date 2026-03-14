@@ -2,8 +2,8 @@
  * Cache health monitoring and maintenance utilities.
  */
 
-import { cache } from "./client";
 import { logger } from "@/lib/utils/logger";
+import { cache } from "./client";
 
 /**
  * Cache health check and maintenance operations.
@@ -77,10 +77,8 @@ export class CacheHealth {
    * @param organizationId - Organization ID.
    */
   static async clearCorruptedEntries(organizationId: string): Promise<void> {
-    logger.info(
-      `[Cache Health] Clearing potentially corrupted cache for org=${organizationId}`,
-    );
-    await this.clearPattern(`org:${organizationId}:*`);
-    await this.clearPattern(`analytics:*:${organizationId}:*`);
+    logger.info(`[Cache Health] Clearing potentially corrupted cache for org=${organizationId}`);
+    await CacheHealth.clearPattern(`org:${organizationId}:*`);
+    await CacheHealth.clearPattern(`analytics:*:${organizationId}:*`);
   }
 }

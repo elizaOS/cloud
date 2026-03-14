@@ -20,11 +20,11 @@ import { resolve } from "path";
 config({ path: resolve(process.cwd(), ".env") });
 config({ path: resolve(process.cwd(), ".env.local"), override: true });
 
-import { db } from "@/db/client";
-import { users } from "@/db/schemas/users";
-import { organizations } from "@/db/schemas/organizations";
-import { eq, or, isNotNull } from "drizzle-orm";
 import { Redis } from "@upstash/redis";
+import { eq, isNotNull, or } from "drizzle-orm";
+import { db } from "@/db/client";
+import { organizations } from "@/db/schemas/organizations";
+import { users } from "@/db/schemas/users";
 
 const SESSION_KEY_PREFIX = "eliza-app:session:";
 
@@ -71,7 +71,10 @@ async function clearRedisKeys(patterns: string[]) {
     let cursor: string | number = 0;
     let deleted = 0;
     do {
-      const result: [string | number, string[]] = await redis.scan(cursor, { match: pattern, count: 100 });
+      const result: [string | number, string[]] = await redis.scan(cursor, {
+        match: pattern,
+        count: 100,
+      });
       cursor = typeof result[0] === "string" ? parseInt(result[0], 10) : result[0];
       const keys = result[1];
       if (keys.length > 0) {
@@ -100,7 +103,9 @@ async function cleanupByPhone(phoneNumber: string) {
     console.log(`  ℹ No user found with phone ${normalized}`);
   } else {
     console.log(`  Found user: ${user.id} (${user.name || "unnamed"})`);
-    console.log(`  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`);
+    console.log(
+      `  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`,
+    );
 
     // Delete organization (cascades to user, api_keys, etc.)
     if (user.organization_id) {
@@ -146,9 +151,7 @@ async function cleanupByTelegram(telegramId: string) {
   }
 
   // Clear user sessions
-  await clearRedisKeys([
-    `${SESSION_KEY_PREFIX}*`,
-  ]);
+  await clearRedisKeys([`${SESSION_KEY_PREFIX}*`]);
 
   console.log(`\n✅ Cleanup complete for Telegram ${telegramId}\n`);
 }
@@ -167,7 +170,9 @@ async function cleanupByDiscord(discordId: string) {
   }
 
   console.log(`  Found user: ${user.id} (${user.name || user.discord_username || "unnamed"})`);
-  console.log(`  Discord: ${user.discord_username || "N/A"} (${user.discord_global_name || "N/A"})`);
+  console.log(
+    `  Discord: ${user.discord_username || "N/A"} (${user.discord_global_name || "N/A"})`,
+  );
   console.log(`  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`);
 
   if (user.organization_id) {
@@ -178,9 +183,7 @@ async function cleanupByDiscord(discordId: string) {
     console.log(`  ✓ Deleted user (no organization)`);
   }
 
-  await clearRedisKeys([
-    `${SESSION_KEY_PREFIX}*`,
-  ]);
+  await clearRedisKeys([`${SESSION_KEY_PREFIX}*`]);
 
   console.log(`\n✅ Cleanup complete for Discord ${discordId}\n`);
 }
@@ -209,9 +212,7 @@ async function cleanupByWhatsApp(whatsappId: string) {
     console.log(`  ✓ Deleted user (no organization)`);
   }
 
-  await clearRedisKeys([
-    `${SESSION_KEY_PREFIX}*`,
-  ]);
+  await clearRedisKeys([`${SESSION_KEY_PREFIX}*`]);
 
   console.log(`\n✅ Cleanup complete for WhatsApp ${whatsappId}\n`);
 }
@@ -235,7 +236,9 @@ async function cleanupById(userId: string) {
     user.discord_id ? `discord: ${user.discord_id}` : null,
     user.whatsapp_id ? `whatsapp: ${user.whatsapp_id}` : null,
     user.email ? `email: ${user.email}` : null,
-  ].filter(Boolean).join(", ");
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   console.log(`  Found user: ${user.id} (${user.name || "unnamed"})`);
   if (identifiers) console.log(`  Identifiers: ${identifiers}`);
@@ -249,16 +252,16 @@ async function cleanupById(userId: string) {
     console.log(`  ✓ Deleted user (no organization)`);
   }
 
-  await clearRedisKeys([
-    `${SESSION_KEY_PREFIX}*`,
-  ]);
+  await clearRedisKeys([`${SESSION_KEY_PREFIX}*`]);
 
   console.log(`\n✅ Cleanup complete for user ${userId}\n`);
 }
 
 async function cleanupAllTestUsers() {
   console.log(`\n🧹 Cleaning up ALL Eliza App test users\n`);
-  console.log(`  Looking for users with phone_number, telegram_id, discord_id, or whatsapp_id...\n`);
+  console.log(
+    `  Looking for users with phone_number, telegram_id, discord_id, or whatsapp_id...\n`,
+  );
 
   const testUsers = await db.query.users.findMany({
     where: or(
@@ -283,7 +286,9 @@ async function cleanupAllTestUsers() {
       user.telegram_id ? `telegram: ${user.telegram_id}` : null,
       user.discord_id ? `discord: ${user.discord_id}` : null,
       user.whatsapp_id ? `whatsapp: ${user.whatsapp_id}` : null,
-    ].filter(Boolean).join(", ");
+    ]
+      .filter(Boolean)
+      .join(", ");
 
     console.log(`  - ${user.id} (${user.name || "unnamed"}) [${identifiers}]`);
 
@@ -295,9 +300,7 @@ async function cleanupAllTestUsers() {
   }
 
   // Clear all eliza-app sessions
-  await clearRedisKeys([
-    `${SESSION_KEY_PREFIX}*`,
-  ]);
+  await clearRedisKeys([`${SESSION_KEY_PREFIX}*`]);
 
   console.log(`\n✅ Deleted ${testUsers.length} user(s) and their organizations\n`);
 }

@@ -88,7 +88,7 @@ on:
 env:
   BUN_VERSION: "1.2"
   TF_VERSION: "1.7.0"
-  IMAGE_REPO: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
+  IMAGE_REPO: ghcr.io/elizaos/cloud/gateway-discord
   REGISTRY: ghcr.io
   TF_WORKING_DIR: services/gateway-discord/terraform
 

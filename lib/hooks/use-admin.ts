@@ -15,8 +15,8 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useEffect, useRef, useState } from "react";
 
 // Default anvil wallet for devnet admin access
 const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
@@ -35,10 +35,7 @@ let inFlightRequest: Promise<{ isAdmin: boolean; role: AdminRole | null }> | nul
 const CACHE_TTL = 30000; // 30 seconds
 
 function isDevnet(): boolean {
-  return (
-    process.env.NODE_ENV === "development" ||
-    process.env.NEXT_PUBLIC_DEVNET === "true"
-  );
+  return process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEVNET === "true";
 }
 
 interface UseAdminResult {
@@ -61,10 +58,7 @@ async function fetchAdminStatus(
   signal: AbortSignal,
 ): Promise<{ isAdmin: boolean; role: AdminRole | null }> {
   // In devnet, anvil wallet is always admin
-  if (
-    isDevnet() &&
-    walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
-  ) {
+  if (isDevnet() && walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()) {
     return { isAdmin: true, role: "super_admin" };
   }
 
@@ -140,7 +134,7 @@ export function useAdmin(): UseAdminResult {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [refetchCounter, setRefetchCounter] = useState(0);
+  const [_refetchCounter, setRefetchCounter] = useState(0);
   const mountedRef = useRef(true);
   const fetchCountRef = useRef(0);
 
@@ -169,17 +163,14 @@ export function useAdmin(): UseAdminResult {
 
       try {
         setIsLoading(true);
-        const status = await fetchAdminStatus(
-          walletAddress,
-          abortController.signal,
-        );
+        const status = await fetchAdminStatus(walletAddress, abortController.signal);
 
         if (mountedRef.current && currentFetch === fetchCountRef.current) {
           setIsAdmin(status.isAdmin);
           setAdminRole(status.role);
           setIsLoading(false);
         }
-      } catch (err) {
+      } catch (_err) {
         if (mountedRef.current && currentFetch === fetchCountRef.current) {
           setIsAdmin(false);
           setAdminRole(null);
@@ -193,7 +184,7 @@ export function useAdmin(): UseAdminResult {
     return () => {
       abortController.abort();
     };
-  }, [authenticated, walletAddress, refetchCounter]);
+  }, [authenticated, walletAddress]);
 
   const refetch = () => {
     adminCache = null;

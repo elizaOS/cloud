@@ -9,47 +9,45 @@
  * const connections = await oauthService.listConnections({ organizationId });
  */
 
-// Main service
-export { oauthService } from "./oauth-service";
-
-// Types
-export type {
-  OAuthProviderType,
-  OAuthConnectionStatus,
-  OAuthConnectionSource,
-  OAuthProviderInfo,
-  OAuthConnection,
-  TokenResult,
-  InitiateAuthParams,
-  InitiateAuthResult,
-  ListConnectionsParams,
-  GetTokenParams,
-  GetTokenByPlatformParams,
-  CachedToken,
-} from "./types";
-
+export { type ConnectionAdapter, getAdapter, getAllAdapters } from "./connection-adapters";
 // Errors
 export {
-  OAuthError,
-  OAuthErrorCode,
   ERROR_STATUS_MAP,
   Errors,
   internalErrorResponse,
-  validationErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
   type OAuthErrorResponse,
+  validationErrorResponse,
 } from "./errors";
+// Main service
+export { oauthService } from "./oauth-service";
 
 // Provider registry
 export {
-  OAUTH_PROVIDERS,
+  getAllProviderIds,
+  getConfiguredProviders,
   getProvider,
   isProviderConfigured,
-  getConfiguredProviders,
-  getAllProviderIds,
   isValidProvider,
+  OAUTH_PROVIDERS,
   type OAuthProviderConfig,
 } from "./provider-registry";
 
 // Advanced use cases
 export { tokenCache } from "./token-cache";
-export { getAdapter, getAllAdapters, type ConnectionAdapter } from "./connection-adapters";
+// Types
+export type {
+  CachedToken,
+  GetTokenByPlatformParams,
+  GetTokenParams,
+  InitiateAuthParams,
+  InitiateAuthResult,
+  ListConnectionsParams,
+  OAuthConnection,
+  OAuthConnectionSource,
+  OAuthConnectionStatus,
+  OAuthProviderInfo,
+  OAuthProviderType,
+  TokenResult,
+} from "./types";

@@ -7,11 +7,11 @@
  * DELETE /api/v1/agents/[agentId]/publish - Unpublish agent (make private)
  */
 
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { dbWrite } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
-import { eq } from "drizzle-orm";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
@@ -52,10 +52,7 @@ export async function POST(
   // Get agent
   const agent = await charactersService.getById(agentId);
   if (!agent) {
-    return NextResponse.json(
-      { success: false, error: "Agent not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
   }
 
   // Check ownership
@@ -160,17 +157,11 @@ export async function DELETE(
 
   const agent = await charactersService.getById(agentId);
   if (!agent) {
-    return NextResponse.json(
-      { success: false, error: "Agent not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
   }
 
   if (agent.user_id !== user.id) {
-    return NextResponse.json(
-      { success: false, error: "Not authorized" },
-      { status: 403 },
-    );
+    return NextResponse.json({ success: false, error: "Not authorized" }, { status: 403 });
   }
 
   // Make agent private

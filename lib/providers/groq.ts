@@ -1,10 +1,6 @@
-import { getGroqApiModelId, GROQ_NATIVE_MODELS } from "@/lib/models";
+import { GROQ_NATIVE_MODELS, getGroqApiModelId } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
-import type {
-  AIProvider,
-  OpenAIChatRequest,
-  OpenAIEmbeddingsRequest,
-} from "./types";
+import type { AIProvider, OpenAIChatRequest, OpenAIEmbeddingsRequest } from "./types";
 
 interface GroqError {
   error: {
@@ -27,10 +23,7 @@ export class GroqProvider implements AIProvider {
     this.apiKey = apiKey;
   }
 
-  private async fetchWithTimeout(
-    url: string,
-    options: RequestInit,
-  ): Promise<Response> {
+  private async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 

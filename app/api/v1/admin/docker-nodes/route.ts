@@ -8,10 +8,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
-import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
+import { requireAdmin } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -76,25 +76,28 @@ export async function GET(request: NextRequest) {
 function isReservedAddress(hostname: string): boolean {
   // Reject obvious IP-based patterns (not full DNS resolution, just input validation)
   const reserved = [
-    /^127\./,            // loopback
-    /^10\./,             // RFC-1918 Class A
-    /^172\.(1[6-9]|2\d|3[01])\./,  // RFC-1918 Class B
-    /^192\.168\./,       // RFC-1918 Class C
-    /^169\.254\./,       // link-local / cloud metadata
-    /^0\./,              // "this" network
-    /^::1$/,             // IPv6 loopback
-    /^localhost$/i,      // loopback hostname
-    /^metadata\./i,      // cloud metadata service
+    /^127\./, // loopback
+    /^10\./, // RFC-1918 Class A
+    /^172\.(1[6-9]|2\d|3[01])\./, // RFC-1918 Class B
+    /^192\.168\./, // RFC-1918 Class C
+    /^169\.254\./, // link-local / cloud metadata
+    /^0\./, // "this" network
+    /^::1$/, // IPv6 loopback
+    /^localhost$/i, // loopback hostname
+    /^metadata\./i, // cloud metadata service
   ];
   return reserved.some((re) => re.test(hostname));
 }
 
 const createNodeSchema = z.object({
   nodeId: z.string().min(1, "nodeId is required"),
-  hostname: z.string().min(1, "hostname is required").refine(
-    (h) => !isReservedAddress(h),
-    "Hostname cannot be a private/reserved IP address (loopback, RFC-1918, link-local, metadata)",
-  ),
+  hostname: z
+    .string()
+    .min(1, "hostname is required")
+    .refine(
+      (h) => !isReservedAddress(h),
+      "Hostname cannot be a private/reserved IP address (loopback, RFC-1918, link-local, metadata)",
+    ),
   sshPort: z.number().int().min(1).max(65535).optional().default(22),
   capacity: z.number().int().min(1).optional().default(8),
   sshUser: z.string().min(1).optional().default("root"),
@@ -114,10 +117,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
   const parsed = createNodeSchema.safeParse(body);
@@ -186,7 +186,8 @@ export async function POST(request: NextRequest) {
 
     // Add warning if host key fingerprint is missing
     if (!hostKeyFingerprint) {
-      responseData.warning = "No host key fingerprint set. SSH connections to this node are vulnerable to MITM attacks. Set host_key_fingerprint to pin the host key.";
+      responseData.warning =
+        "No host key fingerprint set. SSH connections to this node are vulnerable to MITM attacks. Set host_key_fingerprint to pin the host key.";
     }
 
     return NextResponse.json(

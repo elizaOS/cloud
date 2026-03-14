@@ -1,8 +1,5 @@
-import type { Metadata } from "next";
-import { logger } from "@/lib/utils/logger";
-import Link from "next/link";
-import { Button } from "@elizaos/ui";
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -10,12 +7,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@elizaos/ui";
-import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle, XCircle } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
+import { requireStripe } from "@/lib/stripe";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -59,9 +59,7 @@ async function verifyAndProcessSession(
   const session = await requireStripe().checkout.sessions.retrieve(sessionId);
 
   if (session.payment_status !== "paid") {
-    console.warn(
-      `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`,
-    );
+    console.warn(`[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`);
     return {
       success: false,
       error: `Payment not completed. Status: ${session.payment_status}`,
@@ -75,10 +73,7 @@ async function verifyAndProcessSession(
   const purchaseType = session.metadata?.type || "checkout";
   const paymentIntentId = session.payment_intent as string;
 
-  if (
-    organizationId !== viewer.organization_id ||
-    (userId && userId !== viewer.id)
-  ) {
+  if (organizationId !== viewer.organization_id || (userId && userId !== viewer.id)) {
     return {
       success: false,
       error: "You do not have access to this checkout session.",
@@ -137,9 +132,7 @@ async function verifyAndProcessSession(
 
   // Create invoice record
   try {
-    const existingInvoice = await invoicesService.getByStripeInvoiceId(
-      `cs_${sessionId}`,
-    );
+    const existingInvoice = await invoicesService.getByStripeInvoiceId(`cs_${sessionId}`);
 
     if (!existingInvoice) {
       const amountTotal = session.amount_total
@@ -170,10 +163,7 @@ async function verifyAndProcessSession(
     }
   } catch (invoiceError) {
     // Non-critical - credits were added successfully
-    logger.error(
-      "[BillingSuccess] Invoice creation error (non-critical):",
-      invoiceError,
-    );
+    logger.error("[BillingSuccess] Invoice creation error (non-critical):", invoiceError);
   }
 
   return {
@@ -191,9 +181,7 @@ async function verifyAndProcessSession(
  * @param searchParams - Search parameters, including `from` (redirect source) and `session_id` (Stripe session ID).
  * @returns The rendered billing success page with payment status and credit balance.
  */
-export default async function BillingSuccessPage({
-  searchParams,
-}: BillingSuccessPageProps) {
+export default async function BillingSuccessPage({ searchParams }: BillingSuccessPageProps) {
   const viewer = await requireAuthWithOrg();
   const params = await searchParams;
   const fromSettings = params.from === "settings";
@@ -207,7 +195,7 @@ export default async function BillingSuccessPage({
         credits?: number;
         alreadyProcessed?: boolean;
       }
-    | undefined = undefined;
+    | undefined;
 
   if (sessionId) {
     const result = await verifyAndProcessSession(sessionId, viewer);
@@ -231,8 +219,7 @@ export default async function BillingSuccessPage({
 
           <CardContent className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              If you believe this is an error, please contact support with your
-              session ID.
+              If you believe this is an error, please contact support with your session ID.
             </p>
             {sessionId && (
               <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
@@ -243,13 +230,7 @@ export default async function BillingSuccessPage({
 
           <CardFooter className="flex flex-col gap-2">
             <Button asChild variant="outline" className="w-full">
-              <Link
-                href={
-                  fromSettings
-                    ? "/dashboard/settings?tab=billing"
-                    : "/dashboard/billing"
-                }
-              >
+              <Link href={fromSettings ? "/dashboard/settings?tab=billing" : "/dashboard/billing"}>
                 Back to Billing
               </Link>
             </Button>
@@ -275,14 +256,10 @@ export default async function BillingSuccessPage({
         </CardHeader>
 
         <CardContent className="text-center space-y-4">
-          <CreditBalanceDisplay
-            sessionId={sessionId}
-            creditsAdded={verificationResult?.credits}
-          />
+          <CreditBalanceDisplay sessionId={sessionId} creditsAdded={verificationResult?.credits} />
 
           <p className="text-sm text-muted-foreground">
-            You can now use your credits for text generation, image creation,
-            and video rendering.
+            You can now use your credits for text generation, image creation, and video rendering.
           </p>
         </CardContent>
 
@@ -290,9 +267,7 @@ export default async function BillingSuccessPage({
           {fromSettings ? (
             <>
               <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/settings?tab=billing">
-                  Back to Billing Settings
-                </Link>
+                <Link href="/dashboard/settings?tab=billing">Back to Billing Settings</Link>
               </Button>
               <Button asChild className="w-full">
                 <Link href="/dashboard">

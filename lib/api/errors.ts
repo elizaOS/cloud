@@ -167,10 +167,7 @@ export function getErrorStatusCode(error: unknown): number {
     const message = error.message.toLowerCase();
 
     // Check error name first (more reliable than message)
-    if (
-      error.name === "AuthenticationError" ||
-      error.name === "UnauthorizedError"
-    ) {
+    if (error.name === "AuthenticationError" || error.name === "UnauthorizedError") {
       return 401;
     }
     if (error.name === "ForbiddenError" || error.name === "AccessDeniedError") {
@@ -250,10 +247,7 @@ export function errorToResponse(error: unknown): Response {
   const status = getErrorStatusCode(error);
   const message = getSafeErrorMessage(error);
 
-  const body =
-    error instanceof ApiError
-      ? error.toJSON()
-      : { success: false, error: message };
+  const body = error instanceof ApiError ? error.toJSON() : { success: false, error: message };
 
   return new Response(JSON.stringify(body), {
     status,

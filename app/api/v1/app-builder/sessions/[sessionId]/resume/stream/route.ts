@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
+import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   aiAppBuilderService as aiAppBuilder,
   type SandboxProgress,
 } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
-import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
 
 // Max duration for session resume (sandbox creation + repo clone)
 // Fluid compute limits: Hobby 300s, Pro/Enterprise 800s
@@ -81,8 +81,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           });
         }
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to resume session";
+        const errorMessage = error instanceof Error ? error.message : "Failed to resume session";
 
         logger.error("Failed to resume session via stream", {
           sessionId,
@@ -107,15 +106,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Internal error";
 
     let status = 500;
-    if (
-      message.includes("Authentication") ||
-      message.includes("Unauthorized")
-    ) {
+    if (message.includes("Authentication") || message.includes("Unauthorized")) {
       status = 401;
-    } else if (
-      message.includes("Access denied") ||
-      message.includes("don't own")
-    ) {
+    } else if (message.includes("Access denied") || message.includes("don't own")) {
       status = 403;
     } else if (message.includes("not found")) {
       status = 404;

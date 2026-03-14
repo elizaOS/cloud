@@ -6,20 +6,19 @@
  */
 
 import { logger } from "@/lib/utils/logger";
-import type { ConnectionAdapter } from "./index";
-import type { OAuthConnection, TokenResult } from "../types";
 import { Errors } from "../errors";
 import { OAUTH_PROVIDERS } from "../provider-registry";
+import type { OAuthConnection, TokenResult } from "../types";
+import type { ConnectionAdapter } from "./index";
 import {
-  generateConnectionId,
-  ownsConnectionId,
-  verifyConnectionId,
-  fetchPlatformSecrets,
-  getSecretValue,
-  updateSecretAccessTime,
-  deletePlatformSecrets,
-  getEarliestSecretDate,
   createSecretsConnection,
+  deletePlatformSecrets,
+  fetchPlatformSecrets,
+  getEarliestSecretDate,
+  getSecretValue,
+  ownsConnectionId,
+  updateSecretAccessTime,
+  verifyConnectionId,
 } from "./secrets-adapter-utils";
 
 const PLATFORM = "twitter";
@@ -70,7 +69,11 @@ export const twitterAdapter: ConnectionAdapter = {
   async revoke(organizationId: string, connectionId: string): Promise<void> {
     verifyConnectionId(PLATFORM, organizationId, connectionId);
     const count = await deletePlatformSecrets(organizationId, PREFIX, "oauth-service");
-    logger.info("[TwitterAdapter] Connection revoked", { connectionId, organizationId, secretsDeleted: count });
+    logger.info("[TwitterAdapter] Connection revoked", {
+      connectionId,
+      organizationId,
+      secretsDeleted: count,
+    });
   },
 
   async ownsConnection(connectionId: string): Promise<boolean> {

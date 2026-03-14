@@ -2,17 +2,12 @@
  * Service for managing apps and app-related operations.
  */
 
-import {
-  appsRepository,
-  type App,
-  type NewApp,
-  type AppUser,
-} from "@/db/repositories/apps";
-import { apiKeysService } from "./api-keys";
-import { logger } from "@/lib/utils/logger";
+import crypto from "crypto";
+import { type App, type AppUser, appsRepository, type NewApp } from "@/db/repositories/apps";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
-import crypto from "crypto";
+import { logger } from "@/lib/utils/logger";
+import { apiKeysService } from "./api-keys";
 
 export class AppNameConflictError extends Error {
   constructor(
@@ -133,10 +128,7 @@ export class AppsService {
     return await appsRepository.listByOrganization(organizationId);
   }
 
-  async listAll(filters?: {
-    isActive?: boolean;
-    isApproved?: boolean;
-  }): Promise<App[]> {
+  async listAll(filters?: { isActive?: boolean; isApproved?: boolean }): Promise<App[]> {
     return await appsRepository.listAll(filters);
   }
 
@@ -227,13 +219,10 @@ export class AppsService {
         logger.info("Cleaned up user database for app", { appId: id });
       } catch (error) {
         // Log but don't fail deletion - database might already be gone
-        logger.warn(
-          "Failed to clean up user database (continuing with deletion)",
-          {
-            appId: id,
-            error: error instanceof Error ? error.message : "Unknown",
-          },
-        );
+        logger.warn("Failed to clean up user database (continuing with deletion)", {
+          appId: id,
+          error: error instanceof Error ? error.message : "Unknown",
+        });
       }
     }
 
@@ -250,10 +239,7 @@ export class AppsService {
    * Increment app usage counters (requests, credits)
    * This is a fire-and-forget operation for tracking
    */
-  async incrementUsage(
-    appId: string,
-    creditsUsed: string = "0.00",
-  ): Promise<void> {
+  async incrementUsage(appId: string, creditsUsed: string = "0.00"): Promise<void> {
     await appsRepository.incrementUsage(appId, creditsUsed);
   }
 
@@ -263,12 +249,7 @@ export class AppsService {
     creditsUsed: string = "0.00",
     metadata?: Record<string, unknown>,
   ): Promise<void> {
-    await appsRepository.trackAppUserActivity(
-      appId,
-      userId,
-      creditsUsed,
-      metadata,
-    );
+    await appsRepository.trackAppUserActivity(appId, userId, creditsUsed, metadata);
   }
 
   /**
@@ -349,12 +330,9 @@ export class AppsService {
       ]);
 
       if (requestData.userId) {
-        await this.trackUsage(
-          app.id,
-          requestData.userId,
-          requestData.creditsUsed || "0.00",
-          { requestType: requestData.requestType },
-        );
+        await this.trackUsage(app.id, requestData.userId, requestData.creditsUsed || "0.00", {
+          requestType: requestData.requestType,
+        });
       }
 
       logger.debug("[Apps] Logged detailed request", {
@@ -446,12 +424,7 @@ export class AppsService {
   /**
    * Get top visitors/IPs for an app.
    */
-  async getTopVisitors(
-    appId: string,
-    limit?: number,
-    startDate?: Date,
-    endDate?: Date,
-  ) {
+  async getTopVisitors(appId: string, limit?: number, startDate?: Date, endDate?: Date) {
     return appsRepository.getTopVisitors(appId, limit, startDate, endDate);
   }
 
@@ -464,12 +437,7 @@ export class AppsService {
     startDate: Date,
     endDate: Date,
   ) {
-    return appsRepository.getRequestsOverTime(
-      appId,
-      periodType,
-      startDate,
-      endDate,
-    );
+    return appsRepository.getRequestsOverTime(appId, periodType, startDate, endDate);
   }
 
   async getAppUsers(appId: string, limit?: number): Promise<AppUser[]> {
@@ -482,12 +450,7 @@ export class AppsService {
     startDate: Date,
     endDate: Date,
   ) {
-    return await appsRepository.getAnalytics(
-      appId,
-      periodType,
-      startDate,
-      endDate,
-    );
+    return await appsRepository.getAnalytics(appId, periodType, startDate, endDate);
   }
 
   async getTotalStats(appId: string): Promise<{

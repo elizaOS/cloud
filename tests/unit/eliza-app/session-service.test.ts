@@ -9,8 +9,8 @@
  * - Authorization header parsing
  */
 
-import { describe, test, expect, beforeAll } from "bun:test";
-import { SignJWT, jwtVerify } from "jose";
+import { describe, expect, test } from "bun:test";
+import { jwtVerify, SignJWT } from "jose";
 
 // Test configuration matching session-service.ts
 const JWT_ISSUER = "eliza-app";
@@ -34,7 +34,7 @@ async function createTestToken(
     expiresInSeconds?: number;
     issuer?: string;
     audience?: string;
-  }
+  },
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const expiresIn = options?.expiresInSeconds ?? SESSION_DURATION_SECONDS;
@@ -190,7 +190,7 @@ describe("JWT Token Validation", () => {
   test("expired token throws error", async () => {
     const token = await createTestToken(
       { userId: "user-123", organizationId: "org-456" },
-      { expiresInSeconds: -3600 } // Expired 1 hour ago
+      { expiresInSeconds: -3600 }, // Expired 1 hour ago
     );
 
     await expect(verifyTestToken(token)).rejects.toThrow();
@@ -199,7 +199,7 @@ describe("JWT Token Validation", () => {
   test("token with wrong issuer is rejected", async () => {
     const token = await createTestToken(
       { userId: "user-123", organizationId: "org-456" },
-      { issuer: "wrong-issuer" }
+      { issuer: "wrong-issuer" },
     );
 
     await expect(verifyTestToken(token)).rejects.toThrow();
@@ -208,7 +208,7 @@ describe("JWT Token Validation", () => {
   test("token with wrong audience is rejected", async () => {
     const token = await createTestToken(
       { userId: "user-123", organizationId: "org-456" },
-      { audience: "wrong-audience" }
+      { audience: "wrong-audience" },
     );
 
     await expect(verifyTestToken(token)).rejects.toThrow();
@@ -223,7 +223,7 @@ describe("JWT Token Validation", () => {
     // Tamper with the payload
     const [header, , signature] = token.split(".");
     const tamperedPayload = Buffer.from(
-      JSON.stringify({ userId: "hacker", organizationId: "evil" })
+      JSON.stringify({ userId: "hacker", organizationId: "evil" }),
     ).toString("base64url");
     const tamperedToken = `${header}.${tamperedPayload}.${signature}`;
 

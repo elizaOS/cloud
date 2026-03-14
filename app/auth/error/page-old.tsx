@@ -1,16 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { Button } from "@elizaos/ui";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@elizaos/ui";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@elizaos/ui";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
+import { AlertCircle, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
@@ -21,24 +14,20 @@ function AuthErrorContent() {
   const reason = searchParams.get("reason") || "unknown";
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const errorMessages: Record<string, { title: string; description: string }> =
-    {
-      auth_failed: {
-        title: "Authentication Failed",
-        description:
-          "We could not authenticate your account. Please try signing in again.",
-      },
-      sync_failed: {
-        title: "Authentication Sync Failed",
-        description:
-          "We could not sync your account information. Please try signing in again.",
-      },
-      unknown: {
-        title: "Authentication Error",
-        description:
-          "An unexpected error occurred during authentication. Please try again.",
-      },
-    };
+  const errorMessages: Record<string, { title: string; description: string }> = {
+    auth_failed: {
+      title: "Authentication Failed",
+      description: "We could not authenticate your account. Please try signing in again.",
+    },
+    sync_failed: {
+      title: "Authentication Sync Failed",
+      description: "We could not sync your account information. Please try signing in again.",
+    },
+    unknown: {
+      title: "Authentication Error",
+      description: "An unexpected error occurred during authentication. Please try again.",
+    },
+  };
 
   const error = errorMessages[reason] || errorMessages.unknown;
 

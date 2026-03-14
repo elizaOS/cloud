@@ -9,8 +9,8 @@
 
 "use client";
 
-import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
+import { useState } from "react";
 
 const LOADING_MESSAGES = [
   "Painting pixels with AI magic...",

@@ -15,29 +15,18 @@
  * @see https://martinfowler.com/bliki/UnitTest.html (Sociable vs Solitary)
  */
 
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-} from "bun:test";
-import { v4 as uuidv4 } from "uuid";
-import { dbWrite, dbRead } from "@/db/client";
-import {
-  redeemableEarnings,
-  redeemableEarningsLedger,
-  redeemedEarningsTracking,
-} from "@/db/schemas/redeemable-earnings";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
+import { v4 as uuidv4 } from "uuid";
+import { dbWrite } from "@/db/client";
+import { redeemableEarnings, redeemableEarningsLedger } from "@/db/schemas/redeemable-earnings";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
+import { getConnectionString } from "@/tests/helpers/local-database";
 import {
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   type TestDataSet,
 } from "@/tests/helpers/test-data-factory";
-import { getConnectionString } from "@/tests/helpers/local-database";
 
 describe("RedeemableEarningsService", () => {
   let connectionString: string;
@@ -66,9 +55,7 @@ describe("RedeemableEarningsService", () => {
     await dbWrite
       .delete(redeemableEarningsLedger)
       .where(eq(redeemableEarningsLedger.user_id, userId));
-    await dbWrite
-      .delete(redeemableEarnings)
-      .where(eq(redeemableEarnings.user_id, userId));
+    await dbWrite.delete(redeemableEarnings).where(eq(redeemableEarnings.user_id, userId));
   }
 
   // ===========================================================================
@@ -275,10 +262,7 @@ describe("RedeemableEarningsService", () => {
       expect(result.success).toBe(true);
 
       // Verify ledger entry
-      const history = await redeemableEarningsService.getLedgerHistory(
-        userId,
-        1,
-      );
+      const history = await redeemableEarningsService.getLedgerHistory(userId, 1);
       expect(history.length).toBe(1);
       expect(history[0].type).toBe("earning");
       expect(history[0].amount).toBe(50);
@@ -459,15 +443,11 @@ describe("RedeemableEarningsService", () => {
 
       // Assert
       // Successes: fulfilled promises with success: true
-      const successes = results.filter(
-        (r) => r.status === "fulfilled" && r.value.success,
-      );
+      const successes = results.filter((r) => r.status === "fulfilled" && r.value.success);
 
       // Failures: Either rejected promises (thrown errors) OR fulfilled with success: false
       const failures = results.filter(
-        (r) =>
-          r.status === "rejected" ||
-          (r.status === "fulfilled" && !r.value.success),
+        (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success),
       );
 
       // Should have exactly 10 successful locks (10 x $1 = $10)
@@ -560,9 +540,7 @@ describe("RedeemableEarningsService", () => {
       // Assert - Check ledger has completion entry
       const history = await redeemableEarningsService.getLedgerHistory(userId);
       const completionEntry = history.find(
-        (e) =>
-          e.redemptionId === redemptionId &&
-          e.description.includes("completed"),
+        (e) => e.redemptionId === redemptionId && e.description.includes("completed"),
       );
       expect(completionEntry).toBeDefined();
 
@@ -732,10 +710,7 @@ describe("RedeemableEarningsService", () => {
       }
 
       // Act
-      const history = await redeemableEarningsService.getLedgerHistory(
-        userId,
-        3,
-      );
+      const history = await redeemableEarningsService.getLedgerHistory(userId, 3);
 
       // Assert
       expect(history.length).toBe(3);
@@ -764,9 +739,7 @@ describe("RedeemableEarningsService", () => {
       });
 
       // Act
-      const isRedeemed = await redeemableEarningsService.hasBeenRedeemed(
-        result.ledgerEntryId,
-      );
+      const isRedeemed = await redeemableEarningsService.hasBeenRedeemed(result.ledgerEntryId);
 
       // Assert
       expect(isRedeemed).toBe(false);

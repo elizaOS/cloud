@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { invitesService } from "@/lib/services/invites";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/invites/validate?token=xxx
@@ -55,10 +55,7 @@ async function handleGET(request: NextRequest) {
       {
         success: false,
         valid: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to validate invitation",
+        error: error instanceof Error ? error.message : "Failed to validate invitation",
       },
       { status: 500 },
     );

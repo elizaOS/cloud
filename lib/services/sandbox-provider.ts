@@ -45,7 +45,11 @@ export interface SandboxCreateConfig {
  * Also accepts legacy `MILAIDY_SANDBOX_PROVIDER` for backwards compat.
  */
 export function createSandboxProvider(): SandboxProvider {
-  const providerName = (process.env.MILADY_SANDBOX_PROVIDER ?? process.env.MILAIDY_SANDBOX_PROVIDER ?? "vercel").toLowerCase();
+  const providerName = (
+    process.env.MILADY_SANDBOX_PROVIDER ??
+    process.env.MILAIDY_SANDBOX_PROVIDER ??
+    "vercel"
+  ).toLowerCase();
 
   switch (providerName) {
     case "vercel": {
@@ -54,18 +58,21 @@ export function createSandboxProvider(): SandboxProvider {
       // import() would require converting the constructor to a static async
       // factory method across all call-sites.  The lazy require keeps the
       // Vercel SDK out of the Docker bundle without that refactor.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { VercelSandboxProvider } = require("./vercel-sandbox-provider") as typeof import("./vercel-sandbox-provider");
+
+      const { VercelSandboxProvider } =
+        require("./vercel-sandbox-provider") as typeof import("./vercel-sandbox-provider");
       return new VercelSandboxProvider();
     }
 
     case "docker": {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { DockerSandboxProvider } = require("./docker-sandbox-provider") as typeof import("./docker-sandbox-provider");
+      const { DockerSandboxProvider } =
+        require("./docker-sandbox-provider") as typeof import("./docker-sandbox-provider");
       return new DockerSandboxProvider();
     }
 
     default:
-      throw new Error(`Unknown sandbox provider: "${providerName}". Supported values: vercel, docker`);
+      throw new Error(
+        `Unknown sandbox provider: "${providerName}". Supported values: vercel, docker`,
+      );
   }
 }

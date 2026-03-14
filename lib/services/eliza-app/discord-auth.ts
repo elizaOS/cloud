@@ -53,10 +53,7 @@ class DiscordAuthService {
    * @param redirectUri - The redirect_uri used in the original authorization request
    * @returns Discord user data, or null if verification fails
    */
-  async verifyOAuthCode(
-    code: string,
-    redirectUri: string,
-  ): Promise<DiscordUserData | null> {
+  async verifyOAuthCode(code: string, redirectUri: string): Promise<DiscordUserData | null> {
     const { applicationId, clientSecret } = elizaAppConfig.discord;
 
     if (!applicationId || !clientSecret) {
@@ -120,7 +117,7 @@ class DiscordAuthService {
         return null;
       }
 
-      const discordUser = await userResponse.json() as DiscordApiUser;
+      const discordUser = (await userResponse.json()) as DiscordApiUser;
 
       // Validate required fields
       if (!discordUser.id || !discordUser.username) {

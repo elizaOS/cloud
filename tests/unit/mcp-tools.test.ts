@@ -3,7 +3,7 @@
  * Verifies all tools register without import/config errors
  */
 
-import { describe, test, expect, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 mock.module("isomorphic-dompurify", () => ({
   default: {
@@ -22,5 +22,4 @@ describe("MCP Tools Registration", () => {
     },
     { timeout: 30000 },
   );
-
 });

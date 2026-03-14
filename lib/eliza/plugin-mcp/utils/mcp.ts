@@ -1,4 +1,4 @@
-import { type IAgentRuntime, type Memory, logger } from "@elizaos/core";
+import { type IAgentRuntime, logger, type Memory } from "@elizaos/core";
 import type {
   McpProvider,
   McpProviderData,
@@ -37,7 +37,7 @@ export function checkMcpOAuthAccess(runtime: IAgentRuntime, serverName?: string)
   if (!enabled.includes(serverName)) {
     logger.debug(
       { serverName, enabled },
-      "[MCP] OAuth check denied: server not in MCP_ENABLED_SERVERS"
+      "[MCP] OAuth check denied: server not in MCP_ENABLED_SERVERS",
     );
     return false;
   }
@@ -53,7 +53,7 @@ export async function createMcpMemory(
   type: string,
   serverName: string,
   content: string,
-  metadata: Record<string, unknown>
+  metadata: Record<string, unknown>,
 ): Promise<void> {
   const memory = await runtime.addEmbeddingToMemory({
     entityId: message.entityId,

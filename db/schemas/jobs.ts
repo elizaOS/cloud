@@ -1,17 +1,9 @@
-import {
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import { organizations } from "./organizations";
-import { users } from "./users";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { apiKeys } from "./api-keys";
 import { generations } from "./generations";
+import { organizations } from "./organizations";
+import { users } from "./users";
 
 /**
  * Jobs table schema.

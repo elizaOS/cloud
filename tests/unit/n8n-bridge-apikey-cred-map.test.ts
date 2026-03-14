@@ -5,7 +5,7 @@
  * Verifies API key credential type → data builder mapping.
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { API_KEY_CRED_TYPES } from "@/lib/eliza/plugin-n8n-bridge/apikey-cred-map";
 
 describe("API_KEY_CRED_TYPES", () => {
@@ -13,10 +13,7 @@ describe("API_KEY_CRED_TYPES", () => {
     const mapping = API_KEY_CRED_TYPES["openAiApi"];
     expect(mapping).toBeDefined();
 
-    const data = mapping.buildData(
-      "eliza_test123",
-      "https://cloud.elizaos.com",
-    );
+    const data = mapping.buildData("eliza_test123", "https://cloud.elizaos.com");
     expect(data).toEqual({
       apiKey: "eliza_test123",
       organizationId: "",
@@ -26,10 +23,7 @@ describe("API_KEY_CRED_TYPES", () => {
   });
 
   test("openAiApi appends /api/v1 to base URL", () => {
-    const data = API_KEY_CRED_TYPES["openAiApi"].buildData(
-      "key",
-      "https://example.com",
-    );
+    const data = API_KEY_CRED_TYPES["openAiApi"].buildData("key", "https://example.com");
     expect(data.url).toBe("https://example.com/api/v1");
   });
 

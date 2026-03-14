@@ -7,29 +7,29 @@
  * Run with: bun test tests/runtime/integration/message-handler/basic-message.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 import {
-  // Local database
-  hasDatabaseUrl,
-  hasRuntimeModelCredentials,
-  getConnectionString,
-  verifyConnection,
+  cleanupTestData,
   // Test data
   createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
   // Test runtime
   createTestRuntime,
   createTestUser,
+  endTimer,
+  getConnectionString,
+  // Local database
+  hasDatabaseUrl,
+  hasRuntimeModelCredentials,
+  logTimings,
   sendTestMessage,
-  type TestRuntimeResult,
-  type TestUserContext,
   // Timing
   startTimer,
-  endTimer,
-  logTimings,
+  type TestDataSet,
+  type TestRuntimeResult,
+  type TestUserContext,
+  verifyConnection,
 } from "../../../infrastructure";
-import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================
 // Local Test State (isolated to this file)
@@ -81,8 +81,8 @@ describe.skipIf(skipLiveModelSuite)("Message Handler - Basic Message Processing"
       await testRuntimeResult.cleanup();
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("Basic Message Tests", timings);
@@ -112,10 +112,7 @@ describe.skipIf(skipLiveModelSuite)("Message Handler - Basic Message Processing"
   it("should create test user with elizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(
-      testRuntimeResult.runtime,
-      "BasicMessageTestUser",
-    );
+    testUserContext = await createTestUser(testRuntimeResult.runtime, "BasicMessageTestUser");
 
     timings.userCreation = endTimer("user_creation");
 

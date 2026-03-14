@@ -10,12 +10,12 @@
  *        Body: JSON-RPC 2.0 request (or batch)
  */
 
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services/credits";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
+import { creditsService } from "@/lib/services/credits";
 import { proxyBillingService } from "@/lib/services/proxy-billing";
 import { logger } from "@/lib/utils/logger";
-import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 const MAX_BATCH_SIZE = 100;
@@ -51,10 +51,7 @@ const ALCHEMY_CHAIN_MAP: Record<string, string> = {
   gnosis: "gnosis-mainnet",
 };
 
-async function postHandler(
-  request: NextRequest,
-  context?: { params: Promise<{ chain: string }> },
-) {
+async function postHandler(request: NextRequest, context?: { params: Promise<{ chain: string }> }) {
   const params = await context?.params;
   if (!params?.chain) {
     return Response.json({ error: "Missing chain parameter" }, { status: 400 });
@@ -91,10 +88,7 @@ async function postHandler(
   try {
     parsedBody = JSON.parse(body);
   } catch {
-    return Response.json(
-      { error: "Invalid JSON-RPC body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid JSON-RPC body" }, { status: 400 });
   }
 
   let requestCount = 1;
@@ -118,17 +112,19 @@ async function postHandler(
 
   if (requestCount > 0) {
     const totalCost = proxyBillingService.getProxyCost("evm-rpc") * requestCount;
-    const ok = await creditsService.deductCredits({
-      organizationId: organization_id,
-      amount: totalCost,
-      description: `API proxy: evm-rpc — ${chain} (batch of ${requestCount})`,
-      metadata: {
-        type: "proxy_evm-rpc",
-        service: "evm-rpc",
-        path: chain,
-        batchSize: requestCount,
-      },
-    }).catch(() => ({ success: false }));
+    const ok = await creditsService
+      .deductCredits({
+        organizationId: organization_id,
+        amount: totalCost,
+        description: `API proxy: evm-rpc — ${chain} (batch of ${requestCount})`,
+        metadata: {
+          type: "proxy_evm-rpc",
+          service: "evm-rpc",
+          path: chain,
+          batchSize: requestCount,
+        },
+      })
+      .catch(() => ({ success: false }));
     if (!ok.success) {
       return Response.json(
         { error: "Insufficient credits", topUpUrl: "https://www.elizacloud.ai/dashboard/billing" },

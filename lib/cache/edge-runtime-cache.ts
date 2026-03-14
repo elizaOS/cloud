@@ -13,8 +13,7 @@ import { logger } from "@/lib/utils/logger";
 // Initialize Redis client (works in both Edge and Node.js)
 const getRedis = (): Redis | null => {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token =
-    process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
     return null;
@@ -93,13 +92,9 @@ export class EdgeRuntimeCache {
         parsed.requestCount++;
 
         // Refresh TTL on activity
-        await this.redis.setex(
-          key,
-          this.WARM_STATE_TTL,
-          JSON.stringify(parsed),
-        );
+        await this.redis.setex(key, this.WARM_STATE_TTL, JSON.stringify(parsed));
       }
-    } catch (error) {
+    } catch (_error) {
       // Non-critical, ignore
     }
   }

@@ -4,22 +4,27 @@
 
 import {
   type ActionExample,
+  type ActionResult,
   type HandlerCallback,
   type IAgentRuntime,
+  logger,
   type Memory,
   type State,
-  type ActionResult,
-  logger,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
 import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
-import { lookupUser, isUserLookupError, capitalize, formatConnectionIdentifier } from "../utils";
+import { capitalize, formatConnectionIdentifier, isUserLookupError, lookupUser } from "../utils";
 
 export const oauthListAction: ActionWithParams = {
   name: "OAUTH_LIST",
   similes: [
-    "LIST_CONNECTIONS", "SHOW_CONNECTIONS", "MY_ACCOUNTS", "CONNECTED_APPS",
-    "WHAT_IS_CONNECTED", "MY_INTEGRATIONS", "SHOW_INTEGRATIONS",
+    "LIST_CONNECTIONS",
+    "SHOW_CONNECTIONS",
+    "MY_ACCOUNTS",
+    "CONNECTED_APPS",
+    "WHAT_IS_CONNECTED",
+    "MY_INTEGRATIONS",
+    "SHOW_INTEGRATIONS",
   ],
   description: "List all OAuth connections for the user. Shows which platforms are connected.",
 
@@ -34,7 +39,7 @@ export const oauthListAction: ActionWithParams = {
     message: Memory,
     _state?: State,
     _options?: unknown,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     const actionName = "OAUTH_LIST";
 
@@ -60,9 +65,10 @@ export const oauthListAction: ActionWithParams = {
     });
 
     const activeCount = connections.filter((c) => c.status === "active").length;
-    const header = activeCount === connections.length
-      ? "Your connected accounts:"
-      : `Your connections (${activeCount} active):`;
+    const header =
+      activeCount === connections.length
+        ? "Your connected accounts:"
+        : `Your connections (${activeCount} active):`;
 
     const text = `${header}\n${lines.join("\n")}`;
 
@@ -75,11 +81,23 @@ export const oauthListAction: ActionWithParams = {
   examples: [
     [
       { name: "{{name1}}", content: { text: "what accounts are connected?" } },
-      { name: "{{name2}}", content: { text: "Your connected accounts:\n• Google: user@gmail.com (active)", actions: ["OAUTH_LIST"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Your connected accounts:\n• Google: user@gmail.com (active)",
+          actions: ["OAUTH_LIST"],
+        },
+      },
     ],
     [
       { name: "{{name1}}", content: { text: "show my connections" } },
-      { name: "{{name2}}", content: { text: "You don't have any connected accounts. Say 'connect google' to get started.", actions: ["OAUTH_LIST"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "You don't have any connected accounts. Say 'connect google' to get started.",
+          actions: ["OAUTH_LIST"],
+        },
+      },
     ],
   ] as ActionExample[][],
 };

@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as api from "../helpers/api-client";
 import { NONEXISTENT_UUID } from "../helpers/test-data";
 
@@ -25,17 +25,14 @@ describe("Eliza Rooms API", () => {
   });
 
   test("POST /api/eliza/rooms/[id]/messages requires valid room", async () => {
-    const response = await api.post(
-      `/api/eliza/rooms/${NONEXISTENT_UUID}/messages`,
-      { text: "Hello" },
-    );
+    const response = await api.post(`/api/eliza/rooms/${NONEXISTENT_UUID}/messages`, {
+      text: "Hello",
+    });
     expect([404, 401, 400]).toContain(response.status);
   });
 
   test("POST /api/eliza/rooms/[id]/welcome handles nonexistent room", async () => {
-    const response = await api.post(
-      `/api/eliza/rooms/${NONEXISTENT_UUID}/welcome`,
-    );
+    const response = await api.post(`/api/eliza/rooms/${NONEXISTENT_UUID}/welcome`);
     expect([404, 401, 200]).toContain(response.status);
   });
 });

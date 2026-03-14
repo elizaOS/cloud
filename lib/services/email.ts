@@ -3,20 +3,20 @@
  */
 
 import sgMail from "@sendgrid/mail";
-import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
+import nodemailer from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
-import { logger } from "@/lib/utils/logger";
 import type {
-  EmailOptions,
-  WelcomeEmailData,
-  LowCreditsEmailData,
-  InviteEmailData,
-  AutoTopUpSuccessEmailData,
   AutoTopUpDisabledEmailData,
-  PurchaseConfirmationEmailData,
+  AutoTopUpSuccessEmailData,
   ContainerShutdownWarningEmailData,
+  EmailOptions,
+  InviteEmailData,
+  LowCreditsEmailData,
+  PurchaseConfirmationEmailData,
+  WelcomeEmailData,
 } from "@/lib/email/types";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Email service supporting SendGrid API and SMTP.
@@ -24,23 +24,16 @@ import type {
 class EmailService {
   private initialized = false;
   private fromEmail: string | null = null;
-  private smtpTransporter: Transporter<SMTPTransport.SentMessageInfo> | null =
-    null;
+  private smtpTransporter: Transporter<SMTPTransport.SentMessageInfo> | null = null;
   private useSmtp = false;
 
   private initialize(): void {
     if (this.initialized) return;
 
     this.fromEmail =
-      process.env.SENDGRID_FROM_EMAIL ||
-      process.env.SMTP_FROM ||
-      "noreply@eliza.cloud";
+      process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM || "noreply@eliza.cloud";
 
-    if (
-      process.env.SMTP_HOST &&
-      process.env.SMTP_PORT &&
-      process.env.SMTP_PASSWORD
-    ) {
+    if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_PASSWORD) {
       logger.info("[EmailService] Using SMTP configuration");
       this.smtpTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
@@ -134,8 +127,7 @@ class EmailService {
    * @returns True if sent successfully.
    */
   async sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean> {
-    const { renderWelcomeTemplate } =
-      await import("@/lib/email/utils/template-renderer");
+    const { renderWelcomeTemplate } = await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderWelcomeTemplate(data);
 
     return this.send({
@@ -153,8 +145,7 @@ class EmailService {
    * @returns True if sent successfully.
    */
   async sendLowCreditsEmail(data: LowCreditsEmailData): Promise<boolean> {
-    const { renderLowCreditsTemplate } =
-      await import("@/lib/email/utils/template-renderer");
+    const { renderLowCreditsTemplate } = await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderLowCreditsTemplate(data);
 
     return this.send({
@@ -172,8 +163,7 @@ class EmailService {
    * @returns True if sent successfully.
    */
   async sendInviteEmail(data: InviteEmailData): Promise<boolean> {
-    const { renderInviteTemplate } =
-      await import("@/lib/email/utils/template-renderer");
+    const { renderInviteTemplate } = await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderInviteTemplate(data);
 
     return this.send({
@@ -190,11 +180,8 @@ class EmailService {
    * @param data - Auto top-up success email data.
    * @returns True if sent successfully.
    */
-  async sendAutoTopUpSuccessEmail(
-    data: AutoTopUpSuccessEmailData,
-  ): Promise<boolean> {
-    const { renderAutoTopUpSuccessTemplate } =
-      await import("@/lib/email/utils/template-renderer");
+  async sendAutoTopUpSuccessEmail(data: AutoTopUpSuccessEmailData): Promise<boolean> {
+    const { renderAutoTopUpSuccessTemplate } = await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderAutoTopUpSuccessTemplate(data);
 
     return this.send({
@@ -211,11 +198,8 @@ class EmailService {
    * @param data - Auto top-up disabled email data.
    * @returns True if sent successfully.
    */
-  async sendAutoTopUpDisabledEmail(
-    data: AutoTopUpDisabledEmailData,
-  ): Promise<boolean> {
-    const { renderAutoTopUpDisabledTemplate } =
-      await import("@/lib/email/utils/template-renderer");
+  async sendAutoTopUpDisabledEmail(data: AutoTopUpDisabledEmailData): Promise<boolean> {
+    const { renderAutoTopUpDisabledTemplate } = await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderAutoTopUpDisabledTemplate(data);
 
     return this.send({
@@ -232,11 +216,10 @@ class EmailService {
    * @param data - Purchase confirmation email data.
    * @returns True if sent successfully.
    */
-  async sendPurchaseConfirmationEmail(
-    data: PurchaseConfirmationEmailData,
-  ): Promise<boolean> {
-    const { renderPurchaseConfirmationTemplate } =
-      await import("@/lib/email/utils/template-renderer");
+  async sendPurchaseConfirmationEmail(data: PurchaseConfirmationEmailData): Promise<boolean> {
+    const { renderPurchaseConfirmationTemplate } = await import(
+      "@/lib/email/utils/template-renderer"
+    );
     const { html, text } = renderPurchaseConfirmationTemplate(data);
 
     return this.send({
@@ -256,8 +239,9 @@ class EmailService {
   async sendContainerShutdownWarningEmail(
     data: ContainerShutdownWarningEmailData,
   ): Promise<boolean> {
-    const { renderContainerShutdownWarningTemplate } =
-      await import("@/lib/email/utils/template-renderer");
+    const { renderContainerShutdownWarningTemplate } = await import(
+      "@/lib/email/utils/template-renderer"
+    );
     const { html, text } = renderContainerShutdownWarningTemplate(data);
 
     return this.send({

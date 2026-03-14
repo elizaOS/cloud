@@ -6,11 +6,11 @@
  * entity settings, and edge runtime caches stay consistent.
  */
 
-import { incrementOAuthVersion } from "./cache-version";
+import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
 import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
-import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
 import { logger } from "@/lib/utils/logger";
+import { incrementOAuthVersion } from "./cache-version";
 
 export async function invalidateOAuthState(
   orgId: string,

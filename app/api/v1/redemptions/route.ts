@@ -16,13 +16,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
-import { payoutStatusService } from "@/lib/services/payout-status";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { payoutStatusService } from "@/lib/services/payout-status";
+import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Request validation schema with strict bounds.
@@ -60,17 +60,14 @@ const createRateLimitConfig = {
  * - Rate limiting
  * - Full audit trail
  */
-async function createRedemptionHandler(
-  request: NextRequest,
-): Promise<Response> {
+async function createRedemptionHandler(request: NextRequest): Promise<Response> {
   // Check emergency pause
   if (process.env.REDEMPTION_EMERGENCY_PAUSE === "true") {
     logger.warn("[Redemption API] Emergency pause active - rejecting request");
     return NextResponse.json(
       {
         success: false,
-        error:
-          "Redemptions are temporarily paused for maintenance. Please try again later.",
+        error: "Redemptions are temporarily paused for maintenance. Please try again later.",
         paused: true,
       },
       { status: 503 },
@@ -83,10 +80,7 @@ async function createRedemptionHandler(
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
   const validation = CreateRedemptionSchema.safeParse(body);
@@ -105,18 +99,11 @@ async function createRedemptionHandler(
     );
   }
 
-  const {
-    appId,
-    pointsAmount,
-    network,
-    payoutAddress,
-    signature,
-    idempotencyKey,
-  } = validation.data;
+  const { appId, pointsAmount, network, payoutAddress, signature, idempotencyKey } =
+    validation.data;
 
   // Check if payout system is available for this network
-  const networkAvailability =
-    await payoutStatusService.isNetworkAvailable(network);
+  const networkAvailability = await payoutStatusService.isNetworkAvailable(network);
   if (!networkAvailability.available) {
     const status = await payoutStatusService.getStatus();
     const availableNetworks = status.networks
@@ -153,9 +140,7 @@ async function createRedemptionHandler(
 
   // Mask address for logging (security)
   const maskedAddress =
-    payoutAddress.length > 20
-      ? `${payoutAddress.slice(0, 6)}...${payoutAddress.slice(-4)}`
-      : "***";
+    payoutAddress.length > 20 ? `${payoutAddress.slice(0, 6)}...${payoutAddress.slice(-4)}` : "***";
 
   logger.info("[Redemption API] Creating secure redemption request", {
     userId: user.id.slice(0, 8) + "...",
@@ -188,10 +173,7 @@ async function createRedemptionHandler(
       error: result.error,
     });
 
-    return NextResponse.json(
-      { success: false, error: result.error },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: result.error }, { status: 400 });
   }
 
   logger.info("[Redemption API] Secure redemption request created", {
@@ -223,10 +205,7 @@ async function listRedemptionsHandler(request: NextRequest): Promise<Response> {
   const limitParam = request.nextUrl.searchParams.get("limit");
   const limit = limitParam ? Math.min(parseInt(limitParam, 10), 100) : 20;
 
-  const redemptions = await secureTokenRedemptionService.listUserRedemptions(
-    user.id,
-    limit,
-  );
+  const redemptions = await secureTokenRedemptionService.listUserRedemptions(user.id, limit);
 
   return NextResponse.json({
     success: true,
@@ -253,14 +232,8 @@ async function listRedemptionsHandler(request: NextRequest): Promise<Response> {
 // Export rate-limited handlers
 // POST: CRITICAL rate limit (5 req/min) for financial operations
 // GET: STRICT rate limit (10 req/min) for read operations
-export const POST = withRateLimit(
-  createRedemptionHandler,
-  createRateLimitConfig,
-);
-export const GET = withRateLimit(
-  listRedemptionsHandler,
-  RateLimitPresets.STRICT,
-);
+export const POST = withRateLimit(createRedemptionHandler, createRateLimitConfig);
+export const GET = withRateLimit(listRedemptionsHandler, RateLimitPresets.STRICT);
 
 /**
  * OPTIONS - CORS preflight
@@ -271,8 +244,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

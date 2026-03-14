@@ -20,10 +20,17 @@ function repoRootPath(): string {
   return new URL("../..", import.meta.url).pathname;
 }
 
-function runServiceKeyCase(code: string, env: Record<string, string | undefined> = {}): ServiceKeyResult {
+function runServiceKeyCase(
+  code: string,
+  env: Record<string, string | undefined> = {},
+): ServiceKeyResult {
   const mergedEnv = { ...process.env } as Record<string, string | undefined>;
 
-  for (const key of ["WAIFU_SERVICE_KEY", "WAIFU_SERVICE_ORG_ID", "WAIFU_SERVICE_USER_ID"] as const) {
+  for (const key of [
+    "WAIFU_SERVICE_KEY",
+    "WAIFU_SERVICE_ORG_ID",
+    "WAIFU_SERVICE_USER_ID",
+  ] as const) {
     if (key in env) {
       const value = env[key];
       if (value === undefined) {
@@ -50,9 +57,8 @@ function runServiceKeyCase(code: string, env: Record<string, string | undefined>
 }
 
 function buildScript(action: "validate" | "require", headerValue?: string): string {
-  const headersObject = headerValue === undefined
-    ? "{}"
-    : JSON.stringify({ "X-Service-Key": headerValue });
+  const headersObject =
+    headerValue === undefined ? "{}" : JSON.stringify({ "X-Service-Key": headerValue });
 
   return `
     import { validateServiceKey, requireServiceKey } from "./lib/auth/service-key";
@@ -132,7 +138,9 @@ describe("Service Key Auth", () => {
         WAIFU_SERVICE_USER_ID: "user-uuid-456",
       });
       expect(result.ok).toBe(false);
-      expect(result.errorMessage).toContain("WAIFU_SERVICE_ORG_ID and WAIFU_SERVICE_USER_ID must be set");
+      expect(result.errorMessage).toContain(
+        "WAIFU_SERVICE_ORG_ID and WAIFU_SERVICE_USER_ID must be set",
+      );
     });
 
     test("throws when key matches but user env var is missing", () => {
@@ -142,7 +150,9 @@ describe("Service Key Auth", () => {
         WAIFU_SERVICE_USER_ID: undefined,
       });
       expect(result.ok).toBe(false);
-      expect(result.errorMessage).toContain("WAIFU_SERVICE_ORG_ID and WAIFU_SERVICE_USER_ID must be set");
+      expect(result.errorMessage).toContain(
+        "WAIFU_SERVICE_ORG_ID and WAIFU_SERVICE_USER_ID must be set",
+      );
     });
   });
 

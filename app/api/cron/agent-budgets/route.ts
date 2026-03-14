@@ -11,9 +11,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { verifyCronSecret } from "@/lib/api/cron-auth";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { logger } from "@/lib/utils/logger";
-import { verifyCronSecret } from "@/lib/api/cron-auth";
 
 /**
  * POST /api/cron/agent-budgets
@@ -72,10 +72,6 @@ export async function GET(request: NextRequest): Promise<Response> {
   return NextResponse.json({
     status: "ready",
     description: "Agent budget maintenance cron job",
-    tasks: [
-      "Auto-refill low budgets",
-      "Reset daily spending limits",
-      "Send low budget alerts",
-    ],
+    tasks: ["Auto-refill low budgets", "Reset daily spending limits", "Send low budget alerts"],
   });
 }

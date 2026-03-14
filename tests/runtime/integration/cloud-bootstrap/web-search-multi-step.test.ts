@@ -13,26 +13,26 @@
  * Run with: bun test tests/runtime/integration/cloud-bootstrap/web-search-multi-step.test.ts --timeout 600000
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
+  AgentMode,
+  buildUserContext,
+  cleanupTestData,
+  createTestDataSet,
+  createTestUser,
+  endTimer,
+  getConnectionString,
   hasDatabaseUrl,
   hasRuntimeModelCredentials,
-  getConnectionString,
-  verifyConnection,
-  createTestDataSet,
-  cleanupTestData,
-  runtimeFactory,
   invalidateRuntime,
-  buildUserContext,
-  createTestUser,
+  logTimings,
+  runtimeFactory,
   sendTestMessage,
-  AgentMode,
+  startTimer,
   type TestDataSet,
   type TestRuntime,
   type TestUserContext,
-  startTimer,
-  endTimer,
-  logTimings,
+  verifyConnection,
 } from "../../../infrastructure";
 
 // Character with web search enabled
@@ -127,12 +127,12 @@ describe.skipIf(skipLiveModelSuite)("CloudBootstrapMessageService - Web Search M
 
     if (runtime) {
       await invalidateRuntime(runtime.agentId as string).catch((err) =>
-        console.warn(`Runtime cleanup: ${err}`)
+        console.warn(`Runtime cleanup: ${err}`),
       );
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup: ${err}`)
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup: ${err}`),
       );
     }
     logTimings("Web Search Multi-Step Tests", timings);
@@ -200,7 +200,7 @@ describe.skipIf(skipLiveModelSuite)("CloudBootstrapMessageService - Web Search M
         testUser,
         "What is the latest news about Ethereum? Search for recent ETH updates.",
         testData,
-        { timeoutMs: 300000 } // 5 minutes - real API calls take time
+        { timeoutMs: 300000 }, // 5 minutes - real API calls take time
       );
       timings.ethSearch = endTimer("eth_search");
 
@@ -247,7 +247,7 @@ describe.skipIf(skipLiveModelSuite)("CloudBootstrapMessageService - Web Search M
         testUser,
         "Search the web for the latest Hyperliquid news and updates. What's happening with HYPE token?",
         testData,
-        { timeoutMs: 300000 }
+        { timeoutMs: 300000 },
       );
       timings.hypeSearch = endTimer("hype_search");
 

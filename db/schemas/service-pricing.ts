@@ -1,3 +1,4 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -9,7 +10,6 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
  * Service pricing table schema.
@@ -47,7 +47,7 @@ export const servicePricing = pgTable(
  *
  * Append-only audit trail for all pricing changes.
  * Tracks who changed what, when, and why.
- * 
+ *
  * IMPORTANT: Uses ON DELETE SET NULL to preserve audit history even when
  * pricing records are deleted. The service_id and method columns provide
  * sufficient context for historical analysis.
@@ -56,10 +56,9 @@ export const servicePricingAudit = pgTable(
   "service_pricing_audit",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    service_pricing_id: uuid("service_pricing_id").references(
-      () => servicePricing.id,
-      { onDelete: "set null" },
-    ),
+    service_pricing_id: uuid("service_pricing_id").references(() => servicePricing.id, {
+      onDelete: "set null",
+    }),
     service_id: text("service_id").notNull(),
     method: text("method").notNull(),
     old_cost: numeric("old_cost", { precision: 12, scale: 6 }),
@@ -83,6 +82,4 @@ export const servicePricingAudit = pgTable(
 export type ServicePricing = InferSelectModel<typeof servicePricing>;
 export type NewServicePricing = InferInsertModel<typeof servicePricing>;
 export type ServicePricingAudit = InferSelectModel<typeof servicePricingAudit>;
-export type NewServicePricingAudit = InferInsertModel<
-  typeof servicePricingAudit
->;
+export type NewServicePricingAudit = InferInsertModel<typeof servicePricingAudit>;

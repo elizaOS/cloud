@@ -2,18 +2,18 @@
  * Telegram Provider - Bot API
  */
 
-import { logger } from "@/lib/utils/logger";
-import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { TELEGRAM_API_BASE } from "@/lib/utils/telegram-api";
-import { withRetry } from "../rate-limit";
 import type {
-  SocialMediaProvider,
-  SocialCredentials,
+  MediaAttachment,
+  PlatformPostOptions,
   PostContent,
   PostResult,
-  PlatformPostOptions,
-  MediaAttachment,
+  SocialCredentials,
+  SocialMediaProvider,
 } from "@/lib/types/social-media";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
+import { logger } from "@/lib/utils/logger";
+import { TELEGRAM_API_BASE } from "@/lib/utils/telegram-api";
+import { withRetry } from "../rate-limit";
 
 interface TelegramResponse<T> {
   ok: boolean;
@@ -55,8 +55,7 @@ async function telegramApiRequest<T>(
       const payload = (await response.json()) as TelegramResponse<T>;
       if (!payload.ok) {
         throw new Error(
-          payload.description ??
-            `Telegram API error: ${payload.error_code ?? response.status}`,
+          payload.description ?? `Telegram API error: ${payload.error_code ?? response.status}`,
         );
       }
       return payload.result as T;
@@ -94,10 +93,7 @@ export const telegramProvider: SocialMediaProvider = {
     }
 
     try {
-      const user = await telegramApiRequest<TelegramUser>(
-        credentials.botToken,
-        "getMe",
-      );
+      const user = await telegramApiRequest<TelegramUser>(credentials.botToken, "getMe");
 
       return {
         valid: true,
@@ -148,31 +144,23 @@ export const telegramProvider: SocialMediaProvider = {
         if (content.media.length === 1) {
           const media = content.media[0];
           if (media.type === "video") {
-            message = await telegramApiRequest<TelegramMessage>(
-              credentials.botToken,
-              "sendVideo",
-              {
-                chat_id: chatId,
-                video: media.url,
-                caption: content.text,
-                parse_mode: options?.telegram?.parseMode || "HTML",
-                reply_to_message_id: options?.telegram?.replyToMessageId,
-                disable_notification: options?.telegram?.disableNotification,
-              },
-            );
+            message = await telegramApiRequest<TelegramMessage>(credentials.botToken, "sendVideo", {
+              chat_id: chatId,
+              video: media.url,
+              caption: content.text,
+              parse_mode: options?.telegram?.parseMode || "HTML",
+              reply_to_message_id: options?.telegram?.replyToMessageId,
+              disable_notification: options?.telegram?.disableNotification,
+            });
           } else {
-            message = await telegramApiRequest<TelegramMessage>(
-              credentials.botToken,
-              "sendPhoto",
-              {
-                chat_id: chatId,
-                photo: media.url,
-                caption: content.text,
-                parse_mode: options?.telegram?.parseMode || "HTML",
-                reply_to_message_id: options?.telegram?.replyToMessageId,
-                disable_notification: options?.telegram?.disableNotification,
-              },
-            );
+            message = await telegramApiRequest<TelegramMessage>(credentials.botToken, "sendPhoto", {
+              chat_id: chatId,
+              photo: media.url,
+              caption: content.text,
+              parse_mode: options?.telegram?.parseMode || "HTML",
+              reply_to_message_id: options?.telegram?.replyToMessageId,
+              disable_notification: options?.telegram?.disableNotification,
+            });
           }
         } else {
           // Multiple media - use media group
@@ -231,9 +219,7 @@ export const telegramProvider: SocialMediaProvider = {
     }
 
     // postId should be in format "chatId/messageId"
-    const [chatId, messageId] = postId.includes("/")
-      ? postId.split("/")
-      : [null, postId];
+    const [chatId, messageId] = postId.includes("/") ? postId.split("/") : [null, postId];
 
     if (!chatId) {
       return {

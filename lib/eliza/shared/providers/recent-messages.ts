@@ -2,16 +2,15 @@ import {
   addHeader,
   ChannelType,
   CustomMetadata,
+  type Entity,
   formatMessages,
   formatPosts,
   getEntityDetails,
-  MemoryType,
-  type Entity,
   type IAgentRuntime,
+  logger,
   type Memory,
   type Provider,
   type State,
-  logger,
 } from "@elizaos/core";
 import { isVisibleDialogueMessage } from "@/lib/types/message-content";
 
@@ -44,7 +43,7 @@ function getEntityDisplayName(entity: Entity): string {
         return webMetadata.name;
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // If parsing fails, fall through to names[0]
   }
 
@@ -106,8 +105,7 @@ export const recentMessagesProvider: Provider = {
       // Check if we have a summary to determine offset and whether to use summarization mode
       let hasSummary = false;
       if (memoryService) {
-        const currentSummary =
-          await memoryService.getCurrentSessionSummary(roomId);
+        const currentSummary = await memoryService.getCurrentSessionSummary(roomId);
         if (currentSummary) {
           hasSummary = true;
           // When we have a summary, fetch recent messages after the summary offset
@@ -125,8 +123,7 @@ export const recentMessagesProvider: Provider = {
           unique: false,
         });
 
-        const dialogueMessageCount =
-          allMessages.filter(isVisibleMessage).length;
+        const dialogueMessageCount = allMessages.filter(isVisibleMessage).length;
 
         // If below threshold, show all messages; otherwise show recent only
         if (dialogueMessageCount < config.shortTermSummarizationThreshold) {
@@ -173,24 +170,16 @@ export const recentMessagesProvider: Provider = {
         }
 
         if (recentMessagesText) {
-          recentMessagesText = addHeader(
-            "# Recent Messages",
-            recentMessagesText,
-          );
+          recentMessagesText = addHeader("# Recent Messages", recentMessagesText);
         }
       }
 
       // Format conversation logs (simple format without IDs)
-      const formatConversationLog = (
-        messages: Memory[],
-        includeThoughts: boolean,
-      ): string => {
+      const formatConversationLog = (messages: Memory[], includeThoughts: boolean): string => {
         return messages
           .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
           .map((msg) => {
-            const entity = entitiesData.find(
-              (e: Entity) => e.id === msg.entityId,
-            );
+            const entity = entitiesData.find((e: Entity) => e.id === msg.entityId);
             const entityName = entity
               ? getEntityDisplayName(entity)
               : msg.entityId === runtime.agentId
@@ -222,9 +211,7 @@ export const recentMessagesProvider: Provider = {
 
       // Build received message header
       const metaData = message.metadata as CustomMetadata;
-      const senderEntity = entitiesData.find(
-        (entity: Entity) => entity.id === message.entityId,
-      );
+      const senderEntity = entitiesData.find((entity: Entity) => entity.id === message.entityId);
       const senderName = senderEntity
         ? getEntityDisplayName(senderEntity)
         : metaData?.entityName || "Unknown User";
@@ -232,10 +219,7 @@ export const recentMessagesProvider: Provider = {
       const hasReceivedMessage = !!receivedMessageContent?.trim();
 
       const receivedMessageHeader = hasReceivedMessage
-        ? addHeader(
-            "# Received Message",
-            `${senderName}: ${receivedMessageContent}`,
-          )
+        ? addHeader("# Received Message", `${senderName}: ${receivedMessageContent}`)
         : "";
 
       const focusHeader = hasReceivedMessage

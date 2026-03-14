@@ -7,17 +7,13 @@ import {
 describe("redirect validation", () => {
   test("accepts allowlisted absolute redirect URLs", () => {
     expect(
-      isAllowedAbsoluteRedirectUrl("https://app.example.com/success", [
-        "https://app.example.com",
-      ]),
+      isAllowedAbsoluteRedirectUrl("https://app.example.com/success", ["https://app.example.com"]),
     ).toBe(true);
   });
 
   test("rejects redirect URLs on untrusted origins", () => {
     expect(
-      isAllowedAbsoluteRedirectUrl("https://evil.example.com/success", [
-        "https://app.example.com",
-      ]),
+      isAllowedAbsoluteRedirectUrl("https://evil.example.com/success", ["https://app.example.com"]),
     ).toBe(false);
   });
 
@@ -36,9 +32,7 @@ describe("redirect validation", () => {
       "/dashboard",
     );
 
-    expect(target.toString()).toBe(
-      "https://app.example.com/dashboard/settings?tab=connections",
-    );
+    expect(target.toString()).toBe("https://app.example.com/dashboard/settings?tab=connections");
   });
 
   test("falls back when an external redirect target is provided", () => {

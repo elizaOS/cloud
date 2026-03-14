@@ -9,11 +9,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { appsService } from "@/lib/services/apps";
-import { apiKeysService } from "@/lib/services/api-keys";
-import { logger } from "@/lib/utils/logger";
 import { isAllowedOrigin } from "@/lib/security/origin-validation";
-import type { App, ApiKey } from "@/lib/types";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { appsService } from "@/lib/services/apps";
+import type { ApiKey, App } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * App authentication context with validated app and API key.
@@ -28,10 +28,7 @@ export interface AppAuthContext {
 /**
  * Validate origin against app's allowed origins
  */
-export function validateOrigin(
-  allowedOrigins: string[],
-  requestOrigin: string,
-): boolean {
+export function validateOrigin(allowedOrigins: string[], requestOrigin: string): boolean {
   // Allow requests with no origin (e.g., server-to-server)
   if (!requestOrigin) {
     return true;
@@ -112,8 +109,7 @@ export async function validateAppAuth(
   }
 
   // Get and validate origin
-  const origin =
-    request.headers.get("origin") || request.headers.get("referer") || "";
+  const origin = request.headers.get("origin") || request.headers.get("referer") || "";
   const allowedOrigins = app.allowed_origins as string[];
 
   if (!validateOrigin(allowedOrigins, origin)) {

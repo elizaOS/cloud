@@ -5,8 +5,8 @@
  * This follows the standard JWKS discovery pattern (RFC 7517).
  */
 
-import { getJWKS, isJWKSConfigured } from "@/lib/auth/jwks";
 import { NextResponse } from "next/server";
+import { getJWKS, isJWKSConfigured } from "@/lib/auth/jwks";
 
 /**
  * GET /.well-known/jwks.json
@@ -16,10 +16,7 @@ import { NextResponse } from "next/server";
  */
 export async function GET() {
   if (!isJWKSConfigured()) {
-    return NextResponse.json(
-      { error: "JWKS not configured" },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "JWKS not configured" }, { status: 503 });
   }
 
   const jwks = await getJWKS();

@@ -14,34 +14,27 @@
  *   - max_tokens: token limit
  */
 
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
+import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { isGroqNativeModel } from "@/lib/models";
-import { getProviderForModel } from "@/lib/providers";
-import { creditsService } from "@/lib/services/credits";
-import { usageService } from "@/lib/services/usage";
-import { generationsService } from "@/lib/services/generations";
-import { organizationsService } from "@/lib/services/organizations";
-import { contentModerationService } from "@/lib/services/content-moderation";
 import {
   calculateCost,
-  getProviderFromModel,
-  normalizeModelName,
   estimateRequestCost,
   estimateTokens,
+  getProviderFromModel,
   isReasoningModel,
+  normalizeModelName,
 } from "@/lib/pricing";
-import { logger } from "@/lib/utils/logger";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import type { NextRequest } from "next/server";
-import type {
-  OpenAIChatRequest,
-  OpenAIChatResponse,
-} from "@/lib/providers/types";
+import { getProviderForModel } from "@/lib/providers";
+import type { OpenAIChatRequest, OpenAIChatResponse } from "@/lib/providers/types";
+import { contentModerationService } from "@/lib/services/content-moderation";
+import { creditsService } from "@/lib/services/credits";
+import { generationsService } from "@/lib/services/generations";
+import { usageService } from "@/lib/services/usage";
 import type { UserWithOrganization } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -87,10 +80,7 @@ interface AISdkRequest {
       parameters?: Record<string, unknown>;
     };
   }>;
-  tool_choice?:
-    | "auto"
-    | "none"
-    | { type: "function"; function: { name: string } };
+  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
   stream?: boolean;
   // ... other AI SDK specific fields
 }
@@ -130,11 +120,7 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
               return { ...part, type: "text" };
             }
             // Also handle "input_image" -> "image_url" if needed
-            if (
-              part.type === "input_image" &&
-              "image" in part &&
-              typeof part.image === "string"
-            ) {
+            if (part.type === "input_image" && "image" in part && typeof part.image === "string") {
               return {
                 type: "image_url",
                 image_url: { url: part.image },
@@ -150,17 +136,13 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
             // Keep text blocks only if they have non-empty text
             if (typedPart.type === "text" || typedPart.type === "input_text") {
               const hasNonEmptyText =
-                typeof typedPart.text === "string" &&
-                typedPart.text.trim() !== "";
+                typeof typedPart.text === "string" && typedPart.text.trim() !== "";
               if (!hasNonEmptyText) {
-                logger.debug(
-                  "[Responses API] Filtering out empty text content block",
-                  {
-                    messageIndex: msgIndex,
-                    role: msg.role,
-                    textValue: typedPart.text,
-                  },
-                );
+                logger.debug("[Responses API] Filtering out empty text content block", {
+                  messageIndex: msgIndex,
+                  role: msg.role,
+                  textValue: typedPart.text,
+                });
               }
               return hasNonEmptyText;
             }
@@ -171,27 +153,21 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
 
       // Log if we filtered out content
       if (transformedContent.length < originalLength) {
-        logger.info(
-          "[Responses API] Filtered empty text blocks from content array",
-          {
-            messageIndex: msgIndex,
-            role: msg.role,
-            originalParts: originalLength,
-            remainingParts: transformedContent.length,
-          },
-        );
+        logger.info("[Responses API] Filtered empty text blocks from content array", {
+          messageIndex: msgIndex,
+          role: msg.role,
+          originalParts: originalLength,
+          remainingParts: transformedContent.length,
+        });
       }
 
       // If content array is now empty or has only empty parts, convert to empty string
       // This will be caught by validation later
       if (transformedContent.length === 0) {
-        logger.warn(
-          "[Responses API] Content array became empty after filtering",
-          {
-            messageIndex: msgIndex,
-            role: msg.role,
-          },
-        );
+        logger.warn("[Responses API] Content array became empty after filtering", {
+          messageIndex: msgIndex,
+          role: msg.role,
+        });
         return { ...msg, content: "" };
       }
 
@@ -272,9 +248,7 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
 
       if (typeof messageContent === "string") {
         // Simple string content
-        content = [
-          { type: "output_text", text: messageContent, annotations: [] },
-        ];
+        content = [{ type: "output_text", text: messageContent, annotations: [] }];
       } else if (Array.isArray(messageContent)) {
         // Already array (multimodal)
         content = (messageContent as Array<unknown>).map((part: unknown) => {
@@ -331,8 +305,7 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
     // Additional AI SDK expected fields
     error: null,
     // Preserve any provider metadata
-    ...("provider_metadata" in openAIResponse &&
-    openAIResponse.provider_metadata
+    ...("provider_metadata" in openAIResponse && openAIResponse.provider_metadata
       ? { provider_metadata: openAIResponse.provider_metadata }
       : {}),
   };
@@ -360,7 +333,7 @@ async function handlePOST(req: NextRequest) {
       const authResult = await requireAuthOrApiKey(req);
       user = authResult.user;
       apiKey = authResult.apiKey;
-    } catch (authError) {
+    } catch (_authError) {
       // Fallback to anonymous user
       logger.info("[Responses API] Privy auth failed, trying anonymous...");
 
@@ -419,8 +392,7 @@ async function handlePOST(req: NextRequest) {
     request.messages = request.messages.filter((msg, i) => {
       if (
         msg.role === "system" &&
-        (!msg.content ||
-          (typeof msg.content === "string" && msg.content.trim() === ""))
+        (!msg.content || (typeof msg.content === "string" && msg.content.trim() === ""))
       ) {
         logger.debug("[Responses API] Filtering out empty system message", {
           messageIndex: i,
@@ -465,8 +437,7 @@ async function handlePOST(req: NextRequest) {
         return Response.json(
           {
             error: {
-              message:
-                "Each message must have content, tool_calls, tool_call_id, or function_call",
+              message: "Each message must have content, tool_calls, tool_call_id, or function_call",
               type: "invalid_request_error",
               param: `messages.${i}.content`,
               code: "invalid_value",
@@ -503,14 +474,8 @@ async function handlePOST(req: NextRequest) {
           const hasValidTextContent = msg.content.some((part) => {
             if (typeof part === "object" && part !== null && "type" in part) {
               const typedPart = part as { type: string; text?: string };
-              if (
-                typedPart.type === "text" ||
-                typedPart.type === "input_text"
-              ) {
-                return (
-                  typeof typedPart.text === "string" &&
-                  typedPart.text.trim() !== ""
-                );
+              if (typedPart.type === "text" || typedPart.type === "input_text") {
+                return typeof typedPart.text === "string" && typedPart.text.trim() !== "";
               }
               // Non-text parts (images) are valid
               return true;
@@ -519,26 +484,17 @@ async function handlePOST(req: NextRequest) {
           });
 
           // If we have a content array but no valid content, and no tool calls, reject
-          if (
-            !hasValidTextContent &&
-            !hasToolCalls &&
-            !hasToolCallId &&
-            !hasFunctionCall
-          ) {
-            logger.warn(
-              "[Responses API] Content array has no valid text content",
-              {
-                messageIndex: i,
-                role: msg.role,
-                contentLength: msg.content.length,
-              },
-            );
+          if (!hasValidTextContent && !hasToolCalls && !hasToolCallId && !hasFunctionCall) {
+            logger.warn("[Responses API] Content array has no valid text content", {
+              messageIndex: i,
+              role: msg.role,
+              contentLength: msg.content.length,
+            });
 
             return Response.json(
               {
                 error: {
-                  message:
-                    "Message content array must contain at least one non-empty text block",
+                  message: "Message content array must contain at least one non-empty text block",
                   type: "invalid_request_error",
                   param: `messages.${i}.content`,
                   code: "invalid_value",
@@ -570,9 +526,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    const lastUserMessage = [...request.messages]
-      .reverse()
-      .find((m) => m.role === "user");
+    const lastUserMessage = [...request.messages].reverse().find((m) => m.role === "user");
     if (lastUserMessage?.content) {
       const messageText =
         typeof lastUserMessage.content === "string"
@@ -580,18 +534,13 @@ async function handlePOST(req: NextRequest) {
           : lastUserMessage.content.find((c) => c.type === "text")?.text || "";
 
       if (messageText) {
-        contentModerationService.moderateInBackground(
-          messageText,
-          user.id,
-          undefined,
-          (result) => {
-            logger.warn("[Responses API] Async moderation detected violation", {
-              userId: user.id,
-              categories: result.flaggedCategories,
-              action: result.action,
-            });
-          },
-        );
+        contentModerationService.moderateInBackground(messageText, user.id, undefined, (result) => {
+          logger.warn("[Responses API] Async moderation detected violation", {
+            userId: user.id,
+            categories: result.flaggedCategories,
+            action: result.action,
+          });
+        });
       }
     }
 
@@ -603,7 +552,7 @@ async function handlePOST(req: NextRequest) {
     // 5. DEDUCT credits BEFORE making API call (prevents TOCTOU race condition)
     // Skip for anonymous users - they use message limits instead
     const estimatedCost = await estimateRequestCost(model, request.messages);
-    let org = null;
+    const _org = null;
     let reservedAmount = 0;
 
     if (isAnonymous) {
@@ -695,8 +644,7 @@ async function handlePOST(req: NextRequest) {
             },
           },
         };
-    const providerResponse =
-      await providerInstance.chatCompletions(requestWithProvider);
+    const providerResponse = await providerInstance.chatCompletions(requestWithProvider);
 
     // 7. Handle streaming vs non-streaming
     if (isStreaming) {
@@ -749,19 +697,11 @@ async function handlePOST(req: NextRequest) {
       error: { message: string; type?: string; code?: string };
     }
 
-    if (
-      error &&
-      typeof error === "object" &&
-      "error" in error &&
-      "status" in error
-    ) {
+    if (error && typeof error === "object" && "error" in error && "status" in error) {
       const status = (error as { status: unknown }).status;
       if (typeof status === "number") {
         const gatewayError = error as GatewayError;
-        return Response.json(
-          { error: gatewayError.error },
-          { status: gatewayError.status },
-        );
+        return Response.json({ error: gatewayError.error }, { status: gatewayError.status });
       }
     }
 
@@ -769,8 +709,7 @@ async function handlePOST(req: NextRequest) {
     return Response.json(
       {
         error: {
-          message:
-            error instanceof Error ? error.message : "Internal server error",
+          message: error instanceof Error ? error.message : "Internal server error",
           type: "api_error",
           code: "internal_server_error",
         },
@@ -918,7 +857,7 @@ function handleStreamingResponse(
       let sentCreated = false;
       let sentOutputItemAdded = false;
       const itemId = `msg_${Date.now()}`;
-      let outputIndex = 0;
+      const outputIndex = 0;
 
       // Buffer for handling partial chunks that split across network boundaries
       let lineBuffer = "";
@@ -946,9 +885,7 @@ function handleStreamingResponse(
                   type: "message",
                   id: itemId,
                   role: "assistant",
-                  content: [
-                    { type: "output_text", text: fullContent, annotations: [] },
-                  ],
+                  content: [{ type: "output_text", text: fullContent, annotations: [] }],
                   status: "completed",
                 },
               });
@@ -1058,10 +995,7 @@ function handleStreamingResponse(
               // Log parsing failures as warnings - silent failures are hard to debug
               logger.warn("[Responses API] Failed to parse streaming chunk", {
                 line: line.substring(0, 200), // Truncate to avoid log spam
-                error:
-                  parseError instanceof Error
-                    ? parseError.message
-                    : String(parseError),
+                error: parseError instanceof Error ? parseError.message : String(parseError),
               });
             }
           }
@@ -1106,21 +1040,14 @@ function handleStreamingResponse(
 
       // After stream completes, record analytics
       if (totalTokens === 0) {
-        logger.warn(
-          "[Responses API] No usage data in stream, estimating tokens",
-          {
-            model,
-            contentLength: fullContent.length,
-          },
-        );
+        logger.warn("[Responses API] No usage data in stream, estimating tokens", {
+          model,
+          contentLength: fullContent.length,
+        });
 
         // Estimate tokens from content
         const messageText = messages
-          .map((m) =>
-            typeof m.content === "string"
-              ? m.content
-              : JSON.stringify(m.content),
-          )
+          .map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content)))
           .join(" ");
         inputTokens = estimateTokens(messageText);
         outputTokens = estimateTokens(fullContent);

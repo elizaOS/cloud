@@ -16,8 +16,9 @@
  * 5. Indexed source IDs support application-level dedupe for retry-safe payouts
  */
 
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
-  boolean,
   check,
   index,
   jsonb,
@@ -29,9 +30,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { users } from "./users";
-import { sql } from "drizzle-orm";
 
 /**
  * Type of earning source - ONLY these are redeemable
@@ -78,9 +77,7 @@ export const redeemableEarnings = pgTable(
 
     // Total earned from ALL sources (apps + agents + mcps + affiliates)
     // This ONLY increases, never decreases
-    total_earned: numeric("total_earned", { precision: 18, scale: 4 })
-      .notNull()
-      .default("0.0000"),
+    total_earned: numeric("total_earned", { precision: 18, scale: 4 }).notNull().default("0.0000"),
 
     // Total successfully redeemed
     // This ONLY increases, never decreases
@@ -140,9 +137,7 @@ export const redeemableEarnings = pgTable(
     last_redemption_at: timestamp("last_redemption_at"),
 
     // Version for optimistic locking (prevents race conditions)
-    version: numeric("version", { precision: 10, scale: 0 })
-      .notNull()
-      .default("0"),
+    version: numeric("version", { precision: 10, scale: 0 }).notNull().default("0"),
 
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
@@ -244,12 +239,8 @@ export const redeemableEarningsLedger = pgTable(
       table.user_id,
       table.created_at,
     ),
-    entry_type_idx: index("redeemable_earnings_ledger_type_idx").on(
-      table.entry_type,
-    ),
-    redemption_idx: index("redeemable_earnings_ledger_redemption_idx").on(
-      table.redemption_id,
-    ),
+    entry_type_idx: index("redeemable_earnings_ledger_type_idx").on(table.entry_type),
+    redemption_idx: index("redeemable_earnings_ledger_redemption_idx").on(table.redemption_id),
     source_idx: index("redeemable_earnings_ledger_source_idx").on(
       table.earnings_source,
       table.source_id,
@@ -284,27 +275,15 @@ export const redeemedEarningsTracking = pgTable(
   },
   (table) => ({
     // CRITICAL: Unique constraint ensures each earning is redeemed only once
-    ledger_unique: uniqueIndex("redeemed_tracking_ledger_idx").on(
-      table.ledger_entry_id,
-    ),
-    redemption_idx: index("redeemed_tracking_redemption_idx").on(
-      table.redemption_id,
-    ),
+    ledger_unique: uniqueIndex("redeemed_tracking_ledger_idx").on(table.ledger_entry_id),
+    redemption_idx: index("redeemed_tracking_redemption_idx").on(table.redemption_id),
   }),
 );
 
 // Type exports
 export type RedeemableEarnings = InferSelectModel<typeof redeemableEarnings>;
 export type NewRedeemableEarnings = InferInsertModel<typeof redeemableEarnings>;
-export type RedeemableEarningsLedger = InferSelectModel<
-  typeof redeemableEarningsLedger
->;
-export type NewRedeemableEarningsLedger = InferInsertModel<
-  typeof redeemableEarningsLedger
->;
-export type RedeemedEarningsTracking = InferSelectModel<
-  typeof redeemedEarningsTracking
->;
-export type NewRedeemedEarningsTracking = InferInsertModel<
-  typeof redeemedEarningsTracking
->;
+export type RedeemableEarningsLedger = InferSelectModel<typeof redeemableEarningsLedger>;
+export type NewRedeemableEarningsLedger = InferInsertModel<typeof redeemableEarningsLedger>;
+export type RedeemedEarningsTracking = InferSelectModel<typeof redeemedEarningsTracking>;
+export type NewRedeemedEarningsTracking = InferInsertModel<typeof redeemedEarningsTracking>;

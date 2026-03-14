@@ -1,24 +1,16 @@
 import { NextRequest } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  aiAppBuilderService as aiAppBuilder,
-  type SandboxProgress,
-} from "@/lib/services/ai-app-builder";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
-import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
 
 // Max duration for sandbox creation and initial prompt processing
 // Fluid compute limits: Hobby 300s, Pro/Enterprise 800s
 export const maxDuration = 800;
 
-const SESSION_CREATE_LIMIT = {
+const _SESSION_CREATE_LIMIT = {
   windowMs: 3600000,
   maxRequests: process.env.NODE_ENV === "production" ? 5 : 100,
 };
 
-const CreateSessionSchema = z.object({
+const _CreateSessionSchema = z.object({
   appId: z.string().uuid().optional(),
   appName: z.string().min(1).max(100).optional(),
   appDescription: z.string().max(500).optional(),

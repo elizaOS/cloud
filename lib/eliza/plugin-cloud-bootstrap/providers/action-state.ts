@@ -2,10 +2,10 @@
 import {
   addHeader,
   type IAgentRuntime,
+  logger,
   type Memory,
   type Provider,
   type State,
-  logger,
 } from "@elizaos/core";
 import type { MultiStepActionResult } from "../types";
 
@@ -30,8 +30,12 @@ function formatActionResult(result: MultiStepActionResult, index: number): strin
 }
 
 function formatWorkingMemory(workingMemory: Record<string, unknown>): string {
-  type MemEntry = { actionName?: string; result?: { text?: string; data?: unknown }; timestamp?: number };
-  
+  type MemEntry = {
+    actionName?: string;
+    result?: { text?: string; data?: unknown };
+    timestamp?: number;
+  };
+
   return Object.entries(workingMemory)
     .sort((a, b) => ((b[1] as MemEntry)?.timestamp || 0) - ((a[1] as MemEntry)?.timestamp || 0))
     .slice(0, 10)
@@ -57,16 +61,18 @@ function formatActionMemories(memories: Memory[]): string {
   return Array.from(groupedByRun.entries())
     .map(([runId, mems]) => {
       const sorted = mems.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-      const runText = sorted.map((mem) => {
-        const actionName = mem.content?.actionName || "Unknown";
-        const status = mem.content?.actionStatus || "unknown";
-        const planStep = mem.content?.planStep || "";
-        const text = mem.content?.text || "";
-        let line = `  - ${actionName} (${status})`;
-        if (planStep) line += ` [${planStep}]`;
-        if (text && text !== `Executed action: ${actionName}`) line += `: ${text}`;
-        return line;
-      }).join("\n");
+      const runText = sorted
+        .map((mem) => {
+          const actionName = mem.content?.actionName || "Unknown";
+          const status = mem.content?.actionStatus || "unknown";
+          const planStep = mem.content?.planStep || "";
+          const text = mem.content?.text || "";
+          let line = `  - ${actionName} (${status})`;
+          if (planStep) line += ` [${planStep}]`;
+          if (text && text !== `Executed action: ${actionName}`) line += `: ${text}`;
+          return line;
+        })
+        .join("\n");
       const thought = sorted[0]?.content?.planThought || "";
       return `**Run ${runId.slice(0, 8)}**${thought ? ` - ${thought}` : ""}\n${runText}`;
     })
@@ -83,22 +89,22 @@ export const actionStateProvider: Provider = {
     // This handles the timing issue where actionResults may be in message metadata
     // before state is fully composed
     const messageMetadata = (message.content?.metadata || {}) as Record<string, unknown>;
-    const actionResults = (
-      state.data?.actionResults ||
+    const actionResults = (state.data?.actionResults ||
       messageMetadata.actionResults ||
-      []
-    ) as MultiStepActionResult[];
+      []) as MultiStepActionResult[];
     const workingMemory = (state.data?.workingMemory || {}) as Record<string, unknown>;
 
     // Format action results
-    const resultsText = actionResults.length > 0
-      ? addHeader("# Previous Action Results", actionResults.map(formatActionResult).join("\n\n"))
-      : "No previous action results available.";
+    const resultsText =
+      actionResults.length > 0
+        ? addHeader("# Previous Action Results", actionResults.map(formatActionResult).join("\n\n"))
+        : "No previous action results available.";
 
     // Format working memory
-    const memoryText = Object.keys(workingMemory).length > 0
-      ? addHeader("# Working Memory", formatWorkingMemory(workingMemory))
-      : "";
+    const memoryText =
+      Object.keys(workingMemory).length > 0
+        ? addHeader("# Working Memory", formatWorkingMemory(workingMemory))
+        : "";
 
     let recentActionMemories: Memory[] = [];
     try {
@@ -109,16 +115,19 @@ export const actionStateProvider: Provider = {
         unique: false,
       });
       recentActionMemories = recentMessages.filter(
-        (msg) => msg.content?.type === "action_result" && msg.metadata?.type === "action_result"
+        (msg) => msg.content?.type === "action_result" && msg.metadata?.type === "action_result",
       );
     } catch (error) {
-      logger.warn(`[ACTION_STATE] Failed to retrieve action memories for room ${message.roomId} - action history will be incomplete: ${error}`);
+      logger.warn(
+        `[ACTION_STATE] Failed to retrieve action memories for room ${message.roomId} - action history will be incomplete: ${error}`,
+      );
     }
 
     // Format action history
-    const actionMemoriesText = recentActionMemories.length > 0
-      ? addHeader("# Recent Action History", formatActionMemories(recentActionMemories))
-      : "";
+    const actionMemoriesText =
+      recentActionMemories.length > 0
+        ? addHeader("# Recent Action History", formatActionMemories(recentActionMemories))
+        : "";
 
     const allText = [resultsText, memoryText, actionMemoriesText].filter(Boolean).join("\n\n");
 

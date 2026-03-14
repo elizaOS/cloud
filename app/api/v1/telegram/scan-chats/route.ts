@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Telegraf } from "telegraf";
 import type { Update } from "telegraf/types";
+import { telegramChatsRepository } from "@/db/repositories/telegram-chats";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
-import { telegramChatsRepository } from "@/db/repositories/telegram-chats";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 30;
@@ -29,9 +29,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
-    const allChats = await telegramChatsRepository.findByOrganization(
-      user.organization_id,
-    );
+    const allChats = await telegramChatsRepository.findByOrganization(user.organization_id);
 
     return NextResponse.json({
       success: true,
@@ -50,10 +48,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : "Unknown error",
     });
 
-    return NextResponse.json(
-      { error: "Failed to fetch chats" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch chats" }, { status: 500 });
   }
 }
 
@@ -64,15 +59,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  const botToken = await telegramAutomationService.getBotToken(
-    user.organization_id,
-  );
+  const botToken = await telegramAutomationService.getBotToken(user.organization_id);
 
   if (!botToken) {
-    return NextResponse.json(
-      { error: "Telegram bot not connected" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Telegram bot not connected" }, { status: 400 });
   }
 
   const bot = new Telegraf(botToken);
@@ -86,12 +76,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Get recent updates (includes my_chat_member events)
     // getUpdates args: offset, limit, timeout, allowed_updates
-    const updates = await bot.telegram.getUpdates(
-      0,
-      100,
-      0,
-      ["my_chat_member", "message", "channel_post"],
-    );
+    const updates = await bot.telegram.getUpdates(0, 100, 0, [
+      "my_chat_member",
+      "message",
+      "channel_post",
+    ]);
 
     logger.info("[Telegram Scan] Got updates from Telegram", {
       organizationId: user.organization_id,
@@ -127,21 +116,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       if (hasMyChatMember(update)) {
         const c = update.my_chat_member.chat;
-        chat = { id: c.id, type: c.type, title: "title" in c ? c.title : undefined, username: "username" in c ? c.username : undefined };
+        chat = {
+          id: c.id,
+          type: c.type,
+          title: "title" in c ? c.title : undefined,
+          username: "username" in c ? c.username : undefined,
+        };
       } else if (hasMessage(update)) {
         const c = update.message.chat;
-        chat = { id: c.id, type: c.type, title: "title" in c ? c.title : undefined, username: "username" in c ? c.username : undefined };
+        chat = {
+          id: c.id,
+          type: c.type,
+          title: "title" in c ? c.title : undefined,
+          username: "username" in c ? c.username : undefined,
+        };
       } else if (hasChannelPost(update)) {
         const c = update.channel_post.chat;
-        chat = { id: c.id, type: c.type, title: "title" in c ? c.title : undefined, username: "username" in c ? c.username : undefined };
+        chat = {
+          id: c.id,
+          type: c.type,
+          title: "title" in c ? c.title : undefined,
+          username: "username" in c ? c.username : undefined,
+        };
       }
 
       if (
         chat &&
         !seenChatIds.has(chat.id) &&
-        (chat.type === "group" ||
-          chat.type === "supergroup" ||
-          chat.type === "channel")
+        (chat.type === "group" || chat.type === "supergroup" || chat.type === "channel")
       ) {
         seenChatIds.add(chat.id);
 
@@ -150,10 +152,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         let canPost = false;
         try {
           const member = await bot.telegram.getChatMember(chat.id, botInfo.id);
-          isAdmin =
-            member.status === "administrator" || member.status === "creator";
-          canPost =
-            isAdmin || (member.status === "member" && chat.type !== "channel");
+          isAdmin = member.status === "administrator" || member.status === "creator";
+          canPost = isAdmin || (member.status === "member" && chat.type !== "channel");
         } catch {
           // If we can't check membership, assume basic permissions for groups
           canPost = chat.type !== "channel";
@@ -180,28 +180,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Also refresh existing chats' status
-    const existingChats = await telegramChatsRepository.findByOrganization(
-      user.organization_id,
-    );
+    const existingChats = await telegramChatsRepository.findByOrganization(user.organization_id);
     for (const existingChat of existingChats) {
       if (!seenChatIds.has(existingChat.chat_id)) {
         try {
-          const member = await bot.telegram.getChatMember(
-            existingChat.chat_id,
-            botInfo.id,
-          );
-          const isAdmin =
-            member.status === "administrator" || member.status === "creator";
+          const member = await bot.telegram.getChatMember(existingChat.chat_id, botInfo.id);
+          const isAdmin = member.status === "administrator" || member.status === "creator";
           const canPost =
-            isAdmin ||
-            (member.status === "member" &&
-              existingChat.chat_type !== "channel");
+            isAdmin || (member.status === "member" && existingChat.chat_type !== "channel");
 
           // Update if permissions changed
-          if (
-            existingChat.is_admin !== isAdmin ||
-            existingChat.can_post_messages !== canPost
-          ) {
+          if (existingChat.is_admin !== isAdmin || existingChat.can_post_messages !== canPost) {
             await telegramChatsRepository.upsert({
               organization_id: user.organization_id,
               chat_id: existingChat.chat_id,
@@ -219,9 +208,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Re-set the webhook using the centralized service (ensures secret_token is included)
-    const webhookResult = await telegramAutomationService.setWebhook(
-      user.organization_id,
-    );
+    const webhookResult = await telegramAutomationService.setWebhook(user.organization_id);
     if (webhookResult.success) {
       logger.info("[Telegram Scan] Webhook set via service", {
         organizationId: user.organization_id,
@@ -239,9 +226,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     // Fetch all chats for this org
-    const allChats = await telegramChatsRepository.findByOrganization(
-      user.organization_id,
-    );
+    const allChats = await telegramChatsRepository.findByOrganization(user.organization_id);
 
     return NextResponse.json({
       success: true,
@@ -263,8 +248,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to scan for chats",
+        error: error instanceof Error ? error.message : "Failed to scan for chats",
       },
       { status: 500 },
     );

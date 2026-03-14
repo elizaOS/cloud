@@ -1,3 +1,4 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -8,7 +9,6 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 
 /**
@@ -25,13 +25,7 @@ export const phoneProviderEnum = pgEnum("phone_provider", [
 /**
  * Phone number type enum
  */
-export const phoneTypeEnum = pgEnum("phone_type", [
-  "sms",
-  "voice",
-  "both",
-  "imessage",
-  "whatsapp",
-]);
+export const phoneTypeEnum = pgEnum("phone_type", ["sms", "voice", "both", "imessage", "whatsapp"]);
 
 /**
  * Agent phone numbers table schema.
@@ -99,14 +93,10 @@ export const agentPhoneNumbers = pgTable(
       table.phone_number,
       table.organization_id,
     ),
-    organization_idx: index("agent_phone_numbers_organization_idx").on(
-      table.organization_id,
-    ),
+    organization_idx: index("agent_phone_numbers_organization_idx").on(table.organization_id),
     agent_idx: index("agent_phone_numbers_agent_idx").on(table.agent_id),
     provider_idx: index("agent_phone_numbers_provider_idx").on(table.provider),
-    is_active_idx: index("agent_phone_numbers_is_active_idx").on(
-      table.is_active,
-    ),
+    is_active_idx: index("agent_phone_numbers_is_active_idx").on(table.is_active),
   }),
 );
 
@@ -152,17 +142,11 @@ export const phoneMessageLog = pgTable(
     responded_at: timestamp("responded_at"),
   },
   (table) => ({
-    phone_number_idx: index("phone_message_log_phone_number_idx").on(
-      table.phone_number_id,
-    ),
+    phone_number_idx: index("phone_message_log_phone_number_idx").on(table.phone_number_id),
     direction_idx: index("phone_message_log_direction_idx").on(table.direction),
     status_idx: index("phone_message_log_status_idx").on(table.status),
-    created_at_idx: index("phone_message_log_created_at_idx").on(
-      table.created_at,
-    ),
-    from_number_idx: index("phone_message_log_from_number_idx").on(
-      table.from_number,
-    ),
+    created_at_idx: index("phone_message_log_created_at_idx").on(table.created_at),
+    from_number_idx: index("phone_message_log_from_number_idx").on(table.from_number),
     // Composite index for conversation grouping queries
     // Used by GET /api/v1/messages which groups by (from_number, to_number, phone_number_id)
     conversation_composite_idx: index("phone_message_log_conversation_idx").on(

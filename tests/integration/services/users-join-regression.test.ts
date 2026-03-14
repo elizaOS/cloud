@@ -5,25 +5,18 @@
  * These assertions intentionally read from primary because they verify the
  * post-write hydrated shape, not replica propagation timing.
  */
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  beforeEach,
-  afterEach,
-} from "bun:test";
-import { v4 as uuidv4 } from "uuid";
+import { afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { usersService } from "@/lib/services/users";
+import { v4 as uuidv4 } from "uuid";
 import { dbWrite } from "@/db/helpers";
 import { users } from "@/db/schemas/users";
+import { usersService } from "@/lib/services/users";
+import { getConnectionString } from "@/tests/helpers/local-database";
 import {
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   type TestDataSet,
 } from "@/tests/helpers/test-data-factory";
-import { getConnectionString } from "@/tests/helpers/local-database";
 
 describe("Privy read-path regression (5c31c7732)", () => {
   let connectionString: string;

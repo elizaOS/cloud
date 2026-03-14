@@ -1,4 +1,4 @@
-import { expect, test, describe, setDefaultTimeout } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import * as api from "../helpers/api-client";
 import { NONEXISTENT_UUID } from "../helpers/test-data";
 
@@ -14,7 +14,7 @@ describe("Health API", () => {
   test("GET /api/health returns 200 with status ok", async () => {
     const response = await api.get("/api/health");
     expect(response.status).toBe(200);
-    const body = await response.json() as any;
+    const body = (await response.json()) as any;
     expect(body.status).toBe("ok");
     expect(typeof body.timestamp).toBe("number");
   });
@@ -26,13 +26,10 @@ describe("Dashboard API", () => {
     expect([401, 403, 404]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/dashboard returns dashboard data",
-    async () => {
-      const response = await api.get("/api/v1/dashboard", { authenticated: true });
-      expect([200, 404]).toContain(response.status);
-    },
-  );
+  test.skipIf(!api.hasApiKey())("GET /api/v1/dashboard returns dashboard data", async () => {
+    const response = await api.get("/api/v1/dashboard", { authenticated: true });
+    expect([200, 404]).toContain(response.status);
+  });
 });
 
 describe("Admin API", () => {
@@ -140,17 +137,14 @@ describe("Credits Summary API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/credits/summary returns credit info",
-    async () => {
-      const response = await api.get("/api/v1/credits/summary", {
-        authenticated: true,
-      });
-      expect(response.status).toBe(200);
-      const body = await response.json() as any;
-      expect(body).toBeTruthy();
-    },
-  );
+  test.skipIf(!api.hasApiKey())("GET /api/v1/credits/summary returns credit info", async () => {
+    const response = await api.get("/api/v1/credits/summary", {
+      authenticated: true,
+    });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as any;
+    expect(body).toBeTruthy();
+  });
 });
 
 describe("App Auth API", () => {

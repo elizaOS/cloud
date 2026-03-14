@@ -10,7 +10,7 @@
  * - Discord message sending with 429 retry logic
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 describe("Discord Webhook", () => {
   describe("Event type filtering", () => {
@@ -119,18 +119,24 @@ describe("Discord Webhook", () => {
     });
 
     test("detects message with attachments", () => {
-      expect(hasContent({ content: "", attachments: [{ url: "https://example.com/file.png" }] })).toBe(true);
+      expect(
+        hasContent({ content: "", attachments: [{ url: "https://example.com/file.png" }] }),
+      ).toBe(true);
     });
 
     test("detects message with voice attachments", () => {
-      expect(hasContent({ content: "", voice_attachments: [{ url: "https://example.com/voice.ogg" }] })).toBe(true);
+      expect(
+        hasContent({ content: "", voice_attachments: [{ url: "https://example.com/voice.ogg" }] }),
+      ).toBe(true);
     });
 
     test("detects message with both text and attachments", () => {
-      expect(hasContent({
-        content: "Check this out!",
-        attachments: [{ url: "https://example.com/file.png" }],
-      })).toBe(true);
+      expect(
+        hasContent({
+          content: "Check this out!",
+          attachments: [{ url: "https://example.com/file.png" }],
+        }),
+      ).toBe(true);
     });
 
     test("detects completely empty message", () => {
@@ -160,11 +166,13 @@ describe("Discord Webhook", () => {
     };
 
     test("converts Discord attachment to Media format", () => {
-      const attachments: DiscordAttachment[] = [{
-        url: "https://cdn.discordapp.com/attachments/123/456/image.png",
-        content_type: "image/png",
-        filename: "image.png",
-      }];
+      const attachments: DiscordAttachment[] = [
+        {
+          url: "https://cdn.discordapp.com/attachments/123/456/image.png",
+          content_type: "image/png",
+          filename: "image.png",
+        },
+      ];
 
       const media = processAttachments(attachments);
 
@@ -175,10 +183,12 @@ describe("Discord Webhook", () => {
     });
 
     test("handles attachment without content_type", () => {
-      const attachments: DiscordAttachment[] = [{
-        url: "https://example.com/file",
-        filename: "file",
-      }];
+      const attachments: DiscordAttachment[] = [
+        {
+          url: "https://example.com/file",
+          filename: "file",
+        },
+      ];
 
       const media = processAttachments(attachments);
 
@@ -186,10 +196,12 @@ describe("Discord Webhook", () => {
     });
 
     test("handles attachment without filename", () => {
-      const attachments: DiscordAttachment[] = [{
-        url: "https://example.com/file.png",
-        content_type: "image/png",
-      }];
+      const attachments: DiscordAttachment[] = [
+        {
+          url: "https://example.com/file.png",
+          content_type: "image/png",
+        },
+      ];
 
       const media = processAttachments(attachments);
 
@@ -239,11 +251,13 @@ describe("Discord Webhook", () => {
     };
 
     test("processes voice attachment", () => {
-      const voiceAttachments: VoiceAttachment[] = [{
-        url: "https://cdn.discordapp.com/attachments/123/456/voice-message.ogg",
-        content_type: "audio/ogg",
-        filename: "voice-message.ogg",
-      }];
+      const voiceAttachments: VoiceAttachment[] = [
+        {
+          url: "https://cdn.discordapp.com/attachments/123/456/voice-message.ogg",
+          content_type: "audio/ogg",
+          filename: "voice-message.ogg",
+        },
+      ];
 
       const media = processVoiceAttachments(voiceAttachments);
 
@@ -255,8 +269,16 @@ describe("Discord Webhook", () => {
 
     test("handles multiple voice attachments", () => {
       const voiceAttachments: VoiceAttachment[] = [
-        { url: "https://example.com/voice1.ogg", content_type: "audio/ogg", filename: "voice1.ogg" },
-        { url: "https://example.com/voice2.ogg", content_type: "audio/ogg", filename: "voice2.ogg" },
+        {
+          url: "https://example.com/voice1.ogg",
+          content_type: "audio/ogg",
+          filename: "voice1.ogg",
+        },
+        {
+          url: "https://example.com/voice2.ogg",
+          content_type: "audio/ogg",
+          filename: "voice2.ogg",
+        },
       ];
 
       const media = processVoiceAttachments(voiceAttachments);
@@ -341,7 +363,11 @@ describe("Discord Webhook", () => {
 
   describe("Room ID generation", () => {
     // Simulating deterministic UUID generation pattern
-    const generateRoomIdPattern = (platform: string, agentId: string, discordUserId: string): string => {
+    const generateRoomIdPattern = (
+      platform: string,
+      agentId: string,
+      discordUserId: string,
+    ): string => {
       return `${platform}-${agentId}-${discordUserId}`;
     };
 

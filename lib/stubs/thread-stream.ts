@@ -114,4 +114,4 @@ module.exports = ThreadStream;
 
 // ES Module export
 export default ThreadStream;
-export { ThreadStream, SyncThreadStream };
+export { SyncThreadStream, ThreadStream };

@@ -3,27 +3,23 @@
  */
 import {
   AgentRuntime,
-  stringToUuid,
+  type Character,
   elizaLogger,
   getRequestContext,
-  type UUID,
-  type Character,
-  type Plugin,
   type IDatabaseAdapter,
   type Logger,
+  type Plugin,
+  stringToUuid,
+  type UUID,
   type World,
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
-import mcpPlugin from "./plugin-mcp";
-import { agentLoader } from "./agent-loader";
-import {
-  getElizaCloudApiUrl,
-  getDefaultModels,
-  buildElevenLabsSettings,
-} from "./config";
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
-import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
+import { agentLoader } from "./agent-loader";
+import { buildElevenLabsSettings, getDefaultModels, getElizaCloudApiUrl } from "./config";
+import mcpPlugin from "./plugin-mcp";
+import type { UserContext } from "./user-context";
 import "@/lib/polyfills/dom-polyfills";
 import {
   edgeRuntimeCache,
@@ -90,9 +86,7 @@ const safeClose = async (
   label: string,
   id: string,
 ): Promise<void> => {
-  await closeable
-    .close()
-    .catch((e) => elizaLogger.debug(`[${label}] Close error for ${id}: ${e}`));
+  await closeable.close().catch((e) => elizaLogger.debug(`[${label}] Close error for ${id}: ${e}`));
 };
 
 /** Stop runtime services without closing the shared database adapter pool. */
@@ -115,22 +109,13 @@ class RuntimeCache {
   private readonly IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
 
   private isStale(entry: CachedRuntime, now: number): boolean {
-    return (
-      now - entry.createdAt > this.MAX_AGE_MS ||
-      now - entry.lastUsed > this.IDLE_TIMEOUT_MS
-    );
+    return now - entry.createdAt > this.MAX_AGE_MS || now - entry.lastUsed > this.IDLE_TIMEOUT_MS;
   }
 
-  private async evictEntry(
-    key: string,
-    entry: CachedRuntime,
-    reason: string,
-  ): Promise<void> {
+  private async evictEntry(key: string, entry: CachedRuntime, reason: string): Promise<void> {
     await stopRuntimeServices(entry.runtime, key, "RuntimeCache");
     this.cache.delete(key);
-    elizaLogger.debug(
-      `[RuntimeCache] Evicted ${reason} runtime: ${key} (adapter kept alive)`,
-    );
+    elizaLogger.debug(`[RuntimeCache] Evicted ${reason} runtime: ${key} (adapter kept alive)`);
   }
 
   async get(agentId: string): Promise<AgentRuntime | null> {
@@ -168,7 +153,7 @@ class RuntimeCache {
     // Cross-instance MCP version check: evict if OAuth changed on another instance
     if (currentMcpVersion !== undefined && entry.mcpVersion < currentMcpVersion) {
       elizaLogger.info(
-        `[RuntimeCache] MCP version stale: cached=${entry.mcpVersion}, current=${currentMcpVersion}, key=${agentId}`
+        `[RuntimeCache] MCP version stale: cached=${entry.mcpVersion}, current=${currentMcpVersion}, key=${agentId}`,
       );
       await this.evictEntry(agentId, entry, "mcp-version-stale");
       dbPool.removeAdapter(entry.agentId as string);
@@ -219,9 +204,7 @@ class RuntimeCache {
 
     await stopRuntimeServices(entry.runtime, agentId, "RuntimeCache");
     this.cache.delete(agentId);
-    elizaLogger.info(
-      `[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`,
-    );
+    elizaLogger.info(`[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`);
     return true;
   }
 
@@ -231,9 +214,7 @@ class RuntimeCache {
     if (entry) {
       await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
-      elizaLogger.info(
-        `[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`,
-      );
+      elizaLogger.info(`[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`);
       return true;
     }
     return false;
@@ -280,14 +261,17 @@ class RuntimeCache {
       return 0;
     }
 
-    const entries = Array.from(this.cache.entries())
-      .filter(([key]) => key.includes(`:${organizationId}`));
+    const entries = Array.from(this.cache.entries()).filter(([key]) =>
+      key.includes(`:${organizationId}`),
+    );
 
-    await Promise.all(entries.map(async ([key, entry]) => {
-      await stopRuntimeServices(entry.runtime, key, "RuntimeCache");
-      this.cache.delete(key);
-      dbAdapterPool.removeAdapter(entry.agentId as string);
-    }));
+    await Promise.all(
+      entries.map(async ([key, entry]) => {
+        await stopRuntimeServices(entry.runtime, key, "RuntimeCache");
+        this.cache.delete(key);
+        dbAdapterPool.removeAdapter(entry.agentId as string);
+      }),
+    );
 
     return entries.length;
   }
@@ -307,10 +291,7 @@ class DbAdapterPool {
   private adapters = new Map<string, IDatabaseAdapter>();
   private initPromises = new Map<string, Promise<IDatabaseAdapter>>();
 
-  async getOrCreate(
-    agentId: UUID,
-    embeddingModel?: string,
-  ): Promise<IDatabaseAdapter> {
+  async getOrCreate(agentId: UUID, embeddingModel?: string): Promise<IDatabaseAdapter> {
     const key = agentId as string;
 
     if (this.adapters.has(key)) {
@@ -345,13 +326,9 @@ class DbAdapterPool {
     }
   }
 
-  private async checkAdapterHealth(
-    adapter: IDatabaseAdapter,
-  ): Promise<boolean> {
+  private async checkAdapterHealth(adapter: IDatabaseAdapter): Promise<boolean> {
     try {
-      await adapter.getEntitiesByIds([
-        "00000000-0000-0000-0000-000000000000" as UUID,
-      ]);
+      await adapter.getEntitiesByIds(["00000000-0000-0000-0000-000000000000" as UUID]);
       return true;
     } catch (error) {
       // Any error during health check indicates an unhealthy adapter.
@@ -373,19 +350,13 @@ class DbAdapterPool {
     return isHealthy;
   }
 
-  private async createAdapter(
-    agentId: UUID,
-    embeddingModel?: string,
-  ): Promise<IDatabaseAdapter> {
+  private async createAdapter(agentId: UUID, embeddingModel?: string): Promise<IDatabaseAdapter> {
     if (!process.env.DATABASE_URL) {
       throw new Error("DATABASE_URL environment variable is required");
     }
 
     const startTime = Date.now();
-    const adapter = createDatabaseAdapter(
-      { postgresUrl: process.env.DATABASE_URL },
-      agentId,
-    );
+    const adapter = createDatabaseAdapter({ postgresUrl: process.env.DATABASE_URL }, agentId);
     await adapter.init();
 
     const key = agentId as string;
@@ -396,9 +367,7 @@ class DbAdapterPool {
       try {
         await adapter.ensureEmbeddingDimension(dimension);
         adapterEmbeddingDimensions.set(key, dimension);
-        elizaLogger.info(
-          `[DbAdapterPool] Set embedding dimension for ${agentId}: ${dimension}`,
-        );
+        elizaLogger.info(`[DbAdapterPool] Set embedding dimension for ${agentId}: ${dimension}`);
       } catch (e) {
         elizaLogger.debug(`[DbAdapterPool] Embedding dimension: ${e}`);
         adapterEmbeddingDimensions.set(key, dimension);
@@ -442,19 +411,17 @@ const dbAdapterPool = new DbAdapterPool();
 
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
-  private readonly DEFAULT_AGENT_ID = stringToUuid(
-    DEFAULT_AGENT_ID_STRING,
-  ) as UUID;
+  private readonly DEFAULT_AGENT_ID = stringToUuid(DEFAULT_AGENT_ID_STRING) as UUID;
 
   private constructor() {
     this.initializeLoggers();
   }
 
   static getInstance(): RuntimeFactory {
-    if (!this.instance) {
-      this.instance = new RuntimeFactory();
+    if (!RuntimeFactory.instance) {
+      RuntimeFactory.instance = new RuntimeFactory();
     }
-    return this.instance;
+    return RuntimeFactory.instance;
   }
 
   getCacheStats(): { runtime: { size: number; maxSize: number } } {
@@ -500,7 +467,9 @@ export class RuntimeFactory {
   async invalidateByOrganization(organizationId: string): Promise<number> {
     const count = await runtimeCache.removeByOrganization(organizationId);
     if (count > 0) {
-      elizaLogger.info(`[RuntimeFactory] Invalidated ${count} runtime(s) for org ${organizationId}`);
+      elizaLogger.info(
+        `[RuntimeFactory] Invalidated ${count} runtime(s) for org ${organizationId}`,
+      );
     }
     return count;
   }
@@ -512,17 +481,12 @@ export class RuntimeFactory {
     );
 
     const isDefaultCharacter =
-      !context.characterId ||
-      context.characterId === DEFAULT_AGENT_ID_STRING;
+      !context.characterId || context.characterId === DEFAULT_AGENT_ID_STRING;
     const loaderOptions = { webSearchEnabled: context.webSearchEnabled };
 
     const { character, plugins, modeResolution } = isDefaultCharacter
       ? await agentLoader.getDefaultCharacter(context.agentMode, loaderOptions)
-      : await agentLoader.loadCharacter(
-          context.characterId!,
-          context.agentMode,
-          loaderOptions,
-        );
+      : await agentLoader.loadCharacter(context.characterId!, context.agentMode, loaderOptions);
 
     if (modeResolution.upgradeReason !== "none") {
       elizaLogger.info(
@@ -530,9 +494,7 @@ export class RuntimeFactory {
       );
     }
 
-    const agentId = (
-      character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID
-    ) as UUID;
+    const agentId = (character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID) as UUID;
 
     const webSearchSuffix = context.webSearchEnabled ? ":ws" : "";
     // Include organizationId to prevent cross-org API key pollution
@@ -604,19 +566,18 @@ export class RuntimeFactory {
     // Create runtime with user-specific settings in opts.settings (NOT character.settings)
     // runtime.getSetting() checks opts.settings as fallback, and these won't be persisted to DB
     // Note: Nested objects (like MCP settings) are JSON.stringified to preserve them
-    const runtimeSettings: Record<string, string | undefined> =
-      Object.fromEntries(
-        Object.entries(ephemeralSettings).map(([key, value]) => [
-          key,
-          typeof value === "string"
-            ? value
-            : value === null || value === undefined
-              ? undefined
-              : typeof value === "object"
-                ? JSON.stringify(value)
-                : String(value),
-        ]),
-      );
+    const runtimeSettings: Record<string, string | undefined> = Object.fromEntries(
+      Object.entries(ephemeralSettings).map(([key, value]) => [
+        key,
+        typeof value === "string"
+          ? value
+          : value === null || value === undefined
+            ? undefined
+            : typeof value === "object"
+              ? JSON.stringify(value)
+              : String(value),
+      ]),
+    );
     const runtime = new AgentRuntime({
       character: {
         ...character,
@@ -636,13 +597,7 @@ export class RuntimeFactory {
 
     this.setMcpEnabledServers(context);
 
-    await runtimeCache.set(
-      cacheKey,
-      runtime,
-      character.name,
-      agentId,
-      currentMcpVersion,
-    );
+    await runtimeCache.set(cacheKey, runtime, character.name, agentId, currentMcpVersion);
 
     edgeRuntimeCache
       .markRuntimeWarm(agentId as string, {
@@ -677,11 +632,9 @@ export class RuntimeFactory {
     // Model preferences - accessed directly, not via getSetting()
     if (context.modelPreferences) {
       charSettings.ELIZAOS_CLOUD_SMALL_MODEL =
-        context.modelPreferences.smallModel ||
-        charSettings.ELIZAOS_CLOUD_SMALL_MODEL;
+        context.modelPreferences.smallModel || charSettings.ELIZAOS_CLOUD_SMALL_MODEL;
       charSettings.ELIZAOS_CLOUD_LARGE_MODEL =
-        context.modelPreferences.largeModel ||
-        charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
+        context.modelPreferences.largeModel || charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
     }
 
     // Image model - accessed directly
@@ -721,16 +674,17 @@ export class RuntimeFactory {
    * by McpService.createHttpTransport() via getSetting("ELIZAOS_API_KEY"),
    * which reads from request context for per-user isolation.
    */
-  private transformMcpSettings(
-    mcpSettings: Record<string, unknown>,
-  ): Record<string, unknown> {
+  private transformMcpSettings(mcpSettings: Record<string, unknown>): Record<string, unknown> {
     if (!mcpSettings?.servers) return mcpSettings;
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const transformedServers: Record<string, unknown> = {};
 
     for (const [serverId, serverConfig] of Object.entries(
-      mcpSettings.servers as Record<string, { url?: string; type?: string; headers?: Record<string, string> } | null>,
+      mcpSettings.servers as Record<
+        string,
+        { url?: string; type?: string; headers?: Record<string, string> } | null
+      >,
     )) {
       if (!serverConfig) continue;
       const transformedUrl = serverConfig.url?.startsWith("/")
@@ -764,10 +718,7 @@ export class RuntimeFactory {
     if (!requestCtx) return;
     const connected = this.getConnectedPlatforms(context);
     const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));
-    requestCtx.entitySettings.set(
-      "MCP_ENABLED_SERVERS",
-      JSON.stringify(enabledServers),
-    );
+    requestCtx.entitySettings.set("MCP_ENABLED_SERVERS", JSON.stringify(enabledServers));
   }
 
   private buildMcpSettings(
@@ -835,16 +786,11 @@ export class RuntimeFactory {
         getSetting("ELIZAOS_CLOUD_LARGE_MODEL", getDefaultModels().large),
       ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL:
         context.imageModel ||
-        getSetting(
-          "ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL",
-          DEFAULT_IMAGE_MODEL.modelId,
-        ),
+        getSetting("ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL", DEFAULT_IMAGE_MODEL.modelId),
       ...buildElevenLabsSettings(charSettings),
       // NOTE: User-specific API keys and context are passed via opts.settings
       // MCP is stripped here and re-injected via settingsWithMcp in createRuntimeForUser
-      ...(context.appPromptConfig
-        ? { appPromptConfig: context.appPromptConfig }
-        : {}),
+      ...(context.appPromptConfig ? { appPromptConfig: context.appPromptConfig } : {}),
       ...(context.webSearchEnabled && process.env.TAVILY_API_KEY
         ? { TAVILY_API_KEY: process.env.TAVILY_API_KEY }
         : {}),
@@ -862,9 +808,7 @@ export class RuntimeFactory {
     try {
       const initStart = Date.now();
       await runtime.initialize({ skipMigrations: true });
-      elizaLogger.info(
-        `[RuntimeFactory] initialize() completed in ${Date.now() - initStart}ms`,
-      );
+      elizaLogger.info(`[RuntimeFactory] initialize() completed in ${Date.now() - initStart}ms`);
       initSucceeded = true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -875,9 +819,7 @@ export class RuntimeFactory {
         msg.includes("Failed to create agent") ||
         msg.includes("Failed to create room");
       if (!isDuplicate) throw e;
-      elizaLogger.warn(
-        `[RuntimeFactory] Init error: ${msg.substring(0, 50)}...`,
-      );
+      elizaLogger.warn(`[RuntimeFactory] Init error: ${msg.substring(0, 50)}...`);
       this.resolveInitPromise(runtime);
     }
 
@@ -914,9 +856,7 @@ export class RuntimeFactory {
     if (parallelOps.length > 0) {
       const parallelStart = Date.now();
       await Promise.all(parallelOps);
-      elizaLogger.debug(
-        `[RuntimeFactory] Parallel ops: ${Date.now() - parallelStart}ms`,
-      );
+      elizaLogger.debug(`[RuntimeFactory] Parallel ops: ${Date.now() - parallelStart}ms`);
     }
 
     if (initSucceeded) {
@@ -979,10 +919,7 @@ export class RuntimeFactory {
       elizaLogger.warn = console.warn.bind(console);
       elizaLogger.error = console.error.bind(console);
       elizaLogger.debug = console.debug.bind(console);
-      elizaLogger.success = (
-        obj: string | Error | Record<string, unknown>,
-        msg?: string,
-      ) => {
+      elizaLogger.success = (obj: string | Error | Record<string, unknown>, msg?: string) => {
         logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
       };
     }
@@ -997,10 +934,7 @@ export class RuntimeFactory {
         warn: console.warn.bind(console),
         error: console.error.bind(console),
         fatal: console.error.bind(console),
-        success: (
-          obj: string | Error | Record<string, unknown>,
-          msg?: string,
-        ) => {
+        success: (obj: string | Error | Record<string, unknown>, msg?: string) => {
           logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
         },
         progress: logger.info.bind(console),
@@ -1010,10 +944,7 @@ export class RuntimeFactory {
     }
   }
 
-  private async waitForMcpServiceIfNeeded(
-    runtime: AgentRuntime,
-    plugins: Plugin[],
-  ): Promise<void> {
+  private async waitForMcpServiceIfNeeded(runtime: AgentRuntime, plugins: Plugin[]): Promise<void> {
     if (!plugins.some((p) => p.name === "mcp")) return;
 
     type McpService = {
@@ -1039,9 +970,7 @@ export class RuntimeFactory {
 
     const elapsed = Date.now() - startTime;
     if (!mcpService) {
-      elizaLogger.warn(
-        `[RuntimeFactory] MCP service not available after ${elapsed}ms`,
-      );
+      elizaLogger.warn(`[RuntimeFactory] MCP service not available after ${elapsed}ms`);
       return;
     }
 
@@ -1056,9 +985,14 @@ export class RuntimeFactory {
       elizaLogger.info(
         `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`,
       );
-      for (const server of servers as Array<{ name: string; status: string; tools?: unknown[]; error?: string }>) {
+      for (const server of servers as Array<{
+        name: string;
+        status: string;
+        tools?: unknown[];
+        error?: string;
+      }>) {
         elizaLogger.info(
-          `[RuntimeFactory] MCP Server: ${server.name} status=${server.status} tools=${server.tools?.length || 0} error=${server.error || 'none'}`,
+          `[RuntimeFactory] MCP Server: ${server.name} status=${server.status} tools=${server.tools?.length || 0} error=${server.error || "none"}`,
         );
       }
     }
@@ -1111,10 +1045,7 @@ export const _testing = {
     }
   },
 
-  getCacheEntries(): Map<
-    string,
-    { runtime: AgentRuntime; lastUsed: number; createdAt: number }
-  > {
+  getCacheEntries(): Map<string, { runtime: AgentRuntime; lastUsed: number; createdAt: number }> {
     return new Map(runtimeCache["cache"]);
   },
 

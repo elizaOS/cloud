@@ -1,5 +1,5 @@
-import HashRing from "hashring";
 import { readFileSync } from "fs";
+import HashRing from "hashring";
 import { logger } from "./logger";
 
 const REFRESH_MS = 5_000;
@@ -17,19 +17,13 @@ let k8sCaCert: string | null = null;
 
 function getK8sToken(): string {
   if (k8sToken !== null) return k8sToken;
-  k8sToken = readFileSync(
-    "/var/run/secrets/kubernetes.io/serviceaccount/token",
-    "utf-8",
-  ).trim();
+  k8sToken = readFileSync("/var/run/secrets/kubernetes.io/serviceaccount/token", "utf-8").trim();
   return k8sToken;
 }
 
 function getK8sCaCert(): string {
   if (k8sCaCert !== null) return k8sCaCert;
-  k8sCaCert = readFileSync(
-    "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-    "utf-8",
-  );
+  k8sCaCert = readFileSync("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt", "utf-8");
   return k8sCaCert;
 }
 
@@ -59,10 +53,7 @@ interface EndpointSliceList {
   }>;
 }
 
-async function resolvePodIPs(
-  serviceName: string,
-  namespace: string,
-): Promise<string[]> {
+async function resolvePodIPs(serviceName: string, namespace: string): Promise<string[]> {
   const apiUrl = `https://kubernetes.default.svc/apis/discovery.k8s.io/v1/namespaces/${namespace}/endpointslices?labelSelector=kubernetes.io/service-name=${serviceName}`;
 
   try {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
-import { z } from "zod";
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -14,16 +14,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const session = await aiAppBuilder.getSession(sessionId, user.id);
 
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, session });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to get session";
+    const message = error instanceof Error ? error.message : "Failed to get session";
     const status =
       message.includes("Unauthorized") || message.includes("Authentication")
         ? 401
@@ -72,8 +68,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       expiresAt: result.expiresAt.toISOString(),
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to extend session";
+    const message = error instanceof Error ? error.message : "Failed to extend session";
     const status =
       message.includes("Unauthorized") || message.includes("Authentication")
         ? 401
@@ -99,8 +94,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: "Session stopped successfully",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to stop session";
+    const message = error instanceof Error ? error.message : "Failed to stop session";
     const status =
       message.includes("Unauthorized") || message.includes("Authentication")
         ? 401

@@ -1,3 +1,4 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   index,
   jsonb,
@@ -9,11 +10,10 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { organizations } from "./organizations";
-import { users } from "./users";
 import { apiKeys } from "./api-keys";
 import { apps } from "./apps";
+import { organizations } from "./organizations";
+import { users } from "./users";
 
 export const seoRequestTypeEnum = pgEnum("seo_request_type", [
   "keyword_research",
@@ -80,9 +80,7 @@ export const seoRequests = pgTable(
     keywords: jsonb("keywords").$type<string[]>().default([]),
     prompt_context: text("prompt_context"),
     idempotency_key: text("idempotency_key"),
-    total_cost: numeric("total_cost", { precision: 10, scale: 4 })
-      .notNull()
-      .default("0"),
+    total_cost: numeric("total_cost", { precision: 10, scale: 4 }).notNull().default("0"),
     error: text("error"),
     completed_at: timestamp("completed_at"),
     created_at: timestamp("created_at").notNull().defaultNow(),
@@ -131,8 +129,7 @@ export const seoProviderCalls = pgTable(
     external_id: text("external_id"),
     cost: numeric("cost", { precision: 10, scale: 4 }).notNull().default("0"),
     request_payload: jsonb("request_payload").$type<Record<string, unknown>>(),
-    response_payload:
-      jsonb("response_payload").$type<Record<string, unknown>>(),
+    response_payload: jsonb("response_payload").$type<Record<string, unknown>>(),
     error: text("error"),
     started_at: timestamp("started_at").notNull().defaultNow(),
     completed_at: timestamp("completed_at"),

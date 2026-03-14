@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { oauthService, OAuthError, internalErrorResponse } from "@/lib/services/oauth";
+import { internalErrorResponse, OAuthError, oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(error.toResponse(), { status: error.httpStatus });
     }
 
-    return NextResponse.json(internalErrorResponse("Failed to list OAuth connections"), { status: 500 });
+    return NextResponse.json(internalErrorResponse("Failed to list OAuth connections"), {
+      status: 500,
+    });
   }
 }

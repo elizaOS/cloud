@@ -1,8 +1,7 @@
-
 import { NextRequest, NextResponse } from "next/server";
+import { servicePricingRepository } from "@/db/repositories";
 import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { logger } from "@/lib/utils/logger";
-import { servicePricingRepository } from "@/db/repositories";
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAdminWithResponse(
@@ -18,14 +17,10 @@ export async function GET(request: NextRequest) {
     const serviceId = url.searchParams.get("service_id");
     const rawLimit = url.searchParams.get("limit");
     const parsedLimit = rawLimit ? parseInt(rawLimit, 10) : 50;
-    const limit =
-      Number.isFinite(parsedLimit) && parsedLimit > 0
-        ? Math.min(parsedLimit, 500)
-        : 50;
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 500) : 50;
     const rawOffset = url.searchParams.get("offset");
     const parsedOffset = rawOffset ? parseInt(rawOffset, 10) : 0;
-    const offset =
-      Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
+    const offset = Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
 
     if (!serviceId) {
       return NextResponse.json(
@@ -34,11 +29,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const history = await servicePricingRepository.listAuditHistory(
-      serviceId,
-      limit,
-      offset,
-    );
+    const history = await servicePricingRepository.listAuditHistory(serviceId, limit, offset);
 
     return NextResponse.json({
       service_id: serviceId,
@@ -61,9 +52,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[Admin] Service pricing audit error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

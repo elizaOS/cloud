@@ -4,23 +4,23 @@ import { modelPricingRepository } from "@/db/repositories";
 export {
   API_KEY_PREFIX_LENGTH,
   IMAGE_GENERATION_COST,
-  VIDEO_GENERATION_COST,
-  VIDEO_GENERATION_FALLBACK_COST,
   MONTHLY_CREDIT_CAP,
   PLATFORM_MARKUP_MULTIPLIER,
-  TTS_COST_PER_1K_CHARS,
   STT_COST_PER_MINUTE,
-  TTS_MINIMUM_COST,
   STT_MINIMUM_COST,
+  TTS_COST_PER_1K_CHARS,
+  TTS_MINIMUM_COST,
+  VIDEO_GENERATION_COST,
+  VIDEO_GENERATION_FALLBACK_COST,
 } from "@/lib/pricing-constants";
 
 // Local import for constants used within this file
 import {
   PLATFORM_MARKUP_MULTIPLIER,
-  TTS_COST_PER_1K_CHARS,
   STT_COST_PER_MINUTE,
-  TTS_MINIMUM_COST,
   STT_MINIMUM_COST,
+  TTS_COST_PER_1K_CHARS,
+  TTS_MINIMUM_COST,
 } from "@/lib/pricing-constants";
 
 // =============================================================================
@@ -55,10 +55,7 @@ export async function calculateCost(
   inputTokens: number,
   outputTokens: number,
 ): Promise<CostBreakdown> {
-  const pricing = await modelPricingRepository.findByModelAndProvider(
-    model,
-    provider,
-  );
+  const pricing = await modelPricingRepository.findByModelAndProvider(model, provider);
 
   if (!pricing) {
     const fallbackCosts = getFallbackPricing(model, inputTokens, outputTokens);
@@ -67,23 +64,15 @@ export async function calculateCost(
 
   // Calculate base provider costs in cents
   const baseInputCostCents = Math.ceil(
-    (inputTokens / 1000) *
-      parseFloat(pricing.input_cost_per_1k.toString()) *
-      100,
+    (inputTokens / 1000) * parseFloat(pricing.input_cost_per_1k.toString()) * 100,
   );
   const baseOutputCostCents = Math.ceil(
-    (outputTokens / 1000) *
-      parseFloat(pricing.output_cost_per_1k.toString()) *
-      100,
+    (outputTokens / 1000) * parseFloat(pricing.output_cost_per_1k.toString()) * 100,
   );
 
   // Apply 20% platform markup
-  const inputCostCents = Math.ceil(
-    baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER,
-  );
-  const outputCostCents = Math.ceil(
-    baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER,
-  );
+  const inputCostCents = Math.ceil(baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER);
+  const outputCostCents = Math.ceil(baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER);
 
   const inputCost = Math.round(inputCostCents) / 100;
   const outputCost = Math.round(outputCostCents) / 100;
@@ -122,20 +111,12 @@ function getFallbackPricing(
   const pricing = pricingMap[model] || { input: 0.0025, output: 0.01 };
 
   // Calculate base costs in cents
-  const baseInputCostCents = Math.ceil(
-    (inputTokens / 1000) * pricing.input * 100,
-  );
-  const baseOutputCostCents = Math.ceil(
-    (outputTokens / 1000) * pricing.output * 100,
-  );
+  const baseInputCostCents = Math.ceil((inputTokens / 1000) * pricing.input * 100);
+  const baseOutputCostCents = Math.ceil((outputTokens / 1000) * pricing.output * 100);
 
   // Apply 20% platform markup
-  const inputCostCents = Math.ceil(
-    baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER,
-  );
-  const outputCostCents = Math.ceil(
-    baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER,
-  );
+  const inputCostCents = Math.ceil(baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER);
+  const outputCostCents = Math.ceil(baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER);
 
   const inputCost = Math.round(inputCostCents) / 100;
   const outputCost = Math.round(outputCostCents) / 100;

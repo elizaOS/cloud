@@ -9,9 +9,9 @@
  * - Connection status logic
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import crypto from "crypto";
-import { verifyWhatsAppSignature, isValidWhatsAppId } from "../../lib/utils/whatsapp-api";
+import { isValidWhatsAppId, verifyWhatsAppSignature } from "../../lib/utils/whatsapp-api";
 
 // ============================================================================
 // Verify Token Generation
@@ -62,39 +62,27 @@ describe("WhatsApp Automation - Webhook Subscription Verification", () => {
   }
 
   test("returns challenge when all params match", () => {
-    expect(
-      verifySubscription("subscribe", STORED_TOKEN, "12345", STORED_TOKEN),
-    ).toBe("12345");
+    expect(verifySubscription("subscribe", STORED_TOKEN, "12345", STORED_TOKEN)).toBe("12345");
   });
 
   test("rejects when mode is not subscribe", () => {
-    expect(
-      verifySubscription("unsubscribe", STORED_TOKEN, "12345", STORED_TOKEN),
-    ).toBeNull();
+    expect(verifySubscription("unsubscribe", STORED_TOKEN, "12345", STORED_TOKEN)).toBeNull();
   });
 
   test("rejects when verify token does not match", () => {
-    expect(
-      verifySubscription("subscribe", "wrong_token", "12345", STORED_TOKEN),
-    ).toBeNull();
+    expect(verifySubscription("subscribe", "wrong_token", "12345", STORED_TOKEN)).toBeNull();
   });
 
   test("rejects when challenge is missing", () => {
-    expect(
-      verifySubscription("subscribe", STORED_TOKEN, null, STORED_TOKEN),
-    ).toBeNull();
+    expect(verifySubscription("subscribe", STORED_TOKEN, null, STORED_TOKEN)).toBeNull();
   });
 
   test("rejects when mode is null", () => {
-    expect(
-      verifySubscription(null, STORED_TOKEN, "12345", STORED_TOKEN),
-    ).toBeNull();
+    expect(verifySubscription(null, STORED_TOKEN, "12345", STORED_TOKEN)).toBeNull();
   });
 
   test("rejects when no stored token exists", () => {
-    expect(
-      verifySubscription("subscribe", STORED_TOKEN, "12345", null),
-    ).toBeNull();
+    expect(verifySubscription("subscribe", STORED_TOKEN, "12345", null)).toBeNull();
   });
 });
 
@@ -106,9 +94,7 @@ describe("WhatsApp Automation - Signature Verification Delegation", () => {
   const APP_SECRET = "org_specific_app_secret_123";
 
   function makeSignature(body: string, secret: string): string {
-    return (
-      "sha256=" + crypto.createHmac("sha256", secret).update(body).digest("hex")
-    );
+    return "sha256=" + crypto.createHmac("sha256", secret).update(body).digest("hex");
   }
 
   test("accepts valid signature with org-specific secret", () => {

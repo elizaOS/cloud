@@ -1,26 +1,19 @@
-import { eq, and, desc, sql, getTableColumns } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
+  type NewServicePricing,
+  type NewServicePricingAudit,
+  type ServicePricing,
+  type ServicePricingAudit,
   servicePricing,
   servicePricingAudit,
-  type ServicePricing,
-  type NewServicePricing,
-  type ServicePricingAudit,
-  type NewServicePricingAudit,
 } from "../schemas/service-pricing";
 
-export type {
-  ServicePricing,
-  NewServicePricing,
-  ServicePricingAudit,
-  NewServicePricingAudit,
-};
+export type { NewServicePricing, NewServicePricingAudit, ServicePricing, ServicePricingAudit };
 
 type PricingMetadata = NewServicePricing["metadata"];
 
-function normalizeMetadata(
-  metadata?: Record<string, unknown>,
-): PricingMetadata {
+function normalizeMetadata(metadata?: Record<string, unknown>): PricingMetadata {
   if (!metadata) {
     return {};
   }
@@ -38,9 +31,7 @@ function normalizeMetadata(
       continue;
     }
 
-    throw new Error(
-      `Metadata value for key '${key}' must be a string, number, boolean, or null`,
-    );
+    throw new Error(`Metadata value for key '${key}' must be a string, number, boolean, or null`);
   }
 
   return normalized;
@@ -62,17 +53,14 @@ export class ServicePricingRepository {
 
   /**
    * Lists all pricing records for a service
-   * 
+   *
    * @param serviceId - Service identifier (e.g., "solana-rpc")
    * @param activeOnly - If true, only return active methods (default: true)
    * @returns Array of service pricing records
    */
-  async listByService(
-    serviceId: string,
-    activeOnly: boolean = true
-  ): Promise<ServicePricing[]> {
+  async listByService(serviceId: string, activeOnly: boolean = true): Promise<ServicePricing[]> {
     const conditions = [eq(servicePricing.service_id, serviceId)];
-    
+
     if (activeOnly) {
       conditions.push(eq(servicePricing.is_active, true));
     }

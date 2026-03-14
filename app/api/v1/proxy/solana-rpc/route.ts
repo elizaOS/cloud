@@ -9,10 +9,10 @@
  *        Body: JSON-RPC 2.0 request (or batch)
  */
 
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { proxyBillingService } from "@/lib/services/proxy-billing";
-import { creditsService } from "@/lib/services/credits";
 import { NextRequest } from "next/server";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { creditsService } from "@/lib/services/credits";
+import { proxyBillingService } from "@/lib/services/proxy-billing";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,11 @@ export async function POST(request: NextRequest) {
   if (queryApiKey && !request.headers.get("authorization") && !request.headers.get("X-API-Key")) {
     const headers = new Headers(request.headers);
     headers.set("Authorization", `Bearer ${queryApiKey}`);
-    authRequest = new NextRequest(request.url, { headers, method: request.method, body: request.body });
+    authRequest = new NextRequest(request.url, {
+      headers,
+      method: request.method,
+      body: request.body,
+    });
   }
   const authResult = await requireAuthOrApiKeyWithOrg(authRequest);
   const { organization_id } = authResult.user;
@@ -48,17 +52,19 @@ export async function POST(request: NextRequest) {
 
   if (requestCount > 0) {
     const totalCost = proxyBillingService.getProxyCost("solana-rpc") * requestCount;
-    const ok = await creditsService.deductCredits({
-      organizationId: organization_id,
-      amount: totalCost,
-      description: `API proxy: solana-rpc — json-rpc (batch of ${requestCount})`,
-      metadata: {
-        type: "proxy_solana-rpc",
-        service: "solana-rpc",
-        path: "json-rpc",
-        batchSize: requestCount,
-      },
-    }).catch(() => ({ success: false }));
+    const ok = await creditsService
+      .deductCredits({
+        organizationId: organization_id,
+        amount: totalCost,
+        description: `API proxy: solana-rpc — json-rpc (batch of ${requestCount})`,
+        metadata: {
+          type: "proxy_solana-rpc",
+          service: "solana-rpc",
+          path: "json-rpc",
+          batchSize: requestCount,
+        },
+      })
+      .catch(() => ({ success: false }));
     if (!ok.success) {
       return Response.json(
         { error: "Insufficient credits", topUpUrl: "https://www.elizacloud.ai/dashboard/billing" },

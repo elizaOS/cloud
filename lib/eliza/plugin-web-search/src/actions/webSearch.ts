@@ -1,14 +1,14 @@
 import {
+  Action,
   type ActionResult,
+  composePromptFromState,
   type HandlerCallback,
   type IAgentRuntime,
-  type Memory,
-  type State,
   logger,
-  Action,
+  type Memory,
   ModelType,
-  composePromptFromState,
   parseKeyValueXml,
+  type State,
 } from "@elizaos/core";
 import { TavilyService } from "../services/tavilyService";
 import type { SearchResult } from "../types";
@@ -58,10 +58,7 @@ Respond ONLY with the following XML format:
 </response>`;
 }
 
-function MaxTokens(
-  data: string,
-  maxTokens: number = DEFAULT_MAX_WEB_SEARCH_CHARS,
-): string {
+function MaxTokens(data: string, maxTokens: number = DEFAULT_MAX_WEB_SEARCH_CHARS): string {
   // Character-based truncation to cap response length
   return data.length > maxTokens ? data.slice(0, maxTokens) : data;
 }
@@ -70,7 +67,7 @@ function MaxTokens(
  * Extract search parameters from state or via LLM.
  * Supports multiple runtime patterns:
  * 1. actionParams from custom bootstrap (otaku pattern)
- * 2. LLM extraction from conversation context (eliza-cloud-v2, elizav2)
+ * 2. LLM extraction from conversation context (cloud, elizav2)
  */
 async function extractSearchParams(
   runtime: IAgentRuntime,
@@ -78,11 +75,7 @@ async function extractSearchParams(
   _state?: State,
 ): Promise<WebSearchParams> {
   // First, try to get params from state (custom bootstrap pattern)
-  const composedState = await runtime.composeState(
-    message,
-    ["ACTION_STATE"],
-    true,
-  );
+  const composedState = await runtime.composeState(message, ["ACTION_STATE"], true);
 
   const stateParams = (composedState?.data?.actionParams ||
     composedState?.data?.webSearch ||
@@ -99,18 +92,11 @@ async function extractSearchParams(
   }
 
   // Otherwise, extract from conversation using LLM
-  logger.info(
-    { src: "webSearch:extractParams", source: "llm" },
-    "Extracting params via LLM",
-  );
+  logger.info({ src: "webSearch:extractParams", source: "llm" }, "Extracting params via LLM");
 
   try {
     // Compose state - try to get both conversationLog and recentMessages
-    const extractionState = await runtime.composeState(
-      message,
-      ["RECENT_MESSAGES"],
-      true,
-    );
+    const extractionState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
 
     // Prefer conversationLog if available, fallback to recentMessages
     const conversationLog = extractionState?.values?.conversationLog;
@@ -126,10 +112,7 @@ async function extractSearchParams(
         ? "conversationLog"
         : "recentMessages";
 
-    logger.debug(
-      { src: "webSearch:extractParams", contextSource },
-      "Using conversation context",
-    );
+    logger.debug({ src: "webSearch:extractParams", contextSource }, "Using conversation context");
 
     const template = buildExtractionTemplate(conversationContext);
     const prompt = composePromptFromState({
@@ -143,10 +126,7 @@ async function extractSearchParams(
     if (parsed?.query) {
       const extractedParams: WebSearchParams = {
         query: String(parsed.query).trim(),
-        topic:
-          parsed.topic === "finance"
-            ? "finance"
-            : ("general" as "general" | "finance"),
+        topic: parsed.topic === "finance" ? "finance" : ("general" as "general" | "finance"),
       };
 
       logger.info(
@@ -230,29 +210,22 @@ export const webSearch: Action = {
     },
     time_range: {
       type: "string",
-      description:
-        "Time range filter: 'day', 'week', 'month', 'year' (or 'd', 'w', 'm', 'y')",
+      description: "Time range filter: 'day', 'week', 'month', 'year' (or 'd', 'w', 'm', 'y')",
       required: false,
     },
     start_date: {
       type: "string",
-      description:
-        "Start date filter in YYYY-MM-DD format (returns results after this date)",
+      description: "Start date filter in YYYY-MM-DD format (returns results after this date)",
       required: false,
     },
     end_date: {
       type: "string",
-      description:
-        "End date filter in YYYY-MM-DD format (returns results before this date)",
+      description: "End date filter in YYYY-MM-DD format (returns results before this date)",
       required: false,
     },
   },
 
-  validate: async (
-    runtime: IAgentRuntime,
-    _message: Memory,
-    _state?: State,
-  ) => {
+  validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
     try {
       const service = runtime.getService<TavilyService>("TAVILY");
       return !!service;
@@ -285,8 +258,7 @@ export const webSearch: Action = {
       const query: string | undefined = params?.query?.trim();
 
       if (!query) {
-        const errorMsg =
-          "Missing required parameter 'query'. Please specify what to search for.";
+        const errorMsg = "Missing required parameter 'query'. Please specify what to search for.";
         logger.error({ src: "webSearch:handler" }, errorMsg);
         const emptyResult: ActionResult = {
           text: errorMsg,
@@ -307,27 +279,20 @@ export const webSearch: Action = {
 
       const source = params?.source?.trim();
       const topic = params?.topic === "finance" ? "finance" : "general";
-      const maxResults = params?.max_results
-        ? Math.min(Math.max(1, params.max_results), 20)
-        : 5;
-      const searchDepth =
-        params?.search_depth === "advanced" ? "advanced" : "basic";
+      const maxResults = params?.max_results ? Math.min(Math.max(1, params.max_results), 20) : 5;
+      const searchDepth = params?.search_depth === "advanced" ? "advanced" : "basic";
 
       // Build enhanced query with source if provided
       let enhancedQuery = query;
       if (source) {
         enhancedQuery = `${query} site:${source}`;
-        logger.info(
-          { src: "webSearch:handler", source },
-          "Searching with source filter",
-        );
+        logger.info({ src: "webSearch:handler", source }, "Searching with source filter");
       }
 
       logger.info(
         { src: "webSearch:handler", query: enhancedQuery, topic },
         "Executing web search",
       );
-
 
       // Store input parameters for return
       const inputParams = {
@@ -356,8 +321,7 @@ export const webSearch: Action = {
       if (searchResponse && searchResponse.results.length) {
         const responseList = searchResponse.answer
           ? `${searchResponse.answer}${
-              Array.isArray(searchResponse.results) &&
-              searchResponse.results.length > 0
+              Array.isArray(searchResponse.results) && searchResponse.results.length > 0
                 ? `\n\nFor more details, you can check out these resources:\n${searchResponse.results
                     .map(
                       (result: SearchResult, index: number) =>
@@ -371,10 +335,10 @@ export const webSearch: Action = {
         // Build detailed reasoning for storage
         const reasoningSteps = [
           `1. Extracted search query: "${query}"`,
-          `2. Configured search: topic=${topic}, depth=${searchDepth}${source ? `, source=${source}` : ''}`,
+          `2. Configured search: topic=${topic}, depth=${searchDepth}${source ? `, source=${source}` : ""}`,
           `3. Executed Tavily search with ${maxResults} max results`,
-          `4. Retrieved ${searchResponse.results.length} results${searchResponse.answer ? ' with AI-generated summary' : ''}`,
-        ].join('\n');
+          `4. Retrieved ${searchResponse.results.length} results${searchResponse.answer ? " with AI-generated summary" : ""}`,
+        ].join("\n");
 
         const result: ActionResult = {
           text: MaxTokens(responseList, DEFAULT_MAX_WEB_SEARCH_CHARS),
@@ -423,10 +387,7 @@ export const webSearch: Action = {
       return noResult;
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      logger.error(
-        { src: "webSearch:handler", error: errMsg },
-        "Action failed",
-      );
+      logger.error({ src: "webSearch:handler", error: errMsg }, "Action failed");
 
       const errorResult: ActionResult = {
         text: `Web search failed: ${errMsg}`,

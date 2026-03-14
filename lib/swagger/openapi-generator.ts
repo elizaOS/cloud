@@ -182,9 +182,7 @@ function convertParametersToOpenAPI(
  * @param params - Array of endpoint parameters.
  * @returns OpenAPI request body definition.
  */
-function createRequestBodyFromParameters(
-  params: EndpointParameter[],
-): OpenAPIRequestBody {
+function createRequestBodyFromParameters(params: EndpointParameter[]): OpenAPIRequestBody {
   const properties: Record<string, OpenAPISchema> = {};
   const required: string[] = [];
 
@@ -216,9 +214,7 @@ function createRequestBodyFromParameters(
  * @param responses - Array of endpoint responses.
  * @returns Record of status codes to OpenAPI responses.
  */
-function convertResponsesToOpenAPI(
-  responses: EndpointResponse[],
-): Record<string, OpenAPIResponse> {
+function convertResponsesToOpenAPI(responses: EndpointResponse[]): Record<string, OpenAPIResponse> {
   const result: Record<string, OpenAPIResponse> = {};
 
   for (const response of responses) {
@@ -263,21 +259,15 @@ function convertEndpointToOperation(endpoint: ApiEndpoint): OpenAPIOperation {
   const parameters: OpenAPIParameter[] = [];
 
   if (endpoint.parameters?.path) {
-    parameters.push(
-      ...convertParametersToOpenAPI(endpoint.parameters.path, "path"),
-    );
+    parameters.push(...convertParametersToOpenAPI(endpoint.parameters.path, "path"));
   }
 
   if (endpoint.parameters?.query) {
-    parameters.push(
-      ...convertParametersToOpenAPI(endpoint.parameters.query, "query"),
-    );
+    parameters.push(...convertParametersToOpenAPI(endpoint.parameters.query, "query"));
   }
 
   if (endpoint.parameters?.headers) {
-    parameters.push(
-      ...convertParametersToOpenAPI(endpoint.parameters.headers, "header"),
-    );
+    parameters.push(...convertParametersToOpenAPI(endpoint.parameters.headers, "header"));
   }
 
   if (parameters.length > 0) {
@@ -285,9 +275,7 @@ function convertEndpointToOperation(endpoint: ApiEndpoint): OpenAPIOperation {
   }
 
   if (endpoint.parameters?.body) {
-    operation.requestBody = createRequestBodyFromParameters(
-      endpoint.parameters.body,
-    );
+    operation.requestBody = createRequestBodyFromParameters(endpoint.parameters.body);
   }
 
   return operation;
@@ -328,7 +316,7 @@ export function generateOpenAPISpec(baseUrl?: string): OpenAPISpec {
       version: "1.0.0",
       contact: {
         name: "Eliza Cloud",
-        url: "https://github.com/elizaOS/eliza-cloud-v2",
+        url: "https://github.com/elizaOS/cloud",
       },
     },
     servers: [
@@ -390,12 +378,7 @@ function convertToYAML(obj: unknown, indent = 0): string {
 
   if (Array.isArray(obj)) {
     if (obj.length === 0) return "[]";
-    return (
-      "\n" +
-      obj
-        .map((item) => `${spaces}- ${convertToYAML(item, indent + 1)}`)
-        .join("\n")
-    );
+    return "\n" + obj.map((item) => `${spaces}- ${convertToYAML(item, indent + 1)}`).join("\n");
   }
 
   if (typeof obj === "object") {
@@ -407,10 +390,7 @@ function convertToYAML(obj: unknown, indent = 0): string {
       entries
         .map(([key, value]) => {
           const yamlValue = convertToYAML(value, indent + 1);
-          if (
-            yamlValue.startsWith("\n") ||
-            (typeof value === "object" && value !== null)
-          ) {
+          if (yamlValue.startsWith("\n") || (typeof value === "object" && value !== null)) {
             return `${spaces}${key}:${yamlValue}`;
           }
           return `${spaces}${key}: ${yamlValue}`;
@@ -423,10 +403,7 @@ function convertToYAML(obj: unknown, indent = 0): string {
 }
 
 export function downloadOpenAPISpec(format: "json" | "yaml", baseUrl?: string) {
-  const content =
-    format === "json"
-      ? generateOpenAPIJSON(baseUrl)
-      : generateOpenAPIYAML(baseUrl);
+  const content = format === "json" ? generateOpenAPIJSON(baseUrl) : generateOpenAPIYAML(baseUrl);
 
   const blob = new Blob([content], {
     type: format === "json" ? "application/json" : "text/yaml",

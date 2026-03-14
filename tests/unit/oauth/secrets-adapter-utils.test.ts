@@ -4,15 +4,14 @@
  * Tests utility functions used by secrets-based connection adapters (Twitter, Twilio, Blooio).
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
+  createSecretsConnection,
   generateConnectionId,
+  getEarliestSecretDate,
   ownsConnectionId,
   verifyConnectionId,
-  getEarliestSecretDate,
-  createSecretsConnection,
 } from "@/lib/services/oauth/connection-adapters/secrets-adapter-utils";
-import { Errors } from "@/lib/services/oauth/errors";
 
 describe("Secrets Adapter Utils", () => {
   describe("generateConnectionId", () => {
@@ -133,11 +132,7 @@ describe("Secrets Adapter Utils", () => {
       const oneHourAgo = new Date(now.getTime() - 3600000);
       const oneDayAgo = new Date(now.getTime() - 86400000);
 
-      const secrets = [
-        { created_at: now },
-        { created_at: oneHourAgo },
-        { created_at: oneDayAgo },
-      ];
+      const secrets = [{ created_at: now }, { created_at: oneHourAgo }, { created_at: oneDayAgo }];
 
       const earliest = getEarliestSecretDate(secrets);
       expect(earliest.getTime()).toBe(oneDayAgo.getTime());
@@ -172,11 +167,7 @@ describe("Secrets Adapter Utils", () => {
 
     it("should handle identical dates", () => {
       const date = new Date("2024-01-15");
-      const secrets = [
-        { created_at: date },
-        { created_at: date },
-        { created_at: date },
-      ];
+      const secrets = [{ created_at: date }, { created_at: date }, { created_at: date }];
 
       const earliest = getEarliestSecretDate(secrets);
       expect(earliest.getTime()).toBe(date.getTime());

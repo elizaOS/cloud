@@ -39,9 +39,7 @@ export async function verifyServiceJwt(
   const secret = getSecret();
   if (!secret) return null;
 
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : authHeader;
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
   if (!token) return null;
 
   try {

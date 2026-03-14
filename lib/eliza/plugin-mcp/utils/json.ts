@@ -15,7 +15,7 @@ function findMatchingClose(str: string, start: number, open: string, close: stri
       continue;
     }
 
-    if (ch === '\\' && inString) {
+    if (ch === "\\" && inString) {
       escape = true;
       continue;
     }
@@ -41,8 +41,8 @@ export function parseJSON<T>(input: string): T {
   let cleanedInput = input.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
 
   // Find first JSON start character
-  const firstBrace = cleanedInput.indexOf('{');
-  const firstBracket = cleanedInput.indexOf('[');
+  const firstBrace = cleanedInput.indexOf("{");
+  const firstBracket = cleanedInput.indexOf("[");
 
   // Determine which comes first (or only one exists)
   let start = -1;
@@ -70,8 +70,8 @@ export function parseJSON<T>(input: string): T {
 
   // Find matching closing character
   const end = isArray
-    ? findMatchingClose(cleanedInput, start, '[', ']')
-    : findMatchingClose(cleanedInput, start, '{', '}');
+    ? findMatchingClose(cleanedInput, start, "[", "]")
+    : findMatchingClose(cleanedInput, start, "{", "}");
 
   if (end !== -1) {
     cleanedInput = cleanedInput.substring(start, end + 1);
@@ -87,17 +87,19 @@ const ajv = new Ajv({
 
 export function validateJsonSchema<T = unknown>(
   data: unknown,
-  schema: Record<string, unknown>
+  schema: Record<string, unknown>,
 ): { success: true; data: T } | { success: false; error: string } {
   try {
     const validate = ajv.compile(schema);
     const valid = validate(data);
 
     if (!valid) {
-      const errors = (validate.errors || []).map((err: { instancePath?: string; message?: string }) => {
-        const path = err.instancePath ? `${err.instancePath.replace(/^\//, "")}` : "value";
-        return `${path}: ${err.message}`;
-      });
+      const errors = (validate.errors || []).map(
+        (err: { instancePath?: string; message?: string }) => {
+          const path = err.instancePath ? `${err.instancePath.replace(/^\//, "")}` : "value";
+          return `${path}: ${err.message}`;
+        },
+      );
 
       return { success: false, error: errors.join(", ") };
     }

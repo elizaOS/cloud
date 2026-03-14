@@ -40,10 +40,7 @@ async function main() {
       console.log(`  [OK] ${label}`);
     } catch (error) {
       failures++;
-      console.error(
-        `  [FAIL] ${label}:`,
-        error instanceof Error ? error.message : error,
-      );
+      console.error(`  [FAIL] ${label}:`, error instanceof Error ? error.message : error);
     }
   }
 

@@ -1,17 +1,15 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuth } from "@/lib/auth";
-import { usersService } from "@/lib/services/users";
-import { z } from "zod";
 import { revalidateTag } from "next/cache";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { requireAuth } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { usersService } from "@/lib/services/users";
+import { logger } from "@/lib/utils/logger";
 
 const updateMemberSchema = z.object({
-  role: z
-    .enum(["admin", "member"])
-    .refine((val) => val === "admin" || val === "member", {
-      message: "Role must be 'admin' or 'member'",
-    }),
+  role: z.enum(["admin", "member"]).refine((val) => val === "admin" || val === "member", {
+    message: "Role must be 'admin' or 'member'",
+  }),
 });
 
 /**
@@ -41,10 +39,7 @@ async function handlePATCH(
     }
 
     if (!context?.params) {
-      return NextResponse.json(
-        { success: false, error: "Invalid request" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
     }
 
     const { userId } = await context.params;
@@ -138,8 +133,7 @@ async function handlePATCH(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to update member",
+        error: error instanceof Error ? error.message : "Failed to update member",
       },
       { status: 500 },
     );
@@ -173,10 +167,7 @@ async function handleDELETE(
     }
 
     if (!context?.params) {
-      return NextResponse.json(
-        { success: false, error: "Invalid request" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
     }
 
     const { userId } = await context.params;
@@ -247,8 +238,7 @@ async function handleDELETE(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to remove member",
+        error: error instanceof Error ? error.message : "Failed to remove member",
       },
       { status: 500 },
     );

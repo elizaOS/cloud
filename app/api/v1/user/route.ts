@@ -1,25 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuth } from "@/lib/auth";
-import { usersService } from "@/lib/services/users";
 import { z } from "zod";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { requireAuth } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { usersService } from "@/lib/services/users";
+import { logger } from "@/lib/utils/logger";
 
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   avatar: z.string().url().optional().or(z.literal("")),
   nickname: z.string().max(50).optional(),
   work_function: z
-    .enum([
-      "developer",
-      "designer",
-      "product",
-      "data",
-      "marketing",
-      "sales",
-      "other",
-    ])
+    .enum(["developer", "designer", "product", "data", "marketing", "sales", "other"])
     .optional(),
   preferences: z.string().max(1000).optional(),
   response_notifications: z.boolean().optional(),
@@ -71,10 +63,7 @@ async function handleGET() {
     return NextResponse.json(
       {
         success: false,
-        error:
-          status === 500
-            ? "Failed to fetch user data"
-            : getSafeErrorMessage(error),
+        error: status === 500 ? "Failed to fetch user data" : getSafeErrorMessage(error),
       },
       { status },
     );

@@ -28,13 +28,7 @@ export type SessionStatus =
   | "not_configured"
   | "recovering";
 
-export type ProgressStep =
-  | "creating"
-  | "installing"
-  | "starting"
-  | "restoring"
-  | "ready"
-  | "error";
+export type ProgressStep = "creating" | "installing" | "starting" | "restoring" | "ready" | "error";
 
 export type SourceType = "agent" | "workflow" | "service" | "standalone";
 

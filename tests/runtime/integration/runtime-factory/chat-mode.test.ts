@@ -7,34 +7,34 @@
  * Run with: bun test tests/runtime/integration/runtime-factory/chat-mode.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 import {
-  // Local database
-  hasDatabaseUrl,
-  hasRuntimeModelCredentials,
-  getConnectionString,
-  verifyConnection,
-  // Test data
-  createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
-  // Production RuntimeFactory
-  runtimeFactory,
-  invalidateRuntime,
-  isRuntimeCached,
   AgentMode,
   // Test helpers
   buildUserContext,
+  cleanupTestData,
+  // Test data
+  createTestDataSet,
   createTestUser,
+  endTimer,
+  getConnectionString,
+  // Local database
+  hasDatabaseUrl,
+  hasRuntimeModelCredentials,
+  invalidateRuntime,
+  isRuntimeCached,
+  logTimings,
+  // Production RuntimeFactory
+  runtimeFactory,
   sendTestMessage,
-  type TestRuntime,
-  type TestUserContext,
   // Timing
   startTimer,
-  endTimer,
-  logTimings,
+  type TestDataSet,
+  type TestRuntime,
+  type TestUserContext,
+  verifyConnection,
 } from "../../../infrastructure";
-import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================
 // Local Test State (isolated to this file)
@@ -88,8 +88,8 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - CHAT Mode", () => {
       );
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("CHAT Mode Tests", timings);
@@ -116,15 +116,9 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - CHAT Mode", () => {
     testUser = await createTestUser(runtime, "ChatTestUser");
 
     startTimer("chat_message");
-    const result = await sendTestMessage(
-      runtime,
-      testUser,
-      "Hello! How are you?",
-      testData,
-      {
-        timeoutMs: 60000,
-      },
-    );
+    const result = await sendTestMessage(runtime, testUser, "Hello! How are you?", testData, {
+      timeoutMs: 60000,
+    });
     timings.chatMessage = endTimer("chat_message");
 
     console.log(

@@ -18,15 +18,16 @@ import type { NextRequest } from "next/server";
 // Max duration for AI-powered code generation with tool execution
 // Fluid compute limits: Hobby 300s, Pro/Enterprise 800s
 export const maxDuration = 800;
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appBuilderAISDK } from "@/lib/services/app-builder-ai-sdk";
-import { aiAppBuilder } from "@/lib/services/ai-app-builder";
-import { sandboxService } from "@/lib/services/sandbox";
-import { logger } from "@/lib/utils/logger";
+
 import { z } from "zod";
-import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
+import { aiAppBuilder } from "@/lib/services/ai-app-builder";
+import { appBuilderAISDK } from "@/lib/services/app-builder-ai-sdk";
+import { sandboxService } from "@/lib/services/sandbox";
+import { logger } from "@/lib/utils/logger";
 
 const PROMPT_RATE_LIMIT = {
   windowMs: 60000,
@@ -56,10 +57,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
-    const rateLimitResult = await checkRateLimitAsync(
-      request,
-      PROMPT_RATE_LIMIT,
-    );
+    const rateLimitResult = await checkRateLimitAsync(request, PROMPT_RATE_LIMIT);
     if (!rateLimitResult.allowed) {
       const maxRequests = PROMPT_RATE_LIMIT.maxRequests;
       const windowSeconds = PROMPT_RATE_LIMIT.windowMs / 1000;
@@ -155,19 +153,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         const scheduleThinkingFlush = () => {
           if (!thinkingFlushTimer) {
-            thinkingFlushTimer = setTimeout(
-              flushThinkingBuffer,
-              THINKING_FLUSH_INTERVAL_MS,
-            );
+            thinkingFlushTimer = setTimeout(flushThinkingBuffer, THINKING_FLUSH_INTERVAL_MS);
           }
         };
 
         const scheduleReasoningFlush = () => {
           if (!reasoningFlushTimer) {
-            reasoningFlushTimer = setTimeout(
-              flushReasoningBuffer,
-              REASONING_FLUSH_INTERVAL_MS,
-            );
+            reasoningFlushTimer = setTimeout(flushReasoningBuffer, REASONING_FLUSH_INTERVAL_MS);
           }
         };
 
@@ -234,9 +226,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                   tool: event.toolName,
                   input: event.args,
                   result:
-                    typeof event.result === "string"
-                      ? event.result
-                      : JSON.stringify(event.result),
+                    typeof event.result === "string" ? event.result : JSON.stringify(event.result),
                 });
               }
               break;
@@ -305,13 +295,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           await flushReasoningBuffer();
         }
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to send prompt";
+        const errorMessage = error instanceof Error ? error.message : "Failed to send prompt";
 
-        if (
-          errorMessage.includes("aborted") ||
-          errorMessage.includes("cancelled")
-        ) {
+        if (errorMessage.includes("aborted") || errorMessage.includes("cancelled")) {
           logger.info("Prompt operation cancelled", { sessionId });
           if (streamWriter.isConnected()) {
             await streamWriter.sendEvent("cancelled", {

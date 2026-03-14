@@ -2,13 +2,13 @@
 
 import {
   FEATURE_FLAGS,
-  isFeatureEnabled,
-  getEnabledFeatures,
-  getDisabledFeatures,
-  isRouteEnabled,
-  getFeatureForRoute,
   type FeatureFlag,
   type FeatureFlagConfig,
+  getDisabledFeatures,
+  getEnabledFeatures,
+  getFeatureForRoute,
+  isFeatureEnabled,
+  isRouteEnabled,
 } from "@/lib/config/feature-flags";
 
 export interface UseFeatureFlagsReturn {

@@ -1,8 +1,8 @@
 import { openai } from "@ai-sdk/openai";
-import { logger } from "@/lib/utils/logger";
 import { streamText } from "ai";
-import { requireAuth } from "@/lib/auth";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { requireAuth } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -80,10 +80,7 @@ Random seed: ${promptSeed}`,
   } catch (error) {
     logger.error("[Generate Prompts] Error:", error);
     const status = getErrorStatusCode(error);
-    const errorMessage =
-      status === 500
-        ? "Failed to generate prompts"
-        : getSafeErrorMessage(error);
+    const errorMessage = status === 500 ? "Failed to generate prompts" : getSafeErrorMessage(error);
     return new Response(
       JSON.stringify({
         error: errorMessage,

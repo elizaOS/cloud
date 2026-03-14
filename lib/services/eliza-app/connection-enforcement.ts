@@ -6,8 +6,8 @@
  * steer the user toward connecting Google, Microsoft, or X.
  */
 
-import { generateText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
+import { generateText } from "ai";
 import { cache } from "@/lib/cache/client";
 import { oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
@@ -53,13 +53,7 @@ const DEFAULT_ELIZA_CHARACTER: ElizaCharacter = {
     "genuinely interested in the texture of someone's day",
     "quietly direct when something matters",
   ],
-  adjectives: [
-    "perceptive",
-    "present",
-    "warm but restrained",
-    "curious",
-    "ungeneric",
-  ],
+  adjectives: ["perceptive", "present", "warm but restrained", "curious", "ungeneric"],
   style: {
     all: [
       "say less. mean more.",
@@ -132,10 +126,7 @@ function sample<T>(items: T[], count: number): T[] {
   const shuffled = [...items];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const nextIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[nextIndex]] = [
-      shuffled[nextIndex],
-      shuffled[index],
-    ];
+    [shuffled[index], shuffled[nextIndex]] = [shuffled[nextIndex], shuffled[index]];
   }
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }
@@ -144,10 +135,7 @@ function formatConversationHistory(messages: ConversationMessage[]): string {
   if (messages.length === 0) return "";
 
   return `\n\nRecent conversation:\n${messages
-    .map(
-      (message) =>
-        `${message.role === "user" ? "User" : "Eliza"}: ${message.content}`,
-    )
+    .map((message) => `${message.role === "user" ? "User" : "Eliza"}: ${message.content}`)
     .join("\n")}\n`;
 }
 
@@ -159,14 +147,13 @@ function getConnectionStatusKey(organizationId: string): string {
   return `connection-enforcement:required-connection:${organizationId}`;
 }
 
-async function loadConversationState(
-  organizationId: string,
-): Promise<ConversationState> {
+async function loadConversationState(organizationId: string): Promise<ConversationState> {
   try {
     return (
-      (await cache.get<ConversationState>(
-        getConversationKey(organizationId),
-      )) ?? { messageCount: 0, messages: [] }
+      (await cache.get<ConversationState>(getConversationKey(organizationId))) ?? {
+        messageCount: 0,
+        messages: [],
+      }
     );
   } catch {
     return { messageCount: 0, messages: [] };
@@ -182,19 +169,12 @@ async function saveConversationState(
       ...state,
       messages: state.messages.slice(-MAX_HISTORY_MESSAGES),
     };
-    await cache.set(
-      getConversationKey(organizationId),
-      normalizedState,
-      CONVERSATION_TTL_SECONDS,
-    );
+    await cache.set(getConversationKey(organizationId), normalizedState, CONVERSATION_TTL_SECONDS);
   } catch (error) {
-    logger.warn(
-      "[ConnectionEnforcement] Failed to persist conversation state",
-      {
-        organizationId,
-        error: error instanceof Error ? error.message : String(error),
-      },
-    );
+    logger.warn("[ConnectionEnforcement] Failed to persist conversation state", {
+      organizationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -223,16 +203,11 @@ function formatLinks(
 ): string {
   if (messagingPlatform === "telegram") {
     return links
-      .map(
-        (link) =>
-          `[Connect ${PLATFORM_DISPLAY_NAMES[link.platform]}](${link.url})`,
-      )
+      .map((link) => `[Connect ${PLATFORM_DISPLAY_NAMES[link.platform]}](${link.url})`)
       .join("\n");
   }
 
-  return links
-    .map((link) => `${PLATFORM_DISPLAY_NAMES[link.platform]}: ${link.url}`)
-    .join("\n");
+  return links.map((link) => `${PLATFORM_DISPLAY_NAMES[link.platform]}: ${link.url}`).join("\n");
 }
 
 function buildNudgePrompt(
@@ -241,14 +216,9 @@ function buildNudgePrompt(
   isFirstInteraction: boolean,
 ): string {
   const bioSample = sample(DEFAULT_ELIZA_CHARACTER.bio, 4).join(" ");
-  const adjectiveSample = sample(DEFAULT_ELIZA_CHARACTER.adjectives, 4).join(
-    ", ",
-  );
+  const adjectiveSample = sample(DEFAULT_ELIZA_CHARACTER.adjectives, 4).join(", ");
   const styleSample = sample(
-    [
-      ...DEFAULT_ELIZA_CHARACTER.style.all,
-      ...DEFAULT_ELIZA_CHARACTER.style.chat,
-    ],
+    [...DEFAULT_ELIZA_CHARACTER.style.all, ...DEFAULT_ELIZA_CHARACTER.style.chat],
     5,
   ).join("; ");
 
@@ -273,19 +243,11 @@ RESPONSE RULES:
 6. If they say they already connected something and you still do not see it, say you still do not see the connection yet and suggest trying again.${conversationHistory}`;
 }
 
-function buildChatPrompt(
-  platform: MessagingPlatform,
-  conversationHistory: string,
-): string {
+function buildChatPrompt(platform: MessagingPlatform, conversationHistory: string): string {
   const bioSample = sample(DEFAULT_ELIZA_CHARACTER.bio, 4).join(" ");
-  const adjectiveSample = sample(DEFAULT_ELIZA_CHARACTER.adjectives, 4).join(
-    ", ",
-  );
+  const adjectiveSample = sample(DEFAULT_ELIZA_CHARACTER.adjectives, 4).join(", ");
   const styleSample = sample(
-    [
-      ...DEFAULT_ELIZA_CHARACTER.style.all,
-      ...DEFAULT_ELIZA_CHARACTER.style.chat,
-    ],
+    [...DEFAULT_ELIZA_CHARACTER.style.all, ...DEFAULT_ELIZA_CHARACTER.style.chat],
     5,
   ).join("; ");
 
@@ -319,9 +281,7 @@ function getFallbackResponse(message: string): string {
     return "fair. i just can't do much without context. if you were going to pick one, which would it be: google, microsoft, or x?";
   }
 
-  return FALLBACK_RESPONSES[
-    Math.floor(Math.random() * FALLBACK_RESPONSES.length)
-  ];
+  return FALLBACK_RESPONSES[Math.floor(Math.random() * FALLBACK_RESPONSES.length)];
 }
 
 async function generateOAuthLinks(
@@ -331,9 +291,7 @@ async function generateOAuthLinks(
   specificProvider?: RequiredPlatform | null,
 ): Promise<{ platform: RequiredPlatform; url: string }[]> {
   const redirectUrl = `${getBaseUrl()}/api/eliza-app/auth/connection-success?platform=${platform}`;
-  const providers = specificProvider
-    ? [specificProvider]
-    : [...REQUIRED_PLATFORMS];
+  const providers = specificProvider ? [specificProvider] : [...REQUIRED_PLATFORMS];
 
   const results = await Promise.allSettled(
     providers.map(async (provider) => {
@@ -344,9 +302,7 @@ async function generateOAuthLinks(
         redirectUrl,
       });
 
-      return result.authUrl
-        ? { platform: provider, url: result.authUrl }
-        : null;
+      return result.authUrl ? { platform: provider, url: result.authUrl } : null;
     }),
   );
 
@@ -358,10 +314,7 @@ async function generateOAuthLinks(
     if (result.status === "rejected") {
       logger.warn("[ConnectionEnforcement] Failed to generate OAuth link", {
         organizationId,
-        error:
-          result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason),
+        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
       });
     }
 
@@ -390,8 +343,7 @@ class ConnectionEnforcementService {
         return cached;
       }
 
-      const connectedPlatforms =
-        await oauthService.getConnectedPlatforms(organizationId);
+      const connectedPlatforms = await oauthService.getConnectedPlatforms(organizationId);
       const hasRequired = connectedPlatforms.some((platform) =>
         (REQUIRED_PLATFORMS as readonly string[]).includes(platform),
       );
@@ -407,19 +359,14 @@ class ConnectionEnforcementService {
     }
   }
 
-  async invalidateRequiredConnectionCache(
-    organizationId: string,
-  ): Promise<void> {
+  async invalidateRequiredConnectionCache(organizationId: string): Promise<void> {
     try {
       await cache.del(getConnectionStatusKey(organizationId));
     } catch (error) {
-      logger.warn(
-        "[ConnectionEnforcement] Failed to invalidate connection cache",
-        {
-          organizationId,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      );
+      logger.warn("[ConnectionEnforcement] Failed to invalidate connection cache", {
+        organizationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -445,16 +392,9 @@ class ConnectionEnforcementService {
         isFirstInteraction,
       );
       responseForHistory = llmResponse;
-      const links = await generateOAuthLinks(
-        organizationId,
-        userId,
-        platform,
-        detectedProvider,
-      );
+      const links = await generateOAuthLinks(organizationId, userId, platform, detectedProvider);
       response =
-        links.length > 0
-          ? `${llmResponse}\n\n${formatLinks(links, platform)}`
-          : llmResponse;
+        links.length > 0 ? `${llmResponse}\n\n${formatLinks(links, platform)}` : llmResponse;
     } else {
       response = await this.generateLLMResponse(
         userMessage,
@@ -511,9 +451,9 @@ const connectionEnforcementService = new ConnectionEnforcementService();
 export {
   connectionEnforcementService,
   detectProviderFromMessage,
-  REQUIRED_PLATFORMS,
-  NUDGE_INTERVAL,
   type MessagingPlatform,
+  NUDGE_INTERVAL,
   type NudgeParams,
+  REQUIRED_PLATFORMS,
   type RequiredPlatform,
 };

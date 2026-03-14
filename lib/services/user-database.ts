@@ -5,11 +5,11 @@
  * Coordinates between Neon API and our apps database.
  */
 
-import { logger } from "@/lib/utils/logger";
-import { getNeonClient, NeonClientError } from "./neon-client";
 import { appsRepository } from "@/db/repositories/apps";
-import type { UserDatabaseStatus, App } from "@/db/schemas/apps";
+import type { App, UserDatabaseStatus } from "@/db/schemas/apps";
+import { logger } from "@/lib/utils/logger";
 import { fieldEncryption } from "./field-encryption";
+import { getNeonClient, NeonClientError } from "./neon-client";
 
 /**
  * Result from provisioning a user database.
@@ -92,9 +92,7 @@ export class UserDatabaseService {
     // Already has a database?
     if (app.user_database_status === "ready" && app.user_database_uri) {
       logger.info("App already has database", { appId });
-      const decryptedUri = await fieldEncryption.decryptIfNeeded(
-        app.user_database_uri,
-      );
+      const decryptedUri = await fieldEncryption.decryptIfNeeded(app.user_database_uri);
       return {
         success: true,
         connectionUri: decryptedUri || undefined,
@@ -106,25 +104,17 @@ export class UserDatabaseService {
 
     // Atomically try to set status to "provisioning"
     // This prevents race conditions - only one request can win
-    const updatedApp = await appsRepository.trySetDatabaseProvisioning(
-      appId,
-      region,
-    );
+    const updatedApp = await appsRepository.trySetDatabaseProvisioning(appId, region);
 
     if (!updatedApp) {
       // Another request won the race, or status was already "provisioning" or "ready"
       // Re-fetch to get current state
       const currentApp = await appsRepository.findById(appId);
-      if (
-        currentApp?.user_database_status === "ready" &&
-        currentApp.user_database_uri
-      ) {
+      if (currentApp?.user_database_status === "ready" && currentApp.user_database_uri) {
         logger.info("Database was provisioned by concurrent request", {
           appId,
         });
-        const decryptedUri = await fieldEncryption.decryptIfNeeded(
-          currentApp.user_database_uri,
-        );
+        const decryptedUri = await fieldEncryption.decryptIfNeeded(currentApp.user_database_uri);
         return {
           success: true,
           connectionUri: decryptedUri || undefined,
@@ -160,10 +150,7 @@ export class UserDatabaseService {
       createdProjectId = result.projectId;
 
       // Encrypt the connection URI before storing
-      const encryptedUri = await fieldEncryption.encrypt(
-        app.organization_id,
-        result.connectionUri,
-      );
+      const encryptedUri = await fieldEncryption.encrypt(app.organization_id, result.connectionUri);
 
       // Store credentials (URI is now encrypted)
       await appsRepository.update(appId, {
@@ -187,8 +174,7 @@ export class UserDatabaseService {
         region,
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       let errorCode: ProvisionResult["errorCode"] = "UNKNOWN";
 
       if (error instanceof NeonClientError) {
@@ -221,8 +207,7 @@ export class UserDatabaseService {
           logger.error("Failed to clean up orphaned Neon project", {
             appId,
             projectId: createdProjectId,
-            error:
-              cleanupError instanceof Error ? cleanupError.message : "Unknown",
+            error: cleanupError instanceof Error ? cleanupError.message : "Unknown",
           });
         }
       }
@@ -314,8 +299,7 @@ export class UserDatabaseService {
 
     if (includeUri && app.user_database_uri) {
       status.connectionUri =
-        (await fieldEncryption.decryptIfNeeded(app.user_database_uri)) ||
-        undefined;
+        (await fieldEncryption.decryptIfNeeded(app.user_database_uri)) || undefined;
     }
 
     return status;
@@ -347,9 +331,7 @@ export class UserDatabaseService {
     // Only retry if in error state
     if (app.user_database_status !== "error") {
       if (app.user_database_status === "ready") {
-        const decryptedUri = await fieldEncryption.decryptIfNeeded(
-          app.user_database_uri,
-        );
+        const decryptedUri = await fieldEncryption.decryptIfNeeded(app.user_database_uri);
         return {
           success: true,
           connectionUri: decryptedUri || undefined,
@@ -392,9 +374,7 @@ export const userDatabaseService = new UserDatabaseService();
  * @param app - The app object with user_database_uri field
  * @returns Decrypted connection URI or null if no database
  */
-export async function getDecryptedDatabaseUri(
-  app: App,
-): Promise<string | null> {
+export async function getDecryptedDatabaseUri(app: App): Promise<string | null> {
   if (!app.user_database_uri) {
     return null;
   }

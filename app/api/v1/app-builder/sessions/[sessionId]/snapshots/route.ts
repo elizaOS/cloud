@@ -14,15 +14,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    const session = await aiAppBuilder.verifySessionOwnership(
-      sessionId,
-      user.id,
-    );
+    const session = await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
     // Check if app has GitHub storage
@@ -66,8 +60,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       lastBackup,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to get snapshot info";
+    const message = error instanceof Error ? error.message : "Failed to get snapshot info";
     const status =
       message.includes("Unauthorized") || message.includes("Authentication")
         ? 401

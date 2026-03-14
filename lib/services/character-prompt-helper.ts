@@ -6,8 +6,8 @@
  * needing the full elizaOS runtime.
  */
 
-import { charactersService } from "./characters/characters";
 import { logger } from "@/lib/utils/logger";
+import { charactersService } from "./characters/characters";
 
 /**
  * Fisher-Yates shuffle algorithm for unbiased random sampling.
@@ -53,9 +53,7 @@ export async function getCharacterPromptContext(
     return null;
   }
 
-  const bio = Array.isArray(character.bio)
-    ? character.bio.join(" ")
-    : character.bio || "";
+  const bio = Array.isArray(character.bio) ? character.bio.join(" ") : character.bio || "";
 
   const style = character.style || {};
   const postStyle = style.post || [];
@@ -89,9 +87,7 @@ export async function getCharacterPromptContext(
  * Build a system prompt section for character-voiced content generation.
  * Used by Twitter, Discord, Telegram automation services.
  */
-export function buildCharacterSystemPrompt(
-  context: CharacterPromptContext,
-): string {
+export function buildCharacterSystemPrompt(context: CharacterPromptContext): string {
   const parts: string[] = [];
 
   parts.push(`You are ${context.name}.`);
@@ -118,9 +114,7 @@ export function buildCharacterSystemPrompt(
 
   if (context.postExamples.length > 0) {
     const examples = getRandomSample(context.postExamples, 3);
-    parts.push(
-      `Example posts you've written:\n${examples.map((ex) => `- "${ex}"`).join("\n")}`,
-    );
+    parts.push(`Example posts you've written:\n${examples.map((ex) => `- "${ex}"`).join("\n")}`);
   }
 
   const prompt = parts.join("\n\n");

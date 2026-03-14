@@ -40,18 +40,13 @@ export const DEFAULT_AGENT_MODE: AgentModeConfig = {
  * Type guard to check if a value is a valid AgentMode
  */
 export function isValidAgentMode(mode: unknown): mode is AgentMode {
-  return (
-    typeof mode === "string" &&
-    Object.values(AgentMode).includes(mode as AgentMode)
-  );
+  return typeof mode === "string" && Object.values(AgentMode).includes(mode as AgentMode);
 }
 
 /**
  * Type guard to check if a value is a valid AgentModeConfig
  */
-export function isValidAgentModeConfig(
-  config: unknown,
-): config is AgentModeConfig {
+export function isValidAgentModeConfig(config: unknown): config is AgentModeConfig {
   if (!config || typeof config !== "object") {
     return false;
   }
@@ -65,11 +60,7 @@ export function isValidAgentModeConfig(
 
   // Check metadata if present
   if (cfg.metadata !== undefined) {
-    if (
-      typeof cfg.metadata !== "object" ||
-      cfg.metadata === null ||
-      Array.isArray(cfg.metadata)
-    ) {
+    if (typeof cfg.metadata !== "object" || cfg.metadata === null || Array.isArray(cfg.metadata)) {
       return false;
     }
   }
@@ -161,10 +152,7 @@ function hasValidConfiguration(
     const apiKey = settings.N8N_API_KEY ?? secrets.N8N_API_KEY;
     const host = settings.N8N_HOST ?? secrets.N8N_HOST;
     return (
-      typeof apiKey === "string" &&
-      apiKey.length > 0 &&
-      typeof host === "string" &&
-      host.length > 0
+      typeof apiKey === "string" && apiKey.length > 0 && typeof host === "string" && host.length > 0
     );
   }
 
@@ -174,10 +162,7 @@ function hasValidConfiguration(
   switch (key) {
     case "mcp": {
       const mcpSettings = value as ConditionalPluginSettings["mcp"];
-      return (
-        mcpSettings?.servers != null &&
-        Object.keys(mcpSettings.servers).length > 0
-      );
+      return mcpSettings?.servers != null && Object.keys(mcpSettings.servers).length > 0;
     }
     case "webSearch": {
       const webSearchSettings = value as ConditionalPluginSettings["webSearch"];
@@ -192,13 +177,9 @@ function hasValidConfiguration(
  * Get plugins that should be injected based on character settings.
  * Only returns plugins when settings contain actual configuration.
  */
-export function getConditionalPlugins(
-  settings: Record<string, unknown>,
-): string[] {
+export function getConditionalPlugins(settings: Record<string, unknown>): string[] {
   return Object.entries(SETTINGS_PLUGIN_MAP)
-    .filter(([key]) =>
-      hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings),
-    )
+    .filter(([key]) => hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings))
     .map(([, pluginName]) => pluginName);
 }
 
@@ -210,9 +191,7 @@ export function requiresAssistantMode(
   settings: Record<string, unknown>,
 ): keyof typeof SETTINGS_PLUGIN_MAP | null {
   for (const key of Object.keys(SETTINGS_PLUGIN_MAP)) {
-    if (
-      hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings)
-    ) {
+    if (hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings)) {
       return key as keyof typeof SETTINGS_PLUGIN_MAP;
     }
   }

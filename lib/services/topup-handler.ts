@@ -6,14 +6,14 @@ import crypto from "crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isAddress } from "viem";
-import { withX402, type RouteConfig } from "x402-next";
-import { organizationsService } from "@/lib/services/organizations";
+import { type RouteConfig, withX402 } from "x402-next";
 import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
-import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
-import { referralsService } from "@/lib/services/referrals";
+import { organizationsService } from "@/lib/services/organizations";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
-import { logger } from "@/lib/utils/logger";
+import { referralsService } from "@/lib/services/referrals";
+import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import type { UserWithOrganization } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
 interface TopupRecipient {
   user: UserWithOrganization;
@@ -82,10 +82,7 @@ export function createTopupHandler(options: CreateTopupHandlerOptions) {
       );
     }
     if (body?.walletAddress && !isAddress(body.walletAddress)) {
-      return NextResponse.json(
-        { error: "Valid EVM walletAddress is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Valid EVM walletAddress is required" }, { status: 400 });
     }
 
     let recipient;
@@ -143,7 +140,9 @@ export function createTopupHandler(options: CreateTopupHandlerOptions) {
               payment_method: "x402",
             },
           });
-          logger.info(`[x402] Credited split: $${split.amount.toFixed(2)} to ${split.role} (${split.userId})`);
+          logger.info(
+            `[x402] Credited split: $${split.amount.toFixed(2)} to ${split.role} (${split.userId})`,
+          );
         }
       }
     }

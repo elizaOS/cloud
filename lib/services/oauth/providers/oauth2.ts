@@ -5,23 +5,15 @@
  * Works with standard OAuth 2.0 and supports provider-specific variations via config.
  */
 
-import { cache } from "@/lib/cache/client";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { dbWrite } from "@/db/client";
 import { writeTransaction } from "@/db/helpers";
 import { platformCredentials, platformCredentialTypeEnum } from "@/db/schemas/platform-credentials";
+import { cache } from "@/lib/cache/client";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type {
-  OAuthProviderConfig,
-  UserInfoMapping,
-} from "../provider-registry";
-import {
-  getClientId,
-  getClientSecret,
-  getCallbackUrl,
-  getNestedValue,
-} from "../provider-registry";
+import type { OAuthProviderConfig, UserInfoMapping } from "../provider-registry";
+import { getCallbackUrl, getClientId, getClientSecret, getNestedValue } from "../provider-registry";
 
 const STATE_TTL_SECONDS = 600; // 10 minutes
 
@@ -111,7 +103,7 @@ export async function initiateOAuth2(
     userId: string;
     redirectUrl?: string;
     scopes?: string[];
-  }
+  },
 ): Promise<InitiateOAuth2Result> {
   const clientId = getClientId(provider);
   if (!clientId) {
@@ -197,7 +189,7 @@ export async function initiateOAuth2(
 export async function handleOAuth2Callback(
   provider: OAuthProviderConfig,
   code: string,
-  state: string
+  state: string,
 ): Promise<OAuth2CallbackResult> {
   // Validate state
   const stateKey = `oauth2:${provider.id}:${state}`;
@@ -235,7 +227,7 @@ export async function handleOAuth2Callback(
     userId,
     tokens,
     userInfo,
-    scopes
+    scopes,
   );
 
   logger.info(`[OAuth2] Callback completed for ${provider.id}`, {
@@ -261,7 +253,7 @@ export async function handleOAuth2Callback(
 async function exchangeCodeForTokens(
   provider: OAuthProviderConfig,
   code: string,
-  codeVerifier?: string
+  codeVerifier?: string,
 ): Promise<TokenResponse> {
   const clientId = getClientId(provider);
   const clientSecret = getClientSecret(provider);
@@ -363,7 +355,7 @@ async function exchangeCodeForTokens(
  */
 async function fetchUserInfo(
   provider: OAuthProviderConfig,
-  accessToken: string
+  accessToken: string,
 ): Promise<ExtractedUserInfo> {
   if (!provider.endpoints?.userInfo) {
     throw new Error(`No userInfo endpoint configured for ${provider.id}`);
@@ -428,7 +420,7 @@ async function fetchUserInfo(
  */
 function extractUserInfoFromTokens(
   provider: OAuthProviderConfig,
-  tokens: TokenResponse
+  tokens: TokenResponse,
 ): ExtractedUserInfo {
   // Providers like Notion include user info in token response
   const mapping = provider.userInfoMapping;
@@ -439,11 +431,14 @@ function extractUserInfoFromTokens(
   // FALLBACK: No userInfo endpoint AND no userInfoMapping configured.
   // Generate pseudo-ID from token hash. This is a degraded state - connections
   // created this way won't have email, username, etc.
-  logger.warn(`[OAuth2] No userInfo endpoint or mapping for ${provider.id}, using token hash as ID`, {
-    providerId: provider.id,
-    hasUserInfoEndpoint: !!provider.endpoints?.userInfo,
-    hasUserInfoMapping: !!provider.userInfoMapping,
-  });
+  logger.warn(
+    `[OAuth2] No userInfo endpoint or mapping for ${provider.id}, using token hash as ID`,
+    {
+      providerId: provider.id,
+      hasUserInfoEndpoint: !!provider.endpoints?.userInfo,
+      hasUserInfoMapping: !!provider.userInfoMapping,
+    },
+  );
   const hash = Buffer.from(tokens.access_token.substring(0, 32)).toString("base64url");
   return {
     id: `${provider.id}_${hash}`,
@@ -454,10 +449,7 @@ function extractUserInfoFromTokens(
 /**
  * Extract user info using the provider's mapping configuration.
  */
-function extractUserInfo(
-  mapping: UserInfoMapping | undefined,
-  data: unknown
-): ExtractedUserInfo {
+function extractUserInfo(mapping: UserInfoMapping | undefined, data: unknown): ExtractedUserInfo {
   if (!mapping) {
     // Default mapping for standard OAuth2 claims
     const obj = data as Record<string, unknown>;
@@ -480,7 +472,9 @@ function extractUserInfo(
     id: String(id),
     email: mapping.email ? (getNestedValue(data, mapping.email) as string) : undefined,
     username: mapping.username ? (getNestedValue(data, mapping.username) as string) : undefined,
-    displayName: mapping.displayName ? (getNestedValue(data, mapping.displayName) as string) : undefined,
+    displayName: mapping.displayName
+      ? (getNestedValue(data, mapping.displayName) as string)
+      : undefined,
     avatarUrl: mapping.avatarUrl ? (getNestedValue(data, mapping.avatarUrl) as string) : undefined,
     raw: data as Record<string, unknown>,
   };
@@ -496,7 +490,7 @@ async function createOrRotateSecret(
   value: string,
   userId: string,
   audit: { actorType: "user"; actorId: string; source: string },
-  newlyCreatedSecretIds: string[]
+  newlyCreatedSecretIds: string[],
 ): Promise<{ id: string }> {
   try {
     const secret = await secretsService.create(
@@ -507,15 +501,21 @@ async function createOrRotateSecret(
         scope: "organization",
         createdBy: userId,
       },
-      audit
+      audit,
     );
     newlyCreatedSecretIds.push(secret.id);
     return secret;
   } catch (error) {
     // If secret already exists (orphaned from previous failed attempt), find and rotate it
     const errorMsg = error instanceof Error ? error.message : String(error);
-    if (errorMsg.includes("already exists") || errorMsg.includes("duplicate") || errorMsg.includes("unique constraint")) {
-      logger.info(`[OAuth2] Secret "${name}" already exists, attempting to rotate`, { organizationId });
+    if (
+      errorMsg.includes("already exists") ||
+      errorMsg.includes("duplicate") ||
+      errorMsg.includes("unique constraint")
+    ) {
+      logger.info(`[OAuth2] Secret "${name}" already exists, attempting to rotate`, {
+        organizationId,
+      });
       // Find the existing secret by listing and filtering
       const allSecrets = await secretsService.list(organizationId);
       const existingSecret = allSecrets.find((s) => s.name === name);
@@ -537,7 +537,7 @@ async function storeConnection(
   userId: string,
   tokens: TokenResponse,
   userInfo: ExtractedUserInfo,
-  scopes: string[]
+  scopes: string[],
 ): Promise<string> {
   const audit = {
     actorType: "user" as const,
@@ -551,10 +551,13 @@ async function storeConnection(
   const providerPlatform = provider.id as (typeof platformCredentialTypeEnum.enumValues)[number];
   const cleanupNewlyCreatedSecrets = async (context: string) => {
     if (newlyCreatedSecretIds.length === 0) return;
-    logger.warn(`[OAuth2] ${context}, cleaning up ${newlyCreatedSecretIds.length} newly created secret(s)`, {
-      providerId: provider.id,
-      organizationId,
-    });
+    logger.warn(
+      `[OAuth2] ${context}, cleaning up ${newlyCreatedSecretIds.length} newly created secret(s)`,
+      {
+        providerId: provider.id,
+        organizationId,
+      },
+    );
     for (const secretId of newlyCreatedSecretIds) {
       try {
         await secretsService.delete(secretId, organizationId, audit);
@@ -590,7 +593,12 @@ async function storeConnection(
         access_token_secret_id: null,
         refresh_token_secret_id: null,
       })
-      .where(inArray(platformCredentials.id, connections.map((c) => c.id)));
+      .where(
+        inArray(
+          platformCredentials.id,
+          connections.map((c) => c.id),
+        ),
+      );
   };
 
   const revokeConnectionsSecrets = async (
@@ -660,12 +668,7 @@ async function storeConnection(
 
     await Promise.all(
       secretsToDelete.map((secret) =>
-        deleteSecret(
-          secret.secretId,
-          secret.tokenType,
-          secret.organizationId,
-          secret.connectionId,
-        ),
+        deleteSecret(secret.secretId, secret.tokenType, secret.organizationId, secret.connectionId),
       ),
     );
 
@@ -768,9 +771,7 @@ async function storeConnection(
     };
   }
 
-  const existing = matchingUserConnection
-    ? [matchingUserConnection]
-    : existingByPlatformUser;
+  const existing = matchingUserConnection ? [matchingUserConnection] : existingByPlatformUser;
 
   let accessTokenSecretId: string;
   let refreshTokenSecretId: string | undefined;
@@ -782,25 +783,28 @@ async function storeConnection(
         existing[0].access_token_secret_id,
         organizationId,
         tokens.access_token,
-        audit
+        audit,
       );
       accessTokenSecretId = existing[0].access_token_secret_id;
     } catch (rotateError) {
       // If secret doesn't exist (orphaned reference), create a new one
       const errorMsg = rotateError instanceof Error ? rotateError.message : String(rotateError);
       if (errorMsg.includes("not found")) {
-        logger.warn(`[OAuth2] Access token secret not found (orphaned reference), creating new secret`, {
-          providerId: provider.id,
-          organizationId,
-          oldSecretId: existing[0].access_token_secret_id,
-        });
+        logger.warn(
+          `[OAuth2] Access token secret not found (orphaned reference), creating new secret`,
+          {
+            providerId: provider.id,
+            organizationId,
+            oldSecretId: existing[0].access_token_secret_id,
+          },
+        );
         const accessSecret = await createOrRotateSecret(
           organizationId,
           `${provider.id.toUpperCase()}_ACCESS_TOKEN_${userInfo.id}`,
           tokens.access_token,
           userId,
           audit,
-          newlyCreatedSecretIds
+          newlyCreatedSecretIds,
         );
         accessTokenSecretId = accessSecret.id;
       } else {
@@ -814,25 +818,28 @@ async function storeConnection(
           existing[0].refresh_token_secret_id,
           organizationId,
           tokens.refresh_token,
-          audit
+          audit,
         );
         refreshTokenSecretId = existing[0].refresh_token_secret_id;
       } catch (rotateError) {
         // If secret doesn't exist (orphaned reference), create a new one
         const errorMsg = rotateError instanceof Error ? rotateError.message : String(rotateError);
         if (errorMsg.includes("not found")) {
-          logger.warn(`[OAuth2] Refresh token secret not found (orphaned reference), creating new secret`, {
-            providerId: provider.id,
-            organizationId,
-            oldSecretId: existing[0].refresh_token_secret_id,
-          });
+          logger.warn(
+            `[OAuth2] Refresh token secret not found (orphaned reference), creating new secret`,
+            {
+              providerId: provider.id,
+              organizationId,
+              oldSecretId: existing[0].refresh_token_secret_id,
+            },
+          );
           const refreshSecret = await createOrRotateSecret(
             organizationId,
             `${provider.id.toUpperCase()}_REFRESH_TOKEN_${userInfo.id}`,
             tokens.refresh_token,
             userId,
             audit,
-            newlyCreatedSecretIds
+            newlyCreatedSecretIds,
           );
           refreshTokenSecretId = refreshSecret.id;
         } else {
@@ -847,7 +854,7 @@ async function storeConnection(
         tokens.refresh_token,
         userId,
         audit,
-        newlyCreatedSecretIds
+        newlyCreatedSecretIds,
       );
       refreshTokenSecretId = refreshSecret.id;
     } else if (existing[0].refresh_token_secret_id) {
@@ -862,7 +869,7 @@ async function storeConnection(
         tokens.access_token,
         userId,
         audit,
-        newlyCreatedSecretIds
+        newlyCreatedSecretIds,
       );
       accessTokenSecretId = accessSecret.id;
 
@@ -873,7 +880,7 @@ async function storeConnection(
           tokens.refresh_token,
           userId,
           audit,
-          newlyCreatedSecretIds
+          newlyCreatedSecretIds,
         );
         refreshTokenSecretId = refreshSecret.id;
       }
@@ -905,11 +912,7 @@ async function storeConnection(
     const connectionId = await writeTransaction(async (tx) => {
       if (pendingRevocation) {
         try {
-          await revokeConnectionsDb(
-            pendingRevocation.connections,
-            pendingRevocation.reason,
-            tx,
-          );
+          await revokeConnectionsDb(pendingRevocation.connections, pendingRevocation.reason, tx);
         } catch (revokeError) {
           revokeFailed = true;
           revokeFailure = revokeError;
@@ -986,10 +989,7 @@ async function storeConnection(
     // Map unique constraint violation on user_platform_idx to a domain error
     // This handles the race condition where a concurrent OAuth completion for the
     // same user/platform inserts between our revoke and insert
-    if (
-      error instanceof Error &&
-      error.message.includes("user_platform_idx")
-    ) {
+    if (error instanceof Error && error.message.includes("user_platform_idx")) {
       throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED");
     }
     throw error;
@@ -1001,7 +1001,7 @@ async function storeConnection(
  */
 export async function refreshOAuth2Token(
   provider: OAuthProviderConfig,
-  refreshToken: string
+  refreshToken: string,
 ): Promise<{ accessToken: string; expiresIn?: number; newRefreshToken?: string }> {
   const clientId = getClientId(provider);
   const clientSecret = getClientSecret(provider);

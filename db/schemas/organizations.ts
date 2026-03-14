@@ -1,3 +1,5 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
@@ -9,8 +11,6 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
  * Organizations table schema (core).

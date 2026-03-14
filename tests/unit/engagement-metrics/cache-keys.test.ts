@@ -5,20 +5,14 @@
  * versioned keys for the engagement metrics feature.
  */
 
-import { describe, test, expect } from "bun:test";
-import { CacheKeys, CacheTTL, CacheStaleTTL } from "@/lib/cache/keys";
+import { describe, expect, test } from "bun:test";
+import { CacheKeys, CacheStaleTTL, CacheTTL } from "@/lib/cache/keys";
 
 describe("CacheKeys.userMetrics", () => {
   test("overview returns a versioned key scoped by range", () => {
-    expect(CacheKeys.userMetrics.overview()).toBe(
-      "user-metrics:overview:30d:v1",
-    );
-    expect(CacheKeys.userMetrics.overview(7)).toBe(
-      "user-metrics:overview:7d:v1",
-    );
-    expect(CacheKeys.userMetrics.overview(90)).toBe(
-      "user-metrics:overview:90d:v1",
-    );
+    expect(CacheKeys.userMetrics.overview()).toBe("user-metrics:overview:30d:v1");
+    expect(CacheKeys.userMetrics.overview(7)).toBe("user-metrics:overview:7d:v1");
+    expect(CacheKeys.userMetrics.overview(90)).toBe("user-metrics:overview:90d:v1");
   });
 
   test("daily returns a key scoped by date range", () => {
@@ -38,15 +32,9 @@ describe("CacheKeys.userMetrics", () => {
   });
 
   test("activeUsers returns a key scoped by time range", () => {
-    expect(CacheKeys.userMetrics.activeUsers("day")).toBe(
-      "user-metrics:active:day:v1",
-    );
-    expect(CacheKeys.userMetrics.activeUsers("7d")).toBe(
-      "user-metrics:active:7d:v1",
-    );
-    expect(CacheKeys.userMetrics.activeUsers("30d")).toBe(
-      "user-metrics:active:30d:v1",
-    );
+    expect(CacheKeys.userMetrics.activeUsers("day")).toBe("user-metrics:active:day:v1");
+    expect(CacheKeys.userMetrics.activeUsers("7d")).toBe("user-metrics:active:7d:v1");
+    expect(CacheKeys.userMetrics.activeUsers("30d")).toBe("user-metrics:active:30d:v1");
   });
 
   test("pattern returns a wildcard for invalidation", () => {
@@ -85,12 +73,8 @@ describe("CacheTTL.userMetrics", () => {
   });
 
   test("pre-computed TTLs are longer than live query TTLs", () => {
-    expect(CacheTTL.userMetrics.daily).toBeGreaterThan(
-      CacheTTL.userMetrics.overview,
-    );
-    expect(CacheTTL.userMetrics.retention).toBeGreaterThan(
-      CacheTTL.userMetrics.activeUsers,
-    );
+    expect(CacheTTL.userMetrics.daily).toBeGreaterThan(CacheTTL.userMetrics.overview);
+    expect(CacheTTL.userMetrics.retention).toBeGreaterThan(CacheTTL.userMetrics.activeUsers);
   });
 });
 
@@ -104,11 +88,7 @@ describe("CacheStaleTTL.userMetrics", () => {
   });
 
   test("stale TTLs are shorter than their corresponding TTLs", () => {
-    expect(CacheStaleTTL.userMetrics.overview).toBeLessThan(
-      CacheTTL.userMetrics.overview,
-    );
-    expect(CacheStaleTTL.userMetrics.activeUsers).toBeLessThan(
-      CacheTTL.userMetrics.activeUsers,
-    );
+    expect(CacheStaleTTL.userMetrics.overview).toBeLessThan(CacheTTL.userMetrics.overview);
+    expect(CacheStaleTTL.userMetrics.activeUsers).toBeLessThan(CacheTTL.userMetrics.activeUsers);
   });
 });

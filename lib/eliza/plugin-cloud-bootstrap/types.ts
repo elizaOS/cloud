@@ -1,4 +1,4 @@
-import type { Action, ActionResult, Content, Memory, State, UUID } from "@elizaos/core";
+import type { Action, Content, Memory, State, UUID } from "@elizaos/core";
 
 export interface MultiStepActionResult {
   data: { actionName: string };
@@ -36,15 +36,12 @@ export interface ParsedMultiStepDecision {
   isFinish?: string | boolean;
 }
 
-export type StreamChunkCallback = (
-  chunk: string,
-  messageId?: UUID
-) => Promise<void>;
+export type StreamChunkCallback = (chunk: string, messageId?: UUID) => Promise<void>;
 
 export type ReasoningChunkCallback = (
   chunk: string,
   phase: "planning" | "actions" | "response" | "thinking",
-  messageId?: UUID
+  messageId?: UUID,
 ) => Promise<void>;
 
 /** Actions whose successful results should NOT appear in # Previous Action Results.

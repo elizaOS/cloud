@@ -186,9 +186,7 @@ export async function generateExcel(
   });
 
   const excelBuffer = await workbook.xlsx.writeBuffer();
-  return Buffer.isBuffer(excelBuffer)
-    ? excelBuffer
-    : Buffer.from(excelBuffer);
+  return Buffer.isBuffer(excelBuffer) ? excelBuffer : Buffer.from(excelBuffer);
 }
 
 /**

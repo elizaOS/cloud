@@ -10,20 +10,20 @@
  * from previous users would leak via database persistence.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { Client } from "pg";
 import {
-  hasDatabaseUrl,
-  getConnectionString,
-  verifyConnection,
-  createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
-  runtimeFactory,
-  invalidateRuntime,
   AgentMode,
   buildUserContext,
+  cleanupTestData,
+  createTestDataSet,
+  getConnectionString,
+  hasDatabaseUrl,
+  invalidateRuntime,
+  runtimeFactory,
+  type TestDataSet,
+  verifyConnection,
 } from "../../../infrastructure";
-import { Client } from "pg";
 
 let connectionString: string;
 let testDataUser1: TestDataSet;
@@ -56,8 +56,12 @@ async function setupEnvironment(): Promise<void> {
   });
 
   console.log("✅ Test data created:");
-  console.log(`   User 1: ${testDataUser1.user.email} (API: ${testDataUser1.apiKey.key.substring(0, 15)}...)`);
-  console.log(`   User 2: ${testDataUser2.user.email} (API: ${testDataUser2.apiKey.key.substring(0, 15)}...)`);
+  console.log(
+    `   User 1: ${testDataUser1.user.email} (API: ${testDataUser1.apiKey.key.substring(0, 15)}...)`,
+  );
+  console.log(
+    `   User 2: ${testDataUser2.user.email} (API: ${testDataUser2.apiKey.key.substring(0, 15)}...)`,
+  );
 }
 
 async function cleanupEnvironment(): Promise<void> {
@@ -67,13 +71,13 @@ async function cleanupEnvironment(): Promise<void> {
   await invalidateRuntime("b850bc30-45f8-0041-a00a-83df46d8555d").catch(() => {});
 
   if (testDataUser1) {
-    await cleanupTestData(connectionString, testDataUser1.organization.id).catch(
-      (err) => console.warn(`Cleanup warning: ${err}`)
+    await cleanupTestData(connectionString, testDataUser1.organization.id).catch((err) =>
+      console.warn(`Cleanup warning: ${err}`),
     );
   }
   if (testDataUser2) {
-    await cleanupTestData(connectionString, testDataUser2.organization.id).catch(
-      (err) => console.warn(`Cleanup warning: ${err}`)
+    await cleanupTestData(connectionString, testDataUser2.organization.id).catch((err) =>
+      console.warn(`Cleanup warning: ${err}`),
     );
   }
 }
@@ -86,7 +90,7 @@ async function getAgentSettingsFromDb(): Promise<Record<string, unknown>> {
   await client.connect();
   try {
     const result = await client.query(
-      "SELECT settings FROM agents WHERE id = 'b850bc30-45f8-0041-a00a-83df46d8555d'"
+      "SELECT settings FROM agents WHERE id = 'b850bc30-45f8-0041-a00a-83df46d8555d'",
     );
     return (result.rows[0]?.settings || {}) as Record<string, unknown>;
   } finally {
@@ -104,7 +108,7 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
     await client.connect();
     try {
       const result = await client.query(
-        "SELECT settings FROM agents WHERE id = 'b850bc30-45f8-0041-a00a-83df46d8555d'"
+        "SELECT settings FROM agents WHERE id = 'b850bc30-45f8-0041-a00a-83df46d8555d'",
       );
       const settings = (result.rows[0]?.settings || {}) as Record<string, unknown>;
 
@@ -119,7 +123,7 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
 
       await client.query(
         "UPDATE agents SET settings = $1 WHERE id = 'b850bc30-45f8-0041-a00a-83df46d8555d'",
-        [JSON.stringify(settings)]
+        [JSON.stringify(settings)],
       );
     } finally {
       await client.end();
@@ -195,7 +199,9 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
       expect(apiKey2).not.toBe(testDataUser1.apiKey.key);
       expect(userId2).not.toBe(testDataUser1.user.id);
 
-      console.log(`✅ User 2 got their own settings (API: ${testDataUser2.apiKey.key.substring(0, 15)}...)`);
+      console.log(
+        `✅ User 2 got their own settings (API: ${testDataUser2.apiKey.key.substring(0, 15)}...)`,
+      );
       console.log("✅ Different users get isolated settings");
     } finally {
       await invalidateRuntime(runtime2.agentId as string);
@@ -226,23 +232,22 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
     }
 
     // Verify each request got the correct API key
-    expect(results[0].apiKey).toBe(testDataUser1.apiKey.key);  // User 1
-    expect(results[1].apiKey).toBe(testDataUser2.apiKey.key);  // User 2
-    expect(results[2].apiKey).toBe(testDataUser1.apiKey.key);  // User 1 again
+    expect(results[0].apiKey).toBe(testDataUser1.apiKey.key); // User 1
+    expect(results[1].apiKey).toBe(testDataUser2.apiKey.key); // User 2
+    expect(results[2].apiKey).toBe(testDataUser1.apiKey.key); // User 1 again
 
     console.log("✅ API keys correctly isolated across sequential requests:");
     results.forEach((r, i) => {
-      console.log(`   Request ${i + 1}: User ${r.userId.substring(0, 8)}... → API ${r.apiKey?.substring(0, 15)}...`);
+      console.log(
+        `   Request ${i + 1}: User ${r.userId.substring(0, 8)}... → API ${r.apiKey?.substring(0, 15)}...`,
+      );
     });
   }, 90000);
 
   it("should not leak MCP settings between users with different OAuth states", async () => {
     // Helper to get MCP settings the way McpService does
     const getMcpSettings = (runtime: any): Record<string, unknown> | undefined => {
-      return (
-        runtime.character?.settings?.mcp ||
-        runtime.settings?.mcp
-      );
+      return runtime.character?.settings?.mcp || runtime.settings?.mcp;
     };
 
     // User 1: Has Google OAuth

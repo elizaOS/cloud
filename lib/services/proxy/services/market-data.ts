@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import type { ServiceConfig, ServiceHandler } from "../types";
-import { getServiceMethodCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
 import { retryFetch } from "../fetch";
+import { getServiceMethodCost } from "../pricing";
+import type { ServiceConfig, ServiceHandler } from "../types";
 
 /**
  * Market Data Service Handler
@@ -47,11 +47,7 @@ const PROVIDER_PATHS: Record<string, string> = {
  *   - Cache hit rate would be extremely low
  *   - Wasted Redis memory storing rare queries
  */
-const NON_CACHEABLE_METHODS = new Set([
-  "getTokenTrades",
-  "getTrending",
-  "search",
-]);
+const NON_CACHEABLE_METHODS = new Set(["getTokenTrades", "getTrending", "search"]);
 
 export interface MarketDataRequest {
   method: string;

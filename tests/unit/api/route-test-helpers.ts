@@ -32,12 +32,7 @@ export function formDataRequest(url: string, formData: FormData) {
   } as unknown as NextRequest;
 }
 
-export function createFile(
-  name: string,
-  type: string,
-  contents: string | Uint8Array = "test",
-) {
-  const data =
-    typeof contents === "string" ? new TextEncoder().encode(contents) : contents;
+export function createFile(name: string, type: string, contents: string | Uint8Array = "test") {
+  const data = typeof contents === "string" ? new TextEncoder().encode(contents) : contents;
   return new File([data], name, { type });
 }

@@ -4,7 +4,7 @@
  * Tests for lib/services/gateway-discord/constants.ts
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { DEAD_POD_THRESHOLD_MS } from "../constants";
 
 describe("DEAD_POD_THRESHOLD_MS", () => {

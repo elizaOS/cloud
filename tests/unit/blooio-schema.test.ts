@@ -5,13 +5,9 @@
  * This is critical because Blooio sends "text": null instead of omitting the field.
  */
 
-import { describe, it, expect } from "bun:test";
-import {
-  BlooioWebhookEventSchema,
-  parseBlooioWebhookEvent,
-  type BlooioWebhookEvent,
-} from "../../lib/utils/blooio-api";
+import { describe, expect, it } from "bun:test";
 import { ZodError } from "zod";
+import { parseBlooioWebhookEvent } from "../../lib/utils/blooio-api";
 
 describe("Blooio Webhook Schema", () => {
   describe("nullish field handling", () => {
@@ -102,10 +98,7 @@ describe("Blooio Webhook Schema", () => {
       const payload = {
         event: "message_received",
         sender: "+15551234567",
-        attachments: [
-          "https://media.blooio.com/image1.jpg",
-          "https://media.blooio.com/image2.jpg",
-        ],
+        attachments: ["https://media.blooio.com/image1.jpg", "https://media.blooio.com/image2.jpg"],
       };
 
       const result = parseBlooioWebhookEvent(payload);

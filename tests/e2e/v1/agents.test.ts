@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as api from "../helpers/api-client";
 import { NONEXISTENT_UUID } from "../helpers/test-data";
 
@@ -73,15 +73,12 @@ describe("Containers API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/containers returns container list",
-    async () => {
-      const response = await api.get("/api/v1/containers", { authenticated: true });
-      expect(response.status).toBe(200);
-      const body = await response.json() as any;
-      expect(Array.isArray(body.containers || body)).toBe(true);
-    },
-  );
+  test.skipIf(!api.hasApiKey())("GET /api/v1/containers returns container list", async () => {
+    const response = await api.get("/api/v1/containers", { authenticated: true });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as any;
+    expect(Array.isArray(body.containers || body)).toBe(true);
+  });
 
   test.skipIf(!api.hasApiKey())(
     "GET /api/v1/containers/[id] returns 404 for nonexistent",

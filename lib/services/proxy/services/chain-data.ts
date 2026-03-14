@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import type { ServiceConfig, ServiceHandler } from "../types";
-import { getServiceMethodCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
 import { retryFetch } from "../fetch";
+import { getServiceMethodCost } from "../pricing";
+import type { ServiceConfig, ServiceHandler } from "../types";
 import { ALCHEMY_SLUGS } from "./rpc";
 
 /**
@@ -60,16 +60,13 @@ const PROVIDER_METHODS: Record<string, ProviderMethod> = {
     // Filter out null/undefined values to avoid sending them to Alchemy
     buildRpcParams: (p) => {
       const params: Record<string, string | string[]> = {
-        category: p.category
-          ? [String(p.category)]
-          : ["external", "erc20", "erc721", "erc1155"],
+        category: p.category ? [String(p.category)] : ["external", "erc20", "erc721", "erc1155"],
       };
       if (p.fromAddress) params.fromAddress = String(p.fromAddress);
       if (p.toAddress) params.toAddress = String(p.toAddress);
       if (p.pageKey) params.pageKey = String(p.pageKey);
       const count = Number(p.maxCount);
-      params.maxCount =
-        !p.maxCount || Number.isNaN(count) ? "0x64" : "0x" + count.toString(16);
+      params.maxCount = !p.maxCount || Number.isNaN(count) ? "0x64" : "0x" + count.toString(16);
       return [params];
     },
   },

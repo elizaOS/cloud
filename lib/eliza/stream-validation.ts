@@ -4,10 +4,7 @@
  */
 
 import { z } from "zod";
-import {
-  MAX_PROMPT_LENGTH,
-  MAX_RESPONSE_STYLE_LENGTH,
-} from "@/lib/constants/image-generation";
+import { MAX_PROMPT_LENGTH, MAX_RESPONSE_STYLE_LENGTH } from "@/lib/constants/image-generation";
 
 /**
  * Sanitize prompt string to prevent injection attacks

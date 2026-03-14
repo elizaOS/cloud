@@ -1,11 +1,11 @@
-import type { Meta } from '@storybook/react';
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './tooltip';
-import { Button } from './button';
+import type { Meta } from "@storybook/react";
+import { Button } from "./button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
 
 const meta: Meta<typeof TooltipProvider> = {
-  title: 'Components/Tooltip',
+  title: "Components/Tooltip",
   component: TooltipProvider,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
 };
 
 export default meta;

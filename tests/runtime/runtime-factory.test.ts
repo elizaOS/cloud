@@ -10,37 +10,37 @@
  * Make sure your local server is running before running these tests.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mcpTestCharacter } from "../fixtures/mcp-test-character";
 import {
-  // Local database
-  hasDatabaseUrl,
-  hasRuntimeModelCredentials,
-  getConnectionString,
-  verifyConnection,
-  // Test data
-  createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
-  // Production RuntimeFactory
-  runtimeFactory,
-  invalidateRuntime,
-  isRuntimeCached,
-  getRuntimeCacheStats,
   AgentMode,
   // Test helpers
   buildUserContext,
+  cleanupTestData,
+  // Test data
+  createTestDataSet,
   createTestUser,
-  sendTestMessage,
+  endTimer,
+  getConnectionString,
   getMcpService,
-  waitForMcpReady,
-  type TestRuntime,
-  type TestUserContext,
+  getRuntimeCacheStats,
+  // Local database
+  hasDatabaseUrl,
+  hasRuntimeModelCredentials,
+  invalidateRuntime,
+  isRuntimeCached,
+  logTimings,
+  // Production RuntimeFactory
+  runtimeFactory,
+  sendTestMessage,
   // Timing
   startTimer,
-  endTimer,
-  logTimings,
+  type TestDataSet,
+  type TestRuntime,
+  type TestUserContext,
+  verifyConnection,
+  waitForMcpReady,
 } from "../infrastructure";
-import { mcpTestCharacter } from "../fixtures/mcp-test-character";
 
 // ============================================================================
 // Global Test State
@@ -88,8 +88,8 @@ async function setupEnvironment(): Promise<void> {
 async function cleanupEnvironment(): Promise<void> {
   console.log("\n🧹 Cleaning up...");
   if (testData) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(
-      (err) => console.warn(`Cleanup warning: ${err}`),
+    await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+      console.warn(`Cleanup warning: ${err}`),
     );
   }
   logTimings("All RuntimeFactory Tests", allTimings);
@@ -120,24 +120,16 @@ describe.skipIf(skipLiveModelSuites)("RuntimeFactory - CHAT Mode", () => {
 
     expect(runtime).toBeDefined();
     expect(runtime.agentId).toBeDefined();
-    console.log(
-      `\n✅ CHAT runtime created in ${allTimings.chatRuntimeCreate}ms`,
-    );
+    console.log(`\n✅ CHAT runtime created in ${allTimings.chatRuntimeCreate}ms`);
   }, 60000);
 
   it("should process message in CHAT mode", async () => {
     testUser = await createTestUser(runtime, "ChatTestUser");
 
     startTimer("chat_message");
-    const result = await sendTestMessage(
-      runtime,
-      testUser,
-      "Hello! How are you?",
-      testData,
-      {
-        timeoutMs: 60000,
-      },
-    );
+    const result = await sendTestMessage(runtime, testUser, "Hello! How are you?", testData, {
+      timeoutMs: 60000,
+    });
     allTimings.chatMessage = endTimer("chat_message");
 
     console.log(
@@ -193,9 +185,7 @@ describe.skipIf(skipLiveModelSuites)("RuntimeFactory - ASSISTANT Mode (MCP)", ()
 
     expect(runtime).toBeDefined();
     expect(runtime.character?.name).toBe("Mira");
-    console.log(
-      `\n✅ ASSISTANT runtime created in ${allTimings.assistantRuntimeCreate}ms`,
-    );
+    console.log(`\n✅ ASSISTANT runtime created in ${allTimings.assistantRuntimeCreate}ms`);
   }, 60000);
 
   it("should have MCP service initialized", async () => {
@@ -260,9 +250,7 @@ describe.skipIf(skipLiveModelSuites)("RuntimeFactory - ASSISTANT Mode (Web Searc
     allTimings.webSearchRuntimeCreate = endTimer("websearch_runtime_create");
 
     expect(runtime).toBeDefined();
-    console.log(
-      `\n✅ Web Search runtime in ${allTimings.webSearchRuntimeCreate}ms`,
-    );
+    console.log(`\n✅ Web Search runtime in ${allTimings.webSearchRuntimeCreate}ms`);
   }, 60000);
 
   it("should process message with web search", async () => {
@@ -312,9 +300,7 @@ describe.skipIf(skipLiveModelSuites)("RuntimeFactory - BUILD Mode", () => {
     allTimings.buildRuntimeCreate = endTimer("build_runtime_create");
 
     expect(runtime).toBeDefined();
-    console.log(
-      `\n✅ BUILD runtime created in ${allTimings.buildRuntimeCreate}ms`,
-    );
+    console.log(`\n✅ BUILD runtime created in ${allTimings.buildRuntimeCreate}ms`);
   }, 60000);
 
   it("should process BUILD mode message", async () => {
@@ -388,9 +374,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
     const stats = getRuntimeCacheStats();
     expect(stats).toBeDefined();
     expect(stats.runtime).toBeDefined();
-    console.log(
-      `\n📊 Cache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`,
-    );
+    console.log(`\n📊 Cache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`);
   });
 });
 

@@ -5,7 +5,7 @@
  * Supports E.164 format and handles various input formats.
  */
 
-import { parsePhoneNumberWithError, type CountryCode } from "libphonenumber-js";
+import { type CountryCode, parsePhoneNumberWithError } from "libphonenumber-js";
 import { logger } from "@/lib/utils/logger";
 
 // Validation patterns
@@ -91,7 +91,7 @@ export function normalizePhoneNumber(phone: string, defaultCountry?: string): st
  * Returns normalized phone on success, or error message on failure.
  */
 export function validatePhoneForAPI(
-  phoneNumber: string
+  phoneNumber: string,
 ): { valid: true; normalized: string } | { valid: false; error: string } {
   const trimmed = phoneNumber.trim();
 

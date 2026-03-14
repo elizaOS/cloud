@@ -45,10 +45,7 @@ interface DrizzleMigration {
 }
 
 async function getJournalEntries(): Promise<Journal> {
-  const journalPath = path.join(
-    process.cwd(),
-    "db/migrations/meta/_journal.json"
-  );
+  const journalPath = path.join(process.cwd(), "db/migrations/meta/_journal.json");
   const content = await readFile(journalPath, "utf-8");
   return JSON.parse(content) as Journal;
 }
@@ -65,11 +62,9 @@ async function getMigrationFiles(): Promise<string[]> {
     });
 }
 
-async function getAppliedMigrations(
-  client: pg.Client
-): Promise<DrizzleMigration[]> {
+async function getAppliedMigrations(client: pg.Client): Promise<DrizzleMigration[]> {
   const result = await client.query<DrizzleMigration>(
-    'SELECT * FROM "__drizzle_migrations" ORDER BY id'
+    'SELECT * FROM "__drizzle_migrations" ORDER BY id',
   );
   return result.rows;
 }
@@ -91,9 +86,7 @@ async function main() {
     filesByNumber.set(num, existing);
   }
 
-  const duplicates = Array.from(filesByNumber.entries()).filter(
-    ([, files]) => files.length > 1
-  );
+  const duplicates = Array.from(filesByNumber.entries()).filter(([, files]) => files.length > 1);
   if (duplicates.length > 0) {
     console.log("\n   ⚠️  DUPLICATE MIGRATION NUMBERS:");
     for (const [num, files] of duplicates) {
@@ -168,9 +161,7 @@ async function main() {
     console.log(`   Applied migrations: ${appliedMigrations.length}`);
     console.log("   Entries:");
     for (const migration of appliedMigrations) {
-      console.log(
-        `     ${migration.id}: ${migration.hash} (${migration.created_at})`
-      );
+      console.log(`     ${migration.id}: ${migration.hash} (${migration.created_at})`);
     }
 
     console.log("\n📈 COMPARISON:");
@@ -179,9 +170,7 @@ async function main() {
     console.log(`   SQL files on disk:   ${migrationFiles.length}`);
 
     if (journal.entries.length !== appliedMigrations.length) {
-      console.log(
-        "\n   ⚠️  MISMATCH between journal entries and applied migrations!"
-      );
+      console.log("\n   ⚠️  MISMATCH between journal entries and applied migrations!");
     }
   } catch (error) {
     console.log(`   ❌ Error connecting to database: ${error}`);

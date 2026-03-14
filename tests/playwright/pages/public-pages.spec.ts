@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { smokeTestPage, strictSmokeTestPage } from "../fixtures/page-helpers";
 
 /**
@@ -83,9 +83,7 @@ test.describe("Public Pages", () => {
     });
 
     test("/invite/accept loads with test token", async ({ page }) => {
-      const response = await page.goto(
-        "http://localhost:3000/invite/accept?token=test-token",
-      );
+      const response = await page.goto("http://localhost:3000/invite/accept?token=test-token");
       expect(response?.status()).not.toBe(500);
       expect([200, 304]).toContain(response?.status() ?? 0);
     });

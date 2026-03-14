@@ -5,7 +5,7 @@
  * without requiring a live database (mocked repository layer).
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { normalizeTokenAddress } from "@/lib/utils/token-address";
 
@@ -48,9 +48,7 @@ describe("Token linkage schema validation", () => {
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.tokenAddress).toBe(
-        "0x1234567890abcdef1234567890abcdef12345678",
-      );
+      expect(result.data.tokenAddress).toBe("0x1234567890abcdef1234567890abcdef12345678");
       expect(result.data.tokenChain).toBe("ethereum");
       expect(result.data.tokenName).toBe("TestToken");
       expect(result.data.tokenTicker).toBe("TST");
@@ -297,27 +295,40 @@ describe("Token lookup logic", () => {
 
   test("Solana addresses remain case-sensitive", () => {
     const characters = [
-      { id: "1", token_address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", token_chain: "solana", name: "Sol Agent" },
+      {
+        id: "1",
+        token_address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        token_chain: "solana",
+        name: "Sol Agent",
+      },
     ];
 
     // Exact match works
-    expect(findByTokenAddress(characters, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "solana")?.name).toBe("Sol Agent");
+    expect(
+      findByTokenAddress(characters, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "solana")
+        ?.name,
+    ).toBe("Sol Agent");
     // Wrong case should NOT match (base58 is case-sensitive)
-    expect(findByTokenAddress(characters, "epjfwdd5aufqssqem2qn1xzybapC8G4wEGGkZwyTDt1v", "solana")).toBeUndefined();
+    expect(
+      findByTokenAddress(characters, "epjfwdd5aufqssqem2qn1xzybapC8G4wEGGkZwyTDt1v", "solana"),
+    ).toBeUndefined();
   });
 
   test("listTokenLinked filters by chain", () => {
     const characters = [
       { id: "1", token_address: "0xAAA", token_chain: "ethereum", name: "ETH Agent" },
       { id: "2", token_address: "0xBBB", token_chain: "base", name: "Base Agent" },
-      { id: "3", token_address: null as string | null, token_chain: null as string | null, name: "Plain Agent" },
+      {
+        id: "3",
+        token_address: null as string | null,
+        token_chain: null as string | null,
+        name: "Plain Agent",
+      },
     ];
 
     function listTokenLinked(chain?: string) {
       return characters.filter(
-        (c) =>
-          c.token_address != null &&
-          (chain == null || c.token_chain === chain),
+        (c) => c.token_address != null && (chain == null || c.token_chain === chain),
       );
     }
 
@@ -338,8 +349,7 @@ describe("Token lookup logic", () => {
     const normalizedIncoming = normalizeTokenAddress(incoming, "base");
 
     const isDuplicate =
-      existingChar.token_address === normalizedIncoming &&
-      existingChar.token_chain === "base";
+      existingChar.token_address === normalizedIncoming && existingChar.token_chain === "base";
 
     expect(isDuplicate).toBe(true);
 
@@ -417,8 +427,7 @@ describe("JSONB fallback for milady agents", () => {
     const cfg = agentConfig;
 
     const resolved = {
-      token_address:
-        char?.token_address ?? (cfg?.tokenContractAddress as string) ?? null,
+      token_address: char?.token_address ?? (cfg?.tokenContractAddress as string) ?? null,
       token_chain: char?.token_chain ?? (cfg?.chain as string) ?? null,
       token_name: char?.token_name ?? (cfg?.tokenName as string) ?? null,
       token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string) ?? null,
@@ -446,8 +455,7 @@ describe("JSONB fallback for milady agents", () => {
     };
 
     const resolved = {
-      token_address:
-        char?.token_address ?? (cfg?.tokenContractAddress as string) ?? null,
+      token_address: char?.token_address ?? (cfg?.tokenContractAddress as string) ?? null,
       token_chain: char?.token_chain ?? (cfg?.chain as string) ?? null,
       token_name: char?.token_name ?? (cfg?.tokenName as string) ?? null,
       token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string) ?? null,

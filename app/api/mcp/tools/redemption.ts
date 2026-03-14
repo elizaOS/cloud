@@ -8,7 +8,7 @@ import { z } from "zod/v3";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { twapPriceOracle } from "@/lib/services/twap-price-oracle";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 export function registerRedemptionTools(server: McpServer): void {
   server.registerTool(
@@ -28,9 +28,7 @@ export function registerRedemptionTools(server: McpServer): void {
           userId: user.id,
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to get balance",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to get balance");
       }
     },
   );
@@ -40,15 +38,8 @@ export function registerRedemptionTools(server: McpServer): void {
     {
       description: "Get token redemption quote. FREE tool.",
       inputSchema: {
-        pointsAmount: z
-          .number()
-          .int()
-          .min(100)
-          .max(100000)
-          .describe("Points to redeem"),
-        network: z
-          .enum(["ethereum", "base", "bnb", "solana"])
-          .describe("Payout network"),
+        pointsAmount: z.number().int().min(100).max(100000).describe("Points to redeem"),
+        network: z.enum(["ethereum", "base", "bnb", "solana"]).describe("Payout network"),
       },
     },
     async ({ pointsAmount, network }) => {
@@ -60,16 +51,12 @@ export function registerRedemptionTools(server: McpServer): void {
           user.id,
         );
         if (!quoteResult.success) {
-          return errorResponse(
-            quoteResult.error || "Failed to get redemption quote",
-          );
+          return errorResponse(quoteResult.error || "Failed to get redemption quote");
         }
         return jsonResponse({ success: true, quote: quoteResult.quote });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to get redemption quote",
+          error instanceof Error ? error.message : "Failed to get redemption quote",
         );
       }
     },

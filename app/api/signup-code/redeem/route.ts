@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { redeemSignupCode, ERRORS } from "@/lib/services/signup-code";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { ERRORS, redeemSignupCode } from "@/lib/services/signup-code";
+import { logger } from "@/lib/utils/logger";
 
 /* WHY no-cache: Prevents CDN/browser from caching 200 and hiding 409 (already used) on retry. */
 const NO_CACHE_HEADERS = {
@@ -27,10 +27,7 @@ async function handlePOST(request: NextRequest) {
       user = await requireAuthWithOrg();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return NextResponse.json(
-        { error: message },
-        { status: 401, headers: NO_CACHE_HEADERS },
-      );
+      return NextResponse.json({ error: message }, { status: 401, headers: NO_CACHE_HEADERS });
     }
 
     const organizationId = user.organization_id!;
@@ -44,7 +41,7 @@ async function handlePOST(request: NextRequest) {
       );
     }
     const bodySchema = z.object({
-      code: z.string().min(1).trim()
+      code: z.string().min(1).trim(),
     });
     const result = bodySchema.safeParse(body);
     if (!result.success) {
@@ -89,4 +86,3 @@ async function handlePOST(request: NextRequest) {
 
 /* WHY CRITICAL: Redeem grants credits; strict rate limit (e.g. 5/5min) reduces abuse. */
 export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
-

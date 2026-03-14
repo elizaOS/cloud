@@ -6,7 +6,7 @@
  * never leaked in error messages or logs.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 // Import the real `redact` object directly.  Other test files in the batch
 // may call `mock.module("@/lib/utils/logger", ...)` without including `redact`,
@@ -48,7 +48,8 @@ describe("DockerSSHClient — cloud deploy key resolution", () => {
   afterEach(() => restoreEnv());
 
   test("loads key from MILADY_SSH_KEY env var (base64)", async () => {
-    const fakeKey = "-----BEGIN OPENSSH PRIVATE KEY-----\nfake-key-data\n-----END OPENSSH PRIVATE KEY-----\n";
+    const fakeKey =
+      "-----BEGIN OPENSSH PRIVATE KEY-----\nfake-key-data\n-----END OPENSSH PRIVATE KEY-----\n";
     process.env.MILADY_SSH_KEY = Buffer.from(fakeKey).toString("base64");
     delete process.env.MILADY_SSH_KEY_PATH;
 
@@ -86,7 +87,9 @@ describe("DockerSSHClient — cloud deploy key resolution", () => {
 
     const { DockerSSHClient } = await import("@/lib/services/docker-ssh");
 
-    const fakeKey = Buffer.from("-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----\n");
+    const fakeKey = Buffer.from(
+      "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----\n",
+    );
     expect(() => {
       new DockerSSHClient({
         hostname: "serverless-host",
@@ -252,7 +255,7 @@ describe("Logger redact.context — secret field coverage", () => {
 
 describe("DockerSSHConfig — interface completeness", () => {
   test("exports DockerSSHConfig with all expected fields", async () => {
-    const mod = await import("@/lib/services/docker-ssh");
+    const _mod = await import("@/lib/services/docker-ssh");
     // Type-level check: ensure the config interface works with all fields
     const config: import("@/lib/services/docker-ssh").DockerSSHConfig = {
       hostname: "test",

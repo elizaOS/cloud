@@ -8,7 +8,7 @@
  * - Input sanitization
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 
 // Recreate validation schemas from the codebase for testing
@@ -19,16 +19,18 @@ const MAX_MESSAGE_LENGTH = 10000; // 10,000 characters
  * Message metadata schema - allows simple key-value pairs only.
  * Prevents deeply nested or malicious objects from being stored.
  */
-const messageMetadataSchema = z.record(
-  z.string(),
-  z.union([
+const messageMetadataSchema = z
+  .record(
     z.string(),
-    z.number(),
-    z.boolean(),
-    z.null(),
-    z.array(z.union([z.string(), z.number(), z.boolean()])),
-  ])
-).optional();
+    z.union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.null(),
+      z.array(z.union([z.string(), z.number(), z.boolean()])),
+    ]),
+  )
+  .optional();
 
 describe("Security Validations", () => {
   describe("Metadata Size Limits", () => {
@@ -131,7 +133,7 @@ describe("Security Validations", () => {
 
       // JSON.parse creates objects without prototype pollution
       // The __proto__ becomes a regular property
-      expect(Object.prototype.hasOwnProperty.call(parsed, "__proto__")).toBe(true);
+      expect(Object.hasOwn(parsed, "__proto__")).toBe(true);
       expect({}.polluted).toBeUndefined(); // Global prototype not polluted
     });
 
@@ -201,7 +203,7 @@ describe("Security Validations", () => {
 
     it("accepts timestamps within tolerance", () => {
       const now = Date.now();
-      const recent = now - (1 * 60 * 1000); // 1 minute ago
+      const recent = now - 1 * 60 * 1000; // 1 minute ago
 
       const diff = Math.abs(now - recent);
       expect(diff).toBeLessThanOrEqual(TIMESTAMP_TOLERANCE_MS);
@@ -209,7 +211,7 @@ describe("Security Validations", () => {
 
     it("rejects timestamps outside tolerance", () => {
       const now = Date.now();
-      const old = now - (5 * 60 * 1000); // 5 minutes ago
+      const old = now - 5 * 60 * 1000; // 5 minutes ago
 
       const diff = Math.abs(now - old);
       expect(diff).toBeGreaterThan(TIMESTAMP_TOLERANCE_MS);
@@ -217,7 +219,7 @@ describe("Security Validations", () => {
 
     it("handles future timestamps within tolerance", () => {
       const now = Date.now();
-      const future = now + (1 * 60 * 1000); // 1 minute in future
+      const future = now + 1 * 60 * 1000; // 1 minute in future
 
       const diff = Math.abs(now - future);
       expect(diff).toBeLessThanOrEqual(TIMESTAMP_TOLERANCE_MS);
@@ -225,7 +227,7 @@ describe("Security Validations", () => {
 
     it("rejects far future timestamps", () => {
       const now = Date.now();
-      const farFuture = now + (10 * 60 * 1000); // 10 minutes in future
+      const farFuture = now + 10 * 60 * 1000; // 10 minutes in future
 
       const diff = Math.abs(now - farFuture);
       expect(diff).toBeGreaterThan(TIMESTAMP_TOLERANCE_MS);

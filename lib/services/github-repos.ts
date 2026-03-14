@@ -1,5 +1,5 @@
-import { logger } from "@/lib/utils/logger";
 import { Octokit } from "@octokit/rest";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * GitHub Repository Service
@@ -12,8 +12,7 @@ import { Octokit } from "@octokit/rest";
  */
 
 const GITHUB_ORG = process.env.GITHUB_ORG_NAME || "eliza-cloud-apps";
-const TEMPLATE_REPO =
-  process.env.GITHUB_TEMPLATE_REPO || "eliza-cloud-apps/cloud-apps-template";
+const TEMPLATE_REPO = process.env.GITHUB_TEMPLATE_REPO || "eliza-cloud-apps/cloud-apps-template";
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -38,10 +37,7 @@ function getOctokit(): Octokit {
 /**
  * Retry wrapper with exponential backoff for rate limits
  */
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  context: string,
-): Promise<T> {
+async function withRetry<T>(operation: () => Promise<T>, context: string): Promise<T> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -53,7 +49,7 @@ async function withRetry<T>(
 
       // Only retry on rate limits (403) or server errors (5xx)
       if (status === 403 || (status && status >= 500)) {
-        const delay = INITIAL_DELAY_MS * Math.pow(2, attempt);
+        const delay = INITIAL_DELAY_MS * 2 ** attempt;
         logger.warn(`GitHub API ${context} failed, retrying in ${delay}ms`, {
           attempt: attempt + 1,
           maxRetries: MAX_RETRIES,
@@ -102,9 +98,7 @@ export interface CommitInfo {
 /**
  * Create a new repository from the template
  */
-export async function createAppRepo(
-  options: CreateRepoOptions,
-): Promise<RepoInfo> {
+export async function createAppRepo(options: CreateRepoOptions): Promise<RepoInfo> {
   const octokit = getOctokit();
   const { name, description, isPrivate = true } = options;
 

@@ -2,22 +2,17 @@
  * Waifu Bridge Auth — resolves waifu-core service JWTs to eliza-cloud user+org.
  */
 
+import crypto from "crypto";
 import { NextRequest } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import {
-  verifyServiceJwt,
-  isServiceJwtEnabled,
-  type ServiceJwtPayload,
-} from "./service-jwt";
-import { usersService } from "@/lib/services/users";
-import { organizationsService } from "@/lib/services/organizations";
-import type { UserWithOrganization } from "@/lib/types";
+import { dbWrite } from "@/db/helpers";
 import type { Organization } from "@/db/schemas/organizations";
 import { userIdentities } from "@/db/schemas/user-identities";
-import { dbWrite } from "@/db/helpers";
-import { eq } from "drizzle-orm";
 import { ForbiddenError } from "@/lib/api/errors";
-import crypto from "crypto";
+import { organizationsService } from "@/lib/services/organizations";
+import { usersService } from "@/lib/services/users";
+import type { UserWithOrganization } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
+import { isServiceJwtEnabled, type ServiceJwtPayload, verifyServiceJwt } from "./service-jwt";
 
 export interface WaifuBridgeAuthResult {
   user: UserWithOrganization & {
@@ -121,13 +116,16 @@ async function resolveServiceUser(
     );
     if (walletUser?.organization_id && walletUser?.organization) {
       // Update identity to link the service ID
-      await dbWrite.insert(userIdentities).values({
-        user_id: walletUser.id,
-        privy_user_id: serviceId,
-      }).onConflictDoUpdate({
-        target: userIdentities.user_id,
-        set: { privy_user_id: serviceId, updated_at: new Date() },
-      });
+      await dbWrite
+        .insert(userIdentities)
+        .values({
+          user_id: walletUser.id,
+          privy_user_id: serviceId,
+        })
+        .onConflictDoUpdate({
+          target: userIdentities.user_id,
+          set: { privy_user_id: serviceId, updated_at: new Date() },
+        });
       return walletUser as WaifuBridgeAuthResult["user"];
     }
   }
@@ -245,9 +243,7 @@ async function resolveServiceUser(
 
   const fullUser = await usersService.getWithOrganization(newUser.id);
   if (!fullUser?.organization_id || !fullUser?.organization) {
-    throw new ForbiddenError(
-      "Failed to provision service account for waifu-core bridge",
-    );
+    throw new ForbiddenError("Failed to provision service account for waifu-core bridge");
   }
 
   return fullUser as WaifuBridgeAuthResult["user"];

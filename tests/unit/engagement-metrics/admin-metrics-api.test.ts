@@ -9,7 +9,7 @@
  * - Error handling for service failures
  */
 
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 // ─── Mock Setup ──────────────────────────────────────────────────────────────
@@ -41,9 +41,7 @@ const mockOAuthRate = {
 
 const mockGetMetricsOverview = mock(() => Promise.resolve(mockOverview));
 const mockGetDailyMetrics = mock(() => Promise.resolve(mockDailyMetrics));
-const mockGetRetentionCohorts = mock(() =>
-  Promise.resolve(mockRetentionCohorts),
-);
+const mockGetRetentionCohorts = mock(() => Promise.resolve(mockRetentionCohorts));
 const mockGetActiveUsers = mock(() => Promise.resolve(mockActiveUsers));
 const mockGetNewSignups = mock(() => Promise.resolve(mockSignups));
 const mockGetOAuthConnectionRate = mock(() => Promise.resolve(mockOAuthRate));
@@ -250,9 +248,7 @@ describe("Admin Metrics API", () => {
     });
 
     test("handles 7d time range", async () => {
-      const res = await GET(
-        makeRequest({ view: "daily", timeRange: "7d" }),
-      );
+      const res = await GET(makeRequest({ view: "daily", timeRange: "7d" }));
       expect(res.status).toBe(200);
 
       const calledArgs = mockGetDailyMetrics.mock.calls[0];
@@ -264,9 +260,7 @@ describe("Admin Metrics API", () => {
     });
 
     test("handles 90d time range", async () => {
-      const res = await GET(
-        makeRequest({ view: "daily", timeRange: "90d" }),
-      );
+      const res = await GET(makeRequest({ view: "daily", timeRange: "90d" }));
       expect(res.status).toBe(200);
 
       const calledArgs = mockGetDailyMetrics.mock.calls[0];
@@ -287,9 +281,7 @@ describe("Admin Metrics API", () => {
     });
 
     test("falls back to 30d for unrecognized time range", async () => {
-      const res = await GET(
-        makeRequest({ view: "daily", timeRange: "999d" }),
-      );
+      const res = await GET(makeRequest({ view: "daily", timeRange: "999d" }));
       expect(res.status).toBe(200);
 
       const calledArgs = mockGetDailyMetrics.mock.calls[0];

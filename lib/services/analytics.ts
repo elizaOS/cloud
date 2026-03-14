@@ -4,25 +4,22 @@
  * Uses the usage-records repository for all data access
  */
 
+import type { CostBreakdownItem, UsageStats } from "@/db/repositories/usage-records";
 import { usageRecordsRepository } from "@/db/repositories/usage-records";
-import type {
-  CostBreakdownItem,
-  UsageStats,
-} from "@/db/repositories/usage-records";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 
 // Re-export types
 export type {
-  TimeGranularity,
-  UsageStats,
-  TimeSeriesDataPoint,
-  UserUsageBreakdown,
-  CostTrending,
-  ProviderBreakdown,
-  ModelBreakdown,
-  TrendData,
   CostBreakdownItem,
+  CostTrending,
+  ModelBreakdown,
+  ProviderBreakdown,
+  TimeGranularity,
+  TimeSeriesDataPoint,
+  TrendData,
+  UsageStats,
+  UserUsageBreakdown,
 } from "@/db/repositories/usage-records";
 
 export class AnalyticsService {
@@ -33,15 +30,12 @@ export class AnalyticsService {
     const dateRange = `${options?.startDate?.toISOString() || "null"}-${options?.endDate?.toISOString() || "null"}`;
     const cacheKey = CacheKeys.analytics.stats(organizationId, dateRange);
 
-    const data = await cacheClient.getWithSWR(
-      cacheKey,
-      CacheStaleTTL.analytics.stats,
-      () =>
-        usageRecordsRepository.getStatsByOrganization(
-          organizationId,
-          options?.startDate,
-          options?.endDate,
-        ),
+    const data = await cacheClient.getWithSWR(cacheKey, CacheStaleTTL.analytics.stats, () =>
+      usageRecordsRepository.getStatsByOrganization(
+        organizationId,
+        options?.startDate,
+        options?.endDate,
+      ),
     );
 
     if (data === null) {
@@ -71,18 +65,12 @@ export class AnalyticsService {
       options.endDate.toISOString(),
     );
 
-    const data = await cacheClient.getWithSWR(
-      cacheKey,
-      CacheStaleTTL.analytics.overview,
-      () => usageRecordsRepository.getUsageTimeSeries(organizationId, options),
+    const data = await cacheClient.getWithSWR(cacheKey, CacheStaleTTL.analytics.overview, () =>
+      usageRecordsRepository.getUsageTimeSeries(organizationId, options),
     );
 
     const result =
-      data ||
-      (await usageRecordsRepository.getUsageTimeSeries(
-        organizationId,
-        options,
-      ));
+      data || (await usageRecordsRepository.getUsageTimeSeries(organizationId, options));
 
     if (options.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
@@ -103,15 +91,11 @@ export class AnalyticsService {
     const params = `${options?.startDate?.toISOString() || "null"}-${options?.endDate?.toISOString() || "null"}-${options?.limit || 0}`;
     const cacheKey = CacheKeys.analytics.userBreakdown(organizationId, params);
 
-    const data = await cacheClient.getWithSWR(
-      cacheKey,
-      CacheStaleTTL.analytics.breakdown,
-      () => usageRecordsRepository.getUsageByUser(organizationId, options),
+    const data = await cacheClient.getWithSWR(cacheKey, CacheStaleTTL.analytics.breakdown, () =>
+      usageRecordsRepository.getUsageByUser(organizationId, options),
     );
 
-    const result =
-      data ||
-      (await usageRecordsRepository.getUsageByUser(organizationId, options));
+    const result = data || (await usageRecordsRepository.getUsageByUser(organizationId, options));
 
     if (options?.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
@@ -134,19 +118,12 @@ export class AnalyticsService {
       options?.endDate?.toISOString() || "null",
     );
 
-    const data = await cacheClient.getWithSWR(
-      cacheKey,
-      CacheStaleTTL.analytics.breakdown,
-      () =>
-        usageRecordsRepository.getProviderBreakdown(organizationId, options),
+    const data = await cacheClient.getWithSWR(cacheKey, CacheStaleTTL.analytics.breakdown, () =>
+      usageRecordsRepository.getProviderBreakdown(organizationId, options),
     );
 
     const result =
-      data ||
-      (await usageRecordsRepository.getProviderBreakdown(
-        organizationId,
-        options,
-      ));
+      data || (await usageRecordsRepository.getProviderBreakdown(organizationId, options));
 
     if (options?.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
@@ -170,15 +147,12 @@ export class AnalyticsService {
       options?.endDate?.toISOString() || "null",
     );
 
-    const data = await cacheClient.getWithSWR(
-      cacheKey,
-      CacheStaleTTL.analytics.breakdown,
-      () => usageRecordsRepository.getModelBreakdown(organizationId, options),
+    const data = await cacheClient.getWithSWR(cacheKey, CacheStaleTTL.analytics.breakdown, () =>
+      usageRecordsRepository.getModelBreakdown(organizationId, options),
     );
 
     const result =
-      data ||
-      (await usageRecordsRepository.getModelBreakdown(organizationId, options));
+      data || (await usageRecordsRepository.getModelBreakdown(organizationId, options));
 
     if (options?.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
@@ -192,11 +166,7 @@ export class AnalyticsService {
     currentPeriod: { startDate: Date; endDate: Date },
     previousPeriod: { startDate: Date; endDate: Date },
   ) {
-    return await usageRecordsRepository.getTrendData(
-      organizationId,
-      currentPeriod,
-      previousPeriod,
-    );
+    return await usageRecordsRepository.getTrendData(organizationId, currentPeriod, previousPeriod);
   }
 
   async getCostBreakdown(
@@ -217,23 +187,12 @@ export class AnalyticsService {
       this.serializeBreakdownOptions(options),
     );
 
-    const data = await cacheClient.getWithSWR(
-      cacheKey,
-      CacheStaleTTL.analytics.breakdown,
-      () =>
-        usageRecordsRepository.getCostBreakdown(
-          organizationId,
-          dimension,
-          options,
-        ),
+    const data = await cacheClient.getWithSWR(cacheKey, CacheStaleTTL.analytics.breakdown, () =>
+      usageRecordsRepository.getCostBreakdown(organizationId, dimension, options),
     );
 
     if (data === null) {
-      return await usageRecordsRepository.getCostBreakdown(
-        organizationId,
-        dimension,
-        options,
-      );
+      return await usageRecordsRepository.getCostBreakdown(organizationId, dimension, options);
     }
 
     return data;
@@ -243,51 +202,38 @@ export class AnalyticsService {
    * Get complete analytics overview with caching
    * Handles date calculations, parallel data fetching, and response formatting
    */
-  async getOverview(
-    organizationId: string,
-    timeRange: "daily" | "weekly" | "monthly",
-  ) {
+  async getOverview(organizationId: string, timeRange: "daily" | "weekly" | "monthly") {
     const cacheKey = CacheKeys.analytics.overview(organizationId, timeRange);
 
     const data = await cacheClient.getWithSWR(
       cacheKey,
       CacheStaleTTL.analytics.overview,
       async () => {
-        const {
-          startDate,
-          endDate,
-          granularity,
-          previousStartDate,
-          previousEndDate,
-        } = this.calculateDateRanges(timeRange);
+        const { startDate, endDate, granularity, previousStartDate, previousEndDate } =
+          this.calculateDateRanges(timeRange);
 
-        const [summary, timeSeries, providerBreakdown, modelBreakdown, trends] =
-          await Promise.all([
-            usageRecordsRepository.getStatsByOrganization(
-              organizationId,
-              startDate,
-              endDate,
-            ),
-            usageRecordsRepository.getUsageTimeSeries(organizationId, {
-              startDate,
-              endDate,
-              granularity,
-            }),
-            usageRecordsRepository.getProviderBreakdown(organizationId, {
-              startDate,
-              endDate,
-            }),
-            usageRecordsRepository.getModelBreakdown(organizationId, {
-              startDate,
-              endDate,
-              limit: 20,
-            }),
-            usageRecordsRepository.getTrendData(
-              organizationId,
-              { startDate, endDate },
-              { startDate: previousStartDate, endDate: previousEndDate },
-            ),
-          ]);
+        const [summary, timeSeries, providerBreakdown, modelBreakdown, trends] = await Promise.all([
+          usageRecordsRepository.getStatsByOrganization(organizationId, startDate, endDate),
+          usageRecordsRepository.getUsageTimeSeries(organizationId, {
+            startDate,
+            endDate,
+            granularity,
+          }),
+          usageRecordsRepository.getProviderBreakdown(organizationId, {
+            startDate,
+            endDate,
+          }),
+          usageRecordsRepository.getModelBreakdown(organizationId, {
+            startDate,
+            endDate,
+            limit: 20,
+          }),
+          usageRecordsRepository.getTrendData(
+            organizationId,
+            { startDate, endDate },
+            { startDate: previousStartDate, endDate: previousEndDate },
+          ),
+        ]);
 
         return {
           timeSeries: timeSeries.map((point) => ({
@@ -315,9 +261,7 @@ export class AnalyticsService {
             totalTokens: summary.totalInputTokens + summary.totalOutputTokens,
             successRate: summary.successRate,
             avgCostPerRequest:
-              summary.totalRequests > 0
-                ? summary.totalCost / summary.totalRequests
-                : 0,
+              summary.totalRequests > 0 ? summary.totalCost / summary.totalRequests : 0,
             avgLatency: 0,
             activeApiKeys: 0,
           },
@@ -333,41 +277,31 @@ export class AnalyticsService {
     );
 
     if (data === null) {
-      const {
-        startDate,
-        endDate,
-        granularity,
-        previousStartDate,
-        previousEndDate,
-      } = this.calculateDateRanges(timeRange);
+      const { startDate, endDate, granularity, previousStartDate, previousEndDate } =
+        this.calculateDateRanges(timeRange);
 
-      const [summary, timeSeries, providerBreakdown, modelBreakdown, trends] =
-        await Promise.all([
-          usageRecordsRepository.getStatsByOrganization(
-            organizationId,
-            startDate,
-            endDate,
-          ),
-          usageRecordsRepository.getUsageTimeSeries(organizationId, {
-            startDate,
-            endDate,
-            granularity,
-          }),
-          usageRecordsRepository.getProviderBreakdown(organizationId, {
-            startDate,
-            endDate,
-          }),
-          usageRecordsRepository.getModelBreakdown(organizationId, {
-            startDate,
-            endDate,
-            limit: 20,
-          }),
-          usageRecordsRepository.getTrendData(
-            organizationId,
-            { startDate, endDate },
-            { startDate: previousStartDate, endDate: previousEndDate },
-          ),
-        ]);
+      const [summary, timeSeries, providerBreakdown, modelBreakdown, trends] = await Promise.all([
+        usageRecordsRepository.getStatsByOrganization(organizationId, startDate, endDate),
+        usageRecordsRepository.getUsageTimeSeries(organizationId, {
+          startDate,
+          endDate,
+          granularity,
+        }),
+        usageRecordsRepository.getProviderBreakdown(organizationId, {
+          startDate,
+          endDate,
+        }),
+        usageRecordsRepository.getModelBreakdown(organizationId, {
+          startDate,
+          endDate,
+          limit: 20,
+        }),
+        usageRecordsRepository.getTrendData(
+          organizationId,
+          { startDate, endDate },
+          { startDate: previousStartDate, endDate: previousEndDate },
+        ),
+      ]);
 
       return {
         timeSeries: timeSeries.map((point) => ({
@@ -395,9 +329,7 @@ export class AnalyticsService {
           totalTokens: summary.totalInputTokens + summary.totalOutputTokens,
           successRate: summary.successRate,
           avgCostPerRequest:
-            summary.totalRequests > 0
-              ? summary.totalCost / summary.totalRequests
-              : 0,
+            summary.totalRequests > 0 ? summary.totalCost / summary.totalRequests : 0,
           avgLatency: 0,
           activeApiKeys: 0,
         },
@@ -522,8 +454,7 @@ export const getTrendData = (
   organizationId: string,
   currentPeriod: { startDate: Date; endDate: Date },
   previousPeriod: { startDate: Date; endDate: Date },
-) =>
-  analyticsService.getTrendData(organizationId, currentPeriod, previousPeriod);
+) => analyticsService.getTrendData(organizationId, currentPeriod, previousPeriod);
 
 export const getCostBreakdown = (
   organizationId: string,
@@ -539,8 +470,6 @@ export const getCostBreakdown = (
 ) => analyticsService.getCostBreakdown(organizationId, dimension, options);
 
 // Validation helper for granularity
-export function validateGranularity(
-  value: string,
-): value is "hour" | "day" | "week" | "month" {
+export function validateGranularity(value: string): value is "hour" | "day" | "week" | "month" {
   return ["hour", "day", "week", "month"].includes(value);
 }

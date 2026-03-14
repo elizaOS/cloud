@@ -4,11 +4,11 @@
 
 import { isGroqNativeModel } from "@/lib/models";
 import { GroqProvider } from "./groq";
-import { VercelGatewayProvider } from "./vercel-gateway";
 import type { AIProvider } from "./types";
+import { VercelGatewayProvider } from "./vercel-gateway";
 
-export * from "./types";
 export { GroqProvider } from "./groq";
+export * from "./types";
 export { VercelGatewayProvider } from "./vercel-gateway";
 
 // Singleton provider instance (lazy initialized)
@@ -27,9 +27,7 @@ export function getProvider(): AIProvider {
   if (!providerInstance) {
     const apiKey = process.env.AI_GATEWAY_API_KEY;
     if (!apiKey) {
-      throw new Error(
-        "VERCEL_AI_GATEWAY_API_KEY environment variable is required",
-      );
+      throw new Error("VERCEL_AI_GATEWAY_API_KEY environment variable is required");
     }
     providerInstance = new VercelGatewayProvider(apiKey);
   }

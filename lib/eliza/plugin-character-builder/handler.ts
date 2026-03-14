@@ -10,27 +10,22 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { v4 } from "uuid";
-import {
-  setLatestResponseId,
-  clearLatestResponseId,
-  isResponseStillValid,
-} from "../shared/utils/response-tracking";
-import {
-  buildModeSystemPrompt,
-  buildModePlanningTemplate,
-} from "./prompts/build-mode-prompts";
-import { parsePlannedItems } from "../shared/utils/parsers";
+import type { MessageReceivedHandlerParams } from "../shared/types";
 import {
   cleanPrompt,
-  runEvaluatorsWithTimeout,
-  isCreatorMode,
   DEFAULT_ELIZA_ID,
+  isCreatorMode,
+  runEvaluatorsWithTimeout,
 } from "../shared/utils/helpers";
-import type { MessageReceivedHandlerParams } from "../shared/types";
+import { parsePlannedItems } from "../shared/utils/parsers";
+import {
+  clearLatestResponseId,
+  isResponseStillValid,
+  setLatestResponseId,
+} from "../shared/utils/response-tracking";
+import { buildModePlanningTemplate, buildModeSystemPrompt } from "./prompts/build-mode-prompts";
 
-function parsePlanningResponse(
-  response: string,
-): { thought: string; actions: string } | null {
+function parsePlanningResponse(response: string): { thought: string; actions: string } | null {
   const parsed = parseKeyValueXml(response) as {
     thought?: string;
     actions?: string;
@@ -121,8 +116,7 @@ export async function handleMessage({
     runtime.character.system = originalSystemPrompt;
 
     const plan = parsePlanningResponse(planningResponse);
-    const selectedAction =
-      parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
+    const selectedAction = parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
 
     // Create action response with thought and mode context
     const actionResponse: Memory = {
@@ -156,18 +150,11 @@ export async function handleMessage({
       onStreamChunk ? { onStreamChunk } : undefined,
     );
 
-    if (!(await isResponseStillValid(runtime, message.roomId, responseId)))
-      return;
+    if (!(await isResponseStillValid(runtime, message.roomId, responseId))) return;
     await clearLatestResponseId(runtime, message.roomId);
 
     // Run evaluators asynchronously in background
-    await runEvaluatorsWithTimeout(
-      runtime,
-      message,
-      state,
-      actionResponse,
-      callback,
-    );
+    await runEvaluatorsWithTimeout(runtime, message, state, actionResponse, callback);
 
     const endTime = Date.now();
     await runtime.emitEvent(EventType.RUN_ENDED, {

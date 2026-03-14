@@ -5,23 +5,23 @@
  * Auth methods: Telegram OAuth, Discord OAuth2, and iMessage (auto-provision).
  */
 
-export { telegramAuthService, type TelegramAuthData } from "./telegram-auth";
-export { discordAuthService, type DiscordUserData } from "./discord-auth";
-export { whatsAppAuthService } from "./whatsapp-auth";
-export {
-  elizaAppSessionService,
-  type ElizaAppSessionPayload,
-  type SessionResult,
-  type ValidatedSession,
-} from "./session-service";
-export { elizaAppUserService, type FindOrCreateResult } from "./user-service";
 export { elizaAppConfig } from "./config";
 export {
   connectionEnforcementService,
   detectProviderFromMessage,
-  REQUIRED_PLATFORMS,
-  NUDGE_INTERVAL,
   type MessagingPlatform,
+  NUDGE_INTERVAL,
   type NudgeParams,
+  REQUIRED_PLATFORMS,
   type RequiredPlatform,
 } from "./connection-enforcement";
+export { type DiscordUserData, discordAuthService } from "./discord-auth";
+export {
+  type ElizaAppSessionPayload,
+  elizaAppSessionService,
+  type SessionResult,
+  type ValidatedSession,
+} from "./session-service";
+export { type TelegramAuthData, telegramAuthService } from "./telegram-auth";
+export { elizaAppUserService, type FindOrCreateResult } from "./user-service";
+export { whatsAppAuthService } from "./whatsapp-auth";

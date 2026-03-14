@@ -10,22 +10,19 @@
  * Protected by CRON_SECRET.
  */
 
-import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
+import { and, eq, inArray } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 import { dbRead, dbWrite } from "@/db/client";
-import { containers, containerBillingRecords } from "@/db/schemas/containers";
-import { organizations } from "@/db/schemas/organizations";
-import { organizationBilling } from "@/db/schemas/organization-billing";
-import { creditTransactions } from "@/db/schemas/credit-transactions";
-import { eq, and, inArray, lte, isNotNull, sql } from "drizzle-orm";
-import {
-  CONTAINER_PRICING,
-  calculateDailyContainerCost,
-} from "@/lib/constants/pricing";
-import { emailService } from "@/lib/services/email";
 import { usersRepository } from "@/db/repositories";
-import { logger } from "@/lib/utils/logger";
+import { containerBillingRecords, containers } from "@/db/schemas/containers";
+import { creditTransactions } from "@/db/schemas/credit-transactions";
+import { organizationBilling } from "@/db/schemas/organization-billing";
+import { organizations } from "@/db/schemas/organizations";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { CONTAINER_PRICING, calculateDailyContainerCost } from "@/lib/constants/pricing";
+import { emailService } from "@/lib/services/email";
+import { logger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,8 +69,7 @@ function verifyCronSecret(request: NextRequest): boolean {
   const secretBuffer = Buffer.from(cronSecret, "utf8");
 
   return (
-    providedBuffer.length === secretBuffer.length &&
-    timingSafeEqual(providedBuffer, secretBuffer)
+    providedBuffer.length === secretBuffer.length && timingSafeEqual(providedBuffer, secretBuffer)
   );
 }
 
@@ -145,16 +141,12 @@ async function processContainerBilling(
       .where(eq(containers.id, containerId));
 
     // Track shutdown event
-    trackServerEvent(
-      container.user_id,
-      "container_shutdown_insufficient_credits",
-      {
-        container_id: containerId,
-        container_name: containerName,
-        organization_id: organizationId,
-        balance_at_shutdown: currentBalance,
-      },
-    );
+    trackServerEvent(container.user_id, "container_shutdown_insufficient_credits", {
+      container_id: containerId,
+      container_name: containerName,
+      organization_id: organizationId,
+      balance_at_shutdown: currentBalance,
+    });
 
     return {
       containerId,
@@ -167,14 +159,10 @@ async function processContainerBilling(
   // Check if we have enough credits
   if (currentBalance < dailyCost) {
     // Insufficient credits - check if we need to send warning
-    if (
-      container.billing_status === "active" ||
-      !container.shutdown_warning_sent_at
-    ) {
+    if (container.billing_status === "active" || !container.shutdown_warning_sent_at) {
       // Send 48-hour warning and schedule shutdown
       const shutdownTime = new Date(
-        now.getTime() +
-          CONTAINER_PRICING.SHUTDOWN_WARNING_HOURS * 60 * 60 * 1000,
+        now.getTime() + CONTAINER_PRICING.SHUTDOWN_WARNING_HOURS * 60 * 60 * 1000,
       );
 
       await dbWrite
@@ -188,8 +176,7 @@ async function processContainerBilling(
         .where(eq(containers.id, containerId));
 
       // Send warning email
-      const recipientEmail =
-        org.billing_email || (await getOrgUserEmail(organizationId));
+      const recipientEmail = org.billing_email || (await getOrgUserEmail(organizationId));
       if (recipientEmail) {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
         await emailService.sendContainerShutdownWarningEmail({
@@ -323,14 +310,11 @@ async function processContainerBilling(
     return { newBalance, transactionId: creditTx.id };
   });
 
-  logger.info(
-    `[Container Billing] Billed ${containerName}: $${dailyCost.toFixed(2)}`,
-    {
-      containerId,
-      newBalance: billingResult.newBalance,
-      transactionId: billingResult.transactionId,
-    },
-  );
+  logger.info(`[Container Billing] Billed ${containerName}: $${dailyCost.toFixed(2)}`, {
+    containerId,
+    newBalance: billingResult.newBalance,
+    transactionId: billingResult.transactionId,
+  });
 
   // Track billing event
   trackServerEvent(container.user_id, "container_daily_billed", {
@@ -370,9 +354,7 @@ async function getOrgUserEmail(organizationId: string): Promise<string | null> {
 /**
  * Main billing handler
  */
-async function handleContainerBilling(
-  request: NextRequest,
-): Promise<NextResponse> {
+async function handleContainerBilling(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
   if (!verifyCronSecret(request)) {
@@ -404,11 +386,7 @@ async function handleContainerBilling(
         and(
           eq(containers.status, "running"),
           // Include active and shutdown_pending (to check if shutdown time reached)
-          inArray(containers.billing_status, [
-            "active",
-            "warning",
-            "shutdown_pending",
-          ]),
+          inArray(containers.billing_status, ["active", "warning", "shutdown_pending"]),
         ),
       );
 
@@ -428,14 +406,10 @@ async function handleContainerBilling(
       });
     }
 
-    logger.info(
-      `[Container Billing] Processing ${runningContainers.length} containers`,
-    );
+    logger.info(`[Container Billing] Processing ${runningContainers.length} containers`);
 
     // Get all unique organization IDs
-    const orgIds = [
-      ...new Set(runningContainers.map((c) => c.organization_id)),
-    ];
+    const orgIds = [...new Set(runningContainers.map((c) => c.organization_id))];
 
     // Fetch all organizations at once
     const orgs = await dbRead
@@ -458,7 +432,9 @@ async function handleContainerBilling(
 
     const billingEmailMap = new Map(billingData.map((b) => [b.organization_id, b.billing_email]));
 
-    const orgMap = new Map(orgs.map((o) => [o.id, { ...o, billing_email: billingEmailMap.get(o.id) ?? null }]));
+    const orgMap = new Map(
+      orgs.map((o) => [o.id, { ...o, billing_email: billingEmailMap.get(o.id) ?? null }]),
+    );
 
     // Process each container
     const results: BillingResult[] = [];
@@ -499,10 +475,7 @@ async function handleContainerBilling(
           errors++;
         }
       } catch (error) {
-        logger.error(
-          `[Container Billing] Error processing container ${container.name}`,
-          { error },
-        );
+        logger.error(`[Container Billing] Error processing container ${container.name}`, { error });
         results.push({
           containerId: container.id,
           containerName: container.name,
@@ -548,8 +521,7 @@ async function handleContainerBilling(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Container billing failed",
+        error: error instanceof Error ? error.message : "Container billing failed",
       },
       { status: 500 },
     );

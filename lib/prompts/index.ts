@@ -6,14 +6,10 @@
  */
 
 import { BASE_SYSTEM_PROMPT } from "./base";
-import { SDK_REFERENCE, SDK_RESTRICTIONS } from "./sdk";
+import { DATABASE_SECURITY_RULES, DATABASE_SETUP_PROMPT } from "./database";
 import { BUILD_RULES, WORKFLOW_RULES } from "./rules";
-import {
-  TEMPLATE_PROMPTS,
-  TEMPLATE_EXAMPLES,
-  type TemplateType,
-} from "./templates";
-import { DATABASE_SETUP_PROMPT, DATABASE_SECURITY_RULES } from "./database";
+import { SDK_REFERENCE, SDK_RESTRICTIONS } from "./sdk";
+import { TEMPLATE_EXAMPLES, TEMPLATE_PROMPTS, type TemplateType } from "./templates";
 
 export type { TemplateType };
 
@@ -76,9 +72,7 @@ export function buildSystemPrompt(config: PromptConfig = {}): string {
 /**
  * Get example prompts for a template type.
  */
-export function getExamplePrompts(
-  templateType: TemplateType = "blank",
-): string[] {
+export function getExamplePrompts(templateType: TemplateType = "blank"): string[] {
   return TEMPLATE_EXAMPLES[templateType] || TEMPLATE_EXAMPLES.blank;
 }
 
@@ -114,7 +108,7 @@ trackPageView('/custom-path');
 
 // Re-export for convenience
 export { BASE_SYSTEM_PROMPT } from "./base";
-export { SDK_REFERENCE, SDK_RESTRICTIONS } from "./sdk";
+export { DATABASE_SECURITY_RULES, DATABASE_SETUP_PROMPT } from "./database";
 export { BUILD_RULES, WORKFLOW_RULES } from "./rules";
-export { TEMPLATE_PROMPTS, TEMPLATE_EXAMPLES } from "./templates";
-export { DATABASE_SETUP_PROMPT, DATABASE_SECURITY_RULES } from "./database";
+export { SDK_REFERENCE, SDK_RESTRICTIONS } from "./sdk";
+export { TEMPLATE_EXAMPLES, TEMPLATE_PROMPTS } from "./templates";

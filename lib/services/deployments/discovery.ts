@@ -13,17 +13,14 @@
  * It answers questions like "which characters are deployed?" not "which agents exist?"
  */
 
-import { charactersService } from "../characters/characters";
-import { containersService } from "../containers";
-import { memoriesRepository } from "@/db/repositories";
-import { roomsRepository } from "@/db/repositories/agents";
-import {
-  agentStateCache,
-  type AgentStats,
-} from "@/lib/cache/agent-state-cache";
-import { logger } from "@/lib/utils/logger";
 import { createHash } from "node:crypto";
 import type { UserCharacter } from "@/db/repositories";
+import { memoriesRepository } from "@/db/repositories";
+import { roomsRepository } from "@/db/repositories/agents";
+import { type AgentStats, agentStateCache } from "@/lib/cache/agent-state-cache";
+import { logger } from "@/lib/utils/logger";
+import { charactersService } from "../characters/characters";
+import { containersService } from "../containers";
 
 // Re-export AgentStats for convenience
 export type { AgentStats };
@@ -90,10 +87,7 @@ export class CharacterDeploymentDiscoveryService {
     const filterHash = this.hashFilters(filters || {});
 
     // Check cache first
-    const cached = await agentStateCache.getAgentList(
-      organizationId,
-      filterHash,
-    );
+    const cached = await agentStateCache.getAgentList(organizationId, filterHash);
     if (cached) {
       logger.debug(`[Character Discovery] Cache hit for org ${organizationId}`);
       return {
@@ -103,9 +97,7 @@ export class CharacterDeploymentDiscoveryService {
       };
     }
 
-    logger.debug(
-      `[Character Discovery] Cache miss, fetching for org ${organizationId}`,
-    );
+    logger.debug(`[Character Discovery] Cache miss, fetching for org ${organizationId}`);
 
     // Fetch characters and containers in parallel
     const [characters, containers] = await Promise.all([
@@ -115,9 +107,7 @@ export class CharacterDeploymentDiscoveryService {
 
     // Build character info with deployment status
     const characterInfos = await Promise.all(
-      characters.map((char) =>
-        this.buildCharacterInfo(char, containers, includeStats),
-      ),
+      characters.map((char) => this.buildCharacterInfo(char, containers, includeStats)),
     );
 
     // Filter by deployment status if requested
@@ -129,11 +119,7 @@ export class CharacterDeploymentDiscoveryService {
     }
 
     // Cache the result
-    await agentStateCache.setAgentList(
-      organizationId,
-      filterHash,
-      filteredCharacters,
-    );
+    await agentStateCache.setAgentList(organizationId, filterHash, filteredCharacters);
 
     return {
       characters: filteredCharacters,
@@ -181,9 +167,7 @@ export class CharacterDeploymentDiscoveryService {
    */
   private async buildCharacterInfo(
     character: UserCharacter,
-    containers: Awaited<
-      ReturnType<typeof containersService.listByOrganization>
-    >,
+    containers: Awaited<ReturnType<typeof containersService.listByOrganization>>,
     includeStats: boolean,
   ): Promise<DiscoveredCharacterInfo> {
     // Find deployment container by character_id FK
@@ -267,15 +251,13 @@ export class CharacterDeploymentDiscoveryService {
     // Character is deployed - fetch statistics from database directly
 
     // Get message count for this character's agent across all rooms
-    const messageCount =
-      await memoriesRepository.countMessagesByAgent(characterId);
+    const messageCount = await memoriesRepository.countMessagesByAgent(characterId);
 
     // Get room count
     const roomCount = await roomsRepository.countByAgentId(characterId);
 
     // Determine last active time from most recent message
-    const lastActiveAt =
-      await memoriesRepository.getLastMessageTime(characterId);
+    const lastActiveAt = await memoriesRepository.getLastMessageTime(characterId);
 
     // Calculate uptime (time since last deployment)
     let uptime = 0;
@@ -304,9 +286,7 @@ export class CharacterDeploymentDiscoveryService {
    * @param characterIds - Array of character IDs
    * @returns Map of character ID to stats
    */
-  async getCharacterStatisticsBatch(
-    characterIds: string[],
-  ): Promise<Map<string, AgentStats>> {
+  async getCharacterStatisticsBatch(characterIds: string[]): Promise<Map<string, AgentStats>> {
     const statsMap = new Map<string, AgentStats>();
 
     if (characterIds.length === 0) {
@@ -390,5 +370,4 @@ export class CharacterDeploymentDiscoveryService {
 }
 
 // Export singleton instance
-export const characterDeploymentDiscoveryService =
-  new CharacterDeploymentDiscoveryService();
+export const characterDeploymentDiscoveryService = new CharacterDeploymentDiscoveryService();

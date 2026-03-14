@@ -3,7 +3,6 @@
  */
 
 import type { ElizaCharacter } from "@/lib/types";
-import { generateDefaultAvatarUrl } from "./default-avatar";
 
 const FIRST_NAMES = [
   "Nova",

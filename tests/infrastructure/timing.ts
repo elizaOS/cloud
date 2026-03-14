@@ -29,10 +29,7 @@ export function endTimer(name: string): number {
 /**
  * Log a set of timings with a label
  */
-export function logTimings(
-  label: string,
-  timings: Record<string, number>,
-): void {
+export function logTimings(label: string, timings: Record<string, number>): void {
   console.log(`\n[Timings] ${label}:`);
 
   const entries = Object.entries(timings).sort((a, b) => b[1] - a[1]);
@@ -140,9 +137,7 @@ export class TimingCollector {
     return durationMs;
   }
 
-  getResults(
-    name: string,
-  ): Array<{ durationMs: number; metadata?: Record<string, unknown> }> {
+  getResults(name: string): Array<{ durationMs: number; metadata?: Record<string, unknown> }> {
     return this.timings.get(name)?.results || [];
   }
 
@@ -155,9 +150,7 @@ export class TimingCollector {
   printSummary(): void {
     console.log("\n[TimingCollector] Summary:");
     for (const [name, timing] of this.timings) {
-      const avg =
-        timing.results.reduce((sum, r) => sum + r.durationMs, 0) /
-        timing.results.length;
+      const avg = timing.results.reduce((sum, r) => sum + r.durationMs, 0) / timing.results.length;
       const min = Math.min(...timing.results.map((r) => r.durationMs));
       const max = Math.max(...timing.results.map((r) => r.durationMs));
       console.log(

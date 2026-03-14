@@ -1,5 +1,5 @@
-import crypto from "crypto";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import crypto from "crypto";
 
 const dbReadFindFirst = mock(async () => null);
 const dbWriteFindFirst = mock(async () => null);
@@ -53,19 +53,13 @@ const TEST_MASTER_KEY = "11".repeat(32);
 
 function wrapDekForTest(dek: Buffer, masterKeyHex: string): string {
   const nonce = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(
-    "aes-256-gcm",
-    Buffer.from(masterKeyHex, "hex"),
-    nonce,
-  );
+  const cipher = crypto.createCipheriv("aes-256-gcm", Buffer.from(masterKeyHex, "hex"), nonce);
   const encrypted = Buffer.concat([cipher.update(dek), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
-  return [
-    nonce.toString("base64"),
-    authTag.toString("base64"),
-    encrypted.toString("base64"),
-  ].join(":");
+  return [nonce.toString("base64"), authTag.toString("base64"), encrypted.toString("base64")].join(
+    ":",
+  );
 }
 
 function createOrgKey(overrides: Partial<Record<string, unknown>> = {}) {
@@ -80,9 +74,7 @@ function createOrgKey(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 async function loadService() {
-  const { FieldEncryptionService } = await import(
-    "@/lib/services/field-encryption"
-  );
+  const { FieldEncryptionService } = await import("@/lib/services/field-encryption");
   return new FieldEncryptionService();
 }
 
@@ -119,10 +111,7 @@ describe("FieldEncryptionService", () => {
     dbWriteFindFirst.mockResolvedValue(orgKey);
 
     const service = await loadService();
-    const encrypted = await service.encrypt(
-      "org-1",
-      "postgres://user:password@db.example.com/app",
-    );
+    const encrypted = await service.encrypt("org-1", "postgres://user:password@db.example.com/app");
     const parts = encrypted.split(":");
     const tamperedCiphertext = Buffer.from(parts[5], "base64");
     tamperedCiphertext[0] ^= 1;
@@ -136,12 +125,8 @@ describe("FieldEncryptionService", () => {
     const plaintext = "postgres://user:super-secret@db.example.com/app";
 
     await expect(service.decryptIfNeeded(plaintext)).resolves.toBe(plaintext);
-    expect(loggerWarn).toHaveBeenCalledWith(
-      "Found unencrypted value where encrypted was expected",
-    );
-    expect(JSON.stringify(loggerWarn.mock.calls[0])).not.toContain(
-      "super-secret",
-    );
+    expect(loggerWarn).toHaveBeenCalledWith("Found unencrypted value where encrypted was expected");
+    expect(JSON.stringify(loggerWarn.mock.calls[0])).not.toContain("super-secret");
   });
 
   it("falls back to the primary database after an insert race", async () => {
@@ -151,10 +136,7 @@ describe("FieldEncryptionService", () => {
     dbWriteFindFirst.mockResolvedValueOnce(raceKey);
 
     const service = await loadService();
-    const encrypted = await service.encrypt(
-      "org-1",
-      "postgres://user:password@db.example.com/app",
-    );
+    const encrypted = await service.encrypt("org-1", "postgres://user:password@db.example.com/app");
 
     expect(encrypted.startsWith(`enc:v1:${raceKey.id}:`)).toBe(true);
     expect(dbWriteFindFirst).toHaveBeenCalledTimes(1);

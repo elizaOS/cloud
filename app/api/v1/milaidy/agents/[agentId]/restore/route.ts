@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
-import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Restore may trigger re-provision
@@ -40,14 +40,10 @@ export async function POST(
   );
 
   if (!result.success) {
-    const status = result.error === "Agent not found" ? 404
-      : result.error === "No backup found" ? 404
-      : 500;
+    const status =
+      result.error === "Agent not found" ? 404 : result.error === "No backup found" ? 404 : 500;
 
-    return NextResponse.json(
-      { success: false, error: result.error },
-      { status },
-    );
+    return NextResponse.json({ success: false, error: result.error }, { status });
   }
 
   return NextResponse.json({

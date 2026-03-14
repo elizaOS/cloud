@@ -2,13 +2,13 @@
  * Discord Event Router Unit Tests
  *
  * Tests for lib/services/gateway-discord/event-router.ts
- * 
+ *
  * Note: This module has complex dependencies that require extensive mocking.
  * These tests focus on logic that can be tested through data validation
  * and helper function behavior.
  */
 
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { MessageCreateDataSchema } from "../schemas";
 
 // Test the helper functions and logic without complex mocking
@@ -25,8 +25,7 @@ describe("sanitizeError logic", () => {
     /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
 
   // Non-global version for single matching tests
-  const DISCORD_TOKEN_PATTERN =
-    /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/;
+  const DISCORD_TOKEN_PATTERN = /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/;
 
   const sanitizeError = (error: unknown): string => {
     const message = error instanceof Error ? error.message : String(error);
@@ -147,7 +146,7 @@ describe("truncateUtf16Safe logic", () => {
   test("preserves complete emoji when there is room", () => {
     const str = "Hi 😀";
     expect(str.length).toBe(5); // "Hi " (3) + emoji (2)
-    
+
     const result = truncateUtf16Safe(str, 5);
     expect(result).toBe(str);
   });
@@ -164,7 +163,7 @@ describe("channel filtering logic", () => {
   test("enabledChannels empty allows all", () => {
     const enabledChannels: string[] = [];
     const channelId = "channel-123";
-    
+
     // If empty, should allow (no filtering)
     const shouldProcess = enabledChannels.length === 0 || enabledChannels.includes(channelId);
     expect(shouldProcess).toBe(true);
@@ -173,7 +172,7 @@ describe("channel filtering logic", () => {
   test("enabledChannels with matching channel allows", () => {
     const enabledChannels = ["channel-123", "channel-456"];
     const channelId = "channel-123";
-    
+
     const shouldProcess = enabledChannels.length === 0 || enabledChannels.includes(channelId);
     expect(shouldProcess).toBe(true);
   });
@@ -181,7 +180,7 @@ describe("channel filtering logic", () => {
   test("enabledChannels without matching channel blocks", () => {
     const enabledChannels = ["channel-123", "channel-456"];
     const channelId = "channel-789";
-    
+
     const shouldProcess = enabledChannels.length === 0 || enabledChannels.includes(channelId);
     expect(shouldProcess).toBe(false);
   });
@@ -189,7 +188,7 @@ describe("channel filtering logic", () => {
   test("disabledChannels blocks matching channel", () => {
     const disabledChannels = ["channel-123"];
     const channelId = "channel-123";
-    
+
     const shouldBlock = disabledChannels.includes(channelId);
     expect(shouldBlock).toBe(true);
   });
@@ -197,7 +196,7 @@ describe("channel filtering logic", () => {
   test("disabledChannels allows non-matching channel", () => {
     const disabledChannels = ["channel-123"];
     const channelId = "channel-456";
-    
+
     const shouldBlock = disabledChannels.includes(channelId);
     expect(shouldBlock).toBe(false);
   });
@@ -209,7 +208,9 @@ describe("keyword matching logic", () => {
     return keywords.some((k) => {
       const keywordLower = k.toLowerCase();
       // Use word boundary regex to avoid false positives
-      const wordBoundaryRegex = new RegExp(`\\b${keywordLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+      const wordBoundaryRegex = new RegExp(
+        `\\b${keywordLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+      );
       return wordBoundaryRegex.test(contentLower);
     });
   };
@@ -253,7 +254,7 @@ describe("mention mode logic", () => {
   test("detects bot mention in mentions array", () => {
     const botUserId = "bot-user-111";
     const mentions = [{ id: "bot-user-111", username: "TestBot", bot: true }];
-    
+
     const botMentioned = mentions.some((m) => m.id === botUserId);
     expect(botMentioned).toBe(true);
   });
@@ -261,7 +262,7 @@ describe("mention mode logic", () => {
   test("detects when bot is not mentioned", () => {
     const botUserId = "bot-user-111";
     const mentions = [{ id: "other-user-222", username: "OtherUser", bot: false }];
-    
+
     const botMentioned = mentions.some((m) => m.id === botUserId);
     expect(botMentioned).toBe(false);
   });
@@ -269,7 +270,7 @@ describe("mention mode logic", () => {
   test("handles empty mentions array", () => {
     const botUserId = "bot-user-111";
     const mentions: Array<{ id: string }> = [];
-    
+
     const botMentioned = mentions.some((m) => m.id === botUserId);
     expect(botMentioned).toBe(false);
   });
@@ -380,7 +381,11 @@ describe("bot message filtering", () => {
   });
 
   test("handles missing bot field", () => {
-    const author = { id: "user-456", username: "User" } as { id: string; username: string; bot?: boolean };
+    const author = { id: "user-456", username: "User" } as {
+      id: string;
+      username: string;
+      bot?: boolean;
+    };
     expect(author.bot ?? false).toBe(false);
   });
 });

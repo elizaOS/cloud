@@ -6,22 +6,13 @@
 /**
  * Request Timeout Configuration
  */
-export const MCP_REQUEST_TIMEOUT = Number.parseInt(
-  process.env.MCP_TIMEOUT || "60",
-  10,
-);
-export const SSE_MAX_DURATION = Number.parseInt(
-  process.env.SSE_MAX_DURATION || "300",
-  10,
-);
+export const MCP_REQUEST_TIMEOUT = Number.parseInt(process.env.MCP_TIMEOUT || "60", 10);
+export const SSE_MAX_DURATION = Number.parseInt(process.env.SSE_MAX_DURATION || "300", 10);
 
 /**
  * SSE (Server-Sent Events) Configuration
  */
-export const SSE_POLL_INTERVAL_MS = Number.parseInt(
-  process.env.SSE_POLL_INTERVAL_MS || "500",
-  10,
-);
+export const SSE_POLL_INTERVAL_MS = Number.parseInt(process.env.SSE_POLL_INTERVAL_MS || "500", 10);
 export const SSE_HEARTBEAT_INTERVAL = Number.parseInt(
   process.env.SSE_HEARTBEAT_INTERVAL || "30",
   10,
@@ -40,10 +31,7 @@ export const SSE_BACKOFF_INITIAL_MS = Number.parseInt(
   process.env.SSE_BACKOFF_INITIAL_MS || "500",
   10,
 );
-export const SSE_BACKOFF_MAX_MS = Number.parseInt(
-  process.env.SSE_BACKOFF_MAX_MS || "5000",
-  10,
-);
+export const SSE_BACKOFF_MAX_MS = Number.parseInt(process.env.SSE_BACKOFF_MAX_MS || "5000", 10);
 export const SSE_BACKOFF_MULTIPLIER = Number.parseFloat(
   process.env.SSE_BACKOFF_MULTIPLIER || "1.5",
 );
@@ -82,5 +70,4 @@ export const MCP_EVENT_TYPES = {
   CONTAINER: "container",
 } as const;
 
-export type MCPEventType =
-  (typeof MCP_EVENT_TYPES)[keyof typeof MCP_EVENT_TYPES];
+export type MCPEventType = (typeof MCP_EVENT_TYPES)[keyof typeof MCP_EVENT_TYPES];

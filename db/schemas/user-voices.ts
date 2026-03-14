@@ -1,18 +1,18 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
-  pgTable,
-  uuid,
-  text,
-  integer,
   boolean,
-  timestamp,
   decimal,
-  numeric,
-  jsonb,
   index,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 import { users } from "./users";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
  * User voices table schema.
@@ -73,16 +73,11 @@ export const userVoices = pgTable(
   },
   (table) => ({
     // Index for organization queries (listing user voices)
-    organization_idx: index("user_voices_organization_idx").on(
-      table.organizationId,
-    ),
+    organization_idx: index("user_voices_organization_idx").on(table.organizationId),
     // Index for user queries
     user_idx: index("user_voices_user_idx").on(table.userId),
     // Index for finding voices by organization and clone type (slot counting)
-    org_type_idx: index("user_voices_org_type_idx").on(
-      table.organizationId,
-      table.cloneType,
-    ),
+    org_type_idx: index("user_voices_org_type_idx").on(table.organizationId, table.cloneType),
     // Index for organization + usage analytics (most used voices)
     org_usage_idx: index("user_voices_org_usage_idx").on(
       table.organizationId,

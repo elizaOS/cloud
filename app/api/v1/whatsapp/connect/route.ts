@@ -23,24 +23,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { accessToken, phoneNumberId, appSecret, businessPhone } = body;
 
     if (!accessToken) {
-      return NextResponse.json(
-        { error: "Access token is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Access token is required" }, { status: 400 });
     }
 
     if (!phoneNumberId) {
-      return NextResponse.json(
-        { error: "Phone Number ID is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Phone Number ID is required" }, { status: 400 });
     }
 
     if (!appSecret) {
-      return NextResponse.json(
-        { error: "App Secret is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "App Secret is required" }, { status: 400 });
     }
 
     // Validate the access token by calling Meta Graph API
@@ -60,22 +51,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const verifyToken = whatsappAutomationService.generateVerifyToken();
 
     // Store credentials
-    await whatsappAutomationService.storeCredentials(
-      user.organization_id,
-      user.id,
-      {
-        accessToken,
-        phoneNumberId,
-        appSecret,
-        verifyToken,
-        businessPhone: businessPhone || validation.phoneDisplay,
-      },
-    );
+    await whatsappAutomationService.storeCredentials(user.organization_id, user.id, {
+      accessToken,
+      phoneNumberId,
+      appSecret,
+      verifyToken,
+      businessPhone: businessPhone || validation.phoneDisplay,
+    });
 
     // Get the webhook URL to display to user
-    const webhookUrl = whatsappAutomationService.getWebhookUrl(
-      user.organization_id,
-    );
+    const webhookUrl = whatsappAutomationService.getWebhookUrl(user.organization_id);
 
     logger.info("[WhatsApp Connect] Credentials stored", {
       organizationId: user.organization_id,
@@ -97,9 +82,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       organizationId: user.organization_id,
     });
-    return NextResponse.json(
-      { error: "Failed to connect WhatsApp" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to connect WhatsApp" }, { status: 500 });
   }
 }

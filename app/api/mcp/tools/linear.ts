@@ -6,10 +6,10 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getLinearToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -53,7 +53,9 @@ async function linearGraphQL(query: string, variables?: Record<string, unknown>)
     throw new Error(`Linear API returned invalid JSON: ${text.slice(0, 200)}`);
   }
   if (data?.errors?.length) {
-    throw new Error(data.errors.map((e: { message: string }) => e.message).join("; ") || "Linear API error");
+    throw new Error(
+      data.errors.map((e: { message: string }) => e.message).join("; ") || "Linear API error",
+    );
   }
   return data?.data;
 }

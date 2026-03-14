@@ -17,26 +17,26 @@
 
 "use client";
 
-import {
-  Loader2,
-  Sparkles,
-  Wand2,
-  Image as ImageIcon,
-  Ratio,
-  Palette,
-} from "lucide-react";
+import { Image as ImageIcon, Loader2, Palette, Ratio, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "../button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../select";
 import { Label } from "../label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../select";
 
 export type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9" | "9:21";
-export type StylePreset = "none" | "photographic" | "digital-art" | "comic-book" | "fantasy-art" | "analog-film" | "neon-punk" | "isometric" | "low-poly" | "origami" | "line-art" | "cinematic" | "3d-model";
+export type StylePreset =
+  | "none"
+  | "photographic"
+  | "digital-art"
+  | "comic-book"
+  | "fantasy-art"
+  | "analog-film"
+  | "neon-punk"
+  | "isometric"
+  | "low-poly"
+  | "origami"
+  | "line-art"
+  | "cinematic"
+  | "3d-model";
 
 interface PromptInputProps {
   prompt: string;
@@ -70,10 +70,7 @@ export function ImagePromptInput({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Number of Images */}
           <div className="space-y-2">
-            <Label
-              htmlFor="num-images"
-              className="flex items-center gap-2 text-sm font-semibold"
-            >
+            <Label htmlFor="num-images" className="flex items-center gap-2 text-sm font-semibold">
               <ImageIcon className="h-4 w-4 text-primary" />
               Images
             </Label>
@@ -97,18 +94,13 @@ export function ImagePromptInput({
 
           {/* Aspect Ratio */}
           <div className="space-y-2">
-            <Label
-              htmlFor="aspect-ratio"
-              className="flex items-center gap-2 text-sm font-semibold"
-            >
+            <Label htmlFor="aspect-ratio" className="flex items-center gap-2 text-sm font-semibold">
               <Ratio className="h-4 w-4 text-primary" />
               Ratio
             </Label>
             <Select
               value={aspectRatio}
-              onValueChange={(value) =>
-                onAspectRatioChange(value as AspectRatio)
-              }
+              onValueChange={(value) => onAspectRatioChange(value as AspectRatio)}
               disabled={isLoading}
             >
               <SelectTrigger id="aspect-ratio" className="w-full">
@@ -128,18 +120,13 @@ export function ImagePromptInput({
 
           {/* Style Preset */}
           <div className="space-y-2">
-            <Label
-              htmlFor="style-preset"
-              className="flex items-center gap-2 text-sm font-semibold"
-            >
+            <Label htmlFor="style-preset" className="flex items-center gap-2 text-sm font-semibold">
               <Palette className="h-4 w-4 text-primary" />
               Style Preset
             </Label>
             <Select
               value={stylePreset}
-              onValueChange={(value) =>
-                onStylePresetChange(value as StylePreset)
-              }
+              onValueChange={(value) => onStylePresetChange(value as StylePreset)}
               disabled={isLoading}
             >
               <SelectTrigger id="style-preset" className="w-full">
@@ -167,10 +154,7 @@ export function ImagePromptInput({
         {/* Prompt Input */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <label
-              htmlFor="prompt"
-              className="flex items-center gap-2 text-sm font-semibold"
-            >
+            <label htmlFor="prompt" className="flex items-center gap-2 text-sm font-semibold">
               <Wand2 className="h-4 w-4 text-primary" />
               Image Description
             </label>

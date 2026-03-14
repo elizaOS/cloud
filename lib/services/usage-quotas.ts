@@ -3,7 +3,7 @@
  */
 
 import { usageQuotasRepository } from "@/db/repositories";
-import type { UsageQuota, NewUsageQuota } from "@/db/schemas/usage-quotas";
+import type { NewUsageQuota, UsageQuota } from "@/db/schemas/usage-quotas";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -39,9 +39,7 @@ class UsageQuotasService {
     return await usageQuotasRepository.findByOrganization(organizationId);
   }
 
-  async getActiveQuotasByOrganization(
-    organizationId: string,
-  ): Promise<UsageQuota[]> {
+  async getActiveQuotasByOrganization(organizationId: string): Promise<UsageQuota[]> {
     return await usageQuotasRepository.findActiveByOrganization(organizationId);
   }
 
@@ -148,11 +146,7 @@ class UsageQuotasService {
     };
   }
 
-  async trackUsage(
-    organizationId: string,
-    amount: number,
-    modelName?: string,
-  ): Promise<void> {
+  async trackUsage(organizationId: string, amount: number, modelName?: string): Promise<void> {
     if (modelName) {
       const modelQuota = await usageQuotasRepository.findByOrganizationAndType(
         organizationId,
@@ -178,13 +172,9 @@ class UsageQuotasService {
 
   async getCurrentUsage(organizationId: string): Promise<{
     global: { used: number; limit: number | null; periodEnd: string | null };
-    modelSpecific: Record<
-      string,
-      { used: number; limit: number; periodEnd: string }
-    >;
+    modelSpecific: Record<string, { used: number; limit: number; periodEnd: string }>;
   }> {
-    const quotas =
-      await usageQuotasRepository.findActiveByOrganization(organizationId);
+    const quotas = await usageQuotasRepository.findActiveByOrganization(organizationId);
 
     const result = {
       global: {
@@ -192,10 +182,7 @@ class UsageQuotasService {
         limit: null as number | null,
         periodEnd: null as string | null,
       },
-      modelSpecific: {} as Record<
-        string,
-        { used: number; limit: number; periodEnd: string }
-      >,
+      modelSpecific: {} as Record<string, { used: number; limit: number; periodEnd: string }>,
     };
 
     for (const quota of quotas) {

@@ -2,19 +2,19 @@
  * Meta Provider - Facebook & Instagram via Graph API
  */
 
-import { logger } from "@/lib/utils/logger";
-import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { withRetry } from "../rate-limit";
 import type {
-  SocialMediaProvider,
-  SocialCredentials,
-  PostContent,
-  PostResult,
-  PlatformPostOptions,
-  PostAnalytics,
   AccountAnalytics,
   MediaAttachment,
+  PlatformPostOptions,
+  PostAnalytics,
+  PostContent,
+  PostResult,
+  SocialCredentials,
+  SocialMediaProvider,
 } from "@/lib/types/social-media";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
+import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 
 const GRAPH_API_BASE = "https://graph.facebook.com/v19.0";
 
@@ -51,9 +51,7 @@ async function graphApiRequest<T>(
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = new URL(
-    endpoint.startsWith("http") ? endpoint : `${GRAPH_API_BASE}${endpoint}`,
-  );
+  const url = new URL(endpoint.startsWith("http") ? endpoint : `${GRAPH_API_BASE}${endpoint}`);
   if (!options.method || options.method === "GET") {
     url.searchParams.set("access_token", accessToken);
   }
@@ -66,8 +64,7 @@ async function graphApiRequest<T>(
       }),
     async (response) => {
       const json = await response.json();
-      if ((json as GraphApiError).error)
-        throw new Error((json as GraphApiError).error!.message);
+      if ((json as GraphApiError).error) throw new Error((json as GraphApiError).error!.message);
       return json;
     },
     { platform: "facebook", maxRetries: 3 },
@@ -439,10 +436,7 @@ export const metaProvider: SocialMediaProvider = {
           id: string;
           like_count?: number;
           comments_count?: number;
-        }>(
-          `/${postId}?fields=id,like_count,comments_count`,
-          credentials.accessToken,
-        );
+        }>(`/${postId}?fields=id,like_count,comments_count`, credentials.accessToken);
 
         return {
           platform: "instagram",
@@ -459,9 +453,7 @@ export const metaProvider: SocialMediaProvider = {
     }
   },
 
-  async getAccountAnalytics(
-    credentials: SocialCredentials,
-  ): Promise<AccountAnalytics | null> {
+  async getAccountAnalytics(credentials: SocialCredentials): Promise<AccountAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
     }
@@ -496,10 +488,7 @@ export const metaProvider: SocialMediaProvider = {
           id: string;
           name: string;
           fan_count?: number;
-        }>(
-          `/${credentials.pageId}?fields=id,name,fan_count`,
-          credentials.accessToken,
-        );
+        }>(`/${credentials.pageId}?fields=id,name,fan_count`, credentials.accessToken);
 
         return {
           platform: "facebook",

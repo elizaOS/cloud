@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -46,10 +46,7 @@ export async function POST(
   // Re-provision
   const result = await miladySandboxService.provision(agentId, identity.organizationId);
   if (!result.success) {
-    return NextResponse.json(
-      { success: false, error: result.error },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: result.error }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

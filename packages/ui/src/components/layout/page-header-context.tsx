@@ -7,12 +7,12 @@
 
 import {
   createContext,
+  type DependencyList,
+  type ReactNode,
   useContext,
-  useState,
   useEffect,
   useMemo,
-  type ReactNode,
-  type DependencyList,
+  useState,
 } from "react";
 
 interface PageHeaderInfo {
@@ -26,20 +26,14 @@ interface PageHeaderContextValue {
   setPageInfo: (info: PageHeaderInfo | null) => void;
 }
 
-const PageHeaderContext = createContext<PageHeaderContextValue | undefined>(
-  undefined,
-);
+const PageHeaderContext = createContext<PageHeaderContextValue | undefined>(undefined);
 
 export function PageHeaderProvider({ children }: { children: ReactNode }) {
   const [pageInfo, setPageInfo] = useState<PageHeaderInfo | null>(null);
 
   const contextValue = useMemo(() => ({ pageInfo, setPageInfo }), [pageInfo]);
 
-  return (
-    <PageHeaderContext.Provider value={contextValue}>
-      {children}
-    </PageHeaderContext.Provider>
-  );
+  return <PageHeaderContext.Provider value={contextValue}>{children}</PageHeaderContext.Provider>;
 }
 
 export function usePageHeader() {
@@ -57,15 +51,11 @@ export function usePageHeader() {
  * @param pageInfo - The page header information to set
  * @param deps - Dependencies array for the effect (similar to useEffect)
  */
-export function useSetPageHeader(
-  pageInfo: PageHeaderInfo | null,
-  deps: DependencyList = [],
-) {
+export function useSetPageHeader(pageInfo: PageHeaderInfo | null, deps: DependencyList = []) {
   const { setPageInfo } = usePageHeader();
 
   useEffect(() => {
     setPageInfo(pageInfo);
     return () => setPageInfo(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setPageInfo, ...deps]);
+  }, [setPageInfo, ...deps, pageInfo]);
 }

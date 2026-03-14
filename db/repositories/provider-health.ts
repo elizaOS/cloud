@@ -1,12 +1,12 @@
-import { eq, desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
-  providerHealth,
-  type ProviderHealth,
   type NewProviderHealth,
+  type ProviderHealth,
+  providerHealth,
 } from "../schemas/provider-health";
 
-export type { ProviderHealth, NewProviderHealth };
+export type { NewProviderHealth, ProviderHealth };
 
 /**
  * Repository for provider health monitoring database operations.
@@ -58,10 +58,7 @@ export class ProviderHealthRepository {
       return updated;
     }
 
-    const [created] = await dbWrite
-      .insert(providerHealth)
-      .values(data)
-      .returning();
+    const [created] = await dbWrite.insert(providerHealth).values(data).returning();
     return created;
   }
 

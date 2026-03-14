@@ -4,12 +4,9 @@
  * Re-exports elizaOS plugin-sql schema tables for integration with Drizzle migrations.
  * Provides database access to elizaOS tables.
  */
+
+import { longTermMemories, memoryAccessLogs, sessionSummaries } from "@elizaos/plugin-memory/node";
 import plugin from "@elizaos/plugin-sql/node";
-import {
-  longTermMemories,
-  sessionSummaries,
-  memoryAccessLogs,
-} from "@elizaos/plugin-memory/node";
 
 /**
  * Re-exported elizaOS plugin-sql tables.
@@ -32,12 +29,9 @@ export const {
   messageServerTable,
   channelTable,
   channelParticipantsTable,
-} = (plugin as unknown as { schema: Record<string, any> }).schema as Record<
-  string,
-  any
->;
+} = (plugin as unknown as { schema: Record<string, any> }).schema as Record<string, any>;
 
 /**
  * Re-exported elizaOS memory plugin tables.
  */
-export { longTermMemories, sessionSummaries, memoryAccessLogs };
+export { longTermMemories, memoryAccessLogs, sessionSummaries };

@@ -1,7 +1,7 @@
 "use client";
 
-import { cn } from "../lib/utils";
 import React, { useEffect, useState } from "react";
+import { cn } from "../lib/utils";
 
 export const InfiniteMovingCards = ({
   items,
@@ -25,8 +25,7 @@ export const InfiniteMovingCards = ({
 
   useEffect(() => {
     addAnimation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [addAnimation]);
   const [start, setStart] = useState(false);
   function addAnimation() {
     if (containerRef.current && scrollerRef.current) {
@@ -47,15 +46,9 @@ export const InfiniteMovingCards = ({
   const getDirection = () => {
     if (containerRef.current) {
       if (direction === "left") {
-        containerRef.current.style.setProperty(
-          "--animation-direction",
-          "forwards",
-        );
+        containerRef.current.style.setProperty("--animation-direction", "forwards");
       } else {
-        containerRef.current.style.setProperty(
-          "--animation-direction",
-          "reverse",
-        );
+        containerRef.current.style.setProperty("--animation-direction", "reverse");
       }
     }
   };
@@ -101,9 +94,7 @@ export const InfiniteMovingCards = ({
 
               {/* Main content */}
               <div>
-                <h4 className="text-base font-semibold text-foreground mb-1">
-                  {item.quote}
-                </h4>
+                <h4 className="text-base font-semibold text-foreground mb-1">{item.quote}</h4>
                 <p className="text-sm text-muted-foreground">{item.name}</p>
               </div>
             </div>

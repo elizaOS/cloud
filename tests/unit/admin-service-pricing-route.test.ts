@@ -1,4 +1,4 @@
-import { describe, it, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest, NextResponse } from "next/server";
 
 const mockRequireAdminWithResponse = mock(async () => ({
@@ -127,18 +127,14 @@ describe("Admin Service Pricing API", () => {
     mockInvalidateCache.mockResolvedValue(undefined);
 
     const { PUT } = await importRoute();
-    const request = createRequest(
-      "PUT",
-      "http://localhost/api/v1/admin/service-pricing",
-      {
-        service_id: "solana-rpc",
-        method: "getBalance",
-        cost: 0.002,
-        reason: "Update pricing",
-        description: "Updated",
-        metadata: { tier: "1" },
-      },
-    );
+    const request = createRequest("PUT", "http://localhost/api/v1/admin/service-pricing", {
+      service_id: "solana-rpc",
+      method: "getBalance",
+      cost: 0.002,
+      reason: "Update pricing",
+      description: "Updated",
+      metadata: { tier: "1" },
+    });
     const response = await PUT(request);
 
     expect(response.status).toBe(200);
@@ -172,16 +168,12 @@ describe("Admin Service Pricing API", () => {
     });
 
     const { PUT } = await importRoute();
-    const request = createRequest(
-      "PUT",
-      "http://localhost/api/v1/admin/service-pricing",
-      {
-        service_id: "solana-rpc",
-        method: "getBalance",
-        cost: 0.002,
-        reason: "Update pricing",
-      },
-    );
+    const request = createRequest("PUT", "http://localhost/api/v1/admin/service-pricing", {
+      service_id: "solana-rpc",
+      method: "getBalance",
+      cost: 0.002,
+      reason: "Update pricing",
+    });
     const response = await PUT(request);
 
     expect(response.status).toBe(500);
@@ -201,23 +193,17 @@ describe("Admin Service Pricing API", () => {
       is_active: true,
       updated_at: new Date(),
     } as any);
-    mockInvalidateCache
-      .mockResolvedValueOnce(undefined)
-      .mockImplementationOnce(() => {
-        throw new Error("Redis down");
-      });
+    mockInvalidateCache.mockResolvedValueOnce(undefined).mockImplementationOnce(() => {
+      throw new Error("Redis down");
+    });
 
     const { PUT } = await importRoute();
-    const request = createRequest(
-      "PUT",
-      "http://localhost/api/v1/admin/service-pricing",
-      {
-        service_id: "solana-rpc",
-        method: "getBalance",
-        cost: 0.002,
-        reason: "Update pricing",
-      },
-    );
+    const request = createRequest("PUT", "http://localhost/api/v1/admin/service-pricing", {
+      service_id: "solana-rpc",
+      method: "getBalance",
+      cost: 0.002,
+      reason: "Update pricing",
+    });
     const response = await PUT(request);
 
     expect(response.status).toBe(200);

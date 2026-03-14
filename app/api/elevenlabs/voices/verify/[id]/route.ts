@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -14,10 +14,7 @@ import { logger } from "@/lib/utils/logger";
  * @param context - Route context containing the voice ID parameter.
  * @returns Voice verification status including readiness, TTS capability, and fine-tuning information.
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuthWithOrg();
     const params = await context.params;
@@ -26,10 +23,7 @@ export async function GET(
     logger.info(`[Voice Verify API] Verifying voice ${voiceId}`);
 
     // Get voice from database
-    const voice = await voiceCloningService.getVoiceById(
-      voiceId,
-      user.organization_id!,
-    );
+    const voice = await voiceCloningService.getVoiceById(voiceId, user.organization_id!);
 
     if (!voice) {
       return NextResponse.json({ error: "Voice not found" }, { status: 404 });
@@ -39,9 +33,7 @@ export async function GET(
     const elevenlabs = getElevenLabsService();
 
     try {
-      const elevenLabsVoice = await elevenlabs.getVoiceById(
-        voice.elevenlabsVoiceId,
-      );
+      const elevenLabsVoice = await elevenlabs.getVoiceById(voice.elevenlabsVoiceId);
 
       // For professional voices, check fine-tuning status
       const isProfessional = voice.cloneType === "professional";
@@ -53,20 +45,17 @@ export async function GET(
       // Try a test TTS call to verify it actually works
       let canGenerateTTS = false;
       try {
-        await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${voice.elevenlabsVoiceId}`,
-          {
-            method: "POST",
-            headers: {
-              "xi-api-key": process.env.ELEVENLABS_API_KEY!,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              text: "Test",
-              model_id: "eleven_multilingual_v2",
-            }),
+        await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice.elevenlabsVoiceId}`, {
+          method: "POST",
+          headers: {
+            "xi-api-key": process.env.ELEVENLABS_API_KEY!,
+            "Content-Type": "application/json",
           },
-        );
+          body: JSON.stringify({
+            text: "Test",
+            model_id: "eleven_multilingual_v2",
+          }),
+        });
         canGenerateTTS = true;
       } catch {
         canGenerateTTS = false;
@@ -112,9 +101,6 @@ export async function GET(
   } catch (error) {
     logger.error("[Voice Verify API] Error:", error);
 
-    return NextResponse.json(
-      { error: "Failed to verify voice status" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to verify voice status" }, { status: 500 });
   }
 }

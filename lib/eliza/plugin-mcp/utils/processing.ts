@@ -1,14 +1,13 @@
 import {
-  type Content,
   ContentType,
+  composePromptFromState,
+  createUniqueUuid,
   type HandlerCallback,
   type IAgentRuntime,
   type Media,
   type Memory,
   ModelType,
-  createUniqueUuid,
 } from "@elizaos/core";
-import { type State, composePromptFromState } from "@elizaos/core";
 import { resourceAnalysisTemplate } from "../templates/resourceAnalysisTemplate";
 import { createMcpMemory } from "./mcp";
 
@@ -24,13 +23,14 @@ function getMimeTypeToContentType(mimeType?: string): ContentType | undefined {
 /** Process resource result from MCP */
 export function processResourceResult(
   result: { contents: Array<{ uri: string; mimeType?: string; text?: string; blob?: string }> },
-  uri: string
+  uri: string,
 ): { resourceContent: string; resourceMeta: string } {
   let resourceContent = "";
   let resourceMeta = "";
 
   for (const content of result.contents) {
-    resourceContent += content.text || (content.blob ? `[Binary: ${content.mimeType || "unknown"}]` : "");
+    resourceContent +=
+      content.text || (content.blob ? `[Binary: ${content.mimeType || "unknown"}]` : "");
     resourceMeta += `Resource: ${content.uri || uri}\n`;
     if (content.mimeType) resourceMeta += `Type: ${content.mimeType}\n`;
   }
@@ -53,7 +53,7 @@ export function processToolResult(
   serverName: string,
   toolName: string,
   runtime: IAgentRuntime,
-  messageEntityId: string
+  messageEntityId: string,
 ): { toolOutput: string; hasAttachments: boolean; attachments: Media[] } {
   let toolOutput = "";
   let hasAttachments = false;
@@ -76,7 +76,9 @@ export function processToolResult(
       });
     } else if (content.type === "resource" && content.resource) {
       const r = content.resource;
-      toolOutput += r.text ? `\n\nResource (${r.uri}):\n${r.text}` : `\n\nResource (${r.uri}): [Binary]`;
+      toolOutput += r.text
+        ? `\n\nResource (${r.uri}):\n${r.text}`
+        : `\n\nResource (${r.uri}): [Binary]`;
     }
   }
 
@@ -91,7 +93,7 @@ export async function handleResourceAnalysis(
   serverName: string,
   resourceContent: string,
   resourceMeta: string,
-  callback?: HandlerCallback
+  callback?: HandlerCallback,
 ): Promise<void> {
   await createMcpMemory(runtime, message, "resource", serverName, resourceContent, {
     uri,

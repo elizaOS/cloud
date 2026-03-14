@@ -1,16 +1,19 @@
-import { Suspense } from "react";
+import {
+  BrandCard,
+  ContainersEmptyState,
+  ContainersSkeleton,
+  DashboardStatCard,
+} from "@elizaos/ui";
+import { Activity, AlertCircle, Box, Server, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { ContainersPageWrapper } from "@/components/containers/containers-page-wrapper";
+import { ContainersTable } from "@/components/containers/containers-table";
+import { DeployFromCLI } from "@/components/containers/deploy-from-cli";
+import { MiladySandboxesTable } from "@/components/containers/milady-sandboxes-table";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services/containers";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
-import { ContainersTable } from "@/components/containers/containers-table";
-import { ContainersSkeleton } from "@elizaos/ui";
-import { MiladySandboxesTable } from "@/components/containers/milady-sandboxes-table";
-import { Server, Activity, TrendingUp, AlertCircle, Box } from "lucide-react";
-import { ContainersPageWrapper } from "@/components/containers/containers-page-wrapper";
-import { ContainersEmptyState } from "@elizaos/ui";
-import { DeployFromCLI } from "@/components/containers/deploy-from-cli";
-import { BrandCard, DashboardStatCard } from "@elizaos/ui";
 
 export const metadata: Metadata = {
   title: "Containers",
@@ -42,10 +45,7 @@ export default async function ContainersPage() {
     stopped: containers.filter((c) => c.status === "stopped").length,
     failed: containers.filter((c) => c.status === "failed").length,
     building: containers.filter(
-      (c) =>
-        c.status === "building" ||
-        c.status === "deploying" ||
-        c.status === "pending",
+      (c) => c.status === "building" || c.status === "deploying" || c.status === "pending",
     ).length,
   };
 

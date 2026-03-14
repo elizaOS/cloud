@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { cookies } from "next/headers";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, invalidateSessionCaches } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { userSessionsService } from "@/lib/services/user-sessions";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * POST /api/auth/logout

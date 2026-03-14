@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
@@ -140,19 +140,16 @@ describe("Promotion Pricing Constants", () => {
   });
 
   test("PROMO_IMAGE_COST includes 20% markup", async () => {
-    const { PROMO_IMAGE_COST, PLATFORM_MARKUP } =
-      await import("@/lib/promotion-pricing");
+    const { PROMO_IMAGE_COST, PLATFORM_MARKUP } = await import("@/lib/promotion-pricing");
     const { IMAGE_GENERATION_COST } = await import("@/lib/pricing-constants");
 
     expect(PROMO_IMAGE_COST).toBe(IMAGE_GENERATION_COST * PLATFORM_MARKUP);
   });
 
   test("estimateAssetGenerationCost returns correct values", async () => {
-    const {
-      estimateAssetGenerationCost,
-      PROMO_IMAGE_COST,
-      AD_COPY_GENERATION_COST,
-    } = await import("@/lib/promotion-pricing");
+    const { estimateAssetGenerationCost, PROMO_IMAGE_COST, AD_COPY_GENERATION_COST } = await import(
+      "@/lib/promotion-pricing"
+    );
 
     // Default: 1 image + 1 banner + copy
     const estimate = estimateAssetGenerationCost({});
@@ -173,12 +170,9 @@ describe("Promotion Pricing Constants", () => {
   });
 
   test("getPostCost returns correct values for each platform", async () => {
-    const {
-      getPostCost,
-      DISCORD_POST_COST,
-      TELEGRAM_POST_COST,
-      TWITTER_POST_COST,
-    } = await import("@/lib/promotion-pricing");
+    const { getPostCost, DISCORD_POST_COST, TELEGRAM_POST_COST, TWITTER_POST_COST } = await import(
+      "@/lib/promotion-pricing"
+    );
 
     expect(getPostCost("discord")).toBe(DISCORD_POST_COST);
     expect(getPostCost("telegram")).toBe(TELEGRAM_POST_COST);

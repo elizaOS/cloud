@@ -6,10 +6,10 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getGoogleToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -172,7 +172,14 @@ export function registerGoogleTools(server: McpServer): void {
       description: "List emails from Gmail",
       inputSchema: {
         query: z.string().optional().describe("Search query (e.g., 'is:unread', 'from:x@y.com')"),
-        maxResults: z.number().int().min(1).max(50).optional().default(10).describe("Max emails (default: 10)"),
+        maxResults: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .default(10)
+          .describe("Max emails (default: 10)"),
         labelIds: z.string().optional().describe("Label IDs, comma-separated"),
       },
     },
@@ -212,7 +219,10 @@ export function registerGoogleTools(server: McpServer): void {
         const failCount = results.filter((r) => !r.ok).length;
 
         if (failCount > 0) {
-          logger.warn("[GoogleMCP] Some messages failed to fetch", { failed: failCount, total: messageIds.length });
+          logger.warn("[GoogleMCP] Some messages failed to fetch", {
+            failed: failCount,
+            total: messageIds.length,
+          });
         }
 
         const formatted = successes.map((d: any) => ({
@@ -221,9 +231,12 @@ export function registerGoogleTools(server: McpServer): void {
           snippet: d.snippet,
           labelIds: d.labelIds,
           headers: Object.fromEntries(
-            d.payload?.headers?.map((h: { name: string; value: string }) => [h.name, h.value]) || [],
+            d.payload?.headers?.map((h: { name: string; value: string }) => [h.name, h.value]) ||
+              [],
           ),
-          internalDate: d.internalDate ? new Date(parseInt(d.internalDate)).toISOString() : undefined,
+          internalDate: d.internalDate
+            ? new Date(parseInt(d.internalDate)).toISOString()
+            : undefined,
         }));
 
         return jsonResponse({
@@ -255,7 +268,8 @@ export function registerGoogleTools(server: McpServer): void {
         const msg = await response.json();
 
         const headers = Object.fromEntries(
-          msg.payload?.headers?.map((h: { name: string; value: string }) => [h.name, h.value]) || [],
+          msg.payload?.headers?.map((h: { name: string; value: string }) => [h.name, h.value]) ||
+            [],
         );
 
         return jsonResponse({
@@ -266,7 +280,9 @@ export function registerGoogleTools(server: McpServer): void {
           snippet: msg.snippet,
           headers,
           body: extractBody(msg.payload),
-          internalDate: msg.internalDate ? new Date(parseInt(msg.internalDate)).toISOString() : undefined,
+          internalDate: msg.internalDate
+            ? new Date(parseInt(msg.internalDate)).toISOString()
+            : undefined,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to read email"));
@@ -341,7 +357,16 @@ export function registerGoogleTools(server: McpServer): void {
         sendUpdates: z.enum(["all", "externalOnly", "none"]).optional().default("all"),
       },
     },
-    async ({ summary, start, end, description, location, attendees, calendarId = "primary", sendUpdates = "all" }) => {
+    async ({
+      summary,
+      start,
+      end,
+      description,
+      location,
+      attendees,
+      calendarId = "primary",
+      sendUpdates = "all",
+    }) => {
       try {
         const event: Record<string, unknown> = {
           summary,
@@ -391,7 +416,16 @@ export function registerGoogleTools(server: McpServer): void {
         sendUpdates: z.enum(["all", "externalOnly", "none"]).optional().default("all"),
       },
     },
-    async ({ eventId, summary, start, end, description, location, calendarId = "primary", sendUpdates = "all" }) => {
+    async ({
+      eventId,
+      summary,
+      start,
+      end,
+      description,
+      location,
+      calendarId = "primary",
+      sendUpdates = "all",
+    }) => {
       try {
         const baseUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
 

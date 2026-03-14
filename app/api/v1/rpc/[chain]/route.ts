@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { createHandler } from "@/lib/services/proxy/engine";
 import {
-  applyCorsHeaders,
-  handleCorsOptions,
-} from "@/lib/services/proxy/cors";
-import {
+  isValidRpcChain,
   rpcConfigForChain,
   rpcHandlerForChain,
-  isValidRpcChain,
   SUPPORTED_RPC_CHAINS,
 } from "@/lib/services/proxy/services/rpc";
 

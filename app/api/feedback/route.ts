@@ -5,9 +5,9 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { emailService } from "@/lib/services/email";
 import { logger } from "@/lib/utils/logger";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const feedbackSchema = z.object({
   name: z.string().max(100).optional().default(""),

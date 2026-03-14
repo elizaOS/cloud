@@ -10,33 +10,33 @@
  *   DEBUG_TRACING=true  - Enable debug tracing (set in .env)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mcpTestCharacter } from "../fixtures/mcp-test-character";
 import {
-  hasDatabaseUrl,
-  hasRuntimeModelCredentials,
-  getConnectionString,
-  verifyConnection,
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   createTestRuntime,
   createTestUser,
-  sendTestMessage,
-  getMcpService,
-  waitForMcpReady,
-  startTimer,
   endTimer,
+  getConnectionString,
+  getMcpService,
+  hasDatabaseUrl,
+  hasRuntimeModelCredentials,
   logTimings,
+  sendTestMessage,
+  startTimer,
+  type TestDataSet,
   type TestRuntimeResult,
   type TestUserContext,
-  type TestDataSet,
+  verifyConnection,
+  waitForMcpReady,
 } from "../infrastructure";
 import {
-  isDebugTracingEnabled,
-  getLatestDebugTrace,
-  renderDebugTrace,
   clearDebugTraces,
+  getLatestDebugTrace,
+  isDebugTracingEnabled,
+  renderDebugTrace,
 } from "../infrastructure/test-runtime";
-import { mcpTestCharacter } from "../fixtures/mcp-test-character";
 
 // Test state
 let connectionString: string;
@@ -54,9 +54,7 @@ async function setupTestEnvironment(): Promise<void> {
 
   // Check debug tracing
   const debugEnabled = isDebugTracingEnabled();
-  console.log(
-    `\n🔍 Debug Tracing: ${debugEnabled ? "✅ ENABLED" : "❌ DISABLED"}`,
-  );
+  console.log(`\n🔍 Debug Tracing: ${debugEnabled ? "✅ ENABLED" : "❌ DISABLED"}`);
   if (!debugEnabled) {
     console.log("   Set DEBUG_TRACING=true in .env to enable debug output");
   }
@@ -100,9 +98,7 @@ async function cleanupTestEnvironment(): Promise<void> {
     await testRuntimeResult.cleanup();
   }
   if (testData && connectionString) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(
-      () => {},
-    );
+    await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
   }
   logTimings("MCP Assistant Trending Tests", timings);
   console.log("✅ Cleanup complete\n");
@@ -179,10 +175,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
   it("should create test user with elizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(
-      testRuntimeResult.runtime,
-      "TrendingTestUser",
-    );
+    testUserContext = await createTestUser(testRuntimeResult.runtime, "TrendingTestUser");
 
     timings.userCreation = endTimer("user_creation");
 
@@ -254,9 +247,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
         console.log(`   Status: ${trace.status}`);
         console.log(`   Agent Mode: ${trace.agentMode}`);
         console.log(`   Steps: ${trace.steps?.length || 0}`);
-        console.log(
-          `   Duration: ${trace.endedAt ? trace.endedAt - trace.startedAt : "N/A"}ms`,
-        );
+        console.log(`   Duration: ${trace.endedAt ? trace.endedAt - trace.startedAt : "N/A"}ms`);
 
         if (trace.failure) {
           console.log(`\n⚠️ Failure detected:`);
@@ -265,9 +256,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
           console.log(`   Step: ${trace.failure.step}`);
         }
       } else {
-        console.log(
-          "\n⚠️ No debug trace captured (trace may not have been generated)",
-        );
+        console.log("\n⚠️ No debug trace captured (trace may not have been generated)");
       }
     }
 
@@ -312,9 +301,7 @@ describe.skipIf(!hasDatabaseUrl)("Debug Tracing Status", () => {
     console.log("DEBUG TRACING STATUS");
     console.log("=".repeat(60));
     console.log(`Enabled: ${debugEnabled ? "✅ YES" : "❌ NO"}`);
-    console.log(
-      `Environment: DEBUG_TRACING=${process.env.DEBUG_TRACING || "not set"}`,
-    );
+    console.log(`Environment: DEBUG_TRACING=${process.env.DEBUG_TRACING || "not set"}`);
     console.log("=".repeat(60));
 
     if (!debugEnabled) {

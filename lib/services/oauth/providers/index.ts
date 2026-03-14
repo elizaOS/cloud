@@ -5,9 +5,9 @@
  */
 
 export {
-  initiateOAuth2,
   handleOAuth2Callback,
-  refreshOAuth2Token,
   type InitiateOAuth2Result,
+  initiateOAuth2,
   type OAuth2CallbackResult,
+  refreshOAuth2Token,
 } from "./oauth2";

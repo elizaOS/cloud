@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { PageHeaderProvider, ScrollArea } from "@elizaos/ui";
 import { usePrivy } from "@privy-io/react-auth";
-import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import Sidebar from "@/components/layout/sidebar";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import Header from "@/components/layout/header";
-import { PageHeaderProvider } from "@elizaos/ui";
-import { OnboardingProvider } from "@/components/onboarding/onboarding-provider";
+import Sidebar from "@/components/layout/sidebar";
 import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
-import { ScrollArea } from "@elizaos/ui";
+import { OnboardingProvider } from "@/components/onboarding/onboarding-provider";
 
 /**
  * Free Mode Paths (accessible without auth):
@@ -31,13 +30,8 @@ const FREE_MODE_PATHS = ["/dashboard/chat", "/dashboard/build"];
  *
  * @param children - The dashboard page content.
  */
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
@@ -48,15 +42,8 @@ export default function DashboardLayout({
     setSidebarOpen((prev) => !prev);
   }, []);
 
-  const handleToggleCollapse = useCallback(() => {
-    if (isAppCreatePage) return;
-    setSidebarCollapsed((prev) => !prev);
-  }, [isAppCreatePage]);
-
   // Check if current path allows free access
-  const isFreeModePath = FREE_MODE_PATHS.some((path) =>
-    pathname?.startsWith(path),
-  );
+  const isFreeModePath = FREE_MODE_PATHS.some((path) => pathname?.startsWith(path));
 
   // Redirect to login if not authenticated and trying to access protected path
   // Preserve the current URL as returnTo so users can return after login
@@ -64,8 +51,7 @@ export default function DashboardLayout({
     if (ready && !authenticated && !isFreeModePath) {
       // Build login URL with returnTo parameter to preserve intended destination
       const returnTo = encodeURIComponent(
-        pathname +
-          (typeof window !== "undefined" ? window.location.search : ""),
+        pathname + (typeof window !== "undefined" ? window.location.search : ""),
       );
       router.replace(`/login?returnTo=${returnTo}`);
     }
@@ -98,12 +84,10 @@ export default function DashboardLayout({
 
   // Check if we're on the chat or build page - they have their own custom layout
   const isCustomLayoutPage =
-    pathname?.startsWith("/dashboard/chat") ||
-    pathname?.startsWith("/dashboard/build");
+    pathname?.startsWith("/dashboard/chat") || pathname?.startsWith("/dashboard/build");
 
   // Pages that need full width without padding
-  const isFullWidthPage = isAppCreatePage;
-  const isSidebarCollapsed = isAppCreatePage ? true : sidebarCollapsed;
+  const _isFullWidthPage = isAppCreatePage;
 
   // For chat/build pages, render children directly without standard layout
   if (isCustomLayoutPage) {
@@ -121,26 +105,16 @@ export default function DashboardLayout({
       <PageHeaderProvider>
         <div className="dashboard-theme flex h-screen w-full bg-neutral-950">
           {/* Sidebar */}
-          <Sidebar
-            isOpen={sidebarOpen}
-            onToggle={handleToggleSidebar}
-            isCollapsed={isSidebarCollapsed}
-            onToggleCollapse={handleToggleCollapse}
-          />
+          <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
 
           {/* Main Content */}
           <div className="flex flex-1 max-md:pl-3 py-3 pr-3 flex-col overflow-hidden gap-1.5 md:gap-3">
             {/* Header - pass auth state for signup button */}
-            <Header
-              onToggleSidebar={handleToggleSidebar}
-              isAnonymous={!authenticated}
-            />
+            <Header onToggleSidebar={handleToggleSidebar} isAnonymous={!authenticated} />
 
             {/* Main Content Area */}
             <ScrollArea className="flex-1 min-w-0 border border-white/10 bg-black/80">
-              <main className="p-3 md:p-6 w-0 min-w-full overflow-hidden">
-                {children}
-              </main>
+              <main className="p-3 md:p-6 w-0 min-w-full overflow-hidden">{children}</main>
             </ScrollArea>
           </div>
         </div>

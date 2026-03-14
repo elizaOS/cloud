@@ -1,19 +1,18 @@
-
 /**
  * Shared admin authentication helper
- * 
+ *
  * Centralizes admin auth logic to avoid duplication across route files.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, type AdminAuthResult } from "@/lib/auth";
 import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
+import { type AdminAuthResult, requireAdmin } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 
 /**
  * Wrapper for requireAdmin that returns a NextResponse on auth failure
  * instead of throwing, making it easier to use in route handlers.
- * 
+ *
  * @param request - The incoming request
  * @param logPrefix - Prefix for error logging
  * @returns AdminAuthResult on success, NextResponse on auth failure
@@ -34,9 +33,6 @@ export async function requireAdminWithResponse(
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
     logger.error(`${logPrefix} Unexpected auth error`, { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

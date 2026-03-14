@@ -1,9 +1,9 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './tooltip';
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
 
-describe('Tooltip', () => {
-  it('renders correctly', () => {
+describe("Tooltip", () => {
+  it("renders correctly", () => {
     // We just test if it doesn't crash on render. Testing interactions requires userEvent
     render(
       <TooltipProvider>
@@ -11,8 +11,8 @@ describe('Tooltip', () => {
           <TooltipTrigger>Trigger</TooltipTrigger>
           <TooltipContent>Content</TooltipContent>
         </Tooltip>
-      </TooltipProvider>
+      </TooltipProvider>,
     );
-    expect(screen.getByText('Trigger')).toBeInTheDocument();
+    expect(screen.getByText("Trigger")).toBeInTheDocument();
   });
 });

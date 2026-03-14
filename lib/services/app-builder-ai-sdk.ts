@@ -18,22 +18,19 @@
  * - tool-result: Tool execution results
  */
 
-import { streamText, tool } from "ai";
-import type { ModelMessage, UserModelMessage, AssistantModelMessage } from "ai";
 import { gateway } from "@ai-sdk/gateway";
+import type { ModelMessage, UserModelMessage } from "ai";
+import { streamText, tool } from "ai";
+import { buildFullAppPrompt, type FullAppTemplateType } from "@/lib/fragments/prompt";
 import { logger } from "@/lib/utils/logger";
-import {
-  buildFullAppPrompt,
-  type FullAppTemplateType,
-} from "@/lib/fragments/prompt";
 
 // Import shared utilities from the sandbox module - single source of truth
 import {
-  type SandboxInstance,
-  toolSchemas,
-  executeToolCall as sharedExecuteToolCall,
   checkBuild,
   readFileViaSh,
+  type SandboxInstance,
+  executeToolCall as sharedExecuteToolCall,
+  toolSchemas,
 } from "./sandbox/index";
 
 /** Image data for multimodal LLM requests */
@@ -50,11 +47,7 @@ export type { SandboxInstance } from "./sandbox";
 
 export interface AppBuilderStreamCallbacks {
   onToolCall?: (toolName: string, args: unknown) => void | Promise<void>;
-  onToolResult?: (
-    toolName: string,
-    args: unknown,
-    result: string,
-  ) => void | Promise<void>;
+  onToolResult?: (toolName: string, args: unknown, result: string) => void | Promise<void>;
   onThinking?: (text: string) => void | Promise<void>;
   onReasoning?: (text: string) => void | Promise<void>; // Chain-of-thought tokens
 }
@@ -247,8 +240,7 @@ export class AppBuilderAISDK {
 
       const tailwindWarning =
         globalsCss &&
-        (globalsCss.includes("@tailwind") ||
-          globalsCss.includes("tailwindcss/tailwind.css"))
+        (globalsCss.includes("@tailwind") || globalsCss.includes("tailwindcss/tailwind.css"))
           ? `\n⚠️ CRITICAL: globals.css uses Tailwind v3 syntax. Replace with: @import "tailwindcss";\n`
           : "";
 
@@ -296,12 +288,12 @@ CRITICAL RULES:
         if (!includeImages || images.length === 0) {
           return { role: "user", content: text };
         }
-        
+
         // Multimodal content with images
-        const contentParts: Array<{ type: "text"; text: string } | { type: "image"; image: string; mediaType?: string }> = [
-          { type: "text", text: text }
-        ];
-        
+        const contentParts: Array<
+          { type: "text"; text: string } | { type: "image"; image: string; mediaType?: string }
+        > = [{ type: "text", text: text }];
+
         // Add images
         for (const img of images) {
           contentParts.push({
@@ -310,14 +302,12 @@ CRITICAL RULES:
             mediaType: img.mimeType, // AI SDK uses mediaType, not mimeType
           });
         }
-        
+
         return { role: "user", content: contentParts };
       };
 
       // Messages array for multi-turn conversation (AI SDK ModelMessage type)
-      const messages: ModelMessage[] = [
-        buildUserMessage(contextPrompt, true),
-      ];
+      const messages: ModelMessage[] = [buildUserMessage(contextPrompt, true)];
 
       let iteration = 0;
 
@@ -348,8 +338,7 @@ CRITICAL RULES:
               inputSchema: toolSchemas.read_file,
             }),
             check_build: tool({
-              description:
-                "Check build status. Call ONCE at the end, not after each file.",
+              description: "Check build status. Call ONCE at the end, not after each file.",
               inputSchema: toolSchemas.check_build,
             }),
             list_files: tool({
@@ -389,18 +378,14 @@ CRITICAL RULES:
             });
           } else if (part.type === "tool-call") {
             // Tool calls are handled separately below via result.toolCalls
-          } else if (
-            part.type === "reasoning-start" ||
-            part.type === "reasoning-end"
-          ) {
+          } else if (part.type === "reasoning-start" || part.type === "reasoning-end") {
             // Reasoning lifecycle events - check for text content
             // Different providers may include reasoning text in different ways
             const partAny = part as Record<string, unknown>;
             if (partAny.text && typeof partAny.text === "string") {
               reasoningText += partAny.text;
               yield { type: "reasoning", text: partAny.text };
-              if (callbacks?.onReasoning)
-                await callbacks.onReasoning(partAny.text);
+              if (callbacks?.onReasoning) await callbacks.onReasoning(partAny.text);
             }
           } else {
             // Handle any other reasoning-related types dynamically
@@ -408,10 +393,7 @@ CRITICAL RULES:
             const partAny = part as Record<string, unknown>;
             const partType = String(partAny.type || "");
 
-            if (
-              partType.includes("reasoning") ||
-              partType.includes("thinking")
-            ) {
+            if (partType.includes("reasoning") || partType.includes("thinking")) {
               // Extract text from reasoning-related parts
               const text =
                 (partAny.text as string) ||
@@ -434,15 +416,13 @@ CRITICAL RULES:
             reasoning?: string | Promise<string>;
             reasoningText?: string | Promise<string>;
           };
-          const finalReasoning =
-            (await resultAny.reasoning) || (await resultAny.reasoningText);
+          const finalReasoning = (await resultAny.reasoning) || (await resultAny.reasoningText);
           if (finalReasoning && typeof finalReasoning === "string") {
             // If we got reasoning from the result that wasn't captured during streaming
             if (!reasoningText.includes(finalReasoning)) {
               reasoningText += finalReasoning;
               yield { type: "reasoning", text: finalReasoning };
-              if (callbacks?.onReasoning)
-                await callbacks.onReasoning(finalReasoning);
+              if (callbacks?.onReasoning) await callbacks.onReasoning(finalReasoning);
             }
           }
         } catch {
@@ -457,12 +437,12 @@ CRITICAL RULES:
         // OR if there will be tool calls (intermediate thinking before actions)
         // Don't add assistantText to reasoning if it's the final output (no tool calls)
         const hasToolCalls = toolCalls && toolCalls.length > 0;
-        
+
         if (reasoningText.trim()) {
           // Always capture explicit reasoning/CoT tokens
           allReasoningText += reasoningText.trim() + "\n\n";
         }
-        
+
         if (hasToolCalls && assistantText.trim()) {
           // Only add assistant text to reasoning if there are tool calls
           // (this is intermediate thinking, not final output)
@@ -480,29 +460,29 @@ CRITICAL RULES:
             input?: unknown;
             toolName: string;
           };
-          const toolArgs = (tcAny.args ?? tcAny.input ?? {}) as Record<
-            string,
-            unknown
-          >;
+          const toolArgs = (tcAny.args ?? tcAny.input ?? {}) as Record<string, unknown>;
 
           yield {
             type: "tool_call",
             toolName: tc.toolName,
             args: toolArgs,
-            reasoningContext: (reasoningText || assistantText) || undefined, // Include reasoning that led to this tool
+            reasoningContext: reasoningText || assistantText || undefined, // Include reasoning that led to this tool
           };
-          if (callbacks?.onToolCall)
-            await callbacks.onToolCall(tc.toolName, toolArgs);
+          if (callbacks?.onToolCall) await callbacks.onToolCall(tc.toolName, toolArgs);
 
           toolCallCount++;
 
           // Use shared tool executor
-          const { result: toolResult, filesAffected: affected } =
-            await sharedExecuteToolCall(sandbox, tc.toolName, toolArgs, {
+          const { result: toolResult, filesAffected: affected } = await sharedExecuteToolCall(
+            sandbox,
+            tc.toolName,
+            toolArgs,
+            {
               abortSignal,
               sandboxId,
               appId,
-            });
+            },
+          );
 
           if (affected) {
             filesAffected.push(...affected);
@@ -528,7 +508,7 @@ CRITICAL RULES:
           });
 
           // Build results content with file tracking to prevent duplicate writes
-          let resultsContent = toolResults
+          const resultsContent = toolResults
             .map((tr) => `Tool: ${tr.toolName}\nResult: ${tr.result}`)
             .join("\n\n");
 
@@ -586,8 +566,9 @@ CRITICAL RULES:
       // This prevents conversational responses from being hidden in a collapsed accordion
       const finalReasoning = allReasoningText.trim();
       const finalOutput = outputText || "Changes applied!";
-      const shouldIncludeReasoning = finalReasoning && 
-        finalReasoning !== finalOutput && 
+      const shouldIncludeReasoning =
+        finalReasoning &&
+        finalReasoning !== finalOutput &&
         !finalOutput.includes(finalReasoning) &&
         !finalReasoning.includes(finalOutput);
 
@@ -614,20 +595,20 @@ CRITICAL RULES:
           // Ignore build check errors during error handling
         }
       }
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error("AI execution failed", { sandboxId, error: errorMessage });
 
       yield { type: "error", error: errorMessage };
-      
+
       // Apply same reasoning logic for error case
       const errorFinalReasoning = allReasoningText.trim();
       const errorFinalOutput = outputText || "Operation failed";
-      const errorShouldIncludeReasoning = errorFinalReasoning && 
-        errorFinalReasoning !== errorFinalOutput && 
+      const errorShouldIncludeReasoning =
+        errorFinalReasoning &&
+        errorFinalReasoning !== errorFinalOutput &&
         !errorFinalOutput.includes(errorFinalReasoning) &&
         !errorFinalReasoning.includes(errorFinalOutput);
-        
+
       yield {
         type: "complete",
         result: {

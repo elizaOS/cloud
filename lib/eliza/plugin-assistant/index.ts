@@ -1,22 +1,14 @@
-import {
-  EventType,
-  logger,
-  type MessagePayload,
-  type Plugin,
-} from "@elizaos/core";
-import { providersProvider } from "./providers/providers";
-import { actionsProvider } from "./providers/actions";
+import { EventType, logger, type MessagePayload, type Plugin } from "@elizaos/core";
+import { roomTitleEvaluator } from "../shared/evaluators/room-title";
+import { appConfigProvider } from "../shared/providers/app-config";
 import { characterProvider } from "../shared/providers/character";
 import { recentMessagesProvider } from "../shared/providers/recent-messages";
-import { appConfigProvider } from "../shared/providers/app-config";
+import type { ReasoningChunkCallback, StreamChunkCallback } from "../shared/types";
 import { generateImageAction } from "./actions/image-generation";
-import { currentRunContextProvider } from "./providers/current-run-context";
 import { handleMessage } from "./handler";
-import { roomTitleEvaluator } from "../shared/evaluators/room-title";
-import type {
-  StreamChunkCallback,
-  ReasoningChunkCallback,
-} from "../shared/types";
+import { actionsProvider } from "./providers/actions";
+import { currentRunContextProvider } from "./providers/current-run-context";
+import { providersProvider } from "./providers/providers";
 
 export const assistantPlugin: Plugin = {
   name: "eliza-assistant",

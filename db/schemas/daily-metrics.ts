@@ -1,3 +1,4 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   index,
   integer,
@@ -8,14 +9,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
-export type MetricsPlatform =
-  | "web"
-  | "telegram"
-  | "discord"
-  | "imessage"
-  | "sms";
+export type MetricsPlatform = "web" | "telegram" | "discord" | "imessage" | "sms";
 
 /**
  * Pre-computed daily engagement metrics.

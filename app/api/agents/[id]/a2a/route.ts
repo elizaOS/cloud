@@ -13,25 +13,18 @@
  * When monetization is enabled, the agent creator earns their markup percentage.
  */
 
+import { gateway } from "@ai-sdk/gateway";
+import { streamText } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { charactersService } from "@/lib/services/characters/characters";
-import { streamText } from "ai";
-import { gateway } from "@ai-sdk/gateway";
-import {
-  calculateCost,
-  getProviderFromModel,
-  estimateRequestCost,
-} from "@/lib/pricing";
-import { agentMonetizationService } from "@/lib/services/agent-monetization";
-import { logger } from "@/lib/utils/logger";
-import {
-  creditsService,
-  InsufficientCreditsError,
-} from "@/lib/services/credits";
-import type { CreditReservation } from "@/lib/services/credits";
 import type { UserCharacter } from "@/db/schemas/user-characters";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
+import { agentMonetizationService } from "@/lib/services/agent-monetization";
+import { charactersService } from "@/lib/services/characters/characters";
+import type { CreditReservation } from "@/lib/services/credits";
+import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -54,9 +47,7 @@ const JsonRpcRequestSchema = z.object({
  * Generate A2A Agent Card for a character
  */
 function generateAgentCard(character: UserCharacter, baseUrl: string) {
-  const bioText = Array.isArray(character.bio)
-    ? character.bio.join("\n")
-    : character.bio;
+  const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
 
   const markupPct = Number(character.inference_markup_percentage || 0);
   const hasMonetization = character.monetization_enabled && markupPct > 0;
@@ -127,10 +118,7 @@ function generateAgentCard(character: UserCharacter, baseUrl: string) {
  * GET /api/agents/{id}/a2a
  * Returns the A2A Agent Card for this agent
  */
-export async function GET(
-  request: NextRequest,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
   const character = await charactersService.getById(id);
@@ -145,10 +133,7 @@ export async function GET(
 
   // Check if A2A is enabled for this agent
   if (!character.a2a_enabled) {
-    return NextResponse.json(
-      { error: "A2A not enabled for this agent" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "A2A not enabled for this agent" }, { status: 403 });
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
@@ -167,10 +152,7 @@ export async function GET(
  * POST /api/agents/{id}/a2a
  * JSON-RPC endpoint for agent interaction
  */
-export async function POST(
-  request: NextRequest,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
   // Get the character
@@ -215,9 +197,7 @@ export async function POST(
   const { method, params, id: rpcId } = validation.data;
 
   // Authenticate with API key or session
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
-    () => null,
-  );
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
 
   if (!authResult) {
     return NextResponse.json(
@@ -293,11 +273,8 @@ async function handleChat(
   }
 
   // Build system prompt from character
-  const bioText = Array.isArray(character.bio)
-    ? character.bio.join("\n")
-    : character.bio;
-  const systemPrompt =
-    character.system || `You are ${character.name}. ${bioText}`;
+  const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
+  const systemPrompt = character.system || `You are ${character.name}. ${bioText}`;
 
   const fullMessages = [
     { role: "system" as const, content: systemPrompt },
@@ -313,9 +290,7 @@ async function handleChat(
 
   // Apply markup if monetization is enabled
   const markupPct = Number(character.inference_markup_percentage || 0);
-  const creatorMarkup = character.monetization_enabled
-    ? baseCost * (markupPct / 100)
-    : 0;
+  const creatorMarkup = character.monetization_enabled ? baseCost * (markupPct / 100) : 0;
   const totalCost = baseCost + creatorMarkup;
 
   // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
@@ -382,14 +357,11 @@ async function handleChat(
         protocol: "a2a",
       });
 
-      logger.info(
-        "[Agent A2A] Creator earnings credited to redeemable balance",
-        {
-          agentId: character.id,
-          ownerId: character.user_id,
-          earnings: actualCreatorMarkup,
-        },
-      );
+      logger.info("[Agent A2A] Creator earnings credited to redeemable balance", {
+        agentId: character.id,
+        ownerId: character.user_id,
+        earnings: actualCreatorMarkup,
+      });
     }
 
     // Reconcile with actual cost (handles refund or overage)
@@ -440,8 +412,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
     },
   });
 }

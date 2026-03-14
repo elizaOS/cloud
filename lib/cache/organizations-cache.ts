@@ -11,10 +11,10 @@
  * - Cache hit latency: ~5ms (vs 50-100ms DB query)
  */
 
-import { cache } from "./client";
-import { organizationsService } from "@/lib/services/organizations";
 import type { Organization } from "@/db/repositories";
+import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
+import { cache } from "./client";
 
 // Cache configuration
 const CACHE_TTL_SECONDS = 30; // 30 seconds - balances freshness with performance
@@ -41,17 +41,13 @@ export async function getCachedOrganization(
   }
 
   // Cache miss: fetch from database
-  logger.debug(
-    `[OrgCache] Cache miss for org ${organizationId}, fetching from DB`,
-  );
+  logger.debug(`[OrgCache] Cache miss for org ${organizationId}, fetching from DB`);
   const org = await organizationsService.getById(organizationId);
 
   // Cache the result (even if undefined, to prevent repeated failed lookups)
   if (org) {
     await cache.set(cacheKey, org, CACHE_TTL_SECONDS);
-    logger.debug(
-      `[OrgCache] Cached org ${organizationId} for ${CACHE_TTL_SECONDS}s`,
-    );
+    logger.debug(`[OrgCache] Cached org ${organizationId} for ${CACHE_TTL_SECONDS}s`);
   }
 
   return org;
@@ -63,9 +59,7 @@ export async function getCachedOrganization(
  *
  * @param organizationId - Organization UUID to invalidate
  */
-export async function invalidateOrganizationCache(
-  organizationId: string,
-): Promise<void> {
+export async function invalidateOrganizationCache(organizationId: string): Promise<void> {
   const cacheKey = buildCacheKey(organizationId);
 
   await cache.del(cacheKey);
@@ -77,16 +71,12 @@ export async function invalidateOrganizationCache(
  *
  * @param organizationIds - Array of organization UUIDs
  */
-export async function invalidateOrganizationsCacheBatch(
-  organizationIds: string[],
-): Promise<void> {
+export async function invalidateOrganizationsCacheBatch(organizationIds: string[]): Promise<void> {
   if (organizationIds.length === 0) return;
 
   const cacheKeys = organizationIds.map(buildCacheKey);
   await Promise.all(cacheKeys.map((key) => cache.del(key)));
-  logger.debug(
-    `[OrgCache] Invalidated cache for ${organizationIds.length} orgs`,
-  );
+  logger.debug(`[OrgCache] Invalidated cache for ${organizationIds.length} orgs`);
 }
 
 /**
@@ -95,15 +85,11 @@ export async function invalidateOrganizationsCacheBatch(
  *
  * @param organizations - Array of organization objects to cache
  */
-export async function warmOrganizationCache(
-  organizations: Organization[],
-): Promise<void> {
+export async function warmOrganizationCache(organizations: Organization[]): Promise<void> {
   if (organizations.length === 0) return;
 
   await Promise.all(
-    organizations.map((org) =>
-      cache.set(buildCacheKey(org.id), org, CACHE_TTL_SECONDS),
-    ),
+    organizations.map((org) => cache.set(buildCacheKey(org.id), org, CACHE_TTL_SECONDS)),
   );
   logger.debug(`[OrgCache] Pre-warmed cache for ${organizations.length} orgs`);
 }

@@ -5,9 +5,9 @@
  */
 
 export {
-  characterDeploymentDiscoveryService,
-  type CharacterDiscoveryFilters,
-  type DiscoveredCharacterInfo,
-  type CharacterListResult,
   type AgentStats,
+  type CharacterDiscoveryFilters,
+  type CharacterListResult,
+  characterDeploymentDiscoveryService,
+  type DiscoveredCharacterInfo,
 } from "./discovery";

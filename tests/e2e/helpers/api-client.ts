@@ -152,18 +152,13 @@ export async function expectJson(response: Response): Promise<unknown> {
   const contentType = response.headers.get("content-type");
   if (!contentType?.includes("application/json")) {
     const text = await response.text();
-    throw new Error(
-      `Expected JSON, got ${contentType}: ${text.slice(0, 200)}`,
-    );
+    throw new Error(`Expected JSON, got ${contentType}: ${text.slice(0, 200)}`);
   }
   return response.json();
 }
 
 /** Assert response status is one of expected values */
-export function expectStatus(
-  response: Response,
-  ...expected: number[]
-): void {
+export function expectStatus(response: Response, ...expected: number[]): void {
   if (!expected.includes(response.status)) {
     throw new Error(
       `Expected status ${expected.join("|")}, got ${response.status} for ${response.url}`,

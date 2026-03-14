@@ -26,14 +26,14 @@ import { resolve } from "path";
 config({ path: resolve(__dirname, "../.env.local") });
 config({ path: resolve(__dirname, "../.env") });
 
+import { eq, isNull } from "drizzle-orm";
 import { db } from "../db/client";
 import { userCharacters } from "../db/schemas/user-characters";
-import { eq, isNull } from "drizzle-orm";
 import {
-  generateUsernameFromName,
   generateUniqueUsername,
-  validateUsername,
+  generateUsernameFromName,
   RESERVED_USERNAMES,
+  validateUsername,
 } from "../lib/utils/agent-username";
 
 // Parse CLI arguments
@@ -53,9 +53,7 @@ interface BackfillResult {
 async function getAllExistingUsernames(): Promise<Set<string>> {
   console.log("📋 Fetching all existing usernames...");
 
-  const characters = await db
-    .select({ username: userCharacters.username })
-    .from(userCharacters);
+  const characters = await db.select({ username: userCharacters.username }).from(userCharacters);
 
   const usernames = new Set<string>();
 
@@ -95,10 +93,7 @@ async function getCharactersWithoutUsername(): Promise<
 /**
  * Generates a unique username from a name, checking against existing usernames.
  */
-function generateUniqueUsernameFromName(
-  baseName: string,
-  existingUsernames: Set<string>,
-): string {
+function generateUniqueUsernameFromName(baseName: string, existingUsernames: Set<string>): string {
   const baseUsername = generateUsernameFromName(baseName);
   return generateUniqueUsername(baseUsername, existingUsernames);
 }
@@ -139,10 +134,7 @@ async function backfillUsernames(): Promise<void> {
     for (const char of characters) {
       try {
         // Generate unique username
-        const newUsername = generateUniqueUsernameFromName(
-          char.name,
-          existingUsernames,
-        );
+        const newUsername = generateUniqueUsernameFromName(char.name, existingUsernames);
 
         // Validate the generated username
         const validation = validateUsername(newUsername);
@@ -194,8 +186,7 @@ async function backfillUsernames(): Promise<void> {
           console.log(`   ... processed ${processed}/${characters.length}`);
         }
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         results.push({
           id: char.id,
           name: char.name,
@@ -216,9 +207,7 @@ async function backfillUsernames(): Promise<void> {
     const updated = results.filter((r) => r.status === "updated").length;
     const errors = results.filter((r) => r.status === "error").length;
 
-    console.log(
-      `✅ Successfully ${isDryRun ? "would update" : "updated"}: ${updated}`,
-    );
+    console.log(`✅ Successfully ${isDryRun ? "would update" : "updated"}: ${updated}`);
     console.log(`❌ Errors: ${errors}`);
     console.log(`📁 Total processed: ${results.length}`);
 

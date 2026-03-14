@@ -10,7 +10,7 @@
  * - Edge cases
  */
 
-import { describe, test, expect, beforeAll } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { createHash, createHmac } from "crypto";
 
 // Test bot token (not a real token)
@@ -19,10 +19,7 @@ const TEST_BOT_TOKEN = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz";
 /**
  * Generate valid Telegram auth hash for testing
  */
-function generateValidHash(
-  data: Record<string, string | number>,
-  botToken: string
-): string {
+function generateValidHash(data: Record<string, string | number>, botToken: string): string {
   const secretKey = createHash("sha256").update(botToken).digest();
 
   const entries = Object.entries(data)
@@ -117,14 +114,14 @@ describe("Auth Date Validation", () => {
   });
 
   test("23 hours old auth is valid", () => {
-    const authDate = Math.floor(Date.now() / 1000) - (23 * 3600);
+    const authDate = Math.floor(Date.now() / 1000) - 23 * 3600;
     const currentTime = Math.floor(Date.now() / 1000);
     const age = currentTime - authDate;
     expect(age).toBeLessThanOrEqual(MAX_AUTH_AGE_SECONDS);
   });
 
   test("25 hours old auth is expired", () => {
-    const authDate = Math.floor(Date.now() / 1000) - (25 * 3600);
+    const authDate = Math.floor(Date.now() / 1000) - 25 * 3600;
     const currentTime = Math.floor(Date.now() / 1000);
     const age = currentTime - authDate;
     expect(age).toBeGreaterThan(MAX_AUTH_AGE_SECONDS);

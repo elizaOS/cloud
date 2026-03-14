@@ -4,27 +4,27 @@
 
 import type {
   CategoryId,
-  SortBy,
-  ExtendedCharacter,
-  SearchFilters,
-  PaginationResult,
   CategoryInfo,
+  ExtendedCharacter,
+  PaginationResult,
+  SearchFilters,
+  SortBy,
 } from "./characters";
 
 // Re-export shared character types
 export type {
   CategoryId,
-  SortBy,
-  SortOrder,
+  CategoryInfo,
   CharacterSource,
   CharacterStats,
+  CloneCharacterOptions,
   ExtendedCharacter,
-  SearchFilters,
-  SortOptions,
   PaginationOptions,
   PaginationResult,
-  CategoryInfo,
-  CloneCharacterOptions,
+  SearchFilters,
+  SortBy,
+  SortOptions,
+  SortOrder,
   TrackingResponse,
 } from "./characters";
 

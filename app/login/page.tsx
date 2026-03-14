@@ -1,16 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
-import {
-  usePrivy,
-  useLogin,
-  useLoginWithEmail,
-  useLoginWithOAuth,
-} from "@privy-io/react-auth";
+import { BrandButton, Input } from "@elizaos/ui";
+import { useLogin, useLoginWithEmail, useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
+import { ArrowLeft, Chrome, Github, Loader2, Mail, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BrandButton } from "@elizaos/ui";
-import { Input } from "@elizaos/ui";
-import { Loader2, Mail, Wallet, Github, Chrome, ArrowLeft } from "lucide-react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import LandingHeader from "@/components/layout/landing-header";
 
@@ -40,11 +34,9 @@ function getPendingSignupAttribution(searchParams: {
   get(name: string): string | null;
   has(name: string): boolean;
 }) {
-  const hasOAuthState =
-    searchParams.has("state") || searchParams.has("privy_oauth_state");
+  const hasOAuthState = searchParams.has("state") || searchParams.has("privy_oauth_state");
   const affiliateCode = searchParams.get("affiliate");
-  const referralCode =
-    searchParams.get("ref") || searchParams.get("referral_code");
+  const referralCode = searchParams.get("ref") || searchParams.get("referral_code");
   const legacyCode = searchParams.get("code");
 
   return {
@@ -57,9 +49,7 @@ function getPendingSignupAttribution(searchParams: {
   };
 }
 
-function getSafeReturnTo(searchParams: {
-  get(name: string): string | null;
-}): string {
+function getSafeReturnTo(searchParams: { get(name: string): string | null }): string {
   const returnTo = searchParams.get("returnTo");
   return returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
     ? returnTo
@@ -91,8 +81,7 @@ function LoginPageContent() {
     const hasOAuthParams =
       urlParams.has("privy_oauth_code") ||
       urlParams.has("privy_oauth_state") ||
-      (urlParams.has("code") &&
-        (urlParams.has("state") || urlParams.has("privy_oauth_state")));
+      (urlParams.has("code") && (urlParams.has("state") || urlParams.has("privy_oauth_state")));
     const sessionFlag = sessionStorage.getItem("oauth_login_pending");
     return hasOAuthParams || sessionFlag === "true";
   });
@@ -107,21 +96,14 @@ function LoginPageContent() {
   const postLoginProcessingRef = useRef(false);
 
   useEffect(() => {
-    const { affiliateCode, referralCode } =
-      getPendingSignupAttribution(searchParams);
+    const { affiliateCode, referralCode } = getPendingSignupAttribution(searchParams);
 
     if (affiliateCode) {
-      sessionStorage.setItem(
-        SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate,
-        affiliateCode,
-      );
+      sessionStorage.setItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate, affiliateCode);
     }
 
     if (referralCode) {
-      sessionStorage.setItem(
-        SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral,
-        referralCode,
-      );
+      sessionStorage.setItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral, referralCode);
     }
   }, [searchParams]);
 
@@ -176,18 +158,10 @@ function LoginPageContent() {
     };
 
     const applyStoredSignupAttribution = async () => {
-      const affiliateCode = sessionStorage.getItem(
-        SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate,
-      );
-      const referralCode = sessionStorage.getItem(
-        SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral,
-      );
+      const affiliateCode = sessionStorage.getItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate);
+      const referralCode = sessionStorage.getItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral);
 
-      const postAttribution = async (
-        url: string,
-        codeToApply: string,
-        storageKey: string,
-      ) => {
+      const postAttribution = async (url: string, codeToApply: string, storageKey: string) => {
         try {
           for (let attempt = 0; attempt < 3; attempt++) {
             const response = await fetch(url, {
@@ -318,9 +292,7 @@ function LoginPageContent() {
     setLoadingButton(null);
   };
 
-  const handleOAuthLogin = async (
-    provider: "google" | "discord" | "github",
-  ) => {
+  const handleOAuthLogin = async (provider: "google" | "discord" | "github") => {
     setLoadingButton(provider);
     // Set session flag to detect OAuth callback when returning
     sessionStorage.setItem("oauth_login_pending", "true");
@@ -416,9 +388,7 @@ function LoginPageContent() {
                   {isProcessingOAuth ? "Completing sign in..." : "Loading..."}
                 </h3>
                 <p className="text-sm text-neutral-500">
-                  {isProcessingOAuth
-                    ? "Processing your authentication"
-                    : "Initializing..."}
+                  {isProcessingOAuth ? "Processing your authentication" : "Initializing..."}
                 </p>
               </div>
               <div className="flex gap-1.5">
@@ -473,12 +443,8 @@ function LoginPageContent() {
                 <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
               </div>
               <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">
-                  Signing you in
-                </h3>
-                <p className="text-sm text-neutral-500">
-                  Taking you to your dashboard...
-                </p>
+                <h3 className="text-lg font-semibold text-white">Signing you in</h3>
+                <p className="text-sm text-neutral-500">Taking you to your dashboard...</p>
               </div>
               <div className="flex gap-1.5">
                 <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
@@ -588,9 +554,7 @@ function LoginPageContent() {
                     type="text"
                     placeholder="000000"
                     value={code}
-                    onChange={(e) =>
-                      setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                    }
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     disabled={loadingButton !== null}
                     className="h-12 rounded-xl border-white/10 bg-black/40 text-white placeholder:text-neutral-600 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] text-center text-xl tracking-[0.3em] font-mono"
                     maxLength={6}
@@ -643,9 +607,7 @@ function LoginPageContent() {
                     <div className="w-full border-t border-white/10" />
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="bg-neutral-900 px-3 text-neutral-500">
-                      or
-                    </span>
+                    <span className="bg-neutral-900 px-3 text-neutral-500">or</span>
                   </div>
                 </div>
 
@@ -661,9 +623,7 @@ function LoginPageContent() {
                     ) : (
                       <>
                         <Chrome className="h-4 w-4 text-white" />
-                        <span className="text-sm text-white">
-                          Continue with Google
-                        </span>
+                        <span className="text-sm text-white">Continue with Google</span>
                       </>
                     )}
                   </button>

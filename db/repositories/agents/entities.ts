@@ -4,10 +4,10 @@
  * Handles all database operations for entities without spinning up runtime.
  */
 
+import type { Entity, UUID } from "@elizaos/core";
+import { eq, inArray, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/helpers";
 import { entityTable } from "@/db/schemas/eliza";
-import { eq, inArray, sql } from "drizzle-orm";
-import type { Entity, UUID } from "@elizaos/core";
 
 /**
  * Input for creating a new entity.
@@ -127,11 +127,7 @@ export class EntitiesRepository {
   /**
    * Searches entities by name pattern (case-insensitive).
    */
-  async searchByName(
-    agentId: string,
-    namePattern: string,
-    limit = 10,
-  ): Promise<Entity[]> {
+  async searchByName(agentId: string, namePattern: string, limit = 10): Promise<Entity[]> {
     const result = await dbRead.execute<{
       id: string;
       agent_id: string;
@@ -188,7 +184,7 @@ export class EntitiesRepository {
         createdAt: new Date(),
       })
       .returning();
-    const [entity] = result as typeof entityTable.$inferSelect[];
+    const [entity] = result as (typeof entityTable.$inferSelect)[];
 
     return entity as Entity;
   }
@@ -209,10 +205,7 @@ export class EntitiesRepository {
   /**
    * Updates entity metadata.
    */
-  async updateMetadata(
-    entityId: string,
-    metadata: Record<string, unknown>,
-  ): Promise<Entity> {
+  async updateMetadata(entityId: string, metadata: Record<string, unknown>): Promise<Entity> {
     const [entity] = await dbWrite
       .update(entityTable)
       .set({ metadata })

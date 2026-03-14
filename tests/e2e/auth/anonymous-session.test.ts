@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as api from "../helpers/api-client";
 
 /**
@@ -13,7 +13,7 @@ describe("Anonymous Session API", () => {
     const response = await api.get("/api/auth/create-anonymous-session");
     expect(response.status).toBe(200);
 
-    const body = await response.json() as any;
+    const body = (await response.json()) as any;
     expect(body).toBeDefined();
     // Should return some form of session identifier
     expect(body.sessionToken || body.token || body.session || body.userId).toBeTruthy();
@@ -22,7 +22,7 @@ describe("Anonymous Session API", () => {
   test("GET /api/anonymous-session returns session data when cookie exists", async () => {
     // First create a session
     const createResponse = await api.get("/api/auth/create-anonymous-session");
-    const createBody = await createResponse.json() as any;
+    const createBody = (await createResponse.json()) as any;
     const token = createBody.sessionToken || createBody.token;
 
     if (!token) {
@@ -48,7 +48,7 @@ describe("Anonymous Session API", () => {
     expect(r1.status).toBe(200);
     expect(r2.status).toBe(200);
 
-    const [b1, b2] = await Promise.all([r1.json(), r2.json()]) as any[];
+    const [b1, b2] = (await Promise.all([r1.json(), r2.json()])) as any[];
     const t1 = b1.sessionToken || b1.token || b1.userId;
     const t2 = b2.sessionToken || b2.token || b2.userId;
 

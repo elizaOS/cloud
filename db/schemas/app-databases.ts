@@ -1,11 +1,5 @@
-import {
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { apps, userDatabaseStatusEnum } from "./apps";
 
 /**
@@ -39,9 +33,7 @@ export const appDatabases = pgTable(
     user_database_region: text("user_database_region").default("aws-us-east-1"),
 
     /** Current provisioning status. State machine: none → provisioning → ready | error. */
-    user_database_status: userDatabaseStatusEnum("user_database_status")
-      .notNull()
-      .default("none"),
+    user_database_status: userDatabaseStatusEnum("user_database_status").notNull().default("none"),
 
     /** Error message if provisioning failed. */
     user_database_error: text("user_database_error"),
@@ -52,9 +44,7 @@ export const appDatabases = pgTable(
   },
   (table) => ({
     app_idx: index("app_databases_app_idx").on(table.app_id),
-    status_idx: index("app_databases_status_idx").on(
-      table.user_database_status,
-    ),
+    status_idx: index("app_databases_status_idx").on(table.user_database_status),
   }),
 );
 

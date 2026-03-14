@@ -1,10 +1,9 @@
-import { eq, and, isNull, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  discordConnections,
   DISCORD_DEFAULT_INTENTS,
   type DiscordConnection,
-  type NewDiscordConnection,
+  discordConnections,
 } from "@/db/schemas/discord-connections";
 import { getEncryptionService } from "@/lib/services/secrets/encryption";
 import { logger } from "@/lib/utils/logger";
@@ -28,18 +27,14 @@ interface DecryptedAssignment {
 }
 
 /** Valid connection status values (matches migration CHECK constraint) */
-type ConnectionStatus =
-  | "pending"
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "error";
+type ConnectionStatus = "pending" | "connecting" | "connected" | "disconnected" | "error";
 
 export const discordConnectionsRepository = {
   async create(input: CreateConnectionInput): Promise<DiscordConnection> {
     const encryption = getEncryptionService();
-    const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
-      await encryption.encrypt(input.botToken);
+    const { encryptedValue, encryptedDek, nonce, authTag, keyId } = await encryption.encrypt(
+      input.botToken,
+    );
 
     const [connection] = await db
       .insert(discordConnections)
@@ -68,9 +63,7 @@ export const discordConnectionsRepository = {
     return connection ?? null;
   },
 
-  async findByOrganizationId(
-    organizationId: string,
-  ): Promise<DiscordConnection[]> {
+  async findByOrganizationId(organizationId: string): Promise<DiscordConnection[]> {
     return db
       .select()
       .from(discordConnections)
@@ -98,12 +91,7 @@ export const discordConnectionsRepository = {
     return db
       .select()
       .from(discordConnections)
-      .where(
-        and(
-          eq(discordConnections.is_active, true),
-          isNull(discordConnections.assigned_pod),
-        ),
-      );
+      .where(and(eq(discordConnections.is_active, true), isNull(discordConnections.assigned_pod)));
   },
 
   async findByAssignedPod(podName: string): Promise<DiscordConnection[]> {
@@ -111,10 +99,7 @@ export const discordConnectionsRepository = {
       .select()
       .from(discordConnections)
       .where(
-        and(
-          eq(discordConnections.is_active, true),
-          eq(discordConnections.assigned_pod, podName),
-        ),
+        and(eq(discordConnections.is_active, true), eq(discordConnections.assigned_pod, podName)),
       );
   },
 
@@ -122,9 +107,7 @@ export const discordConnectionsRepository = {
    * Atomically assign an unassigned connection to a pod using row-level locking.
    * Prevents race conditions when multiple pods request assignments simultaneously.
    */
-  async assignUnassignedToPod(
-    podName: string,
-  ): Promise<DiscordConnection | null> {
+  async assignUnassignedToPod(podName: string): Promise<DiscordConnection | null> {
     // Use raw SQL for SELECT ... FOR UPDATE SKIP LOCKED
     const result = await db.execute<DiscordConnection>(sql`
       UPDATE discord_connections
@@ -207,10 +190,7 @@ export const discordConnectionsRepository = {
    * Batch update heartbeats for all connections assigned to a pod.
    * Returns the number of connections updated.
    */
-  async updateHeartbeatBatch(
-    podName: string,
-    connectionIds: string[],
-  ): Promise<number> {
+  async updateHeartbeatBatch(podName: string, connectionIds: string[]): Promise<number> {
     if (connectionIds.length === 0) return 0;
 
     const result = await db
@@ -252,20 +232,14 @@ export const discordConnectionsRepository = {
       updates.events_routed = stats.eventsRouted;
     }
 
-    await db
-      .update(discordConnections)
-      .set(updates)
-      .where(eq(discordConnections.id, connectionId));
+    await db.update(discordConnections).set(updates).where(eq(discordConnections.id, connectionId));
   },
 
   /**
    * Check if a pod has any connections with a recent heartbeat.
    * Used to prevent false failover claims against healthy pods.
    */
-  async hasRecentHeartbeat(
-    podName: string,
-    thresholdMs: number,
-  ): Promise<boolean> {
+  async hasRecentHeartbeat(podName: string, thresholdMs: number): Promise<boolean> {
     const cutoffTime = new Date(Date.now() - thresholdMs);
     const connections = await db
       .select({ id: discordConnections.id })
@@ -373,10 +347,7 @@ export const discordConnectionsRepository = {
    * @param claimNew - Whether to claim a new unassigned connection (default: true)
    *                   Set to false when pod is at capacity to prevent stuck assignments
    */
-  async getAssignmentsForPod(
-    podName: string,
-    claimNew = true,
-  ): Promise<DecryptedAssignment[]> {
+  async getAssignmentsForPod(podName: string, claimNew = true): Promise<DecryptedAssignment[]> {
     const encryption = getEncryptionService();
 
     // Only try to claim new connections if pod has capacity
@@ -407,8 +378,7 @@ export const discordConnectionsRepository = {
             characterId: conn.character_id ?? null,
           };
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error("[DiscordConnections] Failed to decrypt bot token", {
             connectionId: conn.id,
             error: errorMessage,
@@ -428,14 +398,10 @@ export const discordConnectionsRepository = {
               })
               .where(eq(discordConnections.id, conn.id));
           } catch (dbError) {
-            logger.error(
-              "[DiscordConnections] Failed to mark connection as error",
-              {
-                connectionId: conn.id,
-                error:
-                  dbError instanceof Error ? dbError.message : String(dbError),
-              },
-            );
+            logger.error("[DiscordConnections] Failed to mark connection as error", {
+              connectionId: conn.id,
+              error: dbError instanceof Error ? dbError.message : String(dbError),
+            });
           }
 
           return null;

@@ -1,35 +1,28 @@
-import { logger } from "@/lib/utils/logger";
-import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { generateText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import { appsService } from "./apps";
-import { socialMediaService } from "./social-media";
-import { advertisingService } from "./advertising";
-import { seoService } from "./seo";
-import type { CreateSeoRequestParams } from "./seo";
-import { creditsService } from "./credits";
-import {
-  twitterAppAutomationService,
-  type TwitterAutomationConfig,
-} from "./twitter-automation/app-automation";
-import { telegramAppAutomationService } from "./telegram-automation/app-automation";
-import { discordAppAutomationService } from "./discord-automation/app-automation";
+import { generateText } from "ai";
 import type { App } from "@/db/repositories";
-import type { SocialPlatform, PostContent } from "@/lib/types/social-media";
-import type {
-  AdPlatform,
-  CreateCampaignInput,
-  CreateCreativeInput,
-} from "./advertising/types";
 import {
   AD_COPY_GENERATION_COST,
-  DISCORD_POST_COST,
-  TELEGRAM_POST_COST,
-  TWITTER_POST_COST,
   DISCORD_AUTOMATION_SETUP_COST,
+  DISCORD_POST_COST,
   TELEGRAM_AUTOMATION_SETUP_COST,
+  TELEGRAM_POST_COST,
   TWITTER_AUTOMATION_SETUP_COST,
+  TWITTER_POST_COST,
 } from "@/lib/promotion-pricing";
+import type { PostContent, SocialPlatform } from "@/lib/types/social-media";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
+import { logger } from "@/lib/utils/logger";
+import { advertisingService } from "./advertising";
+import type { AdPlatform } from "./advertising/types";
+import { appsService } from "./apps";
+import { creditsService } from "./credits";
+import { discordAppAutomationService } from "./discord-automation/app-automation";
+import type { CreateSeoRequestParams } from "./seo";
+import { seoService } from "./seo";
+import { socialMediaService } from "./social-media";
+import { telegramAppAutomationService } from "./telegram-automation/app-automation";
+import { twitterAppAutomationService } from "./twitter-automation/app-automation";
 
 export type PromotionChannel =
   | "social"
@@ -176,9 +169,7 @@ class AppPromotionService {
    * Validate promotional content structure manually.
    * Bypasses Zod to avoid Turbopack bundling issues with Zod internals.
    */
-  private validatePromotionalContent(
-    data: unknown,
-  ): GeneratedPromotionalContent {
+  private validatePromotionalContent(data: unknown): GeneratedPromotionalContent {
     if (!data || typeof data !== "object") {
       throw new Error("Promotional content must be an object");
     }
@@ -186,12 +177,7 @@ class AppPromotionService {
     const obj = data as Record<string, unknown>;
 
     // Validate required string fields
-    const requiredStrings = [
-      "headline",
-      "shortDescription",
-      "longDescription",
-      "callToAction",
-    ];
+    const requiredStrings = ["headline", "shortDescription", "longDescription", "callToAction"];
     for (const field of requiredStrings) {
       if (typeof obj[field] !== "string") {
         throw new Error(`Missing or invalid field: ${field}`);
@@ -233,8 +219,7 @@ class AppPromotionService {
     app: App,
     targetAudience?: string,
   ): Promise<GeneratedPromotionalContent> {
-    const appDescription =
-      app.description || `${app.name} - An app built on Eliza Cloud`;
+    const appDescription = app.description || `${app.name} - An app built on Eliza Cloud`;
     const appUrl = app.app_url;
 
     const prompt = `Generate promotional content for this app:
@@ -297,8 +282,7 @@ Return ONLY valid JSON, no markdown.`;
     } catch (parseError) {
       logger.error("[AppPromotion] Failed to parse AI response JSON", {
         appId: app.id,
-        error:
-          parseError instanceof Error ? parseError.message : "Unknown error",
+        error: parseError instanceof Error ? parseError.message : "Unknown error",
         jsonString: jsonString.substring(0, 500),
       });
       throw new Error("Failed to parse promotional content JSON");
@@ -310,10 +294,7 @@ Return ONLY valid JSON, no markdown.`;
     } catch (validationError) {
       logger.error("[AppPromotion] Content validation failed", {
         appId: app.id,
-        error:
-          validationError instanceof Error
-            ? validationError.message
-            : "Unknown error",
+        error: validationError instanceof Error ? validationError.message : "Unknown error",
       });
       throw new Error("Promotional content validation failed");
     }
@@ -350,10 +331,7 @@ Return ONLY valid JSON, no markdown.`;
 
     // Generate promotional content if needed
     let promotionalContent: GeneratedPromotionalContent | undefined;
-    if (
-      config.channels.includes("social") ||
-      config.channels.includes("advertising")
-    ) {
+    if (config.channels.includes("social") || config.channels.includes("advertising")) {
       const contentDeduction = await creditsService.deductCredits({
         organizationId,
         amount: PROMOTION_COSTS.contentGeneration,
@@ -374,13 +352,10 @@ Return ONLY valid JSON, no markdown.`;
             metadata: { appId, type: "content_generation_refund" },
           });
           result.totalCreditsUsed -= PROMOTION_COSTS.contentGeneration;
-          logger.error(
-            "[AppPromotion] Content generation failed, credits refunded",
-            {
-              appId,
-              error: error instanceof Error ? error.message : "Unknown error",
-            },
-          );
+          logger.error("[AppPromotion] Content generation failed, credits refunded", {
+            appId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
           result.errors.push("Content generation failed - credits refunded");
         }
       }
@@ -398,8 +373,7 @@ Return ONLY valid JSON, no markdown.`;
       if (!result.channels.social.success) {
         result.errors.push("Social media promotion partially failed");
       }
-      result.totalCreditsUsed +=
-        config.social.platforms.length * PROMOTION_COSTS.socialPostBase;
+      result.totalCreditsUsed += config.social.platforms.length * PROMOTION_COSTS.socialPostBase;
     }
 
     if (config.channels.includes("seo") && config.seo) {
@@ -410,9 +384,7 @@ Return ONLY valid JSON, no markdown.`;
         config.seo,
       );
       if (!result.channels.seo.success) {
-        result.errors.push(
-          `SEO optimization failed: ${result.channels.seo.error}`,
-        );
+        result.errors.push(`SEO optimization failed: ${result.channels.seo.error}`);
       }
       result.totalCreditsUsed += PROMOTION_COSTS.seoBundle;
     }
@@ -425,25 +397,18 @@ Return ONLY valid JSON, no markdown.`;
         promotionalContent,
       );
       if (!result.channels.advertising.success) {
-        result.errors.push(
-          `Ad campaign creation failed: ${result.channels.advertising.error}`,
-        );
+        result.errors.push(`Ad campaign creation failed: ${result.channels.advertising.error}`);
       }
     }
 
-    if (
-      config.channels.includes("twitter_automation") &&
-      config.twitterAutomation
-    ) {
+    if (config.channels.includes("twitter_automation") && config.twitterAutomation) {
       result.channels.twitterAutomation = await this.executeTwitterAutomation(
         organizationId,
         app,
         config.twitterAutomation,
       );
       if (!result.channels.twitterAutomation.success) {
-        result.errors.push(
-          `Twitter automation failed: ${result.channels.twitterAutomation.error}`,
-        );
+        result.errors.push(`Twitter automation failed: ${result.channels.twitterAutomation.error}`);
       }
       result.totalCreditsUsed +=
         PROMOTION_COSTS.twitterAutomationSetup +
@@ -452,10 +417,7 @@ Return ONLY valid JSON, no markdown.`;
           : 0);
     }
 
-    if (
-      config.channels.includes("telegram_automation") &&
-      config.telegramAutomation
-    ) {
+    if (config.channels.includes("telegram_automation") && config.telegramAutomation) {
       result.channels.telegramAutomation = await this.executeTelegramAutomation(
         organizationId,
         app,
@@ -473,19 +435,14 @@ Return ONLY valid JSON, no markdown.`;
           : 0);
     }
 
-    if (
-      config.channels.includes("discord_automation") &&
-      config.discordAutomation
-    ) {
+    if (config.channels.includes("discord_automation") && config.discordAutomation) {
       result.channels.discordAutomation = await this.executeDiscordAutomation(
         organizationId,
         app,
         config.discordAutomation,
       );
       if (!result.channels.discordAutomation.success) {
-        result.errors.push(
-          `Discord automation failed: ${result.channels.discordAutomation.error}`,
-        );
+        result.errors.push(`Discord automation failed: ${result.channels.discordAutomation.error}`);
       }
       result.totalCreditsUsed +=
         PROMOTION_COSTS.discordAutomationSetup +
@@ -535,9 +492,7 @@ Return ONLY valid JSON, no markdown.`;
         platforms: [platform],
       });
 
-      const platformResult = postResult.results.find(
-        (r) => r.platform === platform,
-      );
+      const platformResult = postResult.results.find((r) => r.platform === platform);
       results.push({
         platform,
         success: platformResult?.success ?? false,
@@ -584,8 +539,7 @@ Return ONLY valid JSON, no markdown.`;
         type: a.type,
         data: a.data as Record<string, unknown>,
       })),
-      error:
-        result.request.status === "failed" ? "SEO request failed" : undefined,
+      error: result.request.status === "failed" ? "SEO request failed" : undefined,
     };
   }
 
@@ -620,18 +574,11 @@ Return ONLY valid JSON, no markdown.`;
       startDate,
       endDate,
       appId: app.id,
-      targeting: config.targetLocations?.length
-        ? { locations: config.targetLocations }
-        : undefined,
+      targeting: config.targetLocations?.length ? { locations: config.targetLocations } : undefined,
     });
 
     if (content) {
-      await this.createDefaultCreative(
-        organizationId,
-        campaign.id,
-        app,
-        content,
-      );
+      await this.createDefaultCreative(organizationId, campaign.id, app, content);
     }
 
     return {
@@ -678,32 +625,25 @@ Return ONLY valid JSON, no markdown.`;
   ): Promise<NonNullable<PromotionResult["channels"]["twitterAutomation"]>> {
     try {
       // Enable automation with the provided config
-      await twitterAppAutomationService.enableAutomation(
-        organizationId,
-        app.id,
-        {
-          enabled: config.enabled,
-          autoPost: config.autoPost,
-          autoReply: config.autoReply,
-          autoEngage: config.autoEngage,
-          discovery: config.discovery,
-          postIntervalMin: config.postIntervalMin,
-          postIntervalMax: config.postIntervalMax,
-          vibeStyle: config.vibeStyle,
-          topics: config.topics,
-          agentCharacterId: config.agentCharacterId,
-        },
-      );
+      await twitterAppAutomationService.enableAutomation(organizationId, app.id, {
+        enabled: config.enabled,
+        autoPost: config.autoPost,
+        autoReply: config.autoReply,
+        autoEngage: config.autoEngage,
+        discovery: config.discovery,
+        postIntervalMin: config.postIntervalMin,
+        postIntervalMax: config.postIntervalMax,
+        vibeStyle: config.vibeStyle,
+        topics: config.topics,
+        agentCharacterId: config.agentCharacterId,
+      });
 
       // Post an initial announcement tweet if autoPost is enabled
       let initialTweetId: string | undefined;
       let initialTweetUrl: string | undefined;
 
       if (config.autoPost) {
-        const tweetResult = await twitterAppAutomationService.postAppTweet(
-          organizationId,
-          app.id,
-        );
+        const tweetResult = await twitterAppAutomationService.postAppTweet(organizationId, app.id);
 
         if (tweetResult.success) {
           initialTweetId = tweetResult.tweetId;
@@ -749,13 +689,10 @@ Return ONLY valid JSON, no markdown.`;
     try {
       // If useExisting is true, just post using existing automation config
       if (config.useExisting) {
-        logger.info(
-          "[AppPromotion] Using existing Telegram automation, posting only",
-          {
-            appId: app.id,
-            organizationId,
-          },
-        );
+        logger.info("[AppPromotion] Using existing Telegram automation, posting only", {
+          appId: app.id,
+          organizationId,
+        });
 
         const postResult = await telegramAppAutomationService.postAnnouncement(
           organizationId,
@@ -783,21 +720,17 @@ Return ONLY valid JSON, no markdown.`;
       }
 
       // Enable automation with the provided config
-      await telegramAppAutomationService.enableAutomation(
-        organizationId,
-        app.id,
-        {
-          enabled: config.enabled ?? true,
-          channelId: config.channelId,
-          groupId: config.groupId,
-          autoAnnounce: config.autoAnnounce ?? true,
-          autoReply: config.autoReply,
-          announceIntervalMin: config.announceIntervalMin ?? 120,
-          announceIntervalMax: config.announceIntervalMax ?? 240,
-          vibeStyle: config.vibeStyle,
-          agentCharacterId: config.agentCharacterId,
-        },
-      );
+      await telegramAppAutomationService.enableAutomation(organizationId, app.id, {
+        enabled: config.enabled ?? true,
+        channelId: config.channelId,
+        groupId: config.groupId,
+        autoAnnounce: config.autoAnnounce ?? true,
+        autoReply: config.autoReply,
+        announceIntervalMin: config.announceIntervalMin ?? 120,
+        announceIntervalMax: config.announceIntervalMax ?? 240,
+        vibeStyle: config.vibeStyle,
+        agentCharacterId: config.agentCharacterId,
+      });
 
       // Post an initial announcement if autoAnnounce is enabled
       let initialMessageId: string | undefined;
@@ -852,13 +785,10 @@ Return ONLY valid JSON, no markdown.`;
     try {
       // If useExisting is true, just post using existing automation config
       if (config.useExisting) {
-        logger.info(
-          "[AppPromotion] Using existing Discord automation, posting only",
-          {
-            appId: app.id,
-            organizationId,
-          },
-        );
+        logger.info("[AppPromotion] Using existing Discord automation, posting only", {
+          appId: app.id,
+          organizationId,
+        });
 
         const postResult = await discordAppAutomationService.postAnnouncement(
           organizationId,
@@ -884,20 +814,16 @@ Return ONLY valid JSON, no markdown.`;
       }
 
       // Enable automation with the provided config
-      await discordAppAutomationService.enableAutomation(
-        organizationId,
-        app.id,
-        {
-          enabled: config.enabled ?? true,
-          guildId: config.guildId,
-          channelId: config.channelId,
-          autoAnnounce: config.autoAnnounce ?? true,
-          announceIntervalMin: config.announceIntervalMin ?? 120,
-          announceIntervalMax: config.announceIntervalMax ?? 240,
-          vibeStyle: config.vibeStyle,
-          agentCharacterId: config.agentCharacterId,
-        },
-      );
+      await discordAppAutomationService.enableAutomation(organizationId, app.id, {
+        enabled: config.enabled ?? true,
+        guildId: config.guildId,
+        channelId: config.channelId,
+        autoAnnounce: config.autoAnnounce ?? true,
+        announceIntervalMin: config.announceIntervalMin ?? 120,
+        announceIntervalMax: config.announceIntervalMax ?? 240,
+        vibeStyle: config.vibeStyle,
+        agentCharacterId: config.agentCharacterId,
+      });
 
       // Post an initial announcement if autoAnnounce is enabled
       let initialMessageId: string | undefined;
@@ -965,14 +891,9 @@ Return ONLY valid JSON, no markdown.`;
     }
 
     // Check Twitter automation status
-    let twitterAutomationStatus:
-      | { connected: boolean; enabled: boolean }
-      | undefined;
+    let twitterAutomationStatus: { connected: boolean; enabled: boolean } | undefined;
     try {
-      const status = await twitterAppAutomationService.getAutomationStatus(
-        organizationId,
-        appId,
-      );
+      const status = await twitterAppAutomationService.getAutomationStatus(organizationId, appId);
       twitterAutomationStatus = {
         connected: status.twitterConnected,
         enabled: status.enabled,
@@ -993,9 +914,7 @@ Return ONLY valid JSON, no markdown.`;
     ];
 
     if (twitterAutomationStatus.connected && !twitterAutomationStatus.enabled) {
-      tips.unshift(
-        "🚀 Enable Twitter Automation for 24/7 AI-powered vibe marketing!",
-      );
+      tips.unshift("🚀 Enable Twitter Automation for 24/7 AI-powered vibe marketing!");
     }
 
     return {

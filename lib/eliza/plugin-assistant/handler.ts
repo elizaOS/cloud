@@ -1,8 +1,8 @@
 import {
   asUUID,
-  composePromptFromState,
   type Content,
   ContentType,
+  composePromptFromState,
   createUniqueUuid,
   EventType,
   logger,
@@ -12,36 +12,29 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { v4 } from "uuid";
+import type { MessageReceivedHandlerParams, RunEndedEventPayload } from "../shared/types";
 import {
-  chatAssistantSystemPrompt,
-  chatAssistantPlanningTemplate,
-  chatAssistantFinalSystemPrompt,
-  chatAssistantResponseTemplate,
-} from "./prompts/chat-assistant-prompts";
+  cleanPrompt,
+  executeActions,
+  executeProviders,
+  extractAttachments,
+  generatePlanningWithStreaming,
+  generateResponseWithRetry,
+  getAndClearCachedAttachments,
+  runEvaluatorsWithTimeout,
+} from "../shared/utils/helpers";
+import { canRespondImmediately, type ParsedPlan, parsePlannedItems } from "../shared/utils/parsers";
 import {
-  setLatestResponseId,
   clearLatestResponseId,
   isResponseStillValid,
+  setLatestResponseId,
 } from "../shared/utils/response-tracking";
 import {
-  generateResponseWithRetry,
-  generatePlanningWithStreaming,
-  runEvaluatorsWithTimeout,
-  extractAttachments,
-  getAndClearCachedAttachments,
-  executeProviders,
-  executeActions,
-  cleanPrompt,
-} from "../shared/utils/helpers";
-import {
-  parsePlannedItems,
-  canRespondImmediately,
-  type ParsedPlan,
-} from "../shared/utils/parsers";
-import type {
-  MessageReceivedHandlerParams,
-  RunEndedEventPayload,
-} from "../shared/types";
+  chatAssistantFinalSystemPrompt,
+  chatAssistantPlanningTemplate,
+  chatAssistantResponseTemplate,
+  chatAssistantSystemPrompt,
+} from "./prompts/chat-assistant-prompts";
 
 /**
  * Chat Assistant Workflow Handler - planning-based with action execution.
@@ -76,9 +69,7 @@ export async function handleMessage({
       status: "started",
       source: "chatAssistantWorkflow",
     })
-    .catch((e) =>
-      logger.debug(`[ChatAssistant] RUN_STARTED emit failed: ${e}`),
-    );
+    .catch((e) => logger.debug(`[ChatAssistant] RUN_STARTED emit failed: ${e}`));
 
   const initialState = await runtime.composeState(message, [
     "SUMMARIZED_CONTEXT",
@@ -102,9 +93,7 @@ export async function handleMessage({
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
-        template:
-          runtime.character.templates?.planningTemplate ||
-          chatAssistantPlanningTemplate,
+        template: runtime.character.templates?.planningTemplate || chatAssistantPlanningTemplate,
       }),
     );
 
@@ -116,9 +105,7 @@ export async function handleMessage({
     const planningResponse = await generatePlanningWithStreaming(
       runtime,
       planningPrompt,
-      onReasoningChunk
-        ? { onReasoningChunk, messageId: responseId as UUID }
-        : undefined,
+      onReasoningChunk ? { onReasoningChunk, messageId: responseId as UUID } : undefined,
     );
 
     const plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
@@ -132,10 +119,7 @@ export async function handleMessage({
       if (onStreamChunk) {
         const chunkSize = 20;
         for (let i = 0; i < responseContent.length; i += chunkSize) {
-          await onStreamChunk(
-            responseContent.slice(i, i + chunkSize),
-            responseId as UUID,
-          );
+          await onStreamChunk(responseContent.slice(i, i + chunkSize), responseId as UUID);
         }
       }
     } else {
@@ -145,20 +129,9 @@ export async function handleMessage({
         const plannedProviders = parsePlannedItems(plan?.providers);
         const plannedActions = parsePlannedItems(plan?.actions);
 
-        updatedState = await executeProviders(
-          runtime,
-          message,
-          plannedProviders,
-          updatedState,
-        );
+        updatedState = await executeProviders(runtime, message, plannedProviders, updatedState);
 
-        updatedState = await executeActions(
-          runtime,
-          message,
-          plannedActions,
-          plan,
-          updatedState,
-        );
+        updatedState = await executeActions(runtime, message, plannedActions, plan, updatedState);
       }
 
       if (thought) {
@@ -178,8 +151,7 @@ export async function handleMessage({
         composePromptFromState({
           state: updatedState,
           template:
-            runtime.character.templates?.messageHandlerTemplate ||
-            chatAssistantResponseTemplate,
+            runtime.character.templates?.messageHandlerTemplate || chatAssistantResponseTemplate,
         }),
       );
 
@@ -207,9 +179,7 @@ export async function handleMessage({
 
     const actionResults = await runtime.getActionResults(message.id as UUID);
     const actionResultAttachments = extractAttachments(actionResults);
-    const cachedAttachments = getAndClearCachedAttachments(
-      message.roomId as string,
-    );
+    const cachedAttachments = getAndClearCachedAttachments(message.roomId as string);
 
     const attachmentMap = new Map<
       string,
@@ -230,8 +200,7 @@ export async function handleMessage({
     const mediaAttachments: Media[] = Array.from(attachmentMap.values())
       .filter((att) => att.url.length > 0)
       .map((att) => {
-        const contentType =
-          att.contentType?.toUpperCase() as keyof typeof ContentType;
+        const contentType = att.contentType?.toUpperCase() as keyof typeof ContentType;
         return {
           id: att.id,
           url: att.url,
@@ -263,15 +232,11 @@ export async function handleMessage({
       content,
     };
 
-    runEvaluatorsWithTimeout(
-      runtime,
-      message,
-      initialState,
-      responseMemory,
-      callback,
-    ).catch((e) => {
-      logger.warn(`[ChatAssistant] Evaluators failed: ${e}`);
-    });
+    runEvaluatorsWithTimeout(runtime, message, initialState, responseMemory, callback).catch(
+      (e) => {
+        logger.warn(`[ChatAssistant] Evaluators failed: ${e}`);
+      },
+    );
 
     const endTime = Date.now();
     logger.info(`[ChatAssistant] ${endTime - startTime}ms`);
@@ -289,9 +254,7 @@ export async function handleMessage({
         duration: endTime - startTime,
         source: "chatAssistantWorkflow",
       })
-      .catch((e) =>
-        logger.debug(`[ChatAssistant] RUN_ENDED emit failed: ${e}`),
-      );
+      .catch((e) => logger.debug(`[ChatAssistant] RUN_ENDED emit failed: ${e}`));
   } catch (error) {
     const errorPayload: RunEndedEventPayload = {
       runtime,

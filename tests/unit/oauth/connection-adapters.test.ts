@@ -4,12 +4,8 @@
  * Tests the adapter registry and adapter interface compliance.
  */
 
-import { describe, it, expect } from "bun:test";
-import {
-  getAdapter,
-  getAllAdapters,
-  type ConnectionAdapter,
-} from "@/lib/services/oauth/connection-adapters";
+import { describe, expect, it } from "bun:test";
+import { getAdapter, getAllAdapters } from "@/lib/services/oauth/connection-adapters";
 import { OAUTH_PROVIDERS } from "@/lib/services/oauth/provider-registry";
 
 describe("Connection Adapters Registry", () => {
@@ -47,8 +43,6 @@ describe("Connection Adapters Registry", () => {
       const adapter = getAdapter("discord");
       expect(adapter).toBeNull();
     });
-
-
   });
 
   describe("getAllAdapters", () => {
@@ -238,17 +232,9 @@ describe("Connection ID Disambiguation", () => {
   });
 
   it("malformed IDs should not be owned by any secrets adapter", async () => {
-    const malformedIds = [
-      "invalid",
-      "",
-      "platform:",
-      ":org-123",
-      "platform::",
-    ];
+    const malformedIds = ["invalid", "", "platform:", ":org-123", "platform::"];
 
-    const secretsAdapters = ["twitter", "twilio", "blooio"].map(
-      (p) => getAdapter(p)!,
-    );
+    const secretsAdapters = ["twitter", "twilio", "blooio"].map((p) => getAdapter(p)!);
 
     for (const id of malformedIds) {
       for (const adapter of secretsAdapters) {

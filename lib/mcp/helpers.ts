@@ -28,14 +28,14 @@
  */
 
 import type { Organization } from "@/db/repositories";
-import type { UserWithOrganization } from "@/lib/types";
-import { getCachedOrganization } from "@/lib/cache/organizations-cache";
 import {
   getCachedToolResult,
-  setCachedToolResult,
   invalidateToolCache as invalidateToolCacheInternal,
+  setCachedToolResult,
 } from "@/lib/cache/mcp-tool-cache";
+import { getCachedOrganization } from "@/lib/cache/organizations-cache";
 import { creditsService } from "@/lib/services/credits";
+import type { UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -53,11 +53,7 @@ export interface MCPToolContext {
   getToolCache: (toolName: string, params: unknown) => Promise<unknown | null>;
 
   /** Set tool result in cache */
-  setToolCache: (
-    toolName: string,
-    params: unknown,
-    result: unknown,
-  ) => Promise<void>;
+  setToolCache: (toolName: string, params: unknown, result: unknown) => Promise<void>;
 
   /** Invalidate tool cache */
   invalidateToolCache: (toolName: string, params?: unknown) => Promise<void>;
@@ -88,9 +84,7 @@ export interface MCPToolContext {
  * @param user - Authenticated user from requireAuth/requireAuthOrApiKey
  * @returns Tool execution context with caching and utilities
  */
-export async function createMCPContext(
-  user: UserWithOrganization,
-): Promise<MCPToolContext> {
+export async function createMCPContext(user: UserWithOrganization): Promise<MCPToolContext> {
   // Ensure user has an organization (MCP tools not available for anonymous users)
   if (!user.organization_id) {
     throw new Error("User must belong to an organization to use MCP tools");
@@ -119,11 +113,7 @@ export async function createMCPContext(
       await invalidateToolCacheInternal(toolName, org.id, params);
     },
 
-    async deductCredits(
-      amount: number,
-      description: string,
-      metadata?: Record<string, unknown>,
-    ) {
+    async deductCredits(amount: number, description: string, metadata?: Record<string, unknown>) {
       const result = await creditsService.deductCredits({
         organizationId: org.id,
         amount,
@@ -138,11 +128,7 @@ export async function createMCPContext(
       };
     },
 
-    async refundCredits(
-      amount: number,
-      description: string,
-      metadata?: Record<string, unknown>,
-    ) {
+    async refundCredits(amount: number, description: string, metadata?: Record<string, unknown>) {
       await creditsService.refundCredits({
         organizationId: org.id,
         amount,
@@ -195,11 +181,10 @@ export function withCredits<TParams, TResult>(
     }
 
     // Deduct credits
-    const deduction = await context.deductCredits(
-      toolCost,
-      `MCP Tool: ${toolName}`,
-      { tool: toolName, params },
-    );
+    const deduction = await context.deductCredits(toolCost, `MCP Tool: ${toolName}`, {
+      tool: toolName,
+      params,
+    });
 
     if (!deduction.success) {
       throw new Error(
@@ -224,19 +209,12 @@ export function withCredits<TParams, TResult>(
       return result;
     } catch (error) {
       // Refund credits on error
-      logger.error(
-        `[MCP:${toolName}] Tool failed, refunding ${toolCost} credits:`,
-        error,
-      );
+      logger.error(`[MCP:${toolName}] Tool failed, refunding ${toolCost} credits:`, error);
 
-      await context.refundCredits(
-        toolCost,
-        `MCP Tool Refund: ${toolName} (error)`,
-        {
-          tool: toolName,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      );
+      await context.refundCredits(toolCost, `MCP Tool Refund: ${toolName} (error)`, {
+        tool: toolName,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       throw error; // Re-throw to preserve error handling
     }

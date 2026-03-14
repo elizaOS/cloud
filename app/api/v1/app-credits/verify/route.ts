@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { appCreditsService } from "@/lib/services/app-credits";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { appCreditsService } from "@/lib/services/app-credits";
 import { requireStripe } from "@/lib/stripe";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -117,9 +117,7 @@ export async function GET(request: NextRequest) {
     }
 
     const paymentIntentId =
-      typeof session.payment_intent === "string"
-        ? session.payment_intent
-        : null;
+      typeof session.payment_intent === "string" ? session.payment_intent : null;
 
     if (!paymentIntentId) {
       return NextResponse.json(
@@ -167,8 +165,7 @@ export async function GET(request: NextRequest) {
       { headers: corsHeaders },
     );
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Verification failed";
+    const errorMessage = error instanceof Error ? error.message : "Verification failed";
     const isAuthError =
       errorMessage.includes("Unauthorized") ||
       errorMessage.includes("Authentication required") ||
@@ -176,9 +173,7 @@ export async function GET(request: NextRequest) {
       errorMessage.includes("Invalid or expired API key") ||
       errorMessage.includes("Invalid wallet signature") ||
       errorMessage.includes("Wallet authentication failed") ||
-      errorMessage.includes(
-        "Forbidden: This feature requires a full account",
-      ) ||
+      errorMessage.includes("Forbidden: This feature requires a full account") ||
       errorMessage.includes("Organization is inactive");
 
     if (isAuthError) {

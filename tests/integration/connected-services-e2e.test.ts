@@ -9,12 +9,12 @@
  * - Credentials management
  */
 
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Client } from "pg";
 import { v4 as uuidv4 } from "uuid";
 import {
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   type TestDataSet,
 } from "../infrastructure/test-data-factory";
 
@@ -51,10 +51,9 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
     if (!shouldRun) return;
 
     // Clean up any test secrets
-    await client.query(
-      `DELETE FROM secrets WHERE organization_id = $1`,
-      [testData.organization.id]
-    );
+    await client.query(`DELETE FROM secrets WHERE organization_id = $1`, [
+      testData.organization.id,
+    ]);
     await client.end();
     await cleanupTestData(DATABASE_URL, testData.organization.id);
   });
@@ -94,7 +93,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
       const data = await res.json();
       const google = data.services?.find((s: { id: string }) => s.id === "google");
-      
+
       if (google) {
         expect(google).toHaveProperty("connected");
         expect(typeof google.connected).toBe("boolean");
@@ -112,7 +111,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
       const data = await res.json();
       const twilio = data.services?.find((s: { id: string }) => s.id === "twilio");
-      
+
       if (twilio) {
         expect(twilio).toHaveProperty("connected");
         expect(typeof twilio.connected).toBe("boolean");
@@ -130,7 +129,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
       const data = await res.json();
       const blooio = data.services?.find((s: { id: string }) => s.id === "blooio");
-      
+
       if (blooio) {
         expect(blooio).toHaveProperty("connected");
         expect(typeof blooio.connected).toBe("boolean");
@@ -164,7 +163,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
         {
           method: "GET",
           signal: AbortSignal.timeout(TIMEOUT),
-        }
+        },
       );
 
       // Should reject invalid state
@@ -172,13 +171,10 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
     });
 
     test("callback rejects missing code parameter", async () => {
-      const res = await fetch(
-        `${SERVER_URL}/api/v1/oauth/callback?state=some_state`,
-        {
-          method: "GET",
-          signal: AbortSignal.timeout(TIMEOUT),
-        }
-      );
+      const res = await fetch(`${SERVER_URL}/api/v1/oauth/callback?state=some_state`, {
+        method: "GET",
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       // Should reject missing code
       expect([400, 401, 403, 500]).toContain(res.status);
@@ -297,10 +293,8 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       const statusData1 = await statusRes1.json();
 
       // Get initial Blooio state
-      const initialBlooio = statusData1.services?.find(
-        (s: { id: string }) => s.id === "blooio"
-      );
-      const wasConnected = initialBlooio?.connected;
+      const initialBlooio = statusData1.services?.find((s: { id: string }) => s.id === "blooio");
+      const _wasConnected = initialBlooio?.connected;
 
       // Connect Blooio
       const connectRes = await fetch(`${SERVER_URL}/api/v1/connections/blooio`, {
@@ -323,9 +317,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
         expect(statusRes2.status).toBe(200);
         const statusData2 = await statusRes2.json();
 
-        const newBlooio = statusData2.services?.find(
-          (s: { id: string }) => s.id === "blooio"
-        );
+        const newBlooio = statusData2.services?.find((s: { id: string }) => s.id === "blooio");
 
         // Should now be connected
         if (newBlooio) {
@@ -370,9 +362,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
         });
 
         const statusData = await statusRes.json();
-        const blooio = statusData.services?.find(
-          (s: { id: string }) => s.id === "blooio"
-        );
+        const blooio = statusData.services?.find((s: { id: string }) => s.id === "blooio");
 
         // Should now be disconnected
         if (blooio) {
@@ -406,10 +396,9 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
     afterAll(async () => {
       if (!shouldRun) return;
 
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1`,
-        [otherOrgData.organization.id]
-      );
+      await client.query(`DELETE FROM secrets WHERE organization_id = $1`, [
+        otherOrgData.organization.id,
+      ]);
       await cleanupTestData(DATABASE_URL, otherOrgData.organization.id);
     });
 
@@ -424,11 +413,11 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       expect(res.status).toBe(200);
 
       const data = await res.json();
-      
+
       // Should only see own organization's connections
       // The other org's Blooio should not appear as connected for this org
       const blooio = data.services?.find((s: { id: string }) => s.id === "blooio");
-      
+
       // Our org's Blooio should not be affected by other org's connection
       expect(blooio?.connected).toBe(false);
     });
@@ -451,11 +440,11 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       const data2 = await res2.json();
 
       const blooio1 = data1.services?.find((s: { id: string }) => s.id === "blooio");
-      const blooio2 = data2.services?.find((s: { id: string }) => s.id === "blooio");
+      const _blooio2 = data2.services?.find((s: { id: string }) => s.id === "blooio");
 
       // First org should not be connected
       expect(blooio1?.connected).toBe(false);
-      
+
       // Second org should be connected (if connection succeeded)
       // Note: This depends on the beforeAll connection succeeding
     });
@@ -510,7 +499,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
               apiKey: `concurrent_key_${i}_${Date.now()}`,
             }),
             signal: AbortSignal.timeout(TIMEOUT),
-          })
+          }),
         );
 
       const responses = await Promise.all(requests);
@@ -550,9 +539,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
         });
 
         const statusData = await statusRes.json();
-        const blooio = statusData.services?.find(
-          (s: { id: string }) => s.id === "blooio"
-        );
+        const blooio = statusData.services?.find((s: { id: string }) => s.id === "blooio");
 
         // Should not contain the actual API key
         if (blooio) {

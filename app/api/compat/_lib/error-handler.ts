@@ -13,7 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { errorEnvelope } from "@/lib/api/compat-envelope";
-import { ApiError, ForbiddenError, AuthenticationError } from "@/lib/api/errors";
+import { ApiError } from "@/lib/api/errors";
 import { ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { logger } from "@/lib/utils/logger";
 
@@ -65,10 +65,7 @@ export function handleCompatError(err: unknown): NextResponse {
       error: msg,
       stack: err.stack,
     });
-    return NextResponse.json(
-      errorEnvelope("Internal server error"),
-      { status: 500 },
-    );
+    return NextResponse.json(errorEnvelope("Internal server error"), { status: 500 });
   }
 
   // 4. Non-Error throw — always generic.

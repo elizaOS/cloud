@@ -24,109 +24,95 @@
  */
 
 // ============================================
-// Core Platform Repositories
-// ============================================
-export * from "./organizations";
-export * from "./organization-invites";
-export * from "./users";
-export * from "./user-sessions";
-export * from "./anonymous-sessions";
-export * from "./api-keys";
-export * from "./cli-auth-sessions";
-export * from "./credit-transactions";
-export * from "./credit-packs";
-export * from "./usage-records";
-export * from "./usage-quotas";
-export * from "./model-pricing";
-export * from "./service-pricing";
-export * from "./provider-health";
-
-// ============================================
-// Character Domain (User-created definitions)
-// ============================================
-export * from "./characters";
-
-// ============================================
-// Deployment Domain (Infrastructure)
-// ============================================
-export * from "./containers";
-export * from "./eliza-room-characters";
-export * from "./agent-events";
-
-// ============================================
-// Agent Domain (elizaOS Runtime)
-// DO NOT MODIFY - Framework dependency
-// ============================================
-export * from "./agents";
-
-// ============================================
-// Agent Subdomain (elizaOS Tables)
-// Direct database access to elizaOS tables
-// ============================================
-export * from "./agents/rooms";
-export * from "./agents/participants";
-export * from "./agents/entities";
-export * from "./agents/memories";
-
-// ============================================
-// Conversation Domain
-// ============================================
-export * from "./conversations";
-export * from "./generations";
-
-// ============================================
-// App Domain
-// ============================================
-export * from "./apps";
-export * from "./app-credit-balances";
-export * from "./app-earnings";
-
-// ============================================
-// Referrals & Rewards
-// ============================================
-export * from "./referrals";
-
-// ============================================
-// User MCPs (Monetizable MCP Servers)
-// ============================================
-export * from "./user-mcps";
-
-// ============================================
-// Token Redemptions (elizaOS payouts)
-// ============================================
-export * from "./token-redemptions";
-
-// ============================================
-// Crypto Payments (CDP wallet payments)
-// ============================================
-export * from "./crypto-payments";
-
-// ============================================
 // Advertising Domain
 // ============================================
 export * from "./ad-accounts";
 export * from "./ad-campaigns";
 export * from "./ad-creatives";
 export * from "./ad-transactions";
-export * from "./seo-artifacts";
-export * from "./seo-provider-calls";
-export * from "./seo-requests";
-
+export * from "./affiliates";
+export * from "./agent-events";
+// ============================================
+// Agent Domain (elizaOS Runtime)
+// DO NOT MODIFY - Framework dependency
+// ============================================
+export * from "./agents";
+export * from "./agents/entities";
+export * from "./agents/memories";
+export * from "./agents/participants";
+// ============================================
+// Agent Subdomain (elizaOS Tables)
+// Direct database access to elizaOS tables
+// ============================================
+export * from "./agents/rooms";
+export * from "./anonymous-sessions";
+export * from "./api-keys";
+export * from "./app-credit-balances";
+export * from "./app-earnings";
+// ============================================
+// App Domain
+// ============================================
+export * from "./apps";
+// ============================================
+// Character Domain (User-created definitions)
+// ============================================
+export * from "./characters";
+export * from "./cli-auth-sessions";
+// ============================================
+// Deployment Domain (Infrastructure)
+// ============================================
+export * from "./containers";
+// ============================================
+// Conversation Domain
+// ============================================
+export * from "./conversations";
+export * from "./credit-packs";
+export * from "./credit-transactions";
+// ============================================
+// Crypto Payments (CDP wallet payments)
+// ============================================
+export * from "./crypto-payments";
+export * from "./discord-channels";
+export * from "./discord-connections";
 // ============================================
 // Discord Domain (Bot Automation)
 // ============================================
 export * from "./discord-guilds";
-export * from "./discord-channels";
-export * from "./discord-connections";
-export * from "./affiliates";
-
-// ============================================
-// Milady Cloud Sandboxes
-// ============================================
-export * from "./milady-sandboxes";
 export * from "./docker-nodes";
-
+export * from "./eliza-room-characters";
+export * from "./generations";
 // ============================================
 // Background Jobs
 // ============================================
 export * from "./jobs";
+// ============================================
+// Milady Cloud Sandboxes
+// ============================================
+export * from "./milady-sandboxes";
+export * from "./model-pricing";
+export * from "./organization-invites";
+// ============================================
+// Core Platform Repositories
+// ============================================
+export * from "./organizations";
+export * from "./provider-health";
+// ============================================
+// Referrals & Rewards
+// ============================================
+export * from "./referrals";
+export * from "./seo-artifacts";
+export * from "./seo-provider-calls";
+export * from "./seo-requests";
+export * from "./service-pricing";
+// ============================================
+// Token Redemptions (elizaOS payouts)
+// ============================================
+export * from "./token-redemptions";
+export * from "./usage-quotas";
+export * from "./usage-records";
+// ============================================
+// User MCPs (Monetizable MCP Servers)
+// ============================================
+export * from "./user-mcps";
+export * from "./user-sessions";
+export * from "./users";

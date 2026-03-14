@@ -8,17 +8,17 @@
  * Run with: bun test tests/runtime/integration/performance/embedding-init.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
-  hasDatabaseUrl,
-  verifyConnection,
-  getConnectionString,
-  createTestDataSet,
-  cleanupTestData,
-  createTestRuntime,
   AgentMode,
+  cleanupTestData,
+  createTestDataSet,
+  createTestRuntime,
+  getConnectionString,
+  hasDatabaseUrl,
   type TestDataSet,
   type TestRuntimeResult,
+  verifyConnection,
 } from "../../../infrastructure";
 
 describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
@@ -54,18 +54,14 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       await rt.cleanup().catch(() => {});
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        () => {},
-      );
+      await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
     }
   });
 
   it(
     "should keep repeated runtime creation stable once embedding dimension is known",
     async () => {
-      console.log(
-        "\n--- First Runtime Creation (baseline) ---",
-      );
+      console.log("\n--- First Runtime Creation (baseline) ---");
 
       const firstStart = performance.now();
       const firstRuntime = await createTestRuntime({
@@ -86,9 +82,7 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       // Small delay to ensure cleanup is complete
       await new Promise((r) => setTimeout(r, 100));
 
-      console.log(
-        "\n--- Second Runtime Creation (repeat) ---",
-      );
+      console.log("\n--- Second Runtime Creation (repeat) ---");
 
       const secondStart = performance.now();
       const secondRuntime = await createTestRuntime({
@@ -134,23 +128,15 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       const warmVariance = Math.abs(secondDuration - thirdDuration);
 
       console.log(`\nAverage warm: ${avgWarm.toFixed(0)}ms`);
-      console.log(
-        `Savings: ${savings.toFixed(0)}ms (${savingsPercent.toFixed(1)}%)`,
-      );
+      console.log(`Savings: ${savings.toFixed(0)}ms (${savingsPercent.toFixed(1)}%)`);
       console.log(`Warm variance: ${warmVariance.toFixed(0)}ms`);
 
       if (savings > 300) {
-        console.log(
-          `\n✅ SUCCESS: Repeated starts are ${savings.toFixed(0)}ms faster`,
-        );
+        console.log(`\n✅ SUCCESS: Repeated starts are ${savings.toFixed(0)}ms faster`);
       } else if (warmVariance < 500) {
-        console.log(
-          `\n✅ SUCCESS: Repeated starts are stable even without a large speedup`,
-        );
+        console.log(`\n✅ SUCCESS: Repeated starts are stable even without a large speedup`);
       } else {
-        console.log(
-          `\n⚠️ WARNING: Repeated starts varied more than expected`,
-        );
+        console.log(`\n⚠️ WARNING: Repeated starts varied more than expected`);
       }
       console.log("=".repeat(60));
 
@@ -161,9 +147,7 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
 
       // Repeated startup should stay within a reasonable band of the baseline
       // even when there is no dramatic "warm" speedup from embedding setup.
-      expect(avgWarm).toBeLessThan(
-        Math.max(firstDuration * 1.5, firstDuration + 40),
-      );
+      expect(avgWarm).toBeLessThan(Math.max(firstDuration * 1.5, firstDuration + 40));
       expect(warmVariance).toBeLessThan(500);
     },
     { timeout: 180000 },

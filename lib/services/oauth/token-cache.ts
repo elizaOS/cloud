@@ -13,17 +13,13 @@
 
 import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
-import type { TokenResult, CachedToken } from "./types";
+import type { CachedToken, TokenResult } from "./types";
 
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000; // 5 minutes
 const DEFAULT_TTL_SECONDS = 60 * 60; // 1 hour for OAuth 1.0a
 const MAX_TTL_SECONDS = 24 * 60 * 60; // 24 hours max
 
-function getCacheKey(
-  organizationId: string,
-  connectionId: string,
-  version: number,
-): string {
+function getCacheKey(organizationId: string, connectionId: string, version: number): string {
   return `oauth_token:v${version}:${organizationId}:${connectionId}`;
 }
 
@@ -42,9 +38,7 @@ export const tokenCache = {
     connectionId: string,
     version: number,
   ): Promise<TokenResult | null> {
-    const cached = await cache.get<CachedToken>(
-      getCacheKey(organizationId, connectionId, version),
-    );
+    const cached = await cache.get<CachedToken>(getCacheKey(organizationId, connectionId, version));
     if (!cached) return null;
 
     // Parse expiresAt back to Date (JSON serialization loses Date type)
@@ -80,11 +74,7 @@ export const tokenCache = {
     logger.debug("[TokenCache] Cached token", { connectionId, version, ttlSeconds: ttl });
   },
 
-  async invalidate(
-    organizationId: string,
-    connectionId: string,
-    version: number,
-  ): Promise<void> {
+  async invalidate(organizationId: string, connectionId: string, version: number): Promise<void> {
     await cache.del(getCacheKey(organizationId, connectionId, version));
   },
 

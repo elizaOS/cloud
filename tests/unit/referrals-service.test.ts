@@ -133,10 +133,9 @@ describe("referralsService", () => {
     mockFindByCode.mockResolvedValue(null);
     mockCreateCode
       .mockRejectedValueOnce(
-        Object.assign(
-          new Error("duplicate key value violates unique constraint"),
-          { code: "23505" },
-        ),
+        Object.assign(new Error("duplicate key value violates unique constraint"), {
+          code: "23505",
+        }),
       )
       .mockResolvedValueOnce({
         id: "new-code",
@@ -187,9 +186,11 @@ describe("referralsService", () => {
       id: "referrer-user",
       organization_id: "referrer-org",
     });
-    mockMarkQualified.mockResolvedValueOnce({
-      id: "signup-1",
-    }).mockResolvedValueOnce(null);
+    mockMarkQualified
+      .mockResolvedValueOnce({
+        id: "signup-1",
+      })
+      .mockResolvedValueOnce(null);
     mockAddCredits.mockResolvedValue({ success: true });
     mockAddQualifiedEarnings.mockResolvedValue(undefined);
 

@@ -11,11 +11,11 @@
  */
 
 import type { NextRequest } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { oauthService } from "@/lib/services/oauth";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -34,7 +34,11 @@ interface McpHandlerResponse {
 }
 
 function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
-  return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
+  return (
+    typeof resp === "object" &&
+    resp !== null &&
+    typeof (resp as McpHandlerResponse).status === "number"
+  );
 }
 
 let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
@@ -48,10 +52,15 @@ async function getTwitterMcpHandler() {
 
   async function getTwitterClient(organizationId: string) {
     if (!TWITTER_API_KEY || !TWITTER_API_SECRET_KEY) {
-      throw new Error("Twitter API credentials not configured at platform level. Set TWITTER_API_KEY and TWITTER_API_SECRET_KEY.");
+      throw new Error(
+        "Twitter API credentials not configured at platform level. Set TWITTER_API_KEY and TWITTER_API_SECRET_KEY.",
+      );
     }
 
-    const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "twitter" });
+    const result = await oauthService.getValidTokenByPlatform({
+      organizationId,
+      platform: "twitter",
+    });
 
     return new TwitterApi({
       appKey: TWITTER_API_KEY,
@@ -72,12 +81,19 @@ async function getTwitterMcpHandler() {
   }
 
   function errorResult(msg: string) {
-    return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      isError: true,
+    };
   }
 
   function errMsg(error: unknown, fallback: string): string {
     if (!(error instanceof Error)) return fallback;
-    const err = error as Error & { code?: number; data?: { detail?: string; title?: string; status?: number }; rateLimit?: { remaining?: number; reset?: number } };
+    const err = error as Error & {
+      code?: number;
+      data?: { detail?: string; title?: string; status?: number };
+      rateLimit?: { remaining?: number; reset?: number };
+    };
     const parts: string[] = [err.message];
     if (err.data?.detail) parts.push(err.data.detail);
     if (err.code) parts.push(`code: ${err.code}`);
@@ -96,7 +112,10 @@ async function getTwitterMcpHandler() {
     }
   }
 
-  async function getAuthenticatedUserId(client: InstanceType<typeof TwitterApi>, orgId: string): Promise<string> {
+  async function getAuthenticatedUserId(
+    client: InstanceType<typeof TwitterApi>,
+    orgId: string,
+  ): Promise<string> {
     const cached = userIdCache.get(orgId);
     if (cached && Date.now() < cached.expiry) return cached.id;
     const me = await client.v2.me();
@@ -115,39 +134,59 @@ async function getTwitterMcpHandler() {
       server.tool("twitter_status", "Check Twitter/X OAuth connection status", {}, async () => {
         try {
           const orgId = getOrgId();
-          const connections = await oauthService.listConnections({ organizationId: orgId, platform: "twitter" });
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            platform: "twitter",
+          });
           const active = connections.find((c) => c.status === "active");
           if (!active) return jsonResult({ connected: false });
-          return jsonResult({ connected: true, username: active.displayName, scopes: active.scopes });
+          return jsonResult({
+            connected: true,
+            username: active.displayName,
+            scopes: active.scopes,
+          });
         } catch (e) {
           return errorResult(errMsg(e, "Failed"));
         }
       });
 
       // --- Get authenticated user profile ---
-      server.tool("twitter_get_me", "Get the authenticated Twitter/X user's profile information", {}, async () => {
-        try {
-          const orgId = getOrgId();
-          const client = await getTwitterClient(orgId);
-          const me = await client.v2.me({
-            "user.fields": ["description", "public_metrics", "profile_image_url", "created_at", "location", "url", "verified"],
-          });
-          return jsonResult({
-            id: me.data.id,
-            username: me.data.username,
-            name: me.data.name,
-            description: me.data.description,
-            profileImageUrl: me.data.profile_image_url,
-            publicMetrics: me.data.public_metrics,
-            createdAt: me.data.created_at,
-            location: me.data.location,
-            url: me.data.url,
-            verified: me.data.verified,
-          });
-        } catch (e) {
-          return errorResult(errMsg(e, "Failed to get profile"));
-        }
-      });
+      server.tool(
+        "twitter_get_me",
+        "Get the authenticated Twitter/X user's profile information",
+        {},
+        async () => {
+          try {
+            const orgId = getOrgId();
+            const client = await getTwitterClient(orgId);
+            const me = await client.v2.me({
+              "user.fields": [
+                "description",
+                "public_metrics",
+                "profile_image_url",
+                "created_at",
+                "location",
+                "url",
+                "verified",
+              ],
+            });
+            return jsonResult({
+              id: me.data.id,
+              username: me.data.username,
+              name: me.data.name,
+              description: me.data.description,
+              profileImageUrl: me.data.profile_image_url,
+              publicMetrics: me.data.public_metrics,
+              createdAt: me.data.created_at,
+              location: me.data.location,
+              url: me.data.url,
+              verified: me.data.verified,
+            });
+          } catch (e) {
+            return errorResult(errMsg(e, "Failed to get profile"));
+          }
+        },
+      );
 
       // --- Get user by username ---
       server.tool(
@@ -161,7 +200,15 @@ async function getTwitterMcpHandler() {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
             const user = await client.v2.userByUsername(username, {
-              "user.fields": ["description", "public_metrics", "profile_image_url", "created_at", "location", "url", "verified"],
+              "user.fields": [
+                "description",
+                "public_metrics",
+                "profile_image_url",
+                "created_at",
+                "location",
+                "url",
+                "verified",
+              ],
             });
             if (!user.data) return errorResult(`User @${username} not found`);
             return jsonResult({
@@ -188,8 +235,16 @@ async function getTwitterMcpHandler() {
         "Post a new tweet on Twitter/X. Supports text tweets and replies.",
         {
           text: z.string().min(1).max(280).describe("The tweet text content (max 280 characters)"),
-          replyToTweetId: z.string().regex(/^\d+$/).optional().describe("Tweet ID to reply to (makes this a reply)"),
-          quoteTweetId: z.string().regex(/^\d+$/).optional().describe("Tweet ID to quote (makes this a quote tweet)"),
+          replyToTweetId: z
+            .string()
+            .regex(/^\d+$/)
+            .optional()
+            .describe("Tweet ID to reply to (makes this a reply)"),
+          quoteTweetId: z
+            .string()
+            .regex(/^\d+$/)
+            .optional()
+            .describe("Tweet ID to quote (makes this a quote tweet)"),
         },
         async ({ text, replyToTweetId, quoteTweetId }) => {
           try {
@@ -248,7 +303,15 @@ async function getTwitterMcpHandler() {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
             const tweet = await client.v2.singleTweet(tweetId, {
-              "tweet.fields": ["created_at", "public_metrics", "author_id", "conversation_id", "in_reply_to_user_id", "referenced_tweets", "entities"],
+              "tweet.fields": [
+                "created_at",
+                "public_metrics",
+                "author_id",
+                "conversation_id",
+                "in_reply_to_user_id",
+                "referenced_tweets",
+                "entities",
+              ],
               expansions: ["author_id"],
               "user.fields": ["username", "name", "profile_image_url"],
             });
@@ -275,7 +338,12 @@ async function getTwitterMcpHandler() {
         "Search for recent tweets matching a query. Uses Twitter API v2 recent search (last 7 days).",
         {
           query: z.string().describe("The search query (supports Twitter search operators)"),
-          maxResults: z.number().min(10).max(100).optional().describe("Number of results to return (10-100, default 10)"),
+          maxResults: z
+            .number()
+            .min(10)
+            .max(100)
+            .optional()
+            .describe("Number of results to return (10-100, default 10)"),
         },
         async ({ query, maxResults = 10 }) => {
           try {
@@ -313,7 +381,12 @@ async function getTwitterMcpHandler() {
         "Get recent tweets posted by a specific user",
         {
           userId: z.string().regex(/^\d+$/).describe("The Twitter user ID"),
-          maxResults: z.number().min(5).max(100).optional().describe("Number of tweets to return (5-100, default 10)"),
+          maxResults: z
+            .number()
+            .min(5)
+            .max(100)
+            .optional()
+            .describe("Number of tweets to return (5-100, default 10)"),
         },
         async ({ userId, maxResults = 10 }) => {
           try {
@@ -428,7 +501,12 @@ async function getTwitterMcpHandler() {
         "Get a list of users who follow the specified user",
         {
           userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get followers for"),
-          maxResults: z.number().min(1).max(100).optional().describe("Number of followers to return (1-100, default 20)"),
+          maxResults: z
+            .number()
+            .min(1)
+            .max(100)
+            .optional()
+            .describe("Number of followers to return (1-100, default 20)"),
         },
         async ({ userId, maxResults = 20 }) => {
           try {
@@ -463,8 +541,16 @@ async function getTwitterMcpHandler() {
         "twitter_get_following",
         "Get a list of users that the specified user is following",
         {
-          userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get following list for"),
-          maxResults: z.number().min(1).max(100).optional().describe("Number of users to return (1-100, default 20)"),
+          userId: z
+            .string()
+            .regex(/^\d+$/)
+            .describe("The Twitter user ID to get following list for"),
+          maxResults: z
+            .number()
+            .min(1)
+            .max(100)
+            .optional()
+            .describe("Number of users to return (1-100, default 20)"),
         },
         async ({ userId, maxResults = 20 }) => {
           try {
@@ -507,7 +593,12 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.follow(userId, targetUserId);
-            return jsonResult({ success: true, following: result.data.following, pendingFollow: result.data.pending_follow, targetUserId });
+            return jsonResult({
+              success: true,
+              following: result.data.following,
+              pendingFollow: result.data.pending_follow,
+              targetUserId,
+            });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to follow user"));
           }
@@ -519,7 +610,10 @@ async function getTwitterMcpHandler() {
         "twitter_unfollow_user",
         "Unfollow a user on Twitter/X",
         {
-          targetUserId: z.string().regex(/^\d+$/).describe("The user ID of the account to unfollow"),
+          targetUserId: z
+            .string()
+            .regex(/^\d+$/)
+            .describe("The user ID of the account to unfollow"),
         },
         async ({ targetUserId }) => {
           try {
@@ -535,7 +629,11 @@ async function getTwitterMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { streamableHttpEndpoint: "/api/mcps/twitter/streamable-http", disableSse: true, maxDuration: 60 },
+    {
+      streamableHttpEndpoint: "/api/mcps/twitter/streamable-http",
+      disableSse: true,
+      maxDuration: 60,
+    },
   );
 
   return mcpHandler;
@@ -557,28 +655,46 @@ async function handleRequest(
     const authResult = await requireAuthOrApiKeyWithOrg(req);
 
     const rateLimitKey = `mcp:ratelimit:twitter:${authResult.user.organization_id}`;
-    const rateLimit = await checkRateLimitRedis(rateLimitKey, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_REQUESTS);
+    const rateLimit = await checkRateLimitRedis(
+      rateLimitKey,
+      RATE_LIMIT_WINDOW_MS,
+      RATE_LIMIT_MAX_REQUESTS,
+    );
     if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), { status: 429, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const handler = await getTwitterMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
-      return new Response(JSON.stringify({ error: "invalid_response" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "invalid_response" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    mcpResponse.headers?.forEach((v: string, k: string) => { headers[k] = v; });
+    mcpResponse.headers?.forEach((v: string, k: string) => {
+      headers[k] = v;
+    });
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     logger.error(`[TwitterMCP] ${msg}`);
     const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(JSON.stringify({ error: isAuth ? "authentication_required" : "internal_error", message: msg }), { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: isAuth ? "authentication_required" : "internal_error",
+        message: msg,
+      }),
+      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 }
 

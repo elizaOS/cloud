@@ -4,32 +4,26 @@
  * Tools for text, image, video, embeddings, TTS, and prompts generation
  */
 
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod/v3";
-import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import { logger } from "@/lib/utils/logger";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { streamText } from "ai";
+import { z } from "zod/v3";
+import { uploadBase64Image } from "@/lib/blob";
+import { calculateCost, getProviderFromModel, IMAGE_GENERATION_COST } from "@/lib/pricing";
+import { contentModerationService } from "@/lib/services/content-moderation";
 import {
+  type CreditReservation,
   creditsService,
   InsufficientCreditsError,
-  type CreditReservation,
 } from "@/lib/services/credits";
-import { usageService } from "@/lib/services/usage";
-import { generationsService } from "@/lib/services/generations";
-import { contentModerationService } from "@/lib/services/content-moderation";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
-import {
-  calculateCost,
-  getProviderFromModel,
-  IMAGE_GENERATION_COST,
-} from "@/lib/pricing";
-import { uploadBase64Image } from "@/lib/blob";
+import { generationsService } from "@/lib/services/generations";
+import { usageService } from "@/lib/services/usage";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
-async function streamToBuffer(
-  stream: ReadableStream<Uint8Array>,
-): Promise<Buffer> {
+async function streamToBuffer(stream: ReadableStream<Uint8Array>): Promise<Buffer> {
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
 
@@ -64,18 +58,9 @@ export function registerGenerationTools(server: McpServer): void {
       description:
         "Generate text using AI models (GPT-4, Claude, Gemini). Deducts credits based on token usage.",
       inputSchema: {
-        prompt: z
-          .string()
-          .min(1)
-          .max(10000)
-          .describe("The text prompt to generate from"),
+        prompt: z.string().min(1).max(10000).describe("The text prompt to generate from"),
         model: z
-          .enum([
-            "gpt-4o",
-            "gpt-4o-mini",
-            "claude-3-5-sonnet-20241022",
-            "gemini-2.0-flash-exp",
-          ])
+          .enum(["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet-20241022", "gemini-2.0-flash-exp"])
           .optional()
           .default("gpt-4o")
           .describe("The AI model to use for generation"),
@@ -102,18 +87,13 @@ export function registerGenerationTools(server: McpServer): void {
         }
 
         // Start async moderation (doesn't block)
-        contentModerationService.moderateInBackground(
-          prompt,
-          user.id,
-          undefined,
-          (result) => {
-            logger.warn("[MCP] generate_text moderation violation", {
-              userId: user.id,
-              categories: result.flaggedCategories,
-              action: result.action,
-            });
-          },
-        );
+        contentModerationService.moderateInBackground(prompt, user.id, undefined, (result) => {
+          logger.warn("[MCP] generate_text moderation violation", {
+            userId: user.id,
+            categories: result.flaggedCategories,
+            action: result.action,
+          });
+        });
 
         const provider = getProviderFromModel(model);
 
@@ -227,8 +207,7 @@ export function registerGenerationTools(server: McpServer): void {
           try {
             await generationsService.update(generationId, {
               status: "failed",
-              error:
-                error instanceof Error ? error.message : "Generation failed",
+              error: error instanceof Error ? error.message : "Generation failed",
               completed_at: new Date(),
             });
           } catch (updateError) {
@@ -236,9 +215,7 @@ export function registerGenerationTools(server: McpServer): void {
           }
         }
 
-        return errorResponse(
-          error instanceof Error ? error.message : "Text generation failed",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Text generation failed");
       }
     },
   );
@@ -247,14 +224,9 @@ export function registerGenerationTools(server: McpServer): void {
   server.registerTool(
     "generate_image",
     {
-      description:
-        "Generate images using Google Gemini 2.5. Deducts credits per image generated.",
+      description: "Generate images using Google Gemini 2.5. Deducts credits per image generated.",
       inputSchema: {
-        prompt: z
-          .string()
-          .min(1)
-          .max(5000)
-          .describe("Description of the image to generate"),
+        prompt: z.string().min(1).max(5000).describe("Description of the image to generate"),
         aspectRatio: z
           .enum(["1:1", "16:9", "9:16", "4:3", "3:4"])
           .optional()
@@ -273,18 +245,13 @@ export function registerGenerationTools(server: McpServer): void {
           return errorResponse("Account suspended due to policy violations");
         }
 
-        contentModerationService.moderateInBackground(
-          prompt,
-          user.id,
-          undefined,
-          (result) => {
-            logger.warn("[MCP] generate_image moderation violation", {
-              userId: user.id,
-              categories: result.flaggedCategories,
-              action: result.action,
-            });
-          },
-        );
+        contentModerationService.moderateInBackground(prompt, user.id, undefined, (result) => {
+          logger.warn("[MCP] generate_image moderation violation", {
+            userId: user.id,
+            categories: result.flaggedCategories,
+            action: result.action,
+          });
+        });
 
         try {
           reservation = await creditsService.reserve({
@@ -447,8 +414,7 @@ export function registerGenerationTools(server: McpServer): void {
           try {
             await generationsService.update(generationId, {
               status: "failed",
-              error:
-                error instanceof Error ? error.message : "Generation failed",
+              error: error instanceof Error ? error.message : "Generation failed",
               completed_at: new Date(),
             });
           } catch (updateError) {
@@ -456,9 +422,7 @@ export function registerGenerationTools(server: McpServer): void {
           }
         }
 
-        return errorResponse(
-          error instanceof Error ? error.message : "Image generation failed",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Image generation failed");
       }
     },
   );
@@ -470,11 +434,7 @@ export function registerGenerationTools(server: McpServer): void {
       description: "Generate a video using AI models. Cost: $5 per video",
       inputSchema: {
         prompt: z.string().describe("Video generation prompt"),
-        model: z
-          .string()
-          .optional()
-          .default("fal-ai/veo3")
-          .describe("Model to use for generation"),
+        model: z.string().optional().default("fal-ai/veo3").describe("Model to use for generation"),
       },
     },
     async ({ prompt, model }) => {
@@ -492,9 +452,7 @@ export function registerGenerationTools(server: McpServer): void {
           });
         } catch (error) {
           if (error instanceof InsufficientCreditsError) {
-            throw new Error(
-              `Insufficient credits: need $${VIDEO_COST.toFixed(2)}`,
-            );
+            throw new Error(`Insufficient credits: need $${VIDEO_COST.toFixed(2)}`);
           }
           throw error;
         }
@@ -525,13 +483,10 @@ export function registerGenerationTools(server: McpServer): void {
           jobId: generation.id,
           status: "pending",
           cost: VIDEO_COST,
-          message:
-            "Video generation started. Poll /api/v1/gallery to check status.",
+          message: "Video generation started. Poll /api/v1/gallery to check status.",
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to generate video",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to generate video");
       }
     },
   );
@@ -575,11 +530,7 @@ export function registerGenerationTools(server: McpServer): void {
           });
           const audioBuffer = await streamToBuffer(audioStream);
           const { uploadFromBuffer } = await import("@/lib/blob");
-          audioUrl = await uploadFromBuffer(
-            audioBuffer,
-            `tts-${Date.now()}.mp3`,
-            "audio/mpeg",
-          );
+          audioUrl = await uploadFromBuffer(audioBuffer, `tts-${Date.now()}.mp3`, "audio/mpeg");
         } catch (opError) {
           await reservation?.reconcile(0);
           throw opError;
@@ -594,9 +545,7 @@ export function registerGenerationTools(server: McpServer): void {
           cost: TTS_COST,
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to generate speech",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to generate speech");
       }
     },
   );
@@ -622,9 +571,7 @@ export function registerGenerationTools(server: McpServer): void {
           })),
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to list voices",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to list voices");
       }
     },
   );
@@ -676,9 +623,7 @@ export function registerGenerationTools(server: McpServer): void {
 
         return jsonResponse({ success: true, prompts, cost: COST });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to generate prompts",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to generate prompts");
       }
     },
   );

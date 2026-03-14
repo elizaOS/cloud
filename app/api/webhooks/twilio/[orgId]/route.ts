@@ -6,12 +6,17 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { twilioAutomationService } from "@/lib/services/twilio-automation";
-import { verifyTwilioSignature, extractMediaUrls, parseTwilioWebhookEvent, type TwilioWebhookEvent } from "@/lib/utils/twilio-api";
 import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
+import { logger } from "@/lib/utils/logger";
+import {
+  extractMediaUrls,
+  parseTwilioWebhookEvent,
+  type TwilioWebhookEvent,
+  verifyTwilioSignature,
+} from "@/lib/utils/twilio-api";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -20,10 +25,7 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-async function handleTwilioWebhook(
-  request: NextRequest,
-  context?: RouteParams,
-): Promise<Response> {
+async function handleTwilioWebhook(request: NextRequest, context?: RouteParams): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
@@ -75,12 +77,7 @@ async function handleTwilioWebhook(
       const signature = request.headers.get("X-Twilio-Signature") || "";
       const url = request.url;
 
-      const isValid = await verifyTwilioSignature(
-        authToken,
-        signature,
-        url,
-        webhookData,
-      );
+      const isValid = await verifyTwilioSignature(authToken, signature, url, webhookData);
 
       if (!isValid) {
         logger.warn("[TwilioWebhook] Signature validation failed", { orgId });
@@ -95,15 +92,12 @@ async function handleTwilioWebhook(
         orgId,
         messageSid: event.MessageSid,
       });
-      return new NextResponse(
-        '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/xml",
-          },
+      return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        status: 200,
+        headers: {
+          "Content-Type": "application/xml",
         },
-      );
+      });
     }
 
     // Log the event
@@ -123,15 +117,12 @@ async function handleTwilioWebhook(
     await markAsProcessed(idempotencyKey, "twilio");
 
     // Return TwiML response (empty response acknowledges receipt)
-    return new NextResponse(
-      '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/xml",
-        },
+    return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+      status: 200,
+      headers: {
+        "Content-Type": "application/xml",
       },
-    );
+    });
   } catch (error) {
     logger.error("[TwilioWebhook] Error processing webhook", {
       orgId,
@@ -148,10 +139,7 @@ export const POST = withRateLimit(handleTwilioWebhook, RateLimitPresets.AGGRESSI
 /**
  * Handle incoming SMS message from Twilio
  */
-async function handleIncomingMessage(
-  orgId: string,
-  event: TwilioWebhookEvent,
-): Promise<void> {
+async function handleIncomingMessage(orgId: string, event: TwilioWebhookEvent): Promise<void> {
   const { messageRouterService } = await import("@/lib/services/message-router");
 
   const from = event.From;

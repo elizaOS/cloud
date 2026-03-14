@@ -1,9 +1,9 @@
+import type { WalletApiWalletResponseType } from "@privy-io/server-auth";
+import { eq } from "drizzle-orm";
+import { verifyMessage } from "viem";
 import { db } from "@/db/client";
 import { agentServerWallets } from "@/db/schemas/agent-server-wallets";
-import { eq } from "drizzle-orm";
 import { getPrivyClient } from "@/lib/auth/privy-client";
-import type { WalletApiWalletResponseType } from "@privy-io/server-auth";
-import { verifyMessage } from "viem";
 import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
 
@@ -84,11 +84,9 @@ export async function provisionServerWallet({
 
     return record;
   } catch (error: unknown) {
-    const code =
-      error instanceof Error ? Reflect.get(error, "code") : undefined;
+    const code = error instanceof Error ? Reflect.get(error, "code") : undefined;
     const isUniqueViolation =
-      code === "23505" ||
-      (error instanceof Error && error.message.includes("unique constraint"));
+      code === "23505" || (error instanceof Error && error.message.includes("unique constraint"));
     if (isUniqueViolation) {
       if (wallet?.id) {
         const walletId = wallet.id;
@@ -98,9 +96,7 @@ export async function provisionServerWallet({
 
         if (walletApiWithDelete.delete) {
           await walletApiWithDelete.delete(walletId).catch(() => {
-            console.error(
-              `Failed to clean up orphaned Privy wallet ${walletId}`,
-            );
+            console.error(`Failed to clean up orphaned Privy wallet ${walletId}`);
           });
         } else {
           logger.warn(
@@ -139,11 +135,7 @@ export interface ExecuteParams {
   signature: `0x${string}`;
 }
 
-export async function executeServerWalletRpc({
-  clientAddress,
-  payload,
-  signature,
-}: ExecuteParams) {
+export async function executeServerWalletRpc({ clientAddress, payload, signature }: ExecuteParams) {
   const now = Date.now();
   if (!payload.timestamp || now - payload.timestamp > 5 * 60 * 1000) {
     throw new RpcRequestExpiredError();
@@ -160,11 +152,7 @@ export async function executeServerWalletRpc({
   }
 
   const nonceKey = `rpc-nonce:${clientAddress}:${payload.nonce}`;
-  const nonceSet = await cache.setIfNotExists(
-    nonceKey,
-    "1",
-    24 * 60 * 60 * 1000,
-  );
+  const nonceSet = await cache.setIfNotExists(nonceKey, "1", 24 * 60 * 60 * 1000);
   if (!nonceSet) {
     throw new RpcReplayError();
   }

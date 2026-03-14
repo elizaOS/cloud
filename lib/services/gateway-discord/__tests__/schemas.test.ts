@@ -4,17 +4,17 @@
  * Tests for lib/services/gateway-discord/schemas.ts
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
-  DiscordEventTypeSchema,
-  DiscordAuthorSchema,
-  DiscordMemberSchema,
-  DiscordAttachmentSchema,
-  VoiceAttachmentSchema,
-  MessageCreateDataSchema,
-  DiscordEventPayloadSchema,
   ConnectionStatusUpdateSchema,
+  DiscordAttachmentSchema,
+  DiscordAuthorSchema,
+  DiscordEventPayloadSchema,
+  DiscordEventTypeSchema,
+  DiscordMemberSchema,
   FailoverRequestSchema,
+  MessageCreateDataSchema,
+  VoiceAttachmentSchema,
 } from "../schemas";
 
 describe("DiscordEventTypeSchema", () => {

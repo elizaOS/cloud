@@ -13,26 +13,21 @@
  * - Low budget alerts
  */
 
+import Decimal from "decimal.js";
+import { and, eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import {
+  type AgentBudget,
+  type AgentBudgetTransaction,
   agentBudgets,
   agentBudgetTransactions,
-  type AgentBudget,
-  type NewAgentBudget,
-  type AgentBudgetTransaction,
 } from "@/db/schemas/agent-budgets";
-import { userCharacters } from "@/db/schemas/user-characters";
 import { organizations } from "@/db/schemas/organizations";
+import { userCharacters } from "@/db/schemas/user-characters";
 import { users } from "@/db/schemas/users";
-import { eq, and, lt, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
-import {
-  creditsService,
-  InsufficientCreditsError,
-  type CreditReservation,
-} from "./credits";
+import { type CreditReservation, creditsService, InsufficientCreditsError } from "./credits";
 import { emailService } from "./email";
-import Decimal from "decimal.js";
 
 // ============================================================================
 // TYPES
@@ -150,10 +145,7 @@ class AgentBudgetService {
    * Check if agent has sufficient budget for an operation
    * This is a pre-flight check - does not lock or modify anything
    */
-  async checkBudget(
-    agentId: string,
-    estimatedCost: number,
-  ): Promise<BudgetCheckResult> {
+  async checkBudget(agentId: string, estimatedCost: number): Promise<BudgetCheckResult> {
     const budget = await this.getOrCreateBudget(agentId);
 
     if (!budget) {
@@ -170,8 +162,7 @@ class AgentBudgetService {
     if (budget.is_paused) {
       return {
         canProceed: false,
-        availableBudget:
-          Number(budget.allocated_budget) - Number(budget.spent_budget),
+        availableBudget: Number(budget.allocated_budget) - Number(budget.spent_budget),
         dailyRemaining: budget.daily_limit
           ? Number(budget.daily_limit) - Number(budget.daily_spent)
           : null,
@@ -229,15 +220,7 @@ class AgentBudgetService {
    * Deduct from agent's budget atomically
    */
   async deductBudget(params: DeductBudgetParams): Promise<DeductBudgetResult> {
-    const {
-      agentId,
-      amount,
-      description,
-      operationType,
-      model,
-      tokensUsed,
-      metadata,
-    } = params;
+    const { agentId, amount, description, operationType, model, tokensUsed, metadata } = params;
 
     if (amount <= 0) {
       return {
@@ -268,8 +251,7 @@ class AgentBudgetService {
       if (budget.is_paused) {
         return {
           success: false,
-          newBalance:
-            Number(budget.allocated_budget) - Number(budget.spent_budget),
+          newBalance: Number(budget.allocated_budget) - Number(budget.spent_budget),
           dailySpent: Number(budget.daily_spent),
           error: budget.pause_reason || "Agent budget is paused",
         };
@@ -440,8 +422,7 @@ class AgentBudgetService {
         });
       } catch (error) {
         if (error instanceof InsufficientCreditsError) {
-          const currentBalance =
-            Number(budget.allocated_budget) - Number(budget.spent_budget);
+          const currentBalance = Number(budget.allocated_budget) - Number(budget.spent_budget);
           return {
             success: false,
             newBalance: currentBalance,
@@ -473,14 +454,11 @@ class AgentBudgetService {
             allocated_budget: newAllocated.toFixed(4),
             // Unpause if was paused due to depletion
             is_paused:
-              lockedBudget.is_paused &&
-              lockedBudget.pause_reason === "Budget depleted"
+              lockedBudget.is_paused && lockedBudget.pause_reason === "Budget depleted"
                 ? false
                 : lockedBudget.is_paused,
             pause_reason:
-              lockedBudget.pause_reason === "Budget depleted"
-                ? null
-                : lockedBudget.pause_reason,
+              lockedBudget.pause_reason === "Budget depleted" ? null : lockedBudget.pause_reason,
             low_budget_alert_sent: false, // Reset alert flag
             updated_at: new Date(),
           })
@@ -643,9 +621,7 @@ class AgentBudgetService {
     };
 
     if (settings.dailyLimit !== undefined) {
-      updateData.daily_limit = settings.dailyLimit
-        ? String(settings.dailyLimit)
-        : null;
+      updateData.daily_limit = settings.dailyLimit ? String(settings.dailyLimit) : null;
     }
     if (settings.autoRefillEnabled !== undefined) {
       updateData.auto_refill_enabled = settings.autoRefillEnabled;
@@ -669,10 +645,7 @@ class AgentBudgetService {
         : null;
     }
 
-    await dbWrite
-      .update(agentBudgets)
-      .set(updateData)
-      .where(eq(agentBudgets.id, budget.id));
+    await dbWrite.update(agentBudgets).set(updateData).where(eq(agentBudgets.id, budget.id));
 
     logger.info("[AgentBudgets] Settings updated", { agentId, settings });
 
@@ -682,10 +655,7 @@ class AgentBudgetService {
   /**
    * Get transaction history for a budget
    */
-  async getTransactions(
-    agentId: string,
-    limit = 50,
-  ): Promise<AgentBudgetTransaction[]> {
+  async getTransactions(agentId: string, limit = 50): Promise<AgentBudgetTransaction[]> {
     const budget = await this.getBudget(agentId);
     if (!budget) {
       return [];
@@ -722,20 +692,13 @@ class AgentBudgetService {
     const budgetsToRefill = await dbRead
       .select()
       .from(agentBudgets)
-      .where(
-        and(
-          eq(agentBudgets.auto_refill_enabled, true),
-          eq(agentBudgets.is_paused, false),
-        ),
-      );
+      .where(and(eq(agentBudgets.auto_refill_enabled, true), eq(agentBudgets.is_paused, false)));
 
     let processed = 0;
     const failedAgents: string[] = [];
 
     for (const budget of budgetsToRefill) {
-      const available = new Decimal(budget.allocated_budget).minus(
-        budget.spent_budget,
-      );
+      const available = new Decimal(budget.allocated_budget).minus(budget.spent_budget);
       const threshold = budget.auto_refill_threshold
         ? new Decimal(budget.auto_refill_threshold)
         : new Decimal(10);
@@ -793,10 +756,7 @@ class AgentBudgetService {
     }
   }
 
-  private async sendLowBudgetAlert(
-    agentId: string,
-    balance: number,
-  ): Promise<boolean> {
+  private async sendLowBudgetAlert(agentId: string, balance: number): Promise<boolean> {
     // Mark alert as sent
     await dbWrite
       .update(agentBudgets)

@@ -85,26 +85,16 @@ describe("connection enforcement", () => {
   });
 
   test("caches required connection checks and invalidates them after OAuth", async () => {
-    mockGetConnectedPlatforms
-      .mockResolvedValueOnce(["google"])
-      .mockResolvedValueOnce([]);
+    mockGetConnectedPlatforms.mockResolvedValueOnce(["google"]).mockResolvedValueOnce([]);
 
-    await expect(
-      connectionEnforcementService.hasRequiredConnection("org-1"),
-    ).resolves.toBe(true);
-    await expect(
-      connectionEnforcementService.hasRequiredConnection("org-1"),
-    ).resolves.toBe(true);
+    await expect(connectionEnforcementService.hasRequiredConnection("org-1")).resolves.toBe(true);
+    await expect(connectionEnforcementService.hasRequiredConnection("org-1")).resolves.toBe(true);
 
     expect(mockGetConnectedPlatforms).toHaveBeenCalledTimes(1);
 
-    await connectionEnforcementService.invalidateRequiredConnectionCache(
-      "org-1",
-    );
+    await connectionEnforcementService.invalidateRequiredConnectionCache("org-1");
 
-    await expect(
-      connectionEnforcementService.hasRequiredConnection("org-1"),
-    ).resolves.toBe(false);
+    await expect(connectionEnforcementService.hasRequiredConnection("org-1")).resolves.toBe(false);
     expect(mockGetConnectedPlatforms).toHaveBeenCalledTimes(2);
   });
 
@@ -121,24 +111,19 @@ describe("connection enforcement", () => {
     });
 
     expect(response).toContain("connect google.");
-    expect(response).toContain(
-      "[Connect Google](https://elizacloud.ai/oauth/google)",
-    );
+    expect(response).toContain("[Connect Google](https://elizacloud.ai/oauth/google)");
     expect(mockInitiateAuth).toHaveBeenCalledWith({
       organizationId: "org-1",
       userId: "user-1",
       platform: "google",
-      redirectUrl:
-        "https://elizacloud.ai/api/eliza-app/auth/connection-success?platform=telegram",
+      redirectUrl: "https://elizacloud.ai/api/eliza-app/auth/connection-success?platform=telegram",
     });
   });
 
   test("appends all required provider links on a generic nudge turn", async () => {
-    mockInitiateAuth.mockImplementation(
-      async ({ platform }: { platform: string }) => ({
-        authUrl: `https://elizacloud.ai/oauth/${platform}`,
-      }),
-    );
+    mockInitiateAuth.mockImplementation(async ({ platform }: { platform: string }) => ({
+      authUrl: `https://elizacloud.ai/oauth/${platform}`,
+    }));
 
     const response = await connectionEnforcementService.generateNudgeResponse({
       userMessage: "hey there",
@@ -149,9 +134,7 @@ describe("connection enforcement", () => {
 
     expect(response).toContain("connect google.");
     expect(response).toContain("Google: https://elizacloud.ai/oauth/google");
-    expect(response).toContain(
-      "Microsoft: https://elizacloud.ai/oauth/microsoft",
-    );
+    expect(response).toContain("Microsoft: https://elizacloud.ai/oauth/microsoft");
     expect(response).toContain("X: https://elizacloud.ai/oauth/twitter");
   });
 
@@ -176,8 +159,6 @@ describe("connection enforcement", () => {
       | undefined;
 
     expect(storedConversation).toBeDefined();
-    expect(storedConversation?.messages.at(-1)?.content).toBe(
-      "connect google.",
-    );
+    expect(storedConversation?.messages.at(-1)?.content).toBe("connect google.");
   });
 });

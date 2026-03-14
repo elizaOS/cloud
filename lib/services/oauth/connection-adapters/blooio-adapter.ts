@@ -7,19 +7,19 @@
 
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { logger } from "@/lib/utils/logger";
-import type { ConnectionAdapter } from "./index";
-import type { OAuthConnection, TokenResult } from "../types";
 import { Errors } from "../errors";
 import { OAUTH_PROVIDERS } from "../provider-registry";
+import type { OAuthConnection, TokenResult } from "../types";
+import type { ConnectionAdapter } from "./index";
 import {
-  ownsConnectionId,
-  verifyConnectionId,
-  fetchPlatformSecrets,
-  getSecretValue,
-  updateSecretAccessTime,
-  deletePlatformSecrets,
-  getEarliestSecretDate,
   createSecretsConnection,
+  deletePlatformSecrets,
+  fetchPlatformSecrets,
+  getEarliestSecretDate,
+  getSecretValue,
+  ownsConnectionId,
+  updateSecretAccessTime,
+  verifyConnectionId,
 } from "./secrets-adapter-utils";
 
 const PLATFORM = "blooio";
@@ -65,7 +65,11 @@ export const blooioAdapter: ConnectionAdapter = {
     verifyConnectionId(PLATFORM, organizationId, connectionId);
     const count = await deletePlatformSecrets(organizationId, PREFIX, "oauth-service");
     blooioAutomationService.invalidateStatusCache(organizationId);
-    logger.info("[BlooioAdapter] Connection revoked", { connectionId, organizationId, secretsDeleted: count });
+    logger.info("[BlooioAdapter] Connection revoked", {
+      connectionId,
+      organizationId,
+      secretsDeleted: count,
+    });
   },
 
   async ownsConnection(connectionId: string): Promise<boolean> {

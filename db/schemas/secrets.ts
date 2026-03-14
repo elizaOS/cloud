@@ -1,3 +1,4 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -10,16 +11,11 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import { apps } from "./apps";
 import { organizations } from "./organizations";
 import { users } from "./users";
-import { apps } from "./apps";
 
-export const secretScopeEnum = pgEnum("secret_scope", [
-  "organization",
-  "project",
-  "environment",
-]);
+export const secretScopeEnum = pgEnum("secret_scope", ["organization", "project", "environment"]);
 
 export const secretEnvironmentEnum = pgEnum("secret_environment", [
   "development",
@@ -106,9 +102,7 @@ export const secrets = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    org_name_project_env_idx: uniqueIndex(
-      "secrets_org_name_project_env_idx",
-    ).on(
+    org_name_project_env_idx: uniqueIndex("secrets_org_name_project_env_idx").on(
       table.organization_id,
       table.name,
       table.project_id,
@@ -152,10 +146,7 @@ export const secretBindings = pgTable(
       table.project_type,
     ),
     org_idx: index("secret_bindings_org_idx").on(table.organization_id),
-    project_idx: index("secret_bindings_project_idx").on(
-      table.project_id,
-      table.project_type,
-    ),
+    project_idx: index("secret_bindings_project_idx").on(table.project_id, table.project_type),
     secret_idx: index("secret_bindings_secret_idx").on(table.secret_id),
   }),
 );
@@ -185,9 +176,7 @@ export const appSecretRequirements = pgTable(
       table.secret_name,
     ),
     app_idx: index("app_secret_requirements_app_idx").on(table.app_id),
-    approved_idx: index("app_secret_requirements_approved_idx").on(
-      table.approved,
-    ),
+    approved_idx: index("app_secret_requirements_approved_idx").on(table.approved),
   }),
 );
 
@@ -234,14 +223,9 @@ export const oauthSessions = pgTable(
       table.provider,
       table.user_id,
     ),
-    user_provider_idx: index("oauth_sessions_user_provider_idx").on(
-      table.user_id,
-      table.provider,
-    ),
+    user_provider_idx: index("oauth_sessions_user_provider_idx").on(table.user_id, table.provider),
     provider_idx: index("oauth_sessions_provider_idx").on(table.provider),
-    expires_idx: index("oauth_sessions_expires_idx").on(
-      table.access_token_expires_at,
-    ),
+    expires_idx: index("oauth_sessions_expires_idx").on(table.access_token_expires_at),
     valid_idx: index("oauth_sessions_valid_idx").on(table.is_valid),
   }),
 );
@@ -263,10 +247,7 @@ export const secretAuditLog = pgTable(
     source: text("source"),
     request_id: text("request_id"),
     endpoint: text("endpoint"),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
@@ -274,13 +255,8 @@ export const secretAuditLog = pgTable(
     oauth_idx: index("secret_audit_log_oauth_idx").on(table.oauth_session_id),
     org_idx: index("secret_audit_log_org_idx").on(table.organization_id),
     action_idx: index("secret_audit_log_action_idx").on(table.action),
-    actor_idx: index("secret_audit_log_actor_idx").on(
-      table.actor_type,
-      table.actor_id,
-    ),
-    created_at_idx: index("secret_audit_log_created_at_idx").on(
-      table.created_at,
-    ),
+    actor_idx: index("secret_audit_log_actor_idx").on(table.actor_type, table.actor_id),
+    created_at_idx: index("secret_audit_log_created_at_idx").on(table.created_at),
     org_action_time_idx: index("secret_audit_log_org_action_time_idx").on(
       table.organization_id,
       table.action,
@@ -301,27 +277,13 @@ export type NewSecretAuditLog = InferInsertModel<typeof secretAuditLog>;
 export type SecretBinding = InferSelectModel<typeof secretBindings>;
 export type NewSecretBinding = InferInsertModel<typeof secretBindings>;
 
-export type AppSecretRequirement = InferSelectModel<
-  typeof appSecretRequirements
->;
-export type NewAppSecretRequirement = InferInsertModel<
-  typeof appSecretRequirements
->;
+export type AppSecretRequirement = InferSelectModel<typeof appSecretRequirements>;
+export type NewAppSecretRequirement = InferInsertModel<typeof appSecretRequirements>;
 
 export type SecretScope = "organization" | "project" | "environment";
 export type SecretEnvironment = "development" | "preview" | "production";
-export type SecretAuditAction =
-  | "created"
-  | "read"
-  | "updated"
-  | "deleted"
-  | "rotated";
-export type SecretActorType =
-  | "user"
-  | "api_key"
-  | "system"
-  | "deployment"
-  | "workflow";
+export type SecretAuditAction = "created" | "read" | "updated" | "deleted" | "rotated";
+export type SecretActorType = "user" | "api_key" | "system" | "deployment" | "workflow";
 export type SecretProvider =
   | "openai"
   | "anthropic"
@@ -337,9 +299,4 @@ export type SecretProvider =
   | "aws"
   | "vercel"
   | "custom";
-export type SecretProjectType =
-  | "character"
-  | "app"
-  | "workflow"
-  | "container"
-  | "mcp";
+export type SecretProjectType = "character" | "app" | "workflow" | "container" | "mcp";

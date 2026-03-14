@@ -1,12 +1,4 @@
-import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
-  spyOn,
-  mock,
-} from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 
 // Mock fs.readFileSync to avoid reading real K8s service account files
 mock.module("fs", () => ({
@@ -15,11 +7,7 @@ mock.module("fs", () => ({
   },
 }));
 
-import {
-  getProjectEnv,
-  initProjectConfig,
-  shutdownProjectConfig,
-} from "../src/project-config";
+import { getProjectEnv, initProjectConfig, shutdownProjectConfig } from "../src/project-config";
 
 describe("project-config", () => {
   const originalEnv = { ...process.env };
@@ -36,9 +24,7 @@ describe("project-config", () => {
   describe("getProjectEnv", () => {
     test("eliza-app project maps to ELIZA_APP_ prefix", () => {
       process.env.ELIZA_APP_TELEGRAM_BOT_TOKEN = "app-token";
-      expect(getProjectEnv("eliza-app", "TELEGRAM_BOT_TOKEN")).toBe(
-        "app-token",
-      );
+      expect(getProjectEnv("eliza-app", "TELEGRAM_BOT_TOKEN")).toBe("app-token");
     });
 
     test("soulmates project maps to SOULMATES_ prefix", () => {

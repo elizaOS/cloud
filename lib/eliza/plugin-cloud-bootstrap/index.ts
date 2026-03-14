@@ -1,33 +1,33 @@
 /**
- * Cloud Bootstrap Plugin - Multi-step message execution for eliza-cloud-v2.
+ * Cloud Bootstrap Plugin - Multi-step message execution for cloud.
  * Replaces default message service with CloudBootstrapMessageService.
  */
 import {
-  type IAgentRuntime,
-  type Plugin,
-  Service,
-  logger,
   EventType,
+  type IAgentRuntime,
+  logger,
+  type Plugin,
   type RunEventPayload,
+  Service,
 } from "@elizaos/core";
-
-import { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
-import { actionStateProvider } from "./providers/action-state";
-import { actionsProvider } from "./providers/actions";
-import { generateImageAction } from "./actions/image-generation";
-import { finishAction } from "./actions/finish";
-import { recentMessagesProvider } from "../shared/providers/recent-messages";
-import { appConfigProvider } from "../shared/providers/app-config";
-import { characterProvider } from "./providers/character";
 import { oauthConnectAction } from "../plugin-oauth/actions/oauth-connect";
-import { oauthListAction } from "../plugin-oauth/actions/oauth-list";
 import { oauthGetAction } from "../plugin-oauth/actions/oauth-get";
+import { oauthListAction } from "../plugin-oauth/actions/oauth-list";
 import { oauthRevokeAction } from "../plugin-oauth/actions/oauth-revoke";
 import { userAuthStatusProvider } from "../plugin-oauth/providers/user-auth-status";
+import { appConfigProvider } from "../shared/providers/app-config";
+import { recentMessagesProvider } from "../shared/providers/recent-messages";
+import { finishAction } from "./actions/finish";
+import { generateImageAction } from "./actions/image-generation";
+import { actionStateProvider } from "./providers/action-state";
+import { actionsProvider } from "./providers/actions";
+import { characterProvider } from "./providers/character";
+import { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
+
 // Re-export for external use
 export { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
-export * from "./types";
 export * from "./templates";
+export * from "./types";
 export * from "./utils";
 
 /**
@@ -36,16 +36,13 @@ export * from "./utils";
  */
 class MessageServiceInstaller extends Service {
   static serviceType = "cloud-bootstrap-message-installer";
-  capabilityDescription =
-    "Installs CloudBootstrapMessageService after runtime initialization";
+  capabilityDescription = "Installs CloudBootstrapMessageService after runtime initialization";
 
   static async start(runtime: IAgentRuntime): Promise<Service> {
     const service = new MessageServiceInstaller(runtime);
 
     // Replace DefaultMessageService with our custom implementation
-    logger.info(
-      "[CloudBootstrap] Installing CloudBootstrapMessageService (post-initialization)",
-    );
+    logger.info("[CloudBootstrap] Installing CloudBootstrapMessageService (post-initialization)");
     runtime.messageService = new CloudBootstrapMessageService();
     logger.info("[CloudBootstrap] CloudBootstrapMessageService installed");
 
@@ -128,7 +125,9 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
     }
     body._truncated = true;
     body._originalSize = originalSize;
-    logger.warn(`[CloudBootstrap] Log payload truncated: ${originalSize} → ${JSON.stringify(body).length} bytes`);
+    logger.warn(
+      `[CloudBootstrap] Log payload truncated: ${originalSize} → ${JSON.stringify(body).length} bytes`,
+    );
   }
 
   // PERF: Fire-and-forget -- don't await the log write, let it complete in the background.
@@ -140,14 +139,16 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
   // waitUntil() to defer this work, but it requires the route-handler request context
   // which is not available inside a plugin event handler. If run audit completeness
   // becomes critical, the route layer should collect and flush these via waitUntil().
-  payload.runtime.log({
-    entityId: payload.entityId,
-    roomId: payload.roomId,
-    type: "run_event",
-    body,
-  }).catch((e) => {
-    logger.warn(`[CloudBootstrap] Background log write failed: ${e}`);
-  });
+  payload.runtime
+    .log({
+      entityId: payload.entityId,
+      roomId: payload.roomId,
+      type: "run_event",
+      body,
+    })
+    .catch((e) => {
+      logger.warn(`[CloudBootstrap] Background log write failed: ${e}`);
+    });
 }
 
 const createRunEventHandler = (eventType: string) => [
@@ -168,8 +169,7 @@ const events = {
 
 export const cloudBootstrapPlugin: Plugin = {
   name: "cloud-bootstrap",
-  description:
-    "Multi-step message execution with action params for eliza-cloud-v2",
+  description: "Multi-step message execution with action params for cloud",
   actions: [
     generateImageAction,
     finishAction,

@@ -9,27 +9,17 @@
  * These tests call ACTUAL functions from the codebase.
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { join } from "path";
-
+import { generateElizaAppEntityId, generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
+import { isValidEmail, maskEmailForLogging, normalizeEmail } from "@/lib/utils/email-validation";
 import {
-  normalizePhoneNumber,
   isValidE164,
+  normalizePhoneNumber,
   validatePhoneForAPI,
 } from "@/lib/utils/phone-normalization";
-
-import {
-  generateElizaAppRoomId,
-  generateElizaAppEntityId,
-} from "@/lib/utils/deterministic-uuid";
-
-import {
-  isValidEmail,
-  normalizeEmail,
-  maskEmailForLogging,
-} from "@/lib/utils/email-validation";
 
 function extractMessagesFromWebhook(): {
   telegramRejection: string;
@@ -37,17 +27,15 @@ function extractMessagesFromWebhook(): {
 } {
   const telegramWebhook = readFileSync(
     join(process.cwd(), "app/api/eliza-app/webhook/telegram/route.ts"),
-    "utf-8"
+    "utf-8",
   );
 
   const telegramMatch = telegramWebhook.match(
-    /Welcome! To chat with Eliza, please connect your Telegram first[\s\S]*?get-started/
+    /Welcome! To chat with Eliza, please connect your Telegram first[\s\S]*?get-started/,
   );
   const hasTelegramEmoji = telegramWebhook.includes("👋") && (telegramMatch?.length ?? 0) > 0;
 
-  const statusMatch = telegramWebhook.match(
-    /Not connected yet[\s\S]*?get-started/
-  );
+  const statusMatch = telegramWebhook.match(/Not connected yet[\s\S]*?get-started/);
 
   return {
     telegramRejection:
@@ -105,13 +93,7 @@ describe("Phone Normalization - ACTUAL normalizePhoneNumber()", () => {
   });
 
   test("same phone in different formats normalizes to same value", () => {
-    const formats = [
-      "+14155551234",
-      "14155551234",
-      "4155551234",
-      "(415) 555-1234",
-      "415-555-1234",
-    ];
+    const formats = ["+14155551234", "14155551234", "4155551234", "(415) 555-1234", "415-555-1234"];
 
     const normalized = formats.map((f) => normalizePhoneNumber(f));
     const unique = [...new Set(normalized)];
@@ -163,9 +145,7 @@ describe("Room ID Generation - ACTUAL generateElizaAppRoomId()", () => {
 
   test("generates valid UUID format", () => {
     const roomId = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "123456789");
-    expect(roomId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-    );
+    expect(roomId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("same inputs produce same room ID (deterministic)", () => {
@@ -200,9 +180,7 @@ describe("Room ID Generation - ACTUAL generateElizaAppRoomId()", () => {
 describe("Entity ID Generation - ACTUAL generateElizaAppEntityId()", () => {
   test("generates valid UUID format", () => {
     const entityId = generateElizaAppEntityId("telegram", "223116693");
-    expect(entityId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-    );
+    expect(entityId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("same identifier produces same entity ID", () => {
@@ -307,7 +285,7 @@ describe("Telegram OAuth Enforcement Logic - Verified Against Webhook", () => {
 
     // Test the same logic
     const checkOAuth = (
-      userWithOrg: { organization?: { id: string } | null } | undefined
+      userWithOrg: { organization?: { id: string } | null } | undefined,
     ): boolean => {
       return !!userWithOrg?.organization;
     };

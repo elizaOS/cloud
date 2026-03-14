@@ -20,10 +20,7 @@ export interface SSEParserOptions {
  * @param response - The fetch Response with SSE stream
  * @param options - Parser options including event handlers
  */
-export async function parseSSEStream(
-  response: Response,
-  options: SSEParserOptions,
-): Promise<void> {
+export async function parseSSEStream(response: Response, options: SSEParserOptions): Promise<void> {
   const reader = response.body?.getReader();
   if (!reader) {
     throw new Error("No response body");

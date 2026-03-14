@@ -11,7 +11,7 @@
 import { cache } from "@/lib/cache/client";
 import { InMemoryLRUCache } from "@/lib/cache/in-memory-lru-cache";
 import { logger } from "@/lib/utils/logger";
-import type { EntitySettingValue, EntitySettingSource } from "./types";
+import type { EntitySettingSource, EntitySettingValue } from "./types";
 
 /**
  * Cache key prefix for entity settings
@@ -96,7 +96,7 @@ export class EntitySettingsCache {
    */
   async get(
     userId: string,
-    agentId: string | null
+    agentId: string | null,
   ): Promise<{
     settings: Map<string, EntitySettingValue>;
     sources: Record<string, EntitySettingSource>;
@@ -142,7 +142,7 @@ export class EntitySettingsCache {
     userId: string,
     agentId: string | null,
     settings: Map<string, EntitySettingValue>,
-    sources: Record<string, EntitySettingSource>
+    sources: Record<string, EntitySettingSource>,
   ): Promise<void> {
     const key = buildCacheKey(userId, agentId);
 
@@ -157,9 +157,7 @@ export class EntitySettingsCache {
 
     await cache.set(key, cached, this.ttlSeconds);
 
-    logger.debug(
-      `[EntitySettingsCache] Cached ${settings.size} settings for ${key}`
-    );
+    logger.debug(`[EntitySettingsCache] Cached ${settings.size} settings for ${key}`);
   }
 
   /**
@@ -196,11 +194,8 @@ export class EntitySettingsCache {
     const pattern = buildUserPattern(userId);
     await cache.delPattern(pattern);
 
-    logger.info(
-      `[EntitySettingsCache] Invalidated all settings for user ${userId}`
-    );
+    logger.info(`[EntitySettingsCache] Invalidated all settings for user ${userId}`);
   }
-
 }
 
 /**

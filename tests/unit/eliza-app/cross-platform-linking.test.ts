@@ -16,7 +16,7 @@
  * with all expected platform identifiers set.
  */
 
-import { describe, test, expect, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 
 // =============================================================================
 // In-memory user store (simulates the database)
@@ -253,7 +253,10 @@ function findOrCreateByDiscordId(
     if (discordData.username !== existingDiscord.discord_username) {
       updates.discord_username = discordData.username;
     }
-    if (discordData.globalName !== undefined && discordData.globalName !== existingDiscord.discord_global_name) {
+    if (
+      discordData.globalName !== undefined &&
+      discordData.globalName !== existingDiscord.discord_global_name
+    ) {
       updates.discord_global_name = discordData.globalName ?? null;
     }
     // Also set phone if provided and not set
@@ -352,7 +355,12 @@ function linkTelegramToUser(userId: string, telegramData: TelegramData): LinkRes
  */
 function linkDiscordToUser(
   userId: string,
-  discordData: { discordId: string; username: string; globalName?: string | null; avatarUrl?: string | null },
+  discordData: {
+    discordId: string;
+    username: string;
+    globalName?: string | null;
+    avatarUrl?: string | null;
+  },
 ): LinkResult {
   const existingDiscord = findByDiscordId(discordData.discordId);
 
@@ -398,10 +406,7 @@ function linkPhoneToUser(userId: string, phoneNumber: string): LinkResult {
  * Simulates findOrCreateByWhatsAppId from user-service.ts
  * 3-step lookup: whatsapp_id → phone (auto-derived) → create
  */
-function findOrCreateByWhatsAppId(
-  whatsappId: string,
-  profileName?: string,
-): FindOrCreateResult {
+function findOrCreateByWhatsAppId(whatsappId: string, profileName?: string): FindOrCreateResult {
   const derivedPhone = `+${whatsappId.replace(/\D/g, "")}`;
 
   // Step 1: Check by whatsapp_id
@@ -940,9 +945,9 @@ describe("Cross-Platform Account Linking", () => {
       findOrCreateByTelegramWithPhone(TELEGRAM_USER, PHONE_A);
 
       // Try to re-auth with same Telegram but different phone → should throw PHONE_MISMATCH
-      expect(() =>
-        findOrCreateByTelegramWithPhone(TELEGRAM_USER, PHONE_B),
-      ).toThrow("PHONE_MISMATCH");
+      expect(() => findOrCreateByTelegramWithPhone(TELEGRAM_USER, PHONE_B)).toThrow(
+        "PHONE_MISMATCH",
+      );
 
       expect(users.length).toBe(1);
     });
@@ -1078,9 +1083,9 @@ describe("Cross-Platform Account Linking", () => {
 
       findOrCreateByDiscordId(DISCORD_ID_A, { username: "userA" }, PHONE);
 
-      expect(() =>
-        findOrCreateByDiscordId(DISCORD_ID_B, { username: "userB" }, PHONE),
-      ).toThrow("DISCORD_ALREADY_LINKED");
+      expect(() => findOrCreateByDiscordId(DISCORD_ID_B, { username: "userB" }, PHONE)).toThrow(
+        "DISCORD_ALREADY_LINKED",
+      );
     });
   });
 

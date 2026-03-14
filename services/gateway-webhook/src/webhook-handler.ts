@@ -1,18 +1,13 @@
 import type { Redis } from "@upstash/redis";
-import type {
-  PlatformAdapter,
-  Platform,
-  WebhookConfig,
-  ChatEvent,
-} from "./adapters/types";
-import { resolveWebhookConfig } from "./webhook-config";
-import {
-  resolveIdentity,
-  resolveAgentServer,
-  refreshKedaActivity,
-  forwardToServer,
-} from "./server-router";
+import type { ChatEvent, Platform, PlatformAdapter, WebhookConfig } from "./adapters/types";
 import { logger } from "./logger";
+import {
+  forwardToServer,
+  refreshKedaActivity,
+  resolveAgentServer,
+  resolveIdentity,
+} from "./server-router";
+import { resolveWebhookConfig } from "./webhook-config";
 
 const DEDUP_TTL_SECONDS = 300;
 
@@ -180,13 +175,10 @@ async function processMessage(
 function ackResponse(platform: Platform): Response {
   // Twilio expects empty TwiML
   if (platform === "twilio") {
-    return new Response(
-      '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
-      {
-        status: 200,
-        headers: { "Content-Type": "text/xml" },
-      },
-    );
+    return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+      status: 200,
+      headers: { "Content-Type": "text/xml" },
+    });
   }
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,

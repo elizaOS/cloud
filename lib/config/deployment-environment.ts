@@ -12,16 +12,10 @@ export function isProductionDeployment(env: EnvLike = process.env): boolean {
   return env.NODE_ENV === "production";
 }
 
-export function shouldBlockUnsafeWebhookSkip(
-  env: EnvLike = process.env,
-): boolean {
-  return (
-    env.SKIP_WEBHOOK_VERIFICATION === "true" && isProductionDeployment(env)
-  );
+export function shouldBlockUnsafeWebhookSkip(env: EnvLike = process.env): boolean {
+  return env.SKIP_WEBHOOK_VERIFICATION === "true" && isProductionDeployment(env);
 }
 
-export function shouldBlockDevnetBypass(
-  env: EnvLike = process.env,
-): boolean {
+export function shouldBlockDevnetBypass(env: EnvLike = process.env): boolean {
   return env.DEVNET === "true" && isProductionDeployment(env);
 }

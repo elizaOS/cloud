@@ -1,14 +1,14 @@
-import { eq, desc, and, gte, sql, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
-  agentEvents,
   type AgentEvent,
-  type NewAgentEvent,
   type AgentEventType,
   type AgentLogLevel,
+  agentEvents,
+  type NewAgentEvent,
 } from "../schemas/agent-events";
 
-export type { AgentEvent, NewAgentEvent, AgentEventType, AgentLogLevel };
+export type { AgentEvent, AgentEventType, AgentLogLevel, NewAgentEvent };
 
 export interface AgentEventFilters {
   eventTypes?: AgentEventType[];
@@ -28,10 +28,7 @@ export class AgentEventsRepository {
     });
   }
 
-  async listByAgent(
-    agentId: string,
-    filters?: AgentEventFilters,
-  ): Promise<AgentEvent[]> {
+  async listByAgent(agentId: string, filters?: AgentEventFilters): Promise<AgentEvent[]> {
     const conditions = [eq(agentEvents.agent_id, agentId)];
 
     if (filters?.eventTypes && filters.eventTypes.length > 0) {
@@ -96,10 +93,7 @@ export class AgentEventsRepository {
 
   async getLatestError(agentId: string): Promise<AgentEvent | undefined> {
     return await dbRead.query.agentEvents.findFirst({
-      where: and(
-        eq(agentEvents.agent_id, agentId),
-        eq(agentEvents.level, "error"),
-      ),
+      where: and(eq(agentEvents.agent_id, agentId), eq(agentEvents.level, "error")),
       orderBy: desc(agentEvents.created_at),
     });
   }

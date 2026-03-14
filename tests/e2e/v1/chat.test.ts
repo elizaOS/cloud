@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as api from "../helpers/api-client";
 
 /**
@@ -59,7 +59,7 @@ describe("Chat Completions API (OpenAI-compat)", () => {
       );
 
       if (response.status === 200) {
-        const body = await response.json() as any;
+        const body = (await response.json()) as any;
         expect(body.choices || body.id).toBeTruthy();
       } else {
         expect([402, 429]).toContain(response.status);

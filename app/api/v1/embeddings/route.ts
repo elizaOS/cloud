@@ -9,24 +9,15 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import { embed, embedMany } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { usageService } from "@/lib/services/usage";
-import {
-  reserveCredits,
-  billUsage,
-  InsufficientCreditsError,
-} from "@/lib/services/ai-billing";
-import { creditsService } from "@/lib/services/credits";
-import {
-  estimateTokens,
-  getProviderFromModel,
-  normalizeModelName,
-} from "@/lib/pricing";
-import { logger } from "@/lib/utils/logger";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { embed, embedMany } from "ai";
 import type { NextRequest } from "next/server";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { estimateTokens, getProviderFromModel, normalizeModelName } from "@/lib/pricing";
+import { billUsage, InsufficientCreditsError, reserveCredits } from "@/lib/services/ai-billing";
+import { usageService } from "@/lib/services/usage";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -78,10 +69,7 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    if (
-      typeof request.input === "string" &&
-      request.input.trim().length === 0
-    ) {
+    if (typeof request.input === "string" && request.input.trim().length === 0) {
       return Response.json(
         {
           error: {
@@ -100,9 +88,7 @@ async function handlePOST(req: NextRequest) {
     const normalizedModel = normalizeModelName(model);
 
     // Estimate tokens for reservation
-    const inputText = Array.isArray(request.input)
-      ? request.input.join(" ")
-      : request.input;
+    const inputText = Array.isArray(request.input) ? request.input.join(" ") : request.input;
     const estimatedInputTokens = estimateTokens(inputText);
 
     // Reserve credits BEFORE making API call
@@ -224,8 +210,7 @@ async function handlePOST(req: NextRequest) {
     return Response.json(
       {
         error: {
-          message:
-            error instanceof Error ? error.message : "Internal server error",
+          message: error instanceof Error ? error.message : "Internal server error",
           type: "api_error",
         },
       },

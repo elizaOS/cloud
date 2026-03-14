@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as api from "../helpers/api-client";
 
 /**
@@ -11,7 +11,7 @@ describe("SIWE Auth API", () => {
     expect([200, 405]).toContain(response.status);
 
     if (response.status === 200) {
-      const body = await response.json() as any;
+      const body = (await response.json()) as any;
       expect(body.nonce).toBeTruthy();
     }
   });

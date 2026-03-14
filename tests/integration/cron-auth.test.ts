@@ -5,7 +5,7 @@
  * to validate the full auth flow including response body parsing.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { NextRequest } from "next/server";
 import { verifyCronSecret } from "@/lib/api/cron-auth";
 

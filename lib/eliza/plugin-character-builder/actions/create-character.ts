@@ -3,12 +3,12 @@ import {
   type ActionExample,
   type HandlerCallback,
   type IAgentRuntime,
+  logger,
   type Memory,
   type State,
-  logger,
 } from "@elizaos/core";
-import { charactersService } from "@/lib/services/characters/characters";
 import { roomsService } from "@/lib/services/agents/rooms";
+import { charactersService } from "@/lib/services/characters/characters";
 import { isCreatorMode } from "../../shared/utils/helpers";
 
 /**
@@ -48,20 +48,12 @@ export const createCharacterAction = {
   name: "CREATE_CHARACTER",
   description:
     "User has confirmed they want to save the character. ONLY use when: (1) a character definition exists in the UI with at least a name populated from previous SUGGEST_CHANGES, AND (2) user explicitly confirms with phrases like 'create it', 'save this', 'looks good', 'let's go'. Do NOT use if character JSON is empty or user is still exploring ideas.",
-  validate: async (
-    runtime: IAgentRuntime,
-    _message: Memory,
-    _state?: State,
-  ) => {
+  validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
     if (!isCreatorMode(runtime)) return false;
 
     // Check if we have client character state with at least a name
-    const settings = runtime.character.settings as
-      | Record<string, unknown>
-      | undefined;
-    const clientState = settings?.clientCharacterState as
-      | ClientCharacterState
-      | undefined;
+    const settings = runtime.character.settings as Record<string, unknown> | undefined;
+    const clientState = settings?.clientCharacterState as ClientCharacterState | undefined;
 
     return Boolean(clientState?.name);
   },
@@ -99,9 +91,7 @@ export const createCharacterAction = {
     }
 
     // Get the client character state - this is what the UI currently shows
-    const clientState = settings.clientCharacterState as
-      | ClientCharacterState
-      | undefined;
+    const clientState = settings.clientCharacterState as ClientCharacterState | undefined;
 
     if (!clientState?.name) {
       logger.error("[CREATE_CHARACTER] No character state or name in UI");
@@ -151,9 +141,7 @@ export const createCharacterAction = {
       return;
     }
 
-    logger.info(
-      `[CREATE_CHARACTER] Character created with ID: ${savedCharacter.id}`,
-    );
+    logger.info(`[CREATE_CHARACTER] Character created with ID: ${savedCharacter.id}`);
 
     // Lock the room - this creator session is complete
     const roomId = message.roomId;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * POST /api/auth/cli-session
@@ -15,10 +15,7 @@ export async function POST(request: NextRequest) {
     const { sessionId } = body;
 
     if (!sessionId || typeof sessionId !== "string") {
-      return NextResponse.json(
-        { error: "Session ID is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Session ID is required" }, { status: 400 });
     }
 
     // Create new session
@@ -34,9 +31,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     logger.error("Error creating CLI auth session:", error);
-    return NextResponse.json(
-      { error: "Failed to create authentication session" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to create authentication session" }, { status: 500 });
   }
 }

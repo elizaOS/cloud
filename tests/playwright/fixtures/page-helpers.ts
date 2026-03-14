@@ -7,7 +7,7 @@
  * - Page load validation
  */
 
-import { type Page, type Response, expect } from "@playwright/test";
+import { expect, type Page, type Response } from "@playwright/test";
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
@@ -37,9 +37,7 @@ export class ConsoleErrorCollector {
 
   /** Get critical errors (filtered) */
   getCriticalErrors(): string[] {
-    return this.errors.filter(
-      (e) => !NON_CRITICAL_PATTERNS.some((p) => e.includes(p)),
-    );
+    return this.errors.filter((e) => !NON_CRITICAL_PATTERNS.some((p) => e.includes(p)));
   }
 
   /** Assert no critical console errors occurred */
@@ -122,35 +120,25 @@ export async function validatePageLoad(
  * Quick smoke test for a page: loads without 500, returns 200.
  */
 export async function smokeTestPage(page: Page, path: string): Promise<void> {
-  const { response, consoleErrors, networkErrors } = await validatePageLoad(
-    page,
-    path,
-  );
+  const { response, consoleErrors, networkErrors } = await validatePageLoad(page, path);
 
   // Page should return 200 or 304
-  expect(
-    [200, 304],
-    `Page ${path} returned ${response?.status()}`,
-  ).toContain(response?.status() ?? 0);
+  expect([200, 304], `Page ${path} returned ${response?.status()}`).toContain(
+    response?.status() ?? 0,
+  );
 }
 
 /**
  * Strict smoke test: page loads, no JS errors, no 500s.
  */
-export async function strictSmokeTestPage(
-  page: Page,
-  path: string,
-): Promise<void> {
-  const { response, consoleErrors, networkErrors } = await validatePageLoad(
-    page,
-    path,
-    { waitForNetworkIdle: true },
-  );
+export async function strictSmokeTestPage(page: Page, path: string): Promise<void> {
+  const { response, consoleErrors, networkErrors } = await validatePageLoad(page, path, {
+    waitForNetworkIdle: true,
+  });
 
-  expect(
-    [200, 304],
-    `Page ${path} returned ${response?.status()}`,
-  ).toContain(response?.status() ?? 0);
+  expect([200, 304], `Page ${path} returned ${response?.status()}`).toContain(
+    response?.status() ?? 0,
+  );
 
   consoleErrors.expectNoCriticalErrors();
   networkErrors.expectNoServerErrors();

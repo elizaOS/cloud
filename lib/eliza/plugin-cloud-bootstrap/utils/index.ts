@@ -1,4 +1,4 @@
 export {
-  refreshStateAfterAction,
   getActionResultsFromCache,
+  refreshStateAfterAction,
 } from "./state";

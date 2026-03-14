@@ -5,9 +5,9 @@
  * TTL matches the 2-minute webhook signature validity window.
  */
 
+import { count, eq, gt, lt } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import { idempotencyKeys } from "@/db/schemas/idempotency-keys";
-import { count, eq, gt, lt } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
 const IDEMPOTENCY_TTL_MS = 2 * 60 * 1000; // 2 minutes
@@ -61,7 +61,11 @@ export async function tryClaimForProcessing(key: string, source = "unknown"): Pr
     // length === 1 means we inserted (claimed), 0 means key already exists (conflict)
     return rows.length === 1;
   } catch (error) {
-    logger.error("[Idempotency] Error claiming key", { key, source, error: getErrorMessage(error) });
+    logger.error("[Idempotency] Error claiming key", {
+      key,
+      source,
+      error: getErrorMessage(error),
+    });
     return true; // Fail open to avoid dropping messages
   }
 }

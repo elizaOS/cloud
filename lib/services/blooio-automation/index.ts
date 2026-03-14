@@ -6,19 +6,17 @@
  */
 
 import { secretsService } from "@/lib/services/secrets";
-import { logger } from "@/lib/utils/logger";
 import {
-  blooioApiRequest,
-  validateBlooioChatId,
   type BlooioSendMessageRequest,
   type BlooioSendMessageResponse,
+  blooioApiRequest,
+  validateBlooioChatId,
 } from "@/lib/utils/blooio-api";
+import { logger } from "@/lib/utils/logger";
 
 // Use ELIZA_API_URL (ngrok) for local dev webhooks, otherwise NEXT_PUBLIC_APP_URL
 const WEBHOOK_BASE_URL =
-  process.env.ELIZA_API_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  "https://eliza.gg";
+  process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
 
 // Cache TTL for connection status (5 minutes)
 const STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -121,12 +119,7 @@ class BlooioAutomationService {
           const existingSecrets = await secretsService.list(organizationId);
           const existingSecret = existingSecrets.find((s) => s.name === name);
           if (existingSecret) {
-            await secretsService.rotate(
-              existingSecret.id,
-              organizationId,
-              value,
-              audit,
-            );
+            await secretsService.rotate(existingSecret.id, organizationId, value, audit);
           } else {
             throw err; // Re-throw if we can't find it
           }
@@ -159,21 +152,14 @@ class BlooioAutomationService {
   /**
    * Remove Blooio credentials (disconnect).
    */
-  async removeCredentials(
-    organizationId: string,
-    userId: string,
-  ): Promise<void> {
+  async removeCredentials(organizationId: string, userId: string): Promise<void> {
     const audit = {
       actorType: "user" as const,
       actorId: userId,
       source: "blooio-automation",
     };
 
-    const secretNames = [
-      "BLOOIO_API_KEY",
-      "BLOOIO_WEBHOOK_SECRET",
-      "BLOOIO_FROM_NUMBER",
-    ];
+    const secretNames = ["BLOOIO_API_KEY", "BLOOIO_WEBHOOK_SECRET", "BLOOIO_FROM_NUMBER"];
 
     // Get all secrets once (not inside the loop) for efficiency
     const existingSecrets = await secretsService.list(organizationId);
@@ -189,19 +175,12 @@ class BlooioAutomationService {
             organizationId,
           });
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          if (
-            message.includes("Secret not found") ||
-            message.includes("Failed to delete secret")
-          ) {
-            logger.debug(
-              "[BlooioAutomation] Secret already removed during disconnect",
-              {
-                name,
-                organizationId,
-              },
-            );
+          const message = error instanceof Error ? error.message : String(error);
+          if (message.includes("Secret not found") || message.includes("Failed to delete secret")) {
+            logger.debug("[BlooioAutomation] Secret already removed during disconnect", {
+              name,
+              organizationId,
+            });
             continue;
           }
           throw error;
@@ -362,8 +341,7 @@ class BlooioAutomationService {
       if (request.text) payload.text = request.text;
       if (request.attachments) payload.attachments = request.attachments;
       if (request.metadata) payload.metadata = request.metadata;
-      if (request.use_typing_indicator)
-        payload.use_typing_indicator = request.use_typing_indicator;
+      if (request.use_typing_indicator) payload.use_typing_indicator = request.use_typing_indicator;
 
       const response = await blooioApiRequest<BlooioSendMessageResponse>(
         apiKey,
@@ -377,8 +355,7 @@ class BlooioAutomationService {
       );
 
       const messageId =
-        response.message_id ||
-        (response.message_ids ? response.message_ids[0] : undefined);
+        response.message_id || (response.message_ids ? response.message_ids[0] : undefined);
 
       logger.info("[BlooioAutomation] Message sent", {
         organizationId,

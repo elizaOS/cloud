@@ -4,38 +4,65 @@
 
 import {
   type ActionExample,
+  type ActionResult,
   type HandlerCallback,
   type IAgentRuntime,
+  logger,
   type Memory,
   type State,
-  type ActionResult,
-  logger,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
 import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
 import {
+  capitalize,
+  extractPlatform,
   getSupportedPlatforms,
   isSupportedPlatform,
-  extractPlatform,
-  lookupUser,
   isUserLookupError,
-  capitalize,
+  lookupUser,
 } from "../utils";
 
 export const oauthConnectAction: ActionWithParams = {
   name: "OAUTH_CONNECT",
   similes: [
-    "CONNECT_PLATFORM", "LINK_ACCOUNT", "CONNECT_GOOGLE", "CONNECT_GMAIL",
-    "CONNECT_LINEAR", "CONNECT_SLACK", "CONNECT_GITHUB", "CONNECT_NOTION",
-    "CONNECT_MICROSOFT", "CONNECT_OUTLOOK",
-    "CONNECT_TWITTER", "CONNECT_X", "LINK_TWITTER", "LINK_X",
-    "ADD_INTEGRATION", "SETUP_CONNECTION", "LINK_GOOGLE", "AUTHENTICATE",
-    "LINK_LINEAR", "LINK_SLACK", "LINK_GITHUB", "LINK_NOTION",
-    "CONNECT_ASANA", "LINK_ASANA", "CONNECT_DROPBOX", "LINK_DROPBOX",
-    "CONNECT_SALESFORCE", "LINK_SALESFORCE", "CONNECT_AIRTABLE", "LINK_AIRTABLE",
-    "CONNECT_ZOOM", "LINK_ZOOM",
-    "CONNECT_JIRA", "LINK_JIRA", "CONNECT_LINKEDIN", "LINK_LINKEDIN",
-    "LINK_MICROSOFT", "LINK_OUTLOOK",
+    "CONNECT_PLATFORM",
+    "LINK_ACCOUNT",
+    "CONNECT_GOOGLE",
+    "CONNECT_GMAIL",
+    "CONNECT_LINEAR",
+    "CONNECT_SLACK",
+    "CONNECT_GITHUB",
+    "CONNECT_NOTION",
+    "CONNECT_MICROSOFT",
+    "CONNECT_OUTLOOK",
+    "CONNECT_TWITTER",
+    "CONNECT_X",
+    "LINK_TWITTER",
+    "LINK_X",
+    "ADD_INTEGRATION",
+    "SETUP_CONNECTION",
+    "LINK_GOOGLE",
+    "AUTHENTICATE",
+    "LINK_LINEAR",
+    "LINK_SLACK",
+    "LINK_GITHUB",
+    "LINK_NOTION",
+    "CONNECT_ASANA",
+    "LINK_ASANA",
+    "CONNECT_DROPBOX",
+    "LINK_DROPBOX",
+    "CONNECT_SALESFORCE",
+    "LINK_SALESFORCE",
+    "CONNECT_AIRTABLE",
+    "LINK_AIRTABLE",
+    "CONNECT_ZOOM",
+    "LINK_ZOOM",
+    "CONNECT_JIRA",
+    "LINK_JIRA",
+    "CONNECT_LINKEDIN",
+    "LINK_LINKEDIN",
+    "LINK_MICROSOFT",
+    "LINK_OUTLOOK",
   ],
   description:
     "Connect an OAuth platform for the user. ALWAYS execute this action when the user asks to connect — generate a fresh authorization URL every time, even if one was sent before (previous links expire). Never tell the user to 'use a previous link'. Available: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
@@ -43,7 +70,8 @@ export const oauthConnectAction: ActionWithParams = {
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to connect. Available: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
+      description:
+        "Platform to connect. Available: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
       required: true,
     },
   },
@@ -57,7 +85,7 @@ export const oauthConnectAction: ActionWithParams = {
     message: Memory,
     state?: State,
     _options?: unknown,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     const platform = extractPlatform(message, state);
     const actionName = "OAUTH_CONNECT";
@@ -112,7 +140,9 @@ export const oauthConnectAction: ActionWithParams = {
       });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      logger.error(`[${actionName}] OAuth initiation failed: ${errMsg} (platform=${platform}, org=${organizationId})`);
+      logger.error(
+        `[${actionName}] OAuth initiation failed: ${errMsg} (platform=${platform}, org=${organizationId})`,
+      );
       return {
         text: `Failed to start ${platformName} connection. Please try again later.`,
         success: false,
@@ -141,19 +171,43 @@ export const oauthConnectAction: ActionWithParams = {
   examples: [
     [
       { name: "{{name1}}", content: { text: "connect my google account" } },
-      { name: "{{name2}}", content: { text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
     ],
     [
       { name: "{{name1}}", content: { text: "link gmail" } },
-      { name: "{{name2}}", content: { text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
     ],
     [
       { name: "{{name1}}", content: { text: "connect my twitter account" } },
-      { name: "{{name2}}", content: { text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
     ],
     [
       { name: "{{name1}}", content: { text: "link my x account" } },
-      { name: "{{name2}}", content: { text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
     ],
   ] as ActionExample[][],
 };

@@ -3,7 +3,7 @@
  * Run: SKIP_SERVER_CHECK=true bun test tests/unit/performance-optimizations.test.ts
  */
 
-import { describe, test, expect, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { Action, IAgentRuntime, Memory, State } from "@elizaos/core";
 
 // ─── Action Validation Cache ─────────────────────────────────────────────────
@@ -14,17 +14,12 @@ describe("Action validation cache", () => {
 
   beforeEach(async () => {
     // Module-level cache is a singleton — tests use unique message IDs to avoid interference.
-    const mod = await import(
-      "@/lib/eliza/plugin-cloud-bootstrap/providers/actions"
-    );
+    const mod = await import("@/lib/eliza/plugin-cloud-bootstrap/providers/actions");
     actionsProvider = mod.actionsProvider;
     invalidateActionValidationCache = mod.invalidateActionValidationCache;
   });
 
-  function makeRuntime(
-    actions: Action[],
-    mcpToolCount?: number,
-  ): IAgentRuntime {
+  function makeRuntime(actions: Action[], mcpToolCount?: number): IAgentRuntime {
     return {
       actions,
       getService: () =>
@@ -206,11 +201,7 @@ describe("Action validation cache", () => {
       getService: () => undefined,
     } as unknown as IAgentRuntime;
 
-    const result = await actionsProvider.get!(
-      runtime,
-      makeMessage("msg-no-mcp-1"),
-      emptyState,
-    );
+    const result = await actionsProvider.get!(runtime, makeMessage("msg-no-mcp-1"), emptyState);
     expect(result.values.discoverableToolCount).toBe("");
   });
 
@@ -425,10 +416,7 @@ describe("Retry config", () => {
   test("backoff sequence caps at maxDelayMs", () => {
     const { baseDelayMs, maxDelayMs, backoffMultiplier } = sourceRetryConfig;
     const delay = (attempt: number) =>
-      Math.min(
-        baseDelayMs * Math.pow(backoffMultiplier, attempt - 1),
-        maxDelayMs,
-      );
+      Math.min(baseDelayMs * backoffMultiplier ** (attempt - 1), maxDelayMs);
 
     expect(delay(1)).toBe(200);
     expect(delay(2)).toBe(400);
@@ -439,10 +427,7 @@ describe("Retry config", () => {
   test("delay never exceeds max even at extreme attempt numbers", () => {
     const { baseDelayMs, maxDelayMs, backoffMultiplier } = sourceRetryConfig;
     for (let attempt = 1; attempt <= 100; attempt++) {
-      const delay = Math.min(
-        baseDelayMs * Math.pow(backoffMultiplier, attempt - 1),
-        maxDelayMs,
-      );
+      const delay = Math.min(baseDelayMs * backoffMultiplier ** (attempt - 1), maxDelayMs);
       expect(delay).toBeLessThanOrEqual(maxDelayMs);
       expect(Number.isFinite(delay)).toBe(true);
     }
@@ -456,30 +441,22 @@ describe("Multi-step decision template", () => {
   let summaryTemplate: string;
 
   beforeEach(async () => {
-    const mod = await import(
-      "@/lib/eliza/plugin-cloud-bootstrap/templates/multi-step"
-    );
+    const mod = await import("@/lib/eliza/plugin-cloud-bootstrap/templates/multi-step");
     decisionTemplate = mod.multiStepDecisionTemplate;
     summaryTemplate = mod.multiStepSummaryTemplate;
   });
 
   test("contains minimize-iterations and strengthened FINISH rules", () => {
     expect(decisionTemplate).toContain("Minimize iterations");
-    expect(decisionTemplate).toContain(
-      "Most tasks need only 1 action + FINISH",
-    );
+    expect(decisionTemplate).toContain("Most tasks need only 1 action + FINISH");
     expect(decisionTemplate).toContain("call FINISH immediately");
     expect(decisionTemplate).toContain("Do NOT add extra iterations");
   });
 
   test("preserves OAuth/connect rules from ux-overhaul", () => {
     expect(decisionTemplate).toContain("OAUTH_CONNECT");
-    expect(decisionTemplate).toContain(
-      "links expire and must be freshly generated",
-    );
-    expect(decisionTemplate).toContain(
-      "Always execute actions for user requests",
-    );
+    expect(decisionTemplate).toContain("links expire and must be freshly generated");
+    expect(decisionTemplate).toContain("Always execute actions for user requests");
   });
 
   test("all 8 rules present and numbered", () => {
@@ -503,19 +480,16 @@ describe("Multi-step decision template", () => {
 
 describe("MCP timeout constant", () => {
   test("DEFAULT_MCP_TIMEOUT_MS is 15000ms and the legacy alias still matches", async () => {
-    const { DEFAULT_MCP_TIMEOUT_MS, DEFAULT_MCP_TIMEOUT_SECONDS } =
-      await import("@/lib/eliza/plugin-mcp/types");
+    const { DEFAULT_MCP_TIMEOUT_MS, DEFAULT_MCP_TIMEOUT_SECONDS } = await import(
+      "@/lib/eliza/plugin-mcp/types"
+    );
     expect(DEFAULT_MCP_TIMEOUT_MS).toBe(15000);
     expect(DEFAULT_MCP_TIMEOUT_SECONDS).toBe(DEFAULT_MCP_TIMEOUT_MS);
   });
 
   test("other MCP constants unchanged", async () => {
-    const {
-      DEFAULT_MAX_RETRIES,
-      MAX_RECONNECT_ATTEMPTS,
-      BACKOFF_MULTIPLIER,
-      INITIAL_RETRY_DELAY,
-    } = await import("@/lib/eliza/plugin-mcp/types");
+    const { DEFAULT_MAX_RETRIES, MAX_RECONNECT_ATTEMPTS, BACKOFF_MULTIPLIER, INITIAL_RETRY_DELAY } =
+      await import("@/lib/eliza/plugin-mcp/types");
 
     expect(DEFAULT_MAX_RETRIES).toBe(2);
     expect(MAX_RECONNECT_ATTEMPTS).toBe(5);
@@ -525,9 +499,7 @@ describe("MCP timeout constant", () => {
 
   test("service uses the millisecond timeout constant when timeoutInMillis is absent", async () => {
     const source = await Bun.file("lib/eliza/plugin-mcp/service.ts").text();
-    expect(source).toContain(
-      "config.timeoutInMillis || DEFAULT_MCP_TIMEOUT_MS",
-    );
+    expect(source).toContain("config.timeoutInMillis || DEFAULT_MCP_TIMEOUT_MS");
   });
 });
 
@@ -547,9 +519,7 @@ describe("Parse retry defaults", () => {
     const source = await Bun.file(
       "lib/eliza/plugin-cloud-bootstrap/services/cloud-bootstrap-message-service.ts",
     ).text();
-    const match = source.match(
-      /MULTISTEP_SUMMARY_PARSE_RETRIES.*?\?\?\s*"(\d+)"/,
-    );
+    const match = source.match(/MULTISTEP_SUMMARY_PARSE_RETRIES.*?\?\?\s*"(\d+)"/);
     expect(match).not.toBeNull();
     expect(match![1]).toBe("2");
   });

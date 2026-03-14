@@ -9,11 +9,11 @@
  * Requires admin role.
  */
 
+import { and, desc, eq, isNotNull, type SQL, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
 import { dbRead } from "@/db/helpers";
-import { miladySandboxes, type MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
-import { isNotNull, eq, desc, and, sql, type SQL } from "drizzle-orm";
+import { type MiladySandboxStatus, miladySandboxes } from "@/db/schemas/milady-sandboxes";
+import { requireAdmin } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -34,16 +34,20 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const statusFilter = searchParams.get("status");
   const nodeFilter = searchParams.get("nodeId");
-  const limit = Math.min(
-    parseInt(searchParams.get("limit") || "100", 10),
-    500,
-  );
+  const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 500);
 
   try {
     // Build conditions array for combined WHERE clause
     const conditions: SQL[] = [isNotNull(miladySandboxes.node_id)];
 
-    const VALID_STATUSES = new Set<string>(["pending", "provisioning", "running", "stopped", "disconnected", "error"]);
+    const VALID_STATUSES = new Set<string>([
+      "pending",
+      "provisioning",
+      "running",
+      "stopped",
+      "disconnected",
+      "error",
+    ]);
     if (statusFilter) {
       if (!VALID_STATUSES.has(statusFilter)) {
         return NextResponse.json(
@@ -97,7 +101,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         containers,
-        total: totalCount,          // actual total matching filters
+        total: totalCount, // actual total matching filters
         returned: containers.length, // number returned in this page
         filters: {
           status: statusFilter,

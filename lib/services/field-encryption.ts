@@ -18,8 +18,8 @@
 import crypto from "crypto";
 import { eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/helpers";
-import { organizationEncryptionKeys } from "@/db/schemas";
 import type { OrganizationEncryptionKey } from "@/db/schemas";
+import { organizationEncryptionKeys } from "@/db/schemas";
 import { logger } from "@/lib/utils/logger";
 
 // Encryption constants
@@ -27,7 +27,7 @@ const ENCRYPTION_PREFIX = "enc";
 const FORMAT_VERSION = "v1";
 const ALGORITHM = "aes-256-gcm";
 const NONCE_LENGTH = 12;
-const AUTH_TAG_LENGTH = 16;
+const _AUTH_TAG_LENGTH = 16;
 const DEK_LENGTH = 32; // 256 bits
 
 /**
@@ -109,10 +109,7 @@ export class FieldEncryptionService {
 
     // Encrypt with AES-256-GCM
     const cipher = crypto.createCipheriv(ALGORITHM, dek, nonce);
-    const ciphertext = Buffer.concat([
-      cipher.update(plaintext, "utf8"),
-      cipher.final(),
-    ]);
+    const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
     const authTag = cipher.getAuthTag();
 
     // Format: enc:v1:<org_key_id>:<nonce>:<auth_tag>:<ciphertext>
@@ -150,10 +147,7 @@ export class FieldEncryptionService {
     const decipher = crypto.createDecipheriv(ALGORITHM, dek, parsed.nonce);
     decipher.setAuthTag(parsed.authTag);
 
-    const plaintext = Buffer.concat([
-      decipher.update(parsed.ciphertext),
-      decipher.final(),
-    ]);
+    const plaintext = Buffer.concat([decipher.update(parsed.ciphertext), decipher.final()]);
 
     return plaintext.toString("utf8");
   }
@@ -182,9 +176,7 @@ export class FieldEncryptionService {
    * @param value - The value to potentially decrypt
    * @returns Decrypted value or original value if not encrypted
    */
-  async decryptIfNeeded(
-    value: string | null | undefined,
-  ): Promise<string | null> {
+  async decryptIfNeeded(value: string | null | undefined): Promise<string | null> {
     if (!value) return null;
     if (!this.isEncrypted(value)) {
       logger.warn("Found unencrypted value where encrypted was expected");
@@ -236,13 +228,10 @@ export class FieldEncryptionService {
   private parseEncryptedValue(value: string): ParsedEncryptedValue {
     const parts = value.split(":");
     if (parts.length !== 6) {
-      throw new Error(
-        `Invalid encrypted value format: expected 6 parts, got ${parts.length}`,
-      );
+      throw new Error(`Invalid encrypted value format: expected 6 parts, got ${parts.length}`);
     }
 
-    const [prefix, version, orgKeyId, nonceB64, authTagB64, ciphertextB64] =
-      parts;
+    const [prefix, version, orgKeyId, nonceB64, authTagB64, ciphertextB64] = parts;
 
     if (prefix !== ENCRYPTION_PREFIX || version !== FORMAT_VERSION) {
       throw new Error(`Unsupported encryption format: ${prefix}:${version}`);
@@ -260,9 +249,7 @@ export class FieldEncryptionService {
   /**
    * Get or create an encryption key for an organization.
    */
-  private async getOrCreateOrgKey(
-    organizationId: string,
-  ): Promise<OrganizationEncryptionKey> {
+  private async getOrCreateOrgKey(organizationId: string): Promise<OrganizationEncryptionKey> {
     // Try to get existing key
     const existingKey = await this.getOrgKeyByOrgId(organizationId);
     if (existingKey) {
@@ -294,9 +281,7 @@ export class FieldEncryptionService {
       where: eq(organizationEncryptionKeys.organization_id, organizationId),
     });
     if (!raceCreatedKey) {
-      throw new Error(
-        `Failed to create/get encryption key for org: ${organizationId}`,
-      );
+      throw new Error(`Failed to create/get encryption key for org: ${organizationId}`);
     }
 
     return raceCreatedKey;
@@ -352,11 +337,7 @@ export class FieldEncryptionService {
     const authTag = Buffer.from(authTagB64, "base64");
     const encrypted = Buffer.from(encryptedB64, "base64");
 
-    const decipher = crypto.createDecipheriv(
-      ALGORITHM,
-      this.masterKey!,
-      nonce,
-    );
+    const decipher = crypto.createDecipheriv(ALGORITHM, this.masterKey!, nonce);
     decipher.setAuthTag(authTag);
 
     return Buffer.concat([decipher.update(encrypted), decipher.final()]);

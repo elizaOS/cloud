@@ -7,10 +7,8 @@ const ALLOWED_ORIGINS = [
 export function getCorsHeaders(origin: string | null): Record<string, string> {
   // Only reflect origin if it's in the allowlist; otherwise use first allowed origin or reject
   // Only set origin header for allowed origins, otherwise omit it entirely
-  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) 
-    ? origin 
-    : undefined;  // Omit header for non-allowed origins
-  
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : undefined; // Omit header for non-allowed origins
+
   const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers":

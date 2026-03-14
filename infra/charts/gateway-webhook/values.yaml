@@ -10,7 +10,7 @@ namespace: "gateway-webhook"
 
 # Image configuration
 image:
-  repository: ghcr.io/elizaos/eliza-cloud-v2/gateway-webhook
+  repository: ghcr.io/elizaos/cloud/gateway-webhook
   tag: latest
   # Digest takes precedence over tag when set (e.g., sha256:abc123...)
   digest: ""

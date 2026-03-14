@@ -1,32 +1,28 @@
-import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { discordAutomationService } from "./index";
-import { discordGuildsRepository } from "@/db/repositories/discord-guilds";
-import { discordChannelsRepository } from "@/db/repositories/discord-channels";
+import { generateText } from "ai";
 import { appsRepository } from "@/db/repositories/apps";
-import { creditsService } from "@/lib/services/credits";
+import { discordChannelsRepository } from "@/db/repositories/discord-channels";
+import { discordGuildsRepository } from "@/db/repositories/discord-guilds";
+import type { App } from "@/db/schemas/apps";
 import { DISCORD_POST_COST } from "@/lib/promotion-pricing";
-import { logger } from "@/lib/utils/logger";
-import {
-  DISCORD_BLURPLE,
-  createActionRow,
-  createEmbed,
-  truncate,
-} from "@/lib/utils/discord-helpers";
 import {
   DISCORD_AUTOMATION_DEFAULTS,
   getDiscordConfigWithDefaults,
 } from "@/lib/services/automation-constants";
 import {
-  getCharacterPromptContext,
   buildCharacterSystemPrompt,
+  getCharacterPromptContext,
 } from "@/lib/services/character-prompt-helper";
-import type { App } from "@/db/schemas/apps";
-import type {
-  DiscordAutomationConfig,
-  DiscordAutomationStatus,
-  PostResult,
-} from "./types";
+import { creditsService } from "@/lib/services/credits";
+import {
+  createActionRow,
+  createEmbed,
+  DISCORD_BLURPLE,
+  truncate,
+} from "@/lib/utils/discord-helpers";
+import { logger } from "@/lib/utils/logger";
+import { discordAutomationService } from "./index";
+import type { DiscordAutomationConfig, DiscordAutomationStatus, PostResult } from "./types";
 
 // Content length constants
 const MAX_ANNOUNCEMENT_LENGTH = 300; // Max chars for AI-generated announcement
@@ -36,10 +32,7 @@ class DiscordAppAutomationService {
   /**
    * Get app for organization, checking ownership.
    */
-  private async getAppForOrg(
-    organizationId: string,
-    appId: string,
-  ): Promise<App> {
+  private async getAppForOrg(organizationId: string, appId: string): Promise<App> {
     const app = await appsRepository.findById(appId);
     if (!app || app.organization_id !== organizationId) {
       throw new Error("App not found");
@@ -58,24 +51,16 @@ class DiscordAppAutomationService {
     const app = await this.getAppForOrg(organizationId, appId);
 
     // Verify Discord is connected
-    const status =
-      await discordAutomationService.getConnectionStatus(organizationId);
+    const status = await discordAutomationService.getConnectionStatus(organizationId);
     if (!status.connected) {
-      throw new Error(
-        "Discord not connected. Add the bot to a server in Settings first.",
-      );
+      throw new Error("Discord not connected. Add the bot to a server in Settings first.");
     }
 
     // Verify the guild exists if specified
     if (config.guildId) {
-      const guild = await discordGuildsRepository.findByGuildId(
-        organizationId,
-        config.guildId,
-      );
+      const guild = await discordGuildsRepository.findByGuildId(organizationId, config.guildId);
       if (!guild) {
-        throw new Error(
-          "Guild not found. Please reconnect the Discord server.",
-        );
+        throw new Error("Guild not found. Please reconnect the Discord server.");
       }
     }
 
@@ -153,8 +138,7 @@ class DiscordAppAutomationService {
     appId: string,
   ): Promise<DiscordAutomationStatus> {
     const app = await this.getAppForOrg(organizationId, appId);
-    const connectionStatus =
-      await discordAutomationService.getConnectionStatus(organizationId);
+    const connectionStatus = await discordAutomationService.getConnectionStatus(organizationId);
 
     const config = getDiscordConfigWithDefaults(
       app.discord_automation as Record<string, unknown> | null,
@@ -165,10 +149,7 @@ class DiscordAppAutomationService {
     let channelName: string | undefined;
 
     if (config.guildId) {
-      const guild = await discordGuildsRepository.findByGuildId(
-        organizationId,
-        config.guildId,
-      );
+      const guild = await discordGuildsRepository.findByGuildId(organizationId, config.guildId);
       guildName = guild?.guild_name;
     }
 
@@ -196,10 +177,7 @@ class DiscordAppAutomationService {
     };
   }
 
-  async generateAnnouncement(
-    organizationId: string,
-    app: App,
-  ): Promise<string> {
+  async generateAnnouncement(organizationId: string, app: App): Promise<string> {
     const deduction = await creditsService.deductCredits({
       organizationId,
       amount: DISCORD_POST_COST,
@@ -218,9 +196,7 @@ class DiscordAppAutomationService {
 
     let characterPrompt = "";
     if (config?.agentCharacterId) {
-      const characterContext = await getCharacterPromptContext(
-        config.agentCharacterId,
-      );
+      const characterContext = await getCharacterPromptContext(config.agentCharacterId);
       if (characterContext) {
         characterPrompt = buildCharacterSystemPrompt(characterContext);
         logger.info("[DiscordAppAutomation] Using character voice", {
@@ -229,21 +205,15 @@ class DiscordAppAutomationService {
           characterName: characterContext.name,
         });
       } else {
-        logger.warn(
-          "[DiscordAppAutomation] Character not found, using default",
-          {
-            appId: app.id,
-            characterId: config.agentCharacterId,
-          },
-        );
+        logger.warn("[DiscordAppAutomation] Character not found, using default", {
+          appId: app.id,
+          characterId: config.agentCharacterId,
+        });
       }
     } else {
-      logger.info(
-        "[DiscordAppAutomation] No character selected, using default voice",
-        {
-          appId: app.id,
-        },
-      );
+      logger.info("[DiscordAppAutomation] No character selected, using default voice", {
+        appId: app.id,
+      });
     }
 
     const systemPrompt = characterPrompt
@@ -346,8 +316,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
       };
     }
 
-    const messageText =
-      text || (await this.generateAnnouncement(organizationId, app));
+    const messageText = text || (await this.generateAnnouncement(organizationId, app));
 
     // Get promotional image if available
     const promotionalImageUrl = this.getPromotionalImage(app);
@@ -364,18 +333,12 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
 
     // Build button
     const buttonUrl = app.website_url || app.app_url;
-    const components = [
-      createActionRow([{ label: "Try It Now", url: buttonUrl }]),
-    ];
+    const components = [createActionRow([{ label: "Try It Now", url: buttonUrl }])];
 
-    const result = await discordAutomationService.sendMessage(
-      config.channelId,
-      messageText,
-      {
-        embeds: [embed],
-        components,
-      },
-    );
+    const result = await discordAutomationService.sendMessage(config.channelId, messageText, {
+      embeds: [embed],
+      components,
+    });
 
     if (result.success) {
       // Update stats
@@ -428,18 +391,14 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
 
     const lastAnnouncement = new Date(config.lastAnnouncementAt);
     const now = new Date();
-    const minutesSince =
-      (now.getTime() - lastAnnouncement.getTime()) / (1000 * 60);
+    const minutesSince = (now.getTime() - lastAnnouncement.getTime()) / (1000 * 60);
 
     // Use a random interval between min and max for natural timing
     const minInterval =
-      config.announceIntervalMin ||
-      DISCORD_AUTOMATION_DEFAULTS.announceIntervalMin;
+      config.announceIntervalMin || DISCORD_AUTOMATION_DEFAULTS.announceIntervalMin;
     const maxInterval =
-      config.announceIntervalMax ||
-      DISCORD_AUTOMATION_DEFAULTS.announceIntervalMax;
-    const targetInterval =
-      minInterval + Math.random() * (maxInterval - minInterval);
+      config.announceIntervalMax || DISCORD_AUTOMATION_DEFAULTS.announceIntervalMax;
+    const targetInterval = minInterval + Math.random() * (maxInterval - minInterval);
 
     return minutesSince >= targetInterval;
   }

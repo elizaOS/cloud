@@ -12,8 +12,8 @@
 
 "use client";
 
-import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
+import * as React from "react";
 import { cn } from "../../lib/utils";
 
 const BrandTabs = TabsPrimitive.Root;
@@ -76,12 +76,7 @@ interface SimpleBrandTabsProps {
   className?: string;
 }
 
-export function SimpleBrandTabs({
-  tabs,
-  activeTab,
-  onTabChange,
-  className,
-}: SimpleBrandTabsProps) {
+export function SimpleBrandTabs({ tabs, activeTab, onTabChange, className }: SimpleBrandTabsProps) {
   return (
     <div className={cn("flex flex-wrap gap-0", className)}>
       {tabs.map((tab) => (
@@ -97,4 +92,4 @@ export function SimpleBrandTabs({
   );
 }
 
-export { BrandTabs, BrandTabsList, BrandTabsTrigger, BrandTabsContent };
+export { BrandTabs, BrandTabsContent, BrandTabsList, BrandTabsTrigger };

@@ -166,12 +166,12 @@ Create a file `terraform-role-trust-policy.json`:
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-            "repo:elizaOS/eliza-cloud-v2:ref:refs/heads/main",
-            "repo:elizaOS/eliza-cloud-v2:ref:refs/heads/dev",
-            "repo:elizaOS/eliza-cloud-v2:ref:refs/heads/feat/*",
-            "repo:elizaOS/eliza-cloud-v2:pull_request",
-            "repo:elizaOS/eliza-cloud-v2:environment:gateway-dev",
-            "repo:elizaOS/eliza-cloud-v2:environment:gateway-prd"
+            "repo:elizaOS/cloud:ref:refs/heads/main",
+            "repo:elizaOS/cloud:ref:refs/heads/dev",
+            "repo:elizaOS/cloud:ref:refs/heads/feat/*",
+            "repo:elizaOS/cloud:pull_request",
+            "repo:elizaOS/cloud:environment:gateway-dev",
+            "repo:elizaOS/cloud:environment:gateway-prd"
           ]
         }
       }

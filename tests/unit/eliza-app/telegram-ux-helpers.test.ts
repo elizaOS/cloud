@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   createInlineKeyboard,
   createMultiRowKeyboard,
+  createTypingRefresh,
   escapeMarkdownV2,
   splitMessage,
-  createTypingRefresh,
 } from "@/lib/utils/telegram-helpers";
 
 describe("splitMessage", () => {
@@ -187,10 +187,12 @@ describe("createInlineKeyboard", () => {
   });
 
   test("handles special characters in text and url", () => {
-    const result = createInlineKeyboard([{
-      text: "Connect Google (OAuth)",
-      url: "https://accounts.google.com/o/oauth2/auth?client_id=abc&redirect_uri=https%3A%2F%2Fexample.com",
-    }]);
+    const result = createInlineKeyboard([
+      {
+        text: "Connect Google (OAuth)",
+        url: "https://accounts.google.com/o/oauth2/auth?client_id=abc&redirect_uri=https%3A%2F%2Fexample.com",
+      },
+    ]);
     expect(result.inline_keyboard[0][0].text).toBe("Connect Google (OAuth)");
     expect(result.inline_keyboard[0][0].url).toContain("client_id=abc");
   });
@@ -214,7 +216,10 @@ describe("createMultiRowKeyboard", () => {
 
   test("supports callback_data buttons", () => {
     const result = createMultiRowKeyboard([
-      [{ text: "Yes", callback_data: "confirm_yes" }, { text: "No", callback_data: "confirm_no" }],
+      [
+        { text: "Yes", callback_data: "confirm_yes" },
+        { text: "No", callback_data: "confirm_no" },
+      ],
     ]);
     expect(result.inline_keyboard[0]).toHaveLength(2);
     expect(result.inline_keyboard[0][0].callback_data).toBe("confirm_yes");
@@ -223,7 +228,10 @@ describe("createMultiRowKeyboard", () => {
 
   test("supports mixed url and callback_data in same row", () => {
     const result = createMultiRowKeyboard([
-      [{ text: "Open", url: "https://example.com" }, { text: "Cancel", callback_data: "cancel" }],
+      [
+        { text: "Open", url: "https://example.com" },
+        { text: "Cancel", callback_data: "cancel" },
+      ],
     ]);
     expect(result.inline_keyboard[0][0].url).toBe("https://example.com");
     expect(result.inline_keyboard[0][1].callback_data).toBe("cancel");
@@ -360,8 +368,8 @@ describe("Markdown fallback with real HTTP server", () => {
   });
 
   test("returns false on non-markdown error (no retry)", async () => {
-    mockTelegramApi(() =>
-      new Response(JSON.stringify({ ok: false, description: "Forbidden" }), { status: 403 }),
+    mockTelegramApi(
+      () => new Response(JSON.stringify({ ok: false, description: "Forbidden" }), { status: 403 }),
     );
 
     const result = await sendWithFallback("https://telegram.example.test", {
@@ -375,11 +383,12 @@ describe("Markdown fallback with real HTTP server", () => {
   });
 
   test("returns false when both attempts fail", async () => {
-    mockTelegramApi(() =>
-      new Response(
-        JSON.stringify({ ok: false, description: "Bad Request: can't parse entities" }),
-        { status: 400 },
-      ),
+    mockTelegramApi(
+      () =>
+        new Response(
+          JSON.stringify({ ok: false, description: "Bad Request: can't parse entities" }),
+          { status: 400 },
+        ),
     );
 
     const result = await sendWithFallback("https://telegram.example.test", {
@@ -395,10 +404,9 @@ describe("Markdown fallback with real HTTP server", () => {
   test("retry preserves all non-parse_mode fields in request body", async () => {
     mockTelegramApi((_body, attempt) => {
       if (attempt === 1) {
-        return new Response(
-          JSON.stringify({ ok: false, description: "can't parse entities" }),
-          { status: 400 },
-        );
+        return new Response(JSON.stringify({ ok: false, description: "can't parse entities" }), {
+          status: 400,
+        });
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     });
@@ -445,7 +453,8 @@ describe("URL_PATTERN boundary (used by route.ts to skip Markdown)", () => {
   });
 
   test("real OAuth URL with query params matches", () => {
-    const url = "https://accounts.google.com/o/oauth2/v2/auth?client_id=abc123&redirect_uri=http%3A%2F%2Flocalhost%3A3000";
+    const url =
+      "https://accounts.google.com/o/oauth2/v2/auth?client_id=abc123&redirect_uri=http%3A%2F%2Flocalhost%3A3000";
     expect(URL_PATTERN.test(url)).toBe(true);
   });
 

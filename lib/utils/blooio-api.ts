@@ -56,15 +56,17 @@ export const BlooioWebhookEventSchema = z.object({
   internal_id: z.string().nullish(),
   sender: z.string().nullish(),
   text: z.string().nullish(),
-  attachments: z.array(
-    z.union([
-      z.string(),
-      z.object({
-        url: z.string().url(),
-        name: z.string().nullish(),
-      }),
-    ])
-  ).nullish(),
+  attachments: z
+    .array(
+      z.union([
+        z.string(),
+        z.object({
+          url: z.string().url(),
+          name: z.string().nullish(),
+        }),
+      ]),
+    )
+    .nullish(),
   protocol: z.string().nullish(),
   is_group: z.boolean().nullish(),
   received_at: z.number().nullish(),
@@ -175,11 +177,7 @@ export async function verifyBlooioSignature(
       false,
       ["sign"],
     );
-    const signature = await crypto.subtle.sign(
-      "HMAC",
-      key,
-      encoder.encode(signedPayload),
-    );
+    const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(signedPayload));
     const computedSignature = Array.from(new Uint8Array(signature))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
@@ -234,8 +232,7 @@ export function isValidBlooioMediaUrl(url: string): boolean {
     }
     // Must be from allowed domain
     return ALLOWED_BLOOIO_MEDIA_DOMAINS.some(
-      (domain) =>
-        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
     );
   } catch {
     return false;
@@ -247,7 +244,7 @@ export function isValidBlooioMediaUrl(url: string): boolean {
  * Only returns URLs from trusted domains to prevent SSRF.
  */
 export function extractBlooioMediaUrls(
-  attachments?: Array<string | { url: string; name?: string | null }> | null
+  attachments?: Array<string | { url: string; name?: string | null }> | null,
 ): string[] {
   if (!attachments || !Array.isArray(attachments)) {
     return [];

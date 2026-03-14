@@ -3,32 +3,9 @@
  */
 
 import type { Metadata } from "next";
+import { getAppUrl } from "@/lib/utils/app-url";
 import { SEO_CONSTANTS } from "./constants";
-import type {
-  PageMetadataOptions,
-  DynamicMetadataOptions,
-  OGImageParams,
-} from "./types";
-
-/**
- * Gets the base URL for the application.
- *
- * @returns Base URL with priority: NEXT_PUBLIC_APP_URL > VERCEL_URL > localhost.
- */
-function getBaseUrl(): string {
-  // Priority 1: Explicitly set app URL (recommended for production)
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL;
-  }
-
-  // Priority 2: Vercel automatic URL (for deployments without explicit URL)
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  // Priority 3: Local development fallback
-  return "http://localhost:3000";
-}
+import type { DynamicMetadataOptions, OGImageParams, PageMetadataOptions } from "./types";
 
 /**
  * Generates an Open Graph image URL.
@@ -37,7 +14,7 @@ function getBaseUrl(): string {
  * @returns URL to the OG image endpoint.
  */
 export function generateOGImageUrl(params: OGImageParams): string {
-  const baseUrl = getBaseUrl();
+  const baseUrl = getAppUrl();
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
@@ -56,7 +33,7 @@ export function generateOGImageUrl(params: OGImageParams): string {
  * @returns Next.js Metadata object.
  */
 export function generatePageMetadata(options: PageMetadataOptions): Metadata {
-  const baseUrl = getBaseUrl();
+  const baseUrl = getAppUrl();
   const canonicalUrl = `${baseUrl}${options.path}`;
 
   // For dynamic pages with custom images, use provided ogImage
@@ -67,9 +44,7 @@ export function generatePageMetadata(options: PageMetadataOptions): Metadata {
   const metadata: Metadata = {
     title: options.title,
     description: options.description,
-    keywords: options.keywords
-      ? [...options.keywords]
-      : [...SEO_CONSTANTS.defaultKeywords],
+    keywords: options.keywords ? [...options.keywords] : [...SEO_CONSTANTS.defaultKeywords],
     alternates: {
       canonical: canonicalUrl,
     },
@@ -119,9 +94,7 @@ export function generatePageMetadata(options: PageMetadataOptions): Metadata {
  * @param options - Dynamic metadata options with entity information.
  * @returns Next.js Metadata object.
  */
-export function generateDynamicMetadata(
-  options: DynamicMetadataOptions,
-): Metadata {
+export function generateDynamicMetadata(options: DynamicMetadataOptions): Metadata {
   const baseMetadata = generatePageMetadata(options);
 
   if (options.type === "article" && options.updatedAt) {
@@ -165,12 +138,7 @@ export function generateContainerMetadata(
   return generateDynamicMetadata({
     title,
     description: desc,
-    keywords: [
-      "container",
-      "deployment",
-      name,
-      ...(characterName ? [characterName] : []),
-    ],
+    keywords: ["container", "deployment", name, ...(characterName ? [characterName] : [])],
     path: `/dashboard/containers/${id}`,
     ogImage: "/og-image.png",
     entityId: id,

@@ -1,22 +1,16 @@
-import { eq, and, desc, sql, count, sum } from "drizzle-orm";
+import { and, count, desc, eq, sql, sum } from "drizzle-orm";
 import { db } from "../client";
-import {
-  adCampaigns,
-  type AdCampaign,
-  type NewAdCampaign,
-  type CampaignStatus,
-  type CampaignObjective,
-  type BudgetType,
-} from "../schemas/ad-campaigns";
 import { type AdPlatform } from "../schemas/ad-accounts";
+import {
+  type AdCampaign,
+  adCampaigns,
+  type BudgetType,
+  type CampaignObjective,
+  type CampaignStatus,
+  type NewAdCampaign,
+} from "../schemas/ad-campaigns";
 
-export type {
-  AdCampaign,
-  NewAdCampaign,
-  CampaignStatus,
-  CampaignObjective,
-  BudgetType,
-};
+export type { AdCampaign, BudgetType, CampaignObjective, CampaignStatus, NewAdCampaign };
 
 /**
  * Repository for ad campaign database operations.
@@ -28,9 +22,7 @@ export class AdCampaignsRepository {
     });
   }
 
-  async findByExternalId(
-    externalCampaignId: string,
-  ): Promise<AdCampaign | undefined> {
+  async findByExternalId(externalCampaignId: string): Promise<AdCampaign | undefined> {
     return await db.query.adCampaigns.findFirst({
       where: eq(adCampaigns.external_campaign_id, externalCampaignId),
     });
@@ -85,10 +77,7 @@ export class AdCampaignsRepository {
     return campaign;
   }
 
-  async update(
-    id: string,
-    data: Partial<NewAdCampaign>,
-  ): Promise<AdCampaign | undefined> {
+  async update(id: string, data: Partial<NewAdCampaign>): Promise<AdCampaign | undefined> {
     const [updated] = await db
       .update(adCampaigns)
       .set({ ...data, updated_at: new Date() })
@@ -97,10 +86,7 @@ export class AdCampaignsRepository {
     return updated;
   }
 
-  async updateStatus(
-    id: string,
-    status: CampaignStatus,
-  ): Promise<AdCampaign | undefined> {
+  async updateStatus(id: string, status: CampaignStatus): Promise<AdCampaign | undefined> {
     return this.update(id, { status });
   }
 
@@ -121,10 +107,7 @@ export class AdCampaignsRepository {
     });
   }
 
-  async incrementSpend(
-    id: string,
-    creditsSpent: string,
-  ): Promise<AdCampaign | undefined> {
+  async incrementSpend(id: string, creditsSpent: string): Promise<AdCampaign | undefined> {
     const [updated] = await db
       .update(adCampaigns)
       .set({

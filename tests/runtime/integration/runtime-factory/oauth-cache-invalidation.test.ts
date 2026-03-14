@@ -2,25 +2,24 @@
  * OAuth Cache Invalidation Integration Tests
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { v4 as uuidv4 } from "uuid";
+import type { UserContext } from "../../../../lib/eliza/user-context";
+import { entitySettingsCache } from "../../../../lib/services/entity-settings/cache";
 import {
-  hasDatabaseUrl,
-  getConnectionString,
-  verifyConnection,
-  createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
-  runtimeFactory,
-  invalidateRuntime,
-  invalidateByOrganization,
-  isRuntimeCached,
   _testing,
   AgentMode,
   buildUserContext,
+  cleanupTestData,
+  createTestDataSet,
+  getConnectionString,
+  hasDatabaseUrl,
+  invalidateByOrganization,
+  isRuntimeCached,
+  runtimeFactory,
+  type TestDataSet,
+  verifyConnection,
 } from "../../../infrastructure";
-import { entitySettingsCache } from "../../../../lib/services/entity-settings/cache";
-import type { UserContext } from "../../../../lib/eliza/user-context";
-import { v4 as uuidv4 } from "uuid";
 
 const hasTavilyApiKey = Boolean(process.env.TAVILY_API_KEY);
 
@@ -64,13 +63,13 @@ async function setupEnvironment(): Promise<void> {
 async function cleanupEnvironment(): Promise<void> {
   console.log("\n🧹 Cleaning up...");
   if (testData) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(
-      (err) => console.warn(`Cleanup warning: ${err}`)
+    await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+      console.warn(`Cleanup warning: ${err}`),
     );
   }
   if (testData2) {
-    await cleanupTestData(connectionString, testData2.organization.id).catch(
-      (err) => console.warn(`Cleanup warning: ${err}`)
+    await cleanupTestData(connectionString, testData2.organization.id).catch((err) =>
+      console.warn(`Cleanup warning: ${err}`),
     );
   }
 }
@@ -135,7 +134,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
       agentMode: AgentMode.ASSISTANT,
       webSearchEnabled: true,
     });
-    const runtime2 = await runtimeFactory.createRuntimeForUser(userContext2);
+    const _runtime2 = await runtimeFactory.createRuntimeForUser(userContext2);
 
     expect(isRuntimeCached(runtime1.agentId as string)).toBe(true);
     // Note: webSearch runtime may have different cache key format
@@ -155,14 +154,14 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
       agentMode: AgentMode.ASSISTANT,
       webSearchEnabled: false,
     });
-    const runtime1 = await runtimeFactory.createRuntimeForUser(userContext1);
+    const _runtime1 = await runtimeFactory.createRuntimeForUser(userContext1);
 
     // Create runtime for org 2
     const userContext2 = buildUserContext(testData2, {
       agentMode: AgentMode.ASSISTANT,
       webSearchEnabled: false,
     });
-    const runtime2 = await runtimeFactory.createRuntimeForUser(userContext2);
+    const _runtime2 = await runtimeFactory.createRuntimeForUser(userContext2);
 
     // Get cache stats before
     const statsBefore = _testing.getRuntimeCache().getStats();
@@ -190,7 +189,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
       agentMode: AgentMode.ASSISTANT,
       webSearchEnabled: false,
     });
-    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+    const _runtime = await runtimeFactory.createRuntimeForUser(userContext);
 
     const statsBefore = _testing.getRuntimeCache().getStats();
     expect(statsBefore.size).toBeGreaterThan(0);
@@ -227,10 +226,10 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
 
     // Try with various invalid org IDs (not valid UUID format)
     const invalidIds = [
-      "",                                    // empty
-      "abc",                                 // too short
-      "not-a-uuid-at-all",                   // wrong format
-      "12345678-1234-1234-1234-123456789",   // too short (35 chars)
+      "", // empty
+      "abc", // too short
+      "not-a-uuid-at-all", // wrong format
+      "12345678-1234-1234-1234-123456789", // too short (35 chars)
       "12345678-1234-1234-1234-1234567890123", // too long (37 chars)
       "ZZZZZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZZZZZZZZZ", // invalid hex chars
       testData.organization.id.substring(0, 8), // partial UUID
@@ -417,7 +416,7 @@ describe.skipIf(!hasDatabaseUrl)("Edge cases and error handling", () => {
       agentMode: AgentMode.ASSISTANT,
       webSearchEnabled: false,
     });
-    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+    const _runtime = await runtimeFactory.createRuntimeForUser(userContext);
     const orgId = testData.organization.id;
 
     // First invalidation
@@ -440,12 +439,7 @@ describe.skipIf(!hasDatabaseUrl)("Edge cases and error handling", () => {
 
   it("should handle special characters in organization ID", async () => {
     // These should not match any real cache keys
-    const specialIds = [
-      "::",
-      ":::ws",
-      "test:org:extra",
-      "../../../etc/passwd",
-    ];
+    const specialIds = ["::", ":::ws", "test:org:extra", "../../../etc/passwd"];
 
     for (const id of specialIds) {
       const removed = await invalidateByOrganization(id);

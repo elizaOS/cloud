@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
-import { appCleanupService } from "@/lib/services/app-cleanup";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { appCleanupService } from "@/lib/services/app-cleanup";
+import { appsService } from "@/lib/services/apps";
+import { logger } from "@/lib/utils/logger";
 
 // Helper to allow empty strings (transform to null to clear) and omitted fields (undefined)
 // - Omitted field → undefined (Drizzle skips, keeps old value)
 // - Empty string "" → null (Drizzle sets NULL, clears the value)
 // - Valid URL → the URL string
-const optionalUrl = z.preprocess(
-  (val) => (val === "" ? null : val),
-  z.string().url().nullish(),
-);
+const optionalUrl = z.preprocess((val) => (val === "" ? null : val), z.string().url().nullish());
 
 const optionalEmail = z.preprocess(
   (val) => (val === "" ? null : val),
@@ -40,10 +37,7 @@ const UpdateAppSchema = z.object({
  * @param params - Route parameters containing the app ID.
  * @returns App details.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -51,17 +45,11 @@ export async function GET(
     const app = await appsService.getById(id);
 
     if (!app) {
-      return NextResponse.json(
-        { success: false, error: "App not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
     }
 
     if (app.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "Access denied" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
     return NextResponse.json({ success: true, app });
@@ -86,10 +74,7 @@ export async function GET(
  * @param params - Route parameters containing the app ID.
  * @returns Updated app details.
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -97,17 +82,11 @@ export async function PUT(
     const existingApp = await appsService.getById(id);
 
     if (!existingApp) {
-      return NextResponse.json(
-        { success: false, error: "App not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
     }
 
     if (existingApp.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "Access denied" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -159,10 +138,7 @@ export async function PUT(
  * @param params - Route parameters containing the app ID.
  * @returns Updated app details.
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -170,17 +146,11 @@ export async function PATCH(
     const existingApp = await appsService.getById(id);
 
     if (!existingApp) {
-      return NextResponse.json(
-        { success: false, error: "App not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
     }
 
     if (existingApp.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "Access denied" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -249,24 +219,17 @@ export async function DELETE(
     const existingApp = await appsService.getById(id);
 
     if (!existingApp) {
-      return NextResponse.json(
-        { success: false, error: "App not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
     }
 
     if (existingApp.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "Access denied" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
     // Parse optional query params for cleanup options
     const searchParams = request.nextUrl.searchParams;
     const deleteGitHubRepo = searchParams.get("deleteGitHubRepo") !== "false";
-    const deleteVercelProject =
-      searchParams.get("deleteVercelProject") !== "false";
+    const deleteVercelProject = searchParams.get("deleteVercelProject") !== "false";
 
     // Perform comprehensive cleanup and delete
     const cleanupResult = await appCleanupService.deleteAppWithCleanup(id, {
@@ -289,8 +252,7 @@ export async function DELETE(
         ? "App deleted successfully with all resources cleaned up"
         : "App deleted with some cleanup errors",
       cleaned: cleanupResult.cleaned,
-      errors:
-        cleanupResult.errors.length > 0 ? cleanupResult.errors : undefined,
+      errors: cleanupResult.errors.length > 0 ? cleanupResult.errors : undefined,
     });
   } catch (error) {
     logger.error("Failed to delete app:", error);

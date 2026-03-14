@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   try {
     const changes = await dockerNodeManager.syncAllocatedCounts();
     const changesObj = Object.fromEntries(
-      Array.from(changes.entries()).map(([nodeId, diff]) => [nodeId, diff])
+      Array.from(changes.entries()).map(([nodeId, diff]) => [nodeId, diff]),
     );
 
     logger.info("[Admin Docker Sync] Allocated count sync completed", {

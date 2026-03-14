@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import crypto from "crypto";
 import { blooioAdapter } from "../../src/adapters/blooio";
-import type { WebhookConfig, ChatEvent } from "../../src/adapters/types";
+import type { ChatEvent, WebhookConfig } from "../../src/adapters/types";
 
 function computeBlooioSignature(
   secret: string,
@@ -9,10 +9,7 @@ function computeBlooioSignature(
   timestamp = Math.floor(Date.now() / 1000),
 ): string {
   const signedPayload = `${timestamp}.${rawBody}`;
-  const hmac = crypto
-    .createHmac("sha256", secret)
-    .update(signedPayload)
-    .digest("hex");
+  const hmac = crypto.createHmac("sha256", secret).update(signedPayload).digest("hex");
   return `t=${timestamp},v1=${hmac}`;
 }
 
@@ -55,9 +52,7 @@ describe("blooioAdapter", () => {
         method: "POST",
         headers: { "x-blooio-signature": sig },
       });
-      expect(await blooioAdapter.verifyWebhook(req, rawBody, config)).toBe(
-        true,
-      );
+      expect(await blooioAdapter.verifyWebhook(req, rawBody, config)).toBe(true);
     });
 
     test("rejects tampered body", async () => {
@@ -74,9 +69,7 @@ describe("blooioAdapter", () => {
         headers: { "x-blooio-signature": sig },
       });
       // Pass different body than what was signed
-      expect(
-        await blooioAdapter.verifyWebhook(req, '{"tampered":true}', config),
-      ).toBe(false);
+      expect(await blooioAdapter.verifyWebhook(req, '{"tampered":true}', config)).toBe(false);
     });
 
     test("rejects expired signature (>2min)", async () => {
@@ -93,9 +86,7 @@ describe("blooioAdapter", () => {
         method: "POST",
         headers: { "x-blooio-signature": sig },
       });
-      expect(await blooioAdapter.verifyWebhook(req, rawBody, config)).toBe(
-        false,
-      );
+      expect(await blooioAdapter.verifyWebhook(req, rawBody, config)).toBe(false);
     });
 
     test("rejects malformed signature header", async () => {
@@ -136,23 +127,17 @@ describe("blooioAdapter", () => {
 
     test("returns null for non message.received events", async () => {
       const payload = makeBlooioPayload({ event: "message.sent" });
-      expect(
-        await blooioAdapter.extractEvent(JSON.stringify(payload)),
-      ).toBeNull();
+      expect(await blooioAdapter.extractEvent(JSON.stringify(payload))).toBeNull();
     });
 
     test("returns null for group messages", async () => {
       const payload = makeBlooioPayload({ is_group: true });
-      expect(
-        await blooioAdapter.extractEvent(JSON.stringify(payload)),
-      ).toBeNull();
+      expect(await blooioAdapter.extractEvent(JSON.stringify(payload))).toBeNull();
     });
 
     test("returns null for empty text and no attachments", async () => {
       const payload = makeBlooioPayload({ text: null, attachments: [] });
-      expect(
-        await blooioAdapter.extractEvent(JSON.stringify(payload)),
-      ).toBeNull();
+      expect(await blooioAdapter.extractEvent(JSON.stringify(payload))).toBeNull();
     });
 
     test("extracts media URLs from attachments", async () => {
@@ -237,16 +222,10 @@ describe("blooioAdapter", () => {
       await blooioAdapter.sendReply(config, makeEvent(), "Reply text");
 
       const [url, opts] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe(
-        "https://backend.blooio.com/v2/api/chats/%2B15551234567/messages",
-      );
+      expect(url).toBe("https://backend.blooio.com/v2/api/chats/%2B15551234567/messages");
       expect(opts.method).toBe("POST");
-      expect((opts.headers as Record<string, string>).Authorization).toBe(
-        "Bearer blooio-key",
-      );
-      expect((opts.headers as Record<string, string>)["X-From-Number"]).toBe(
-        "+18005551234",
-      );
+      expect((opts.headers as Record<string, string>).Authorization).toBe("Bearer blooio-key");
+      expect((opts.headers as Record<string, string>)["X-From-Number"]).toBe("+18005551234");
       expect(JSON.parse(opts.body as string)).toEqual({ text: "Reply text" });
     });
 
@@ -254,16 +233,18 @@ describe("blooioAdapter", () => {
       const config: WebhookConfig = { agentId: "a", apiKey: "blooio-key" };
       await blooioAdapter.sendReply(config, makeEvent(), "Reply");
 
-      const headers = (fetchSpy.mock.calls[0] as [string, RequestInit])[1]
-        .headers as Record<string, string>;
+      const headers = (fetchSpy.mock.calls[0] as [string, RequestInit])[1].headers as Record<
+        string,
+        string
+      >;
       expect(headers["X-From-Number"]).toBeUndefined();
     });
 
     test("throws when apiKey is missing", async () => {
       const config: WebhookConfig = { agentId: "a" };
-      expect(
-        blooioAdapter.sendReply(config, makeEvent(), "reply"),
-      ).rejects.toThrow("Missing apiKey");
+      expect(blooioAdapter.sendReply(config, makeEvent(), "reply")).rejects.toThrow(
+        "Missing apiKey",
+      );
     });
 
     test("throws on non-ok response", async () => {
@@ -272,9 +253,9 @@ describe("blooioAdapter", () => {
         new Response("Rate limited", { status: 429 }),
       );
       const config: WebhookConfig = { agentId: "a", apiKey: "key" };
-      expect(
-        blooioAdapter.sendReply(config, makeEvent(), "reply"),
-      ).rejects.toThrow("Blooio send error (429)");
+      expect(blooioAdapter.sendReply(config, makeEvent(), "reply")).rejects.toThrow(
+        "Blooio send error (429)",
+      );
     });
   });
 
@@ -302,9 +283,7 @@ describe("blooioAdapter", () => {
       await blooioAdapter.sendTypingIndicator(config, makeEvent());
 
       const [url, opts] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe(
-        "https://backend.blooio.com/v2/api/chats/%2B15551234567/read",
-      );
+      expect(url).toBe("https://backend.blooio.com/v2/api/chats/%2B15551234567/read");
       expect(opts.method).toBe("POST");
     });
 

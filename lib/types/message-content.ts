@@ -2,8 +2,8 @@
  * Shared type definitions for message content structures
  */
 
+import type { BaseMetadata, Media } from "@elizaos/core";
 import { MemoryType } from "@elizaos/core";
-import type { Content, Media, BaseMetadata } from "@elizaos/core";
 
 /**
  * Message content with text, attachments, and source metadata
@@ -36,9 +36,7 @@ export function hasAttachments(
 /**
  * Type guard to check if content has text
  */
-export function hasText(
-  content: unknown,
-): content is MessageContent & { text: string } {
+export function hasText(content: unknown): content is MessageContent & { text: string } {
   return (
     typeof content === "object" &&
     content !== null &&
@@ -156,9 +154,7 @@ export interface LegacyDialogueMetadata {
 /**
  * Type guard to check if metadata is new DialogueMetadata format
  */
-export function isDialogueMetadata(
-  metadata: unknown,
-): metadata is DialogueMetadata {
+export function isDialogueMetadata(metadata: unknown): metadata is DialogueMetadata {
   if (!metadata || typeof metadata !== "object") return false;
   const meta = metadata as Record<string, unknown>;
   return (
@@ -171,16 +167,12 @@ export function isDialogueMetadata(
 /**
  * Type guard to check if metadata is legacy format
  */
-export function isLegacyDialogueMetadata(
-  metadata: unknown,
-): metadata is LegacyDialogueMetadata {
+export function isLegacyDialogueMetadata(metadata: unknown): metadata is LegacyDialogueMetadata {
   if (!metadata || typeof metadata !== "object") return false;
   const meta = metadata as Record<string, unknown>;
   return (
     typeof meta.type === "string" &&
-    ["user_message", "agent_response_message", "action_result"].includes(
-      meta.type as string,
-    )
+    ["user_message", "agent_response_message", "action_result"].includes(meta.type as string)
   );
 }
 
@@ -188,10 +180,7 @@ export function isLegacyDialogueMetadata(
  * Helper to check if a message should be visible in conversation logs
  * Supports both new and legacy formats for backwards compatibility
  */
-export function isVisibleDialogueMessage(
-  metadata: unknown,
-  content?: unknown,
-): boolean {
+export function isVisibleDialogueMessage(metadata: unknown, content?: unknown): boolean {
   // Check content.type for action_result (all formats)
   if (content && typeof content === "object") {
     const c = content as Record<string, unknown>;
@@ -210,18 +199,12 @@ export function isVisibleDialogueMessage(
 
   // New format
   if (isDialogueMetadata(metadata)) {
-    return (
-      metadata.visibility !== "hidden" &&
-      metadata.dialogueType !== "action_result"
-    );
+    return metadata.visibility !== "hidden" && metadata.dialogueType !== "action_result";
   }
 
   // Legacy format
   if (isLegacyDialogueMetadata(metadata)) {
-    return (
-      metadata.type === "user_message" ||
-      metadata.type === "agent_response_message"
-    );
+    return metadata.type === "user_message" || metadata.type === "agent_response_message";
   }
 
   // Fallback: check content.source

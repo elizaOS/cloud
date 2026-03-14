@@ -24,20 +24,14 @@
  * - A pre-connected Google account for token tests
  */
 
-import {
-  describe,
-  it as bunIt,
-  expect,
-  beforeAll,
-  afterAll,
-} from "bun:test";
+import { afterAll, beforeAll, it as bunIt, describe, expect } from "bun:test";
 import { Client } from "pg";
+import { createEncryptionService } from "@/lib/services/secrets/encryption";
 import {
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   type TestDataSet,
 } from "../infrastructure/test-data-factory";
-import { createEncryptionService } from "@/lib/services/secrets/encryption";
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
@@ -80,8 +74,7 @@ function hasUsableCacheConfig(): boolean {
 const CACHE_CONFIGURED = hasUsableCacheConfig();
 const encryptionService = createEncryptionService();
 let secretsClient: Client | null = null;
-const it = (name: string, fn: () => unknown | Promise<unknown>) =>
-  bunIt(name, fn, TIMEOUT);
+const it = (name: string, fn: () => unknown | Promise<unknown>) => bunIt(name, fn, TIMEOUT);
 
 describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   let testData: TestDataSet;
@@ -104,10 +97,9 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
 
   afterAll(async () => {
     // Clean up platform credentials and secrets
-    await client.query(
-      `DELETE FROM platform_credentials WHERE organization_id = $1`,
-      [testData.organization.id],
-    );
+    await client.query(`DELETE FROM platform_credentials WHERE organization_id = $1`, [
+      testData.organization.id,
+    ]);
     await client.query(`DELETE FROM secrets WHERE organization_id = $1`, [
       testData.organization.id,
     ]);
@@ -131,9 +123,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       expect(Array.isArray(data.providers)).toBe(true);
 
       // Should include expected providers
-      const providerIds = data.providers.map(
-        (p: { id: string }) => p.id,
-      );
+      const providerIds = data.providers.map((p: { id: string }) => p.id);
       expect(providerIds).toContain("google");
       expect(providerIds).toContain("twitter");
       expect(providerIds).toContain("twilio");
@@ -161,9 +151,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       const response = await fetch(`${BASE_URL}/api/v1/oauth/providers`);
       const data = await response.json();
 
-      const googleProvider = data.providers.find(
-        (p: { id: string }) => p.id === "google",
-      );
+      const googleProvider = data.providers.find((p: { id: string }) => p.id === "google");
 
       // Google should be configured if GOOGLE_CLIENT_ID is set
       if (process.env.GOOGLE_CLIENT_ID) {
@@ -440,15 +428,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     });
 
     it("should filter by platform when specified", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections?platform=google`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -486,31 +471,24 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections?platform=google`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data.connections.length).toBeGreaterThan(0);
 
-      const googleConn = data.connections.find(
-        (c: { id: string }) => c.id === credId,
-      );
+      const googleConn = data.connections.find((c: { id: string }) => c.id === credId);
       expect(googleConn).toBeDefined();
       expect(googleConn.platform).toBe("google");
       expect(googleConn.source).toBe("platform_credentials");
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
-        credId,
-      ]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
     it("should return connections from secrets (Twitter)", async () => {
@@ -534,15 +512,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         "testuser",
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections?platform=twitter`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=twitter`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -576,15 +551,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         "test_auth_token",
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections?platform=twilio`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=twilio`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -611,15 +583,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         "test_blooio_key",
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections?platform=blooio`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=blooio`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -657,15 +626,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId2, testData.organization.id, now],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections?platform=google`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -675,10 +641,10 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       const firstConn = data.connections[0];
       expect(firstConn.platformUserId).toBe("user-recent");
 
-      await client.query(
-        `DELETE FROM platform_credentials WHERE id IN ($1, $2)`,
-        [credId1, credId2],
-      );
+      await client.query(`DELETE FROM platform_credentials WHERE id IN ($1, $2)`, [
+        credId1,
+        credId2,
+      ]);
     });
 
     it("should return connections with all expected fields", async () => {
@@ -694,15 +660,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -736,15 +699,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, testData.organization.id, expiredTime],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -759,26 +719,20 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   // ============================================================================
   describe("GET /api/v1/oauth/connections/:id", () => {
     it("should return 401 without authentication", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/some-id`,
-        {
-          signal: AbortSignal.timeout(TIMEOUT),
-        },
-      );
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/some-id`, {
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(401);
     });
 
     it("should return 404 for non-existent connection", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${crypto.randomUUID()}`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${crypto.randomUUID()}`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(404);
       const data = await response.json();
@@ -786,29 +740,23 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     });
 
     it("should return 404 for malformed UUID connection ID", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/not-a-valid-uuid`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/not-a-valid-uuid`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(404);
     });
 
     it("should return 404 for empty connection ID", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       // Should either be 404 or redirect to connections list
       expect([200, 404, 308]).toContain(response.status);
@@ -824,15 +772,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -842,9 +787,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       expect(data.connection.email).toBe("test2@gmail.com");
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
-        credId,
-      ]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
     it("should return connection for secrets-based adapter (Twitter)", async () => {
@@ -862,15 +805,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       const connectionId = `twitter:${testData.organization.id}`;
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -900,15 +840,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       // Try to access with our API key
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(404);
 
@@ -923,28 +860,22 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   // ============================================================================
   describe("DELETE /api/v1/oauth/connections/:id", () => {
     it("should return 401 without authentication", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/some-id`,
-        {
-          method: "DELETE",
-          signal: AbortSignal.timeout(TIMEOUT),
-        },
-      );
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/some-id`, {
+        method: "DELETE",
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(401);
     });
 
     it("should return 404 for non-existent connection", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${crypto.randomUUID()}`,
-        {
-          method: "DELETE",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${crypto.randomUUID()}`, {
+        method: "DELETE",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(404);
     });
@@ -959,16 +890,13 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        method: "DELETE",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -983,9 +911,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       expect(result.rows[0].revoked_at).toBeDefined();
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
-        credId,
-      ]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
     it("should delete Twitter secrets when revoking", async () => {
@@ -1004,16 +930,13 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       const connectionId = `twitter:${testData.organization.id}`;
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}`, {
+        method: "DELETE",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
 
@@ -1046,16 +969,13 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       const connectionId = `twilio:${testData.organization.id}`;
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}`, {
+        method: "DELETE",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
 
@@ -1081,16 +1001,13 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       const connectionId = `blooio:${testData.organization.id}`;
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}`, {
+        method: "DELETE",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
 
@@ -1115,24 +1032,20 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, otherOrg.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        method: "DELETE",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(404);
 
       // Verify connection was not deleted
-      const result = await client.query(
-        `SELECT status FROM platform_credentials WHERE id = $1`,
-        [credId],
-      );
+      const result = await client.query(`SELECT status FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
       expect(result.rows[0].status).toBe("active");
 
       // Cleanup
@@ -1146,12 +1059,9 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   // ============================================================================
   describe("GET /api/v1/oauth/connections/:id/token", () => {
     it("should return 401 without authentication", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/some-id/token`,
-        {
-          signal: AbortSignal.timeout(TIMEOUT),
-        },
-      );
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/some-id/token`, {
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(401);
     });
@@ -1186,15 +1096,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       const connectionId = `twitter:${testData.organization.id}`;
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -1227,15 +1134,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       const connectionId = `twilio:${testData.organization.id}`;
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -1258,15 +1162,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       const connectionId = `blooio:${testData.organization.id}`;
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -1288,15 +1189,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(401);
       const data = await response.json();
@@ -1315,15 +1213,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(401);
       const data = await response.json();
@@ -1341,15 +1236,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(401);
       const data = await response.json();
@@ -1368,15 +1260,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       const connectionId = `twitter:${testData.organization.id}`;
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       // Should still work - accessTokenSecret can be optional
       expect(response.status).toBe(200);
@@ -1390,13 +1279,13 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     it("should handle missing required secrets for Twilio", async () => {
       // Clean up any existing Twilio secrets and invalidate cache by revoking
       const connectionId = `twilio:${testData.organization.id}`;
-      
+
       // First delete any existing secrets
       await client.query(
         `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWILIO_%'`,
         [testData.organization.id],
       );
-      
+
       // Now insert only account SID, missing auth token
       await createTestSecret(
         testData.organization.id,
@@ -1406,17 +1295,14 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       // Wait a moment for cache to potentially expire
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       // Note: Due to caching, this might return 200 if a previous test
       // cached a valid token. In production, the cache would have been
@@ -1453,15 +1339,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     });
 
     it("should return error for unsupported platform", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/token/unsupported`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/token/unsupported`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(400);
       const data = await response.json();
@@ -1523,7 +1406,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
         [testData.organization.id],
       );
-      
+
       await createTestSecret(
         testData.organization.id,
         testData.user.id,
@@ -1563,7 +1446,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'BLOOIO_%'`,
         [testData.organization.id],
       );
-      
+
       await createTestSecret(
         testData.organization.id,
         testData.user.id,
@@ -1626,10 +1509,10 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
 
       // This test would fail without real Google credentials
       // but we can check the platform logic by examining revoked connections
-      await client.query(
-        `DELETE FROM platform_credentials WHERE id IN ($1, $2)`,
-        [credId1, credId2],
-      );
+      await client.query(`DELETE FROM platform_credentials WHERE id IN ($1, $2)`, [
+        credId1,
+        credId2,
+      ]);
     });
 
     it("should skip revoked connections when getting token by platform", async () => {
@@ -1671,15 +1554,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(401);
       const data = await response.json();
@@ -1687,9 +1567,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       expect(data.code).toBe("CONNECTION_REVOKED");
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
-        credId,
-      ]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
     it("should handle invalid JSON in request body", async () => {
@@ -1740,26 +1618,18 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     });
 
     it("should return CONNECTION_NOT_FOUND for all invalid connection formats", async () => {
-      const invalidIds = [
-        "invalid",
-        "12345",
-        "null",
-        "undefined",
-      ];
+      const invalidIds = ["invalid", "12345", "null", "undefined"];
 
       for (const invalidId of invalidIds) {
-        const response = await fetch(
-          `${BASE_URL}/api/v1/oauth/connections/${invalidId}/token`,
-          {
-            headers: {
-              "X-API-Key": testData.apiKey.key,
-            },
-            signal: AbortSignal.timeout(TIMEOUT),
+        const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${invalidId}/token`, {
+          headers: {
+            "X-API-Key": testData.apiKey.key,
           },
-        );
+          signal: AbortSignal.timeout(TIMEOUT),
+        });
 
         expect(response.status).toBe(404);
-        
+
         // Try to parse JSON, but handle cases where it might not be JSON
         const text = await response.text();
         try {
@@ -1783,7 +1653,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
         [testData.organization.id],
       );
-      
+
       // Insert fresh secrets
       await createTestSecret(
         testData.organization.id,
@@ -1801,30 +1671,24 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       const connectionId = `twitter:${testData.organization.id}`;
 
       // First request - should not be from cache (fresh secrets)
-      const response1 = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response1 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
       expect(response1.status).toBe(200);
-      const data1 = await response1.json();
+      const _data1 = await response1.json();
       // Note: Due to test isolation issues with cache, we just verify the second request is cached
       // The first request may or may not be from cache depending on test order
 
       // Second request - should be from cache
-      const response2 = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response2 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
       expect(response2.status).toBe(200);
       const data2 = await response2.json();
       expect(data2.fromCache).toBe(CACHE_CONFIGURED);
@@ -1852,26 +1716,20 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
 
       const connectionId = `twitter:${testData.organization.id}`;
 
-      const response1 = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response1 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
       const data1 = await response1.json();
 
-      const response2 = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response2 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
       const data2 = await response2.json();
 
       expect(data1.accessToken).toBe(data2.accessToken);
@@ -1900,40 +1758,31 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       const connectionId = `twitter:${testData.organization.id}`;
 
       // Get token to populate cache
-      const response1 = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response1 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
       expect(response1.status).toBe(200);
 
       // Revoke connection
-      const revokeResponse = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const revokeResponse = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}`, {
+        method: "DELETE",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
       expect(revokeResponse.status).toBe(200);
 
       // Try to get token again - should fail since secrets are deleted
-      const response2 = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response2 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
       expect(response2.status).toBe(401);
     });
   });
@@ -1959,17 +1808,16 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       const connectionId = `twitter:${testData.organization.id}`;
 
       // Make 5 concurrent requests
-      const requests = Array(5).fill(null).map(() =>
-        fetch(
-          `${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`,
-          {
+      const requests = Array(5)
+        .fill(null)
+        .map(() =>
+          fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
             headers: {
               "X-API-Key": testData.apiKey.key,
             },
             signal: AbortSignal.timeout(TIMEOUT),
-          },
-        ).then(r => r.json()),
-      );
+          }).then((r) => r.json()),
+        );
 
       const results = await Promise.all(requests);
 
@@ -1985,17 +1833,16 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     });
 
     it("should handle concurrent connection list requests", async () => {
-      const requests = Array(5).fill(null).map(() =>
-        fetch(
-          `${BASE_URL}/api/v1/oauth/connections`,
-          {
+      const requests = Array(5)
+        .fill(null)
+        .map(() =>
+          fetch(`${BASE_URL}/api/v1/oauth/connections`, {
             headers: {
               "X-API-Key": testData.apiKey.key,
             },
             signal: AbortSignal.timeout(TIMEOUT),
-          },
-        ).then(r => r.json()),
-      );
+          }).then((r) => r.json()),
+        );
 
       const results = await Promise.all(requests);
 
@@ -2026,18 +1873,15 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       }
 
       // List connections should return all statuses
-      const listResponse = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections?platform=google`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const listResponse = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
       expect(listResponse.status).toBe(200);
       const listData = await listResponse.json();
-      
+
       for (const status of statuses) {
         const conn = listData.connections.find(
           (c: { platformUserId: string }) => c.platformUserId === `user-${status}`,
@@ -2047,10 +1891,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       }
 
       // Cleanup
-      await client.query(
-        `DELETE FROM platform_credentials WHERE id = ANY($1)`,
-        [credIds],
-      );
+      await client.query(`DELETE FROM platform_credentials WHERE id = ANY($1)`, [credIds]);
     });
 
     it("should only return active connections when getting token by platform", async () => {
@@ -2073,10 +1914,10 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
 
       // Getting token by platform should use the active one
       // Note: This would fail without real Google credentials, so we clean up
-      await client.query(
-        `DELETE FROM platform_credentials WHERE id IN ($1, $2)`,
-        [activeCredId, revokedCredId],
-      );
+      await client.query(`DELETE FROM platform_credentials WHERE id IN ($1, $2)`, [
+        activeCredId,
+        revokedCredId,
+      ]);
     });
   });
 
@@ -2097,7 +1938,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
 
       const data = await response.json();
       const messageStr = JSON.stringify(data);
-      
+
       // Should not contain any token-like strings
       expect(messageStr).not.toMatch(/[A-Za-z0-9]{32,}/);
       expect(messageStr).not.toContain("Bearer");
@@ -2148,12 +1989,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     });
 
     it("should not allow invalid API keys", async () => {
-      const invalidKeys = [
-        "invalid_key",
-        "ek_test_invalid",
-        "",
-        "Bearer invalid",
-      ];
+      const invalidKeys = ["invalid_key", "ek_test_invalid", "", "Bearer invalid"];
 
       for (const key of invalidKeys) {
         const response = await fetch(`${BASE_URL}/api/v1/oauth/connections`, {
@@ -2188,10 +2024,10 @@ async function createTestSecret(
 
   const encrypted = await encryptionService.encrypt(value);
 
-  await secretsClient.query(
-    `DELETE FROM secrets WHERE organization_id = $1 AND name = $2`,
-    [organizationId, name],
-  );
+  await secretsClient.query(`DELETE FROM secrets WHERE organization_id = $1 AND name = $2`, [
+    organizationId,
+    name,
+  ]);
 
   await secretsClient.query(
     `INSERT INTO secrets

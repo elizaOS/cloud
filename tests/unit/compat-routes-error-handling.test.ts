@@ -68,13 +68,13 @@ mock.module("@/lib/security/outbound-url", () => ({
   assertSafeOutboundUrl: mock(),
 }));
 
-import { GET as getStatus } from "@/app/api/compat/agents/[id]/status/route";
 import { GET as getLogs } from "@/app/api/compat/agents/[id]/logs/route";
-import { POST as suspendAgent } from "@/app/api/compat/agents/[id]/suspend/route";
-import { POST as resumeAgent } from "@/app/api/compat/agents/[id]/resume/route";
 import { POST as restartAgent } from "@/app/api/compat/agents/[id]/restart/route";
-import { GET as getJob } from "@/app/api/compat/jobs/[jobId]/route";
+import { POST as resumeAgent } from "@/app/api/compat/agents/[id]/resume/route";
+import { GET as getStatus } from "@/app/api/compat/agents/[id]/status/route";
+import { POST as suspendAgent } from "@/app/api/compat/agents/[id]/suspend/route";
 import { POST as createAgent } from "@/app/api/compat/agents/route";
+import { GET as getJob } from "@/app/api/compat/jobs/[jobId]/route";
 
 function makeAuthFailRequest(path: string, method = "GET") {
   return new NextRequest(`https://example.com${path}`, {

@@ -7,21 +7,21 @@
 
 import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
-import { OAUTH_PROVIDERS, getProvider, isProviderConfigured } from "./provider-registry";
-import { getAllAdapters, getAdapter } from "./connection-adapters";
-import { tokenCache } from "./token-cache";
 import { getOAuthVersion, incrementOAuthVersion } from "./cache-version";
+import { getAdapter, getAllAdapters } from "./connection-adapters";
 import { Errors } from "./errors";
+import { getProvider, isProviderConfigured, OAUTH_PROVIDERS } from "./provider-registry";
 import { initiateOAuth2 } from "./providers";
+import { tokenCache } from "./token-cache";
 import type {
-  OAuthProviderInfo,
-  OAuthConnection,
-  TokenResult,
+  GetTokenByPlatformParams,
+  GetTokenParams,
   InitiateAuthParams,
   InitiateAuthResult,
   ListConnectionsParams,
-  GetTokenParams,
-  GetTokenByPlatformParams,
+  OAuthConnection,
+  OAuthProviderInfo,
+  TokenResult,
 } from "./types";
 
 const DEFAULT_REDIRECT = "/dashboard/settings?tab=connections";
@@ -73,15 +73,26 @@ class OAuthService {
     }
   }
 
-  private async initiateTwitterAuth(organizationId: string, userId: string, redirectUrl?: string): Promise<InitiateAuthResult> {
+  private async initiateTwitterAuth(
+    organizationId: string,
+    userId: string,
+    redirectUrl?: string,
+  ): Promise<InitiateAuthResult> {
     const { twitterAutomationService } = await import("@/lib/services/twitter-automation");
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-    const result = await twitterAutomationService.generateAuthLink(`${baseUrl}/api/v1/twitter/callback`);
+    const result = await twitterAutomationService.generateAuthLink(
+      `${baseUrl}/api/v1/twitter/callback`,
+    );
 
     await cache.set(
       `twitter_oauth:${result.oauthToken}`,
-      { organizationId, userId, oauthTokenSecret: result.oauthTokenSecret, redirectUrl: redirectUrl || DEFAULT_REDIRECT },
+      {
+        organizationId,
+        userId,
+        oauthTokenSecret: result.oauthTokenSecret,
+        redirectUrl: redirectUrl || DEFAULT_REDIRECT,
+      },
       STATE_TTL,
     );
 
@@ -92,11 +103,15 @@ class OAuthService {
   async listConnections(params: ListConnectionsParams): Promise<OAuthConnection[]> {
     const { organizationId, platform } = params;
     const adapters = platform ? [getAdapter(platform)].filter(Boolean) : getAllAdapters();
-    const results = await Promise.allSettled(adapters.map((a) => a!.listConnections(organizationId)));
+    const results = await Promise.allSettled(
+      adapters.map((a) => a!.listConnections(organizationId)),
+    );
 
     const connections = results.flatMap((r) => {
       if (r.status === "fulfilled") return r.value;
-      logger.warn("[OAuthService] Adapter query failed", { error: r.reason?.message || String(r.reason) });
+      logger.warn("[OAuthService] Adapter query failed", {
+        error: r.reason?.message || String(r.reason),
+      });
       return [];
     });
 
@@ -126,7 +141,11 @@ class OAuthService {
     const version = await incrementOAuthVersion(organizationId, adapter.platform);
     await tokenCache.invalidate(organizationId, connectionId, version);
 
-    logger.info("[OAuthService] Connection revoked", { organizationId, connectionId, platform: adapter.platform });
+    logger.info("[OAuthService] Connection revoked", {
+      organizationId,
+      connectionId,
+      platform: adapter.platform,
+    });
   }
 
   /** Get a valid access token for a connection (uses cache with version counter) */
@@ -171,7 +190,11 @@ class OAuthService {
     const activeConnection = this.getMostRecentActive(connections);
     if (!activeConnection) throw Errors.platformNotConnected(platform);
 
-    const token = await this.getValidToken({ organizationId, connectionId: activeConnection.id, platform });
+    const token = await this.getValidToken({
+      organizationId,
+      connectionId: activeConnection.id,
+      platform,
+    });
     return { token, connectionId: activeConnection.id };
   }
 

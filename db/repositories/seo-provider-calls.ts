@@ -1,12 +1,8 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "../client";
-import {
-  seoProviderCalls,
-  type SeoProviderCall,
-  type NewSeoProviderCall,
-} from "../schemas/seo";
+import { type NewSeoProviderCall, type SeoProviderCall, seoProviderCalls } from "../schemas/seo";
 
-export type { SeoProviderCall, NewSeoProviderCall };
+export type { NewSeoProviderCall, SeoProviderCall };
 
 export class SeoProviderCallsRepository {
   async listByRequest(requestId: string): Promise<SeoProviderCall[]> {

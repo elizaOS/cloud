@@ -7,8 +7,8 @@
  */
 "use client";
 
+import { AlertCircle, CheckCircle2, Clock, Loader2 } from "lucide-react";
 import { StatusBadge } from "../status-badge";
-import { Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
 interface VoiceStatusBadgeProps {
   voice: {
@@ -21,47 +21,34 @@ interface VoiceStatusBadgeProps {
 export function VoiceStatusBadge({ voice }: VoiceStatusBadgeProps) {
   // Instant voices are ready immediately
   if (voice.cloneType === "instant") {
-    return (
-      <StatusBadge status="success" label="Ready" icon={<CheckCircle2 />} />
-    );
+    return <StatusBadge status="success" label="Ready" icon={<CheckCircle2 />} />;
   }
 
   // Professional voice status
   if (voice.status === "failed") {
-    return (
-      <StatusBadge status="error" label="Failed" icon={<AlertCircle />} />
-    );
+    return <StatusBadge status="error" label="Failed" icon={<AlertCircle />} />;
   }
 
   // Calculate time elapsed safely
   const createdAt = new Date(voice.createdAt);
   const now = new Date();
-  const minutesElapsed = Math.max(
-    0,
-    (now.getTime() - createdAt.getTime()) / 1000 / 60,
-  );
+  const minutesElapsed = Math.max(0, (now.getTime() - createdAt.getTime()) / 1000 / 60);
 
   const minProcessingTime = 30; // 30 minutes minimum
   const maxProcessingTime = 60; // 60 minutes maximum
 
   if (minutesElapsed >= maxProcessingTime) {
     // Over 60 minutes - should be ready
-    return (
-      <StatusBadge status="success" label="Ready" icon={<CheckCircle2 />} />
-    );
+    return <StatusBadge status="success" label="Ready" icon={<CheckCircle2 />} />;
   }
 
   if (minutesElapsed >= minProcessingTime) {
     // Between 30-60 minutes - finalizing
-    return (
-      <StatusBadge status="warning" label="Finalizing" icon={<Clock />} />
-    );
+    return <StatusBadge status="warning" label="Finalizing" icon={<Clock />} />;
   }
 
   // Still processing (under 30 minutes)
-  return (
-    <StatusBadge status="processing" label="Processing" icon={<Loader2 />} />
-  );
+  return <StatusBadge status="processing" label="Processing" icon={<Loader2 />} />;
 }
 
 export function getEstimatedReadyMessage(voice: {
@@ -76,10 +63,7 @@ export function getEstimatedReadyMessage(voice: {
   // Professional voice
   const createdAt = new Date(voice.createdAt);
   const now = new Date();
-  const minutesElapsed = Math.max(
-    0,
-    (now.getTime() - createdAt.getTime()) / 1000 / 60,
-  );
+  const minutesElapsed = Math.max(0, (now.getTime() - createdAt.getTime()) / 1000 / 60);
 
   const minMinutes = 30;
   const maxMinutes = 60;

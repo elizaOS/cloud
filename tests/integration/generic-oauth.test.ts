@@ -20,11 +20,11 @@
  * - State parameter validation
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { Client } from "pg";
 import {
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   type TestDataSet,
 } from "../infrastructure/test-data-factory";
 
@@ -55,10 +55,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       return;
     }
 
-    await client.query(
-      `DELETE FROM platform_credentials WHERE organization_id = $1`,
-      [testData.organization.id],
-    );
+    await client.query(`DELETE FROM platform_credentials WHERE organization_id = $1`, [
+      testData.organization.id,
+    ]);
     await client.end();
     await cleanupTestData(TEST_DB_URL, testData.organization.id);
   });
@@ -78,17 +77,14 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should return PLATFORM_NOT_SUPPORTED for unknown platform", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/unknownplatform/initiate`,
-        {
-          method: "POST",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/unknownplatform/initiate`, {
+        method: "POST",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
+          "Content-Type": "application/json",
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(400);
       const data = await response.json();
@@ -142,7 +138,7 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       // Should either work (if configured) or return PLATFORM_NOT_CONFIGURED (not PLATFORM_NOT_SUPPORTED)
       const data = await response.json();
       expect(["PLATFORM_NOT_CONFIGURED", "authUrl"]).toContain(
-        data.error || (data.authUrl ? "authUrl" : undefined)
+        data.error || (data.authUrl ? "authUrl" : undefined),
       );
     });
 
@@ -327,17 +323,14 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
     it("should handle very long platform names", async () => {
       const longPlatform = "a".repeat(1000);
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/${longPlatform}/initiate`,
-        {
-          method: "POST",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/${longPlatform}/initiate`, {
+        method: "POST",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
+          "Content-Type": "application/json",
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(400);
       const data = await response.json();
@@ -345,17 +338,14 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should handle platform with special characters", async () => {
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/linear<script>/initiate`,
-        {
-          method: "POST",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear<script>/initiate`, {
+        method: "POST",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
+          "Content-Type": "application/json",
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(400);
     });
@@ -474,13 +464,10 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         return;
       }
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/linear/callback?state=test`,
-        {
-          redirect: "manual",
-          signal: AbortSignal.timeout(TIMEOUT),
-        },
-      );
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/callback?state=test`, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       if (response.status === 401) {
         console.log("Skipping: [platform] routes not compiled - restart dev server");
@@ -498,13 +485,10 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         return;
       }
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/linear/callback?code=test`,
-        {
-          redirect: "manual",
-          signal: AbortSignal.timeout(TIMEOUT),
-        },
-      );
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/callback?code=test`, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       if (response.status === 401) {
         console.log("Skipping: [platform] routes not compiled - restart dev server");
@@ -567,15 +551,14 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
     it("should handle rate limiting", async () => {
       const responses = await Promise.all(
-        Array(15).fill(null).map(() =>
-          fetch(
-            `${BASE_URL}/api/v1/oauth/linear/callback?code=test&state=test`,
-            {
+        Array(15)
+          .fill(null)
+          .map(() =>
+            fetch(`${BASE_URL}/api/v1/oauth/linear/callback?code=test&state=test`, {
               redirect: "manual",
               signal: AbortSignal.timeout(TIMEOUT),
-            },
+            }),
           ),
-        ),
       );
 
       const statuses = responses.map((r) => r.status);
@@ -638,18 +621,15 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       ];
 
       for (const path of validPaths) {
-        const response = await fetch(
-          `${BASE_URL}/api/v1/oauth/linear/initiate`,
-          {
-            method: "POST",
-            headers: {
-              "X-API-Key": testData.apiKey.key,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ redirectUrl: path }),
-            signal: AbortSignal.timeout(TIMEOUT),
+        const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
           },
-        );
+          body: JSON.stringify({ redirectUrl: path }),
+          signal: AbortSignal.timeout(TIMEOUT),
+        });
 
         // Should accept valid paths
         expect(response.status === 200 || response.status === 503).toBe(true);
@@ -663,15 +643,12 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
   describe("Generic Adapter via Connections API", () => {
     it("should list connections for generic providers", async () => {
       // Test that the generic adapter correctly lists connections
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections?platform=linear`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=linear`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -692,15 +669,12 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -722,26 +696,22 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        method: "DELETE",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data.success).toBe(true);
 
       // Verify status changed to revoked
-      const result = await client.query(
-        `SELECT status FROM platform_credentials WHERE id = $1`,
-        [credId],
-      );
+      const result = await client.query(`SELECT status FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
       expect(result.rows[0].status).toBe("revoked");
 
       // Cleanup
@@ -758,15 +728,12 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       // Should return error because no access token secret is stored
       // 400 = TOKEN_REFRESH_FAILED, 401 = route requires different auth
@@ -789,15 +756,12 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       // Should return error because connection is revoked
       // 400 = CONNECTION_REVOKED, 401 = route requires different auth
@@ -824,15 +788,12 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id, fakeSecretId],
       );
 
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       // Should return error - SECRET_NOT_FOUND, TOKEN_REFRESH_FAILED, or auth error
       expect([400, 401, 500]).toContain(response.status);
@@ -907,15 +868,12 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       // Try to access with our API key
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(404);
 
@@ -939,24 +897,20 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       // Try to revoke with our API key
-      const response = await fetch(
-        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
+        method: "DELETE",
+        headers: {
+          "X-API-Key": testData.apiKey.key,
         },
-      );
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       expect(response.status).toBe(404);
 
       // Verify connection was NOT revoked
-      const result = await client.query(
-        `SELECT status FROM platform_credentials WHERE id = $1`,
-        [credId],
-      );
+      const result = await client.query(`SELECT status FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
       expect(result.rows[0].status).toBe("active");
 
       // Cleanup
@@ -975,16 +929,18 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         return;
       }
 
-      const requests = Array(5).fill(null).map(() =>
-        fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-          method: "POST",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
-        }).then((r) => r.json()),
-      );
+      const requests = Array(5)
+        .fill(null)
+        .map(() =>
+          fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
+            method: "POST",
+            headers: {
+              "X-API-Key": testData.apiKey.key,
+              "Content-Type": "application/json",
+            },
+            signal: AbortSignal.timeout(TIMEOUT),
+          }).then((r) => r.json()),
+        );
 
       const results = await Promise.all(requests);
 
@@ -995,14 +951,16 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should handle concurrent connection list requests for generic providers", async () => {
-      const requests = Array(5).fill(null).map(() =>
-        fetch(`${BASE_URL}/api/v1/oauth/connections?platform=linear`, {
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-          },
-          signal: AbortSignal.timeout(TIMEOUT),
-        }).then((r) => r.json()),
-      );
+      const requests = Array(5)
+        .fill(null)
+        .map(() =>
+          fetch(`${BASE_URL}/api/v1/oauth/connections?platform=linear`, {
+            headers: {
+              "X-API-Key": testData.apiKey.key,
+            },
+            signal: AbortSignal.timeout(TIMEOUT),
+          }).then((r) => r.json()),
+        );
 
       const results = await Promise.all(requests);
 

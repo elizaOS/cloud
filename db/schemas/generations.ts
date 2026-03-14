@@ -1,3 +1,4 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   bigint,
   index,
@@ -9,11 +10,10 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import { organizations } from "./organizations";
-import { users } from "./users";
 import { apiKeys } from "./api-keys";
+import { organizations } from "./organizations";
 import { usageRecords } from "./usage-records";
+import { users } from "./users";
 
 /**
  * Generations table schema.
@@ -47,26 +47,16 @@ export const generations = pgTable(
     file_size: bigint("file_size", { mode: "bigint" }),
     mime_type: text("mime_type"),
     parameters: jsonb("parameters").$type<Record<string, unknown>>(),
-    settings: jsonb("settings")
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default({}),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     dimensions: jsonb("dimensions").$type<{
       width?: number;
       height?: number;
       duration?: number;
     }>(),
     tokens: integer("tokens"),
-    cost: numeric("cost", { precision: 10, scale: 2 })
-      .notNull()
-      .default("0.00"),
-    credits: numeric("credits", { precision: 10, scale: 2 })
-      .notNull()
-      .default("0.00"),
+    cost: numeric("cost", { precision: 10, scale: 2 }).notNull().default("0.00"),
+    credits: numeric("credits", { precision: 10, scale: 2 }).notNull().default("0.00"),
     usage_record_id: uuid("usage_record_id").references(() => usageRecords.id, {
       onDelete: "set null",
     }),
@@ -76,9 +66,7 @@ export const generations = pgTable(
     completed_at: timestamp("completed_at"),
   },
   (table) => ({
-    organization_idx: index("generations_organization_idx").on(
-      table.organization_id,
-    ),
+    organization_idx: index("generations_organization_idx").on(table.organization_id),
     user_idx: index("generations_user_idx").on(table.user_id),
     api_key_idx: index("generations_api_key_idx").on(table.api_key_id),
     type_idx: index("generations_type_idx").on(table.type),
@@ -90,9 +78,12 @@ export const generations = pgTable(
       table.status,
     ),
     // Composite index for gallery queries: org + status + user + created_at ordering
-    org_status_user_created_idx: index(
-      "generations_org_status_user_created_idx",
-    ).on(table.organization_id, table.status, table.user_id, table.created_at),
+    org_status_user_created_idx: index("generations_org_status_user_created_idx").on(
+      table.organization_id,
+      table.status,
+      table.user_id,
+      table.created_at,
+    ),
   }),
 );
 

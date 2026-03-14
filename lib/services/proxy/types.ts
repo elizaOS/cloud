@@ -2,11 +2,7 @@ import type { NextRequest } from "next/server";
 import type { UserWithOrganization } from "@/db/repositories/users";
 import type { ApiKey } from "@/db/schemas/api-keys";
 
-export type AuthLevel =
-  | "session"
-  | "sessionWithOrg"
-  | "apiKey"
-  | "apiKeyWithOrg";
+export type AuthLevel = "session" | "sessionWithOrg" | "apiKey" | "apiKeyWithOrg";
 
 export interface CacheConfig {
   maxTTL: number;
@@ -21,7 +17,13 @@ export interface RateLimitConfig {
   keyGenerator?: (request: NextRequest) => string;
 }
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 
 export interface JsonRpcRequest {
   jsonrpc?: string;
@@ -32,7 +34,11 @@ export interface JsonRpcRequest {
 
 export type JsonRpcBatchRequest = JsonRpcRequest[];
 
-export type ProxyRequestBody = JsonRpcRequest | JsonRpcBatchRequest | Record<string, unknown> | null;
+export type ProxyRequestBody =
+  | JsonRpcRequest
+  | JsonRpcBatchRequest
+  | Record<string, unknown>
+  | null;
 
 export interface ServiceConfig {
   id: string;

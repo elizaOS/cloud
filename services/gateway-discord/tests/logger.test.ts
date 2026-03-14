@@ -4,7 +4,7 @@
  * Tests for services/gateway-discord/src/logger.ts
  */
 
-import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 
 // Store original env
 const originalEnv = { ...process.env };

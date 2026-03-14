@@ -12,10 +12,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppSessionService, elizaAppUserService } from "@/lib/services/eliza-app";
-import { normalizePhoneNumber, isValidE164 } from "@/lib/utils/phone-normalization";
+import { logger } from "@/lib/utils/logger";
+import { isValidE164, normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 
 /**
  * E.164 phone number validation (after normalization)
@@ -28,8 +28,7 @@ const phoneNumberSchema = z
     if (!isValidE164(normalized)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message:
-          "Invalid phone number format. Please use international format (e.g., +1234567890)",
+        message: "Invalid phone number format. Please use international format (e.g., +1234567890)",
       });
       return z.NEVER;
     }
@@ -62,9 +61,7 @@ interface LinkPhoneErrorResponse {
 
 async function handleLinkPhone(
   request: NextRequest,
-): Promise<
-  NextResponse<LinkPhoneSuccessResponse | LinkPhoneErrorResponse>
-> {
+): Promise<NextResponse<LinkPhoneSuccessResponse | LinkPhoneErrorResponse>> {
   // Extract Authorization header
   const authHeader = request.headers.get("Authorization");
 
@@ -132,10 +129,7 @@ async function handleLinkPhone(
   }
 
   // Link the phone number
-  const result = await elizaAppUserService.linkPhoneToUser(
-    session.userId,
-    phoneNumber,
-  );
+  const result = await elizaAppUserService.linkPhoneToUser(session.userId, phoneNumber);
 
   if (!result.success) {
     logger.warn("[ElizaApp LinkPhone] Phone linking failed", {

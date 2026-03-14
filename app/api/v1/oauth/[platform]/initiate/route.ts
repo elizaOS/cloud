@@ -10,13 +10,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { logger } from "@/lib/utils/logger";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
-import {
-  getProvider,
-  isProviderConfigured,
-} from "@/lib/services/oauth/provider-registry";
+import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
 import { initiateOAuth2 } from "@/lib/services/oauth/providers";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -32,15 +29,9 @@ interface RouteParams {
   }>;
 }
 
-async function handleInitiate(
-  request: NextRequest,
-  context?: RouteParams,
-): Promise<NextResponse> {
+async function handleInitiate(request: NextRequest, context?: RouteParams): Promise<NextResponse> {
   if (!context) {
-    return NextResponse.json(
-      { error: "Missing route params" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing route params" }, { status: 400 });
   }
   const { platform } = await context.params;
   const platformLower = platform.toLowerCase();
@@ -105,8 +96,7 @@ async function handleInitiate(
     // Empty body is fine, use defaults
   }
 
-  const redirectUrl =
-    body.redirectUrl || "/dashboard/settings?tab=connections";
+  const redirectUrl = body.redirectUrl || "/dashboard/settings?tab=connections";
   const scopes = body.scopes || provider.defaultScopes || [];
 
   logger.info(`[OAuth ${platform}] Initiating auth`, {

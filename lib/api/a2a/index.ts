@@ -4,31 +4,30 @@
  * Exports all A2A functionality for use in API routes.
  */
 
-// Types
-export * from "./types";
+// Handlers
+export {
+  AVAILABLE_SKILLS,
+  handleMessageSend,
+  handleTasksCancel,
+  handleTasksGet,
+} from "./handlers";
 
 // Skills
 export {
   executeSkillChatCompletion,
-  executeSkillImageGeneration,
-  executeSkillCheckBalance,
-  executeSkillGetUsage,
-  executeSkillListAgents,
   executeSkillChatWithAgent,
-  executeSkillSaveMemory,
-  executeSkillRetrieveMemories,
+  executeSkillCheckBalance,
   executeSkillCreateConversation,
-  executeSkillListContainers,
   executeSkillDeleteMemory,
   executeSkillGetConversationContext,
-  executeSkillVideoGeneration,
+  executeSkillGetUsage,
   executeSkillGetUserProfile,
+  executeSkillImageGeneration,
+  executeSkillListAgents,
+  executeSkillListContainers,
+  executeSkillRetrieveMemories,
+  executeSkillSaveMemory,
+  executeSkillVideoGeneration,
 } from "./skills";
-
-// Handlers
-export {
-  handleMessageSend,
-  handleTasksGet,
-  handleTasksCancel,
-  AVAILABLE_SKILLS,
-} from "./handlers";
+// Types
+export * from "./types";

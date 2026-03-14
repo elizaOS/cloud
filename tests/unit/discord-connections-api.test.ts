@@ -4,7 +4,7 @@
  * Tests for the Discord connections API schema validation.
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { DiscordConnectionMetadataSchema } from "@/db/schemas/discord-connections";
 

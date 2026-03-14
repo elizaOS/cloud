@@ -1,40 +1,37 @@
 import {
+  type Action,
   asUUID,
   composePromptFromState,
   createUniqueUuid,
   EventType,
+  type HandlerCallback,
+  type IAgentRuntime,
   logger,
+  type Memory,
   MemoryType,
   ModelType,
-  type Memory,
   parseKeyValueXml,
-  type UUID,
-  type Action,
-  type IAgentRuntime,
   type State,
-  type HandlerCallback,
+  type UUID,
 } from "@elizaos/core";
-import type { DialogueMetadata } from "@/lib/types/message-content";
 import { v4 } from "uuid";
+import type { DialogueMetadata } from "@/lib/types/message-content";
+import type { MessageReceivedHandlerParams, RunEndedEventPayload } from "../shared/types";
+import {
+  cleanPrompt,
+  postProcessResponse,
+  runEvaluatorsWithTimeout,
+} from "../shared/utils/helpers";
+import type { ParsedResponse } from "../shared/utils/parsers";
+import {
+  clearLatestResponseId,
+  isResponseStillValid,
+  setLatestResponseId,
+} from "../shared/utils/response-tracking";
 import {
   chatPlaygroundSystemPrompt,
   chatPlaygroundTemplate,
 } from "./prompts/chat-playground-prompts";
-import {
-  setLatestResponseId,
-  clearLatestResponseId,
-  isResponseStillValid,
-} from "../shared/utils/response-tracking";
-import {
-  cleanPrompt,
-  runEvaluatorsWithTimeout,
-  postProcessResponse,
-} from "../shared/utils/helpers";
-import type { ParsedResponse } from "../shared/utils/parsers";
-import type {
-  MessageReceivedHandlerParams,
-  RunEndedEventPayload,
-} from "../shared/types";
 
 /**
  * Simple chat handler with MCP tool support and optional streaming.
@@ -106,9 +103,7 @@ export async function handleMessage({
     const prompt = cleanPrompt(
       composePromptFromState({
         state,
-        template:
-          runtime.character.templates?.chatPlaygroundTemplate ||
-          chatPlaygroundTemplate,
+        template: runtime.character.templates?.chatPlaygroundTemplate || chatPlaygroundTemplate,
       }),
     );
 
@@ -127,14 +122,10 @@ export async function handleMessage({
       throw new Error("Failed to generate valid response");
     }
 
-    if (!(await isResponseStillValid(runtime, message.roomId, responseId)))
-      return;
+    if (!(await isResponseStillValid(runtime, message.roomId, responseId))) return;
     await clearLatestResponseId(runtime, message.roomId);
 
-    const processedResponse = postProcessResponse(
-      parsedResponse.text,
-      message.roomId as string,
-    );
+    const processedResponse = postProcessResponse(parsedResponse.text, message.roomId as string);
     const finalText = processedResponse.text;
 
     if (callback) {
@@ -166,13 +157,7 @@ export async function handleMessage({
       } as DialogueMetadata,
     };
 
-    runEvaluatorsWithTimeout(
-      runtime,
-      message,
-      state,
-      responseMemory,
-      callback,
-    ).catch((e) => {
+    runEvaluatorsWithTimeout(runtime, message, state, responseMemory, callback).catch((e) => {
       logger.warn(`[ChatPlayground] Evaluators failed: ${e}`);
     });
 
@@ -189,9 +174,7 @@ export async function handleMessage({
         endTime: Date.now(),
         duration: Date.now() - startTime,
       })
-      .catch((e) =>
-        logger.debug(`[ChatPlayground] RUN_ENDED emit failed: ${e}`),
-      );
+      .catch((e) => logger.debug(`[ChatPlayground] RUN_ENDED emit failed: ${e}`));
   } catch (error) {
     const errorPayload: RunEndedEventPayload = {
       runtime,
@@ -232,9 +215,7 @@ async function checkAndRunMcpAction(
   try {
     // Debug: Log registered actions for MCP troubleshooting
     const registeredActions = runtime.actions?.map((a: Action) => a.name) || [];
-    logger.debug(
-      `[ChatPlayground/MCP] Registered actions: ${registeredActions.join(", ")}`,
-    );
+    logger.debug(`[ChatPlayground/MCP] Registered actions: ${registeredActions.join(", ")}`);
 
     // Check if MCP data is available in state (from MCP provider)
     const stateData = state.data as Record<string, unknown> | undefined;
@@ -263,9 +244,7 @@ async function checkAndRunMcpAction(
     }
 
     // Log connected servers and their tools
-    logger.info(
-      `[ChatPlayground/MCP] MCP servers connected: ${serverNames.join(", ")}`,
-    );
+    logger.info(`[ChatPlayground/MCP] MCP servers connected: ${serverNames.join(", ")}`);
 
     for (const serverName of serverNames) {
       const server = mcpServers?.[serverName] as
@@ -280,8 +259,7 @@ async function checkAndRunMcpAction(
     // Find the CALL_MCP_TOOL action from registered actions
     const mcpAction = runtime.actions?.find(
       (action: Action) =>
-        action.name === "CALL_MCP_TOOL" ||
-        action.similes?.includes("CALL_MCP_TOOL"),
+        action.name === "CALL_MCP_TOOL" || action.similes?.includes("CALL_MCP_TOOL"),
     );
 
     if (!mcpAction) {
@@ -304,18 +282,10 @@ async function checkAndRunMcpAction(
       return false;
     }
 
-    logger.info(
-      "[ChatPlayground/MCP] CALL_MCP_TOOL action is valid, executing...",
-    );
+    logger.info("[ChatPlayground/MCP] CALL_MCP_TOOL action is valid, executing...");
 
     // Execute the MCP action
-    const result = await mcpAction.handler(
-      runtime,
-      message,
-      state,
-      {},
-      callback,
-    );
+    const result = await mcpAction.handler(runtime, message, state, {}, callback);
 
     // Check result for success
     const actionResult = result as

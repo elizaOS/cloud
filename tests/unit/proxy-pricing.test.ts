@@ -37,10 +37,7 @@ mock.module("@/lib/services/proxy/config", () => ({
   },
 }));
 
-import {
-  getServiceMethodCost,
-  invalidateServicePricingCache,
-} from "@/lib/services/proxy/pricing";
+import { getServiceMethodCost, invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 
 describe("proxy pricing cache", () => {
   beforeEach(() => {
@@ -67,15 +64,11 @@ describe("proxy pricing cache", () => {
   });
 
   test("deduplicates concurrent cache misses per service", async () => {
-    let resolvePricing:
-      | ((value: Array<{ method: string; cost: string }>) => void)
-      | undefined;
+    let resolvePricing: ((value: Array<{ method: string; cost: string }>) => void) | undefined;
 
-    const pricingPromise = new Promise<Array<{ method: string; cost: string }>>(
-      (resolve) => {
-        resolvePricing = resolve;
-      },
-    );
+    const pricingPromise = new Promise<Array<{ method: string; cost: string }>>((resolve) => {
+      resolvePricing = resolve;
+    });
 
     mockListByService.mockReturnValue(pricingPromise);
 

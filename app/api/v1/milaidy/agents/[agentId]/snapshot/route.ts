@@ -15,11 +15,7 @@ export async function POST(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
 
-  const result = await miladySandboxService.snapshot(
-    agentId,
-    user.organization_id,
-    "manual",
-  );
+  const result = await miladySandboxService.snapshot(agentId, user.organization_id, "manual");
 
   if (!result.success) {
     return NextResponse.json(

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import { GET, OPTIONS } from "@/app/api/openapi.json/route";
-import { API_ENDPOINTS } from "@/lib/swagger/endpoint-discovery";
 import { discoverPublicApiRoutes } from "@/lib/docs/api-route-discovery";
+import { API_ENDPOINTS } from "@/lib/swagger/endpoint-discovery";
 import { jsonRequest } from "./route-test-helpers";
 
 describe("Public API catalog", () => {

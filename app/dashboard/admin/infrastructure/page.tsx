@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { InfrastructureDashboard } from "@/components/admin/infrastructure-dashboard";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { adminService } from "@/lib/services/admin";
-import { InfrastructureDashboard } from "@/components/admin/infrastructure-dashboard";
 
 export const metadata: Metadata = {
   title: "Admin: Infrastructure",
@@ -18,9 +18,7 @@ export default async function AdminInfrastructurePage() {
     redirect("/dashboard");
   }
 
-  const { isAdmin, role } = await adminService.getAdminStatus(
-    user.wallet_address,
-  );
+  const { isAdmin, role } = await adminService.getAdminStatus(user.wallet_address);
   if (!isAdmin || role !== "super_admin") {
     redirect("/dashboard");
   }

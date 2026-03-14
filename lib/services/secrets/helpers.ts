@@ -1,8 +1,5 @@
+import type { SecretEnvironment, SecretProjectType } from "@/db/schemas/secrets";
 import { secretsService } from "./secrets";
-import type {
-  SecretProjectType,
-  SecretEnvironment,
-} from "@/db/schemas/secrets";
 
 export interface SecretContext {
   organizationId: string;
@@ -36,9 +33,7 @@ export interface SandboxSecretContext {
   appId?: string;
 }
 
-export async function loadSecrets(
-  ctx: SecretContext,
-): Promise<Record<string, string>> {
+export async function loadSecrets(ctx: SecretContext): Promise<Record<string, string>> {
   assertSecretsConfigured();
 
   const orgSecrets = await secretsService.getDecrypted({
@@ -112,9 +107,7 @@ export function assertSecretsConfigured(): void {
 
 export class SecretsNotConfiguredError extends Error {
   constructor() {
-    super(
-      "Secrets service is not configured. Set SECRETS_MASTER_KEY or configure AWS KMS.",
-    );
+    super("Secrets service is not configured. Set SECRETS_MASTER_KEY or configure AWS KMS.");
     this.name = "SecretsNotConfiguredError";
   }
 }

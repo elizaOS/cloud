@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as api from "../helpers/api-client";
 
 /**
@@ -19,7 +19,7 @@ describe("Credits API", () => {
       });
       expect(response.status).toBe(200);
 
-      const body = await response.json() as any;
+      const body = (await response.json()) as any;
       expect(body.balance !== undefined || body.creditBalance !== undefined).toBe(true);
     },
   );
@@ -37,7 +37,7 @@ describe("Credits API", () => {
       });
       expect(response.status).toBe(200);
 
-      const body = await response.json() as any;
+      const body = (await response.json()) as any;
       expect(Array.isArray(body.transactions || body)).toBe(true);
     },
   );

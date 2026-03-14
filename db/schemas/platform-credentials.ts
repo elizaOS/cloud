@@ -14,8 +14,8 @@
  * 6. App can use credentials via cloud API
  */
 
+import { sql } from "drizzle-orm";
 import {
-  boolean,
   index,
   jsonb,
   pgEnum,
@@ -25,10 +25,9 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { apps } from "./apps";
 import { organizations } from "./organizations";
 import { users } from "./users";
-import { apps } from "./apps";
 
 // =============================================================================
 // ENUMS
@@ -66,10 +65,13 @@ export const platformCredentialTypeEnum = pgEnum("platform_credential_type", [
   "microsoft",
 ]);
 
-export const platformCredentialStatusEnum = pgEnum(
-  "platform_credential_status",
-  ["pending", "active", "expired", "revoked", "error"],
-);
+export const platformCredentialStatusEnum = pgEnum("platform_credential_status", [
+  "pending",
+  "active",
+  "expired",
+  "revoked",
+  "error",
+]);
 
 // =============================================================================
 // PLATFORM CREDENTIALS
@@ -115,9 +117,7 @@ export const platformCredentials = pgTable(
     api_key_secret_id: uuid("api_key_secret_id"),
 
     // Permissions granted
-    granted_permissions: jsonb("granted_permissions")
-      .$type<string[]>()
-      .default([]),
+    granted_permissions: jsonb("granted_permissions").$type<string[]>().default([]),
 
     // Source context - where did the link come from?
     source_type: text("source_type"), // "discord" | "telegram" | "web" | "api"
@@ -205,10 +205,9 @@ export const platformCredentialSessions = pgTable(
     status: text("status").notNull().default("pending"), // pending | completed | expired | failed
 
     // Result
-    credential_id: uuid("credential_id").references(
-      () => platformCredentials.id,
-      { onDelete: "set null" },
-    ),
+    credential_id: uuid("credential_id").references(() => platformCredentials.id, {
+      onDelete: "set null",
+    }),
     error_code: text("error_code"),
     error_message: text("error_message"),
 
@@ -218,21 +217,13 @@ export const platformCredentialSessions = pgTable(
     completed_at: timestamp("completed_at"),
   },
   (table) => ({
-    session_id_idx: index("platform_credential_sessions_session_idx").on(
-      table.session_id,
+    session_id_idx: index("platform_credential_sessions_session_idx").on(table.session_id),
+    org_idx: index("platform_credential_sessions_org_idx").on(table.organization_id),
+    oauth_state_idx: uniqueIndex("platform_credential_sessions_oauth_state_idx").on(
+      table.oauth_state,
     ),
-    org_idx: index("platform_credential_sessions_org_idx").on(
-      table.organization_id,
-    ),
-    oauth_state_idx: uniqueIndex(
-      "platform_credential_sessions_oauth_state_idx",
-    ).on(table.oauth_state),
-    status_idx: index("platform_credential_sessions_status_idx").on(
-      table.status,
-    ),
-    expires_idx: index("platform_credential_sessions_expires_idx").on(
-      table.expires_at,
-    ),
+    status_idx: index("platform_credential_sessions_status_idx").on(table.status),
+    expires_idx: index("platform_credential_sessions_expires_idx").on(table.expires_at),
   }),
 );
 
@@ -243,9 +234,7 @@ export const platformCredentialSessions = pgTable(
 export type PlatformCredential = typeof platformCredentials.$inferSelect;
 export type NewPlatformCredential = typeof platformCredentials.$inferInsert;
 
-export type PlatformCredentialSession =
-  typeof platformCredentialSessions.$inferSelect;
-export type NewPlatformCredentialSession =
-  typeof platformCredentialSessions.$inferInsert;
+export type PlatformCredentialSession = typeof platformCredentialSessions.$inferSelect;
+export type NewPlatformCredentialSession = typeof platformCredentialSessions.$inferInsert;
 
 export type PlatformType = PlatformCredential["platform"];

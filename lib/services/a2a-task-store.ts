@@ -12,8 +12,8 @@
  */
 
 import { Redis } from "@upstash/redis";
-import { logger } from "@/lib/utils/logger";
 import type { Task } from "@/lib/types/a2a";
+import { logger } from "@/lib/utils/logger";
 
 // ============================================================================
 // Types
@@ -52,16 +52,12 @@ function getRedisClient(): Redis | null {
 
   if (redisUrl) {
     redis = Redis.fromEnv();
-    logger.info(
-      "[A2A TaskStore] ✓ Redis task store initialized (native protocol)",
-    );
+    logger.info("[A2A TaskStore] ✓ Redis task store initialized (native protocol)");
   } else if (restUrl && restToken) {
     redis = new Redis({ url: restUrl, token: restToken });
     logger.info("[A2A TaskStore] ✓ Redis task store initialized (REST API)");
   } else {
-    logger.warn(
-      "[A2A TaskStore] ⚠️ Redis not available, using in-memory fallback",
-    );
+    logger.warn("[A2A TaskStore] ⚠️ Redis not available, using in-memory fallback");
     redis = null;
   }
 
@@ -94,10 +90,7 @@ class A2ATaskStoreService {
   /**
    * Get a task by ID
    */
-  async get(
-    taskId: string,
-    organizationId: string,
-  ): Promise<TaskStoreEntry | null> {
+  async get(taskId: string, organizationId: string): Promise<TaskStoreEntry | null> {
     const client = getRedisClient();
     const key = `${TASK_KEY_PREFIX}${taskId}`;
 
@@ -105,8 +98,7 @@ class A2ATaskStoreService {
       const value = await client.get<string>(key);
       if (!value) return null;
 
-      const entry: TaskStoreEntry =
-        typeof value === "string" ? JSON.parse(value) : value;
+      const entry: TaskStoreEntry = typeof value === "string" ? JSON.parse(value) : value;
 
       // Verify organization access
       if (entry.organizationId !== organizationId) {
@@ -208,10 +200,7 @@ class A2ATaskStoreService {
   /**
    * List tasks for an organization
    */
-  async listByOrganization(
-    organizationId: string,
-    limit = 50,
-  ): Promise<TaskStoreEntry[]> {
+  async listByOrganization(organizationId: string, limit = 50): Promise<TaskStoreEntry[]> {
     const client = getRedisClient();
 
     if (client) {
@@ -229,8 +218,7 @@ class A2ATaskStoreService {
       const entries: TaskStoreEntry[] = [];
       for (const value of values) {
         if (value) {
-          const entry: TaskStoreEntry =
-            typeof value === "string" ? JSON.parse(value) : value;
+          const entry: TaskStoreEntry = typeof value === "string" ? JSON.parse(value) : value;
           entries.push(entry);
         }
       }
@@ -247,10 +235,7 @@ class A2ATaskStoreService {
     }
 
     return entries
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, limit);
   }
 

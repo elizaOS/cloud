@@ -5,7 +5,7 @@
  * Real: all handler logic, helpers, mappers, error formatting.
  */
 
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
 
 process.env.TWITTER_API_KEY = "test-api-key";
@@ -20,31 +20,55 @@ function resetTwitterMocks() {
   mockV2 = {
     me: mock(async () => ({
       data: {
-        id: "111", username: "testuser", name: "Test User",
-        description: "builder", profile_image_url: "https://img.co/1",
+        id: "111",
+        username: "testuser",
+        name: "Test User",
+        description: "builder",
+        profile_image_url: "https://img.co/1",
         public_metrics: { followers_count: 100, following_count: 50, tweet_count: 200 },
-        created_at: "2020-01-01T00:00:00Z", location: "SF", url: "https://test.dev", verified: false,
+        created_at: "2020-01-01T00:00:00Z",
+        location: "SF",
+        url: "https://test.dev",
+        verified: false,
       },
     })),
     userByUsername: mock(async (username: string) => ({
       data: {
-        id: "222", username, name: "Other User", description: "dev",
-        profile_image_url: "https://img.co/2", public_metrics: { followers_count: 50 },
-        created_at: "2021-06-15T00:00:00Z", location: null, url: null, verified: false,
+        id: "222",
+        username,
+        name: "Other User",
+        description: "dev",
+        profile_image_url: "https://img.co/2",
+        public_metrics: { followers_count: 50 },
+        created_at: "2021-06-15T00:00:00Z",
+        location: null,
+        url: null,
+        verified: false,
       },
     })),
     singleTweet: mock(async () => ({
       data: {
-        id: "tweet-1", text: "hello world", author_id: "111",
-        created_at: "2026-02-20T10:00:00Z", public_metrics: { like_count: 5, retweet_count: 1 },
-        conversation_id: "conv-1", referenced_tweets: null, entities: null,
+        id: "tweet-1",
+        text: "hello world",
+        author_id: "111",
+        created_at: "2026-02-20T10:00:00Z",
+        public_metrics: { like_count: 5, retweet_count: 1 },
+        conversation_id: "conv-1",
+        referenced_tweets: null,
+        entities: null,
       },
       includes: { users: [{ id: "111", username: "testuser", name: "Test User" }] },
     })),
     search: mock(async () => ({
       data: {
         data: [
-          { id: "s1", text: "search hit", author_id: "222", created_at: "2026-02-20T12:00:00Z", public_metrics: { like_count: 3 } },
+          {
+            id: "s1",
+            text: "search hit",
+            author_id: "222",
+            created_at: "2026-02-20T12:00:00Z",
+            public_metrics: { like_count: 3 },
+          },
         ],
         meta: { next_token: "search-page2", result_count: 1 },
         includes: { users: [{ id: "222", username: "other", name: "Other" }] },
@@ -53,8 +77,20 @@ function resetTwitterMocks() {
     userTimeline: mock(async () => ({
       data: {
         data: [
-          { id: "t1", text: "newest tweet", created_at: "2026-02-20T10:00:00Z", public_metrics: { like_count: 10 }, referenced_tweets: null },
-          { id: "t2", text: "older tweet", created_at: "2026-02-15T10:00:00Z", public_metrics: { like_count: 2 }, referenced_tweets: [{ type: "retweeted", id: "orig-1" }] },
+          {
+            id: "t1",
+            text: "newest tweet",
+            created_at: "2026-02-20T10:00:00Z",
+            public_metrics: { like_count: 10 },
+            referenced_tweets: null,
+          },
+          {
+            id: "t2",
+            text: "older tweet",
+            created_at: "2026-02-15T10:00:00Z",
+            public_metrics: { like_count: 2 },
+            referenced_tweets: [{ type: "retweeted", id: "orig-1" }],
+          },
         ],
         meta: { next_token: "timeline-page2", result_count: 2 },
       },
@@ -62,7 +98,14 @@ function resetTwitterMocks() {
     userMentionTimeline: mock(async () => ({
       data: {
         data: [
-          { id: "m1", text: "@testuser nice!", author_id: "333", created_at: "2026-02-19T08:00:00Z", public_metrics: { like_count: 1 }, referenced_tweets: null },
+          {
+            id: "m1",
+            text: "@testuser nice!",
+            author_id: "333",
+            created_at: "2026-02-19T08:00:00Z",
+            public_metrics: { like_count: 1 },
+            referenced_tweets: null,
+          },
         ],
         meta: { result_count: 1 },
         includes: { users: [{ id: "333", username: "mentioner" }] },
@@ -71,7 +114,13 @@ function resetTwitterMocks() {
     userLikedTweets: mock(async () => ({
       data: {
         data: [
-          { id: "l1", text: "liked this", author_id: "444", created_at: "2026-02-18T00:00:00Z", public_metrics: { like_count: 99 } },
+          {
+            id: "l1",
+            text: "liked this",
+            author_id: "444",
+            created_at: "2026-02-18T00:00:00Z",
+            public_metrics: { like_count: 99 },
+          },
         ],
         meta: { next_token: "likes-page2", result_count: 1 },
         includes: { users: [{ id: "444", username: "popular" }] },
@@ -91,7 +140,14 @@ function resetTwitterMocks() {
     followers: mock(async () => ({
       data: {
         data: [
-          { id: "f1", username: "follower1", name: "Follower", description: "hi", public_metrics: { followers_count: 10 }, verified: false },
+          {
+            id: "f1",
+            username: "follower1",
+            name: "Follower",
+            description: "hi",
+            public_metrics: { followers_count: 10 },
+            verified: false,
+          },
         ],
         meta: { next_token: "followers-page2", result_count: 1 },
       },
@@ -99,7 +155,14 @@ function resetTwitterMocks() {
     following: mock(async () => ({
       data: {
         data: [
-          { id: "fw1", username: "following1", name: "Following", description: "", public_metrics: {}, verified: true },
+          {
+            id: "fw1",
+            username: "following1",
+            name: "Following",
+            description: "",
+            public_metrics: {},
+            verified: true,
+          },
         ],
         meta: { result_count: 1 },
       },
@@ -126,10 +189,17 @@ mock.module("twitter-api-v2", () => ({
 
 const mockOAuth = {
   getValidTokenByPlatform: mock(async () => ({
-    accessToken: "tok", accessTokenSecret: "sec",
+    accessToken: "tok",
+    accessTokenSecret: "sec",
   })),
   listConnections: mock(async () => [
-    { id: "c1", status: "active", displayName: "testuser", scopes: ["read", "write"], linkedAt: "2026-01-01T00:00:00Z" },
+    {
+      id: "c1",
+      status: "active",
+      displayName: "testuser",
+      scopes: ["read", "write"],
+      linkedAt: "2026-01-01T00:00:00Z",
+    },
   ]),
 };
 
@@ -140,15 +210,23 @@ mock.module("@/lib/services/oauth", () => ({ oauthService: mockOAuth }));
 type AnyFn = (...args: unknown[]) => unknown;
 
 function auth(orgId = "org-1") {
-  // biome-ignore lint/suspicious/noExplicitAny: mock auth shape
-  return { user: { id: `u-${orgId}`, organization_id: orgId, organization: { id: orgId, name: "Org", credit_balance: 100 } } } as any;
+  return {
+    user: {
+      id: `u-${orgId}`,
+      organization_id: orgId,
+      organization: { id: orgId, name: "Org", credit_balance: 100 },
+    },
+  } as any;
 }
 
 async function callTool(name: string, args: Record<string, unknown> = {}, orgId = "org-1") {
   const { registerTwitterTools } = await import("@/app/api/mcp/tools/twitter");
   let handler: AnyFn | undefined;
-  // biome-ignore lint/suspicious/noExplicitAny: mock server shape
-  const mockServer = { registerTool: (n: string, _s: unknown, h: AnyFn) => { if (n === name) handler = h; } } as any;
+  const mockServer = {
+    registerTool: (n: string, _s: unknown, h: AnyFn) => {
+      if (n === name) handler = h;
+    },
+  } as any;
   registerTwitterTools(mockServer);
   if (!handler) throw new Error(`Tool "${name}" not found`);
   const h = handler;
@@ -165,10 +243,19 @@ describe("Twitter MCP Tools", () => {
   beforeEach(() => {
     resetTwitterMocks();
     mockOAuth.getValidTokenByPlatform.mockReset();
-    mockOAuth.getValidTokenByPlatform.mockImplementation(async () => ({ accessToken: "tok", accessTokenSecret: "sec" }));
+    mockOAuth.getValidTokenByPlatform.mockImplementation(async () => ({
+      accessToken: "tok",
+      accessTokenSecret: "sec",
+    }));
     mockOAuth.listConnections.mockReset();
     mockOAuth.listConnections.mockImplementation(async () => [
-      { id: "c1", status: "active", displayName: "testuser", scopes: ["read", "write"], linkedAt: "2026-01-01T00:00:00Z" },
+      {
+        id: "c1",
+        status: "active",
+        displayName: "testuser",
+        scopes: ["read", "write"],
+        linkedAt: "2026-01-01T00:00:00Z",
+      },
     ]);
   });
 
@@ -183,17 +270,36 @@ describe("Twitter MCP Tools", () => {
     test("registers all expected tools", async () => {
       const { registerTwitterTools } = await import("@/app/api/mcp/tools/twitter");
       const names: string[] = [];
-      // biome-ignore lint/suspicious/noExplicitAny: mock server shape
-      registerTwitterTools({ registerTool: (n: string) => { names.push(n); } } as any);
+      registerTwitterTools({
+        registerTool: (n: string) => {
+          names.push(n);
+        },
+      } as any);
 
       const expectedTools = [
-        "twitter_status", "twitter_get_me", "twitter_get_user",
-        "twitter_create_tweet", "twitter_delete_tweet", "twitter_get_tweet",
-        "twitter_search_tweets", "twitter_get_user_tweets", "twitter_get_my_tweets",
-        "twitter_like_tweet", "twitter_unlike_tweet", "twitter_retweet", "twitter_unretweet",
-        "twitter_get_followers", "twitter_get_following", "twitter_follow_user", "twitter_unfollow_user",
-        "twitter_get_mentions", "twitter_get_liked_tweets", "twitter_get_bookmarks",
-        "twitter_create_thread", "twitter_resolve_tweet_url", "twitter_check_relationship",
+        "twitter_status",
+        "twitter_get_me",
+        "twitter_get_user",
+        "twitter_create_tweet",
+        "twitter_delete_tweet",
+        "twitter_get_tweet",
+        "twitter_search_tweets",
+        "twitter_get_user_tweets",
+        "twitter_get_my_tweets",
+        "twitter_like_tweet",
+        "twitter_unlike_tweet",
+        "twitter_retweet",
+        "twitter_unretweet",
+        "twitter_get_followers",
+        "twitter_get_following",
+        "twitter_follow_user",
+        "twitter_unfollow_user",
+        "twitter_get_mentions",
+        "twitter_get_liked_tweets",
+        "twitter_get_bookmarks",
+        "twitter_create_thread",
+        "twitter_resolve_tweet_url",
+        "twitter_check_relationship",
       ];
       expect(names.length).toBe(expectedTools.length);
       for (const t of expectedTools) {
@@ -229,7 +335,9 @@ describe("Twitter MCP Tools", () => {
     });
 
     test("returns error on service failure", async () => {
-      mockOAuth.listConnections.mockImplementation(async () => { throw new Error("DB down"); });
+      mockOAuth.listConnections.mockImplementation(async () => {
+        throw new Error("DB down");
+      });
       const r = await callTool("twitter_status");
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("DB down");
@@ -251,7 +359,9 @@ describe("Twitter MCP Tools", () => {
     });
 
     test("returns error when not connected", async () => {
-      mockOAuth.getValidTokenByPlatform.mockImplementation(async () => { throw new Error("Not connected"); });
+      mockOAuth.getValidTokenByPlatform.mockImplementation(async () => {
+        throw new Error("Not connected");
+      });
       const r = await callTool("twitter_get_me");
       expect(r.isError).toBe(true);
     });
@@ -313,7 +423,9 @@ describe("Twitter MCP Tools", () => {
     });
 
     test("handles API error", async () => {
-      mockV2.userTimeline.mockImplementation(async () => { throw new Error("Rate limit exceeded"); });
+      mockV2.userTimeline.mockImplementation(async () => {
+        throw new Error("Rate limit exceeded");
+      });
       const r = await callTool("twitter_get_my_tweets");
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("Rate limit");
@@ -333,9 +445,12 @@ describe("Twitter MCP Tools", () => {
 
     test("passes all optional params", async () => {
       await callTool("twitter_get_user_tweets", {
-        userId: "999", maxResults: 100,
-        startTime: "2026-01-01T00:00:00Z", endTime: "2026-02-01T00:00:00Z",
-        exclude: ["retweets"], paginationToken: "tok",
+        userId: "999",
+        maxResults: 100,
+        startTime: "2026-01-01T00:00:00Z",
+        endTime: "2026-02-01T00:00:00Z",
+        exclude: ["retweets"],
+        paginationToken: "tok",
       });
       const opts = mockV2.userTimeline.mock.calls[0][1];
       expect(opts.max_results).toBe(100);
@@ -360,7 +475,10 @@ describe("Twitter MCP Tools", () => {
 
     test("passes date filters and sort order", async () => {
       await callTool("twitter_search_tweets", {
-        query: "test", startTime: "2026-02-13T00:00:00Z", endTime: "2026-02-20T00:00:00Z", sortOrder: "recency",
+        query: "test",
+        startTime: "2026-02-13T00:00:00Z",
+        endTime: "2026-02-20T00:00:00Z",
+        sortOrder: "recency",
       });
       const opts = mockV2.search.mock.calls[0][1];
       expect(opts.start_time).toBe("2026-02-13T00:00:00Z");
@@ -432,9 +550,11 @@ describe("Twitter MCP Tools", () => {
         return { data: { id: `thread-${callCount}`, text } };
       });
 
-      const p = parse(await callTool("twitter_create_thread", {
-        tweets: ["first tweet", "second tweet", "third tweet"],
-      }));
+      const p = parse(
+        await callTool("twitter_create_thread", {
+          tweets: ["first tweet", "second tweet", "third tweet"],
+        }),
+      );
 
       expect(p.success).toBe(true);
       expect(p.threadLength).toBe(3);
@@ -461,7 +581,9 @@ describe("Twitter MCP Tools", () => {
     });
 
     test("handles getTwitterClient failure (not connected)", async () => {
-      mockOAuth.getValidTokenByPlatform.mockImplementation(async () => { throw new Error("No active connection"); });
+      mockOAuth.getValidTokenByPlatform.mockImplementation(async () => {
+        throw new Error("No active connection");
+      });
       const r = await callTool("twitter_create_thread", { tweets: ["a", "b"] });
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("not connected");
@@ -495,9 +617,11 @@ describe("Twitter MCP Tools", () => {
 
   describe("twitter_resolve_tweet_url", () => {
     test("resolves standard x.com URL", async () => {
-      const p = parse(await callTool("twitter_resolve_tweet_url", {
-        url: "https://x.com/user/status/12345",
-      }));
+      const p = parse(
+        await callTool("twitter_resolve_tweet_url", {
+          url: "https://x.com/user/status/12345",
+        }),
+      );
       expect(p.id).toBe("tweet-1");
       expect(p.sourceUrl).toBe("https://x.com/user/status/12345");
       expect(mockV2.singleTweet.mock.calls[0][0]).toBe("12345");
@@ -545,9 +669,12 @@ describe("Twitter MCP Tools", () => {
 
   describe("twitter_check_relationship", () => {
     test("returns mutual follow status", async () => {
-      const p = parse(await callTool("twitter_check_relationship", {
-        sourceUsername: "testuser", targetUsername: "other",
-      }));
+      const p = parse(
+        await callTool("twitter_check_relationship", {
+          sourceUsername: "testuser",
+          targetUsername: "other",
+        }),
+      );
       expect(p.sourceFollowsTarget).toBe(true);
       expect(p.targetFollowsSource).toBe(true);
       expect(p.mutualFollow).toBe(true);
@@ -555,7 +682,8 @@ describe("Twitter MCP Tools", () => {
 
     test("strips @ prefix from usernames", async () => {
       await callTool("twitter_check_relationship", {
-        sourceUsername: "@testuser", targetUsername: "@other",
+        sourceUsername: "@testuser",
+        targetUsername: "@other",
       });
       const call = mockV1.friendship.mock.calls[0][0];
       expect(call.source_screen_name).toBe("testuser");
@@ -566,18 +694,24 @@ describe("Twitter MCP Tools", () => {
       mockV1.friendship.mockImplementation(async () => ({
         source: { following: true, followed_by: false },
       }));
-      const p = parse(await callTool("twitter_check_relationship", {
-        sourceUsername: "a", targetUsername: "b",
-      }));
+      const p = parse(
+        await callTool("twitter_check_relationship", {
+          sourceUsername: "a",
+          targetUsername: "b",
+        }),
+      );
       expect(p.sourceFollowsTarget).toBe(true);
       expect(p.targetFollowsSource).toBe(false);
       expect(p.mutualFollow).toBe(false);
     });
 
     test("handles errors gracefully", async () => {
-      mockV1.friendship.mockImplementation(async () => { throw new Error("User suspended"); });
+      mockV1.friendship.mockImplementation(async () => {
+        throw new Error("User suspended");
+      });
       const r = await callTool("twitter_check_relationship", {
-        sourceUsername: "a", targetUsername: "b",
+        sourceUsername: "a",
+        targetUsername: "b",
       });
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("User suspended");
@@ -629,7 +763,8 @@ describe("Twitter MCP Tools", () => {
 
     test("passes date filters", async () => {
       await callTool("twitter_get_mentions", {
-        startTime: "2026-02-19T00:00:00Z", endTime: "2026-02-20T00:00:00Z",
+        startTime: "2026-02-19T00:00:00Z",
+        endTime: "2026-02-20T00:00:00Z",
       });
       const opts = mockV2.userMentionTimeline.mock.calls[0][1];
       expect(opts.start_time).toBe("2026-02-19T00:00:00Z");
@@ -658,7 +793,9 @@ describe("Twitter MCP Tools", () => {
     });
 
     test("returns descriptive error on OAuth 2.0 failure", async () => {
-      mockV2.bookmarks.mockImplementation(async () => { throw "not an Error object"; });
+      mockV2.bookmarks.mockImplementation(async () => {
+        throw "not an Error object";
+      });
       const r = await callTool("twitter_get_bookmarks");
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("OAuth 2.0");
@@ -721,21 +858,27 @@ describe("Twitter MCP Tools", () => {
     });
 
     test("like_tweet returns error on API failure", async () => {
-      mockV2.like.mockImplementation(async () => { throw new Error("Already liked"); });
+      mockV2.like.mockImplementation(async () => {
+        throw new Error("Already liked");
+      });
       const r = await callTool("twitter_like_tweet", { tweetId: "t1" });
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("Already liked");
     });
 
     test("retweet returns error on API failure", async () => {
-      mockV2.retweet.mockImplementation(async () => { throw new Error("Duplicate retweet"); });
+      mockV2.retweet.mockImplementation(async () => {
+        throw new Error("Duplicate retweet");
+      });
       const r = await callTool("twitter_retweet", { tweetId: "t1" });
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("Duplicate retweet");
     });
 
     test("delete_tweet returns error on API failure", async () => {
-      mockV2.deleteTweet.mockImplementation(async () => { throw new Error("Not authorized"); });
+      mockV2.deleteTweet.mockImplementation(async () => {
+        throw new Error("Not authorized");
+      });
       const r = await callTool("twitter_delete_tweet", { tweetId: "t1" });
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("Not authorized");
@@ -751,7 +894,9 @@ describe("Twitter MCP Tools", () => {
         data: { detail: "Rate limit exceeded" },
         rateLimit: { remaining: 0, reset: Math.floor(Date.now() / 1000) + 900 },
       });
-      mockV2.search.mockImplementation(async () => { throw rateLimitError; });
+      mockV2.search.mockImplementation(async () => {
+        throw rateLimitError;
+      });
 
       const r = await callTool("twitter_search_tweets", { query: "test" });
       expect(r.isError).toBe(true);
@@ -763,7 +908,9 @@ describe("Twitter MCP Tools", () => {
     });
 
     test("handles non-Error thrown objects", async () => {
-      mockV2.search.mockImplementation(async () => { throw "string error"; });
+      mockV2.search.mockImplementation(async () => {
+        throw "string error";
+      });
       const r = await callTool("twitter_search_tweets", { query: "test" });
       expect(r.isError).toBe(true);
       expect(parse(r).error).toBe("Failed to search tweets");
@@ -799,7 +946,9 @@ describe("Twitter MCP Tools", () => {
     test("paginatedTweetResponse handles undefined meta", async () => {
       mockV2.userTimeline.mockImplementation(async () => ({
         data: {
-          data: [{ id: "t1", text: "solo", created_at: "2026-02-20T00:00:00Z", public_metrics: {} }],
+          data: [
+            { id: "t1", text: "solo", created_at: "2026-02-20T00:00:00Z", public_metrics: {} },
+          ],
         },
       }));
       const p = parse(await callTool("twitter_get_my_tweets"));

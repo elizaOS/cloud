@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
@@ -15,10 +15,7 @@ export const dynamic = "force-dynamic";
  * @param params - Route params containing the agent ID.
  * @returns Agent details with conversation stats.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: agentId } = await params;
@@ -28,10 +25,7 @@ export async function GET(
       agentId,
     });
 
-    const result = await charactersService.getSavedAgentDetails(
-      user.id,
-      agentId,
-    );
+    const result = await charactersService.getSavedAgentDetails(user.id, agentId);
 
     if (!result) {
       return NextResponse.json(
@@ -56,14 +50,12 @@ export async function GET(
   } catch (error) {
     logger.error("[Saved Agents API] Error getting saved agent:", error);
 
-    const status =
-      error instanceof Error && error.message.includes("auth") ? 401 : 500;
+    const status = error instanceof Error && error.message.includes("auth") ? 401 : 500;
 
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to get saved agent",
+        error: error instanceof Error ? error.message : "Failed to get saved agent",
       },
       { status },
     );
@@ -127,16 +119,12 @@ export async function DELETE(
   } catch (error) {
     logger.error("[Saved Agents API] Error removing saved agent:", error);
 
-    const status =
-      error instanceof Error && error.message.includes("auth") ? 401 : 500;
+    const status = error instanceof Error && error.message.includes("auth") ? 401 : 500;
 
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to remove saved agent",
+        error: error instanceof Error ? error.message : "Failed to remove saved agent",
       },
       { status },
     );

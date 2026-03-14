@@ -2,14 +2,14 @@
  * Shared utilities for OAuth plugin actions.
  */
 
-import type { Memory, State, ActionResult } from "@elizaos/core";
+import type { ActionResult, Memory, State } from "@elizaos/core";
 import { logger } from "@elizaos/core";
-import { usersRepository, type UserWithOrganization } from "@/db/repositories/users";
+import { type UserWithOrganization, usersRepository } from "@/db/repositories/users";
 import { getConfiguredOAuthProviders } from "@/lib/services/oauth/provider-registry";
 
 /** Configured OAuth platform IDs (platforms with valid credentials). */
 export function getSupportedPlatforms(): string[] {
-  return getConfiguredOAuthProviders().map(p => p.id);
+  return getConfiguredOAuthProviders().map((p) => p.id);
 }
 
 /** Check if a platform is configured and available for OAuth. */
@@ -23,7 +23,10 @@ export function capitalize(str: string): string {
 
 export function extractParams(message: Memory, state?: State): Record<string, unknown> {
   const content = message.content as Record<string, unknown>;
-  return (content.actionParams || content.actionInput || state?.data?.actionParams || {}) as Record<string, unknown>;
+  return (content.actionParams || content.actionInput || state?.data?.actionParams || {}) as Record<
+    string,
+    unknown
+  >;
 }
 
 const PLATFORM_ALIASES: Record<string, string> = {
@@ -54,7 +57,7 @@ export interface UserLookupResult {
 
 export async function lookupUser(
   entityId: string,
-  actionName: string
+  actionName: string,
 ): Promise<UserLookupResult | ActionResult> {
   const user = await usersRepository.findWithOrganization(entityId);
 

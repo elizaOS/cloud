@@ -2,13 +2,13 @@
  * Shared utilities for secrets-based connection adapters.
  */
 
+import { and, eq, like } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import { secrets } from "@/db/schemas/secrets";
-import { eq, and, like } from "drizzle-orm";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
-import type { OAuthConnection, OAuthConnectionSource } from "../types";
 import { Errors } from "../errors";
+import type { OAuthConnection, OAuthConnectionSource } from "../types";
 
 /** Generate a stable connection ID for secrets-based adapters */
 export function generateConnectionId(platform: string, organizationId: string): string {
@@ -60,7 +60,10 @@ export async function updateSecretAccessTime(
     .limit(1);
 
   if (record) {
-    await dbWrite.update(secrets).set({ last_accessed_at: new Date() }).where(eq(secrets.id, record.id));
+    await dbWrite
+      .update(secrets)
+      .set({ last_accessed_at: new Date() })
+      .where(eq(secrets.id, record.id));
   }
 }
 

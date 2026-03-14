@@ -108,11 +108,12 @@ describe("MCP proxy affiliate pricing", () => {
       usageId: "usage-1",
     });
 
-    globalThis.fetch = mock(async () =>
-      new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
+    globalThis.fetch = mock(
+      async () =>
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
     ) as typeof globalThis.fetch;
   });
 
@@ -171,10 +172,11 @@ describe("MCP proxy affiliate pricing", () => {
   });
 
   test("refunds the full charged amount when the MCP call fails", async () => {
-    globalThis.fetch = mock(async () =>
-      new Response("upstream failure", {
-        status: 502,
-      }),
+    globalThis.fetch = mock(
+      async () =>
+        new Response("upstream failure", {
+          status: 502,
+        }),
     ) as typeof globalThis.fetch;
 
     const request = new NextRequest("https://example.com/api/mcp/proxy/mcp-1", {

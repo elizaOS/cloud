@@ -1,6 +1,6 @@
-import { requireStripe } from "@/lib/stripe";
-import { organizationsRepository, type Organization } from "@/db/repositories";
 import type Stripe from "stripe";
+import { type Organization, organizationsRepository } from "@/db/repositories";
+import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -21,9 +21,7 @@ export class PaymentMethodsService {
       return org.stripe_customer_id;
     }
 
-    logger.info(
-      `[PaymentMethodsService] Creating Stripe customer for org ${org.id} (${org.name})`,
-    );
+    logger.info(`[PaymentMethodsService] Creating Stripe customer for org ${org.id} (${org.name})`);
 
     try {
       const customer = await requireStripe().customers.create({
@@ -62,10 +60,7 @@ export class PaymentMethodsService {
    * @param paymentMethodId - The Stripe payment method ID to attach
    * @returns void
    */
-  async attachPaymentMethod(
-    organizationId: string,
-    paymentMethodId: string,
-  ): Promise<void> {
+  async attachPaymentMethod(organizationId: string, paymentMethodId: string): Promise<void> {
     const org = await organizationsRepository.findById(organizationId);
 
     if (!org) {
@@ -108,10 +103,7 @@ export class PaymentMethodsService {
    * @throws Error if organization doesn't have a Stripe customer
    * @returns void
    */
-  async setDefaultPaymentMethod(
-    organizationId: string,
-    paymentMethodId: string,
-  ): Promise<void> {
+  async setDefaultPaymentMethod(organizationId: string, paymentMethodId: string): Promise<void> {
     const org = await organizationsRepository.findById(organizationId);
 
     if (!org) {
@@ -119,15 +111,12 @@ export class PaymentMethodsService {
     }
 
     if (!org.stripe_customer_id) {
-      throw new Error(
-        "Organization does not have a Stripe customer. Please contact support.",
-      );
+      throw new Error("Organization does not have a Stripe customer. Please contact support.");
     }
 
     // Verify the payment method belongs to this customer
     try {
-      const paymentMethod =
-        await requireStripe().paymentMethods.retrieve(paymentMethodId);
+      const paymentMethod = await requireStripe().paymentMethods.retrieve(paymentMethodId);
       if (paymentMethod.customer !== org.stripe_customer_id) {
         throw new Error("Payment method does not belong to this customer");
       }
@@ -147,9 +136,7 @@ export class PaymentMethodsService {
       });
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(
-          `Failed to update default payment method in Stripe: ${error.message}`,
-        );
+        throw new Error(`Failed to update default payment method in Stripe: ${error.message}`);
       }
       throw error;
     }
@@ -171,10 +158,7 @@ export class PaymentMethodsService {
    * @throws Error if this is the last payment method and auto-top-up is enabled
    * @returns void
    */
-  async removePaymentMethod(
-    organizationId: string,
-    paymentMethodId: string,
-  ): Promise<void> {
+  async removePaymentMethod(organizationId: string, paymentMethodId: string): Promise<void> {
     const org = await organizationsRepository.findById(organizationId);
 
     if (!org) {
@@ -245,9 +229,7 @@ export class PaymentMethodsService {
    * @param organizationId - The organization ID
    * @returns Array of Stripe payment methods
    */
-  async listPaymentMethods(
-    organizationId: string,
-  ): Promise<Stripe.PaymentMethod[]> {
+  async listPaymentMethods(organizationId: string): Promise<Stripe.PaymentMethod[]> {
     const org = await organizationsRepository.findById(organizationId);
 
     if (!org?.stripe_customer_id) {
@@ -280,8 +262,7 @@ export class PaymentMethodsService {
       return null;
     }
 
-    const paymentMethod =
-      await requireStripe().paymentMethods.retrieve(paymentMethodId);
+    const paymentMethod = await requireStripe().paymentMethods.retrieve(paymentMethodId);
 
     // Verify it belongs to this customer
     if (paymentMethod.customer !== org.stripe_customer_id) {
@@ -308,19 +289,14 @@ export class PaymentMethodsService {
    * @param organizationId - The organization ID
    * @returns The default payment method or null if none exists
    */
-  async getDefaultPaymentMethod(
-    organizationId: string,
-  ): Promise<Stripe.PaymentMethod | null> {
+  async getDefaultPaymentMethod(organizationId: string): Promise<Stripe.PaymentMethod | null> {
     const org = await organizationsRepository.findById(organizationId);
 
     if (!org?.stripe_default_payment_method) {
       return null;
     }
 
-    return await this.getPaymentMethod(
-      organizationId,
-      org.stripe_default_payment_method,
-    );
+    return await this.getPaymentMethod(organizationId, org.stripe_default_payment_method);
   }
 }
 

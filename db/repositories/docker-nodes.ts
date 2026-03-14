@@ -1,14 +1,14 @@
+import { and, asc, eq, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/helpers";
 import {
-  dockerNodes,
   type DockerNode,
-  type NewDockerNode,
   type DockerNodeStatus,
+  dockerNodes,
+  type NewDockerNode,
 } from "@/db/schemas/docker-nodes";
-import { eq, and, desc, sql, asc } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
-export type { DockerNode, NewDockerNode, DockerNodeStatus };
+export type { DockerNode, DockerNodeStatus, NewDockerNode };
 
 export class DockerNodesRepository {
   // ============================================================================
@@ -37,11 +37,7 @@ export class DockerNodesRepository {
   }
 
   async findById(id: string): Promise<DockerNode | null> {
-    const [r] = await dbRead
-      .select()
-      .from(dockerNodes)
-      .where(eq(dockerNodes.id, id))
-      .limit(1);
+    const [r] = await dbRead.select().from(dockerNodes).where(eq(dockerNodes.id, id)).limit(1);
     return r ?? null;
   }
 

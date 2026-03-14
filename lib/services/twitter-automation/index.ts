@@ -195,10 +195,7 @@ class TwitterAutomationService {
   /**
    * Remove Twitter credentials (disconnect)
    */
-  async removeCredentials(
-    organizationId: string,
-    userId: string,
-  ): Promise<void> {
+  async removeCredentials(organizationId: string, userId: string): Promise<void> {
     const audit = {
       actorType: "user" as const,
       actorId: userId,
@@ -214,11 +211,9 @@ class TwitterAutomationService {
 
     await Promise.all(
       secretNames.map((name) =>
-        secretsService
-          .deleteByName(organizationId, name, audit)
-          .catch(() => {
-            // Ignore if secret doesn't exist
-          }),
+        secretsService.deleteByName(organizationId, name, audit).catch(() => {
+          // Ignore if secret doesn't exist
+        }),
       ),
     );
 
@@ -228,16 +223,13 @@ class TwitterAutomationService {
   /**
    * Check if Twitter is connected for an organization
    */
-  async getConnectionStatus(
-    organizationId: string,
-  ): Promise<TwitterConnectionStatus> {
-    const [accessToken, accessSecret, username, twitterUserId] =
-      await Promise.all([
-        secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN"),
-        secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN_SECRET"),
-        secretsService.get(organizationId, "TWITTER_USERNAME"),
-        secretsService.get(organizationId, "TWITTER_USER_ID"),
-      ]);
+  async getConnectionStatus(organizationId: string): Promise<TwitterConnectionStatus> {
+    const [accessToken, accessSecret, username, twitterUserId] = await Promise.all([
+      secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN"),
+      secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN_SECRET"),
+      secretsService.get(organizationId, "TWITTER_USERNAME"),
+      secretsService.get(organizationId, "TWITTER_USER_ID"),
+    ]);
 
     if (!accessToken || !accessSecret) {
       return { connected: false };
@@ -282,9 +274,7 @@ class TwitterAutomationService {
    * Get credentials for injecting into character settings
    * Used by agent-loader when Twitter is enabled
    */
-  async getCredentialsForAgent(
-    organizationId: string,
-  ): Promise<Record<string, string> | null> {
+  async getCredentialsForAgent(organizationId: string): Promise<Record<string, string> | null> {
     const [accessToken, accessSecret] = await Promise.all([
       secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN"),
       secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN_SECRET"),
@@ -315,7 +305,7 @@ export const twitterAutomationService = new TwitterAutomationService();
 
 // Re-export app automation service
 export {
-  twitterAppAutomationService,
-  type TwitterAutomationConfig,
   type GeneratedTweet,
+  type TwitterAutomationConfig,
+  twitterAppAutomationService,
 } from "./app-automation";

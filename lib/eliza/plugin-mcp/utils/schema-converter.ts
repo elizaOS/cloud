@@ -24,14 +24,20 @@ interface JsonSchemaProperty {
 
 function mapJsonSchemaType(jsonType: string | string[] | undefined): ActionParameter["type"] {
   if (Array.isArray(jsonType)) {
-    return mapJsonSchemaType(jsonType.find(t => t !== "null"));
+    return mapJsonSchemaType(jsonType.find((t) => t !== "null"));
   }
   switch (jsonType) {
-    case "string": return "string";
-    case "number": case "integer": return "number";
-    case "boolean": return "boolean";
-    case "array": return "array";
-    default: return "object";
+    case "string":
+      return "string";
+    case "number":
+    case "integer":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "array":
+      return "array";
+    default:
+      return "object";
   }
 }
 
@@ -43,13 +49,18 @@ function buildDescription(name: string, prop: JsonSchemaProperty): string {
     parts.push(prop.description);
   }
 
-  if (prop.enum?.length) parts.push(`Allowed: ${prop.enum.map(v => JSON.stringify(v)).join(", ")}`);
+  if (prop.enum?.length)
+    parts.push(`Allowed: ${prop.enum.map((v) => JSON.stringify(v)).join(", ")}`);
   if (prop.format) parts.push(`Format: ${prop.format}`);
   if (prop.minimum !== undefined || prop.maximum !== undefined) {
-    parts.push(`Range: ${[prop.minimum !== undefined ? `min: ${prop.minimum}` : '', prop.maximum !== undefined ? `max: ${prop.maximum}` : ''].filter(Boolean).join(", ")}`);
+    parts.push(
+      `Range: ${[prop.minimum !== undefined ? `min: ${prop.minimum}` : "", prop.maximum !== undefined ? `max: ${prop.maximum}` : ""].filter(Boolean).join(", ")}`,
+    );
   }
   if (prop.minLength !== undefined || prop.maxLength !== undefined) {
-    parts.push(`Length: ${[prop.minLength !== undefined ? `min: ${prop.minLength}` : '', prop.maxLength !== undefined ? `max: ${prop.maxLength}` : ''].filter(Boolean).join(", ")}`);
+    parts.push(
+      `Length: ${[prop.minLength !== undefined ? `min: ${prop.minLength}` : "", prop.maxLength !== undefined ? `max: ${prop.maxLength}` : ""].filter(Boolean).join(", ")}`,
+    );
   }
   if (prop.pattern) parts.push(`Pattern: ${prop.pattern}`);
   if (prop.default !== undefined) parts.push(`Default: ${JSON.stringify(prop.default)}`);
@@ -63,11 +74,13 @@ function buildDescription(name: string, prop: JsonSchemaProperty): string {
   return parts.length > 0 ? parts.join(". ") : `(${mapJsonSchemaType(prop.type)})`;
 }
 
-export function convertJsonSchemaToActionParams(schema?: Tool["inputSchema"]): Record<string, ActionParameter> | undefined {
+export function convertJsonSchemaToActionParams(
+  schema?: Tool["inputSchema"],
+): Record<string, ActionParameter> | undefined {
   const properties = schema?.properties as Record<string, JsonSchemaProperty> | undefined;
   if (!properties || Object.keys(properties).length === 0) return undefined;
 
-  const required = new Set<string>(schema?.required as string[] || []);
+  const required = new Set<string>((schema?.required as string[]) || []);
   const params: Record<string, ActionParameter> = {};
 
   for (const [name, prop] of Object.entries(properties)) {
@@ -81,12 +94,15 @@ export function convertJsonSchemaToActionParams(schema?: Tool["inputSchema"]): R
   return Object.keys(params).length > 0 ? params : undefined;
 }
 
-export function validateParamsAgainstSchema(params: Record<string, unknown>, schema?: Tool["inputSchema"]): string[] {
+export function validateParamsAgainstSchema(
+  params: Record<string, unknown>,
+  schema?: Tool["inputSchema"],
+): string[] {
   if (!schema) return [];
 
   const errors: string[] = [];
   const properties = schema.properties as Record<string, JsonSchemaProperty> | undefined;
-  const required = new Set<string>(schema.required as string[] || []);
+  const required = new Set<string>((schema.required as string[]) || []);
 
   for (const field of required) {
     if (params[field] === undefined || params[field] === null) {
@@ -106,7 +122,9 @@ export function validateParamsAgainstSchema(params: Record<string, unknown>, sch
         errors.push(`Parameter '${name}' expected ${expected}, got ${actual}`);
       }
       if (prop.enum && !prop.enum.includes(value)) {
-        errors.push(`Parameter '${name}' must be one of: ${prop.enum.map(v => JSON.stringify(v)).join(", ")}`);
+        errors.push(
+          `Parameter '${name}' must be one of: ${prop.enum.map((v) => JSON.stringify(v)).join(", ")}`,
+        );
       }
     }
   }
@@ -118,9 +136,13 @@ function getValueType(value: unknown): ActionParameter["type"] {
   if (Array.isArray(value)) return "array";
   if (value === null) return "object";
   switch (typeof value) {
-    case "string": return "string";
-    case "number": return "number";
-    case "boolean": return "boolean";
-    default: return "object";
+    case "string":
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    default:
+      return "object";
   }
 }

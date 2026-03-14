@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type JobStatus = "pending" | "in_progress" | "completed" | "failed";
 
@@ -51,8 +51,7 @@ export function useJobPoller(options: UseJobPollerOptions = {}) {
   }, [onComplete, onFailed]);
 
   const activeJobs = useMemo(
-    () =>
-      Array.from(jobMap.values()).filter((job) => isActiveStatus(job.status)),
+    () => Array.from(jobMap.values()).filter((job) => isActiveStatus(job.status)),
     [jobMap],
   );
   const hasActiveJobs = activeJobs.length > 0;
@@ -95,8 +94,8 @@ export function useJobPoller(options: UseJobPollerOptions = {}) {
       pollInFlightRef.current = true;
 
       try {
-        const currentActive = Array.from(jobMapRef.current.values()).filter(
-          (job) => isActiveStatus(job.status),
+        const currentActive = Array.from(jobMapRef.current.values()).filter((job) =>
+          isActiveStatus(job.status),
         );
 
         if (currentActive.length === 0 || cancelled) {
@@ -141,10 +140,7 @@ export function useJobPoller(options: UseJobPollerOptions = {}) {
             const updatedJob: TrackedJob = {
               ...job,
               status: nextStatus,
-              error:
-                typeof nextError === "string"
-                  ? nextError
-                  : (nextError?.message ?? null),
+              error: typeof nextError === "string" ? nextError : (nextError?.message ?? null),
             };
 
             setJobMap((prev) => {
@@ -160,9 +156,7 @@ export function useJobPoller(options: UseJobPollerOptions = {}) {
               callbacksRef.current.onFailed?.(updatedJob);
               needsRefresh = true;
             }
-          } catch {
-            continue;
-          }
+          } catch {}
         }
 
         if (needsRefresh && autoRefresh && !cancelled) {

@@ -1,13 +1,13 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../client";
 import {
-  seoArtifacts,
-  type SeoArtifact,
   type NewSeoArtifact,
+  type SeoArtifact,
+  seoArtifacts,
   seoArtifactTypeEnum,
 } from "../schemas/seo";
 
-export type { SeoArtifact, NewSeoArtifact };
+export type { NewSeoArtifact, SeoArtifact };
 
 export class SeoArtifactsRepository {
   async listByRequest(
@@ -16,10 +16,7 @@ export class SeoArtifactsRepository {
   ): Promise<SeoArtifact[]> {
     return await db.query.seoArtifacts.findMany({
       where: options?.type
-        ? and(
-            eq(seoArtifacts.request_id, requestId),
-            eq(seoArtifacts.type, options.type),
-          )
+        ? and(eq(seoArtifacts.request_id, requestId), eq(seoArtifacts.type, options.type))
         : eq(seoArtifacts.request_id, requestId),
       orderBy: desc(seoArtifacts.created_at),
     });

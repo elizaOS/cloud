@@ -2,8 +2,9 @@
  * Tabs component system for organizing content into tabbed interfaces.
  * Built on Radix UI primitives with keyboard navigation and accessibility support.
  */
-import * as React from "react";
+
 import * as TabsPrimitive from "@radix-ui/react-tabs";
+import * as React from "react";
 
 import { cn } from "../lib/utils";
 
@@ -54,4 +55,4 @@ const TabsContent = React.forwardRef<
 ));
 TabsContent.displayName = TabsPrimitive.Content.displayName;
 
-export { Tabs, TabsList, TabsTrigger, TabsContent };
+export { Tabs, TabsContent, TabsList, TabsTrigger };

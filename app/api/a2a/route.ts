@@ -12,22 +12,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v3";
+import {
+  type A2AContext,
+  A2AErrorCodes,
+  AVAILABLE_SKILLS,
+  handleMessageSend,
+  handleTasksCancel,
+  handleTasksGet,
+  jsonRpcError,
+  jsonRpcSuccess,
+  type MessageSendParams,
+  type TaskCancelParams,
+  type TaskGetParams,
+} from "@/lib/api/a2a";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import { logger } from "@/lib/utils/logger";
-import {
-  type A2AContext,
-  type MessageSendParams,
-  type TaskGetParams,
-  type TaskCancelParams,
-  A2AErrorCodes,
-  jsonRpcSuccess,
-  jsonRpcError,
-  handleMessageSend,
-  handleTasksGet,
-  handleTasksCancel,
-  AVAILABLE_SKILLS,
-} from "@/lib/api/a2a";
 
 export const maxDuration = 60;
 
@@ -46,29 +46,22 @@ function a2aSuccess<T>(result: T, id: string | number | null): NextResponse {
 }
 
 // Method registry
-type MethodHandler = (
-  params: Record<string, unknown>,
-  ctx: A2AContext,
-) => Promise<unknown>;
+type MethodHandler = (params: Record<string, unknown>, ctx: A2AContext) => Promise<unknown>;
 
-const METHODS: Record<string, { handler: MethodHandler; description: string }> =
-  {
-    "message/send": {
-      handler: (params, ctx) =>
-        handleMessageSend(params as unknown as MessageSendParams, ctx),
-      description: "Send a message to create/continue a task (A2A standard)",
-    },
-    "tasks/get": {
-      handler: (params, ctx) =>
-        handleTasksGet(params as unknown as TaskGetParams, ctx),
-      description: "Get task status and history (A2A standard)",
-    },
-    "tasks/cancel": {
-      handler: (params, ctx) =>
-        handleTasksCancel(params as unknown as TaskCancelParams, ctx),
-      description: "Cancel a running task (A2A standard)",
-    },
-  };
+const METHODS: Record<string, { handler: MethodHandler; description: string }> = {
+  "message/send": {
+    handler: (params, ctx) => handleMessageSend(params as unknown as MessageSendParams, ctx),
+    description: "Send a message to create/continue a task (A2A standard)",
+  },
+  "tasks/get": {
+    handler: (params, ctx) => handleTasksGet(params as unknown as TaskGetParams, ctx),
+    description: "Get task status and history (A2A standard)",
+  },
+  "tasks/cancel": {
+    handler: (params, ctx) => handleTasksCancel(params as unknown as TaskCancelParams, ctx),
+    description: "Cancel a running task (A2A standard)",
+  },
+};
 
 // Request schema
 const JsonRpcRequestSchema = z.object({
@@ -86,11 +79,7 @@ export async function POST(request: NextRequest) {
   try {
     body = JSON.parse(bodyText);
   } catch {
-    return a2aError(
-      A2AErrorCodes.PARSE_ERROR,
-      "Parse error: Invalid JSON",
-      null,
-    );
+    return a2aError(A2AErrorCodes.PARSE_ERROR, "Parse error: Invalid JSON", null);
   }
 
   const parsed = JsonRpcRequestSchema.safeParse(body);
@@ -130,12 +119,7 @@ export async function POST(request: NextRequest) {
   // Find handler
   const methodDef = METHODS[method];
   if (!methodDef) {
-    return a2aError(
-      A2AErrorCodes.METHOD_NOT_FOUND,
-      `Method not found: ${method}`,
-      id,
-      404,
-    );
+    return a2aError(A2AErrorCodes.METHOD_NOT_FOUND, `Method not found: ${method}`, id, 404);
   }
 
   // Execute

@@ -10,8 +10,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimitRedis } from "./rate-limit-redis";
 import { logger } from "@/lib/utils/logger";
+import { checkRateLimitRedis } from "./rate-limit-redis";
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -45,17 +45,13 @@ function validateRateLimitConfig() {
     if (process.env.REDIS_RATE_LIMITING !== "true") {
       throw new Error(
         "🚨 SECURITY: Redis rate limiting is required in production. " +
-        "In-memory rate limiting allows bypass across serverless instances. " +
-        "Set REDIS_RATE_LIMITING=true and configure Redis connection.",
+          "In-memory rate limiting allows bypass across serverless instances. " +
+          "Set REDIS_RATE_LIMITING=true and configure Redis connection.",
       );
     }
-    logger.info(
-      "[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)",
-    );
+    logger.info("[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)");
   } else {
-    logger.info(
-      "[Rate Limit] 🔓 Development mode: Rate limits relaxed (10000 req/window)",
-    );
+    logger.info("[Rate Limit] 🔓 Development mode: Rate limits relaxed (10000 req/window)");
   }
 }
 
@@ -170,9 +166,7 @@ function checkRateLimit(
 
   const allowed = entry.count <= config.maxRequests;
   const remaining = Math.max(0, config.maxRequests - entry.count);
-  const retryAfter = allowed
-    ? undefined
-    : Math.ceil((entry.resetAt - now) / 1000);
+  const retryAfter = allowed ? undefined : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
     logger.warn("Rate limit exceeded", {
@@ -209,11 +203,7 @@ export async function checkRateLimitAsync(
   const key = keyGenerator(request);
 
   if (useRedis) {
-    const result = await checkRateLimitRedis(
-      key,
-      config.windowMs,
-      config.maxRequests,
-    );
+    const result = await checkRateLimitRedis(key, config.windowMs, config.maxRequests);
     logger.debug(
       `[Rate Limit] Redis check for key=${maskKeyForLogging(key)}, allowed=${result.allowed}, remaining=${result.remaining}`,
     );
@@ -236,27 +226,17 @@ export async function checkRateLimitAsync(
  * Falls back to in-memory rate limiting for local development
  */
 export function withRateLimit<T = Record<string, string>>(
-  handler: (
-    request: NextRequest,
-    context?: { params: Promise<T> },
-  ) => Promise<Response>,
+  handler: (request: NextRequest, context?: { params: Promise<T> }) => Promise<Response>,
   config: RateLimitConfig,
 ) {
-  return async (
-    request: NextRequest,
-    context?: { params: Promise<T> },
-  ): Promise<Response> => {
+  return async (request: NextRequest, context?: { params: Promise<T> }): Promise<Response> => {
     const useRedis = process.env.REDIS_RATE_LIMITING === "true";
     const keyGenerator = config.keyGenerator || getDefaultKey;
     const key = keyGenerator(request);
 
     let result;
     if (useRedis) {
-      result = await checkRateLimitRedis(
-        key,
-        config.windowMs,
-        config.maxRequests,
-      );
+      result = await checkRateLimitRedis(key, config.windowMs, config.maxRequests);
       logger.debug(
         `[Rate Limit] Redis check for key=${maskKeyForLogging(key)}, allowed=${result.allowed}, remaining=${result.remaining}`,
       );
@@ -372,10 +352,7 @@ export interface CostBasedRateLimitConfig {
   getCost: (request: NextRequest) => number | Promise<number>;
 }
 
-const costLimitStore = new Map<
-  string,
-  { totalCost: number; resetAt: number }
->();
+const costLimitStore = new Map<string, { totalCost: number; resetAt: number }>();
 
 /**
  * Check cost-based rate limit
@@ -406,9 +383,7 @@ export async function checkCostBasedRateLimit(
 
   const allowed = entry.totalCost <= config.maxCost;
   const remaining = Math.max(0, config.maxCost - entry.totalCost);
-  const retryAfter = allowed
-    ? undefined
-    : Math.ceil((entry.resetAt - now) / 1000);
+  const retryAfter = allowed ? undefined : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
     logger.warn("Cost-based rate limit exceeded", {

@@ -37,9 +37,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       orgId,
     });
-    return NextResponse.json(
-      { error: "Failed to get Blooio status" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to get Blooio status" }, { status: 500 });
   }
 }

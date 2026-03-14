@@ -8,7 +8,7 @@
  * - Edge cases for Telegram auth data
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 
 // Schema matching auth/telegram/route.ts
@@ -394,7 +394,13 @@ describe("Auth Success Response Schema", () => {
 
   test("missing success field fails", () => {
     const response = {
-      user: { id: "1", telegram_id: "1", telegram_username: null, name: null, organization_id: "1" },
+      user: {
+        id: "1",
+        telegram_id: "1",
+        telegram_username: null,
+        name: null,
+        organization_id: "1",
+      },
       session: { token: "t", expires_at: "2024-01-01" },
       is_new_user: false,
     };

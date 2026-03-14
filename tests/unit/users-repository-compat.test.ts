@@ -29,14 +29,11 @@ describe("UsersRepository WhatsApp schema compatibility cache", () => {
       },
     };
 
-    await expect(
-      repository.getWhatsAppColumnSupport(fakeDatabase, "read"),
-    ).rejects.toThrow("transient schema probe failure");
-
-    const support = await repository.getWhatsAppColumnSupport(
-      fakeDatabase,
-      "read",
+    await expect(repository.getWhatsAppColumnSupport(fakeDatabase, "read")).rejects.toThrow(
+      "transient schema probe failure",
     );
+
+    const support = await repository.getWhatsAppColumnSupport(fakeDatabase, "read");
 
     expect(support).toEqual({
       users: true,

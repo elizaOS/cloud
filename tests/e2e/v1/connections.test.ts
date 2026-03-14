@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as api from "../helpers/api-client";
 
 /**
@@ -45,7 +45,7 @@ describe("MCPs API", () => {
   test("GET /api/mcp/registry returns public registry", async () => {
     const response = await api.get("/api/mcp/registry");
     expect(response.status).toBe(200);
-    const body = await response.json() as any;
+    const body = (await response.json()) as any;
     expect(body.registry || Array.isArray(body)).toBeTruthy();
   });
 });

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  advertisingService,
-  type AdPlatform,
-} from "@/lib/services/advertising";
+import { type AdPlatform, advertisingService } from "@/lib/services/advertising";
 import { ConnectAccountSchema } from "@/lib/services/advertising/schemas";
 import { logger } from "@/lib/utils/logger";
 

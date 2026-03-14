@@ -1,10 +1,6 @@
-import { eq, and } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
-import {
-  modelPricing,
-  type ModelPricing,
-  type NewModelPricing,
-} from "../schemas/model-pricing";
+import { type ModelPricing, modelPricing, type NewModelPricing } from "../schemas/model-pricing";
 
 export type { ModelPricing, NewModelPricing };
 
@@ -19,10 +15,7 @@ export class ModelPricingRepository {
   /**
    * Finds active pricing for a model and provider combination.
    */
-  async findByModelAndProvider(
-    model: string,
-    provider: string,
-  ): Promise<ModelPricing | undefined> {
+  async findByModelAndProvider(model: string, provider: string): Promise<ModelPricing | undefined> {
     return await dbRead.query.modelPricing.findFirst({
       where: and(
         eq(modelPricing.model, model),
@@ -58,20 +51,14 @@ export class ModelPricingRepository {
    * Creates a new model pricing record.
    */
   async create(data: NewModelPricing): Promise<ModelPricing> {
-    const [pricing] = await dbWrite
-      .insert(modelPricing)
-      .values(data)
-      .returning();
+    const [pricing] = await dbWrite.insert(modelPricing).values(data).returning();
     return pricing;
   }
 
   /**
    * Updates an existing model pricing record.
    */
-  async update(
-    id: string,
-    data: Partial<NewModelPricing>,
-  ): Promise<ModelPricing | undefined> {
+  async update(id: string, data: Partial<NewModelPricing>): Promise<ModelPricing | undefined> {
     const [updated] = await dbWrite
       .update(modelPricing)
       .set({

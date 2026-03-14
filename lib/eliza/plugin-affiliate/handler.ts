@@ -1,53 +1,49 @@
 import {
   asUUID,
+  type Content,
   composePromptFromState,
   createUniqueUuid,
   EventType,
   logger,
-  MemoryType,
-  type Memory,
-  type Content,
   type Media,
+  type Memory,
+  MemoryType,
   parseKeyValueXml,
   type UUID,
 } from "@elizaos/core";
-import type { DialogueMetadata } from "@/lib/types/message-content";
 import { v4 } from "uuid";
+import { MIN_IMAGE_INTERVAL_MS } from "@/lib/constants/image-generation";
+import type { DialogueMetadata } from "@/lib/types/message-content";
+import type { MessageReceivedHandlerParams } from "../shared/types";
 import {
-  chatAssistantSystemPrompt,
-  chatAssistantPlanningTemplate,
-  chatAssistantFinalSystemPrompt,
-  chatAssistantResponseTemplate,
-  affiliateSystemPrompt,
-  affiliatePlanningTemplate,
-  affiliateFinalSystemPrompt,
-  affiliateResponseTemplate,
-} from "./prompts/chat-assistant-prompts";
-import {
-  setLatestResponseId,
-  clearLatestResponseId,
-  isResponseStillValid,
-} from "../shared/utils/response-tracking";
-import {
-  generateResponseWithRetry,
-  generatePlanningWithStreaming,
-  runEvaluatorsWithTimeout,
-  extractAttachments,
-  executeProviders,
-  executeActions,
   cleanPrompt,
+  clearActionResponseFlag,
+  executeActions,
+  executeProviders,
+  extractAttachments,
+  generatePlanningWithStreaming,
+  generateResponseWithRetry,
   getAndClearCachedAttachments,
   hasActionSentResponse,
-  clearActionResponseFlag,
   postProcessResponse,
+  runEvaluatorsWithTimeout,
 } from "../shared/utils/helpers";
+import { canRespondImmediately, type ParsedPlan, parsePlannedItems } from "../shared/utils/parsers";
 import {
-  parsePlannedItems,
-  canRespondImmediately,
-  type ParsedPlan,
-} from "../shared/utils/parsers";
-import type { MessageReceivedHandlerParams } from "../shared/types";
-import { MIN_IMAGE_INTERVAL_MS } from "@/lib/constants/image-generation";
+  clearLatestResponseId,
+  isResponseStillValid,
+  setLatestResponseId,
+} from "../shared/utils/response-tracking";
+import {
+  affiliateFinalSystemPrompt,
+  affiliatePlanningTemplate,
+  affiliateResponseTemplate,
+  affiliateSystemPrompt,
+  chatAssistantFinalSystemPrompt,
+  chatAssistantPlanningTemplate,
+  chatAssistantResponseTemplate,
+  chatAssistantSystemPrompt,
+} from "./prompts/chat-assistant-prompts";
 
 // Rate limiting for auto-image generation (prevents cost abuse)
 const imageGenerationTimestamps = new Map<string, number>();
@@ -127,9 +123,7 @@ export async function handleMessage({
           [key: string]: unknown;
         }
       | undefined;
-    const isAffiliateChat = !!(
-      affiliateData && Object.keys(affiliateData).length > 0
-    );
+    const isAffiliateChat = !!(affiliateData && Object.keys(affiliateData).length > 0);
     const shouldAutoGenerateImages = affiliateData?.autoImage === true;
 
     const providers = isAffiliateChat
@@ -159,8 +153,7 @@ export async function handleMessage({
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
-        template:
-          runtime.character.templates?.planningTemplate || planningTemplate,
+        template: runtime.character.templates?.planningTemplate || planningTemplate,
       }),
     );
 
@@ -174,9 +167,7 @@ export async function handleMessage({
     const planningResponse = await generatePlanningWithStreaming(
       runtime,
       planningPrompt,
-      onReasoningChunk
-        ? { onReasoningChunk, messageId: responseId as UUID }
-        : undefined,
+      onReasoningChunk ? { onReasoningChunk, messageId: responseId as UUID } : undefined,
     );
     runtime.character.system = originalSystemPrompt;
 
@@ -201,9 +192,7 @@ export async function handleMessage({
           };
         } else {
           if (!plan.actions?.includes("GENERATE_IMAGE")) {
-            plan.actions = plan.actions
-              ? `${plan.actions}, GENERATE_IMAGE`
-              : "GENERATE_IMAGE";
+            plan.actions = plan.actions ? `${plan.actions}, GENERATE_IMAGE` : "GENERATE_IMAGE";
           }
           plan.canRespondNow = "NO";
         }
@@ -220,10 +209,7 @@ export async function handleMessage({
         // Stream in reasonable chunks - frontend typewriter will smooth it out
         const chunkSize = 20;
         for (let i = 0; i < responseContent.length; i += chunkSize) {
-          await onStreamChunk(
-            responseContent.slice(i, i + chunkSize),
-            responseId as UUID,
-          );
+          await onStreamChunk(responseContent.slice(i, i + chunkSize), responseId as UUID);
         }
       }
     } else {
@@ -233,12 +219,7 @@ export async function handleMessage({
         const plannedProviders = parsePlannedItems(plan?.providers);
         const plannedActions = parsePlannedItems(plan?.actions);
 
-        updatedState = await executeProviders(
-          runtime,
-          message,
-          plannedProviders,
-          updatedState,
-        );
+        updatedState = await executeProviders(runtime, message, plannedProviders, updatedState);
         updatedState = await executeActions(
           runtime,
           message,
@@ -292,9 +273,7 @@ export async function handleMessage({
       const responsePrompt = cleanPrompt(
         composePromptFromState({
           state: updatedState,
-          template:
-            runtime.character.templates?.messageHandlerTemplate ||
-            responseTemplate,
+          template: runtime.character.templates?.messageHandlerTemplate || responseTemplate,
         }),
       );
 
@@ -333,15 +312,10 @@ export async function handleMessage({
     // Collect attachments from action results and cache
     const actionResults = await runtime.getActionResults(message.id as UUID);
     const actionResultAttachments = extractAttachments(actionResults);
-    const cachedAttachments = getAndClearCachedAttachments(
-      message.roomId as string,
-    );
+    const cachedAttachments = getAndClearCachedAttachments(message.roomId as string);
 
     // Dedupe attachments by ID, preferring cached (validated HTTP URLs)
-    const attachmentMap = new Map<
-      string,
-      { id: string; url: string; contentType?: string }
-    >();
+    const attachmentMap = new Map<string, { id: string; url: string; contentType?: string }>();
     for (const att of [...actionResultAttachments, ...cachedAttachments]) {
       if (att && typeof att === "object" && "id" in att && "url" in att) {
         const { id, url, contentType } = att as {
@@ -363,9 +337,7 @@ export async function handleMessage({
 
     // Ensure we have a response - if generation failed, provide a fallback
     if (!responseContent || responseContent.trim() === "") {
-      logger.warn(
-        "[Assistant] Response generation failed - using fallback response",
-      );
+      logger.warn("[Assistant] Response generation failed - using fallback response");
       responseContent =
         mediaAttachments.length > 0
           ? "Here you go! 😊"
@@ -373,10 +345,7 @@ export async function handleMessage({
     }
 
     // Post-process response to remove AI-speak and track openings
-    const processedResponse = postProcessResponse(
-      responseContent,
-      message.roomId as string,
-    );
+    const processedResponse = postProcessResponse(responseContent, message.roomId as string);
     const finalText = processedResponse.text;
 
     const content: Content = {
@@ -404,13 +373,7 @@ export async function handleMessage({
       } as DialogueMetadata,
     };
 
-    await runEvaluatorsWithTimeout(
-      runtime,
-      message,
-      initialState,
-      responseMemory,
-      callback,
-    );
+    await runEvaluatorsWithTimeout(runtime, message, initialState, responseMemory, callback);
 
     const endTime = Date.now();
     await runtime.emitEvent(EventType.RUN_ENDED, {

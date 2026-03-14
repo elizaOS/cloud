@@ -9,8 +9,7 @@ import { Client } from "pg";
 import { resolveDatabaseUrl } from "@/db/database-url";
 
 /** True when DATABASE_URL is set (use with describe.skipIf(!hasDatabaseUrl) for DB-dependent suites). */
-export const hasDatabaseUrl =
-  typeof resolveDatabaseUrl(process.env) === "string";
+export const hasDatabaseUrl = typeof resolveDatabaseUrl(process.env) === "string";
 
 /**
  * Get the connection string from environment

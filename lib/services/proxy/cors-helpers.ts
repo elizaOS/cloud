@@ -1,7 +1,6 @@
-
 /**
  * @deprecated Use lib/services/proxy/cors.ts instead - this is a duplicate module
- * 
+ *
  * Shared CORS helpers for Solana proxy route handlers.
  *
  * CORS: Unrestricted by design - see lib/services/proxy/cors.ts for security rationale.
@@ -9,9 +8,7 @@
 
 import { NextResponse } from "next/server";
 
-export function getCorsHeaders(
-  methods = "GET, POST, OPTIONS",
-): Record<string, string> {
+export function getCorsHeaders(methods = "GET, POST, OPTIONS"): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": methods,

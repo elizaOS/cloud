@@ -5,8 +5,8 @@
  */
 
 import { Redis } from "@upstash/redis";
-import { logger } from "@/lib/utils/logger";
 import { v4 as uuidv4 } from "uuid";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Lock object with release and extend methods.
@@ -69,11 +69,7 @@ export class DistributedLockService {
       maxDelayMs?: number;
     } = {},
   ): Promise<Lock | null> {
-    const {
-      maxRetries = 10,
-      initialDelayMs = 100,
-      maxDelayMs = 2000,
-    } = options;
+    const { maxRetries = 10, initialDelayMs = 100, maxDelayMs = 2000 } = options;
 
     let attempt = 0;
     let delayMs = initialDelayMs;
@@ -83,9 +79,7 @@ export class DistributedLockService {
 
       if (lock) {
         if (attempt > 0) {
-          logger.info(
-            `[Distributed Locks] Acquired lock for ${roomId} after ${attempt} retries`,
-          );
+          logger.info(`[Distributed Locks] Acquired lock for ${roomId} after ${attempt} retries`);
         }
         return lock;
       }
@@ -118,14 +112,9 @@ export class DistributedLockService {
    * PERFORMANCE FIX: Increased from 30s to 90s to accommodate long-running LLM calls
    * @returns Lock object if acquired, null if already locked
    */
-  async acquireRoomLock(
-    roomId: string,
-    ttl: number = 90000,
-  ): Promise<Lock | null> {
+  async acquireRoomLock(roomId: string, ttl: number = 90000): Promise<Lock | null> {
     if (!this.enabled || !this.redis) {
-      logger.warn(
-        "[Distributed Locks] Service disabled, skipping lock acquisition",
-      );
+      logger.warn("[Distributed Locks] Service disabled, skipping lock acquisition");
       return this.createDummyLock(roomId, ttl);
     }
 
@@ -139,15 +128,11 @@ export class DistributedLockService {
     });
 
     if (!acquired) {
-      logger.debug(
-        `[Distributed Locks] Failed to acquire lock for ${roomId} - already locked`,
-      );
+      logger.debug(`[Distributed Locks] Failed to acquire lock for ${roomId} - already locked`);
       return null;
     }
 
-    logger.debug(
-      `[Distributed Locks] Acquired lock ${lockId} for ${roomId} (TTL: ${ttl}ms)`,
-    );
+    logger.debug(`[Distributed Locks] Acquired lock ${lockId} for ${roomId} (TTL: ${ttl}ms)`);
 
     return {
       lockId,
@@ -197,11 +182,7 @@ export class DistributedLockService {
    * @param ms - Additional milliseconds to extend
    * @returns true if extended, false if not owned or doesn't exist
    */
-  async extendLock(
-    roomId: string,
-    lockId: string,
-    ms: number,
-  ): Promise<boolean> {
+  async extendLock(roomId: string, lockId: string, ms: number): Promise<boolean> {
     if (!this.enabled || !this.redis) {
       return true;
     }
@@ -258,9 +239,7 @@ export class DistributedLockService {
    * @param roomId - Room to check
    * @returns Lock info or null if not locked
    */
-  async getLockInfo(
-    roomId: string,
-  ): Promise<{ lockId: string; ttl: number } | null> {
+  async getLockInfo(roomId: string): Promise<{ lockId: string; ttl: number } | null> {
     if (!this.enabled || !this.redis) {
       return null;
     }

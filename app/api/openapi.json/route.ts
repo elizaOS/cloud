@@ -30,7 +30,7 @@ function toOperationId(method: string, routePath: string) {
     .replace(/^\//, "")
     .replace(/[{}]/g, "")
     .replace(/[^a-zA-Z0-9/_-]/g, "")
-    .replace(/[\/-]+/g, "_");
+    .replace(/[/-]+/g, "_");
   return `${method.toLowerCase()}_${clean}`;
 }
 

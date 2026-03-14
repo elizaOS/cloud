@@ -16,11 +16,11 @@
  * - Only the essential claims are cached (not the full token)
  */
 
-import { PrivyClient, type AuthTokenClaims } from "@privy-io/server-auth";
-import { cache } from "@/lib/cache/client";
-import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
-import { InMemoryLRUCache } from "@/lib/cache/in-memory-lru-cache";
+import { type AuthTokenClaims, PrivyClient } from "@privy-io/server-auth";
 import { createHash } from "crypto";
+import { cache } from "@/lib/cache/client";
+import { InMemoryLRUCache } from "@/lib/cache/in-memory-lru-cache";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 
 // Singleton Privy client
@@ -92,9 +92,7 @@ const IN_MEMORY_PRIVY_CACHE = new InMemoryLRUCache<AuthTokenClaims>(200, 30_000)
  * @param token - The Privy auth token from cookies or Authorization header
  * @returns Verified claims or null if invalid/expired
  */
-export async function verifyAuthTokenCached(
-  token: string,
-): Promise<AuthTokenClaims | null> {
+export async function verifyAuthTokenCached(token: string): Promise<AuthTokenClaims | null> {
   const tokenHash = hashToken(token);
   const cacheKey = CacheKeys.session.privy(tokenHash);
 
@@ -166,10 +164,7 @@ export async function verifyAuthTokenCached(
     // Calculate TTL: minimum of our configured TTL and token's remaining lifetime
     const now = Math.floor(Date.now() / 1000);
     const tokenRemainingSeconds = claims.expiration - now;
-    const effectiveTtl = Math.min(
-      CacheTTL.session.privy,
-      tokenRemainingSeconds,
-    );
+    const effectiveTtl = Math.min(CacheTTL.session.privy, tokenRemainingSeconds);
 
     if (effectiveTtl > 0) {
       const cachedClaims: CachedPrivyClaims = {

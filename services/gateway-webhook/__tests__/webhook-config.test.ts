@@ -1,12 +1,4 @@
-import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
-  spyOn,
-  mock,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 
 // Mock project-config before importing webhook-config
 const mockProjectEnv = new Map<string, string>();
@@ -18,10 +10,7 @@ mock.module("../src/project-config", () => ({
   shutdownProjectConfig: () => {},
 }));
 
-import {
-  resolveWebhookConfig,
-  getSharedWhatsAppVerifyToken,
-} from "../src/webhook-config";
+import { getSharedWhatsAppVerifyToken, resolveWebhookConfig } from "../src/webhook-config";
 
 // Fake Redis that stores in a Map
 function createFakeRedis() {
@@ -33,11 +22,7 @@ function createFakeRedis() {
       if (!val) return null;
       return JSON.parse(val) as T;
     },
-    set: async (
-      key: string,
-      value: string,
-      _opts?: { ex?: number },
-    ): Promise<string | null> => {
+    set: async (key: string, value: string, _opts?: { ex?: number }): Promise<string | null> => {
       store.set(key, value);
       return "OK";
     },
@@ -194,10 +179,7 @@ describe("webhook-config", () => {
         agentId: "cached-agent",
         botToken: "cached-token",
       };
-      redis.store.set(
-        "webhook-config:telegram:agent:agent-123",
-        JSON.stringify(cachedConfig),
-      );
+      redis.store.set("webhook-config:telegram:agent:agent-123", JSON.stringify(cachedConfig));
 
       fetchSpy = spyOn(globalThis, "fetch");
 
@@ -262,9 +244,7 @@ describe("webhook-config", () => {
     });
 
     test("returns null on fetch error", async () => {
-      fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(
-        new Error("Network failure"),
-      );
+      fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network failure"));
 
       const redis = createFakeRedis();
       const config = await resolveWebhookConfig(

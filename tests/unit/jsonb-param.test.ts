@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { jsonbParam } from "@/db/utils/jsonb";
 
 describe("jsonbParam", () => {
@@ -10,15 +10,12 @@ describe("jsonbParam", () => {
 
     // Includes the cast token.
     const hasJsonbCast = chunks.some(
-      (c) =>
-        c?.constructor?.name === "StringChunk" && c?.value?.[0] === "::jsonb",
+      (c) => c?.constructor?.name === "StringChunk" && c?.value?.[0] === "::jsonb",
     );
     expect(hasJsonbCast).toBe(true);
 
     // The param should be JSON string, not a raw object.
-    const hasJsonStringParam = chunks.some(
-      (c) => typeof c === "string" && c === "{}",
-    );
+    const hasJsonStringParam = chunks.some((c) => typeof c === "string" && c === "{}");
     expect(hasJsonStringParam).toBe(true);
   });
 });

@@ -1,3 +1,4 @@
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   index,
   jsonb,
@@ -8,7 +9,6 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { apps } from "./apps";
 import { users } from "./users";
 
@@ -84,10 +84,7 @@ export const appEarningsTransactions = pgTable(
     type: text("type").notNull(),
     amount: numeric("amount", { precision: 10, scale: 6 }).notNull(),
     description: text("description"),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
@@ -103,9 +100,5 @@ export const appEarningsTransactions = pgTable(
 
 export type AppEarnings = InferSelectModel<typeof appEarnings>;
 export type NewAppEarnings = InferInsertModel<typeof appEarnings>;
-export type AppEarningsTransaction = InferSelectModel<
-  typeof appEarningsTransactions
->;
-export type NewAppEarningsTransaction = InferInsertModel<
-  typeof appEarningsTransactions
->;
+export type AppEarningsTransaction = InferSelectModel<typeof appEarningsTransactions>;
+export type NewAppEarningsTransaction = InferInsertModel<typeof appEarningsTransactions>;

@@ -1,4 +1,3 @@
-
 /**
  * Shared CORS utilities for proxy services
  *
@@ -17,8 +16,7 @@ export function getCorsHeaders(methods?: string): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": methods || "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-API-Key, Cache-Control",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, Cache-Control",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -30,10 +28,7 @@ export function handleCorsOptions(methods: string): Response {
   });
 }
 
-export function applyCorsHeaders(
-  response: Response,
-  methods?: string,
-): Response {
+export function applyCorsHeaders(response: Response, methods?: string): Response {
   const headers = new Headers(response.headers);
 
   for (const [key, value] of Object.entries(getCorsHeaders(methods))) {

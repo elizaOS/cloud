@@ -1,10 +1,10 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
-import { users, type User, type NewUser } from "../schemas/users";
-import { userIdentities, type UserIdentity } from "../schemas/user-identities";
 import { type Organization } from "../schemas/organizations";
+import { type UserIdentity, userIdentities } from "../schemas/user-identities";
+import { type NewUser, type User, users } from "../schemas/users";
 
-export type { User, NewUser };
+export type { NewUser, User };
 
 /**
  * User with associated organization data.
@@ -13,10 +13,7 @@ export interface UserWithOrganization extends User {
   organization: Organization | null;
 }
 
-type CompatibleUserWithoutWhatsApp = Omit<
-  User,
-  "whatsapp_id" | "whatsapp_name"
->;
+type CompatibleUserWithoutWhatsApp = Omit<User, "whatsapp_id" | "whatsapp_name">;
 type CompatibleUserRow = CompatibleUserWithoutWhatsApp & {
   whatsapp_id?: User["whatsapp_id"];
   whatsapp_name?: User["whatsapp_name"];
@@ -78,12 +75,8 @@ type WhatsAppColumnSupport = {
  * Write operations → dbWrite (primary)
  */
 export class UsersRepository {
-  private static readWhatsAppColumnSupportPromise:
-    | Promise<WhatsAppColumnSupport>
-    | undefined;
-  private static writeWhatsAppColumnSupportPromise:
-    | Promise<WhatsAppColumnSupport>
-    | undefined;
+  private static readWhatsAppColumnSupportPromise: Promise<WhatsAppColumnSupport> | undefined;
+  private static writeWhatsAppColumnSupportPromise: Promise<WhatsAppColumnSupport> | undefined;
 
   static resetWhatsAppColumnSupportCacheForTests(): void {
     UsersRepository.readWhatsAppColumnSupportPromise = undefined;
@@ -120,11 +113,7 @@ export class UsersRepository {
   async findByPrivyIdWithOrganization(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    return this.findByPrivyIdWithOrganizationUsingDb(
-      dbRead,
-      "read",
-      privyUserId,
-    );
+    return this.findByPrivyIdWithOrganizationUsingDb(dbRead, "read", privyUserId);
   }
 
   /**
@@ -151,28 +140,19 @@ export class UsersRepository {
     }
 
     // Fallback: look up via identity projection (two-query approach for safety)
-    const identityUserId = await this.findIdentityUserIdByPrivyId(
-      dbWrite,
-      privyUserId,
-    );
+    const identityUserId = await this.findIdentityUserIdByPrivyId(dbWrite, privyUserId);
 
     if (!identityUserId) {
       return undefined;
     }
 
-    return await this.findCompatibleUserWithOrganizationById(
-      dbWrite,
-      "write",
-      identityUserId,
-    );
+    return await this.findCompatibleUserWithOrganizationById(dbWrite, "write", identityUserId);
   }
 
   /**
    * Finds a user by ID with organization data.
    */
-  async findWithOrganization(
-    userId: string,
-  ): Promise<UserWithOrganization | undefined> {
+  async findWithOrganization(userId: string): Promise<UserWithOrganization | undefined> {
     const user = await dbRead.query.users.findFirst({
       where: eq(users.id, userId),
       with: {
@@ -186,9 +166,7 @@ export class UsersRepository {
   /**
    * Finds a user by email with organization data.
    */
-  async findByEmailWithOrganization(
-    email: string,
-  ): Promise<UserWithOrganization | undefined> {
+  async findByEmailWithOrganization(email: string): Promise<UserWithOrganization | undefined> {
     const user = await dbRead.query.users.findFirst({
       where: eq(users.email, email),
       with: {
@@ -360,9 +338,7 @@ export class UsersRepository {
    * Finds the identity projection row for a user from primary.
    * Use after writes when replica lag could return a stale identity row.
    */
-  async findIdentityByUserIdForWrite(
-    userId: string,
-  ): Promise<UserIdentity | undefined> {
+  async findIdentityByUserIdForWrite(userId: string): Promise<UserIdentity | undefined> {
     return await dbWrite.query.userIdentities.findFirst({
       where: eq(userIdentities.user_id, userId),
     });
@@ -394,13 +370,12 @@ export class UsersRepository {
     }
 
     if (canonicalIdentity.whatsapp_id) {
-      const conflictingProjection =
-        await dbWrite.query.userIdentities.findFirst({
-          where: and(
-            eq(userIdentities.whatsapp_id, canonicalIdentity.whatsapp_id),
-            ne(userIdentities.user_id, userId),
-          ),
-        });
+      const conflictingProjection = await dbWrite.query.userIdentities.findFirst({
+        where: and(
+          eq(userIdentities.whatsapp_id, canonicalIdentity.whatsapp_id),
+          ne(userIdentities.user_id, userId),
+        ),
+      });
 
       if (conflictingProjection) {
         return;
@@ -423,9 +398,7 @@ export class UsersRepository {
    * Finds the identity projection row for a Privy user ID from primary.
    * Use when recovery must verify the projection row ownership directly.
    */
-  async findIdentityByPrivyIdForWrite(
-    privyUserId: string,
-  ): Promise<UserIdentity | undefined> {
+  async findIdentityByPrivyIdForWrite(privyUserId: string): Promise<UserIdentity | undefined> {
     return await dbWrite.query.userIdentities.findFirst({
       where: eq(userIdentities.privy_user_id, privyUserId),
     });
@@ -440,10 +413,7 @@ export class UsersRepository {
     // Some deployed environments still lag older identity columns on users,
     // so auth lookups only select the columns they actually need and fill any
     // missing legacy fields from schema detection.
-    const identityUserId = await this.findIdentityUserIdByPrivyId(
-      database,
-      privyUserId,
-    );
+    const identityUserId = await this.findIdentityUserIdByPrivyId(database, privyUserId);
 
     if (identityUserId) {
       return await this.findCompatibleUserWithOrganizationById(
@@ -499,11 +469,9 @@ export class UsersRepository {
       }
 
       return {
-        users:
-          usersColumns.has("whatsapp_id") && usersColumns.has("whatsapp_name"),
+        users: usersColumns.has("whatsapp_id") && usersColumns.has("whatsapp_name"),
         userIdentities:
-          userIdentityColumns.has("whatsapp_id") &&
-          userIdentityColumns.has("whatsapp_name"),
+          userIdentityColumns.has("whatsapp_id") && userIdentityColumns.has("whatsapp_name"),
       };
     })();
 
@@ -539,16 +507,11 @@ export class UsersRepository {
     return identity?.user_id;
   }
 
-  private normalizeCompatibleUser(
-    user: CompatibleUserRow,
-    hasUsersWhatsAppColumns: boolean,
-  ): User {
+  private normalizeCompatibleUser(user: CompatibleUserRow, hasUsersWhatsAppColumns: boolean): User {
     return {
       ...user,
       whatsapp_id: hasUsersWhatsAppColumns ? (user.whatsapp_id ?? null) : null,
-      whatsapp_name: hasUsersWhatsAppColumns
-        ? (user.whatsapp_name ?? null)
-        : null,
+      whatsapp_name: hasUsersWhatsAppColumns ? (user.whatsapp_name ?? null) : null,
     };
   }
 
@@ -643,10 +606,7 @@ export class UsersRepository {
   /**
    * Upserts the Privy identity projection for a user.
    */
-  async upsertPrivyIdentity(
-    userId: string,
-    privyUserId: string,
-  ): Promise<UserIdentity> {
+  async upsertPrivyIdentity(userId: string, privyUserId: string): Promise<UserIdentity> {
     const support = await this.getWhatsAppColumnSupport(dbWrite, "write");
     const whatsappInsertColumns = support.userIdentities
       ? sql`,
@@ -720,9 +680,7 @@ export class UsersRepository {
     const [identity] = result.rows;
 
     if (!identity) {
-      throw new Error(
-        `User ${userId} not found while upserting Privy identity ${privyUserId}`,
-      );
+      throw new Error(`User ${userId} not found while upserting Privy identity ${privyUserId}`);
     }
 
     return identity;

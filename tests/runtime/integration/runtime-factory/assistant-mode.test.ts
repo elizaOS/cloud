@@ -7,35 +7,35 @@
  * Run with: bun test tests/runtime/integration/runtime-factory/assistant-mode.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 import {
-  // Local database
-  hasDatabaseUrl,
-  hasRuntimeModelCredentials,
-  getConnectionString,
-  verifyConnection,
-  // Test data
-  createTestDataSet,
-  cleanupTestData,
-  type TestDataSet,
-  // Production RuntimeFactory
-  runtimeFactory,
-  invalidateRuntime,
   AgentMode,
   // Test helpers
   buildUserContext,
+  cleanupTestData,
+  // Test data
+  createTestDataSet,
   createTestUser,
-  sendTestMessage,
+  endTimer,
+  getConnectionString,
   getMcpService,
-  waitForMcpReady,
-  type TestRuntime,
-  type TestUserContext,
+  // Local database
+  hasDatabaseUrl,
+  hasRuntimeModelCredentials,
+  invalidateRuntime,
+  logTimings,
+  // Production RuntimeFactory
+  runtimeFactory,
+  sendTestMessage,
   // Timing
   startTimer,
-  endTimer,
-  logTimings,
+  type TestDataSet,
+  type TestRuntime,
+  type TestUserContext,
+  verifyConnection,
+  waitForMcpReady,
 } from "../../../infrastructure";
-import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================
 // Local Test State (isolated to this file)
@@ -94,8 +94,8 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - ASSISTANT Mode (MCP)", () 
       );
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("ASSISTANT Mode (MCP) Tests", timings);
@@ -116,9 +116,7 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - ASSISTANT Mode (MCP)", () 
 
     expect(runtime).toBeDefined();
     expect(runtime.character?.name).toBe("Mira");
-    console.log(
-      `\nASSISTANT runtime created in ${timings.assistantRuntimeCreate}ms`,
-    );
+    console.log(`\nASSISTANT runtime created in ${timings.assistantRuntimeCreate}ms`);
   }, 60000);
 
   it("should have MCP service initialized", async () => {
@@ -150,9 +148,7 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - ASSISTANT Mode (MCP)", () 
     timings.assistantMessage = endTimer("assistant_message");
 
     expect(result.didRespond).toBe(true);
-    console.log(
-      `\nASSISTANT message processed in ${timings.assistantMessage}ms`,
-    );
+    console.log(`\nASSISTANT message processed in ${timings.assistantMessage}ms`);
     console.log(`   Response: ${result.response?.text?.substring(0, 80)}...`);
   }, 180000);
 
@@ -212,10 +208,9 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - ASSISTANT Mode (Web Search
       );
     }
     if (localTestData && localConnectionString) {
-      await cleanupTestData(
-        localConnectionString,
-        localTestData.organization.id,
-      ).catch((err) => console.warn(`Data cleanup warning: ${err}`));
+      await cleanupTestData(localConnectionString, localTestData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
+      );
     }
     logTimings("ASSISTANT Mode (Web Search) Tests", localTimings);
   });
@@ -233,9 +228,7 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - ASSISTANT Mode (Web Search
     localTimings.webSearchRuntimeCreate = endTimer("websearch_runtime_create");
 
     expect(runtime).toBeDefined();
-    console.log(
-      `\nWeb Search runtime created in ${localTimings.webSearchRuntimeCreate}ms`,
-    );
+    console.log(`\nWeb Search runtime created in ${localTimings.webSearchRuntimeCreate}ms`);
   }, 60000);
 
   it("should process message with web search", async () => {
@@ -252,9 +245,7 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - ASSISTANT Mode (Web Search
     localTimings.webSearchMessage = endTimer("websearch_message");
 
     expect(result.didRespond).toBe(true);
-    console.log(
-      `\nWeb Search message processed in ${localTimings.webSearchMessage}ms`,
-    );
+    console.log(`\nWeb Search message processed in ${localTimings.webSearchMessage}ms`);
   }, 180000);
 
   it("should cleanup web search runtime", async () => {

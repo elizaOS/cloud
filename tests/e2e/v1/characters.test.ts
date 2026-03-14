@@ -1,4 +1,4 @@
-import { expect, test, describe, setDefaultTimeout } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import * as api from "../helpers/api-client";
 import { NONEXISTENT_UUID } from "../helpers/test-data";
 
@@ -11,17 +11,14 @@ setDefaultTimeout(15_000);
 
 describe("Characters API", () => {
   test("PUT /api/v1/characters/[id]/public requires auth", async () => {
-    const response = await api.put(
-      `/api/v1/characters/${NONEXISTENT_UUID}/public`,
-      { isPublic: true },
-    );
+    const response = await api.put(`/api/v1/characters/${NONEXISTENT_UUID}/public`, {
+      isPublic: true,
+    });
     expect([401, 403]).toContain(response.status);
   });
 
   test("GET /api/v1/characters/[id]/mcps requires auth", async () => {
-    const response = await api.get(
-      `/api/v1/characters/${NONEXISTENT_UUID}/mcps`,
-    );
+    const response = await api.get(`/api/v1/characters/${NONEXISTENT_UUID}/mcps`);
     expect([401, 403, 404]).toContain(response.status);
   });
 });
@@ -32,15 +29,12 @@ describe("Apps API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/apps returns app list",
-    async () => {
-      const response = await api.get("/api/v1/apps", { authenticated: true });
-      expect(response.status).toBe(200);
-      const body = await response.json() as any;
-      expect(Array.isArray(body.apps || body)).toBe(true);
-    },
-  );
+  test.skipIf(!api.hasApiKey())("GET /api/v1/apps returns app list", async () => {
+    const response = await api.get("/api/v1/apps", { authenticated: true });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as any;
+    expect(Array.isArray(body.apps || body)).toBe(true);
+  });
 
   test("POST /api/v1/apps requires auth", async () => {
     const response = await api.post("/api/v1/apps", { name: "test-app" });

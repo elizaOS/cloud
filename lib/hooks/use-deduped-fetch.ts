@@ -16,13 +16,10 @@
  * ```
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // Global request cache and in-flight tracking
-const requestCache = new Map<
-  string,
-  { data: unknown; timestamp: number; expiresAt: number }
->();
+const requestCache = new Map<string, { data: unknown; timestamp: number; expiresAt: number }>();
 const inFlightRequests = new Map<string, Promise<Response>>();
 
 // Default configuration
@@ -159,9 +156,7 @@ export function useDedupedFetch<T>(
         try {
           const response = await inFlight;
           const responseData = await response.clone().json();
-          const transformedData = transform
-            ? transform(responseData)
-            : responseData;
+          const transformedData = transform ? transform(responseData) : responseData;
 
           if (mountedRef.current) {
             setData(transformedData as T);
@@ -215,9 +210,7 @@ export function useDedupedFetch<T>(
         }
 
         const responseData = await response.json();
-        const transformedData = transform
-          ? transform(responseData)
-          : responseData;
+        const transformedData = transform ? transform(responseData) : responseData;
 
         // Update cache
         requestCache.set(cacheKey, {
@@ -243,17 +236,7 @@ export function useDedupedFetch<T>(
         throw err;
       }
     },
-    [
-      url,
-      cacheKey,
-      skip,
-      dedupingInterval,
-      cacheTTL,
-      staleTTL,
-      fetchOptions,
-      transform,
-      data,
-    ],
+    [url, cacheKey, skip, dedupingInterval, cacheTTL, staleTTL, fetchOptions, transform, data],
   );
 
   // Refetch function (forces revalidation)
@@ -265,9 +248,7 @@ export function useDedupedFetch<T>(
   const mutate = useCallback(
     (newData: T | ((prev: T | null) => T)) => {
       const resolvedData =
-        typeof newData === "function"
-          ? (newData as (prev: T | null) => T)(data)
-          : newData;
+        typeof newData === "function" ? (newData as (prev: T | null) => T)(data) : newData;
 
       setData(resolvedData);
 

@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
-import type { BridgeRequest } from "@/lib/services/milaidy-sandbox";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import type { BridgeRequest } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 
 export const dynamic = "force-dynamic";
 // Streaming responses can be long-running
@@ -61,7 +61,9 @@ export async function POST(
     // Send error as SSE then close
     (async () => {
       await writer.write(
-        encoder.encode(`event: error\ndata: ${JSON.stringify({ message: "Sandbox is not running or unreachable" })}\n\n`),
+        encoder.encode(
+          `event: error\ndata: ${JSON.stringify({ message: "Sandbox is not running or unreachable" })}\n\n`,
+        ),
       );
       await writer.close();
     })();
@@ -70,7 +72,7 @@ export async function POST(
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
         "X-Accel-Buffering": "no",
       },
     });
@@ -83,7 +85,7 @@ export async function POST(
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     },
   });

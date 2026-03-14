@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  getCrucialToolsForServer,
-  isCrucialTool,
-} from "@/lib/eliza/plugin-mcp/tool-visibility";
+import { getCrucialToolsForServer, isCrucialTool } from "@/lib/eliza/plugin-mcp/tool-visibility";
 
 describe("MCP tool visibility", () => {
   test("keeps core Twitter tools visible and promotes mentions", () => {

@@ -13,28 +13,18 @@
  *
  */
 
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-} from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { dbWrite } from "@/db/client";
-import {
-  agentBudgets,
-  agentBudgetTransactions,
-} from "@/db/schemas/agent-budgets";
-import { eq, and } from "drizzle-orm";
+import { agentBudgets, agentBudgetTransactions } from "@/db/schemas/agent-budgets";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
+import { getConnectionString } from "@/tests/helpers/local-database";
 import {
-  createTestDataSet,
   cleanupTestData,
+  createTestDataSet,
   type TestDataSet,
 } from "@/tests/helpers/test-data-factory";
-import { getConnectionString } from "@/tests/helpers/local-database";
 
 describe("AgentBudgetService", () => {
   let connectionString: string;
@@ -65,9 +55,7 @@ describe("AgentBudgetService", () => {
     await dbWrite
       .delete(agentBudgetTransactions)
       .where(eq(agentBudgetTransactions.agent_id, agentId));
-    await dbWrite
-      .delete(agentBudgets)
-      .where(eq(agentBudgets.agent_id, agentId));
+    await dbWrite.delete(agentBudgets).where(eq(agentBudgets.agent_id, agentId));
   }
 
   // ===========================================================================
@@ -174,7 +162,7 @@ describe("AgentBudgetService", () => {
     test("returns canProceed=true when sufficient budget", async () => {
       // Arrange
       const agentId = testData.character!.id;
-      const budget = await agentBudgetService.getOrCreateBudget(agentId);
+      const _budget = await agentBudgetService.getOrCreateBudget(agentId);
 
       // Allocate $50 to the budget
       await agentBudgetService.allocateBudget({
@@ -523,12 +511,8 @@ describe("AgentBudgetService", () => {
       const results = await Promise.allSettled(promises);
 
       // Assert: Count successes and failures
-      const successes = results.filter(
-        (r) => r.status === "fulfilled" && r.value.success,
-      );
-      const failures = results.filter(
-        (r) => r.status === "fulfilled" && !r.value.success,
-      );
+      const successes = results.filter((r) => r.status === "fulfilled" && r.value.success);
+      const failures = results.filter((r) => r.status === "fulfilled" && !r.value.success);
 
       // Exactly 10 should succeed (we have $10, each deduction is $1)
       expect(successes.length).toBe(10);
@@ -536,8 +520,7 @@ describe("AgentBudgetService", () => {
 
       // CRITICAL: Final balance must be exactly $0, NEVER negative
       const budget = await agentBudgetService.getBudget(agentId);
-      const finalBalance =
-        Number(budget!.allocated_budget) - Number(budget!.spent_budget);
+      const finalBalance = Number(budget!.allocated_budget) - Number(budget!.spent_budget);
       expect(finalBalance).toBe(0);
       expect(finalBalance).toBeGreaterThanOrEqual(0);
 
@@ -713,8 +696,7 @@ describe("AgentBudgetService", () => {
 
       // Verify balance is below threshold before auto-refill
       let budget = await agentBudgetService.getBudget(agentId);
-      let balance =
-        Number(budget!.allocated_budget) - Number(budget!.spent_budget);
+      let balance = Number(budget!.allocated_budget) - Number(budget!.spent_budget);
       expect(balance).toBe(5); // 20 - 15 = 5
 
       // Enable auto-refill AFTER the deduction
@@ -949,8 +931,7 @@ describe("AgentBudgetService", () => {
       const fakeAgentId = uuidv4();
 
       // Act
-      const transactions =
-        await agentBudgetService.getTransactions(fakeAgentId);
+      const transactions = await agentBudgetService.getTransactions(fakeAgentId);
 
       // Assert
       expect(transactions).toEqual([]);

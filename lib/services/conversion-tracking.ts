@@ -1,8 +1,8 @@
-import { logger } from "@/lib/utils/logger";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
-import { eq, and, sql, desc } from "drizzle-orm";
-import { appUsers } from "@/db/schemas/apps";
 import { adCampaigns } from "@/db/schemas/ad-campaigns";
+import { appUsers } from "@/db/schemas/apps";
+import { logger } from "@/lib/utils/logger";
 
 export interface UTMParams {
   utm_source?: string;
@@ -103,17 +103,11 @@ class ConversionTrackingService {
       const [existing] = await dbRead
         .select()
         .from(appUsers)
-        .where(
-          and(
-            eq(appUsers.app_id, event.appId),
-            eq(appUsers.user_id, event.userId),
-          ),
-        )
+        .where(and(eq(appUsers.app_id, event.appId), eq(appUsers.user_id, event.userId)))
         .limit(1);
 
       if (existing) {
-        const currentMetadata =
-          (existing.metadata as Record<string, unknown>) || {};
+        const currentMetadata = (existing.metadata as Record<string, unknown>) || {};
         await dbWrite
           .update(appUsers)
           .set({
@@ -130,11 +124,7 @@ class ConversionTrackingService {
     }
   }
 
-  async trackSignupFromUTM(
-    userId: string,
-    appId: string,
-    utmParams: UTMParams,
-  ): Promise<void> {
+  async trackSignupFromUTM(userId: string, appId: string, utmParams: UTMParams): Promise<void> {
     if (!utmParams.utm_campaign) return;
     const [campaign] = await dbRead
       .select()

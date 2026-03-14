@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { Switch } from './switch';
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { Switch } from "./switch";
 
-describe('Switch', () => {
-  it('renders correctly', () => {
+describe("Switch", () => {
+  it("renders correctly", () => {
     render(<Switch />);
-    expect(screen.getByRole('switch')).toBeInTheDocument();
+    expect(screen.getByRole("switch")).toBeInTheDocument();
   });
 });

@@ -59,11 +59,11 @@ mock.module("@/lib/utils/logger", () => ({
 }));
 
 import { requireCompatAuth } from "@/app/api/compat/_lib/auth";
-import {
-  GET as getCompatAgent,
-  DELETE as deleteCompatAgent,
-} from "@/app/api/compat/agents/[id]/route";
 import { POST as restartAgent } from "@/app/api/compat/agents/[id]/restart/route";
+import {
+  DELETE as deleteCompatAgent,
+  GET as getCompatAgent,
+} from "@/app/api/compat/agents/[id]/route";
 
 describe("compat auth", () => {
   beforeEach(() => {

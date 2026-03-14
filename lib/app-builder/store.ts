@@ -8,19 +8,18 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type {
+  AppData,
+  AppSnapshotInfo,
+  CommitInfo,
+  GitStatusInfo,
   Message,
+  PreviewTab,
+  ProgressStep,
+  RestoreProgress,
   SessionData,
   SessionStatus,
-  ProgressStep,
-  TemplateType,
-  AppData,
-  GitStatusInfo,
-  CommitInfo,
   SnapshotInfo,
-  AppSnapshotInfo,
-  RestoreProgress,
-  PreviewTab,
-  MAX_CONSOLE_LOGS,
+  TemplateType,
 } from "./types";
 import { DEFAULT_APP_BUILDER_MODEL } from "./types";
 
@@ -32,10 +31,10 @@ import { DEFAULT_APP_BUILDER_MODEL } from "./types";
 export interface ImageAttachment {
   id: string;
   file: File;
-  previewUrl: string;      // Temporary blob URL for preview
-  base64?: string;         // Base64 data for API
-  blobUrl?: string;        // Persistent Vercel Blob URL
-  uploadStatus: 'pending' | 'uploading' | 'uploaded' | 'error';
+  previewUrl: string; // Temporary blob URL for preview
+  base64?: string; // Base64 data for API
+  blobUrl?: string; // Persistent Vercel Blob URL
+  uploadStatus: "pending" | "uploading" | "uploaded" | "error";
   uploadError?: string;
 }
 
@@ -49,7 +48,11 @@ interface ChatInputSlice {
   clearImages: () => void;
   setImageBase64: (id: string, base64: string) => void;
   setImageBlobUrl: (id: string, blobUrl: string) => void;
-  setImageUploadStatus: (id: string, status: ImageAttachment['uploadStatus'], error?: string) => void;
+  setImageUploadStatus: (
+    id: string,
+    status: ImageAttachment["uploadStatus"],
+    error?: string,
+  ) => void;
 }
 
 export const useChatInput = create<ChatInputSlice>()((set) => ({
@@ -59,15 +62,22 @@ export const useChatInput = create<ChatInputSlice>()((set) => ({
   addImage: (image) => set((state) => ({ images: [...state.images, image] })),
   removeImage: (id) => set((state) => ({ images: state.images.filter((img) => img.id !== id) })),
   clearImages: () => set({ images: [] }),
-  setImageBase64: (id, base64) => set((state) => ({ 
-    images: state.images.map((img) => img.id === id ? { ...img, base64 } : img) 
-  })),
-  setImageBlobUrl: (id, blobUrl) => set((state) => ({ 
-    images: state.images.map((img) => img.id === id ? { ...img, blobUrl, uploadStatus: 'uploaded' } : img) 
-  })),
-  setImageUploadStatus: (id, status, error) => set((state) => ({ 
-    images: state.images.map((img) => img.id === id ? { ...img, uploadStatus: status, uploadError: error } : img) 
-  })),
+  setImageBase64: (id, base64) =>
+    set((state) => ({
+      images: state.images.map((img) => (img.id === id ? { ...img, base64 } : img)),
+    })),
+  setImageBlobUrl: (id, blobUrl) =>
+    set((state) => ({
+      images: state.images.map((img) =>
+        img.id === id ? { ...img, blobUrl, uploadStatus: "uploaded" } : img,
+      ),
+    })),
+  setImageUploadStatus: (id, status, error) =>
+    set((state) => ({
+      images: state.images.map((img) =>
+        img.id === id ? { ...img, uploadStatus: status, uploadError: error } : img,
+      ),
+    })),
   clearInput: () => set({ input: "", images: [] }),
 }));
 
@@ -78,10 +88,7 @@ interface MessagesSlice {
   messages: Message[];
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
   addMessage: (message: Message) => void;
-  updateMessage: (
-    thinkingId: number,
-    updater: (msg: Message) => Message,
-  ) => void;
+  updateMessage: (thinkingId: number, updater: (msg: Message) => Message) => void;
   clearMessages: () => void;
 }
 
@@ -94,13 +101,10 @@ export const useMessages = create<MessagesSlice>()((set) => ({
           ? messagesOrUpdater(state.messages)
           : messagesOrUpdater,
     })),
-  addMessage: (message) =>
-    set((state) => ({ messages: [...state.messages, message] })),
+  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
   updateMessage: (thinkingId, updater) =>
     set((state) => ({
-      messages: state.messages.map((m) =>
-        m._thinkingId === thinkingId ? updater(m) : m,
-      ),
+      messages: state.messages.map((m) => (m._thinkingId === thinkingId ? updater(m) : m)),
     })),
   clearMessages: () => set({ messages: [] }),
 }));
@@ -203,9 +207,7 @@ export const useUI = create<UISlice>()((set) => ({
   setConsoleLogs: (logsOrUpdater) =>
     set((state) => {
       const newLogs =
-        typeof logsOrUpdater === "function"
-          ? logsOrUpdater(state.consoleLogs)
-          : logsOrUpdater;
+        typeof logsOrUpdater === "function" ? logsOrUpdater(state.consoleLogs) : logsOrUpdater;
       // Limit logs to prevent memory issues
       return { consoleLogs: newLogs.slice(-MAX_LOGS) };
     }),
@@ -217,10 +219,9 @@ export const useUI = create<UISlice>()((set) => ({
     set((state) => {
       const timestamp = new Date().toLocaleTimeString();
       return {
-        consoleLogs: [
-          ...state.consoleLogs,
-          `[${timestamp}] [${level}] ${message}`,
-        ].slice(-MAX_LOGS),
+        consoleLogs: [...state.consoleLogs, `[${timestamp}] [${level}] ${message}`].slice(
+          -MAX_LOGS,
+        ),
       };
     }),
   clearConsoleLogs: () => set({ consoleLogs: [] }),
@@ -281,8 +282,7 @@ export const useApp = create<AppSlice>()((set) => ({
   setTemplatePage: (templatePage) => set({ templatePage }),
   setIncludeMonetization: (includeMonetization) => set({ includeMonetization }),
   setIncludeAnalytics: (includeAnalytics) => set({ includeAnalytics }),
-  setIsGeneratingDescription: (isGeneratingDescription) =>
-    set({ isGeneratingDescription }),
+  setIsGeneratingDescription: (isGeneratingDescription) => set({ isGeneratingDescription }),
   resetApp: () =>
     set({
       step: "setup",

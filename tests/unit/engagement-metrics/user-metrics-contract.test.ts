@@ -10,7 +10,7 @@
  * through the API route tests.
  */
 
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 // ─── Mock Setup ──────────────────────────────────────────────────────────────
 
@@ -88,10 +88,7 @@ describe("UserMetricsService interface contract", () => {
       });
 
       const result = await userMetricsService.getActiveUsers("7d");
-      const platformSum = Object.values(result.byPlatform).reduce(
-        (a, b) => a + b,
-        0,
-      );
+      const platformSum = Object.values(result.byPlatform).reduce((a, b) => a + b, 0);
       expect(result.total).toBe(platformSum);
     });
 
@@ -265,9 +262,7 @@ describe("UserMetricsService interface contract", () => {
     });
 
     test("does not return data (void)", async () => {
-      const result = await userMetricsService.computeDailyMetrics(
-        new Date("2025-01-15"),
-      );
+      const result = await userMetricsService.computeDailyMetrics(new Date("2025-01-15"));
       expect(result).toBeUndefined();
     });
   });
@@ -282,9 +277,7 @@ describe("UserMetricsService interface contract", () => {
     });
 
     test("does not return data (void)", async () => {
-      const result = await userMetricsService.computeRetentionCohorts(
-        new Date("2025-02-01"),
-      );
+      const result = await userMetricsService.computeRetentionCohorts(new Date("2025-02-01"));
       expect(result).toBeUndefined();
     });
   });

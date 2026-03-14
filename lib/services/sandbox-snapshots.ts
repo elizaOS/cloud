@@ -14,13 +14,10 @@
  * @see https://vercel.com/docs/vercel-sandbox#snapshotting
  */
 
-import { logger } from "@/lib/utils/logger";
+import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
-import {
-  sandboxTemplateSnapshots,
-  type SandboxTemplateSnapshot,
-} from "@/db/schemas/app-sandboxes";
-import { eq, and, gt, lt, desc, sql } from "drizzle-orm";
+import { type SandboxTemplateSnapshot, sandboxTemplateSnapshots } from "@/db/schemas/app-sandboxes";
+import { logger } from "@/lib/utils/logger";
 
 // Snapshot expiration: 7 days (Vercel's limit)
 const SNAPSHOT_EXPIRY_DAYS = 7;
@@ -164,8 +161,7 @@ export async function createSnapshotFromSandbox(
     return null;
   }
 
-  const { templateKey, githubRepo, githubCommitSha, nodeModulesSizeMb, totalFiles } =
-    options;
+  const { templateKey, githubRepo, githubCommitSha, nodeModulesSizeMb, totalFiles } = options;
 
   logger.info("Creating snapshot from sandbox", {
     sandboxId: sandbox.sandboxId,
@@ -180,9 +176,7 @@ export async function createSnapshotFromSandbox(
     const snapshotId = snapshotResult.snapshotId;
 
     // Calculate expiration date (7 days from now)
-    const expiresAt = new Date(
-      Date.now() + SNAPSHOT_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-    );
+    const expiresAt = new Date(Date.now() + SNAPSHOT_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
     // Store in database
     const [newSnapshot] = await dbWrite
@@ -331,14 +325,12 @@ export async function cleanupExpiredSnapshots(): Promise<number> {
     const now = new Date();
 
     // Find all expired snapshots
-    const expiredSnapshots = await dbRead.query.sandboxTemplateSnapshots.findMany(
-      {
-        where: and(
-          eq(sandboxTemplateSnapshots.status, "ready"),
-          lt(sandboxTemplateSnapshots.expires_at, now),
-        ),
-      },
-    );
+    const expiredSnapshots = await dbRead.query.sandboxTemplateSnapshots.findMany({
+      where: and(
+        eq(sandboxTemplateSnapshots.status, "ready"),
+        lt(sandboxTemplateSnapshots.expires_at, now),
+      ),
+    });
 
     if (expiredSnapshots.length === 0) {
       return 0;
@@ -395,9 +387,7 @@ export async function getSnapshotStats(): Promise<{
 /**
  * List all snapshots for a template.
  */
-export async function listSnapshots(
-  templateKey?: string,
-): Promise<SandboxTemplateSnapshot[]> {
+export async function listSnapshots(templateKey?: string): Promise<SandboxTemplateSnapshot[]> {
   try {
     if (templateKey) {
       return await dbRead.query.sandboxTemplateSnapshots.findMany({

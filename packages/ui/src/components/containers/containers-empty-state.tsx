@@ -1,9 +1,9 @@
 "use client";
 
+import { Check, Copy, Terminal } from "lucide-react";
 import { useState } from "react";
-import { Terminal, Copy, Check } from "lucide-react";
-import { BrandButton } from "../brand";
 import { cn } from "../../lib/utils";
+import { BrandButton } from "../brand";
 
 export function ContainersEmptyState() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -35,9 +35,7 @@ export function ContainersEmptyState() {
             )}
           >
             <span className="text-neutral-600 select-none">$</span>
-            <code className="text-sm text-neutral-300 flex-1 font-mono">
-              {cmd}
-            </code>
+            <code className="text-sm text-neutral-300 flex-1 font-mono">{cmd}</code>
             <button
               onClick={() => handleCopy(cmd, index)}
               className="text-neutral-600 hover:text-neutral-300 transition-colors"

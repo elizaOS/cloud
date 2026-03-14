@@ -1,12 +1,5 @@
-import {
-  boolean,
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 /**
@@ -36,9 +29,7 @@ export const userPreferences = pgTable(
   },
   (table) => ({
     user_idx: index("user_preferences_user_idx").on(table.user_id),
-    work_function_idx: index("user_preferences_work_function_idx").on(
-      table.work_function,
-    ),
+    work_function_idx: index("user_preferences_work_function_idx").on(table.work_function),
   }),
 );
 

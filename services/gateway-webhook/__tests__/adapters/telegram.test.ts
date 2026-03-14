@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { telegramAdapter } from "../../src/adapters/telegram";
-import type { WebhookConfig, ChatEvent } from "../../src/adapters/types";
+import type { ChatEvent, WebhookConfig } from "../../src/adapters/types";
 
 function makeEvent(overrides: Partial<ChatEvent> = {}): ChatEvent {
   return {
@@ -39,9 +39,7 @@ describe("telegramAdapter", () => {
         method: "POST",
         headers: { "x-telegram-bot-api-secret-token": "wrong" },
       });
-      expect(await telegramAdapter.verifyWebhook(req, "{}", config)).toBe(
-        false,
-      );
+      expect(await telegramAdapter.verifyWebhook(req, "{}", config)).toBe(false);
     });
 
     test("rejects missing header", async () => {
@@ -50,17 +48,13 @@ describe("telegramAdapter", () => {
         webhookSecret: "my-secret",
       };
       const req = new Request("http://localhost/webhook", { method: "POST" });
-      expect(await telegramAdapter.verifyWebhook(req, "{}", config)).toBe(
-        false,
-      );
+      expect(await telegramAdapter.verifyWebhook(req, "{}", config)).toBe(false);
     });
 
     test("rejects request when no webhookSecret configured", async () => {
       const config: WebhookConfig = { agentId: "a" };
       const req = new Request("http://localhost/webhook", { method: "POST" });
-      expect(await telegramAdapter.verifyWebhook(req, "{}", config)).toBe(
-        false,
-      );
+      expect(await telegramAdapter.verifyWebhook(req, "{}", config)).toBe(false);
     });
 
     test("rejects length mismatch secrets", async () => {
@@ -71,9 +65,7 @@ describe("telegramAdapter", () => {
           "x-telegram-bot-api-secret-token": "this-is-a-much-longer-secret",
         },
       });
-      expect(await telegramAdapter.verifyWebhook(req, "{}", config)).toBe(
-        false,
-      );
+      expect(await telegramAdapter.verifyWebhook(req, "{}", config)).toBe(false);
     });
   });
 
@@ -142,9 +134,7 @@ describe("telegramAdapter", () => {
           text: "Hi group",
         },
       };
-      expect(
-        await telegramAdapter.extractEvent(JSON.stringify(update)),
-      ).toBeNull();
+      expect(await telegramAdapter.extractEvent(JSON.stringify(update))).toBeNull();
     });
 
     test("returns null for supergroup chat", async () => {
@@ -157,9 +147,7 @@ describe("telegramAdapter", () => {
           text: "Hi supergroup",
         },
       };
-      expect(
-        await telegramAdapter.extractEvent(JSON.stringify(update)),
-      ).toBeNull();
+      expect(await telegramAdapter.extractEvent(JSON.stringify(update))).toBeNull();
     });
 
     test("returns null for bot message", async () => {
@@ -172,9 +160,7 @@ describe("telegramAdapter", () => {
           text: "Automated reply",
         },
       };
-      expect(
-        await telegramAdapter.extractEvent(JSON.stringify(update)),
-      ).toBeNull();
+      expect(await telegramAdapter.extractEvent(JSON.stringify(update))).toBeNull();
     });
 
     test("returns null for empty text", async () => {
@@ -186,15 +172,11 @@ describe("telegramAdapter", () => {
           chat: { id: 42, type: "private" },
         },
       };
-      expect(
-        await telegramAdapter.extractEvent(JSON.stringify(update)),
-      ).toBeNull();
+      expect(await telegramAdapter.extractEvent(JSON.stringify(update))).toBeNull();
     });
 
     test("returns null for update without message", async () => {
-      expect(
-        await telegramAdapter.extractEvent(JSON.stringify({ update_id: 107 })),
-      ).toBeNull();
+      expect(await telegramAdapter.extractEvent(JSON.stringify({ update_id: 107 }))).toBeNull();
     });
 
     test("returns null for invalid JSON", async () => {
@@ -222,8 +204,7 @@ describe("telegramAdapter", () => {
 
     beforeEach(() => {
       fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
-        async () =>
-          new Response(JSON.stringify({ ok: true, result: { message_id: 1 } })),
+        async () => new Response(JSON.stringify({ ok: true, result: { message_id: 1 } })),
       );
     });
 
@@ -257,26 +238,22 @@ describe("telegramAdapter", () => {
       fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async () => {
         callIdx++;
         if (callIdx === 1) throw new Error("Bad Markdown");
-        return new Response(
-          JSON.stringify({ ok: true, result: { message_id: 1 } }),
-        );
+        return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }));
       });
 
       const config: WebhookConfig = { agentId: "a", botToken: "123:ABC" };
       await telegramAdapter.sendReply(config, makeEvent(), "**bold**");
 
       expect(callIdx).toBe(2);
-      const body = JSON.parse(
-        (fetchSpy.mock.calls[1] as [string, RequestInit])[1].body as string,
-      );
+      const body = JSON.parse((fetchSpy.mock.calls[1] as [string, RequestInit])[1].body as string);
       expect(body.parse_mode).toBeUndefined();
     });
 
     test("throws when botToken is missing", async () => {
       const config: WebhookConfig = { agentId: "a" };
-      expect(
-        telegramAdapter.sendReply(config, makeEvent(), "reply"),
-      ).rejects.toThrow("Missing botToken");
+      expect(telegramAdapter.sendReply(config, makeEvent(), "reply")).rejects.toThrow(
+        "Missing botToken",
+      );
     });
   });
 

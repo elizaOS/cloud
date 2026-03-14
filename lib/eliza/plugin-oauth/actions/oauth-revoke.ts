@@ -4,37 +4,58 @@
 
 import {
   type ActionExample,
+  type ActionResult,
   type HandlerCallback,
   type IAgentRuntime,
+  logger,
   type Memory,
   type State,
-  type ActionResult,
-  logger,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
 import {
+  capitalize,
+  extractPlatform,
+  formatConnectionIdentifier,
   getSupportedPlatforms,
   isSupportedPlatform,
-  extractPlatform,
-  lookupUser,
   isUserLookupError,
-  capitalize,
-  formatConnectionIdentifier,
+  lookupUser,
 } from "../utils";
 
 export const oauthRevokeAction: ActionWithParams = {
   name: "OAUTH_REVOKE",
   similes: [
-    "DISCONNECT", "REMOVE_CONNECTION", "UNLINK", "REVOKE_ACCESS",
-    "DELETE_CONNECTION", "DISCONNECT_GOOGLE", "REMOVE_GOOGLE",
-    "DISCONNECT_LINEAR", "DISCONNECT_SLACK", "DISCONNECT_GITHUB", "DISCONNECT_NOTION",
-    "DISCONNECT_TWITTER", "DISCONNECT_X", "REMOVE_TWITTER", "UNLINK_TWITTER",
-    "DISCONNECT_ASANA", "DISCONNECT_DROPBOX", "DISCONNECT_SALESFORCE", "DISCONNECT_AIRTABLE", "DISCONNECT_ZOOM",
-    "DISCONNECT_JIRA", "REMOVE_JIRA", "UNLINK_JIRA",
-    "DISCONNECT_LINKEDIN", "REMOVE_LINKEDIN", "UNLINK_LINKEDIN",
-    "DISCONNECT_MICROSOFT", "DISCONNECT_OUTLOOK", "REMOVE_MICROSOFT",
+    "DISCONNECT",
+    "REMOVE_CONNECTION",
+    "UNLINK",
+    "REVOKE_ACCESS",
+    "DELETE_CONNECTION",
+    "DISCONNECT_GOOGLE",
+    "REMOVE_GOOGLE",
+    "DISCONNECT_LINEAR",
+    "DISCONNECT_SLACK",
+    "DISCONNECT_GITHUB",
+    "DISCONNECT_NOTION",
+    "DISCONNECT_TWITTER",
+    "DISCONNECT_X",
+    "REMOVE_TWITTER",
+    "UNLINK_TWITTER",
+    "DISCONNECT_ASANA",
+    "DISCONNECT_DROPBOX",
+    "DISCONNECT_SALESFORCE",
+    "DISCONNECT_AIRTABLE",
+    "DISCONNECT_ZOOM",
+    "DISCONNECT_JIRA",
+    "REMOVE_JIRA",
+    "UNLINK_JIRA",
+    "DISCONNECT_LINKEDIN",
+    "REMOVE_LINKEDIN",
+    "UNLINK_LINKEDIN",
+    "DISCONNECT_MICROSOFT",
+    "DISCONNECT_OUTLOOK",
+    "REMOVE_MICROSOFT",
   ],
   description:
     "Disconnect an OAuth platform. Removes stored tokens and revokes access. Use when user wants to unlink or remove a connected account.",
@@ -42,7 +63,8 @@ export const oauthRevokeAction: ActionWithParams = {
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to disconnect: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
+      description:
+        "Platform to disconnect: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
       required: true,
     },
   },
@@ -56,7 +78,7 @@ export const oauthRevokeAction: ActionWithParams = {
     message: Memory,
     state?: State,
     _options?: unknown,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     const platform = extractPlatform(message, state);
     const actionName = "OAUTH_REVOKE";
@@ -103,7 +125,9 @@ export const oauthRevokeAction: ActionWithParams = {
       connectionId: activeConnection.id,
     });
 
-    await invalidateOAuthState(organizationId, platform, userResult.user.id, { skipVersionBump: true });
+    await invalidateOAuthState(organizationId, platform, userResult.user.id, {
+      skipVersionBump: true,
+    });
 
     const identifier = formatConnectionIdentifier(activeConnection);
     const text = identifier
@@ -119,19 +143,34 @@ export const oauthRevokeAction: ActionWithParams = {
   examples: [
     [
       { name: "{{name1}}", content: { text: "disconnect google" } },
-      { name: "{{name2}}", content: { text: "Google (user@gmail.com) has been disconnected.", actions: ["OAUTH_REVOKE"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Google (user@gmail.com) has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
+      },
     ],
     [
       { name: "{{name1}}", content: { text: "unlink my gmail" } },
-      { name: "{{name2}}", content: { text: "Google has been disconnected.", actions: ["OAUTH_REVOKE"] } },
+      {
+        name: "{{name2}}",
+        content: { text: "Google has been disconnected.", actions: ["OAUTH_REVOKE"] },
+      },
     ],
     [
       { name: "{{name1}}", content: { text: "disconnect my twitter" } },
-      { name: "{{name2}}", content: { text: "Twitter has been disconnected.", actions: ["OAUTH_REVOKE"] } },
+      {
+        name: "{{name2}}",
+        content: { text: "Twitter has been disconnected.", actions: ["OAUTH_REVOKE"] },
+      },
     ],
     [
       { name: "{{name1}}", content: { text: "remove my x account" } },
-      { name: "{{name2}}", content: { text: "Twitter has been disconnected.", actions: ["OAUTH_REVOKE"] } },
+      {
+        name: "{{name2}}",
+        content: { text: "Twitter has been disconnected.", actions: ["OAUTH_REVOKE"] },
+      },
     ],
   ] as ActionExample[][],
 };

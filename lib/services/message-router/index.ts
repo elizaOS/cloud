@@ -6,10 +6,10 @@
  */
 
 import { createHash } from "crypto";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { dbWrite } from "@/db/client";
 import { agentPhoneNumbers, phoneMessageLog } from "@/db/schemas";
-import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 
@@ -17,16 +17,18 @@ import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
  * Schema for message metadata - allows simple key-value pairs only.
  * Prevents deeply nested or malicious objects from being stored.
  */
-const messageMetadataSchema = z.record(
-  z.string(),
-  z.union([
+const messageMetadataSchema = z
+  .record(
     z.string(),
-    z.number(),
-    z.boolean(),
-    z.null(),
-    z.array(z.union([z.string(), z.number(), z.boolean()])),
-  ])
-).optional();
+    z.union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.null(),
+      z.array(z.union([z.string(), z.number(), z.boolean()])),
+    ]),
+  )
+  .optional();
 
 // Maximum metadata size to prevent DoS via large payloads (10KB)
 const MAX_METADATA_SIZE = 10 * 1024;
@@ -43,7 +45,7 @@ function validateMetadata(metadata: unknown): Record<string, unknown> | undefine
     // Check size to prevent DoS
     const serialized = JSON.stringify(parsed);
     if (serialized.length > MAX_METADATA_SIZE) {
-      logger.warn('[MessageRouter] Metadata too large, truncating', {
+      logger.warn("[MessageRouter] Metadata too large, truncating", {
         size: serialized.length,
         maxSize: MAX_METADATA_SIZE,
       });
@@ -52,8 +54,8 @@ function validateMetadata(metadata: unknown): Record<string, unknown> | undefine
 
     return parsed;
   } catch (error) {
-    logger.warn('[MessageRouter] Invalid metadata format, using empty object', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+    logger.warn("[MessageRouter] Invalid metadata format, using empty object", {
+      error: error instanceof Error ? error.message : "Unknown error",
     });
     return {};
   }
@@ -97,9 +99,7 @@ class MessageRouterService {
   /**
    * Find the agent and phone number mapping for an incoming message
    */
-  async routeIncomingMessage(
-    message: IncomingMessage,
-  ): Promise<MessageRouteResult> {
+  async routeIncomingMessage(message: IncomingMessage): Promise<MessageRouteResult> {
     try {
       logger.info("[MessageRouter] Routing incoming message", {
         from: message.from,
@@ -380,14 +380,8 @@ class MessageRouterService {
       // Use secretsService.get() which looks up by (organizationId, secretName)
       // Note: getDecryptedValue() takes (secretId, organizationId) - different signature
       const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = await import("@/lib/constants/secrets");
-      const accountSid = await secretsService.get(
-        params.organizationId,
-        TWILIO_ACCOUNT_SID,
-      );
-      const authToken = await secretsService.get(
-        params.organizationId,
-        TWILIO_AUTH_TOKEN,
-      );
+      const accountSid = await secretsService.get(params.organizationId, TWILIO_ACCOUNT_SID);
+      const authToken = await secretsService.get(params.organizationId, TWILIO_AUTH_TOKEN);
 
       if (!accountSid || !authToken) {
         logger.error("[MessageRouter] Missing Twilio credentials");
@@ -435,10 +429,7 @@ class MessageRouterService {
 
       // Use secretsService.get() which looks up by (organizationId, secretName)
       const { BLOOIO_API_KEY } = await import("@/lib/constants/secrets");
-      const apiKey = await secretsService.get(
-        params.organizationId,
-        BLOOIO_API_KEY,
-      );
+      const apiKey = await secretsService.get(params.organizationId, BLOOIO_API_KEY);
 
       if (!apiKey) {
         logger.error("[MessageRouter] Missing Blooio API key");
@@ -456,7 +447,7 @@ class MessageRouterService {
         },
         {
           fromNumber: params.from,
-        }
+        },
       );
 
       logger.info("[MessageRouter] Blooio message sent successfully");
@@ -476,7 +467,9 @@ class MessageRouterService {
     try {
       const { sendWhatsAppMessage } = await import("@/lib/utils/whatsapp-api");
       const { secretsService } = await import("@/lib/services/secrets");
-      const { WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID } = await import("@/lib/constants/secrets");
+      const { WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID } = await import(
+        "@/lib/constants/secrets"
+      );
 
       // Try org-specific credentials first (from secrets service)
       let accessToken = await secretsService.get(params.organizationId, WHATSAPP_ACCESS_TOKEN);
@@ -670,7 +663,6 @@ class MessageRouterService {
       .set({ is_active: false, updated_at: new Date() })
       .where(eq(agentPhoneNumbers.id, id));
   }
-
 }
 
 export const messageRouterService = new MessageRouterService();

@@ -4,11 +4,11 @@
 
 import {
   type IAgentRuntime,
+  logger,
   type Memory,
   type Provider,
   type ProviderResult,
   type State,
-  logger,
 } from "@elizaos/core";
 import { usersRepository } from "@/db/repositories/users";
 import { oauthService } from "@/lib/services/oauth";
@@ -18,11 +18,7 @@ export const userAuthStatusProvider: Provider = {
   name: "USER_AUTH_STATUS",
   description: "Provides user OAuth connection status and credits balance",
 
-  get: async (
-    _runtime: IAgentRuntime,
-    message: Memory,
-    _state: State
-  ): Promise<ProviderResult> => {
+  get: async (_runtime: IAgentRuntime, message: Memory, _state: State): Promise<ProviderResult> => {
     if (!message.entityId) {
       return { text: "", values: {}, data: {} };
     }
@@ -47,25 +43,31 @@ export const userAuthStatusProvider: Provider = {
       : 0;
 
     const googleConnection = active.find((c) => c.platform === "google");
-    const connectionsList = active.length > 0
-      ? active.map((c) => {
-          const id = formatConnectionIdentifier(c);
-          return id ? `${capitalize(c.platform)} (${id})` : capitalize(c.platform);
-        }).join(", ")
-      : "None";
+    const connectionsList =
+      active.length > 0
+        ? active
+            .map((c) => {
+              const id = formatConnectionIdentifier(c);
+              return id ? `${capitalize(c.platform)} (${id})` : capitalize(c.platform);
+            })
+            .join(", ")
+        : "None";
 
-    const status = active.length === 0
-      ? "Not authenticated - needs to connect Google"
-      : creditBalance <= 0
-        ? "Authenticated but no credits"
-        : "Fully authenticated";
+    const status =
+      active.length === 0
+        ? "Not authenticated - needs to connect Google"
+        : creditBalance <= 0
+          ? "Authenticated but no credits"
+          : "Fully authenticated";
 
     const text = `# User Authentication Status
 - Connections: ${connectionsList}
 - Credits: ${creditBalance.toFixed(2)}
 - Status: ${status}`;
 
-    logger.debug(`[USER_AUTH_STATUS] User ${userId}: ${active.length} connections, ${creditBalance} credits`);
+    logger.debug(
+      `[USER_AUTH_STATUS] User ${userId}: ${active.length} connections, ${creditBalance} credits`,
+    );
 
     return {
       text,

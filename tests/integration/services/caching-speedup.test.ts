@@ -1,11 +1,15 @@
-import { expect, test, describe, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { v4 as uuidv4 } from "uuid";
-import { usersService } from "@/lib/services/users";
-import { userMcpsService } from "@/lib/services/user-mcps";
-import { affiliatesService } from "@/lib/services/affiliates";
 import { cache } from "@/lib/cache/client";
+import { affiliatesService } from "@/lib/services/affiliates";
+import { userMcpsService } from "@/lib/services/user-mcps";
+import { usersService } from "@/lib/services/users";
 import { getConnectionString } from "@/tests/helpers/local-database";
-import { createTestDataSet, cleanupTestData, type TestDataSet } from "@/tests/helpers/test-data-factory";
+import {
+  cleanupTestData,
+  createTestDataSet,
+  type TestDataSet,
+} from "@/tests/helpers/test-data-factory";
 
 describe("Caching Speedup and Behavior End-to-End Tests", () => {
   let connectionString: string;
@@ -44,9 +48,11 @@ describe("Caching Speedup and Behavior End-to-End Tests", () => {
       expect(user1!.id).toBe(user2!.id);
       expect(user1!.email).toBe(user2!.email);
 
-      console.log(`[Tests] UsersService.getById - First call: ${firstCallDuration.toFixed(2)}ms, Second call (Cached): ${secondCallDuration.toFixed(2)}ms`);
+      console.log(
+        `[Tests] UsersService.getById - First call: ${firstCallDuration.toFixed(2)}ms, Second call (Cached): ${secondCallDuration.toFixed(2)}ms`,
+      );
 
-      // We don't formally assert secondCallDuration < firstCallDuration to avoid flakiness in CI, 
+      // We don't formally assert secondCallDuration < firstCallDuration to avoid flakiness in CI,
       // but in local tests it is logged and typically much faster.
     });
 
@@ -107,7 +113,9 @@ describe("Caching Speedup and Behavior End-to-End Tests", () => {
       expect(mcp2).toBeDefined();
       expect(mcp1!.id).toBe(mcp2!.id);
 
-      console.log(`[Tests] UserMcpsService.getById - First call: ${(t2-t1).toFixed(2)}ms, Second call (Cached): ${(t4-t3).toFixed(2)}ms`);
+      console.log(
+        `[Tests] UserMcpsService.getById - First call: ${(t2 - t1).toFixed(2)}ms, Second call (Cached): ${(t4 - t3).toFixed(2)}ms`,
+      );
     });
 
     test("caches MCP by slug", async () => {
@@ -125,7 +133,9 @@ describe("Caching Speedup and Behavior End-to-End Tests", () => {
       expect(mcp2).toBeDefined();
       expect(mcp1!.id).toBe(mcp2!.id);
 
-      console.log(`[Tests] UserMcpsService.getBySlug - First call: ${(t2-t1).toFixed(2)}ms, Second call (Cached): ${(t4-t3).toFixed(2)}ms`);
+      console.log(
+        `[Tests] UserMcpsService.getBySlug - First call: ${(t2 - t1).toFixed(2)}ms, Second call (Cached): ${(t4 - t3).toFixed(2)}ms`,
+      );
     });
 
     test("invalidates cache on publishing", async () => {
@@ -137,16 +147,16 @@ describe("Caching Speedup and Behavior End-to-End Tests", () => {
   });
 
   describe("AffiliatesService Caching", () => {
-    let affiliateCodeStr: string;
+    let _affiliateCodeStr: string;
 
     beforeAll(async () => {
-      affiliateCodeStr = `CACHE-${uuidv4().substring(0, 6).toUpperCase()}`;
-      const userNew = await usersService.update(testData.user.id, {
+      _affiliateCodeStr = `CACHE-${uuidv4().substring(0, 6).toUpperCase()}`;
+      const _userNew = await usersService.update(testData.user.id, {
         name: "Affiliate Linker",
       });
-      
+
       const newCode = await affiliatesService.getOrCreateAffiliateCode(testData.user.id, 20);
-      affiliateCodeStr = newCode.code;
+      _affiliateCodeStr = newCode.code;
 
       // Create a second test user to be the referee
       // Use existing test data creation utility or just a simple manual insertion
@@ -165,7 +175,9 @@ describe("Caching Speedup and Behavior End-to-End Tests", () => {
       expect(code2).toBeDefined();
       expect(code1!.id).toBe(code2!.id);
 
-      console.log(`[Tests] AffiliatesService.getAffiliateCode - First call: ${(t2-t1).toFixed(2)}ms, Second call (Cached): ${(t4-t3).toFixed(2)}ms`);
+      console.log(
+        `[Tests] AffiliatesService.getAffiliateCode - First call: ${(t2 - t1).toFixed(2)}ms, Second call (Cached): ${(t4 - t3).toFixed(2)}ms`,
+      );
     });
   });
 });

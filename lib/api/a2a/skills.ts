@@ -5,39 +5,39 @@
  * Only includes skills that are fully tested and working.
  */
 
-import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import {
-  creditsService,
-  InsufficientCreditsError,
-  type CreditReservation,
-} from "@/lib/services/credits";
-import { usageService } from "@/lib/services/usage";
-import { organizationsService } from "@/lib/services/organizations";
-import { generationsService } from "@/lib/services/generations";
-import { conversationsService } from "@/lib/services/conversations";
-import { memoryService } from "@/lib/services/memory";
-import { charactersService } from "@/lib/services/characters/characters";
-import { containersService } from "@/lib/services/containers";
-import { agentService } from "@/lib/services/agents/agents";
+import { streamText } from "ai";
 import {
   calculateCost,
-  getProviderFromModel,
   estimateRequestCost,
+  getProviderFromModel,
   IMAGE_GENERATION_COST,
 } from "@/lib/pricing";
+import { agentService } from "@/lib/services/agents/agents";
+import { charactersService } from "@/lib/services/characters/characters";
+import { containersService } from "@/lib/services/containers";
+import { conversationsService } from "@/lib/services/conversations";
+import {
+  type CreditReservation,
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import { generationsService } from "@/lib/services/generations";
+import { memoryService } from "@/lib/services/memory";
+import { organizationsService } from "@/lib/services/organizations";
+import { usageService } from "@/lib/services/usage";
 import type {
   A2AContext,
-  ChatCompletionResult,
-  ImageGenerationResult,
   BalanceResult,
-  UsageResult,
-  ListAgentsResult,
+  ChatCompletionResult,
   ChatWithAgentResult,
-  SaveMemoryResult,
-  RetrieveMemoriesResult,
   CreateConversationResult,
+  ImageGenerationResult,
+  ListAgentsResult,
   ListContainersResult,
+  RetrieveMemoriesResult,
+  SaveMemoryResult,
+  UsageResult,
   VideoGenerationResult,
 } from "./types";
 
@@ -159,9 +159,7 @@ export async function executeSkillImageGeneration(
     });
   } catch (error) {
     if (error instanceof InsufficientCreditsError) {
-      throw new Error(
-        `Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`,
-      );
+      throw new Error(`Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`);
     }
     throw error;
   }
@@ -236,9 +234,7 @@ export async function executeSkillImageGeneration(
 /**
  * Check balance skill
  */
-export async function executeSkillCheckBalance(
-  ctx: A2AContext,
-): Promise<BalanceResult> {
+export async function executeSkillCheckBalance(ctx: A2AContext): Promise<BalanceResult> {
   const org = await organizationsService.getById(ctx.user.organization_id);
   if (!org) throw new Error("Organization not found");
   return {
@@ -256,10 +252,7 @@ export async function executeSkillGetUsage(
   ctx: A2AContext,
 ): Promise<UsageResult> {
   const limit = Math.min(50, (dataContent.limit as number) || 10);
-  const records = await usageService.listByOrganization(
-    ctx.user.organization_id,
-    limit,
-  );
+  const records = await usageService.listByOrganization(ctx.user.organization_id, limit);
   return {
     usage: records.map((r) => ({
       id: r.id,
@@ -282,9 +275,7 @@ export async function executeSkillListAgents(
   ctx: A2AContext,
 ): Promise<ListAgentsResult> {
   const limit = (dataContent.limit as number) || 20;
-  const chars = await charactersService.listByOrganization(
-    ctx.user.organization_id,
-  );
+  const chars = await charactersService.listByOrganization(ctx.user.organization_id);
   return {
     agents: chars.slice(0, limit).map((c) => ({
       id: c.id,
@@ -315,8 +306,7 @@ export async function executeSkillChatWithAgent(
 
   // If we have a roomId, use it directly; otherwise create/get a room for the agent
   const actualRoomId =
-    roomId ||
-    (await agentService.getOrCreateRoom(entityId || ctx.user.id, agentId!));
+    roomId || (await agentService.getOrCreateRoom(entityId || ctx.user.id, agentId!));
 
   const response = await agentService.sendMessage({
     roomId: actualRoomId,
@@ -343,9 +333,7 @@ export async function executeSkillSaveMemory(
   ctx: A2AContext,
 ): Promise<SaveMemoryResult> {
   const content = (dataContent.content as string) || textContent;
-  const type =
-    (dataContent.type as "fact" | "preference" | "context" | "document") ||
-    "fact";
+  const type = (dataContent.type as "fact" | "preference" | "context" | "document") || "fact";
   const roomId = dataContent.roomId as string;
   const tags = dataContent.tags as string[] | undefined;
   const metadata = dataContent.metadata as Record<string, unknown> | undefined;
@@ -403,9 +391,7 @@ export async function executeSkillRetrieveMemories(
   const type = dataContent.type as string[] | undefined;
   const tags = dataContent.tags as string[] | undefined;
   const limit = Math.min(50, (dataContent.limit as number) || 10);
-  const sortBy =
-    (dataContent.sortBy as "relevance" | "recent" | "importance") ||
-    "relevance";
+  const sortBy = (dataContent.sortBy as "relevance" | "recent" | "importance") || "relevance";
 
   const memories = await memoryService.retrieveMemories({
     organizationId: ctx.user.organization_id,
@@ -421,9 +407,7 @@ export async function executeSkillRetrieveMemories(
     memories: memories.map((m) => ({
       id: m.memory.id || "",
       content:
-        typeof m.memory.content === "string"
-          ? m.memory.content
-          : JSON.stringify(m.memory.content),
+        typeof m.memory.content === "string" ? m.memory.content : JSON.stringify(m.memory.content),
       score: m.score,
       createdAt:
         typeof m.memory.createdAt === "string"
@@ -495,9 +479,7 @@ export async function executeSkillListContainers(
   ctx: A2AContext,
 ): Promise<ListContainersResult> {
   const status = dataContent.status as string | undefined;
-  let containers = await containersService.listByOrganization(
-    ctx.user.organization_id,
-  );
+  let containers = await containersService.listByOrganization(ctx.user.organization_id);
   if (status) containers = containers.filter((c) => c.status === status);
   return {
     containers: containers.map((c) => ({
@@ -539,10 +521,7 @@ export async function executeSkillGetConversationContext(
   if (!conversationId) throw new Error("conversationId required");
 
   const conversation = await conversationsService.getById(conversationId);
-  if (
-    !conversation ||
-    conversation.organization_id !== ctx.user.organization_id
-  ) {
+  if (!conversation || conversation.organization_id !== ctx.user.organization_id) {
     throw new Error("Conversation not found");
   }
 

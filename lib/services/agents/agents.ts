@@ -19,21 +19,18 @@
  * - When you deploy a character, it becomes an agent
  */
 
-import { agentsRepository, type AgentInfo } from "@/db/repositories/agents";
-import { participantsRepository, memoriesRepository } from "@/db/repositories";
+import { ContentType, type Media } from "@elizaos/core";
+import { memoriesRepository, participantsRepository } from "@/db/repositories";
+import { type AgentInfo, agentsRepository } from "@/db/repositories/agents";
+import { agentStateCache, type RoomContext } from "@/lib/cache/agent-state-cache";
+import { cache as cacheClient } from "@/lib/cache/client";
+import { distributedLocks } from "@/lib/cache/distributed-locks";
+import { CacheTTL } from "@/lib/cache/keys";
+import { agentRuntime } from "@/lib/eliza/agent-runtime";
+import { agentEventEmitter } from "@/lib/events/agent-events";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import {
-  agentStateCache,
-  type RoomContext,
-} from "@/lib/cache/agent-state-cache";
-import { cache as cacheClient } from "@/lib/cache/client";
-import { CacheTTL } from "@/lib/cache/keys";
-import { distributedLocks } from "@/lib/cache/distributed-locks";
-import { agentEventEmitter } from "@/lib/events/agent-events";
 import { roomsService } from "./rooms";
-import { ContentType, type Media } from "@elizaos/core";
 
 // Cache key helper for agent info
 const agentInfoCacheKey = (agentId: string) => `agent:info:${agentId}`;
@@ -165,13 +162,9 @@ class AgentsService {
     });
 
     if (created) {
-      logger.info(
-        `[Agents Service] Created default Eliza agent ${DEFAULT_AGENT_ID}`,
-      );
+      logger.info(`[Agents Service] Created default Eliza agent ${DEFAULT_AGENT_ID}`);
     } else {
-      logger.debug(
-        `[Agents Service] Default Eliza agent already exists (race condition)`,
-      );
+      logger.debug(`[Agents Service] Default Eliza agent already exists (race condition)`);
     }
   }
 
@@ -197,9 +190,7 @@ class AgentsService {
     }
 
     // Extract character data
-    const characterData = character.character_data as
-      | Record<string, unknown>
-      | undefined;
+    const characterData = character.character_data as Record<string, unknown> | undefined;
 
     // Create agent from character
     const created = await agentsRepository.create({
@@ -215,13 +206,9 @@ class AgentsService {
 
     if (!created) {
       // Agent was created by another process (race condition), that's fine
-      logger.debug(
-        `[Agents Service] Agent ${characterId} already exists (race condition)`,
-      );
+      logger.debug(`[Agents Service] Agent ${characterId} already exists (race condition)`);
     } else {
-      logger.info(
-        `[Agents Service] Created agent ${characterId} from character ${character.name}`,
-      );
+      logger.info(`[Agents Service] Created agent ${characterId} from character ${character.name}`);
     }
 
     return characterId;
@@ -266,8 +253,7 @@ class AgentsService {
    */
   async getOrCreateRoom(entityId: string, agentId: string): Promise<string> {
     // Use repository to check for existing rooms
-    const existingRoomIds =
-      await participantsRepository.findRoomsByEntityId(entityId);
+    const existingRoomIds = await participantsRepository.findRoomsByEntityId(entityId);
 
     if (existingRoomIds && existingRoomIds.length > 0) {
       logger.debug(
@@ -284,9 +270,7 @@ class AgentsService {
       name: "New Chat",
     });
 
-    logger.info(
-      `[Agents Service] Created new room ${room.id} for entity ${entityId}`,
-    );
+    logger.info(`[Agents Service] Created new room ${room.id} for entity ${entityId}`);
     return room.id;
   }
 
@@ -299,20 +283,14 @@ class AgentsService {
     const { roomId, message, streaming, attachments, characterId } = input;
 
     // Acquire distributed lock with retry
-    const lock = await distributedLocks.acquireRoomLockWithRetry(
-      roomId,
-      60000,
-      {
-        maxRetries: 10,
-        initialDelayMs: 100,
-        maxDelayMs: 2000,
-      },
-    );
+    const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 60000, {
+      maxRetries: 10,
+      initialDelayMs: 100,
+      maxDelayMs: 2000,
+    });
 
     if (!lock) {
-      throw new Error(
-        "Room is currently processing another message. Maximum wait time exceeded.",
-      );
+      throw new Error("Room is currently processing another message. Maximum wait time exceeded.");
     }
 
     try {
@@ -329,26 +307,20 @@ class AgentsService {
           id: crypto.randomUUID(),
           url: attachment.url,
           title: attachment.filename,
-          contentType:
-            attachment.type === "image"
-              ? ContentType.IMAGE
-              : ContentType.DOCUMENT,
+          contentType: attachment.type === "image" ? ContentType.IMAGE : ContentType.DOCUMENT,
         })) ?? [];
-      const { message: agentMessage, usage: messageUsage } =
-        await agentRuntime.handleMessage(
-          roomId,
-          { text: message, attachments: mediaAttachments },
-          characterId,
-        );
+      const { message: agentMessage, usage: messageUsage } = await agentRuntime.handleMessage(
+        roomId,
+        { text: message, attachments: mediaAttachments },
+        characterId,
+      );
 
       await agentEventEmitter.emitResponseComplete(
         roomId,
         agentMessage,
         messageUsage || {
           inputTokens: Math.ceil(message.length / 4),
-          outputTokens: Math.ceil(
-            ((agentMessage.content.text as string) || "").length / 4,
-          ),
+          outputTokens: Math.ceil(((agentMessage.content.text as string) || "").length / 4),
           model: "eliza-agent",
         },
       );
@@ -362,9 +334,7 @@ class AgentsService {
         timestamp: new Date(agentMessage.createdAt || Date.now()),
         usage: {
           inputTokens: Math.ceil(message.length / 4),
-          outputTokens: Math.ceil(
-            ((agentMessage.content.text as string) || "").length / 4,
-          ),
+          outputTokens: Math.ceil(((agentMessage.content.text as string) || "").length / 4),
           model: "eliza-agent",
         },
         ...(streaming && {
@@ -389,9 +359,7 @@ class AgentsService {
       return cached;
     }
 
-    logger.debug(
-      `[Agents Service] Cache miss for room ${roomId}, fetching from DB`,
-    );
+    logger.debug(`[Agents Service] Cache miss for room ${roomId}, fetching from DB`);
 
     // PERFORMANCE: Fetch messages and participants in parallel
     const [messages, participantIds] = await Promise.all([

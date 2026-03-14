@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as api from "../helpers/api-client";
 
 /**
@@ -18,22 +18,18 @@ describe("CLI Auth API", () => {
     expect([200, 201, 400]).toContain(response.status);
 
     if (response.status === 200 || response.status === 201) {
-      const body = await response.json() as any;
+      const body = (await response.json()) as any;
       expect(body.sessionId || body.id).toBeTruthy();
     }
   });
 
   test("GET /api/auth/cli-session/[id] returns 404 for nonexistent session", async () => {
-    const response = await api.get(
-      "/api/auth/cli-session/nonexistent-session-id",
-    );
+    const response = await api.get("/api/auth/cli-session/nonexistent-session-id");
     expect([404, 400]).toContain(response.status);
   });
 
   test("POST /api/auth/cli-session/[id]/complete requires auth", async () => {
-    const response = await api.post(
-      "/api/auth/cli-session/test-session/complete",
-    );
+    const response = await api.post("/api/auth/cli-session/test-session/complete");
     // Should require authenticated user to complete
     expect([401, 403, 404]).toContain(response.status);
   });

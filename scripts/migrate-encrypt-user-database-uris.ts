@@ -15,10 +15,10 @@
  */
 
 import { config } from "dotenv";
+import { and, eq, isNotNull, like, not } from "drizzle-orm";
 import { db } from "../db/client";
 import { apps } from "../db/schemas/apps";
 import { fieldEncryption } from "../lib/services/field-encryption";
-import { and, isNotNull, not, like, eq } from "drizzle-orm";
 
 // Load environment variables
 config({ path: ".env.local" });
@@ -44,9 +44,7 @@ async function migrateEncryptUserDatabaseUris(): Promise<MigrationResult> {
 
   // Verify SECRETS_MASTER_KEY is set
   if (!process.env.SECRETS_MASTER_KEY) {
-    console.error(
-      "[ERROR] SECRETS_MASTER_KEY environment variable is not set.",
-    );
+    console.error("[ERROR] SECRETS_MASTER_KEY environment variable is not set.");
     console.error("        Generate one with: openssl rand -hex 32");
     process.exit(1);
   }
@@ -88,10 +86,7 @@ async function migrateEncryptUserDatabaseUris(): Promise<MigrationResult> {
 
     try {
       // Encrypt the URI
-      const encryptedUri = await fieldEncryption.encrypt(
-        app.organization_id,
-        uri,
-      );
+      const encryptedUri = await fieldEncryption.encrypt(app.organization_id, uri);
 
       // Update the app record
       await db
@@ -106,13 +101,10 @@ async function migrateEncryptUserDatabaseUris(): Promise<MigrationResult> {
 
       // Progress indicator every 10 apps
       if (result.migrated % 10 === 0) {
-        console.log(
-          `   Progress: ${result.migrated}/${unencryptedApps.length} migrated...`,
-        );
+        console.log(`   Progress: ${result.migrated}/${unencryptedApps.length} migrated...`);
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       result.failed++;
       result.errors.push({ appId, error: errorMessage });
       console.error(`   [FAIL] Failed to encrypt URI for app ${appId}: ${errorMessage}`);
@@ -164,9 +156,7 @@ async function main(): Promise<void> {
     if (remaining === 0) {
       console.log("[OK] Verification passed: All URIs are now encrypted!");
     } else {
-      console.log(
-        `[WARN] ${remaining} URIs are still unencrypted. Please investigate.`,
-      );
+      console.log(`[WARN] ${remaining} URIs are still unencrypted. Please investigate.`);
     }
 
     console.log("\n═══════════════════════════════════════════════════════════\n");

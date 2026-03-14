@@ -1,17 +1,17 @@
 import {
   type Action,
   type ActionExample,
+  type ActionResult,
+  ContentType,
   composePromptFromState,
   type HandlerCallback,
   type HandlerOptions,
   type IAgentRuntime,
+  logger,
   type Memory,
   ModelType,
-  type State,
-  ContentType,
   parseKeyValueXml,
-  type ActionResult,
-  logger,
+  type State,
 } from "@elizaos/core";
 import { v4 } from "uuid";
 
@@ -57,23 +57,17 @@ export const generateImageAction = {
     responses?: Memory[],
   ): Promise<ActionResult> => {
     try {
-      const allProviders =
-        responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
+      const allProviders = responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
       if (!state) {
-        state = await runtime.composeState(message, [
-          ...(allProviders ?? []),
-          "RECENT_MESSAGES",
-        ]);
+        state = await runtime.composeState(message, [...(allProviders ?? []), "RECENT_MESSAGES"]);
       } else if (allProviders.length > 0) {
         state.values = { ...state.values, additionalProviders: allProviders };
       }
 
       const prompt = composePromptFromState({
         state,
-        template:
-          runtime.character.templates?.imageGenerationTemplate ||
-          imageGenerationTemplate,
+        template: runtime.character.templates?.imageGenerationTemplate || imageGenerationTemplate,
       });
 
       const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
@@ -92,11 +86,7 @@ export const generateImageAction = {
         prompt: imagePrompt,
       });
 
-      if (
-        !imageResponse ||
-        imageResponse.length === 0 ||
-        !imageResponse[0]?.url
-      ) {
+      if (!imageResponse || imageResponse.length === 0 || !imageResponse[0]?.url) {
         logger.error(
           {
             src: "plugin:bootstrap:action:image_generation",
@@ -131,10 +121,7 @@ export const generateImageAction = {
           const urlPath = new URL(url).pathname;
           const extension = urlPath.split(".").pop()?.toLowerCase();
           // Common image extensions
-          if (
-            extension &&
-            ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
-          ) {
+          if (extension && ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)) {
             return extension;
           }
           // Extension not in allowed list, fall through to default
@@ -146,10 +133,7 @@ export const generateImageAction = {
 
       // Create shared attachment data to avoid duplication
       const extension = getFileExtension(imageUrl);
-      const timestamp = new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")
-        .slice(0, 19);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
       const fileName = `Generated_Image_${timestamp}.${extension}`;
       const attachmentId = v4();
 

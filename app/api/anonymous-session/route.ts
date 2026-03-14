@@ -1,8 +1,8 @@
+import { createHash } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
-import { createHash } from "node:crypto";
 
 /**
  * Simple in-memory rate limiter for polling endpoint.
@@ -77,18 +77,12 @@ export async function GET(request: NextRequest) {
 
     // Input validation
     if (!token) {
-      return NextResponse.json(
-        { error: "Session token is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Session token is required" }, { status: 400 });
     }
 
     if (!isValidTokenFormat(token)) {
       logger.warn("[Anonymous Session API] Invalid token format");
-      return NextResponse.json(
-        { error: "Invalid session token format" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid session token format" }, { status: 400 });
     }
 
     // Rate limiting per token
@@ -116,13 +110,8 @@ export async function GET(request: NextRequest) {
     const session = await anonymousSessionsService.getByToken(token);
 
     if (!session) {
-      logger.warn(
-        `[Anonymous Session API] Session not found for token hash: ${tokenHash}`,
-      );
-      return NextResponse.json(
-        { error: "Session not found or expired" },
-        { status: 404 },
-      );
+      logger.warn(`[Anonymous Session API] Session not found for token hash: ${tokenHash}`);
+      return NextResponse.json({ error: "Session not found or expired" }, { status: 404 });
     }
 
     logger.debug("[Anonymous Session API] Returning session data:", {
@@ -151,9 +140,6 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     logger.error("[Anonymous Session API] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to get session data" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to get session data" }, { status: 500 });
   }
 }

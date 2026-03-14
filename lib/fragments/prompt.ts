@@ -6,17 +6,17 @@
  */
 
 export {
+  BASE_SYSTEM_PROMPT as FULL_APP_BASE_PROMPT,
   buildSystemPrompt as buildFullAppPrompt,
   getExamplePrompts,
-  type TemplateType as FullAppTemplateType,
-  BASE_SYSTEM_PROMPT as FULL_APP_BASE_PROMPT,
-  TEMPLATE_PROMPTS as FULL_APP_TEMPLATE_PROMPTS,
   TEMPLATE_EXAMPLES as FULL_APP_EXAMPLE_PROMPTS,
+  TEMPLATE_PROMPTS as FULL_APP_TEMPLATE_PROMPTS,
+  type TemplateType as FullAppTemplateType,
 } from "@/lib/prompts";
 
+import { buildApiContext } from "./api-context";
 // Legacy fragment builder (for quick mode)
 import { Templates, templatesToPrompt } from "./templates";
-import { buildApiContext } from "./api-context";
 
 export async function buildFragmentPrompt(
   template: Templates,

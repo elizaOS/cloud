@@ -5,13 +5,13 @@
 import fs from "fs";
 import path from "path";
 import type {
-  WelcomeEmailData,
-  LowCreditsEmailData,
-  InviteEmailData,
-  AutoTopUpSuccessEmailData,
   AutoTopUpDisabledEmailData,
-  PurchaseConfirmationEmailData,
+  AutoTopUpSuccessEmailData,
   ContainerShutdownWarningEmailData,
+  InviteEmailData,
+  LowCreditsEmailData,
+  PurchaseConfirmationEmailData,
+  WelcomeEmailData,
 } from "@/lib/email/types";
 
 /**
@@ -21,13 +21,7 @@ import type {
  * @returns Template content as string.
  */
 function loadTemplate(filename: string): string {
-  const templatePath = path.join(
-    process.cwd(),
-    "lib",
-    "email",
-    "templates",
-    filename,
-  );
+  const templatePath = path.join(process.cwd(), "lib", "email", "templates", filename);
   return fs.readFileSync(templatePath, "utf-8");
 }
 
@@ -38,10 +32,7 @@ function loadTemplate(filename: string): string {
  * @param data - Data object with values to interpolate.
  * @returns Interpolated template string.
  */
-function interpolate(
-  template: string,
-  data: Record<string, string | number>,
-): string {
+function interpolate(template: string, data: Record<string, string | number>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     return String(data[key] ?? match);
   });
@@ -139,9 +130,7 @@ export function renderInviteTemplate(data: InviteEmailData): {
  * @param data - Auto top-up success email data.
  * @returns Rendered HTML and text versions.
  */
-export function renderAutoTopUpSuccessTemplate(
-  data: AutoTopUpSuccessEmailData,
-): {
+export function renderAutoTopUpSuccessTemplate(data: AutoTopUpSuccessEmailData): {
   html: string;
   text: string;
 } {
@@ -235,9 +224,7 @@ This automatic top-up ensures your services continue running without interruptio
  * @param data - Auto top-up disabled email data.
  * @returns Rendered HTML and text versions.
  */
-export function renderAutoTopUpDisabledTemplate(
-  data: AutoTopUpDisabledEmailData,
-): {
+export function renderAutoTopUpDisabledTemplate(data: AutoTopUpDisabledEmailData): {
   html: string;
   text: string;
 } {
@@ -322,9 +309,7 @@ To prevent service interruptions, please address this issue as soon as possible.
  * @param data - Purchase confirmation email data.
  * @returns Rendered HTML and text versions.
  */
-export function renderPurchaseConfirmationTemplate(
-  data: PurchaseConfirmationEmailData,
-): {
+export function renderPurchaseConfirmationTemplate(data: PurchaseConfirmationEmailData): {
   html: string;
   text: string;
 } {
@@ -357,9 +342,7 @@ export function renderPurchaseConfirmationTemplate(
  * @param data - Container shutdown warning email data.
  * @returns Rendered HTML and text versions.
  */
-export function renderContainerShutdownWarningTemplate(
-  data: ContainerShutdownWarningEmailData,
-): {
+export function renderContainerShutdownWarningTemplate(data: ContainerShutdownWarningEmailData): {
   html: string;
   text: string;
 } {

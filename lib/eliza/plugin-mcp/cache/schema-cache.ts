@@ -11,21 +11,24 @@
  * - MCP_SCHEMA_CACHE_TTL: Cache TTL in seconds (default: 3600)
  */
 
-import { createHash } from "crypto";
 import { logger } from "@elizaos/core";
-import type { CachedServerSchema, CachedToolSchema, McpServerConfig } from "../types";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { createHash } from "crypto";
+import type { CachedServerSchema, McpServerConfig } from "../types";
 
 const CACHE_KEY_PREFIX = "mcp:schema:v1";
 const DEFAULT_TTL = 3600;
 
 /** Simple Upstash REST client - avoids heavy dependencies */
 class UpstashClient {
-  constructor(private url: string, private token: string) {
+  constructor(
+    private url: string,
+    private token: string,
+  ) {
     // Validate URL format
     if (url.startsWith("redis://") || url.startsWith("rediss://")) {
       throw new Error(
-        "MCP_CACHE_REDIS_URL must be Upstash REST URL (https://...), not Redis protocol URL"
+        "MCP_CACHE_REDIS_URL must be Upstash REST URL (https://...), not Redis protocol URL",
       );
     }
     this.url = url.replace(/\/$/, "");
@@ -70,7 +73,9 @@ export class McpSchemaCache {
     }
 
     if (!url || !token) {
-      logger.warn("[McpSchemaCache] Enabled but missing MCP_CACHE_REDIS_URL or MCP_CACHE_REDIS_TOKEN");
+      logger.warn(
+        "[McpSchemaCache] Enabled but missing MCP_CACHE_REDIS_URL or MCP_CACHE_REDIS_TOKEN",
+      );
       return;
     }
 
@@ -91,11 +96,13 @@ export class McpSchemaCache {
     // Sort keys recursively to ensure consistent hashing regardless of key order
     const sortedJson = JSON.stringify(config, (_, value) =>
       value && typeof value === "object" && !Array.isArray(value)
-        ? Object.keys(value).sort().reduce((sorted: Record<string, unknown>, key) => {
-            sorted[key] = value[key];
-            return sorted;
-          }, {})
-        : value
+        ? Object.keys(value)
+            .sort()
+            .reduce((sorted: Record<string, unknown>, key) => {
+              sorted[key] = value[key];
+              return sorted;
+            }, {})
+        : value,
     );
     return createHash("sha256").update(sortedJson).digest("hex").slice(0, 16);
   }
@@ -105,7 +112,11 @@ export class McpSchemaCache {
   }
 
   /** Get cached schemas (returns null on miss or error) */
-  async getSchemas(agentId: string, serverName: string, configHash: string): Promise<CachedServerSchema | null> {
+  async getSchemas(
+    agentId: string,
+    serverName: string,
+    configHash: string,
+  ): Promise<CachedServerSchema | null> {
     if (!this.client) return null;
 
     try {
@@ -127,13 +138,22 @@ export class McpSchemaCache {
   }
 
   /** Cache schemas (fails silently) */
-  async setSchemas(agentId: string, serverName: string, configHash: string, tools: Tool[]): Promise<void> {
+  async setSchemas(
+    agentId: string,
+    serverName: string,
+    configHash: string,
+    tools: Tool[],
+  ): Promise<void> {
     if (!this.client) return;
 
     try {
       const cached: CachedServerSchema = {
         serverName,
-        tools: tools.map(t => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })),
+        tools: tools.map((t) => ({
+          name: t.name,
+          description: t.description,
+          inputSchema: t.inputSchema,
+        })),
         cachedAt: Date.now(),
         configHash,
       };
@@ -146,7 +166,7 @@ export class McpSchemaCache {
 
   /** Convert cached schemas to Tool format */
   static toTools(cached: CachedServerSchema): Tool[] {
-    return cached.tools.map(t => ({
+    return cached.tools.map((t) => ({
       name: t.name,
       description: t.description,
       inputSchema: t.inputSchema || { type: "object" as const, properties: {} },

@@ -125,9 +125,7 @@ class RedisCreditEventEmitter {
       token: process.env.KV_REST_API_TOKEN!,
     });
 
-    const processMessage = async (
-      message: string | Record<string, unknown>,
-    ) => {
+    const processMessage = async (message: string | Record<string, unknown>) => {
       // Upstash Redis client auto-parses JSON, so message might already be an object
       let parsed: unknown;
       if (typeof message === "string") {
@@ -223,10 +221,7 @@ class RedisCreditEventEmitter {
     return {
       enabled: this.enabled,
       totalOrganizations: this.activeSubscriptions.size,
-      totalConnections: organizations.reduce(
-        (sum, org) => sum + org.connections,
-        0,
-      ),
+      totalConnections: organizations.reduce((sum, org) => sum + org.connections, 0),
       organizations,
     };
   }

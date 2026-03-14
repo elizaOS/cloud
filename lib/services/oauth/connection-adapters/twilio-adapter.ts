@@ -7,19 +7,19 @@
 
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { logger } from "@/lib/utils/logger";
-import type { ConnectionAdapter } from "./index";
-import type { OAuthConnection, TokenResult } from "../types";
 import { Errors } from "../errors";
 import { OAUTH_PROVIDERS } from "../provider-registry";
+import type { OAuthConnection, TokenResult } from "../types";
+import type { ConnectionAdapter } from "./index";
 import {
-  ownsConnectionId,
-  verifyConnectionId,
-  fetchPlatformSecrets,
-  getSecretValue,
-  updateSecretAccessTime,
-  deletePlatformSecrets,
-  getEarliestSecretDate,
   createSecretsConnection,
+  deletePlatformSecrets,
+  fetchPlatformSecrets,
+  getEarliestSecretDate,
+  getSecretValue,
+  ownsConnectionId,
+  updateSecretAccessTime,
+  verifyConnectionId,
 } from "./secrets-adapter-utils";
 
 const PLATFORM = "twilio";
@@ -79,7 +79,11 @@ export const twilioAdapter: ConnectionAdapter = {
     verifyConnectionId(PLATFORM, organizationId, connectionId);
     const count = await deletePlatformSecrets(organizationId, PREFIX, "oauth-service");
     twilioAutomationService.invalidateStatusCache(organizationId);
-    logger.info("[TwilioAdapter] Connection revoked", { connectionId, organizationId, secretsDeleted: count });
+    logger.info("[TwilioAdapter] Connection revoked", {
+      connectionId,
+      organizationId,
+      secretsDeleted: count,
+    });
   },
 
   async ownsConnection(connectionId: string): Promise<boolean> {

@@ -21,11 +21,7 @@ interface CachedValue<T> {
 interface CacheRedisClient {
   get(key: string): Promise<string | null>;
   setex(key: string, ttlSeconds: number, value: string): Promise<unknown>;
-  set(
-    key: string,
-    value: string,
-    options?: { nx?: boolean; px?: number },
-  ): Promise<string | null>;
+  set(key: string, value: string, options?: { nx?: boolean; px?: number }): Promise<string | null>;
   incr(key: string): Promise<number>;
   expire(key: string, ttlSeconds: number): Promise<unknown>;
   getdel(key: string): Promise<string | null>;
@@ -50,11 +46,7 @@ class UpstashRedisAdapter implements CacheRedisClient {
     return this.client.setex(key, ttlSeconds, value);
   }
 
-  set(
-    key: string,
-    value: string,
-    options?: { nx?: boolean; px?: number },
-  ): Promise<string | null> {
+  set(key: string, value: string, options?: { nx?: boolean; px?: number }): Promise<string | null> {
     return this.client.set(key, value, options as never) as Promise<string | null>;
   }
 
@@ -97,11 +89,7 @@ class NodeRedisAdapter implements CacheRedisClient {
     return this.client.setEx(key, ttlSeconds, value);
   }
 
-  set(
-    key: string,
-    value: string,
-    options?: { nx?: boolean; px?: number },
-  ): Promise<string | null> {
+  set(key: string, value: string, options?: { nx?: boolean; px?: number }): Promise<string | null> {
     if (options?.nx || options?.px) {
       return this.client.set(key, value, {
         ...(options.nx ? { NX: true } : {}),
@@ -203,8 +191,7 @@ export class CacheClient {
 
     const hasNativeRedisConfig = Boolean(redisUrl);
     const hasRestRedisConfig = Boolean(restUrl || restToken);
-    const nativeRedisConfigured =
-      Boolean(redisUrl) && !this.isPlaceholderCredential(redisUrl);
+    const nativeRedisConfigured = Boolean(redisUrl) && !this.isPlaceholderCredential(redisUrl);
     const restRedisConfigured =
       Boolean(restUrl && restToken) &&
       !this.isPlaceholderCredential(restUrl) &&
@@ -224,9 +211,7 @@ export class CacheClient {
         .connect()
         .then(() => {
           this.nativeRedisReady = true;
-          logger.info(
-            "[Cache] ✓ Cache client initialized with native Redis protocol",
-          );
+          logger.info("[Cache] ✓ Cache client initialized with native Redis protocol");
         })
         .catch((error) => {
           this.recordFailure();
@@ -241,9 +226,7 @@ export class CacheClient {
     }
 
     if (hasNativeRedisConfig) {
-      logger.warn(
-        "[Cache] Ignoring placeholder or invalid native Redis credentials.",
-      );
+      logger.warn("[Cache] Ignoring placeholder or invalid native Redis credentials.");
     }
 
     if (restRedisConfigured && restUrl && restToken) {
@@ -262,9 +245,7 @@ export class CacheClient {
     }
 
     if (hasRestRedisConfig) {
-      logger.warn(
-        "[Cache] Ignoring placeholder or incomplete Redis REST credentials.",
-      );
+      logger.warn("[Cache] Ignoring placeholder or incomplete Redis REST credentials.");
     }
 
     if (process.env.NODE_ENV === "production") {
@@ -325,9 +306,7 @@ export class CacheClient {
 
       // Check for corrupted cache values
       if (typeof value === "string" && value === "[object Object]") {
-        logger.warn(
-          `[Cache] Corrupted cache value detected for key ${key}, deleting`,
-        );
+        logger.warn(`[Cache] Corrupted cache value detected for key ${key}, deleting`);
         await this.del(key);
         return null;
       }
@@ -486,8 +465,7 @@ export class CacheClient {
     }
 
     // Always serialize to JSON string before storing
-    const serialized =
-      typeof value === "string" ? value : JSON.stringify(value);
+    const serialized = typeof value === "string" ? value : JSON.stringify(value);
 
     try {
       const start = Date.now();
@@ -523,8 +501,7 @@ export class CacheClient {
       throw new Error(`Invalid cache value for key ${key}`);
     }
 
-    const serialized =
-      typeof value === "string" ? value : JSON.stringify(value);
+    const serialized = typeof value === "string" ? value : JSON.stringify(value);
 
     const start = Date.now();
     const result = await redis.set(key, serialized, { nx: true, px: ttlMs });
@@ -590,12 +567,12 @@ export class CacheClient {
   async getAndDelete<T>(key: string): Promise<T | null> {
     const redis = await this.getRedisClient();
     if (!redis) return null;
-    
+
     try {
       // Use GETDEL for atomic get-and-delete (Redis ≥6.2)
       const value = await redis.getdel(key);
       if (value === null || value === undefined) return null;
-      
+
       // Check for corrupted cache values
       if (typeof value === "string" && value === "[object Object]") {
         logger.warn(`[Cache] Corrupted cache value detected in getAndDelete for key ${key}`);
@@ -663,11 +640,7 @@ export class CacheClient {
    * @param batchSize - Number of keys to scan per iteration (default: 100)
    * @param maxIterations - Maximum iterations to prevent runaway scans (default: 1000)
    */
-  async delPattern(
-    pattern: string,
-    batchSize = 100,
-    maxIterations = 1000,
-  ): Promise<void> {
+  async delPattern(pattern: string, batchSize = 100, maxIterations = 1000): Promise<void> {
     const redis = await this.getRedisClient();
     if (!redis) return;
 
@@ -687,20 +660,14 @@ export class CacheClient {
       }
 
       // Use SCAN instead of KEYS to avoid blocking Redis
-      const result: [string | number, string[]] = await redis.scan(
-        cursor,
-        {
-          match: pattern,
-          count: batchSize,
-        },
-      );
+      const result: [string | number, string[]] = await redis.scan(cursor, {
+        match: pattern,
+        count: batchSize,
+      });
 
       // result is [nextCursor, keys]
       // Upstash Redis returns cursor as string or number
-      cursor =
-        typeof result[0] === "string"
-          ? Number.parseInt(result[0], 10)
-          : result[0];
+      cursor = typeof result[0] === "string" ? Number.parseInt(result[0], 10) : result[0];
       const keys = result[1];
 
       if (keys.length > 0) {
@@ -753,9 +720,7 @@ export class CacheClient {
 
           // Check for corrupted values
           if (typeof value === "string" && value === "[object Object]") {
-            logger.warn(
-              `[Cache] Corrupted cache value in mget for key ${keys[index]}, skipping`,
-            );
+            logger.warn(`[Cache] Corrupted cache value in mget for key ${keys[index]}, skipping`);
             await this.del(keys[index]);
             return null;
           }
@@ -790,9 +755,7 @@ export class CacheClient {
 
     const timeSinceLastFailure = Date.now() - this.lastFailureTime;
     if (timeSinceLastFailure > this.CIRCUIT_BREAKER_TIMEOUT) {
-      logger.info(
-        "[Cache] Circuit breaker timeout expired, attempting to reconnect",
-      );
+      logger.info("[Cache] Circuit breaker timeout expired, attempting to reconnect");
       this.failureCount = 0;
       return false;
     }
@@ -808,9 +771,7 @@ export class CacheClient {
     this.lastFailureTime = Date.now();
 
     if (this.failureCount === this.MAX_FAILURES) {
-      logger.error(
-        `[Cache] Circuit breaker OPENED after ${this.MAX_FAILURES} failures`,
-      );
+      logger.error(`[Cache] Circuit breaker OPENED after ${this.MAX_FAILURES} failures`);
     }
   }
 
@@ -844,14 +805,7 @@ export class CacheClient {
 
   private logMetric(
     _key: string,
-    _operation:
-      | "hit"
-      | "miss"
-      | "set"
-      | "setIfNotExists"
-      | "del"
-      | "del_pattern"
-      | "stale",
+    _operation: "hit" | "miss" | "set" | "setIfNotExists" | "del" | "del_pattern" | "stale",
     _durationMs: number,
     _metadata?: Record<string, unknown>,
   ): void {

@@ -5,6 +5,7 @@
  * Supports assignment to apps, containers, agents, and MCPs.
  */
 
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -17,23 +18,16 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { organizations } from "./organizations";
 import { apps } from "./apps";
 import { containers } from "./containers";
+import { organizations } from "./organizations";
 import { userCharacters } from "./user-characters";
 import { userMcps } from "./user-mcps";
 
 // Enums
-export const domainRegistrarEnum = pgEnum("domain_registrar", [
-  "vercel",
-  "external",
-]);
+export const domainRegistrarEnum = pgEnum("domain_registrar", ["vercel", "external"]);
 
-export const domainNameserverModeEnum = pgEnum("domain_nameserver_mode", [
-  "vercel",
-  "external",
-]);
+export const domainNameserverModeEnum = pgEnum("domain_nameserver_mode", ["vercel", "external"]);
 
 export const domainResourceTypeEnum = pgEnum("domain_resource_type", [
   "app",
@@ -161,9 +155,7 @@ export const managedDomains = pgTable(
     }),
 
     // DNS configuration
-    nameserverMode: domainNameserverModeEnum("nameserver_mode")
-      .notNull()
-      .default("vercel"),
+    nameserverMode: domainNameserverModeEnum("nameserver_mode").notNull().default("vercel"),
     dnsRecords: jsonb("dns_records").$type<DnsRecord[]>().default([]),
     sslStatus: text("ssl_status")
       .$type<"pending" | "provisioning" | "active" | "error">()
@@ -176,12 +168,8 @@ export const managedDomains = pgTable(
     verifiedAt: timestamp("verified_at"),
 
     // Moderation
-    moderationStatus: domainModerationStatusEnum("moderation_status")
-      .notNull()
-      .default("clean"),
-    moderationFlags: jsonb("moderation_flags")
-      .$type<DomainModerationFlag[]>()
-      .default([]),
+    moderationStatus: domainModerationStatusEnum("moderation_status").notNull().default("clean"),
+    moderationFlags: jsonb("moderation_flags").$type<DomainModerationFlag[]>().default([]),
 
     // Health monitoring
     lastHealthCheck: timestamp("last_health_check"),
@@ -199,9 +187,7 @@ export const managedDomains = pgTable(
     // Suspension tracking
     suspendedAt: timestamp("suspended_at"),
     suspensionReason: text("suspension_reason"),
-    suspensionNotification: jsonb(
-      "suspension_notification",
-    ).$type<SuspensionNotification>(),
+    suspensionNotification: jsonb("suspension_notification").$type<SuspensionNotification>(),
     ownerNotifiedAt: timestamp("owner_notified_at"),
 
     // Pricing (for purchased domains)
@@ -222,13 +208,9 @@ export const managedDomains = pgTable(
     agentIdx: index("managed_domains_agent_idx").on(table.agentId),
     mcpIdx: index("managed_domains_mcp_idx").on(table.mcpId),
     statusIdx: index("managed_domains_status_idx").on(table.status),
-    moderationIdx: index("managed_domains_moderation_idx").on(
-      table.moderationStatus,
-    ),
+    moderationIdx: index("managed_domains_moderation_idx").on(table.moderationStatus),
     expiresIdx: index("managed_domains_expires_idx").on(table.expiresAt),
-    contentScanIdx: index("managed_domains_content_scan_idx").on(
-      table.lastContentScanAt,
-    ),
+    contentScanIdx: index("managed_domains_content_scan_idx").on(table.lastContentScanAt),
     suspendedIdx: index("managed_domains_suspended_idx").on(table.suspendedAt),
   }),
 );

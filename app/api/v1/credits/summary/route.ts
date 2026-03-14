@@ -12,17 +12,16 @@
  * This is the single source of truth for credit status.
  */
 
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services/credits";
-import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
-import { agentBudgetService } from "@/lib/services/agent-budgets";
-import { appCreditsService } from "@/lib/services/app-credits";
 import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas/apps";
 import { userCharacters } from "@/db/schemas/user-characters";
-import { eq } from "drizzle-orm";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { agentBudgetService } from "@/lib/services/agent-budgets";
+import { creditsService } from "@/lib/services/credits";
+import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -41,9 +40,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
   });
 
   // Get budgets for all agents
-  const agentBudgets = await agentBudgetService.getOrgBudgets(
-    user.organization_id,
-  );
+  const agentBudgets = await agentBudgetService.getOrgBudgets(user.organization_id);
   const budgetMap = new Map(agentBudgets.map((b) => [b.agent_id, b]));
 
   // Get all apps owned by this org
@@ -55,11 +52,10 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
   const earnings = await redeemableEarningsService.getBalance(user.id);
 
   // Get recent transactions
-  const recentTransactions =
-    await creditsService.listTransactionsByOrganization(
-      user.organization_id,
-      10,
-    );
+  const recentTransactions = await creditsService.listTransactionsByOrganization(
+    user.organization_id,
+    10,
+  );
 
   // Build response
   const response = {
@@ -73,12 +69,8 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
 
       // Auto top-up settings
       autoTopUpEnabled: org.auto_top_up_enabled,
-      autoTopUpThreshold: org.auto_top_up_threshold
-        ? Number(org.auto_top_up_threshold)
-        : null,
-      autoTopUpAmount: org.auto_top_up_amount
-        ? Number(org.auto_top_up_amount)
-        : null,
+      autoTopUpThreshold: org.auto_top_up_threshold ? Number(org.auto_top_up_threshold) : null,
+      autoTopUpAmount: org.auto_top_up_amount ? Number(org.auto_top_up_amount) : null,
       hasPaymentMethod: !!org.stripe_default_payment_method,
     },
 
@@ -88,9 +80,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
       const allocated = budget ? Number(budget.allocated_budget) : 0;
       const spent = budget ? Number(budget.spent_budget) : 0;
       const available = allocated - spent;
-      const dailyLimit = budget?.daily_limit
-        ? Number(budget.daily_limit)
-        : null;
+      const dailyLimit = budget?.daily_limit ? Number(budget.daily_limit) : null;
       const dailySpent = budget ? Number(budget.daily_spent) : 0;
 
       return {
@@ -125,14 +115,8 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
       total: agents.length,
       withBudget: agentBudgets.length,
       paused: agentBudgets.filter((b) => b.is_paused).length,
-      totalAllocated: agentBudgets.reduce(
-        (sum, b) => sum + Number(b.allocated_budget),
-        0,
-      ),
-      totalSpent: agentBudgets.reduce(
-        (sum, b) => sum + Number(b.spent_budget),
-        0,
-      ),
+      totalAllocated: agentBudgets.reduce((sum, b) => sum + Number(b.allocated_budget), 0),
+      totalSpent: agentBudgets.reduce((sum, b) => sum + Number(b.spent_budget), 0),
       totalAvailable: agentBudgets.reduce(
         (sum, b) => sum + (Number(b.allocated_budget) - Number(b.spent_budget)),
         0,
@@ -203,8 +187,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

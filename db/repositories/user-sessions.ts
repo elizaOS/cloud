@@ -1,13 +1,9 @@
-import { eq, and, isNull, desc, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
+import { type NewUserSession, type UserSession, userSessions } from "../schemas/user-sessions";
 import { jsonbParam } from "../utils/jsonb";
-import {
-  userSessions,
-  type UserSession,
-  type NewUserSession,
-} from "../schemas/user-sessions";
 
-export type { UserSession, NewUserSession };
+export type { NewUserSession, UserSession };
 
 /**
  * Repository for user session database operations.
@@ -32,14 +28,9 @@ export class UserSessionsRepository {
   /**
    * Finds an active session by token (not ended).
    */
-  async findActiveByToken(
-    sessionToken: string,
-  ): Promise<UserSession | undefined> {
+  async findActiveByToken(sessionToken: string): Promise<UserSession | undefined> {
     return await dbRead.query.userSessions.findFirst({
-      where: and(
-        eq(userSessions.session_token, sessionToken),
-        isNull(userSessions.ended_at),
-      ),
+      where: and(eq(userSessions.session_token, sessionToken), isNull(userSessions.ended_at)),
     });
   }
 
@@ -48,10 +39,7 @@ export class UserSessionsRepository {
    */
   async listActiveByUser(userId: string): Promise<UserSession[]> {
     return await dbRead.query.userSessions.findMany({
-      where: and(
-        eq(userSessions.user_id, userId),
-        isNull(userSessions.ended_at),
-      ),
+      where: and(eq(userSessions.user_id, userId), isNull(userSessions.ended_at)),
       orderBy: desc(userSessions.last_activity_at),
     });
   }
@@ -59,10 +47,7 @@ export class UserSessionsRepository {
   /**
    * Lists sessions for an organization, ordered by start time.
    */
-  async listByOrganization(
-    organizationId: string,
-    limit?: number,
-  ): Promise<UserSession[]> {
+  async listByOrganization(organizationId: string, limit?: number): Promise<UserSession[]> {
     return await dbRead.query.userSessions.findMany({
       where: eq(userSessions.organization_id, organizationId),
       orderBy: desc(userSessions.started_at),
@@ -81,10 +66,7 @@ export class UserSessionsRepository {
     tokens_consumed: number;
   } | null> {
     const activeSessions = await dbRead.query.userSessions.findMany({
-      where: and(
-        eq(userSessions.user_id, userId),
-        isNull(userSessions.ended_at),
-      ),
+      where: and(eq(userSessions.user_id, userId), isNull(userSessions.ended_at)),
     });
 
     if (activeSessions.length === 0) {
@@ -118,10 +100,7 @@ export class UserSessionsRepository {
       device_info: jsonbParam(data.device_info),
     } as unknown as NewUserSession;
 
-    const [session] = await dbWrite
-      .insert(userSessions)
-      .values(values)
-      .returning();
+    const [session] = await dbWrite.insert(userSessions).values(values).returning();
     return session;
   }
 
@@ -221,12 +200,7 @@ export class UserSessionsRepository {
     const [updated] = await dbWrite
       .update(userSessions)
       .set(updateFields)
-      .where(
-        and(
-          eq(userSessions.session_token, sessionToken),
-          isNull(userSessions.ended_at),
-        ),
-      )
+      .where(and(eq(userSessions.session_token, sessionToken), isNull(userSessions.ended_at)))
       .returning();
 
     return updated;
@@ -259,9 +233,7 @@ export class UserSessionsRepository {
         ended_at: new Date(),
         updated_at: new Date(),
       })
-      .where(
-        and(eq(userSessions.user_id, userId), isNull(userSessions.ended_at)),
-      );
+      .where(and(eq(userSessions.user_id, userId), isNull(userSessions.ended_at)));
 
     return result.rowCount || 0;
   }

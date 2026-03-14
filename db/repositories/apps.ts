@@ -1,41 +1,31 @@
+import { and, count, countDistinct, desc, eq, gte, lte, or, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
-  apps,
-  appUsers,
+  type App,
+  type AppAnalytics,
+  type AppRequest,
+  type AppUser,
   appAnalytics,
   appRequests,
-  type App,
+  apps,
+  appUsers,
   type NewApp,
-  type AppUser,
-  type NewAppUser,
-  type AppAnalytics,
   type NewAppAnalytics,
-  type AppRequest,
   type NewAppRequest,
+  type NewAppUser,
 } from "../schemas";
 import { appConfig } from "../schemas/app-config";
 import { appDomains } from "../schemas/app-domains";
-import {
-  eq,
-  and,
-  gte,
-  lte,
-  desc,
-  sql,
-  count,
-  countDistinct,
-  or,
-} from "drizzle-orm";
 
 export type {
   App,
-  NewApp,
-  AppUser,
-  NewAppUser,
   AppAnalytics,
-  NewAppAnalytics,
   AppRequest,
+  AppUser,
+  NewApp,
+  NewAppAnalytics,
   NewAppRequest,
+  NewAppUser,
 };
 
 /**
@@ -160,10 +150,7 @@ export class AppsRepository {
   /**
    * Lists all apps with optional filters.
    */
-  async listAll(filters?: {
-    isActive?: boolean;
-    isApproved?: boolean;
-  }): Promise<App[]> {
+  async listAll(filters?: { isActive?: boolean; isApproved?: boolean }): Promise<App[]> {
     const conditions = [];
 
     if (filters?.isActive !== undefined) {
@@ -183,10 +170,7 @@ export class AppsRepository {
   /**
    * Finds an app user by app ID and user ID.
    */
-  async findAppUser(
-    appId: string,
-    userId: string,
-  ): Promise<AppUser | undefined> {
+  async findAppUser(appId: string, userId: string): Promise<AppUser | undefined> {
     return await dbRead.query.appUsers.findFirst({
       where: and(eq(appUsers.app_id, appId), eq(appUsers.user_id, userId)),
     });
@@ -221,12 +205,7 @@ export class AppsRepository {
       total_cost: string;
     }>
   > {
-    const truncUnit =
-      periodType === "hourly"
-        ? "hour"
-        : periodType === "monthly"
-          ? "month"
-          : "day";
+    const truncUnit = periodType === "hourly" ? "hour" : periodType === "monthly" ? "month" : "day";
 
     const results = await dbRead.execute<{
       period_start: string;
@@ -259,10 +238,7 @@ export class AppsRepository {
   /**
    * Gets the latest app analytics records.
    */
-  async getLatestAnalytics(
-    appId: string,
-    limit: number = 30,
-  ): Promise<AppAnalytics[]> {
+  async getLatestAnalytics(appId: string, limit: number = 30): Promise<AppAnalytics[]> {
     return await dbRead.query.appAnalytics.findMany({
       where: eq(appAnalytics.app_id, appId),
       orderBy: [desc(appAnalytics.period_start)],
@@ -331,10 +307,7 @@ export class AppsRepository {
    * @param region Database region to set
    * @returns Updated app if the status transition succeeded, undefined if another process won the race
    */
-  async trySetDatabaseProvisioning(
-    id: string,
-    region: string,
-  ): Promise<App | undefined> {
+  async trySetDatabaseProvisioning(id: string, region: string): Promise<App | undefined> {
     const [updated] = await dbWrite
       .update(apps)
       .set({
@@ -346,10 +319,7 @@ export class AppsRepository {
       .where(
         and(
           eq(apps.id, id),
-          or(
-            eq(apps.user_database_status, "none"),
-            eq(apps.user_database_status, "error"),
-          ),
+          or(eq(apps.user_database_status, "none"), eq(apps.user_database_status, "error")),
         ),
       )
       .returning();
@@ -366,10 +336,7 @@ export class AppsRepository {
   /**
    * Atomically increments app usage statistics.
    */
-  async incrementUsage(
-    id: string,
-    creditsUsed: string = "0.00",
-  ): Promise<void> {
+  async incrementUsage(id: string, creditsUsed: string = "0.00"): Promise<void> {
     await dbWrite
       .update(apps)
       .set({
@@ -468,10 +435,7 @@ export class AppsRepository {
    * Creates a new app analytics record.
    */
   async createAnalytics(data: NewAppAnalytics): Promise<AppAnalytics> {
-    const [analytics] = await dbWrite
-      .insert(appAnalytics)
-      .values(data)
-      .returning();
+    const [analytics] = await dbWrite.insert(appAnalytics).values(data).returning();
     return analytics;
   }
 
@@ -483,10 +447,7 @@ export class AppsRepository {
    * Logs an individual app request for detailed analytics.
    */
   async logRequest(data: NewAppRequest): Promise<AppRequest> {
-    const [request] = await dbWrite
-      .insert(appRequests)
-      .values(data)
-      .returning();
+    const [request] = await dbWrite.insert(appRequests).values(data).returning();
     return request;
   }
 
@@ -504,14 +465,7 @@ export class AppsRepository {
       endDate?: Date;
     } = {},
   ): Promise<{ requests: AppRequest[]; total: number }> {
-    const {
-      limit = 50,
-      offset = 0,
-      requestType,
-      source,
-      startDate,
-      endDate,
-    } = options;
+    const { limit = 50, offset = 0, requestType, source, startDate, endDate } = options;
 
     const conditions = [eq(appRequests.app_id, appId)];
 
@@ -728,8 +682,7 @@ export class AppsRepository {
     const config = await dbRead.query.appConfig.findFirst({
       where: eq(appConfig.app_id, appId),
     });
-    const assets =
-      (config?.promotional_assets as Array<{ url: string }>) || [];
+    const assets = (config?.promotional_assets as Array<{ url: string }>) || [];
     const removedAsset = assets.find((a) => a.url === assetUrl);
 
     if (!removedAsset) {

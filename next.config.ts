@@ -10,14 +10,12 @@ import { shouldBlockUnsafeWebhookSkip } from "./lib/config/deployment-environmen
 // This environment variable bypasses webhook signature verification and must
 // NEVER be enabled in production environments.
 // =============================================================================
-if (
-  shouldBlockUnsafeWebhookSkip(process.env)
-) {
+if (shouldBlockUnsafeWebhookSkip(process.env)) {
   throw new Error(
     "FATAL: SKIP_WEBHOOK_VERIFICATION cannot be enabled in production. " +
       "This is a critical security misconfiguration that would allow " +
       "unauthenticated webhook requests. Remove this environment variable " +
-      "from your production deployment."
+      "from your production deployment.",
   );
 }
 
@@ -143,10 +141,7 @@ const nextConfig: NextConfig = {
       // Resolve thread-stream to synchronous stub in production webpack builds
       // This prevents pino from creating dynamic worker modules like pino-28069d5257187539
       const stubPath = path.join(__dirname, "lib/stubs/thread-stream.ts");
-      const loggerStubPath = path.join(
-        __dirname,
-        "lib/stubs/walletconnect-logger.ts",
-      );
+      const loggerStubPath = path.join(__dirname, "lib/stubs/walletconnect-logger.ts");
       config.resolve.alias = {
         ...config.resolve.alias,
         "thread-stream": stubPath,
@@ -162,8 +157,7 @@ const nextConfig: NextConfig = {
     return config;
   },
   transpilePackages: ["next-mdx-remote", "@elizaos/ui"],
-  // Note: eslint config is no longer supported in next.config.ts for Next.js 16+
-  // Use eslint.config.mjs instead
+  // Note: linting is handled by Biome (biome.json), not next.config.ts
   outputFileTracingRoot: undefined,
   outputFileTracingIncludes: {
     "/api/v1/containers": ["./scripts/cloudformation/**/*"],
@@ -215,8 +209,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Access-Control-Allow-Headers",
-            value:
-              "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie",
+            value: "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie",
           },
           { key: "Access-Control-Max-Age", value: "86400" },
           { key: "X-Content-Type-Options", value: "nosniff" },

@@ -2,10 +2,10 @@
  * Memory cache for Eliza agent memories and conversation contexts.
  */
 
+import type { Memory, UUID } from "@elizaos/core";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
-import type { Memory, UUID } from "@elizaos/core";
 
 /**
  * Cached room context with messages and participants.
@@ -125,15 +125,10 @@ export class MemoryCache {
    * @param organizationId - Organization ID.
    * @returns Cached room context or null if not found.
    */
-  async getRoomContext(
-    roomId: string,
-    organizationId: string,
-  ): Promise<MemoryRoomContext | null> {
+  async getRoomContext(roomId: string, organizationId: string): Promise<MemoryRoomContext | null> {
     const keys = await this.getRoomContextKeys(roomId, organizationId);
     for (const key of keys) {
-      const cached = await cache.get<MemoryRoomContext & { timestamp: string }>(
-        key,
-      );
+      const cached = await cache.get<MemoryRoomContext & { timestamp: string }>(key);
       if (cached) {
         logger.debug(`[Memory Cache] Room context HIT: ${key}`);
         return {
@@ -191,15 +186,11 @@ export class MemoryCache {
    * @param conversationId - Conversation ID.
    * @returns Cached conversation context or null if not found.
    */
-  async getConversationContext(
-    conversationId: string,
-  ): Promise<ConversationContext | null> {
+  async getConversationContext(conversationId: string): Promise<ConversationContext | null> {
     const key = `memory:conv:${conversationId}:context:v1`;
     const cached = await cache.get<
       ConversationContext & {
-        messages: Array<
-          ConversationContext["messages"][0] & { createdAt: string }
-        >;
+        messages: Array<ConversationContext["messages"][0] & { createdAt: string }>;
       }
     >(key);
     if (cached) {
@@ -246,9 +237,7 @@ export class MemoryCache {
       }
     });
 
-    logger.debug(
-      `[Memory Cache] Bulk retrieved ${result.size}/${keys.length} memories`,
-    );
+    logger.debug(`[Memory Cache] Bulk retrieved ${result.size}/${keys.length} memories`);
     return result;
   }
 
@@ -259,16 +248,10 @@ export class MemoryCache {
    * @param results - Search results to cache.
    * @param ttl - Time to live in seconds.
    */
-  async cacheSearchResults(
-    queryHash: string,
-    results: SearchResult[],
-    ttl: number,
-  ): Promise<void> {
+  async cacheSearchResults(queryHash: string, results: SearchResult[], ttl: number): Promise<void> {
     const key = `memory:search:${queryHash}:v1`;
     await cache.set(key, results, ttl);
-    logger.debug(
-      `[Memory Cache] Cached search results: ${key} (${results.length} results)`,
-    );
+    logger.debug(`[Memory Cache] Cached search results: ${key} (${results.length} results)`);
   }
 
   /**
@@ -310,10 +293,7 @@ export class MemoryCache {
     logger.debug(`[Memory Cache] Invalidated conversation pattern: ${pattern}`);
   }
 
-  private async getRoomContextKeys(
-    roomId: string,
-    organizationId: string,
-  ): Promise<string[]> {
+  private async getRoomContextKeys(roomId: string, organizationId: string): Promise<string[]> {
     return [
       `memory:${organizationId}:room:${roomId}:context:20:v1`,
       `memory:${organizationId}:room:${roomId}:context:50:v1`,

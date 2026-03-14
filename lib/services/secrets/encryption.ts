@@ -43,13 +43,10 @@ export class LocalKMSProvider implements KMSProvider {
   constructor(masterKeyHex?: string) {
     const keySource = masterKeyHex || process.env.SECRETS_MASTER_KEY;
     if (!keySource && process.env.NODE_ENV === "production") {
-      throw new Error(
-        "SECRETS_MASTER_KEY environment variable is required in production",
-      );
+      throw new Error("SECRETS_MASTER_KEY environment variable is required in production");
     }
     const key = keySource || "0".repeat(64);
-    if (key.length !== 64)
-      throw new Error("Master key must be 64 hex characters (32 bytes)");
+    if (key.length !== 64) throw new Error("Master key must be 64 hex characters (32 bytes)");
     this.masterKey = Buffer.from(key, "hex");
   }
 
@@ -58,35 +55,22 @@ export class LocalKMSProvider implements KMSProvider {
     const nonce = randomBytes(12);
     const cipher = createCipheriv("aes-256-gcm", this.masterKey, nonce);
     const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-    const ciphertext = Buffer.concat([
-      nonce,
-      cipher.getAuthTag(),
-      encrypted,
-    ]).toString("base64");
+    const ciphertext = Buffer.concat([nonce, cipher.getAuthTag(), encrypted]).toString("base64");
     return { plaintext, ciphertext, keyId: this.keyId };
   }
 
   async decrypt(ciphertext: string): Promise<Buffer> {
     const data = Buffer.from(ciphertext, "base64");
-    const decipher = createDecipheriv(
-      "aes-256-gcm",
-      this.masterKey,
-      data.subarray(0, 12),
-    );
+    const decipher = createDecipheriv("aes-256-gcm", this.masterKey, data.subarray(0, 12));
     decipher.setAuthTag(data.subarray(12, 28));
-    return Buffer.concat([
-      decipher.update(data.subarray(28)),
-      decipher.final(),
-    ]);
+    return Buffer.concat([decipher.update(data.subarray(28)), decipher.final()]);
   }
 
   isConfigured = () => true;
 }
 
 type KMSClientType = {
-  send(
-    command: unknown,
-  ): Promise<{ Plaintext?: Uint8Array; CiphertextBlob?: Uint8Array }>;
+  send(command: unknown): Promise<{ Plaintext?: Uint8Array; CiphertextBlob?: Uint8Array }>;
 };
 
 export class AWSKMSProvider implements KMSProvider {
@@ -112,9 +96,7 @@ export class AWSKMSProvider implements KMSProvider {
 
   async generateDataKey() {
     const { GenerateDataKeyCommand } = await import("@aws-sdk/client-kms");
-    const response = await (
-      await this.getClient()
-    ).send(
+    const response = await (await this.getClient()).send(
       new GenerateDataKeyCommand({ KeyId: this.keyId, KeySpec: "AES_256" }),
     );
     if (!response.Plaintext || !response.CiphertextBlob) {
@@ -129,16 +111,13 @@ export class AWSKMSProvider implements KMSProvider {
 
   async decrypt(ciphertext: string): Promise<Buffer> {
     const { DecryptCommand } = await import("@aws-sdk/client-kms");
-    const response = await (
-      await this.getClient()
-    ).send(
+    const response = await (await this.getClient()).send(
       new DecryptCommand({
         CiphertextBlob: Buffer.from(ciphertext, "base64"),
         KeyId: this.keyId,
       }),
     );
-    if (!response.Plaintext)
-      throw new Error("KMS Decrypt returned empty response");
+    if (!response.Plaintext) throw new Error("KMS Decrypt returned empty response");
     return Buffer.from(response.Plaintext);
   }
 
@@ -149,27 +128,16 @@ export class SecretsEncryptionService {
   private kms: KMSProvider;
 
   constructor(kms?: KMSProvider) {
-    this.kms =
-      kms ||
-      (process.env.AWS_KMS_KEY_ID
-        ? new AWSKMSProvider()
-        : new LocalKMSProvider());
+    this.kms = kms || (process.env.AWS_KMS_KEY_ID ? new AWSKMSProvider() : new LocalKMSProvider());
   }
 
   isConfigured = () => this.kms.isConfigured();
 
   async encrypt(plaintext: string): Promise<EncryptionResult> {
-    const {
-      plaintext: dek,
-      ciphertext: encryptedDek,
-      keyId,
-    } = await this.kms.generateDataKey();
+    const { plaintext: dek, ciphertext: encryptedDek, keyId } = await this.kms.generateDataKey();
     const nonce = randomBytes(12);
     const cipher = createCipheriv("aes-256-gcm", dek, nonce);
-    const encrypted = Buffer.concat([
-      cipher.update(plaintext, "utf8"),
-      cipher.final(),
-    ]);
+    const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
     dek.fill(0);
     return {
       encryptedValue: encrypted.toString("base64"),
@@ -198,11 +166,7 @@ export class SecretsEncryptionService {
     }
 
     try {
-      const decipher = createDecipheriv(
-        "aes-256-gcm",
-        dek,
-        Buffer.from(nonce, "base64"),
-      );
+      const decipher = createDecipheriv("aes-256-gcm", dek, Buffer.from(nonce, "base64"));
       decipher.setAuthTag(Buffer.from(authTag, "base64"));
       const result = Buffer.concat([
         decipher.update(Buffer.from(encryptedValue, "base64")),
@@ -227,7 +191,5 @@ export class SecretsEncryptionService {
 
 let instance: SecretsEncryptionService | null = null;
 
-export const getEncryptionService = () =>
-  instance || (instance = new SecretsEncryptionService());
-export const createEncryptionService = (kms?: KMSProvider) =>
-  new SecretsEncryptionService(kms);
+export const getEncryptionService = () => instance || (instance = new SecretsEncryptionService());
+export const createEncryptionService = (kms?: KMSProvider) => new SecretsEncryptionService(kms);

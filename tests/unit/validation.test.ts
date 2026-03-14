@@ -5,7 +5,7 @@
  * Covers UUID validation and sanitization functions.
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { isValidUUID, sanitizeUUID } from "@/lib/utils/validation";
 
 describe("isValidUUID", () => {
@@ -49,9 +49,7 @@ describe("isValidUUID", () => {
     expect(isValidUUID("12345678")).toBe(false);
     expect(isValidUUID("")).toBe(false);
     expect(isValidUUID("550e8400-e29b-41d4-a716")).toBe(false); // Too short
-    expect(isValidUUID("550e8400-e29b-41d4-a716-446655440000-extra")).toBe(
-      false,
-    ); // Too long
+    expect(isValidUUID("550e8400-e29b-41d4-a716-446655440000-extra")).toBe(false); // Too long
   });
 
   test("returns false for UUIDs with invalid characters", () => {
@@ -154,11 +152,7 @@ describe("sanitizeUUID", () => {
   test("rejects UUIDs with embedded invalid characters (fail-fast)", () => {
     // Embedded invalid chars should cause rejection, not sanitization
     expect(sanitizeUUID("550e8400-e29b-INVALID-446655440000")).toBeUndefined();
-    expect(
-      sanitizeUUID("550e8400\\e29b-41d4-a716-446655440000"),
-    ).toBeUndefined();
-    expect(
-      sanitizeUUID("550e8400-e29b-41d4-a716-446655440000\x00"),
-    ).toBeUndefined();
+    expect(sanitizeUUID("550e8400\\e29b-41d4-a716-446655440000")).toBeUndefined();
+    expect(sanitizeUUID("550e8400-e29b-41d4-a716-446655440000\x00")).toBeUndefined();
   });
 });

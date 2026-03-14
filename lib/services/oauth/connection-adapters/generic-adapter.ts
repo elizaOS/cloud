@@ -5,21 +5,20 @@
  * Supports token refresh via the generic OAuth2 flow.
  */
 
+import { and, eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
-import { eq, and } from "drizzle-orm";
 import { secretsService } from "@/lib/services/secrets";
 import { DecryptionError } from "@/lib/services/secrets/encryption";
 import { logger } from "@/lib/utils/logger";
+import { incrementOAuthVersion } from "../cache-version";
+import { Errors } from "../errors";
 import { getProvider } from "../provider-registry";
 import { refreshOAuth2Token } from "../providers";
-import { incrementOAuthVersion } from "../cache-version";
-import type { ConnectionAdapter } from "./index";
 import type { OAuthConnection, TokenResult } from "../types";
-import { Errors } from "../errors";
+import type { ConnectionAdapter } from "./index";
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Buffer before token expiry to trigger refresh (5 minutes)
 const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
@@ -29,7 +28,7 @@ const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
  * This allows the adapter to be used for any platform that stores in platform_credentials.
  */
 export function createGenericAdapter(platform: string): ConnectionAdapter {
-  const platformEnum = platform as typeof platformCredentials.platform.enumValues[number];
+  const platformEnum = platform as (typeof platformCredentials.platform.enumValues)[number];
 
   async function decryptTokenSecret(
     secretId: string,
@@ -108,22 +107,22 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
           );
 
         return credentials.map((cred) => ({
-        id: cred.id,
-        platform,
-        platformUserId: cred.platform_user_id,
-        email: cred.platform_email || undefined,
-        username: cred.platform_username || undefined,
-        displayName: cred.platform_display_name || undefined,
-        avatarUrl: cred.platform_avatar_url || undefined,
-        status: cred.status,
-        scopes: (cred.scopes as string[]) || [],
-        linkedAt: cred.linked_at || cred.created_at,
-        lastUsedAt: cred.last_used_at || undefined,
-        tokenExpired: cred.token_expires_at
-          ? new Date(cred.token_expires_at) < new Date()
-          : false,
-        source: "platform_credentials" as const,
-      }));
+          id: cred.id,
+          platform,
+          platformUserId: cred.platform_user_id,
+          email: cred.platform_email || undefined,
+          username: cred.platform_username || undefined,
+          displayName: cred.platform_display_name || undefined,
+          avatarUrl: cred.platform_avatar_url || undefined,
+          status: cred.status,
+          scopes: (cred.scopes as string[]) || [],
+          linkedAt: cred.linked_at || cred.created_at,
+          lastUsedAt: cred.last_used_at || undefined,
+          tokenExpired: cred.token_expires_at
+            ? new Date(cred.token_expires_at) < new Date()
+            : false,
+          source: "platform_credentials" as const,
+        }));
       } catch (error) {
         // Handle case where platform enum value doesn't exist in database
         logger.warn(`[GenericAdapter] listConnections failed for ${platform}`, {
@@ -134,10 +133,7 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
       }
     },
 
-    async getToken(
-      organizationId: string,
-      connectionId: string,
-    ): Promise<TokenResult> {
+    async getToken(organizationId: string, connectionId: string): Promise<TokenResult> {
       const cred = await findCredential(organizationId, connectionId);
       if (!cred) throw Errors.connectionNotFound(connectionId);
       if (cred.status === "revoked") throw Errors.connectionRevoked(platform);
@@ -150,8 +146,7 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
       // Check if token needs refresh
       const tokenExpired =
         cred.token_expires_at &&
-        new Date(cred.token_expires_at).getTime() - TOKEN_EXPIRY_BUFFER_MS <
-          Date.now();
+        new Date(cred.token_expires_at).getTime() - TOKEN_EXPIRY_BUFFER_MS < Date.now();
 
       let accessToken: string;
       let expiresAt: Date | undefined = cred.token_expires_at || undefined;
@@ -174,10 +169,7 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
           );
 
           // Refresh the token using the generic flow
-          const refreshResult = await refreshOAuth2Token(
-            provider,
-            refreshToken,
-          );
+          const refreshResult = await refreshOAuth2Token(provider, refreshToken);
 
           // Store the new access token
           const audit = {
@@ -211,7 +203,10 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
               logger.error(`[GenericAdapter] Failed to store new refresh token for ${platform}`, {
                 connectionId,
                 organizationId,
-                error: refreshTokenError instanceof Error ? refreshTokenError.message : String(refreshTokenError),
+                error:
+                  refreshTokenError instanceof Error
+                    ? refreshTokenError.message
+                    : String(refreshTokenError),
               });
             }
           }
@@ -292,15 +287,12 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
         try {
           await secretsService.delete(id, organizationId, audit);
         } catch (error) {
-          logger.warn(
-            `[GenericAdapter] Failed to delete ${tokenType} secret during revoke`,
-            {
-              secretId: id,
-              platform,
-              organizationId,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          );
+          logger.warn(`[GenericAdapter] Failed to delete ${tokenType} secret during revoke`, {
+            secretId: id,
+            platform,
+            organizationId,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       };
 

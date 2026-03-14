@@ -2,20 +2,19 @@
  * Reddit Provider - Reddit API with OAuth2
  */
 
-import { logger } from "@/lib/utils/logger";
-import { safeJsonParse } from "@/lib/utils/json-parsing";
-import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { withRetry } from "../rate-limit";
 import type {
-  SocialMediaProvider,
-  SocialCredentials,
-  PostContent,
-  PostResult,
+  AccountAnalytics,
   PlatformPostOptions,
   PostAnalytics,
-  AccountAnalytics,
-  MediaAttachment,
+  PostContent,
+  PostResult,
+  SocialCredentials,
+  SocialMediaProvider,
 } from "@/lib/types/social-media";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
+import { safeJsonParse } from "@/lib/utils/json-parsing";
+import { logger } from "@/lib/utils/logger";
+import { withRetry } from "../rate-limit";
 
 const REDDIT_API_BASE = "https://oauth.reddit.com";
 const REDDIT_AUTH_BASE = "https://www.reddit.com/api/v1";
@@ -86,9 +85,7 @@ async function redditApiRequest<T>(
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${REDDIT_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${REDDIT_API_BASE}${endpoint}`;
 
   const { data } = await withRetry<T>(
     () =>
@@ -112,14 +109,12 @@ async function redditApiRequest<T>(
   return data;
 }
 
-async function redditApiRequestLegacy<T>(
+async function _redditApiRequestLegacy<T>(
   endpoint: string,
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${REDDIT_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${REDDIT_API_BASE}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,
@@ -163,11 +158,9 @@ export const redditProvider: SocialMediaProvider = {
         credentials.password,
       );
 
-      const user = await redditApiRequest<{ data: RedditUser }>(
-        "/api/v1/me",
-        accessToken,
-        { headers: { "Content-Type": "application/json" } },
-      );
+      const user = await redditApiRequest<{ data: RedditUser }>("/api/v1/me", accessToken, {
+        headers: { "Content-Type": "application/json" },
+      });
 
       return {
         valid: true,
@@ -283,9 +276,7 @@ export const redditProvider: SocialMediaProvider = {
       });
 
       if (response.json.errors?.length) {
-        const errorMessage = response.json.errors
-          .map((e) => e.join(": "))
-          .join(", ");
+        const errorMessage = response.json.errors.map((e) => e.join(": ")).join(", ");
         return {
           platform: "reddit",
           success: false,
@@ -400,9 +391,7 @@ export const redditProvider: SocialMediaProvider = {
     }
   },
 
-  async getAccountAnalytics(
-    credentials: SocialCredentials,
-  ): Promise<AccountAnalytics | null> {
+  async getAccountAnalytics(credentials: SocialCredentials): Promise<AccountAnalytics | null> {
     if (
       !credentials.apiKey ||
       !credentials.apiSecret ||
@@ -420,18 +409,15 @@ export const redditProvider: SocialMediaProvider = {
         credentials.password,
       );
 
-      const user = await redditApiRequest<{ data: RedditUser }>(
-        "/api/v1/me",
-        accessToken,
-        { headers: { "Content-Type": "application/json" } },
-      );
+      const user = await redditApiRequest<{ data: RedditUser }>("/api/v1/me", accessToken, {
+        headers: { "Content-Type": "application/json" },
+      });
 
       return {
         platform: "reddit",
         accountId: user.data.id,
         metrics: {
-          totalPosts:
-            (user.data.link_karma || 0) + (user.data.comment_karma || 0),
+          totalPosts: (user.data.link_karma || 0) + (user.data.comment_karma || 0),
         },
         fetchedAt: new Date(),
       };

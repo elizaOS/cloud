@@ -2,13 +2,13 @@
  * Gateway Manager Unit Tests
  *
  * Tests for services/gateway-discord/src/gateway-manager.ts
- * 
+ *
  * Note: The GatewayManager has complex dependencies (discord.js, Redis, fetch).
  * These tests focus on testing the logic that can be verified without complex mocking.
  * Integration tests should cover the full flow.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
 // Store original env
 const originalEnv = { ...process.env };
@@ -166,51 +166,63 @@ describe("GatewayManager health status logic", () => {
     };
 
     test("returns healthy when no issues", () => {
-      expect(calculateHealthStatus({
-        controlPlaneLost: false,
-        totalBots: 5,
-        connectedBots: 5,
-      })).toBe("healthy");
+      expect(
+        calculateHealthStatus({
+          controlPlaneLost: false,
+          totalBots: 5,
+          connectedBots: 5,
+        }),
+      ).toBe("healthy");
     });
 
     test("returns healthy with no bots", () => {
-      expect(calculateHealthStatus({
-        controlPlaneLost: false,
-        totalBots: 0,
-        connectedBots: 0,
-      })).toBe("healthy");
+      expect(
+        calculateHealthStatus({
+          controlPlaneLost: false,
+          totalBots: 0,
+          connectedBots: 0,
+        }),
+      ).toBe("healthy");
     });
 
     test("returns unhealthy when control plane is lost", () => {
-      expect(calculateHealthStatus({
-        controlPlaneLost: true,
-        totalBots: 5,
-        connectedBots: 5,
-      })).toBe("unhealthy");
+      expect(
+        calculateHealthStatus({
+          controlPlaneLost: true,
+          totalBots: 5,
+          connectedBots: 5,
+        }),
+      ).toBe("unhealthy");
     });
 
     test("returns unhealthy when all bots disconnected", () => {
-      expect(calculateHealthStatus({
-        controlPlaneLost: false,
-        totalBots: 5,
-        connectedBots: 0,
-      })).toBe("unhealthy");
+      expect(
+        calculateHealthStatus({
+          controlPlaneLost: false,
+          totalBots: 5,
+          connectedBots: 0,
+        }),
+      ).toBe("unhealthy");
     });
 
     test("returns degraded when some bots disconnected", () => {
-      expect(calculateHealthStatus({
-        controlPlaneLost: false,
-        totalBots: 5,
-        connectedBots: 3,
-      })).toBe("degraded");
+      expect(
+        calculateHealthStatus({
+          controlPlaneLost: false,
+          totalBots: 5,
+          connectedBots: 3,
+        }),
+      ).toBe("degraded");
     });
 
     test("control plane lost takes precedence over all bots connected", () => {
-      expect(calculateHealthStatus({
-        controlPlaneLost: true,
-        totalBots: 10,
-        connectedBots: 10,
-      })).toBe("unhealthy");
+      expect(
+        calculateHealthStatus({
+          controlPlaneLost: true,
+          totalBots: 10,
+          connectedBots: 10,
+        }),
+      ).toBe("unhealthy");
     });
   });
 
@@ -248,16 +260,16 @@ describe("GatewayManager failover logic", () => {
       };
 
       const now = Date.now();
-      
+
       // 60 seconds ago - dead
       expect(isDeadPod(now - 60_000, now)).toBe(true);
-      
+
       // 30 seconds ago - not dead
       expect(isDeadPod(now - 30_000, now)).toBe(false);
-      
+
       // Exactly at threshold - not dead (must exceed)
       expect(isDeadPod(now - 45_000, now)).toBe(false);
-      
+
       // Just over threshold - dead
       expect(isDeadPod(now - 45_001, now)).toBe(true);
     });
@@ -271,8 +283,7 @@ describe("GatewayManager failover logic", () => {
     });
 
     test("hasCapacity logic", () => {
-      const hasCapacity = (currentBots: number, maxBots: number) =>
-        currentBots < maxBots;
+      const hasCapacity = (currentBots: number, maxBots: number) => currentBots < maxBots;
 
       expect(hasCapacity(0, 100)).toBe(true);
       expect(hasCapacity(50, 100)).toBe(true);
@@ -377,8 +388,7 @@ describe("Token sanitization", () => {
     /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
 
   // Non-global version for single matching tests
-  const DISCORD_TOKEN_PATTERN =
-    /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/;
+  const DISCORD_TOKEN_PATTERN = /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/;
 
   const sanitizeError = (error: unknown): string => {
     const message = error instanceof Error ? error.message : String(error);
@@ -444,7 +454,8 @@ describe("Token sanitization", () => {
 
   test("regex handles tokens with underscores and hyphens", () => {
     // Tokens can contain _ and - in base64url encoding
-    const tokenWithSpecialChars = "MTQ2NjQ5NTA0ODYz_Dg1OTY0MQ.GZvM1D.znUSUF-WfyV_p7g3gt9V2jxxVEKa4ery5ITiz4";
+    const tokenWithSpecialChars =
+      "MTQ2NjQ5NTA0ODYz_Dg1OTY0MQ.GZvM1D.znUSUF-WfyV_p7g3gt9V2jxxVEKa4ery5ITiz4";
     expect(tokenWithSpecialChars).toMatch(DISCORD_TOKEN_PATTERN);
   });
 
@@ -480,7 +491,7 @@ describe("Event forwarding", () => {
       connectionId: string,
       organizationId: string,
       eventType: string,
-      data: Record<string, unknown>
+      data: Record<string, unknown>,
     ) => ({
       connection_id: connectionId,
       organization_id: organizationId,

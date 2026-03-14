@@ -11,9 +11,7 @@ import { logger } from "@/lib/utils/logger";
 
 // Use ELIZA_API_URL (ngrok) for local dev webhooks, otherwise NEXT_PUBLIC_APP_URL
 const WEBHOOK_BASE_URL =
-  process.env.ELIZA_API_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  "https://eliza.gg";
+  process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
 
 // Cache TTL for connection status (5 minutes)
 const STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -169,10 +167,7 @@ class TelegramAutomationService {
   /**
    * Remove bot credentials (disconnect).
    */
-  async removeCredentials(
-    organizationId: string,
-    userId: string,
-  ): Promise<void> {
+  async removeCredentials(organizationId: string, userId: string): Promise<void> {
     const audit = {
       actorType: "user" as const,
       actorId: userId,
@@ -269,13 +264,10 @@ class TelegramAutomationService {
       this.statusCache.set(organizationId, { status, cachedAt: Date.now() });
       return status;
     } catch (error) {
-      logger.warn(
-        "[TelegramAutomation] Token validation failed during status check",
-        {
-          organizationId,
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      );
+      logger.warn("[TelegramAutomation] Token validation failed during status check", {
+        organizationId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
 
       // Return stored data even if validation fails (don't cache error state)
       const status: TelegramConnectionStatus = {
@@ -298,9 +290,7 @@ class TelegramAutomationService {
    * Set webhook for receiving updates from Telegram.
    * Requires HTTPS URL - use ELIZA_API_URL with ngrok for local development.
    */
-  async setWebhook(
-    organizationId: string,
-  ): Promise<{ success: boolean; error?: string }> {
+  async setWebhook(organizationId: string): Promise<{ success: boolean; error?: string }> {
     const botToken = await this.getBotToken(organizationId);
     if (!botToken) {
       return { success: false, error: "Bot token not found" };
@@ -314,8 +304,7 @@ class TelegramAutomationService {
       });
       return {
         success: true, // Don't fail the connection, just skip webhook
-        error:
-          "Webhook skipped - HTTPS required. Set ELIZA_API_URL with ngrok URL for local dev.",
+        error: "Webhook skipped - HTTPS required. Set ELIZA_API_URL with ngrok URL for local dev.",
       };
     }
 
@@ -327,12 +316,7 @@ class TelegramAutomationService {
       const webhookSecret = await this.getWebhookSecret(organizationId);
 
       await bot.telegram.setWebhook(webhookUrl, {
-        allowed_updates: [
-          "message",
-          "callback_query",
-          "channel_post",
-          "my_chat_member",
-        ],
+        allowed_updates: ["message", "callback_query", "channel_post", "my_chat_member"],
         drop_pending_updates: true,
         secret_token: webhookSecret || undefined,
       });
@@ -409,9 +393,7 @@ class TelegramAutomationService {
       const result = await bot.telegram.sendMessage(chatId, text, {
         parse_mode: options?.parseMode,
         reply_markup: options?.replyMarkup,
-        link_preview_options: options?.disableWebPagePreview
-          ? { is_disabled: true }
-          : undefined,
+        link_preview_options: options?.disableWebPagePreview ? { is_disabled: true } : undefined,
       });
 
       return { success: true, messageId: result.message_id };
@@ -439,6 +421,6 @@ export const telegramAutomationService = new TelegramAutomationService();
 
 // Re-export app automation service
 export {
-  telegramAppAutomationService,
   type TelegramAutomationConfig,
+  telegramAppAutomationService,
 } from "./app-automation";

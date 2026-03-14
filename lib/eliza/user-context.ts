@@ -3,12 +3,12 @@
  * Handles authentication context, API keys, and user preferences
  */
 
+import type { AnonymousSession } from "@/db/schemas";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { oauthService } from "@/lib/services/oauth";
+import type { ApiKey, UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 import type { AgentMode } from "./agent-mode-types";
-import type { UserWithOrganization, ApiKey } from "@/lib/types";
-import type { AnonymousSession } from "@/db/schemas";
 import type { PromptConfig } from "./prompt-presets";
 
 export interface OAuthConnection {
@@ -63,10 +63,10 @@ export class UserContextService {
   private static instance: UserContextService;
 
   static getInstance(): UserContextService {
-    if (!this.instance) {
-      this.instance = new UserContextService();
+    if (!UserContextService.instance) {
+      UserContextService.instance = new UserContextService();
     }
-    return this.instance;
+    return UserContextService.instance;
   }
 
   /**
@@ -97,9 +97,7 @@ export class UserContextService {
 
     // Authenticated users must have an organization
     if (!authResult.user.organization_id) {
-      throw new Error(
-        "User does not have an organization. Please contact support.",
-      );
+      throw new Error("User does not have an organization. Please contact support.");
     }
 
     // Fetch API key and OAuth connections in parallel for efficiency
@@ -109,9 +107,7 @@ export class UserContextService {
     ]);
 
     if (!apiKey) {
-      logger.error(
-        `[UserContext] No API key found for user ${authResult.user.id}`,
-      );
+      logger.error(`[UserContext] No API key found for user ${authResult.user.id}`);
       throw new Error(
         "No API key found for your account. Please contact support or try logging out and back in.",
       );
@@ -141,10 +137,7 @@ export class UserContextService {
    * Get user's elizaOS Cloud API key from database
    * Centralized API key retrieval - no more scattered getUserElizaCloudApiKey calls
    */
-  private async getUserApiKey(
-    userId: string,
-    orgId: string,
-  ): Promise<string | null> {
+  private async getUserApiKey(userId: string, orgId: string): Promise<string | null> {
     // Validate inputs
     if (!userId || userId.trim() === "") {
       logger.error("[UserContext] Invalid userId provided");
@@ -159,9 +152,7 @@ export class UserContextService {
     const apiKeys = await apiKeysService.listByOrganization(orgId);
 
     // Find user's first active API key
-    const userKey = apiKeys.find(
-      (key) => key.user_id === userId && key.is_active,
-    );
+    const userKey = apiKeys.find((key) => key.user_id === userId && key.is_active);
 
     if (!userKey) {
       logger.warn(`[UserContext] No API key found for user ${userId}`);
@@ -169,9 +160,7 @@ export class UserContextService {
     }
 
     // Return the full key from the database
-    logger.info(
-      `[UserContext] Retrieved key for user ${userId}: ${userKey.key_prefix}***`,
-    );
+    logger.info(`[UserContext] Retrieved key for user ${userId}: ${userKey.key_prefix}***`);
     return userKey.key;
   }
 
@@ -182,7 +171,9 @@ export class UserContextService {
         .filter((c) => c.status === "active")
         .map((c) => ({ platform: c.platform }));
     } catch (error) {
-      logger.warn(`[UserContext] OAuth fetch failed: ${error instanceof Error ? error.message : String(error)}`);
+      logger.warn(
+        `[UserContext] OAuth fetch failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return [];
     }
   }
@@ -229,10 +220,7 @@ export class UserContextService {
       entityId: "system",
       organizationId: "system",
       agentMode,
-      apiKey:
-        process.env.SYSTEM_ELIZAOS_API_KEY ||
-        process.env.SHARED_ELIZAOS_API_KEY ||
-        "",
+      apiKey: process.env.SYSTEM_ELIZAOS_API_KEY || process.env.SHARED_ELIZAOS_API_KEY || "",
       isAnonymous: false,
       name: "System",
     };

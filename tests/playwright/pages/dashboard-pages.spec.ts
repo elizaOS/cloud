@@ -1,5 +1,4 @@
-import { test, expect } from "@playwright/test";
-import { smokeTestPage } from "../fixtures/page-helpers";
+import { expect, test } from "@playwright/test";
 
 /**
  * Dashboard Pages Smoke Tests
@@ -57,27 +56,20 @@ test.describe("Dashboard Pages", () => {
       const response = await page.goto(`http://localhost:3000${path}`);
       // Dashboard pages should either render (200) or redirect to login (302)
       // but NEVER return 500
-      expect(
-        response?.status(),
-        `${path} returned ${response?.status()}`,
-      ).not.toBe(500);
+      expect(response?.status(), `${path} returned ${response?.status()}`).not.toBe(500);
       expect([200, 301, 302, 304]).toContain(response?.status() ?? 0);
     });
   }
 
   test.describe("Dynamic Dashboard Pages", () => {
-    test("/dashboard/containers/[id] handles nonexistent ID", async ({
-      page,
-    }) => {
+    test("/dashboard/containers/[id] handles nonexistent ID", async ({ page }) => {
       const response = await page.goto(
         "http://localhost:3000/dashboard/containers/00000000-0000-4000-8000-000000000000",
       );
       expect(response?.status()).not.toBe(500);
     });
 
-    test("/dashboard/containers/agents/[id] handles nonexistent ID", async ({
-      page,
-    }) => {
+    test("/dashboard/containers/agents/[id] handles nonexistent ID", async ({ page }) => {
       const response = await page.goto(
         "http://localhost:3000/dashboard/containers/agents/00000000-0000-4000-8000-000000000000",
       );
@@ -91,9 +83,7 @@ test.describe("Dashboard Pages", () => {
       expect(response?.status()).not.toBe(500);
     });
 
-    test("/dashboard/invoices/[id] handles nonexistent ID", async ({
-      page,
-    }) => {
+    test("/dashboard/invoices/[id] handles nonexistent ID", async ({ page }) => {
       const response = await page.goto(
         "http://localhost:3000/dashboard/invoices/00000000-0000-4000-8000-000000000000",
       );

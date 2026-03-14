@@ -12,23 +12,16 @@
 
 "use client";
 
+import { Slot } from "@radix-ui/react-slot";
 import type React from "react";
 import { useState } from "react";
-import { Slot } from "@radix-ui/react-slot";
 import { cn } from "../../lib/utils";
 
 export interface LockOnButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
   icon?: React.ReactNode;
   size?: "sm" | "md" | "lg" | "icon";
-  variant?:
-    | "default"
-    | "primary"
-    | "outline"
-    | "ghost"
-    | "hud"
-    | "icon"
-    | "icon-primary"; // For backwards compatibility
+  variant?: "default" | "primary" | "outline" | "ghost" | "hud" | "icon" | "icon-primary"; // For backwards compatibility
   /** Corner bracket size - use smaller sizes for petite buttons */
   cornerSize?: "default" | "sm" | "xs" | "micro" | "petite";
   asChild?: boolean;
@@ -144,8 +137,7 @@ export function LockOnButton({
           "font-medium text-white bg-[#FF5800]/25",
           "cursor-pointer overflow-visible transition-all duration-300",
           "inline-flex items-center gap-2 outline-none",
-          !disabled &&
-            "hover:bg-[#FF5800]/40 hover:shadow-[0_0_20px_rgba(255,88,0,0.4)]",
+          !disabled && "hover:bg-[#FF5800]/40 hover:shadow-[0_0_20px_rgba(255,88,0,0.4)]",
           !disabled && "active:bg-[#FF5800]/60",
           disabled && "opacity-50 cursor-not-allowed",
           className,
@@ -169,8 +161,7 @@ export function LockOnButton({
         "font-medium text-white bg-[#FF5800]/25",
         "cursor-pointer overflow-visible transition-all duration-300",
         "inline-flex items-center gap-2 outline-none",
-        !disabled &&
-          "hover:bg-[#FF5800]/40 hover:shadow-[0_0_20px_rgba(255,88,0,0.4)]",
+        !disabled && "hover:bg-[#FF5800]/40 hover:shadow-[0_0_20px_rgba(255,88,0,0.4)]",
         !disabled && "active:bg-[#FF5800]/60",
         disabled && "opacity-50 cursor-not-allowed",
         className,

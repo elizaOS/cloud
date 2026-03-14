@@ -65,13 +65,13 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { POST as postV1MilaidyAgents } from "@/app/api/v1/milaidy/agents/route";
+import { POST as postCompatAgents } from "@/app/api/compat/agents/route";
 import { POST as postProvisionRoute } from "@/app/api/v1/milaidy/agents/[agentId]/provision/route";
 import {
-  PATCH as patchMilaidyAgent,
   DELETE as deleteMilaidyAgent,
+  PATCH as patchMilaidyAgent,
 } from "@/app/api/v1/milaidy/agents/[agentId]/route";
-import { POST as postCompatAgents } from "@/app/api/compat/agents/route";
+import { POST as postV1MilaidyAgents } from "@/app/api/v1/milaidy/agents/route";
 
 describe("milady agent route follow-ups", () => {
   beforeEach(() => {
@@ -174,12 +174,9 @@ describe("milady agent route follow-ups", () => {
     );
 
     const response = await postProvisionRoute(
-      new NextRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
-        {
-          method: "POST",
-        },
-      ),
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/provision", {
+        method: "POST",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -212,12 +209,9 @@ describe("milady agent route follow-ups", () => {
     });
 
     const response = await postProvisionRoute(
-      new NextRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
-        {
-          method: "POST",
-        },
-      ),
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/provision", {
+        method: "POST",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -226,8 +220,7 @@ describe("milady agent route follow-ups", () => {
       success: true,
       created: false,
       alreadyInProgress: true,
-      message:
-        "Provisioning is already in progress. Poll the existing job for status.",
+      message: "Provisioning is already in progress. Poll the existing job for status.",
       data: {
         jobId: "job-existing",
         agentId: "agent-1",
@@ -244,13 +237,9 @@ describe("milady agent route follow-ups", () => {
 
   test("PATCH /api/v1/milaidy/agents/[agentId] rejects invalid lifecycle payloads", async () => {
     const response = await patchMilaidyAgent(
-      jsonRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1",
-        "PATCH",
-        {
-          action: "restart",
-        },
-      ),
+      jsonRequest("https://example.com/api/v1/milaidy/agents/agent-1", "PATCH", {
+        action: "restart",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -267,13 +256,9 @@ describe("milady agent route follow-ups", () => {
     });
 
     const response = await patchMilaidyAgent(
-      jsonRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1",
-        "PATCH",
-        {
-          action: "shutdown",
-        },
-      ),
+      jsonRequest("https://example.com/api/v1/milaidy/agents/agent-1", "PATCH", {
+        action: "shutdown",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 

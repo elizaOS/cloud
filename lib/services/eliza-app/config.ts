@@ -106,19 +106,22 @@ export function validateElizaAppConfig() {
   }
 
   // Validate channel-specific required vars if they're enabled
-  if (process.env.ELIZA_APP_TELEGRAM_ENABLED === "true" && !process.env.ELIZA_APP_TELEGRAM_BOT_TOKEN) {
-    throw new Error("Telegram is enabled but ELIZA_APP_TELEGRAM_BOT_TOKEN is not set in production");
+  if (
+    process.env.ELIZA_APP_TELEGRAM_ENABLED === "true" &&
+    !process.env.ELIZA_APP_TELEGRAM_BOT_TOKEN
+  ) {
+    throw new Error(
+      "Telegram is enabled but ELIZA_APP_TELEGRAM_BOT_TOKEN is not set in production",
+    );
   }
   if (process.env.ELIZA_APP_BLOOIO_ENABLED === "true" && !process.env.ELIZA_APP_BLOOIO_API_KEY) {
     throw new Error("Blooio is enabled but ELIZA_APP_BLOOIO_API_KEY is not set in production");
   }
   if (
     process.env.ELIZA_APP_DISCORD_ENABLED === "true" &&
-    (
-      !process.env.ELIZA_APP_DISCORD_BOT_TOKEN ||
+    (!process.env.ELIZA_APP_DISCORD_BOT_TOKEN ||
       !process.env.ELIZA_APP_DISCORD_APPLICATION_ID ||
-      !process.env.ELIZA_APP_DISCORD_CLIENT_SECRET
-    )
+      !process.env.ELIZA_APP_DISCORD_CLIENT_SECRET)
   ) {
     throw new Error("Discord is enabled but required Discord env vars are not set in production");
   }
@@ -127,24 +130,20 @@ export function validateElizaAppConfig() {
     process.env.ELIZA_APP_WHATSAPP_ENABLED === "true" ||
     Boolean(
       process.env.ELIZA_APP_WHATSAPP_ACCESS_TOKEN ||
-      process.env.ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID ||
-      process.env.ELIZA_APP_WHATSAPP_APP_SECRET ||
-      process.env.ELIZA_APP_WHATSAPP_VERIFY_TOKEN ||
-      process.env.ELIZA_APP_WHATSAPP_PHONE_NUMBER
+        process.env.ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID ||
+        process.env.ELIZA_APP_WHATSAPP_APP_SECRET ||
+        process.env.ELIZA_APP_WHATSAPP_VERIFY_TOKEN ||
+        process.env.ELIZA_APP_WHATSAPP_PHONE_NUMBER,
     );
 
   if (
     whatsappEnabled &&
-    (
-      !process.env.ELIZA_APP_WHATSAPP_ACCESS_TOKEN ||
+    (!process.env.ELIZA_APP_WHATSAPP_ACCESS_TOKEN ||
       !process.env.ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID ||
       !process.env.ELIZA_APP_WHATSAPP_APP_SECRET ||
       !process.env.ELIZA_APP_WHATSAPP_VERIFY_TOKEN ||
-      !process.env.ELIZA_APP_WHATSAPP_PHONE_NUMBER
-    )
+      !process.env.ELIZA_APP_WHATSAPP_PHONE_NUMBER)
   ) {
-    throw new Error(
-      "WhatsApp is enabled but required WhatsApp env vars are not set in production",
-    );
+    throw new Error("WhatsApp is enabled but required WhatsApp env vars are not set in production");
   }
 }

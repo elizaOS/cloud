@@ -6,10 +6,12 @@
  */
 
 import { logger } from "@/lib/utils/logger";
-import type { SandboxProvider, SandboxHandle, SandboxCreateConfig } from "./sandbox-provider";
+import type { SandboxCreateConfig, SandboxHandle, SandboxProvider } from "./sandbox-provider";
 
 // Set MILADY_AGENT_TEMPLATE_URL to override the default template repo.
-const CLOUD_AGENT_TEMPLATE_URL = process.env.MILADY_AGENT_TEMPLATE_URL ?? "https://github.com/elizaos/milady-cloud-agent-template.git";
+const CLOUD_AGENT_TEMPLATE_URL =
+  process.env.MILADY_AGENT_TEMPLATE_URL ??
+  "https://github.com/elizaos/milady-cloud-agent-template.git";
 const SANDBOX_TIMEOUT_MS = 30 * 60 * 1000;
 const SANDBOX_VCPUS = 4;
 const SANDBOX_HEALTH_PORT = 2138;
@@ -18,7 +20,6 @@ const HEALTH_CHECK_TIMEOUT_MS = 60_000;
 const HEALTH_CHECK_INTERVAL_MS = 2_000;
 
 export class VercelSandboxProvider implements SandboxProvider {
-
   async create(config: SandboxCreateConfig): Promise<SandboxHandle> {
     const { Sandbox } = await import("@vercel/sandbox");
     const creds = this.getSandboxCreds();
@@ -55,10 +56,21 @@ export class VercelSandboxProvider implements SandboxProvider {
     const sandboxId = sb.sandboxId ?? `sandbox-${crypto.randomUUID().slice(0, 8)}`;
 
     // Write .env.local as a fallback — some SDK versions ignore the env create option
-    const envContent = Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n");
-    const sbWithShell = sb as SB & { runCommand?: (opts: { cmd: string; args: string[]; env?: Record<string, string> }) => Promise<unknown> };
+    const envContent = Object.entries(env)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("\n");
+    const sbWithShell = sb as SB & {
+      runCommand?: (opts: {
+        cmd: string;
+        args: string[];
+        env?: Record<string, string>;
+      }) => Promise<unknown>;
+    };
     if (typeof sbWithShell.runCommand === "function") {
-      await sbWithShell.runCommand({ cmd: "sh", args: ["-c", `cat > /app/.env.local << 'ENVEOF'\n${envContent}\nENVEOF`] });
+      await sbWithShell.runCommand({
+        cmd: "sh",
+        args: ["-c", `cat > /app/.env.local << 'ENVEOF'\n${envContent}\nENVEOF`],
+      });
     }
 
     return {
@@ -77,14 +89,16 @@ export class VercelSandboxProvider implements SandboxProvider {
       opts.projectId = creds.projectId;
       opts.token = creds.token;
     }
-    const sb = await Sandbox.get({ sandboxId, ...opts }) as {
+    const sb = (await Sandbox.get({ sandboxId, ...opts })) as {
       shutdown?: () => Promise<void>;
       close?: () => Promise<void>;
     };
     if (typeof sb.shutdown === "function") await sb.shutdown();
     else if (typeof sb.close === "function") await sb.close();
     else {
-      logger.warn(`[vercel-sandbox] Sandbox ${sandboxId} has neither shutdown() nor close() — cannot stop gracefully`);
+      logger.warn(
+        `[vercel-sandbox] Sandbox ${sandboxId} has neither shutdown() nor close() — cannot stop gracefully`,
+      );
     }
   }
 
@@ -108,7 +122,11 @@ export class VercelSandboxProvider implements SandboxProvider {
 
   private getSandboxCreds() {
     const hasOIDC = !!process.env.VERCEL_OIDC_TOKEN;
-    const { VERCEL_TEAM_ID: teamId, VERCEL_PROJECT_ID: projectId, VERCEL_TOKEN: token } = process.env;
+    const {
+      VERCEL_TEAM_ID: teamId,
+      VERCEL_PROJECT_ID: projectId,
+      VERCEL_TOKEN: token,
+    } = process.env;
     return { hasOIDC, hasAccessToken: !!(teamId && projectId && token), teamId, projectId, token };
   }
 }

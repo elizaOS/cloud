@@ -14,8 +14,7 @@ import { addHeader } from "@elizaos/core";
  */
 export const characterProvider: Provider = {
   name: "CHARACTER",
-  description:
-    "Core character identity, personality, and behavioral directives",
+  description: "Core character identity, personality, and behavioral directives",
   get: async (runtime: IAgentRuntime, _message: Memory, _state: State) => {
     const character = runtime.character;
 
@@ -46,15 +45,11 @@ export const characterProvider: Provider = {
     // Research: Random trait selection adds variety, can reference MBTI/Big Five
     const adjectiveString =
       character.adjectives && character.adjectives.length > 0
-        ? character.adjectives[
-            Math.floor(Math.random() * character.adjectives.length)
-          ]
+        ? character.adjectives[Math.floor(Math.random() * character.adjectives.length)]
         : "";
 
     const adjective = adjectiveString || "";
-    const adjectiveSentence = adjectiveString
-      ? `${character.name} is ${adjectiveString}.`
-      : "";
+    const adjectiveSentence = adjectiveString ? `${character.name} is ${adjectiveString}.` : "";
 
     // ========================================
     // TOPICS (Interest Areas)
@@ -138,10 +133,7 @@ export const characterProvider: Provider = {
 
     const messageDirections =
       styleDirectives.length > 0
-        ? addHeader(
-            `# Message Directions for ${character.name}`,
-            styleDirectives,
-          )
+        ? addHeader(`# Message Directions for ${character.name}`, styleDirectives)
         : "";
 
     const directions = messageDirections;
@@ -153,18 +145,13 @@ export const characterProvider: Provider = {
     // Contextual selection: Score examples by keyword overlap with current message
     // Current: Show 3 examples (balanced for context window)
     const messageExamplesText = (() => {
-      if (
-        !character.messageExamples ||
-        character.messageExamples.length === 0
-      ) {
+      if (!character.messageExamples || character.messageExamples.length === 0) {
         return "";
       }
 
       // Extract keywords from the current message for contextual matching
       const messageText = _message.content?.text?.toLowerCase() ?? "";
-      const messageWords = new Set(
-        messageText.split(/\s+/).filter((w) => w.length > 3),
-      );
+      const messageWords = new Set(messageText.split(/\s+/).filter((w) => w.length > 3));
 
       // Score each example by keyword overlap
       const scoredExamples = character.messageExamples.map((example) => {
@@ -172,9 +159,7 @@ export const characterProvider: Provider = {
           .map((msg) => msg.content?.text ?? "")
           .join(" ")
           .toLowerCase();
-        const exampleWords = exampleText
-          .split(/\s+/)
-          .filter((w) => w.length > 3);
+        const exampleWords = exampleText.split(/\s+/).filter((w) => w.length > 3);
 
         // Count matching keywords
         let score = 0;

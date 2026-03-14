@@ -8,11 +8,11 @@
  * - Edge cases and boundary conditions
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   generateDeterministicUUID,
-  generateElizaAppRoomId,
   generateElizaAppEntityId,
+  generateElizaAppRoomId,
 } from "@/lib/utils/deterministic-uuid";
 
 describe("generateDeterministicUUID", () => {

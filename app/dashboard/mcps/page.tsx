@@ -1,8 +1,8 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { Suspense } from "react";
 import { MCPsPageWrapper } from "@/components/mcps/mcps-page-wrapper";
 import { MCPsSection, MCPsSectionSkeleton } from "@/components/mcps/mcps-section";
+import { requireAuthWithOrg } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "MCP Servers",
@@ -83,12 +83,7 @@ const demoMcpServers = [
     toolCount: 4,
     icon: "cloud",
     color: "#06B6D4",
-    features: [
-      "Current Weather",
-      "16-Day Forecast",
-      "Weather Comparison",
-      "Location Search",
-    ],
+    features: ["Current Weather", "16-Day Forecast", "Weather Comparison", "Location Search"],
   },
   {
     id: "crypto-mcp",

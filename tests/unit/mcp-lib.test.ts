@@ -3,9 +3,9 @@
  * Tests for app/api/mcp/lib/ helpers
  */
 
-import { describe, test, expect } from "bun:test";
-import { jsonResponse, errorResponse } from "@/app/api/mcp/lib/responses";
+import { describe, expect, test } from "bun:test";
 import { authContextStorage, getAuthContext } from "@/app/api/mcp/lib/context";
+import { errorResponse, jsonResponse } from "@/app/api/mcp/lib/responses";
 
 describe("jsonResponse", () => {
   test("wraps data in MCP content format", () => {
@@ -117,9 +117,7 @@ describe("authContextStorage", () => {
 
 describe("getAuthContext", () => {
   test("throws when called outside context", () => {
-    expect(() => getAuthContext()).toThrow(
-      "Authentication context not available",
-    );
+    expect(() => getAuthContext()).toThrow("Authentication context not available");
   });
 
   test("returns context when inside run()", async () => {

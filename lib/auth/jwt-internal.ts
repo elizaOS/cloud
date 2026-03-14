@@ -5,7 +5,7 @@
  * Used by the Discord gateway and other internal services.
  */
 
-import { jwtVerify, SignJWT, type JWTPayload } from "jose";
+import { type JWTPayload, jwtVerify, SignJWT } from "jose";
 import { nanoid } from "nanoid";
 import { getAlgorithm, getKeyId, getPrivateKey, getPublicKey } from "./jwks";
 
@@ -109,9 +109,7 @@ export async function signInternalToken(options: SignTokenOptions): Promise<{
  * @returns Verification result with payload if valid
  * @throws Error if token is invalid, expired, or has wrong issuer/audience
  */
-export async function verifyInternalToken(
-  token: string,
-): Promise<VerificationResult> {
+export async function verifyInternalToken(token: string): Promise<VerificationResult> {
   const publicKey = await getPublicKey();
 
   const { payload } = await jwtVerify(token, publicKey, {

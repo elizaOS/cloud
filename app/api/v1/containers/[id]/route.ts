@@ -5,18 +5,18 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  getContainer,
-  deleteContainer,
-  updateContainerStatus,
-  containersService,
-} from "@/lib/services/containers";
-import { cloudFormationService } from "@/lib/services/cloudformation";
-import { dbPriorityManager } from "@/lib/services/alb-priority-manager";
-import { creditsService } from "@/lib/services/credits";
 import { calculateDeploymentCost } from "@/lib/constants/pricing";
+import { dbPriorityManager } from "@/lib/services/alb-priority-manager";
+import { cloudFormationService } from "@/lib/services/cloudformation";
+import {
+  containersService,
+  deleteContainer,
+  getContainer,
+  updateContainerStatus,
+} from "@/lib/services/containers";
+import { creditsService } from "@/lib/services/credits";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +24,7 @@ export const dynamic = "force-dynamic";
  * GET /api/v1/containers/[id]
  * Get container details
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: containerId } = await params;
@@ -53,8 +50,7 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch container",
+        error: error instanceof Error ? error.message : "Failed to fetch container",
       },
       { status: 500 },
     );
@@ -134,10 +130,7 @@ export async function DELETE(
 
     // Step 3: Release ALB priority
     try {
-      await dbPriorityManager.releasePriority(
-        container.organization_id,
-        container.project_name,
-      );
+      await dbPriorityManager.releasePriority(container.organization_id, container.project_name);
     } catch (priorityError) {
       logger.error(`Failed to release ALB priority:`, priorityError);
       // Non-critical - continue with cleanup
@@ -173,7 +166,7 @@ export async function DELETE(
 
         if (refundAmount > 0) {
           await creditsService.addCredits({
-            organizationId: user.organization_id!!,
+            organizationId: user.organization_id!,
             amount: refundAmount,
             description: `Prorated refund for container ${container.name} (ran ${runtimeHours.toFixed(2)} hours)`,
             metadata: {
@@ -215,8 +208,7 @@ export async function DELETE(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to delete container",
+        error: error instanceof Error ? error.message : "Failed to delete container",
       },
       { status: 500 },
     );
@@ -235,10 +227,7 @@ export async function DELETE(
  *
  * Note: Updates trigger a CloudFormation stack update which takes 5-10 minutes
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: containerId } = await params;
@@ -341,8 +330,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          error:
-            "No valid updates provided. Updatable fields: cpu, memory, port, ecr_image_uri",
+          error: "No valid updates provided. Updatable fields: cpu, memory, port, ecr_image_uri",
         },
         { status: 400 },
       );
@@ -360,9 +348,7 @@ export async function PATCH(
         userId: container.organization_id,
         projectName: container.project_name,
         userEmail: container.name,
-        containerImage:
-          updates.containerImage ||
-          (container.metadata?.ecr_image_uri as string),
+        containerImage: updates.containerImage || (container.metadata?.ecr_image_uri as string),
         containerPort: updates.containerPort || container.port,
         containerCpu: updates.containerCpu || container.cpu,
         containerMemory: updates.containerMemory || container.memory,
@@ -388,8 +374,7 @@ export async function PATCH(
       if (updates.containerCpu) dbUpdates.cpu = updates.containerCpu;
       if (updates.containerMemory) dbUpdates.memory = updates.containerMemory;
       if (updates.containerPort) dbUpdates.port = updates.containerPort;
-      if (updates.containerImage)
-        dbUpdates.ecr_image_uri = updates.containerImage;
+      if (updates.containerImage) dbUpdates.ecr_image_uri = updates.containerImage;
 
       // Update container in database
       const updatedContainer = await containersService.update(
@@ -417,18 +402,14 @@ export async function PATCH(
 
       // Mark as failed
       await updateContainerStatus(containerId, "failed", {
-        errorMessage:
-          cfError instanceof Error ? cfError.message : "Update failed",
+        errorMessage: cfError instanceof Error ? cfError.message : "Update failed",
         deploymentLog: `CloudFormation update failed: ${cfError instanceof Error ? cfError.message : "Unknown error"}`,
       });
 
       return NextResponse.json(
         {
           success: false,
-          error:
-            cfError instanceof Error
-              ? cfError.message
-              : "CloudFormation update failed",
+          error: cfError instanceof Error ? cfError.message : "CloudFormation update failed",
         },
         { status: 500 },
       );
@@ -438,8 +419,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to update container",
+        error: error instanceof Error ? error.message : "Failed to update container",
       },
       { status: 500 },
     );

@@ -17,26 +17,19 @@ export async function GET(
     const { sessionId } = await params;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: "Session ID is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Session ID is required" }, { status: 400 });
     }
 
     const session = await cliAuthSessionsService.getActiveSession(sessionId);
 
     if (!session) {
-      return NextResponse.json(
-        { error: "Session not found or expired" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Session not found or expired" }, { status: 404 });
     }
 
     // Check if session is authenticated
     if (session.status === "authenticated") {
       // Retrieve and clear the plain API key (one-time retrieval for security)
-      const apiKeyData =
-        await cliAuthSessionsService.getAndClearApiKey(sessionId);
+      const apiKeyData = await cliAuthSessionsService.getAndClearApiKey(sessionId);
 
       if (!apiKeyData) {
         return NextResponse.json(
@@ -68,9 +61,6 @@ export async function GET(
     );
   } catch (error) {
     logger.error("[CLI Auth] Error getting CLI auth session", { error });
-    return NextResponse.json(
-      { error: "Failed to get session status" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to get session status" }, { status: 500 });
   }
 }

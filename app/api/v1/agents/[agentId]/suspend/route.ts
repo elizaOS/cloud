@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
+import { z } from "zod";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
-import { z } from "zod";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -27,25 +27,17 @@ export async function POST(
     if (e instanceof ServiceKeyAuthError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.json(
-      { error: "Service authentication misconfigured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
   }
 
   const { agentId } = await params;
   const body = await request.json().catch(() => ({}));
   const parsed = suspendSchema.safeParse(body);
-  const reason = parsed.success
-    ? parsed.data.reason
-    : "owner requested suspension";
+  const reason = parsed.success ? parsed.data.reason : "owner requested suspension";
 
   logger.info("[service-api] Suspending agent", { agentId, reason });
 
-  const result = await miladySandboxService.shutdown(
-    agentId,
-    identity.organizationId,
-  );
+  const result = await miladySandboxService.shutdown(agentId, identity.organizationId);
   if (!result.success) {
     return NextResponse.json(
       { success: false, error: result.error },

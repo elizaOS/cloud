@@ -54,10 +54,27 @@ const GOOGLE_TEXT_MODEL_IDS = [
   "google/gemini-3-flash",
 ] as const;
 
-const XAI_TEXT_MODEL_IDS = ["xai/grok-4", "xai/grok-4-fast-reasoning", "xai/grok-4.1-fast-reasoning", "xai/grok-3-mini", "xai/grok-3-mini-fast"] as const;
-const MISTRAL_TEXT_MODEL_IDS = ["mistral/magistral-medium", "mistral/magistral-small", "mistral/mistral-large-3", "mistral/ministral-8b"] as const;
+const XAI_TEXT_MODEL_IDS = [
+  "xai/grok-4",
+  "xai/grok-4-fast-reasoning",
+  "xai/grok-4.1-fast-reasoning",
+  "xai/grok-3-mini",
+  "xai/grok-3-mini-fast",
+] as const;
+const MISTRAL_TEXT_MODEL_IDS = [
+  "mistral/magistral-medium",
+  "mistral/magistral-small",
+  "mistral/mistral-large-3",
+  "mistral/ministral-8b",
+] as const;
 const MINIMAX_TEXT_MODEL_IDS = ["minimax/minimax-m2.5", "minimax/minimax-m2.1-lightning"] as const;
-const QWEN_TEXT_MODEL_IDS = ["alibaba/qwen3-max", "alibaba/qwen3.5-plus", "alibaba/qwen3.5-flash", "alibaba/qwen3-coder-next", "alibaba/qwen-3-14b"] as const;
+const QWEN_TEXT_MODEL_IDS = [
+  "alibaba/qwen3-max",
+  "alibaba/qwen3.5-plus",
+  "alibaba/qwen3.5-flash",
+  "alibaba/qwen3-coder-next",
+  "alibaba/qwen-3-14b",
+] as const;
 const DEEPSEEK_TEXT_MODEL_IDS = ["deepseek/deepseek-v3.2", "deepseek/deepseek-r1"] as const;
 const ZAI_TEXT_MODEL_IDS = ["zai/glm-5", "zai/glm-4.7", "zai/glm-4.7-flashx"] as const;
 const MOONSHOT_TEXT_MODEL_IDS = ["moonshotai/kimi-k2.5", "moonshotai/kimi-k2-turbo"] as const;
@@ -144,9 +161,7 @@ function titleCase(value: string): string {
 }
 
 function buildSelectorName(modelId: string): string {
-  const [provider, rawName] = modelId.includes("/")
-    ? modelId.split("/", 2)
-    : ["", modelId];
+  const [provider, rawName] = modelId.includes("/") ? modelId.split("/", 2) : ["", modelId];
 
   if (!rawName) {
     return modelId;
@@ -175,8 +190,7 @@ function buildSelectorDescription(modelId: string): string {
   if (id.includes("mini")) return "Faster, lower-cost option";
   if (id.includes("nano")) return "Smallest, lowest-cost option";
   if (id.includes("oss")) return "Open-weight reasoning model";
-  if (/\/o[134]/.test(id) || id.endsWith("/o1"))
-    return "Reasoning-focused model";
+  if (/\/o[134]/.test(id) || id.endsWith("/o1")) return "Reasoning-focused model";
   if (id.includes("compound")) return "Groq compound system model";
   if (id.includes("4o")) return "General-purpose multimodal model";
   if (id.includes("4.1")) return "Reliable general-purpose model";
@@ -331,8 +345,7 @@ function getProviderSortIndex(provider: string): number {
 
 export function sortSelectorModels(models: SelectorModel[]): SelectorModel[] {
   return [...models].sort((a, b) => {
-    const providerDelta =
-      getProviderSortIndex(a.provider) - getProviderSortIndex(b.provider);
+    const providerDelta = getProviderSortIndex(a.provider) - getProviderSortIndex(b.provider);
     if (providerDelta !== 0) {
       return providerDelta;
     }

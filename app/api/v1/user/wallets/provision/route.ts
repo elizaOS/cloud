@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { provisionServerWallet } from "@/lib/services/server-wallets";
-import { z } from "zod";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { isAddress } from "viem";
+import { z } from "zod";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { provisionServerWallet } from "@/lib/services/server-wallets";
+import { logger } from "@/lib/utils/logger";
 
 const SOLANA_BASE58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
@@ -22,10 +22,7 @@ const provisionWalletSchema = z
         path: ["clientAddress"],
       });
     }
-    if (
-      data.chainType === "solana" &&
-      !SOLANA_BASE58.test(data.clientAddress)
-    ) {
+    if (data.chainType === "solana" && !SOLANA_BASE58.test(data.clientAddress)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Invalid Solana address (base58, 32–44 chars)",
@@ -74,8 +71,7 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to provision wallet";
+    const errorMessage = error instanceof Error ? error.message : "Failed to provision wallet";
     const isAuthError =
       errorMessage.includes("Unauthorized") ||
       errorMessage.includes("Authentication required") ||
@@ -85,10 +81,7 @@ async function handlePOST(request: NextRequest) {
       errorMessage.includes("Wallet authentication failed");
 
     if (isAuthError) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     return NextResponse.json(

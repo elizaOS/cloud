@@ -29,26 +29,25 @@
  * ```
  */
 
+// Cache
+export {
+  EntitySettingsCache,
+  entitySettingsCache,
+} from "./cache";
 // Main service
 export {
   EntitySettingsService,
   entitySettingsService,
 } from "./service";
 
-// Cache
-export {
-  EntitySettingsCache,
-  entitySettingsCache,
-} from "./cache";
-
 // Types
 export type {
-  EntitySettingValue,
-  EntitySettingSource,
-  PrefetchResult,
-  SetEntitySettingParams,
-  RevokeEntitySettingParams,
   EntitySettingMetadata,
+  EntitySettingSource,
+  EntitySettingValue,
+  PrefetchResult,
+  RevokeEntitySettingParams,
+  SetEntitySettingParams,
 } from "./types";
 
 export { OAUTH_PROVIDER_TO_SETTING_KEY } from "./types";

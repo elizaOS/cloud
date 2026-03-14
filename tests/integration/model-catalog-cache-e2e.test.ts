@@ -1,11 +1,4 @@
-import {
-  afterAll,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  test,
-} from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
@@ -89,10 +82,10 @@ mock.module("@/lib/providers", () => ({
   hasGroqProviderConfigured: () => false,
 }));
 
+import { GET as refreshModelCatalog } from "@/app/api/v1/cron/refresh-model-catalog/route";
+import { GET as getModelDetail } from "@/app/api/v1/models/[...model]/route";
 import { GET as getModels } from "@/app/api/v1/models/route";
 import { POST as getModelStatus } from "@/app/api/v1/models/status/route";
-import { GET as getModelDetail } from "@/app/api/v1/models/[...model]/route";
-import { GET as refreshModelCatalog } from "@/app/api/v1/cron/refresh-model-catalog/route";
 
 describe("Model catalog cache E2E", () => {
   beforeEach(() => {
@@ -163,18 +156,11 @@ describe("Model catalog cache E2E", () => {
             message: `Model '${modelId}' not found`,
           },
         },
-        gatewayCatalog.some((model) => model.id === modelId)
-          ? undefined
-          : { status: 404 },
+        gatewayCatalog.some((model) => model.id === modelId) ? undefined : { status: 404 },
       ),
     );
     mockCacheGetWithSWR.mockImplementation(
-      async <T>(
-        key: string,
-        staleTTL: number,
-        revalidate: () => Promise<T>,
-        _ttl?: number,
-      ) => {
+      async <T>(key: string, staleTTL: number, revalidate: () => Promise<T>, _ttl?: number) => {
         if (cacheStore.has(key)) {
           const cached = cacheStore.get(key) as CachedEntry<T> | T;
           if (cached && typeof cached === "object" && "data" in cached) {
@@ -188,11 +174,9 @@ describe("Model catalog cache E2E", () => {
         return fresh;
       },
     );
-    mockCacheSet.mockImplementation(
-      async (key: string, value: unknown, _ttl: number) => {
-        cacheStore.set(key, value);
-      },
-    );
+    mockCacheSet.mockImplementation(async (key: string, value: unknown, _ttl: number) => {
+      cacheStore.set(key, value);
+    });
     mockCacheIsAvailable.mockReturnValue(true);
 
     process.env.CRON_SECRET = "model-cache-secret";
@@ -211,12 +195,8 @@ describe("Model catalog cache E2E", () => {
   });
 
   test("serves repeated /api/v1/models requests from the shared cached catalog", async () => {
-    const firstResponse = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
-    );
-    const secondResponse = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
-    );
+    const firstResponse = await getModels(new NextRequest("http://localhost:3000/api/v1/models"));
+    const secondResponse = await getModels(new NextRequest("http://localhost:3000/api/v1/models"));
 
     expect(firstResponse.status).toBe(200);
     expect(secondResponse.status).toBe(200);
@@ -261,9 +241,7 @@ describe("Model catalog cache E2E", () => {
   });
 
   test("cron refresh repopulates the cache and updates later route responses", async () => {
-    const initialResponse = await getModels(
-      new NextRequest("http://localhost:3000/api/v1/models"),
-    );
+    const initialResponse = await getModels(new NextRequest("http://localhost:3000/api/v1/models"));
     const initialBody = await initialResponse.json();
 
     gatewayCatalog = [
@@ -299,12 +277,10 @@ describe("Model catalog cache E2E", () => {
 
     expect(cronBody.success).toBe(true);
     expect(cronBody.data.modelCount).toBe(3);
-    expect(refreshedBody.data.map((model: { id: string }) => model.id)).toEqual(
-      [
-        "openai/gpt-5",
-        "anthropic/claude-sonnet-4.6",
-        "google/gemini-3.1-pro-preview",
-      ],
-    );
+    expect(refreshedBody.data.map((model: { id: string }) => model.id)).toEqual([
+      "openai/gpt-5",
+      "anthropic/claude-sonnet-4.6",
+      "google/gemini-3.1-pro-preview",
+    ]);
   });
 });

@@ -6,8 +6,8 @@
  * This replicates the production data model for realistic integration testing.
  */
 
-import { v4 as uuidv4 } from "uuid";
 import { Client } from "pg";
+import { v4 as uuidv4 } from "uuid";
 
 export interface TestOrganization {
   id: string;
@@ -161,9 +161,7 @@ export async function createTestDataSet(
           userId,
           orgId,
           characterName,
-          JSON.stringify(
-            (characterData as { bio?: string })?.bio || "Test character bio",
-          ),
+          JSON.stringify((characterData as { bio?: string })?.bio || "Test character bio"),
           true,
           JSON.stringify(characterData),
           JSON.stringify(characterSettings),
@@ -259,9 +257,7 @@ export async function createAnonymousSession(
       [sessionId, sessionToken, userId, messageLimit, expiresAt],
     );
 
-    console.log(
-      `[TestDataFactory] Created anonymous session: ${sessionToken.slice(0, 12)}...`,
-    );
+    console.log(`[TestDataFactory] Created anonymous session: ${sessionToken.slice(0, 12)}...`);
     return { sessionToken, userId, sessionId };
   } finally {
     await client.end();
@@ -280,27 +276,16 @@ export async function cleanupTestData(
 
   try {
     // Delete in order respecting foreign keys
-    await client.query(`DELETE FROM api_keys WHERE organization_id = $1`, [
-      organizationId,
-    ]);
-    await client.query(
-      `DELETE FROM user_characters WHERE organization_id = $1`,
-      [organizationId],
-    );
+    await client.query(`DELETE FROM api_keys WHERE organization_id = $1`, [organizationId]);
+    await client.query(`DELETE FROM user_characters WHERE organization_id = $1`, [organizationId]);
     await client.query(
       `DELETE FROM anonymous_sessions WHERE user_id IN (SELECT id FROM users WHERE organization_id = $1)`,
       [organizationId],
     );
-    await client.query(`DELETE FROM users WHERE organization_id = $1`, [
-      organizationId,
-    ]);
-    await client.query(`DELETE FROM organizations WHERE id = $1`, [
-      organizationId,
-    ]);
+    await client.query(`DELETE FROM users WHERE organization_id = $1`, [organizationId]);
+    await client.query(`DELETE FROM organizations WHERE id = $1`, [organizationId]);
 
-    console.log(
-      `[TestDataFactory] Cleaned up test data for org: ${organizationId}`,
-    );
+    console.log(`[TestDataFactory] Cleaned up test data for org: ${organizationId}`);
   } finally {
     await client.end();
   }

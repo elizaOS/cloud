@@ -26,8 +26,7 @@ export async function telegramBotApiRequest<T>(
 
   if (!data.ok) {
     throw new Error(
-      data.description ??
-        `Telegram API error: ${data.error_code ?? response.status}`,
+      data.description ?? `Telegram API error: ${data.error_code ?? response.status}`,
     );
   }
 
@@ -55,8 +54,7 @@ export async function telegramBotApiGet<T>(
 
   if (!data.ok) {
     throw new Error(
-      data.description ??
-        `Telegram API error: ${data.error_code ?? response.status}`,
+      data.description ?? `Telegram API error: ${data.error_code ?? response.status}`,
     );
   }
 

@@ -17,8 +17,7 @@ export const dynamic = "force-dynamic";
 // Headscale API configuration
 // ---------------------------------------------------------------------------
 
-const HEADSCALE_API_URL =
-  process.env.HEADSCALE_API_URL || "http://localhost:8081";
+const HEADSCALE_API_URL = process.env.HEADSCALE_API_URL || "http://localhost:8081";
 const HEADSCALE_API_KEY = process.env.HEADSCALE_API_KEY || "";
 const HEADSCALE_USER = process.env.HEADSCALE_USER || "milady";
 
@@ -39,8 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          "Headscale not configured: HEADSCALE_API_KEY environment variable is missing",
+        error: "Headscale not configured: HEADSCALE_API_KEY environment variable is missing",
       },
       { status: 503 },
     );
@@ -53,13 +51,10 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch VPN nodes (machines) from headscale
-    const nodesResponse = await fetch(
-      `${HEADSCALE_API_URL}/api/v1/machine`,
-      {
-        headers,
-        signal: AbortSignal.timeout(10_000),
-      },
-    );
+    const nodesResponse = await fetch(`${HEADSCALE_API_URL}/api/v1/machine`, {
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
 
     if (!nodesResponse.ok) {
       const errText = await nodesResponse.text().catch(() => "");
@@ -97,10 +92,7 @@ export async function GET(request: NextRequest) {
 
     // Optionally filter to the configured user
     const filteredMachines = HEADSCALE_USER
-      ? machines.filter(
-          (m) =>
-            m.user?.name === HEADSCALE_USER || !m.user?.name,
-        )
+      ? machines.filter((m) => m.user?.name === HEADSCALE_USER || !m.user?.name)
       : machines;
 
     const vpnNodes = filteredMachines.map((m) => ({
@@ -138,10 +130,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Distinguish network errors from other failures
-    if (
-      error instanceof TypeError &&
-      error.message.includes("fetch")
-    ) {
+    if (error instanceof TypeError && error.message.includes("fetch")) {
       return NextResponse.json(
         {
           success: false,

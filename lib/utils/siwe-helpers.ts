@@ -7,7 +7,7 @@
 import { getAddress, verifyMessage } from "viem";
 import { parseSiweMessage, type SiweMessage } from "viem/siwe";
 import { cache } from "@/lib/cache/client";
-import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { CacheKeys } from "@/lib/cache/keys";
 import { getAppHost } from "@/lib/utils/app-url";
 
 export type { SiweMessage };
@@ -49,9 +49,7 @@ export async function validateSIWEMessage(
   }
   const expectedHost = getAppHost();
   if (parsed.domain !== expectedHost) {
-    throw new Error(
-      `${SIWE_DOMAIN_MISMATCH}: got ${parsed.domain}, expected ${expectedHost}`,
-    );
+    throw new Error(`${SIWE_DOMAIN_MISMATCH}: got ${parsed.domain}, expected ${expectedHost}`);
   }
 
   const address = getAddress(parsed.address);

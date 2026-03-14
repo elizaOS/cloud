@@ -3,9 +3,9 @@
  * Monitors deployed containers and updates their health status
  */
 
+import { and, eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import { containers } from "@/db/schemas";
-import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -121,18 +121,12 @@ export async function updateContainerHealth(
     // If no rows were updated, container status has changed (not a race condition)
     if (!updatedContainer) {
       // Just update health check timestamp without changing status
-      await dbWrite
-        .update(containers)
-        .set(baseUpdate)
-        .where(eq(containers.id, containerId));
+      await dbWrite.update(containers).set(baseUpdate).where(eq(containers.id, containerId));
 
-      logger.debug(
-        "Container health check failed, but status changed (not running anymore)",
-        {
-          containerId,
-          healthy: false,
-        },
-      );
+      logger.debug("Container health check failed, but status changed (not running anymore)", {
+        containerId,
+        healthy: false,
+      });
       return;
     }
 
@@ -161,10 +155,7 @@ export async function updateContainerHealth(
 
     if (!updatedContainer) {
       // Just update health check timestamp for non-failed containers
-      await dbWrite
-        .update(containers)
-        .set(baseUpdate)
-        .where(eq(containers.id, containerId));
+      await dbWrite.update(containers).set(baseUpdate).where(eq(containers.id, containerId));
 
       logger.debug("Container health check passed, status unchanged", {
         containerId,

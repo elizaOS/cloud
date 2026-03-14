@@ -13,15 +13,12 @@
  * - Race condition handling
  */
 
-import { describe, test, expect } from "bun:test";
-import { z } from "zod";
+import { describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { z } from "zod";
 
-import {
-  normalizePhoneNumber,
-  isValidE164,
-} from "@/lib/utils/phone-normalization";
+import { isValidE164, normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 
 // =============================================================================
 // DISCORD AUTH SERVICE - Pure logic tests
@@ -122,20 +119,24 @@ describe("Discord Auth Service", () => {
     };
 
     test("valid token response with access_token", () => {
-      expect(validateTokenResponse({
-        access_token: "abc123",
-        token_type: "Bearer",
-        expires_in: 604800,
-        refresh_token: "def456",
-        scope: "identify",
-      })).toBe(true);
+      expect(
+        validateTokenResponse({
+          access_token: "abc123",
+          token_type: "Bearer",
+          expires_in: 604800,
+          refresh_token: "def456",
+          scope: "identify",
+        }),
+      ).toBe(true);
     });
 
     test("rejects response without access_token", () => {
-      expect(validateTokenResponse({
-        token_type: "Bearer",
-        error: "invalid_grant",
-      })).toBe(false);
+      expect(
+        validateTokenResponse({
+          token_type: "Bearer",
+          error: "invalid_grant",
+        }),
+      ).toBe(false);
     });
 
     test("rejects empty response", () => {
@@ -164,19 +165,23 @@ describe("Discord Auth Service", () => {
     };
 
     test("valid user with all fields", () => {
-      expect(hasRequiredFields({
-        id: "123456789",
-        username: "testuser",
-        global_name: "Test User",
-        avatar: "abcdef",
-      })).toBe(true);
+      expect(
+        hasRequiredFields({
+          id: "123456789",
+          username: "testuser",
+          global_name: "Test User",
+          avatar: "abcdef",
+        }),
+      ).toBe(true);
     });
 
     test("valid user with minimal fields", () => {
-      expect(hasRequiredFields({
-        id: "123456789",
-        username: "testuser",
-      })).toBe(true);
+      expect(
+        hasRequiredFields({
+          id: "123456789",
+          username: "testuser",
+        }),
+      ).toBe(true);
     });
 
     test("rejects user missing id", () => {
@@ -368,9 +373,7 @@ describe("Discord Auth Request Schema - ACTUAL Zod + normalizePhoneNumber()", ()
       });
       expect(result.success).toBe(false);
       if (!result.success) {
-        const phoneIssue = result.error.issues.find(i =>
-          i.path.includes("phone_number")
-        );
+        const phoneIssue = result.error.issues.find((i) => i.path.includes("phone_number"));
         expect(phoneIssue).toBeDefined();
         expect(phoneIssue!.message).toContain("Invalid phone number format");
       }
@@ -419,10 +422,7 @@ describe("Phone Linking Logic", () => {
       error?: string;
     }
 
-    const simulateLinkResult = (
-      userId: string,
-      existingOwner: string | null,
-    ): LinkResult => {
+    const simulateLinkResult = (userId: string, existingOwner: string | null): LinkResult => {
       if (!existingOwner) return { success: true };
       if (existingOwner === userId) return { success: true };
       return {
@@ -578,9 +578,7 @@ describe("Discord Config Structure", () => {
       join(process.cwd(), "lib/services/eliza-app/config.ts"),
       "utf-8",
     );
-    expect(configSource).toContain(
-      'botToken: optionalRuntimeEnv("ELIZA_APP_DISCORD_BOT_TOKEN")',
-    );
+    expect(configSource).toContain('botToken: optionalRuntimeEnv("ELIZA_APP_DISCORD_BOT_TOKEN")');
     expect(configSource).toContain(
       'applicationId: optionalRuntimeEnv("ELIZA_APP_DISCORD_APPLICATION_ID")',
     );
