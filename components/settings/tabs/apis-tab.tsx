@@ -84,9 +84,9 @@ export function ApisTab({ user }: ApisTabProps) {
     setModalState((prev) => ({ ...prev, ...updates }));
   };
 
-  const updateOperation = (updates: Partial<OperationState>) => {
+  const updateOperation = useCallback((updates: Partial<OperationState>) => {
     setOperationState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   const updateForm = (updates: Partial<FormState>) => {
     setFormState((prev) => ({ ...prev, ...updates }));

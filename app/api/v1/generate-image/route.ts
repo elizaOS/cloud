@@ -150,7 +150,7 @@ async function handlePOST(req: NextRequest) {
   try {
     // Authenticate - supports both authenticated and anonymous users
     const authContext = await authenticateUser(req);
-    const { user, apiKey, session_token, isAnonymous } = authContext;
+    const { user, apiKey, isAnonymous } = authContext;
 
     const requestBody = await req.json();
     const {

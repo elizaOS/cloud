@@ -38,8 +38,6 @@ const RequestSchema = z.object({
   files: z.array(FileSchema).min(1).max(KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST),
 });
 
-type FileToProcess = z.infer<typeof FileSchema>;
-
 /**
  * Fetches a blob URL with timeout protection.
  * Prevents hanging requests from consuming the entire request timeout.

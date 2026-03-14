@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 import { useChatStore } from "@/lib/stores/chat-store";
@@ -95,9 +95,9 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
   const [isPublic, setIsPublic] = useState<boolean | null>(null);
   const [isTogglingShare, setIsTogglingShare] = useState(false);
 
-  const updateOperation = (updates: Partial<OperationState>) => {
+  const updateOperation = useCallback((updates: Partial<OperationState>) => {
     setOperationState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   const handleCloseClick = () => {
     onToggle?.();

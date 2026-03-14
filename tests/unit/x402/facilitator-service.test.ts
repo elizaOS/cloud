@@ -357,8 +357,6 @@ describe("Edge Cases & Fuzz", () => {
 describe("Middleware Integration", () => {
   it("withX402Payment should be composable with withRateLimit", () => {
     // Verify the middleware signature is compatible
-    type HandlerFn = (request: Request) => Promise<Response>;
-    type MiddlewareWrapper = (handler: HandlerFn, config: unknown) => HandlerFn;
 
     // Both should follow: (handler, config) => handler
     const mockHandler = async (_req: Request) => new Response("ok");

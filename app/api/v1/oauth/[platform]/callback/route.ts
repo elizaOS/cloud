@@ -38,12 +38,6 @@ const ALLOWED_REDIRECT_PATHS = [
   "/api/eliza-app/auth/connection-success",
 ];
 
-interface RouteParams {
-  params: Promise<{
-    platform: string;
-  }>;
-}
-
 /**
  * Normalize a path by resolving .. and . segments to prevent path traversal
  */

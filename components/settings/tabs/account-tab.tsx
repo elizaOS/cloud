@@ -41,7 +41,7 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [stats, setStats] = useState<AccountStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const { user: privyUser, logout: privyLogout } = usePrivy();
+  const { logout: privyLogout } = usePrivy();
   const router = useRouter();
   const { clearChatData } = useChatStore();
 

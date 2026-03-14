@@ -51,7 +51,7 @@ const metricDescriptions: Record<MetricKey, string> = {
 export function UsageChart({ data, granularity }: UsageChartProps) {
   const [activeMetric, setActiveMetric] = useState<MetricKey>("requests");
 
-  const formatDate = (date: Date) => {
+  const formatDate = useCallback((date: Date) => {
     const formatMap = {
       hour: "MMM d, HH:mm",
       day: "MMM d",
@@ -59,9 +59,9 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
       month: "MMM yyyy",
     } as const;
     return format(date, formatMap[granularity]);
-  };
+  }, [granularity]);
 
-  const detailedDate = (date: Date) => format(date, "MMM d, yyyy · HH:mm");
+  const detailedDate = useCallback((date: Date) => format(date, "MMM d, yyyy · HH:mm"), []);
 
   const chartData = useMemo(
     () =>

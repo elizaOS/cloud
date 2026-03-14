@@ -28,11 +28,5 @@
     "components/**/*.ts",
     "components/**/*.tsx"
   ],
-  "exclude": [
-    "node_modules",
-    ".next",
-    "out",
-    "build",
-    "dist"
-  ]
+  "exclude": ["node_modules", ".next", "out", "build", "dist"]
 }

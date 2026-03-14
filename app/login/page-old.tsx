@@ -21,7 +21,7 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 );
 
 function LoginPageContent() {
-  const { ready, authenticated, login, user } = usePrivy();
+  const { ready, authenticated, login } = usePrivy();
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
   const router = useRouter();

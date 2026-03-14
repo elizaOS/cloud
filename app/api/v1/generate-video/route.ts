@@ -46,7 +46,7 @@ async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
   let reservation: CreditReservation | undefined;
   try {
-    const { user, apiKey, session_token } = await requireAuthOrApiKeyWithOrg(request);
+    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
 
     if (!process.env.FAL_KEY) {
       logger.error("[VIDEO GENERATION] FAL_KEY is not configured");

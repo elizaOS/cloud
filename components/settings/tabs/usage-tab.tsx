@@ -68,9 +68,6 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
         interface Transaction {
           amount: string | number;
         }
-        interface Transaction {
-          amount: string | number;
-        }
         const transactions: Transaction[] = Array.isArray(data.transactions)
           ? data.transactions.filter(
               (t: unknown): t is Transaction =>

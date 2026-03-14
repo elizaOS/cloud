@@ -20,7 +20,7 @@ interface SidebarBottomPanelProps {
 }
 
 export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBottomPanelProps) {
-  const { ready, authenticated, user, logout } = usePrivy();
+  const { ready, authenticated, user } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
 

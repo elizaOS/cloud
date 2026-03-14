@@ -32,7 +32,7 @@ import {
   MessageSquare,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface TelegramStatus {
@@ -51,7 +51,7 @@ export function TelegramConnection() {
   const [botToken, setBotToken] = useState("");
   const [showInstructions, setShowInstructions] = useState(false);
 
-  const fetchStatus = async (signal?: AbortSignal) => {
+  const fetchStatus = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     try {
       const response = await fetch("/api/v1/telegram/status", { signal });
@@ -67,7 +67,7 @@ export function TelegramConnection() {
         setIsLoading(false);
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();

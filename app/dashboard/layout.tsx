@@ -35,7 +35,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
-  const isAppCreatePage = pathname?.startsWith("/dashboard/apps/create");
+  const _isAppCreatePage = pathname?.startsWith("/dashboard/apps/create");
 
   // Memoize toggle callbacks to prevent child re-renders
   const handleToggleSidebar = useCallback(() => {
@@ -86,9 +86,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isCustomLayoutPage =
     pathname?.startsWith("/dashboard/chat") || pathname?.startsWith("/dashboard/build");
 
-  // Pages that need full width without padding
-  const isFullWidthPage = isAppCreatePage;
-
   // For chat/build pages, render children directly without standard layout
   if (isCustomLayoutPage) {
     return (
@@ -105,10 +102,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <PageHeaderProvider>
         <div className="dashboard-theme flex h-screen w-full bg-neutral-950">
           {/* Sidebar */}
-          <Sidebar
-            isOpen={sidebarOpen}
-            onToggle={handleToggleSidebar}
-          />
+          <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
 
           {/* Main Content */}
           <div className="flex flex-1 max-md:pl-3 py-3 pr-3 flex-col overflow-hidden gap-1.5 md:gap-3">

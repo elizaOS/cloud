@@ -24,7 +24,7 @@ import {
   User,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface InviteDetails {
@@ -47,6 +47,20 @@ function InviteAcceptContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const validateInvite = async () => {
+      setIsValidating(true);
+      const response = await fetch(`/api/invites/validate?token=${encodeURIComponent(token!)}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setInviteDetails(data.data);
+        setError(null);
+      } else {
+        setError(data.error || "Invalid or expired invitation");
+      }
+      setIsValidating(false);
+    };
+
     if (!token) {
       setError("No invitation token provided");
       setIsValidating(false);
@@ -54,21 +68,7 @@ function InviteAcceptContent() {
     }
 
     validateInvite();
-  }, [token, validateInvite]);
-
-  const validateInvite = async () => {
-    setIsValidating(true);
-    const response = await fetch(`/api/invites/validate?token=${encodeURIComponent(token!)}`);
-    const data = await response.json();
-
-    if (data.success) {
-      setInviteDetails(data.data);
-      setError(null);
-    } else {
-      setError(data.error || "Invalid or expired invitation");
-    }
-    setIsValidating(false);
-  };
+  }, [token]);
 
   const handleAcceptInvite = async () => {
     if (!authenticated) {

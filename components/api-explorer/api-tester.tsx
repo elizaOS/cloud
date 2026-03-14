@@ -47,7 +47,7 @@ import {
   XCircleIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAudioRecorder } from "@/components/chat/hooks/use-audio-recorder";
 import { getApiBaseUrl } from "@/lib/config/client-env";
 import { type ApiEndpoint, type EndpointPricing } from "@/lib/swagger/endpoint-discovery";
@@ -91,7 +91,9 @@ export function ApiTester({ endpoint, authToken, refreshCredits }: ApiTesterProp
   // Audio recorder hook for STT endpoint
   const audioRecorder = useAudioRecorder();
 
-  const initializeParameters = () => {
+  const initializeParameters = useCallback(() => {
+    if (!endpoint) return;
+
     const defaultParams: Record<string, unknown> = {};
 
     if (endpoint.parameters?.body) {
@@ -113,7 +115,7 @@ export function ApiTester({ endpoint, authToken, refreshCredits }: ApiTesterProp
     }
 
     setParameters(defaultParams);
-  };
+  }, [endpoint]);
 
   useEffect(() => {
     initializeParameters();

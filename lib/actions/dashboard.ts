@@ -4,6 +4,7 @@
 
 "use server";
 
+import { cache } from "react";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { requireAuthWithOrg } from "@/lib/auth";
 import type { AgentStats } from "@/lib/cache/agent-state-cache";

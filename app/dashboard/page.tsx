@@ -4,16 +4,16 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AgentsSection, AgentsSectionSkeleton } from "@/components/dashboard/agents-section";
 import {
+  ContainersSection,
+  ContainersSectionSkeleton,
+} from "@/components/dashboard/containers-section";
+import {
   DashboardActionCards,
   DashboardActionCardsSkeleton,
 } from "@/components/dashboard/dashboard-action-cards";
 import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
 import { getDashboardData } from "@/lib/actions/dashboard";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
-import {
-  ContainersSection,
-  ContainersSectionSkeleton,
-} from "@/components/dashboard/containers-section";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.dashboard,
@@ -49,9 +49,7 @@ export default async function DashboardPage() {
           {/* Quick Action Cards */}
           <section>
             <Suspense fallback={<DashboardActionCardsSkeleton />}>
-              <DashboardActionCards
-                creditBalance={data.stats.creditBalance}
-              />
+              <DashboardActionCards creditBalance={data.stats.creditBalance} />
             </Suspense>
           </section>
 
@@ -71,4 +69,3 @@ export default async function DashboardPage() {
     </DashboardPageWrapper>
   );
 }
-
