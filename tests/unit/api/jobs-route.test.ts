@@ -10,11 +10,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mocks
 // ---------------------------------------------------------------------------
 
-const mockGetJob = vi.fn();
+const mockGetJobForOrg = vi.fn();
 
 vi.mock("@/lib/services/provisioning-jobs", () => ({
   provisioningJobService: {
-    getJob: (...args: unknown[]) => mockGetJob(...args),
+    getJobForOrg: (...args: unknown[]) => mockGetJobForOrg(...args),
   },
 }));
 
@@ -65,7 +65,7 @@ describe("GET /api/v1/jobs/[jobId]", () => {
   });
 
   it("returns 404 for non-existent job", async () => {
-    mockGetJob.mockResolvedValue(undefined);
+    mockGetJobForOrg.mockResolvedValue(undefined);
 
     const [req, ctx] = makeRequest(TEST_JOB_ID);
     const response = await GET(req as any, ctx);
@@ -76,12 +76,8 @@ describe("GET /api/v1/jobs/[jobId]", () => {
     expect(body.error).toBe("Job not found");
   });
 
-  it("returns 404 if job belongs to different org", async () => {
-    mockGetJob.mockResolvedValue({
-      id: TEST_JOB_ID,
-      organization_id: "other-org",
-      status: "completed",
-    });
+  it("scopes job lookup to the caller's organization", async () => {
+    mockGetJobForOrg.mockResolvedValue(undefined);
 
     const [req, ctx] = makeRequest(TEST_JOB_ID);
     const response = await GET(req as any, ctx);
@@ -89,11 +85,12 @@ describe("GET /api/v1/jobs/[jobId]", () => {
 
     expect(response.status).toBe(404);
     expect(body.error).toBe("Job not found");
+    expect(mockGetJobForOrg).toHaveBeenCalledWith(TEST_JOB_ID, TEST_ORG_ID);
   });
 
   it("returns full job data for owned job", async () => {
     const now = new Date();
-    mockGetJob.mockResolvedValue({
+    mockGetJobForOrg.mockResolvedValue({
       id: TEST_JOB_ID,
       type: "milady_provision",
       status: "completed",
@@ -125,7 +122,7 @@ describe("GET /api/v1/jobs/[jobId]", () => {
   });
 
   it("returns polling hints for in_progress job", async () => {
-    mockGetJob.mockResolvedValue({
+    mockGetJobForOrg.mockResolvedValue({
       id: TEST_JOB_ID,
       type: "milady_provision",
       status: "in_progress",
@@ -145,7 +142,7 @@ describe("GET /api/v1/jobs/[jobId]", () => {
   });
 
   it("returns shouldContinue=false for completed job", async () => {
-    mockGetJob.mockResolvedValue({
+    mockGetJobForOrg.mockResolvedValue({
       id: TEST_JOB_ID,
       status: "completed",
       organization_id: TEST_ORG_ID,
@@ -163,7 +160,7 @@ describe("GET /api/v1/jobs/[jobId]", () => {
   });
 
   it("returns shouldContinue=false for failed job", async () => {
-    mockGetJob.mockResolvedValue({
+    mockGetJobForOrg.mockResolvedValue({
       id: TEST_JOB_ID,
       status: "failed",
       error: "Max attempts reached",
@@ -204,7 +201,7 @@ describe("GET /api/v1/jobs/[jobId]", () => {
       userId: "service-user-001",
     });
 
-    mockGetJob.mockResolvedValue({
+    mockGetJobForOrg.mockResolvedValue({
       id: TEST_JOB_ID,
       type: "milady_provision",
       status: "in_progress",
@@ -226,17 +223,13 @@ describe("GET /api/v1/jobs/[jobId]", () => {
     expect(mockRequireAuth).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when service-key caller queries another org's job", async () => {
+  it("scopes service-key polling to the service org", async () => {
     mockValidateServiceKey.mockReturnValue({
       organizationId: "service-org-001",
       userId: "service-user-001",
     });
 
-    mockGetJob.mockResolvedValue({
-      id: TEST_JOB_ID,
-      organization_id: "different-org",
-      status: "completed",
-    });
+    mockGetJobForOrg.mockResolvedValue(undefined);
 
     const [req, ctx] = makeRequest(TEST_JOB_ID);
     const response = await GET(req as any, ctx);
@@ -244,12 +237,16 @@ describe("GET /api/v1/jobs/[jobId]", () => {
 
     expect(response.status).toBe(404);
     expect(body.error).toBe("Job not found");
+    expect(mockGetJobForOrg).toHaveBeenCalledWith(
+      TEST_JOB_ID,
+      "service-org-001",
+    );
   });
 
   it("falls back to user auth when no service key is present", async () => {
     mockValidateServiceKey.mockReturnValue(null);
 
-    mockGetJob.mockResolvedValue({
+    mockGetJobForOrg.mockResolvedValue({
       id: TEST_JOB_ID,
       status: "completed",
       organization_id: TEST_ORG_ID,

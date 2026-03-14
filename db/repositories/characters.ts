@@ -149,6 +149,37 @@ export class UserCharactersRepository {
   }
 
   /**
+   * Finds a character by ID within an organization.
+   */
+  async findByIdInOrganization(
+    id: string,
+    organizationId: string,
+  ): Promise<UserCharacter | undefined> {
+    return await dbRead.query.userCharacters.findFirst({
+      where: and(
+        eq(userCharacters.id, id),
+        eq(userCharacters.organization_id, organizationId),
+      ),
+    });
+  }
+
+  /**
+   * Finds a character by ID within an organization using the primary DB.
+   * Use this for write-after-write validation paths where replica lag matters.
+   */
+  async findByIdInOrganizationForWrite(
+    id: string,
+    organizationId: string,
+  ): Promise<UserCharacter | undefined> {
+    return await dbWrite.query.userCharacters.findFirst({
+      where: and(
+        eq(userCharacters.id, id),
+        eq(userCharacters.organization_id, organizationId),
+      ),
+    });
+  }
+
+  /**
    * Finds characters by ID in a single query.
    */
   async findByIds(ids: string[]): Promise<UserCharacter[]> {
@@ -160,6 +191,28 @@ export class UserCharactersRepository {
       .select()
       .from(userCharacters)
       .where(inArray(userCharacters.id, ids));
+  }
+
+  /**
+   * Finds characters by ID within an organization.
+   */
+  async findByIdsInOrganization(
+    ids: string[],
+    organizationId: string,
+  ): Promise<UserCharacter[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return await dbRead
+      .select()
+      .from(userCharacters)
+      .where(
+        and(
+          inArray(userCharacters.id, ids),
+          eq(userCharacters.organization_id, organizationId),
+        ),
+      );
   }
 
   /**

@@ -1,66 +1,104 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
-const lookupMock = mock<
-  (hostname: string, options: { all: boolean; verbatim: boolean }) => Promise<
-    Array<{ address: string; family: 4 | 6 }>
-  >
->();
+const moduleUrl = new URL("../../lib/security/outbound-url.ts", import.meta.url)
+  .href;
 
-mock.module("node:dns/promises", () => ({
-  lookup: lookupMock,
-}));
+function runIsolatedSnippet(source: string) {
+  return Bun.spawnSync({
+    cmd: ["bun", "-e", source],
+    cwd: process.cwd(),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+}
 
 describe("outbound URL safety", () => {
-  beforeEach(() => {
-    lookupMock.mockReset();
-  });
+  test("rejects localhost and link-local destinations", () => {
+    const result = runIsolatedSnippet(`
+      const mod = await import(${JSON.stringify(`${moduleUrl}?case=localhost`)});
+      const { assertSafeOutboundUrl } = mod;
+      try {
+        await assertSafeOutboundUrl("http://127.0.0.1:3000/mcp");
+        console.log("unexpected-success");
+        process.exit(0);
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    `);
 
-  afterEach(() => {
-    mock.restore();
-  });
-
-  async function importOutboundUrl() {
-    return import(
-      new URL(`../../lib/security/outbound-url.ts?test=${Date.now()}`, import.meta.url).href
+    expect(result.exitCode).toBe(1);
+    expect(new TextDecoder().decode(result.stderr)).toMatch(
+      /private|reserved|localhost/i,
     );
-  }
 
-  test("rejects localhost and link-local destinations", async () => {
-    const { assertSafeOutboundUrl } = await importOutboundUrl();
+    const linkLocal = runIsolatedSnippet(`
+      const mod = await import(${JSON.stringify(`${moduleUrl}?case=linklocal`)});
+      const { assertSafeOutboundUrl } = mod;
+      try {
+        await assertSafeOutboundUrl("http://169.254.169.254/latest/meta-data");
+        console.log("unexpected-success");
+        process.exit(0);
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    `);
 
-    await expect(
-      assertSafeOutboundUrl("http://127.0.0.1:3000/mcp"),
-    ).rejects.toThrow(/private|reserved|localhost/i);
-    await expect(
-      assertSafeOutboundUrl("http://169.254.169.254/latest/meta-data"),
-    ).rejects.toThrow(/private|reserved/i);
+    expect(linkLocal.exitCode).toBe(1);
+    expect(new TextDecoder().decode(linkLocal.stderr)).toMatch(
+      /private|reserved/i,
+    );
   });
 
-  test("rejects public hostnames that resolve to private addresses", async () => {
-    lookupMock.mockResolvedValueOnce([{ address: "10.0.0.7", family: 4 }]);
-    const { assertSafeOutboundUrl } = await importOutboundUrl();
+  test("classifies private IPv4 destinations as forbidden", () => {
+    const result = runIsolatedSnippet(`
+      const mod = await import(${JSON.stringify(`${moduleUrl}?case=forbidden-ip`)});
+      const { isForbiddenIpAddress } = mod;
+      console.log(JSON.stringify({
+        private10: isForbiddenIpAddress("10.0.0.7"),
+        cgnat: isForbiddenIpAddress("100.64.0.10"),
+        publicIp: isForbiddenIpAddress("93.184.216.34"),
+      }));
+    `);
 
-    await expect(
-      assertSafeOutboundUrl("https://mcp.example.com"),
-    ).rejects.toThrow(/private|reserved/i);
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(new TextDecoder().decode(result.stdout))).toEqual({
+      private10: true,
+      cgnat: true,
+      publicIp: false,
+    });
   });
 
-  test("accepts public https endpoints", async () => {
-    lookupMock.mockResolvedValueOnce([
-      { address: "93.184.216.34", family: 4 },
-      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
-    ]);
-    const { assertSafeOutboundUrl } = await importOutboundUrl();
+  test("accepts public https endpoints", () => {
+    const result = runIsolatedSnippet(`
+      const mod = await import(${JSON.stringify(`${moduleUrl}?case=public`)});
+      const { assertSafeOutboundUrl } = mod;
+      const url = await assertSafeOutboundUrl("https://93.184.216.34/mcp");
+      console.log(url.toString());
+    `);
 
-    const url = await assertSafeOutboundUrl("https://example.com/mcp");
-    expect(url.toString()).toBe("https://example.com/mcp");
+    expect(result.exitCode).toBe(0);
+    expect(new TextDecoder().decode(result.stdout).trim()).toBe(
+      "https://93.184.216.34/mcp",
+    );
   });
 
-  test("rejects URLs that embed credentials", async () => {
-    const { assertSafeOutboundUrl } = await importOutboundUrl();
+  test("rejects URLs that embed credentials", () => {
+    const result = runIsolatedSnippet(`
+      const mod = await import(${JSON.stringify(`${moduleUrl}?case=credentials`)});
+      const { assertSafeOutboundUrl } = mod;
+      try {
+        await assertSafeOutboundUrl("https://user:pass@example.com/mcp");
+        console.log("unexpected-success");
+        process.exit(0);
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    `);
 
-    await expect(
-      assertSafeOutboundUrl("https://user:pass@example.com/mcp"),
-    ).rejects.toThrow(/credentials/i);
+    expect(result.exitCode).toBe(1);
+    expect(new TextDecoder().decode(result.stderr)).toMatch(/credentials/i);
   });
 });

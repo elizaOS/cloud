@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 
@@ -8,6 +9,34 @@ export const dynamic = "force-dynamic";
 // Reduced from 120s — async path returns 202 immediately.
 // Sync fallback (?sync=true) still needs headroom for legacy callers.
 export const maxDuration = 120;
+
+function getProvisionFailureStatus(error?: string): 404 | 409 | 500 {
+  if (error === "Agent not found") return 404;
+  if (error === "Agent is already being provisioned") return 409;
+  return 500;
+}
+
+function sanitizeProvisionFailureMessage(
+  error: string | undefined,
+  status: 404 | 409 | 500,
+): string {
+  if (status !== 500) {
+    return error ?? "Provisioning failed";
+  }
+
+  return "Provisioning failed";
+}
+
+function sanitizeEnqueueFailureMessage(
+  error: string,
+  status: 404 | 409 | 500,
+): string {
+  if (status !== 500) {
+    return error;
+  }
+
+  return "Failed to start provisioning";
+}
 
 /**
  * POST /api/v1/milady/agents/[agentId]/provision
@@ -38,7 +67,10 @@ export async function POST(
   });
 
   // Fast path: check if already running (no job needed)
-  const existing = await miladySandboxService.getAgent(agentId, user.organization_id!);
+  const existing = await miladySandboxService.getAgentForWrite(
+    agentId,
+    user.organization_id!,
+  );
   if (!existing) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
@@ -46,7 +78,11 @@ export async function POST(
     );
   }
 
-  if (existing.status === "running" && existing.bridge_url && existing.health_url) {
+  if (
+    existing.status === "running" &&
+    existing.bridge_url &&
+    existing.health_url
+  ) {
     return NextResponse.json({
       success: true,
       data: {
@@ -61,17 +97,25 @@ export async function POST(
 
   // ── Sync fallback (legacy) ────────────────────────────────────────
   if (sync) {
-    const result = await miladySandboxService.provision(agentId, user.organization_id!);
+    const result = await miladySandboxService.provision(
+      agentId,
+      user.organization_id!,
+    );
 
     if (!result.success) {
-      const status =
-        result.error === "Agent not found"
-          ? 404
-          : result.error === "Agent is already being provisioned"
-            ? 409
-            : 500;
+      const status = getProvisionFailureStatus(result.error);
+      const clientError = sanitizeProvisionFailureMessage(result.error, status);
+
+      if (status === 500) {
+        logger.error("[milady-api] Sync provision failed", {
+          agentId,
+          orgId: user.organization_id,
+          error: result.error,
+        });
+      }
+
       return NextResponse.json(
-        { success: false, error: result.error },
+        { success: false, error: clientError },
         { status },
       );
     }
@@ -89,26 +133,71 @@ export async function POST(
   }
 
   // ── Async path (default) ──────────────────────────────────────────
-  const webhookUrl =
-    request.headers.get("x-webhook-url") ?? undefined;
+  const webhookUrl = request.headers.get("x-webhook-url") ?? undefined;
+  if (webhookUrl) {
+    try {
+      await assertSafeOutboundUrl(webhookUrl);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : "Invalid webhook URL",
+        },
+        { status: 400 },
+      );
+    }
+  }
 
-  const job = await provisioningJobService.enqueueMiladyProvision({
-    agentId,
-    organizationId: user.organization_id!,
-    userId: user.id,
-    agentName: existing.agent_name ?? agentId,
-    webhookUrl,
-  });
+  let enqueueResult;
+  try {
+    enqueueResult = await provisioningJobService.enqueueMiladyProvisionOnce({
+      agentId,
+      organizationId: user.organization_id!,
+      userId: user.id,
+      agentName: existing.agent_name ?? agentId,
+      webhookUrl,
+      expectedUpdatedAt: existing.updated_at,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const status =
+      message === "Agent not found"
+        ? 404
+        : message === "Agent state changed while starting"
+          ? 409
+          : 500;
+
+    if (status === 500) {
+      logger.error("[milady-api] Failed to enqueue provisioning job", {
+        agentId,
+        orgId: user.organization_id,
+        error: message,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: sanitizeEnqueueFailureMessage(message, status),
+      },
+      { status },
+    );
+  }
+
+  const { job, created } = enqueueResult;
 
   return NextResponse.json(
     {
       success: true,
-      message:
-        "Provisioning job created. Poll the job endpoint for status.",
+      created,
+      alreadyInProgress: !created,
+      message: created
+        ? "Provisioning job created. Poll the job endpoint for status."
+        : "Provisioning is already in progress. Poll the existing job for status.",
       data: {
         jobId: job.id,
         agentId,
-        status: "pending",
+        status: job.status,
         estimatedCompletionAt: job.estimated_completion_at,
       },
       polling: {
@@ -117,6 +206,6 @@ export async function POST(
         expectedDurationMs: 90000,
       },
     },
-    { status: 202 },
+    { status: created ? 202 : 409 },
   );
 }

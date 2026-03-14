@@ -37,6 +37,25 @@ export class JobsRepository {
   }
 
   /**
+   * Finds a job by ID scoped to a single organization.
+   *
+   * @param id - Job ID.
+   * @param organizationId - Owning organization ID.
+   * @returns Job record or undefined.
+   */
+  async findByIdAndOrg(
+    id: string,
+    organizationId: string,
+  ): Promise<Job | undefined> {
+    const [job] = await dbRead
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, id), eq(jobs.organization_id, organizationId)))
+      .limit(1);
+    return job;
+  }
+
+  /**
    * Gets jobs filtered by type, status, and organization.
    * Generic method that can be used by any service.
    *
@@ -84,24 +103,55 @@ export class JobsRepository {
   async findByDataField(filters: {
     type: string;
     organizationId: string;
-    dataField: "characterId";
+    dataField: "characterId" | "agentId";
     dataValue: string;
     orderBy?: "asc" | "desc";
   }): Promise<Job[]> {
+    return this.findByDataFieldUsingDb(dbRead, filters);
+  }
+
+  /**
+   * Primary-DB variant for write-after-write safety on control-plane paths.
+   */
+  async findByDataFieldForWrite(filters: {
+    type: string;
+    organizationId: string;
+    dataField: "characterId" | "agentId";
+    dataValue: string;
+    orderBy?: "asc" | "desc";
+  }): Promise<Job[]> {
+    return this.findByDataFieldUsingDb(dbWrite, filters);
+  }
+
+  private async findByDataFieldUsingDb(
+    database: typeof dbRead,
+    filters: {
+      type: string;
+      organizationId: string;
+      dataField: "characterId" | "agentId";
+      dataValue: string;
+      orderBy?: "asc" | "desc";
+    },
+  ): Promise<Job[]> {
     // Only allow whitelisted data fields to prevent SQL injection
-    const allowedFields = ["characterId"] as const;
+    const allowedFields = ["characterId", "agentId"] as const;
     if (!allowedFields.includes(filters.dataField)) {
       throw new Error(`Invalid data field: ${filters.dataField}`);
     }
 
-    return await dbRead
+    const dataFieldFilter =
+      filters.dataField === "agentId"
+        ? sql`${jobs.data}->>'agentId' = ${filters.dataValue}`
+        : sql`${jobs.data}->>'characterId' = ${filters.dataValue}`;
+
+    return await database
       .select()
       .from(jobs)
       .where(
         and(
           eq(jobs.type, filters.type),
           eq(jobs.organization_id, filters.organizationId),
-          sql`${jobs.data}->>'characterId' = ${filters.dataValue}`,
+          dataFieldFilter,
         ),
       )
       .orderBy(

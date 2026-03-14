@@ -40,17 +40,12 @@ export async function GET(
 
     const { jobId } = await params;
 
-    const job = await provisioningJobService.getJob(jobId);
+    const job = await provisioningJobService.getJobForOrg(
+      jobId,
+      organizationId,
+    );
 
     if (!job) {
-      return NextResponse.json(
-        { success: false, error: "Job not found" },
-        { status: 404 },
-      );
-    }
-
-    // Authorization: job must belong to the caller's organization
-    if (job.organization_id !== organizationId) {
       return NextResponse.json(
         { success: false, error: "Job not found" },
         { status: 404 },

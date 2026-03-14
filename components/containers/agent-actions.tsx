@@ -9,20 +9,34 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Play, Square, Camera, Trash2, Loader2 } from "lucide-react";
 import { BrandCard, BrandButton } from "@elizaos/ui";
+import { useJobPoller } from "@/lib/hooks/use-job-poller";
 
 interface MiladyAgentActionsProps {
   agentId: string;
   status: string;
 }
 
-export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps) {
+export function MiladyAgentActions({
+  agentId,
+  status,
+}: MiladyAgentActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const isRunning = status === "running";
-  const isStopped = ["stopped", "error", "pending", "disconnected"].includes(status);
-  const isBusy = ["provisioning"].includes(status);
+  const poller = useJobPoller({
+    onComplete: () => toast.success("Agent provisioning completed"),
+    onFailed: (job) => toast.error(job.error ?? "Provisioning failed"),
+  });
+
+  const trackedJob = poller.getStatus(agentId);
+  const effectiveStatus = poller.isActive(agentId) ? "provisioning" : status;
+
+  const isRunning = effectiveStatus === "running";
+  const isStopped = ["stopped", "error", "pending", "disconnected"].includes(
+    effectiveStatus,
+  );
+  const isBusy = effectiveStatus === "provisioning";
 
   async function doAction(action: string, method = "POST") {
     setLoading(action);
@@ -37,7 +51,6 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
       } else if (action === "delete") {
         method = "DELETE";
       } else if (action === "shutdown") {
-        // The shutdown is via PATCH — if not available, inform user
         method = "PATCH";
         body = JSON.stringify({ action: "shutdown" });
       }
@@ -48,9 +61,21 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
         body,
       });
 
+      const data = await res.json().catch(() => ({}));
+
+      if (action === "provision" && res.status === 409) {
+        const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
+        if (jobId) {
+          poller.track(agentId, jobId);
+          toast.info("Provisioning already in progress");
+          return;
+        }
+      }
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+        throw new Error(
+          (data as { error?: string }).error ?? `HTTP ${res.status}`,
+        );
       }
 
       if (action === "delete") {
@@ -59,21 +84,29 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
         return;
       }
 
+      if (action === "provision" && res.status === 202) {
+        const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
+        if (jobId) {
+          poller.track(agentId, jobId);
+          toast.success("Agent provisioning queued");
+          return;
+        }
+
+        toast.success("Agent provisioning started");
+        router.refresh();
+        return;
+      }
+
       const messages: Record<string, string> = {
         provision: "Agent provisioning started",
         snapshot: "Snapshot saved",
-        shutdown: "Agent shutdown initiated",
+        shutdown: "Agent shutdown complete",
       };
       toast.success(messages[action] ?? "Done");
       router.refresh();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // Friendly messages for known errors
-      if (action === "shutdown" && msg.includes("405")) {
-        toast.error("Shutdown not available via API — check admin panel");
-      } else {
-        toast.error(`Action failed: ${msg}`);
-      }
+      toast.error(`Action failed: ${msg}`);
     } finally {
       setLoading(null);
       setShowDeleteConfirm(false);
@@ -94,7 +127,6 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {/* Start */}
           {isStopped && (
             <BrandButton
               variant="primary"
@@ -111,13 +143,12 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
             </BrandButton>
           )}
 
-          {/* Stop */}
           {isRunning && (
             <BrandButton
               variant="outline"
               size="sm"
               onClick={() => doAction("shutdown", "PATCH")}
-              disabled={!!loading}
+              disabled={!!loading || isBusy}
             >
               {loading === "shutdown" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -128,13 +159,12 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
             </BrandButton>
           )}
 
-          {/* Snapshot */}
           {isRunning && (
             <BrandButton
               variant="outline"
               size="sm"
               onClick={() => doAction("snapshot")}
-              disabled={!!loading}
+              disabled={!!loading || isBusy}
             >
               {loading === "snapshot" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -145,13 +175,12 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
             </BrandButton>
           )}
 
-          {/* Delete */}
           {!showDeleteConfirm ? (
             <BrandButton
               variant="outline"
               size="sm"
               onClick={() => setShowDeleteConfirm(true)}
-              disabled={!!loading}
+              disabled={!!loading || isBusy}
               className="text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
             >
               <Trash2 className="h-4 w-4" />
@@ -159,7 +188,10 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
             </BrandButton>
           ) : (
             <div className="flex items-center gap-2 p-3 rounded-none border border-red-500/30 bg-red-950/20">
-              <span className="text-sm text-red-400" style={{ fontFamily: "var(--font-roboto-mono)" }}>
+              <span
+                className="text-sm text-red-400"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 Confirm delete?
               </span>
               <BrandButton
@@ -186,11 +218,25 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
           )}
         </div>
 
-        {isBusy && (
-          <p className="text-sm text-yellow-400/80 flex items-center gap-2" style={{ fontFamily: "var(--font-roboto-mono)" }}>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Agent is provisioning — actions will be available once running.
-          </p>
+        {poller.isActive(agentId) && (
+          <div className="space-y-1">
+            <p
+              className="text-sm text-yellow-400/80 flex items-center gap-2"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Agent is provisioning. This page will refresh when the job
+              finishes.
+            </p>
+            {trackedJob && (
+              <p
+                className="text-xs text-white/40"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                Job {trackedJob.jobId.slice(0, 8)} • {trackedJob.status}
+              </p>
+            )}
+          </div>
         )}
       </div>
     </BrandCard>
