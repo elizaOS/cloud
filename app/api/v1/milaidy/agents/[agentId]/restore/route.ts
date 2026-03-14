@@ -28,7 +28,11 @@ export async function POST(
   const parsed = restoreSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: parsed.error.issues },
+      {
+        success: false,
+        error: "Invalid request",
+        details: parsed.error.issues,
+      },
       { status: 400 },
     );
   }
@@ -40,9 +44,14 @@ export async function POST(
   );
 
   if (!result.success) {
-    const status = result.error === "Agent not found" ? 404
-      : result.error === "No backup found" ? 404
-      : 500;
+    const status =
+      result.error === "Agent not found"
+        ? 404
+        : result.error === "No backup found"
+          ? 404
+          : result.error === "Stopped agents can only restore the latest backup"
+            ? 409
+            : 500;
 
     return NextResponse.json(
       { success: false, error: result.error },

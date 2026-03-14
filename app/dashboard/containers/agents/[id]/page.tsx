@@ -3,9 +3,8 @@
  *
  * Shows comprehensive information for a specific AI agent sandbox:
  * - Status, timestamps, error messages
- * - Docker-specific fields: node_id, container_name, ports, headscale_ip, docker_image
- * - SSH connection info (if Docker-backed with headscale_ip)
- * - Admin-only: Docker container logs via /api/v1/admin/docker-containers/[id]/logs
+ * - User-facing Milady actions and Web UI access
+ * - Admin-only infrastructure details, SSH access, and Docker logs
  */
 
 import type { Metadata } from "next";
@@ -31,6 +30,9 @@ import { BrandCard, BrandButton } from "@elizaos/ui";
 import { Badge } from "@elizaos/ui";
 import { DockerLogsViewer } from "@/components/containers/docker-logs-viewer";
 import { MiladyAgentActions } from "@/components/containers/agent-actions";
+import { MiladyBackupsPanel } from "@/components/containers/milady-backups-panel";
+import { MiladyLogsViewer } from "@/components/containers/milady-logs-viewer";
+import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +40,9 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { id } = await params;
   return {
     title: `Agent ${id.slice(0, 8)} — Containers`,
@@ -78,15 +82,11 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   const isAdmin = await adminService.isUserAdmin(user.id).catch(() => false);
 
   const isDockerBacked = !!agent.node_id;
-  const connectUrl =
-    agent.headscale_ip && (agent.web_ui_port ?? agent.bridge_port)
-      ? `http://${agent.headscale_ip}:${agent.web_ui_port ?? agent.bridge_port}`
-      : null;
+  const webUiUrl = getPreferredMiladyAgentWebUiUrl(agent);
 
-  const sshCommand =
-    agent.headscale_ip
-      ? `ssh root@${agent.headscale_ip}`
-      : null;
+  const sshCommand = agent.headscale_ip
+    ? `ssh root@${agent.headscale_ip}`
+    : null;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -103,9 +103,9 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           <span className="font-medium">Back to Containers</span>
         </Link>
 
-        {connectUrl && agent.status === "running" && (
+        {webUiUrl && agent.status === "running" && (
           <BrandButton asChild variant="primary" size="sm">
-            <a href={connectUrl} target="_blank" rel="noopener noreferrer">
+            <a href={webUiUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4" />
               Open Web UI
             </a>
@@ -165,13 +165,18 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       {/* ── Stats grid ── */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Status */}
-        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
+        <BrandCard
+          className="relative shadow-md shadow-black/30"
+          corners={false}
+        >
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-blue-500/10 border border-blue-500/20">
                 <Activity className="h-5 w-5 text-blue-500" />
               </div>
-              <Badge className={`${getStatusColor(agent.status)} text-white rounded-none`}>
+              <Badge
+                className={`${getStatusColor(agent.status)} text-white rounded-none`}
+              >
                 {agent.status}
               </Badge>
             </div>
@@ -191,7 +196,10 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         </BrandCard>
 
         {/* Database */}
-        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
+        <BrandCard
+          className="relative shadow-md shadow-black/30"
+          corners={false}
+        >
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-purple-500/10 border border-purple-500/20">
@@ -216,16 +224,19 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
               {agent.database_status === "ready"
                 ? "Connected"
                 : agent.database_status === "provisioning"
-                ? "Setting up"
-                : agent.database_status === "none"
-                ? "Not configured"
-                : "Error"}
+                  ? "Setting up"
+                  : agent.database_status === "none"
+                    ? "Not configured"
+                    : "Error"}
             </p>
           </div>
         </BrandCard>
 
         {/* Created */}
-        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
+        <BrandCard
+          className="relative shadow-md shadow-black/30"
+          corners={false}
+        >
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-amber-500/10 border border-amber-500/20">
@@ -251,7 +262,10 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         </BrandCard>
 
         {/* Last Heartbeat */}
-        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
+        <BrandCard
+          className="relative shadow-md shadow-black/30"
+          corners={false}
+        >
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-emerald-500/10 border border-emerald-500/20">
@@ -293,7 +307,8 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
                 className="font-medium text-red-400 mb-1"
                 style={{ fontFamily: "var(--font-roboto-mono)" }}
               >
-                Error ({agent.error_count} occurrence{agent.error_count !== 1 ? "s" : ""})
+                Error ({agent.error_count} occurrence
+                {agent.error_count !== 1 ? "s" : ""})
               </p>
               <p className="text-sm text-red-400/80">{agent.error_message}</p>
             </div>
@@ -302,8 +317,11 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       )}
 
       {/* ── Docker infrastructure ── */}
-      {isDockerBacked && (
-        <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
+      {isAdmin && isDockerBacked && (
+        <BrandCard
+          className="relative shadow-lg shadow-black/50"
+          cornerSize="md"
+        >
           <div className="relative z-10 space-y-6">
             <div className="flex items-center gap-2 pb-4 border-b border-white/10">
               <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
@@ -373,7 +391,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
             </div>
 
             {/* Connect URL */}
-            {connectUrl && (
+            {webUiUrl && (
               <div className="flex items-start gap-3 pt-2 border-t border-white/10">
                 <p
                   className="text-sm font-medium text-white/60 min-w-[140px] uppercase tracking-wider pt-1"
@@ -382,13 +400,13 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
                   Web UI URL
                 </p>
                 <a
-                  href={connectUrl}
+                  href={webUiUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-[#FF5800] hover:text-[#FF5800]/80 flex items-center gap-1 transition-colors break-all"
                   style={{ fontFamily: "var(--font-roboto-mono)" }}
                 >
-                  {connectUrl}
+                  {webUiUrl}
                   <ExternalLink className="h-3 w-3 shrink-0" />
                 </a>
               </div>
@@ -398,8 +416,11 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       )}
 
       {/* ── SSH connection info ── */}
-      {sshCommand && (
-        <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
+      {isAdmin && sshCommand && (
+        <BrandCard
+          className="relative shadow-lg shadow-black/50"
+          cornerSize="md"
+        >
           <div className="relative z-10 space-y-4">
             <div className="flex items-center gap-2 pb-4 border-b border-white/10">
               <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
@@ -438,8 +459,11 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       )}
 
       {/* ── Vercel sandbox info ── */}
-      {!isDockerBacked && agent.bridge_url && (
-        <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
+      {isAdmin && !isDockerBacked && agent.bridge_url && (
+        <BrandCard
+          className="relative shadow-lg shadow-black/50"
+          cornerSize="md"
+        >
           <div className="relative z-10 space-y-4">
             <div className="flex items-center gap-2 pb-4 border-b border-white/10">
               <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
@@ -476,6 +500,22 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       <MiladyAgentActions
         agentId={agent.id}
         status={agent.status}
+        webUiUrl={webUiUrl}
+      />
+
+      {/* ── Backups / history ── */}
+      <MiladyBackupsPanel
+        agentId={agent.id}
+        agentName={agent.agent_name ?? "Unnamed Agent"}
+        status={agent.status}
+      />
+
+      {/* ── User-facing app logs ── */}
+      <MiladyLogsViewer
+        agentId={agent.id}
+        agentName={agent.agent_name ?? "Unnamed Agent"}
+        status={agent.status}
+        showAdvancedHint={isAdmin && isDockerBacked}
       />
 
       {/* ── Admin: Docker Logs ── */}
@@ -511,10 +551,10 @@ function InfoBlock({
     highlight === "green"
       ? "text-green-400"
       : highlight === "blue"
-      ? "text-blue-400"
-      : highlight === "orange"
-      ? "text-orange-400"
-      : "text-white";
+        ? "text-blue-400"
+        : highlight === "orange"
+          ? "text-orange-400"
+          : "text-white";
 
   return (
     <div className="flex items-start gap-3 p-4 rounded-none border border-white/10 bg-black/20">

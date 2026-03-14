@@ -1,7 +1,7 @@
 /**
  * Milady Sandboxes Table — lists AI agent sandboxes in the containers dashboard.
  * Distinguishes between Docker-backed (node_id set) and Vercel-backed sandboxes.
- * Docker containers show VPN IP, node, ports, and a Connect button.
+ * Keeps the user-facing surface focused on Milady actions instead of raw infra.
  */
 "use client";
 
@@ -51,14 +51,13 @@ import {
   Search,
   ArrowUpDown,
   Boxes,
-  Wifi,
-  Network,
   Play,
   Square,
   Loader2,
 } from "lucide-react";
 import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
+import { getClientSafeMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 
 // ----------------------------------------------------------------
 // Types
@@ -68,6 +67,7 @@ export interface MiladySandboxRow {
   id: string;
   agent_name: string | null;
   status: string;
+  canonical_web_ui_url?: string | null;
   // Docker fields
   node_id: string | null;
   container_name: string | null;
@@ -127,10 +127,10 @@ function isDockerBacked(sb: MiladySandboxRow): boolean {
 }
 
 function getConnectUrl(sb: MiladySandboxRow): string | null {
-  if (!sb.headscale_ip) return null;
-  const port = sb.web_ui_port ?? sb.bridge_port;
-  if (!port) return null;
-  return `http://${sb.headscale_ip}:${port}`;
+  return getClientSafeMiladyAgentWebUiUrl({
+    ...sb,
+    canonicalWebUiUrl: sb.canonical_web_ui_url,
+  });
 }
 
 function formatRelative(date: Date | string | null): string {
@@ -330,7 +330,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
             <Input
-              placeholder="Search agents, nodes, IPs..."
+              placeholder="Search agents or IDs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-10 rounded-lg border-white/10 bg-black/40 text-white placeholder:text-neutral-500 focus-visible:ring-[#FF5800]/50"
@@ -385,10 +385,10 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                   </button>
                 </TableHead>
                 <TableHead className="text-xs font-medium text-neutral-400">
-                  Infrastructure
+                  Runtime
                 </TableHead>
                 <TableHead className="text-xs font-medium text-neutral-400">
-                  Network
+                  Web UI
                 </TableHead>
                 <TableHead>
                   <button
@@ -499,78 +499,55 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                         </div>
                       </TableCell>
 
-                      {/* Infrastructure */}
+                      {/* Runtime */}
                       <TableCell>
-                        {isDocker ? (
-                          <div className="space-y-0.5 text-xs text-neutral-400">
-                            <div className="flex items-center gap-1">
-                              <Server className="h-3 w-3 text-blue-400 shrink-0" />
-                              <span
-                                className="truncate max-w-[120px]"
-                                title={sb.node_id ?? ""}
-                              >
-                                {sb.node_id}
-                              </span>
-                            </div>
-                            {sb.container_name && (
-                              <div
-                                className="font-mono text-neutral-500 truncate max-w-[160px]"
-                                title={sb.container_name}
-                              >
-                                {sb.container_name}
-                              </div>
-                            )}
-                            {(sb.bridge_port || sb.web_ui_port) && (
-                              <div className="text-neutral-600">
-                                {sb.bridge_port && (
-                                  <span>Bridge: {sb.bridge_port}</span>
-                                )}
-                                {sb.bridge_port && sb.web_ui_port && " · "}
-                                {sb.web_ui_port && (
-                                  <span>UI: {sb.web_ui_port}</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-neutral-500">
-                            <Cloud className="h-3 w-3 text-purple-400 inline mr-1" />
-                            {sb.sandbox_id ? (
-                              <span className="font-mono">
-                                {sb.sandbox_id.slice(0, 12)}…
-                              </span>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center gap-1.5 text-neutral-300">
+                            {isDocker ? (
+                              <>
+                                <Server className="h-3 w-3 text-blue-400 shrink-0" />
+                                <span>Managed runtime</span>
+                              </>
                             ) : (
-                              <span className="italic">No sandbox yet</span>
+                              <>
+                                <Cloud className="h-3 w-3 text-purple-400 shrink-0" />
+                                <span>Cloud sandbox</span>
+                              </>
                             )}
                           </div>
-                        )}
+                          <p className="text-neutral-500">
+                            {isDocker
+                              ? "Private Milady infrastructure"
+                              : sb.sandbox_id
+                                ? "Provisioned sandbox"
+                                : "No sandbox yet"}
+                          </p>
+                        </div>
                       </TableCell>
 
-                      {/* Network */}
+                      {/* Web UI */}
                       <TableCell>
-                        {sb.headscale_ip ? (
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1 text-xs">
-                              <Network className="h-3 w-3 text-green-400 shrink-0" />
-                              <span className="font-mono text-green-400">
-                                {sb.headscale_ip}
-                              </span>
-                            </div>
-                            {connectUrl && displayStatus === "running" && (
-                              <a
-                                href={connectUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[10px] text-[#FF5800] hover:text-[#FF5800]/80 transition-colors"
-                              >
-                                <Wifi className="h-2.5 w-2.5" />
-                                Connect
-                              </a>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-neutral-600">—</span>
-                        )}
+                        <div className="space-y-1 text-xs">
+                          {connectUrl && displayStatus === "running" ? (
+                            <a
+                              href={connectUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[#FF5800] hover:text-[#FF5800]/80 transition-colors"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              Open Web UI
+                            </a>
+                          ) : displayStatus === "running" ? (
+                            <span className="text-neutral-500">
+                              Web UI unavailable
+                            </span>
+                          ) : (
+                            <span className="text-neutral-600">
+                              Start agent to open
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
 
                       {/* Created */}
@@ -614,13 +591,13 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                                   onClick={() =>
                                     window.open(connectUrl, "_blank")
                                   }
-                                  className="p-2 text-neutral-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+                                  className="p-2 text-neutral-400 hover:text-[#FF5800] hover:bg-[#FF5800]/10 rounded-lg transition-colors"
                                 >
                                   <ExternalLink className="h-4 w-4" />
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="bg-neutral-900 border-white/10">
-                                Open Web UI ({connectUrl})
+                                Open Web UI
                               </TooltipContent>
                             </Tooltip>
                           )}

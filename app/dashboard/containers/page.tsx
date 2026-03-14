@@ -11,6 +11,7 @@ import { ContainersPageWrapper } from "@/components/containers/containers-page-w
 import { ContainersEmptyState } from "@elizaos/ui";
 import { DeployFromCLI } from "@/components/containers/deploy-from-cli";
 import { BrandCard, DashboardStatCard } from "@elizaos/ui";
+import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 
 export const metadata: Metadata = {
   title: "Containers",
@@ -35,6 +36,11 @@ export default async function ContainersPage() {
   } catch {
     // Table likely missing — show empty list
   }
+
+  const miladySandboxes = sandboxes.map((sandbox) => ({
+    ...sandbox,
+    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox),
+  }));
 
   const stats = {
     total: containers.length,
@@ -106,7 +112,7 @@ export default async function ContainersPage() {
             <h2 className="text-lg font-semibold">Milady Sandboxes</h2>
           </div>
           <Suspense fallback={<ContainersSkeleton />}>
-            <MiladySandboxesTable sandboxes={sandboxes} />
+            <MiladySandboxesTable sandboxes={miladySandboxes} />
           </Suspense>
         </BrandCard>
       </div>

@@ -683,15 +683,34 @@ export class MiladySandboxService {
     const rec = await miladySandboxesRepository.findByIdAndOrg(agentId, orgId);
     if (!rec) return { success: false, error: "Agent not found" };
 
-    const backup = backupId
+    let backup = backupId
       ? await miladySandboxesRepository.getBackupById(backupId)
       : await miladySandboxesRepository.getLatestBackup(rec.id);
-    if (!backup) return { success: false, error: "No backup found" };
+
+    if (!backup || backup.sandbox_record_id !== rec.id) {
+      return { success: false, error: "No backup found" };
+    }
 
     if (rec.status === "running" && rec.bridge_url) {
       await this.pushState(rec, backup.state_data as MiladyBackupStateData);
       return { success: true, backup };
     }
+
+    const latestBackup = await miladySandboxesRepository.getLatestBackup(
+      rec.id,
+    );
+    if (!latestBackup) {
+      return { success: false, error: "No backup found" };
+    }
+
+    if (backup.id !== latestBackup.id) {
+      return {
+        success: false,
+        error: "Stopped agents can only restore the latest backup",
+      };
+    }
+
+    backup = latestBackup;
 
     const prov = await this.provision(agentId, orgId);
     return prov.success

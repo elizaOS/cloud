@@ -83,9 +83,8 @@ describe("compat-envelope default domain", () => {
 describe("handleCompatError", () => {
   test("maps ForbiddenError to 403", async () => {
     const { ForbiddenError } = await import("../../lib/api/errors");
-    const { handleCompatError } = await import(
-      "../../app/api/compat/_lib/error-handler"
-    );
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError(new ForbiddenError("no access"));
     expect(res.status).toBe(403);
@@ -95,27 +94,24 @@ describe("handleCompatError", () => {
   });
 
   test("maps Error with 'Unauthorized' to 401", async () => {
-    const { handleCompatError } = await import(
-      "../../app/api/compat/_lib/error-handler"
-    );
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError(new Error("Unauthorized token"));
     expect(res.status).toBe(401);
   });
 
   test("maps Error with 'Forbidden' to 403", async () => {
-    const { handleCompatError } = await import(
-      "../../app/api/compat/_lib/error-handler"
-    );
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError(new Error("Forbidden access"));
     expect(res.status).toBe(403);
   });
 
   test("maps unknown errors to 500", async () => {
-    const { handleCompatError } = await import(
-      "../../app/api/compat/_lib/error-handler"
-    );
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError("something broke");
     expect(res.status).toBe(500);
@@ -124,9 +120,8 @@ describe("handleCompatError", () => {
   });
 
   test("maps generic Error to 500", async () => {
-    const { handleCompatError } = await import(
-      "../../app/api/compat/_lib/error-handler"
-    );
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError(new Error("db connection lost"));
     expect(res.status).toBe(500);
@@ -288,7 +283,10 @@ describe("JSONB typeof guards for token fields", () => {
 describe("tail parameter clamping", () => {
   function clampTail(raw: string | null): number {
     const rawTail = parseInt(raw ?? "100", 10);
-    return Math.max(1, Math.min(Number.isFinite(rawTail) ? rawTail : 100, 5000));
+    return Math.max(
+      1,
+      Math.min(Number.isFinite(rawTail) ? rawTail : 100, 5000),
+    );
   }
 
   test("defaults to 100 when absent", () => {
@@ -337,10 +335,8 @@ describe("waifu-bridge warn-once on missing JWT secret", () => {
 
   test("authenticateWaifuBridge returns null without crashing when secret unset", async () => {
     const { authenticateWaifuBridge } = await import(
-      new URL(
-        `../../lib/auth/waifu-bridge.ts?t=${Date.now()}`,
-        import.meta.url,
-      ).href
+      new URL(`../../lib/auth/waifu-bridge.ts?t=${Date.now()}`, import.meta.url)
+        .href
     );
 
     // Minimal NextRequest-like object

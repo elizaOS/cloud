@@ -11,6 +11,7 @@ const mockGetAgentForWrite = mock();
 const mockShutdown = mock();
 const mockDeleteAgent = mock();
 const mockProvision = mock();
+const mockRestore = mock();
 const mockEnqueueMiladyProvisionOnce = mock();
 const mockFindCharacterForWrite = mock();
 const mockCharacterDelete = mock();
@@ -36,6 +37,7 @@ mock.module("@/lib/services/milaidy-sandbox", () => ({
     shutdown: mockShutdown,
     deleteAgent: mockDeleteAgent,
     provision: mockProvision,
+    restore: mockRestore,
   },
 }));
 
@@ -71,6 +73,7 @@ import {
   PATCH as patchMilaidyAgent,
   DELETE as deleteMilaidyAgent,
 } from "@/app/api/v1/milaidy/agents/[agentId]/route";
+import { POST as postRestoreRoute } from "@/app/api/v1/milaidy/agents/[agentId]/restore/route";
 import { POST as postCompatAgents } from "@/app/api/compat/agents/route";
 
 describe("milady agent route follow-ups", () => {
@@ -86,6 +89,7 @@ describe("milady agent route follow-ups", () => {
     mockShutdown.mockReset();
     mockDeleteAgent.mockReset();
     mockProvision.mockReset();
+    mockRestore.mockReset();
     mockEnqueueMiladyProvisionOnce.mockReset();
     mockFindCharacterForWrite.mockReset();
     mockCharacterDelete.mockReset();
@@ -308,6 +312,30 @@ describe("milady agent route follow-ups", () => {
       error: "Agent provisioning is in progress",
     });
     expect(mockCharacterDelete).not.toHaveBeenCalled();
+  });
+
+  test("POST /api/v1/milaidy/agents/[agentId]/restore maps stopped historical restore attempts to 409", async () => {
+    mockRestore.mockResolvedValue({
+      success: false,
+      error: "Stopped agents can only restore the latest backup",
+    });
+
+    const response = await postRestoreRoute(
+      jsonRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1/restore",
+        "POST",
+        {
+          backupId: "11111111-1111-4111-8111-111111111111",
+        },
+      ),
+      routeParams({ agentId: "agent-1" }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: "Stopped agents can only restore the latest backup",
+    });
   });
 
   test("DELETE /api/v1/milaidy/agents/[agentId] maps infrastructure delete failures to 500", async () => {

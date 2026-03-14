@@ -20,26 +20,17 @@
  *   eliza-cloud "error"         → thin-client "failed"
  */
 
-import type { MiladySandbox, MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
+import type {
+  MiladySandbox,
+  MiladySandboxStatus,
+} from "@/db/schemas/milady-sandboxes";
+import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 
 function getAgentWebUiUrl(sandbox: MiladySandbox): string | null {
-  if (!sandbox.headscale_ip) {
-    return null;
-  }
-
-  const configuredDomain =
-    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ?? "agents.example.com";
-  const normalizedDomain = configuredDomain
-    .trim()
-    .replace(/^https?:\/\//, "")
-    .replace(/\/.*$/, "")
-    .replace(/\.+$/, "");
-
-  if (!normalizedDomain) {
-    return null;
-  }
-
-  return `https://${sandbox.id}.${normalizedDomain}`;
+  return getMiladyAgentPublicWebUiUrl(sandbox, {
+    baseDomain: process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN,
+    allowExampleFallback: true,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +81,9 @@ export function toCompatAgent(sandbox: MiladySandbox): CompatAgentShape {
     webUiUrl,
     database_status: sandbox.database_status,
     error_message: sandbox.error_message,
-    last_heartbeat_at: sandbox.last_heartbeat_at ? toISO(sandbox.last_heartbeat_at) : null,
+    last_heartbeat_at: sandbox.last_heartbeat_at
+      ? toISO(sandbox.last_heartbeat_at)
+      : null,
   };
 }
 
@@ -114,7 +107,9 @@ export interface CompatCreateResultShape {
  * `jobId` intentionally equals `agentId` because compat job polling
  * synthesizes status from the same sandbox row.
  */
-export function toCompatCreateResult(sandbox: MiladySandbox): CompatCreateResultShape {
+export function toCompatCreateResult(
+  sandbox: MiladySandbox,
+): CompatCreateResultShape {
   return {
     agentId: sandbox.id,
     agentName: sandbox.agent_name ?? "",
@@ -150,9 +145,7 @@ export function toCompatOpResult(
   return {
     jobId: agentId,
     status: success ? "completed" : "failed",
-    message: success
-      ? `agent ${action} completed`
-      : `agent ${action} failed`,
+    message: success ? `agent ${action} completed` : `agent ${action} failed`,
   };
 }
 
@@ -220,7 +213,7 @@ export function toCompatJob(sandbox: MiladySandbox): CompatJobShape {
     status: jobStatus,
     data,
     result: isTerminal
-        ? {
+      ? {
           agentId: sandbox.id,
           agentName: sandbox.agent_name,
           status: compatStatus,
@@ -262,7 +255,9 @@ export function toCompatStatus(sandbox: MiladySandbox): CompatStatusShape {
 
   return {
     status: mapStatus(sandbox.status),
-    lastHeartbeat: sandbox.last_heartbeat_at ? toISO(sandbox.last_heartbeat_at) : null,
+    lastHeartbeat: sandbox.last_heartbeat_at
+      ? toISO(sandbox.last_heartbeat_at)
+      : null,
     bridgeUrl: sandbox.bridge_url ?? null,
     webUiUrl,
     currentNode: sandbox.node_id ?? null,
@@ -289,7 +284,8 @@ export interface CompatUsageShape {
 export function toCompatUsage(sandbox: MiladySandbox): CompatUsageShape {
   const createdAt = new Date(sandbox.created_at);
   const now = new Date();
-  const uptimeMs = sandbox.status === "running" ? now.getTime() - createdAt.getTime() : 0;
+  const uptimeMs =
+    sandbox.status === "running" ? now.getTime() - createdAt.getTime() : 0;
   const uptimeHours = Math.round((uptimeMs / (1000 * 60 * 60)) * 100) / 100;
 
   const config = (sandbox.agent_config ?? {}) as Record<string, unknown>;
@@ -356,9 +352,9 @@ function mapStatusToJobStatus(
       return "processing";
     case "running":
       return "completed";
-    case "stopped":         // provisioning succeeded; agent later stopped
+    case "stopped": // provisioning succeeded; agent later stopped
       return "completed";
-    case "disconnected":    // provisioning succeeded; agent later disconnected
+    case "disconnected": // provisioning succeeded; agent later disconnected
       return "completed";
     case "error":
       return "failed";
@@ -378,7 +374,10 @@ export function envelope<T>(data: T): { success: true; data: T } {
   return { success: true, data };
 }
 
-export function errorEnvelope(message: string): { success: false; error: string } {
+export function errorEnvelope(message: string): {
+  success: false;
+  error: string;
+} {
   return { success: false, error: message };
 }
 

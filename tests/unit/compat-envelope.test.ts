@@ -80,23 +80,33 @@ describe("toCompatAgent", () => {
     expect(agent.updated_at).toBe("2026-03-09T11:00:00.000Z");
     expect(agent.last_heartbeat_at).toBe("2026-03-09T12:00:00.000Z");
     expect(agent.containerUrl).toBe("http://10.0.0.5:18800");
-    expect(agent.webUiUrl).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz");
+    expect(agent.webUiUrl).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz",
+    );
   });
 
   test("maps pending status to queued", () => {
-    expect(toCompatAgent(makeSandbox({ status: "pending" })).status).toBe("queued");
+    expect(toCompatAgent(makeSandbox({ status: "pending" })).status).toBe(
+      "queued",
+    );
   });
 
   test("maps error status to failed", () => {
-    expect(toCompatAgent(makeSandbox({ status: "error" })).status).toBe("failed");
+    expect(toCompatAgent(makeSandbox({ status: "error" })).status).toBe(
+      "failed",
+    );
   });
 
   test("maps disconnected status to stopped", () => {
-    expect(toCompatAgent(makeSandbox({ status: "disconnected" })).status).toBe("stopped");
+    expect(toCompatAgent(makeSandbox({ status: "disconnected" })).status).toBe(
+      "stopped",
+    );
   });
 
   test("uses sandbox_id as container_id fallback", () => {
-    const agent = toCompatAgent(makeSandbox({ container_name: null, sandbox_id: "vercel-123" }));
+    const agent = toCompatAgent(
+      makeSandbox({ container_name: null, sandbox_id: "vercel-123" }),
+    );
     expect(agent.container_id).toBe("vercel-123");
   });
 
@@ -115,7 +125,9 @@ describe("toCompatAgent", () => {
   });
 
   test("last_heartbeat_at is null when never heartbeated", () => {
-    expect(toCompatAgent(makeSandbox({ last_heartbeat_at: null })).last_heartbeat_at).toBeNull();
+    expect(
+      toCompatAgent(makeSandbox({ last_heartbeat_at: null })).last_heartbeat_at,
+    ).toBeNull();
   });
 });
 
@@ -168,10 +180,12 @@ describe("toCompatJob", () => {
     expect(job.jobId).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
     expect(job.type).toBe("create-agent");
     expect(job.status).toBe("completed");
-    expect(job.result).toEqual(expect.objectContaining({
-      agentId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-      bridgeUrl: "http://10.0.0.5:18800",
-    }));
+    expect(job.result).toEqual(
+      expect.objectContaining({
+        agentId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        bridgeUrl: "http://10.0.0.5:18800",
+      }),
+    );
     expect(job.error).toBeNull();
     expect(job.completedAt).toBeTruthy();
     expect(job.retryCount).toBe(0);
@@ -207,11 +221,13 @@ describe("toCompatJob", () => {
   });
 
   test("maps error sandbox to failed job", () => {
-    const job = toCompatJob(makeSandbox({
-      status: "error",
-      error_message: "Container health check timed out",
-      error_count: 3,
-    }));
+    const job = toCompatJob(
+      makeSandbox({
+        status: "error",
+        error_message: "Container health check timed out",
+        error_count: 3,
+      }),
+    );
     expect(job.status).toBe("failed");
     expect(job.state).toBe("failed");
     expect(job.error).toBe("Container health check timed out");
@@ -233,20 +249,26 @@ describe("toCompatStatus", () => {
     expect(status.status).toBe("running");
     expect(status.lastHeartbeat).toBe("2026-03-09T12:00:00.000Z");
     expect(status.bridgeUrl).toBe("http://10.0.0.5:18800");
-    expect(status.webUiUrl).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz");
+    expect(status.webUiUrl).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz",
+    );
     expect(status.currentNode).toBe("agent-node-1");
     expect(status.suspendedReason).toBeNull();
     expect(status.databaseStatus).toBe("ready");
   });
 
   test("includes error message as suspendedReason", () => {
-    const status = toCompatStatus(makeSandbox({ status: "error", error_message: "OOM killed" }));
+    const status = toCompatStatus(
+      makeSandbox({ status: "error", error_message: "OOM killed" }),
+    );
     expect(status.status).toBe("failed");
     expect(status.suspendedReason).toBe("OOM killed");
   });
 
   test("webUiUrl is null when no headscale_ip", () => {
-    expect(toCompatStatus(makeSandbox({ headscale_ip: null })).webUiUrl).toBeNull();
+    expect(
+      toCompatStatus(makeSandbox({ headscale_ip: null })).webUiUrl,
+    ).toBeNull();
   });
 });
 
@@ -260,39 +282,52 @@ describe("toCompatUsage", () => {
   });
 
   test("returns non-zero uptime for running agent", () => {
-    const usage = toCompatUsage(makeSandbox({
-      status: "running",
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    }));
+    const usage = toCompatUsage(
+      makeSandbox({
+        status: "running",
+        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      }),
+    );
     expect(usage.uptimeHours).toBeGreaterThan(1.9);
     expect(usage.uptimeHours).toBeLessThan(2.1);
     expect(usage.status).toBe("running");
   });
 
   test("extracts funding source from agent_config", () => {
-    const usage = toCompatUsage(makeSandbox({
-      agent_config: { billing: { mode: "waifu_treasury_subsidy" } },
-    }));
+    const usage = toCompatUsage(
+      makeSandbox({
+        agent_config: { billing: { mode: "waifu_treasury_subsidy" } },
+      }),
+    );
     expect(usage.fundingSource).toBe("waifu_treasury_subsidy");
   });
 
   test("defaults funding source to unknown", () => {
-    expect(toCompatUsage(makeSandbox({ agent_config: {} })).fundingSource).toBe("unknown");
+    expect(toCompatUsage(makeSandbox({ agent_config: {} })).fundingSource).toBe(
+      "unknown",
+    );
   });
 });
 
 describe("mapStatus", () => {
   test("pending -> queued", () => expect(mapStatus("pending")).toBe("queued"));
-  test("provisioning -> provisioning", () => expect(mapStatus("provisioning")).toBe("provisioning"));
-  test("running -> running", () => expect(mapStatus("running")).toBe("running"));
-  test("stopped -> stopped", () => expect(mapStatus("stopped")).toBe("stopped"));
-  test("disconnected -> stopped", () => expect(mapStatus("disconnected")).toBe("stopped"));
+  test("provisioning -> provisioning", () =>
+    expect(mapStatus("provisioning")).toBe("provisioning"));
+  test("running -> running", () =>
+    expect(mapStatus("running")).toBe("running"));
+  test("stopped -> stopped", () =>
+    expect(mapStatus("stopped")).toBe("stopped"));
+  test("disconnected -> stopped", () =>
+    expect(mapStatus("disconnected")).toBe("stopped"));
   test("error -> failed", () => expect(mapStatus("error")).toBe("failed"));
 });
 
 describe("envelope", () => {
   test("wraps data in success envelope", () => {
-    expect(envelope({ foo: "bar" })).toEqual({ success: true, data: { foo: "bar" } });
+    expect(envelope({ foo: "bar" })).toEqual({
+      success: true,
+      data: { foo: "bar" },
+    });
   });
 });
 
