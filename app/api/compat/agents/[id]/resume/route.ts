@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Org-scoped pre-check: verify agent exists and belongs to this org
     // before attempting provision (matches restart route pattern).
-    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
     if (!agent) {
       return NextResponse.json(errorEnvelope("Agent not found"), { status: 404 });
     }

@@ -308,7 +308,8 @@ describe("suspend route — org-scoped getAgent structural check", () => {
       "utf-8",
     );
     // The call may be split across multiple lines; check key fragments
-    expect(source).toContain("miladySandboxService.getAgent(");
+    // Uses getAgentForWrite for optimistic locking consistency with resume route
+    expect(source).toContain("miladySandboxService.getAgentForWrite(");
     expect(source).toContain("agentId");
     expect(source).toContain("user.organization_id");
     expect(source).toContain('"Agent not found"');
@@ -332,10 +333,10 @@ describe("suspend route — org-scoped getAgent structural check", () => {
       ),
       "utf-8",
     );
-    // Both should have the getAgent pre-check (call may span multiple lines)
-    expect(suspendSrc).toContain("getAgent(");
+    // Both should have the getAgentForWrite pre-check (call may span multiple lines)
+    expect(suspendSrc).toContain("getAgentForWrite(");
     expect(suspendSrc).toContain("user.organization_id");
-    expect(resumeSrc).toContain("getAgent(");
+    expect(resumeSrc).toContain("getAgentForWrite(");
     expect(resumeSrc).toContain("user.organization_id");
   });
 });
