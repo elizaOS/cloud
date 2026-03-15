@@ -21,16 +21,15 @@ cluster_endpoint_public_access  = true
 cluster_endpoint_private_access = true
 
 # EKS Cluster Admin Access
-# IAM principals that get cluster admin access via EKS Access API
-cluster_admin_arns = [
-  "arn:aws:iam::512978621355:root" # AWS account root for local kubectl access
-]
+# Set cluster_admin_arns in an untracked tfvars file (for example secrets.tfvars).
+# Do not commit live AWS account IDs to this repository.
+cluster_admin_arns = []
 
 # EKS API Server Access Control
 # SECURITY: Restrict to your trusted networks (GitHub Actions IPs, VPN, office IPs)
 # GitHub Actions uses dynamic IPs - see https://api.github.com/meta for current ranges
-# For development, we use 0.0.0.0/0 but production should be more restrictive
-cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
+# Replace with your VPN / office CIDRs in an untracked tfvars file before apply.
+cluster_endpoint_public_access_cidrs = ["203.0.113.0/24"]
 
 # Node Group Configuration - Cost-effective for I/O-bound workload (Discord websockets)
 # Using t3 (x86) because Docker image currently only supports amd64

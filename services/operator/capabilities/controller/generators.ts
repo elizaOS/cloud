@@ -38,6 +38,24 @@ function labels(server: Server) {
   return l;
 }
 
+function getRedisAddress(): string {
+  const explicitAddress = process.env.REDIS_ADDRESS?.trim();
+  if (explicitAddress) {
+    return explicitAddress;
+  }
+
+  const redisUrl = process.env.REDIS_URL?.trim();
+  if (redisUrl) {
+    try {
+      return new URL(redisUrl).host;
+    } catch {
+      return redisUrl.replace(/^rediss?:\/\//, "");
+    }
+  }
+
+  return "redis.eliza-infra.svc:6379";
+}
+
 export function generateDeployment(server: Server) {
   const name = server.metadata!.name!;
   const ns = server.metadata!.namespace ?? "eliza-agents";
@@ -82,6 +100,12 @@ export function generateDeployment(server: Server) {
                   name: "POD_NAME",
                   valueFrom: {
                     fieldRef: { fieldPath: "metadata.name" },
+                  },
+                },
+                {
+                  name: "POD_NAMESPACE",
+                  valueFrom: {
+                    fieldRef: { fieldPath: "metadata.namespace" },
                   },
                 },
                 ...(server.spec.agents?.[0]
@@ -174,7 +198,7 @@ export function generateScaledObject(server: Server) {
         {
           type: "redis",
           metadata: {
-            address: "redis.eliza-infra.svc:6379",
+            address: getRedisAddress(),
             listName: `keda:${name}:activity`,
             listLength: "1",
           },

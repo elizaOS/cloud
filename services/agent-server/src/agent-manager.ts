@@ -17,13 +17,82 @@ interface AgentEntry {
   state: "running" | "stopped";
 }
 
+const REDIS_STATE_TTL_SECONDS = Math.max(
+  60,
+  Number.parseInt(process.env.REDIS_STATE_TTL_SECONDS ?? "120", 10) || 120,
+);
+const REDIS_REFRESH_INTERVAL_MS = 30_000;
+
 export class AgentManager {
   private agents = new Map<string, AgentEntry>();
   private _draining = false;
   private inFlight = 0;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+  private getServerUrl(): string {
+    const namespace = process.env.POD_NAMESPACE || "eliza-agents";
+    return `http://${process.env.SERVER_NAME}.${namespace}.svc:3000`;
+  }
+
+  private async refreshRedisState(status = this._draining ? "draining" : "running") {
+    const redis = getRedis();
+    const multi = redis.multi();
+    const serverName = process.env.SERVER_NAME!;
+
+    multi.set(
+      `server:${serverName}:status`,
+      status,
+      "EX",
+      REDIS_STATE_TTL_SECONDS,
+    );
+    multi.set(
+      `server:${serverName}:url`,
+      this.getServerUrl(),
+      "EX",
+      REDIS_STATE_TTL_SECONDS,
+    );
+
+    for (const agentId of this.agents.keys()) {
+      multi.set(
+        `agent:${agentId}:server`,
+        serverName,
+        "EX",
+        REDIS_STATE_TTL_SECONDS,
+      );
+    }
+
+    await multi.exec();
+  }
+
+  private startHeartbeat() {
+    if (this.heartbeatTimer) {
+      return;
+    }
+
+    this.heartbeatTimer = setInterval(() => {
+      void this.refreshRedisState().catch((err) => {
+        console.error("Failed to refresh agent-server Redis state:", err);
+      });
+    }, REDIS_REFRESH_INTERVAL_MS);
+
+    if (
+      typeof this.heartbeatTimer === "object" &&
+      "unref" in this.heartbeatTimer
+    ) {
+      this.heartbeatTimer.unref();
+    }
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
 
   async initialize() {
-    await getRedis().set(`server:${process.env.SERVER_NAME}:status`, "running");
+    await this.refreshRedisState("running");
+    this.startHeartbeat();
   }
 
   isDraining(): boolean {
@@ -99,7 +168,7 @@ export class AgentManager {
         runtime,
         state: "running",
       });
-      await getRedis().set(`agent:${agentId}:server`, process.env.SERVER_NAME!);
+      await this.refreshRedisState();
     } catch (err) {
       this.agents.delete(agentId);
       throw err;
@@ -112,6 +181,7 @@ export class AgentManager {
     if (entry.state === "stopped") return;
     await entry.runtime.stop();
     entry.state = "stopped";
+    await this.refreshRedisState();
   }
 
   async deleteAgent(id: string) {
@@ -120,6 +190,7 @@ export class AgentManager {
     if (entry.state === "running") await entry.runtime.stop();
     this.agents.delete(id);
     await getRedis().del(`agent:${id}:server`);
+    await this.refreshRedisState();
   }
 
   async handleMessage(agentId: string, userId: string, text: string) {
@@ -164,6 +235,8 @@ export class AgentManager {
 
   async drain() {
     this._draining = true;
+    await this.refreshRedisState("draining");
+    this.stopHeartbeat();
 
     // Wait for in-flight requests to finish before stopping runtimes
     const deadline = Date.now() + 50_000;
@@ -180,9 +253,11 @@ export class AgentManager {
   }
 
   async cleanupRedis() {
+    this.stopHeartbeat();
     const redis = getRedis();
     const keys = [
       `server:${process.env.SERVER_NAME}:status`,
+      `server:${process.env.SERVER_NAME}:url`,
       ...Array.from(this.agents.keys()).map((id) => `agent:${id}:server`),
     ];
     if (keys.length > 0) await redis.del(...keys);

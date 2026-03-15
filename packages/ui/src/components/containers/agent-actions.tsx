@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import {
   Play,
   Pause,
-  Square,
   Camera,
   Trash2,
   Loader2,
@@ -18,6 +17,7 @@ import {
 } from "lucide-react";
 import { BrandCard, BrandButton } from "@elizaos/ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
+import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 
 interface MiladyAgentActionsProps {
   agentId: string;
@@ -142,11 +142,13 @@ export function MiladyAgentActions({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex flex-wrap gap-3">
             {isRunning && webUiUrl && (
-              <BrandButton asChild variant="primary" size="sm">
-                <a href={webUiUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Open Web UI
-                </a>
+              <BrandButton
+                variant="primary"
+                size="sm"
+                onClick={() => void openWebUIWithPairing(agentId)}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open Web UI
               </BrandButton>
             )}
 

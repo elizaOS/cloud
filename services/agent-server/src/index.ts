@@ -1,5 +1,4 @@
 import { Elysia } from "elysia";
-import { cors } from "@elysiajs/cors";
 import { createRoutes } from "./routes";
 import { AgentManager } from "./agent-manager";
 import { getRedis } from "./redis";
@@ -15,6 +14,7 @@ const required = [
   "DATABASE_URL",
   "CAPACITY",
   "TIER",
+  "AGENT_SERVER_SHARED_SECRET",
 ];
 for (const key of required) {
   if (!process.env[key]) {
@@ -43,7 +43,9 @@ if (agentId && characterRef) {
   );
 }
 
-new Elysia().use(cors()).use(createRoutes(manager)).listen(PORT);
+new Elysia()
+  .use(createRoutes(manager, process.env.AGENT_SERVER_SHARED_SECRET!))
+  .listen(PORT);
 
 console.log(
   `agent-server ${process.env.SERVER_NAME} listening on :${PORT} (tier=${process.env.TIER}, capacity=${process.env.CAPACITY})`,

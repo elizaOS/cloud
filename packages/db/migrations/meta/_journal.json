@@ -358,6 +358,13 @@
       "when": 1773269349582,
       "tag": "0050_backfill_user_identities_from_users",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1773570000000,
+      "tag": "0051_add_milady_pairing_tokens",
+      "breakpoints": true
     }
   ]
 }

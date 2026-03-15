@@ -88,6 +88,7 @@ export * from "./jobs";
 // ============================================
 // Milady Cloud Sandboxes
 // ============================================
+export * from "./milady-pairing-tokens";
 export * from "./milady-sandboxes";
 export * from "./model-pricing";
 export * from "./organization-invites";

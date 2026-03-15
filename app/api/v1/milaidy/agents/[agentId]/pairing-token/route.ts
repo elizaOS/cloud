@@ -47,12 +47,16 @@ export async function POST(
     );
   }
 
-  // Build the web UI base URL from the agent ID + configured domain.
-  // getMiladyAgentPublicWebUiUrl defaults to waifu.fun via DEFAULT_AGENT_BASE_DOMAIN.
-  const webUiUrl = getMiladyAgentPublicWebUiUrl({ id: agentId, headscale_ip: null })!;
+  const webUiUrl = getMiladyAgentPublicWebUiUrl(sandbox);
+  if (!webUiUrl) {
+    return NextResponse.json(
+      { success: false, error: "Agent Web UI URL is not configured" },
+      { status: 500 },
+    );
+  }
 
   const tokenService = getPairingTokenService();
-  const pairingToken = tokenService.generateToken(
+  const pairingToken = await tokenService.generateToken(
     user.id,
     user.organization_id,
     agentId,

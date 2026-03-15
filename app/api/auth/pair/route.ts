@@ -27,11 +27,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // The Origin header lets us bind redemption to the expected subdomain.
     const origin = request.headers.get("origin") ?? null;
+    if (!origin) {
+      return NextResponse.json(
+        { error: "Origin header required" },
+        { status: 400 },
+      );
+    }
 
     const tokenService = getPairingTokenService();
-    const pairingToken = tokenService.validateToken(token, origin);
+    const pairingToken = await tokenService.validateToken(token, origin);
 
     if (!pairingToken) {
       return NextResponse.json(
@@ -56,11 +61,7 @@ export async function POST(request: NextRequest) {
     // bootstrap the web UI session.  Never expose JWT_SECRET or
     // generic API_KEY (which could be an OpenAI key etc.).
     const envVars = (sandbox.environment_vars ?? {}) as Record<string, string>;
-    const apiKey =
-      envVars.MILADY_API_TOKEN ||
-      envVars.SERVER_API_KEY ||
-      envVars.AGENT_API_KEY ||
-      null;
+    const apiKey = envVars.MILADY_API_TOKEN || null;
 
     // If no API key configured, still allow pairing — the web UI may
     // work without auth or use a different mechanism.

@@ -86,7 +86,14 @@ variable "cluster_endpoint_public_access" {
 variable "cluster_endpoint_public_access_cidrs" {
   description = "List of CIDR blocks allowed to access the EKS API server. Restrict to trusted networks for security."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+  default     = ["203.0.113.0/24"]
+  validation {
+    condition = (
+      var.allow_public_cluster_endpoint_anywhere ||
+      !contains(var.cluster_endpoint_public_access_cidrs, "0.0.0.0/0")
+    )
+    error_message = "Open EKS API access (0.0.0.0/0) is blocked unless allow_public_cluster_endpoint_anywhere is explicitly enabled."
+  }
 }
 
 variable "cluster_endpoint_private_access" {
@@ -136,6 +143,12 @@ variable "cluster_admin_arns" {
   description = "List of IAM principal ARNs to grant EKS cluster admin access (e.g., IAM users, roles)"
   type        = list(string)
   default     = []
+}
+
+variable "allow_public_cluster_endpoint_anywhere" {
+  description = "Explicit escape hatch for temporary 0.0.0.0/0 EKS API access. Leave false for normal use."
+  type        = bool
+  default     = false
 }
 
 # GitHub OIDC Configuration

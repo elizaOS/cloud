@@ -25,14 +25,9 @@ cluster_endpoint_private_access = true
 # EKS Cluster Admin Access
 # IAM principals that get cluster admin access via EKS Access API
 #
-# SECURITY NOTE: Using root account for initial infrastructure setup.
-# Before production launch, create dedicated IAM roles:
-#   - "arn:aws:iam::512978621355:role/eks-cluster-admin" for ops team
-#   - "arn:aws:iam::512978621355:role/eks-developer" for developers (read-only)
-# This is tracked for production hardening.
-cluster_admin_arns = [
-  "arn:aws:iam::512978621355:root" # Initial setup only - replace with dedicated roles before production
-]
+# Configure production access in an untracked tfvars file (for example secrets.tfvars).
+# Do not commit live AWS account IDs or admin principals to this repository.
+cluster_admin_arns = []
 
 # EKS API Server Access Control
 #
@@ -48,8 +43,7 @@ cluster_admin_arns = [
 # For maximum security, set cluster_endpoint_public_access = false
 # and access the cluster only via VPN/bastion through private endpoint.
 #
-# This is tracked for production hardening.
-cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"] # Initial setup only - restrict before production launch
+cluster_endpoint_public_access_cidrs = ["203.0.113.0/24"]
 
 # Node Group Configuration - Cost-effective for I/O-bound workload (Discord websockets)
 # Using t3 (x86) because Docker image currently only supports amd64

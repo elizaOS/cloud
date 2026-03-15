@@ -115,6 +115,7 @@ DATABASE_URL=postgresql://eliza_dev:local_dev_password@postgres.eliza-infra.svc:
 REDIS_URL=redis://redis.eliza-infra.svc:6379
 ENABLE_DATA_ISOLATION=true
 ELIZA_SERVER_ID=agent-server-local
+AGENT_SERVER_SHARED_SECRET=local-dev-agent-server-secret
 # Uncomment and set to enable LLM via ElizaCloud proxy:
 # ELIZAOS_CLOUD_API_KEY=ek_xxx
 # ELIZAOS_CLOUD_BASE_URL=https://www.elizacloud.ai/api/v1
