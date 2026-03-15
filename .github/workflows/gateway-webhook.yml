@@ -4,12 +4,12 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - "services/gateway-webhook/**"
+      - "packages/services/gateway-webhook/**"
       - ".github/workflows/gateway-webhook.yml"
   pull_request:
     branches: [main, dev]
     paths:
-      - "services/gateway-webhook/**"
+      - "packages/services/gateway-webhook/**"
       - ".github/workflows/gateway-webhook.yml"
 
 concurrency:
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUN_VERSION: "1.2"
+  BUN_VERSION: "1.3.5"
 
 jobs:
   test:
@@ -35,10 +35,10 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install service dependencies
-        run: cd services/gateway-webhook && bun install --frozen-lockfile
+        run: cd packages/services/gateway-webhook && bun install --frozen-lockfile
 
       - name: Run unit tests (isolated — mock.module is process-global in bun)
-        working-directory: services/gateway-webhook
+        working-directory: packages/services/gateway-webhook
         run: |
           bun test __tests__/project-config.test.ts --timeout 60000
           bun test __tests__/webhook-config.test.ts __tests__/webhook-handler.test.ts __tests__/adapters/ --timeout 60000

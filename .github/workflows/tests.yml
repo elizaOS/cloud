@@ -14,7 +14,6 @@ env:
   DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
   TEST_DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
   REDIS_URL: redis://localhost:6379
-  NODE_ENV: test
   CACHE_ENABLED: "false"
   NODE_OPTIONS: --max-old-space-size=4096
 
@@ -33,91 +32,19 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-test-env
       - name: Run unit tests
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          bulk_tests=()
-          while IFS= read -r test_file; do
-            bulk_tests+=("$test_file")
-          done < <(
-            find tests/unit -name '*.test.ts' \
-              ! -path 'tests/unit/admin-service-pricing-route.test.ts' \
-              ! -path 'tests/unit/credits.test.ts' \
-              ! -path 'tests/unit/eliza-app/telegram-ux-helpers.test.ts' \
-              ! -path 'tests/unit/eliza-app/discord-auth.test.ts' \
-              ! -path 'tests/unit/eliza-app/connection-enforcement.test.ts' \
-              ! -path 'tests/unit/engagement-metrics/compute-metrics-cron.test.ts' \
-              ! -path 'tests/unit/mcp-google-tools.test.ts' \
-              ! -path 'tests/unit/mcp-tools.test.ts' \
-              ! -path 'tests/unit/mcp-twitter-tools.test.ts' \
-              ! -path 'tests/unit/mcp-proxy-affiliate-pricing.test.ts' \
-              ! -path 'tests/unit/proxy-engine.test.ts' \
-              ! -path 'tests/unit/proxy-pricing.test.ts' \
-              ! -path 'tests/unit/wallet-auth.test.ts' \
-              | sort
-          )
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/mcp-google-tools.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/mcp-tools.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/mcp-twitter-tools.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/admin-service-pricing-route.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --max-concurrency=1 \
-            --preload ./tests/load-env.ts \
-            "${bulk_tests[@]}" \
-            lib/services/gateway-discord/__tests__ \
-            services/gateway-discord/tests/gateway-manager.test.ts \
-            services/gateway-discord/tests/leader-election.test.ts \
-            services/gateway-discord/tests/logger.test.ts \
-            services/gateway-discord/tests/voice-message-handler.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/mcp-proxy-affiliate-pricing.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/proxy-engine.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/proxy-pricing.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/eliza-app/connection-enforcement.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/engagement-metrics/compute-metrics-cron.test.ts
-
-          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
-            --preload ./tests/load-env.ts \
-            tests/unit/wallet-auth.test.ts \
-            tests/unit/credits.test.ts \
-            tests/unit/eliza-app/telegram-ux-helpers.test.ts \
-            tests/unit/eliza-app/discord-auth.test.ts
+        run: bun run test
 
   integration-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-test-env
@@ -129,6 +56,8 @@ jobs:
   property-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-test-env
@@ -140,6 +69,8 @@ jobs:
   runtime-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-test-env
@@ -151,6 +82,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-test-env
@@ -161,6 +94,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [lint-and-types, build]
+    env:
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-test-env
