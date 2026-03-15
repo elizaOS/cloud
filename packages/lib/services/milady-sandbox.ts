@@ -39,6 +39,8 @@ export interface CreateAgentParams {
   environmentVars?: Record<string, string>;
   /** Link to a user_characters record (canonical character with token linkage). */
   characterId?: string;
+  /** Override the default Docker image (e.g. for different agent flavors). */
+  dockerImage?: string;
 }
 
 export type ProvisionResult =
@@ -89,10 +91,33 @@ function sanitizeProjectNameSegment(value: string): string {
 }
 
 export class MiladySandboxService {
-  private provider: SandboxProvider;
+  private _provider?: SandboxProvider;
+  private _providerPromise?: Promise<SandboxProvider>;
 
   constructor(provider?: SandboxProvider) {
-    this.provider = provider ?? createSandboxProvider();
+    if (provider) {
+      this._provider = provider;
+    }
+    // When no provider is given, defer initialization to first use via
+    // getProvider().  This avoids calling createSandboxProvider() at
+    // module-evaluation time, which fails under Turbopack because the
+    // Docker provider's transitive dependencies compile as async modules
+    // and cannot be loaded with synchronous require().
+  }
+
+  /**
+   * Lazily resolve the SandboxProvider.  The first call triggers an async
+   * import(); subsequent calls return the cached instance immediately.
+   */
+  private async getProvider(): Promise<SandboxProvider> {
+    if (this._provider) return this._provider;
+    if (!this._providerPromise) {
+      this._providerPromise = createSandboxProvider().then((p) => {
+        this._provider = p;
+        return p;
+      });
+    }
+    return this._providerPromise;
   }
 
   // Agent CRUD
@@ -117,6 +142,7 @@ export class MiladySandboxService {
       status: "pending",
       database_status: "none",
       ...(params.characterId && { character_id: params.characterId }),
+      ...(params.dockerImage && { docker_image: params.dockerImage }),
     });
   }
 
@@ -155,7 +181,7 @@ export class MiladySandboxService {
 
       if (rec.sandbox_id) {
         try {
-          await this.provider.stop(rec.sandbox_id);
+          await (await this.getProvider()).stop(rec.sandbox_id);
         } catch (e) {
           const errorMessage = e instanceof Error ? e.message : String(e);
           if (!this.isIgnorableSandboxStopError(e)) {
@@ -256,7 +282,7 @@ export class MiladySandboxService {
 
       try {
         // 2. Sandbox (via provider)
-        handle = await this.provider.create({
+        handle = await (await this.getProvider()).create({
           agentId: rec.id,
           agentName: rec.agent_name ?? "CloudAgent",
           environmentVars: {
@@ -264,6 +290,7 @@ export class MiladySandboxService {
             DATABASE_URL: dbUri,
           },
           snapshotId: rec.snapshot_id ?? undefined,
+          dockerImage: rec.docker_image ?? undefined,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -277,7 +304,7 @@ export class MiladySandboxService {
 
       try {
         // 3. Health check (via provider)
-        if (!(await this.provider.checkHealth(handle.healthUrl))) {
+        if (!(await (await this.getProvider()).checkHealth(handle.healthUrl))) {
           throw new Error("Sandbox health check timed out");
         }
 
@@ -335,7 +362,7 @@ export class MiladySandboxService {
           error: msg,
         });
 
-        await this.provider.stop(handle.sandboxId).catch((stopErr) => {
+        await (await this.getProvider()).stop(handle.sandboxId).catch((stopErr) => {
           logger.error("[milady-sandbox] Ghost container cleanup failed", {
             sandboxId: handle.sandboxId,
             error: stopErr instanceof Error ? stopErr.message : String(stopErr),
@@ -723,7 +750,7 @@ export class MiladySandboxService {
       }
 
       if (rec.sandbox_id) {
-        await this.provider.stop(rec.sandbox_id).catch((e) => {
+        await (await this.getProvider()).stop(rec.sandbox_id).catch((e) => {
           logger.warn("[milady-sandbox] Stop failed during shutdown", {
             sandboxId: rec.sandbox_id,
             status: rec.status,

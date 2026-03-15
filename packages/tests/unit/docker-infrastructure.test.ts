@@ -41,7 +41,7 @@ function runSandboxProviderFactory(providerEnv?: string) {
         const mod = await import(${JSON.stringify(`${sandboxProviderModuleUrl}?test=${Date.now()}`)});
         const { createSandboxProvider } = mod;
         try {
-          const provider = createSandboxProvider();
+          const provider = await createSandboxProvider();
           console.log(JSON.stringify({ ok: true, name: provider.constructor?.name ?? null }));
         } catch (error) {
           console.log(JSON.stringify({ ok: false, message: error instanceof Error ? error.message : String(error) }));
