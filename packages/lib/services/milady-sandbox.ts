@@ -91,10 +91,33 @@ function sanitizeProjectNameSegment(value: string): string {
 }
 
 export class MiladySandboxService {
-  private provider: SandboxProvider;
+  private _provider?: SandboxProvider;
+  private _providerPromise?: Promise<SandboxProvider>;
 
   constructor(provider?: SandboxProvider) {
-    this.provider = provider ?? createSandboxProvider();
+    if (provider) {
+      this._provider = provider;
+    }
+    // When no provider is given, defer initialization to first use via
+    // getProvider().  This avoids calling createSandboxProvider() at
+    // module-evaluation time, which fails under Turbopack because the
+    // Docker provider's transitive dependencies compile as async modules
+    // and cannot be loaded with synchronous require().
+  }
+
+  /**
+   * Lazily resolve the SandboxProvider.  The first call triggers an async
+   * import(); subsequent calls return the cached instance immediately.
+   */
+  private async getProvider(): Promise<SandboxProvider> {
+    if (this._provider) return this._provider;
+    if (!this._providerPromise) {
+      this._providerPromise = createSandboxProvider().then((p) => {
+        this._provider = p;
+        return p;
+      });
+    }
+    return this._providerPromise;
   }
 
   // Agent CRUD
@@ -158,7 +181,7 @@ export class MiladySandboxService {
 
       if (rec.sandbox_id) {
         try {
-          await this.provider.stop(rec.sandbox_id);
+          await (await this.getProvider()).stop(rec.sandbox_id);
         } catch (e) {
           const errorMessage = e instanceof Error ? e.message : String(e);
           if (!this.isIgnorableSandboxStopError(e)) {
@@ -259,7 +282,7 @@ export class MiladySandboxService {
 
       try {
         // 2. Sandbox (via provider)
-        handle = await this.provider.create({
+        handle = await (await this.getProvider()).create({
           agentId: rec.id,
           agentName: rec.agent_name ?? "CloudAgent",
           environmentVars: {
@@ -281,7 +304,7 @@ export class MiladySandboxService {
 
       try {
         // 3. Health check (via provider)
-        if (!(await this.provider.checkHealth(handle.healthUrl))) {
+        if (!(await (await this.getProvider()).checkHealth(handle.healthUrl))) {
           throw new Error("Sandbox health check timed out");
         }
 
@@ -339,7 +362,7 @@ export class MiladySandboxService {
           error: msg,
         });
 
-        await this.provider.stop(handle.sandboxId).catch((stopErr) => {
+        await (await this.getProvider()).stop(handle.sandboxId).catch((stopErr) => {
           logger.error("[milady-sandbox] Ghost container cleanup failed", {
             sandboxId: handle.sandboxId,
             error: stopErr instanceof Error ? stopErr.message : String(stopErr),
@@ -717,7 +740,7 @@ export class MiladySandboxService {
       }
 
       if (rec.sandbox_id) {
-        await this.provider.stop(rec.sandbox_id).catch((e) => {
+        await (await this.getProvider()).stop(rec.sandbox_id).catch((e) => {
           logger.warn("[milady-sandbox] Stop failed during shutdown", {
             sandboxId: rec.sandbox_id,
             status: rec.status,

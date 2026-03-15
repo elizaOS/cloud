@@ -45,8 +45,13 @@ export interface SandboxCreateConfig {
  * the `MILADY_SANDBOX_PROVIDER` env var ("vercel" | "docker").
  * Defaults to "vercel" for backwards compatibility.
  * Also accepts legacy `MILAIDY_SANDBOX_PROVIDER` for backwards compat.
+ *
+ * Uses dynamic import() instead of require() because Turbopack compiles
+ * modules with async transitive dependencies (e.g. Drizzle DB helpers) as
+ * async modules.  Turbopack's synchronous e.r() cannot resolve async
+ * modules, causing "t is not a constructor" at build time.
  */
-export function createSandboxProvider(): SandboxProvider {
+export async function createSandboxProvider(): Promise<SandboxProvider> {
   const providerName = (
     process.env.MILADY_SANDBOX_PROVIDER ??
     process.env.MILAIDY_SANDBOX_PROVIDER ??
@@ -55,20 +60,16 @@ export function createSandboxProvider(): SandboxProvider {
 
   switch (providerName) {
     case "vercel": {
-      // Synchronous require() is intentional: this factory is called in a
-      // constructor (MiladySandboxService), which cannot be async.  Dynamic
-      // import() would require converting the constructor to a static async
-      // factory method across all call-sites.  The lazy require keeps the
-      // Vercel SDK out of the Docker bundle without that refactor.
-
-      const { VercelSandboxProvider } =
-        require("./vercel-sandbox-provider") as typeof import("./vercel-sandbox-provider");
+      const { VercelSandboxProvider } = await import(
+        "./vercel-sandbox-provider"
+      );
       return new VercelSandboxProvider();
     }
 
     case "docker": {
-      const { DockerSandboxProvider } =
-        require("./docker-sandbox-provider") as typeof import("./docker-sandbox-provider");
+      const { DockerSandboxProvider } = await import(
+        "./docker-sandbox-provider"
+      );
       return new DockerSandboxProvider();
     }
 
