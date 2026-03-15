@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { BrandButton, BrandCard } from "@elizaos/ui";
+import { BrandButton, BrandCard } from "@elizaos/cloud-ui";
 import { Camera, ExternalLink, Loader2, Pause, Play, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

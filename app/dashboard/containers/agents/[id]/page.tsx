@@ -7,7 +7,7 @@
  * - Admin-only infrastructure details, SSH access, and Docker logs
  */
 
-import { Badge, BrandCard } from "@elizaos/ui";
+import { Badge, BrandCard } from "@elizaos/cloud-ui";
 import {
   Activity,
   AlertCircle,

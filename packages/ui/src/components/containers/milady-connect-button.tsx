@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandButton } from "@elizaos/ui";
+import { BrandButton } from "@elizaos/cloud-ui";
 import { ExternalLink } from "lucide-react";
 import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 

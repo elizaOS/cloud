@@ -116,7 +116,7 @@ const nextConfig: NextConfig = {
     },
   },
   webpack: (config, { isServer }) => {
-    // react-syntax-highlighter (via @elizaos/ui) dynamically imports highlight.js
+    // react-syntax-highlighter (via @elizaos/cloud-ui) dynamically imports highlight.js
     // languages, refractor grammars, and lowlight modules. Many are removed/renamed
     // in newer versions or not installed (bun hoisting issue). Suppress these —
     // they're client-side syntax highlighting features that don't affect server routes.
@@ -156,7 +156,7 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
-  transpilePackages: ["next-mdx-remote", "@elizaos/ui"],
+  transpilePackages: ["next-mdx-remote", "@elizaos/cloud-ui"],
   // Note: linting is handled by Biome (biome.json), not next.config.ts
   outputFileTracingRoot: undefined,
   outputFileTracingIncludes: {

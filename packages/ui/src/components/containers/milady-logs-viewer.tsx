@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Copy, Download, FileText, RefreshCw, Search, Terminal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";

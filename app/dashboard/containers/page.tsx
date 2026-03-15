@@ -3,7 +3,7 @@ import {
   ContainersEmptyState,
   ContainersSkeleton,
   DashboardStatCard,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Activity, AlertCircle, Box, Server, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
