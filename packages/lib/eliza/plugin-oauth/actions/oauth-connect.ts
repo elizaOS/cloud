@@ -29,6 +29,7 @@ export const oauthConnectAction: ActionWithParams = {
     "LINK_ACCOUNT",
     "CONNECT_GOOGLE",
     "CONNECT_GMAIL",
+    "CONNECT_HUBSPOT",
     "CONNECT_LINEAR",
     "CONNECT_SLACK",
     "CONNECT_GITHUB",
@@ -42,6 +43,7 @@ export const oauthConnectAction: ActionWithParams = {
     "ADD_INTEGRATION",
     "SETUP_CONNECTION",
     "LINK_GOOGLE",
+    "LINK_HUBSPOT",
     "AUTHENTICATE",
     "LINK_LINEAR",
     "LINK_SLACK",
@@ -65,13 +67,13 @@ export const oauthConnectAction: ActionWithParams = {
     "LINK_OUTLOOK",
   ],
   description:
-    "Connect an OAuth platform for the user. ALWAYS execute this action when the user asks to connect — generate a fresh authorization URL every time, even if one was sent before (previous links expire). Never tell the user to 'use a previous link'. Available: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
+    "Connect an OAuth platform for the user. ALWAYS execute this action when the user asks to connect — generate a fresh authorization URL every time, even if one was sent before (previous links expire). Never tell the user to 'use a previous link'. Available: google, hubspot, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
 
   parameters: {
     platform: {
       type: "string",
       description:
-        "Platform to connect. Available: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
+        "Platform to connect. Available: google, hubspot, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
       required: true,
     },
   },
@@ -185,6 +187,16 @@ export const oauthConnectAction: ActionWithParams = {
         name: "{{name2}}",
         content: {
           text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "connect hubspot" } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Here's your HubSpot authorization link:\n\nhttps://app.hubspot.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
           actions: ["OAUTH_CONNECT"],
         },
       },

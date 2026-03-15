@@ -30,6 +30,12 @@ export interface OAuthEndpoints {
   revoke?: string;
   /** GraphQL query for userInfo endpoint (required if userInfo is a GraphQL endpoint) */
   userInfoGraphQLQuery?: string;
+  /**
+   * Base URL to fetch token metadata (e.g. user, hub_id) after token exchange.
+   * Used by providers like HubSpot that don't return user in the token response.
+   * Request: GET {tokenInfo}/{access_token}
+   */
+  tokenInfo?: string;
 }
 
 /**
@@ -203,7 +209,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
   google: {
     id: "google",
     name: "Google",
-    description: "Gmail, Calendar, Drive, and Contacts",
+    description: "Gmail, Calendar, and Contacts",
     type: "oauth2",
     envVars: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
     endpoints: {
@@ -217,17 +223,9 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/gmail.send",
       "https://www.googleapis.com/auth/gmail.readonly",
-      "https://www.googleapis.com/auth/gmail.modify",
-      "https://www.googleapis.com/auth/gmail.compose",
-      "https://www.googleapis.com/auth/calendar",
-      "https://www.googleapis.com/auth/calendar.readonly",
       "https://www.googleapis.com/auth/calendar.events",
-      "https://www.googleapis.com/auth/calendar.events.readonly",
-      "https://www.googleapis.com/auth/calendar.events.owned",
-      "https://www.googleapis.com/auth/calendar.events.owned.readonly",
-      "https://www.googleapis.com/auth/calendar.calendars.readonly",
+      "https://www.googleapis.com/auth/calendar.readonly",
       "https://www.googleapis.com/auth/contacts.readonly",
-      "https://www.googleapis.com/auth/contacts",
     ],
     userInfoMapping: {
       id: "id",
@@ -307,7 +305,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       response_type: "code",
       actor: "user",
     },
-    tokenContentType: "form", // Linear requires x-www-form-urlencoded
+    tokenContentType: "json",
     storage: "platform_credentials",
     useGenericRoutes: true,
   },
@@ -372,16 +370,51 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     endpoints: {
       authorization: "https://slack.com/oauth/v2/authorize",
       token: "https://slack.com/api/oauth.v2.access",
-      userInfo: "https://slack.com/api/auth.test", // Use auth.test for bot tokens
+      userInfo: "https://slack.com/api/users.identity",
       revoke: "https://slack.com/api/auth.revoke",
     },
-    // Bot scopes only - these must also be added in Slack app's OAuth & Permissions
-    defaultScopes: ["chat:write", "channels:read", "users:read"],
+    defaultScopes: ["identity.basic", "users:read", "chat:write", "channels:read"],
     userInfoMapping: {
       id: "user_id",
       displayName: "user",
       // Bot tokens don't return email from auth.test - email is optional for bot auth
     },
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  hubspot: {
+    id: "hubspot",
+    name: "HubSpot",
+    description: "CRM - contacts, companies, deals, and marketing",
+    type: "oauth2",
+    envVars: ["HUBSPOT_CLIENT_ID", "HUBSPOT_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://app.hubspot.com/oauth/authorize",
+      token: "https://api.hubapi.com/oauth/v1/token",
+      // No remote revoke: HubSpot requires DELETE /oauth/v1/refresh-tokens/{token}
+      // with the refresh token in the URL path. The generic adapter handles disconnect
+      // locally (deletes stored secrets, marks credential revoked in DB).
+      // Token exchange does not return user/hub_id; fetch from token metadata endpoint
+      tokenInfo: "https://api.hubapi.com/oauth/v1/access-tokens",
+    },
+    defaultScopes: [
+      "crm.objects.contacts.read",
+      "crm.objects.contacts.write",
+      "crm.objects.companies.read",
+      "crm.objects.companies.write",
+      "crm.objects.deals.read",
+      "crm.objects.deals.write",
+      "crm.objects.owners.read",
+    ],
+    // Mapping is applied to the tokenInfo response (GET /oauth/v1/access-tokens/{token})
+    // which returns { hub_id, user, token_type, ... }. No userInfo endpoint needed;
+    // the OAuth2 adapter's fetchTokenInfo() handles this via the tokenInfo endpoint above.
+    userInfoMapping: {
+      id: "hub_id",
+      email: "user",
+    },
+    tokenContentType: "form",
     storage: "platform_credentials",
     useGenericRoutes: true,
   },
