@@ -1,6 +1,6 @@
 import type { MiladySandbox } from "@/db/schemas/milady-sandboxes";
 
-const DEFAULT_AGENT_BASE_DOMAIN = "agents.example.com";
+const DEFAULT_AGENT_BASE_DOMAIN = "waifu.fun";
 
 type MiladyWebUiTarget = Pick<
   MiladySandbox,
@@ -53,14 +53,10 @@ export function getMiladyAgentPublicWebUiUrl(
   sandbox: Pick<MiladySandbox, "id" | "headscale_ip">,
   options: MiladyWebUiUrlOptions = {},
 ): string | null {
-  if (!sandbox.headscale_ip) {
-    return null;
-  }
-
   const normalizedDomain = normalizeAgentBaseDomain(
     options.baseDomain ??
       process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ??
-      (options.allowExampleFallback ? DEFAULT_AGENT_BASE_DOMAIN : null),
+      DEFAULT_AGENT_BASE_DOMAIN,
   );
   if (!normalizedDomain) {
     return null;

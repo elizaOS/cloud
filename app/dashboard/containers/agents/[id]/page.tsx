@@ -31,6 +31,7 @@ import { Badge } from "@elizaos/ui";
 import { DockerLogsViewer } from "@/components/containers/docker-logs-viewer";
 import { MiladyAgentActions } from "@/components/containers/agent-actions";
 import { MiladyBackupsPanel } from "@/components/containers/milady-backups-panel";
+import { MiladyConnectButton } from "@/components/containers/milady-connect-button";
 import { MiladyLogsViewer } from "@/components/containers/milady-logs-viewer";
 import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 
@@ -104,12 +105,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         </Link>
 
         {webUiUrl && agent.status === "running" && (
-          <BrandButton asChild variant="primary" size="sm">
-            <a href={webUiUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" />
-              Open Web UI
-            </a>
-          </BrandButton>
+          <MiladyConnectButton agentId={agent.id} />
         )}
       </div>
 
@@ -399,16 +395,12 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
                 >
                   Web UI URL
                 </p>
-                <a
-                  href={webUiUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-[#FF5800] hover:text-[#FF5800]/80 flex items-center gap-1 transition-colors break-all"
+                <span
+                  className="text-sm text-white/50 flex items-center gap-1 break-all"
                   style={{ fontFamily: "var(--font-roboto-mono)" }}
                 >
                   {webUiUrl}
-                  <ExternalLink className="h-3 w-3 shrink-0" />
-                </a>
+                </span>
               </div>
             )}
           </div>

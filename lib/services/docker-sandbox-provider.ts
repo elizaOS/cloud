@@ -294,11 +294,26 @@ export class DockerSandboxProvider implements SandboxProvider {
       ...environmentVars,
       ...vpnEnvVars,
       AGENT_NAME: agentName,
-      PORT: "2138",
+      // cloud-full-ui image runs two processes:
+      //   milady.mjs (UI)   on MILADY_PORT (default 2138)
+      //   cloud-agent       on PORT        (default 2139)
+      // Do NOT set PORT=2138 here — it would collide with MILADY_PORT
+      // and the API service would steal the UI port.
+      MILADY_PORT: "2138",
+      PORT: "2139",
       BRIDGE_PORT: "31337",
       // Eliza server requires JWT_SECRET in production mode.
       // Generate a unique per-container secret if the caller didn't provide one.
       JWT_SECRET: environmentVars.JWT_SECRET || crypto.randomUUID(),
+      // The milady server auto-generates a random MILADY_API_TOKEN when
+      // MILADY_API_BIND is non-loopback (0.0.0.0) and no token is set.
+      // Set it explicitly so our pairing endpoint can return it.
+      MILADY_API_TOKEN:
+        environmentVars.MILADY_API_TOKEN ||
+        environmentVars.JWT_SECRET ||
+        crypto.randomUUID(),
+      // Allow the agent subdomain origin so the browser can call the API.
+      MILADY_ALLOWED_ORIGINS: `https://${agentId}.waifu.fun,https://${agentId}.shad0w.xyz`,
     };
 
     // Validate env var keys to prevent shell command injection via malformed keys
