@@ -58,6 +58,7 @@ import {
 import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
 import { getClientSafeMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
+import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 
 // ----------------------------------------------------------------
 // Types
@@ -131,47 +132,6 @@ function getConnectUrl(sb: MiladySandboxRow): string | null {
     ...sb,
     canonicalWebUiUrl: sb.canonical_web_ui_url,
   });
-}
-
-async function openWebUIWithPairing(agentId: string): Promise<void> {
-  const popup = window.open("", "_blank");
-  if (!popup) {
-    toast.error("Popup blocked. Please allow popups and try again.");
-    return;
-  }
-
-  try {
-    popup.document.title = "Connecting…";
-    popup.document.body.innerHTML =
-      '<div style="font-family:sans-serif;padding:20px;background:#0a0a0a;color:#e5e5e5;min-height:100vh;display:flex;align-items:center;justify-content:center">Connecting to your agent…</div>';
-  } catch {
-    // cross-origin write may fail
-  }
-
-  try {
-    const res = await fetch(
-      `/api/v1/milaidy/agents/${agentId}/pairing-token`,
-      { method: "POST" },
-    );
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({ error: "Unknown error" }));
-      popup.close();
-      toast.error(data.error || `Failed to generate pairing token (HTTP ${res.status})`);
-      return;
-    }
-
-    const { data } = await res.json();
-    if (data?.redirectUrl) {
-      popup.location.href = data.redirectUrl;
-    } else {
-      popup.close();
-      toast.error("No redirect URL returned from pairing token endpoint");
-    }
-  } catch (err) {
-    popup.close();
-    toast.error(`Failed to connect: ${err instanceof Error ? err.message : String(err)}`);
-  }
 }
 
 function formatRelative(date: Date | string | null): string {

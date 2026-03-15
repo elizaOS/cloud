@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Play,
+  Pause,
   Square,
   Camera,
   Trash2,
@@ -53,15 +54,15 @@ export function MiladyAgentActions({
       let url = `/api/v1/milaidy/agents/${agentId}`;
       let body: string | undefined;
 
-      if (action === "provision") {
+      if (action === "provision" || action === "resume") {
         url = `/api/v1/milaidy/agents/${agentId}/provision`;
       } else if (action === "snapshot") {
         url = `/api/v1/milaidy/agents/${agentId}/snapshot`;
       } else if (action === "delete") {
         method = "DELETE";
-      } else if (action === "shutdown") {
+      } else if (action === "shutdown" || action === "suspend") {
         method = "PATCH";
-        body = JSON.stringify({ action: "shutdown" });
+        body = JSON.stringify({ action: "suspend" });
       }
 
       const res = await fetch(url, {
@@ -72,7 +73,7 @@ export function MiladyAgentActions({
 
       const data = await res.json().catch(() => ({}));
 
-      if (action === "provision" && res.status === 409) {
+      if ((action === "provision" || action === "resume") && res.status === 409) {
         const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
         if (jobId) {
           poller.track(agentId, jobId);

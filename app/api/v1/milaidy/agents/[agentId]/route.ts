@@ -9,7 +9,7 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 
 const patchAgentSchema = z.object({
-  action: z.enum(["shutdown"]),
+  action: z.enum(["shutdown", "suspend"]),
 });
 
 /**
@@ -113,7 +113,7 @@ export async function PATCH(
     );
   }
 
-  if (parsed.data.action === "shutdown") {
+  if (parsed.data.action === "shutdown" || parsed.data.action === "suspend") {
     const result = await miladySandboxService.shutdown(
       agentId,
       user.organization_id,
@@ -126,12 +126,15 @@ export async function PATCH(
             ? 409
             : 400;
       return NextResponse.json(
-        { success: false, error: result.error ?? "Shutdown failed" },
+        {
+          success: false,
+          error: result.error ?? `${parsed.data.action} failed`,
+        },
         { status },
       );
     }
 
-    logger.info("[milady-api] Agent shutdown complete", {
+    logger.info(`[milady-api] Agent ${parsed.data.action} complete`, {
       agentId,
       orgId: user.organization_id,
     });

@@ -270,6 +270,51 @@ export class MiladySandboxService {
     const MAX_PROVISION_ATTEMPTS = 3;
     let lastError: string = "Unknown error";
 
+    // Build the env vars that will be passed to the provider.
+    // Pre-generate secrets (JWT_SECRET, MILADY_API_TOKEN) here so the
+    // Docker provider uses the same values we persist to environment_vars.
+    // Without this, the provider auto-generates random values that never
+    // get saved, causing new secrets on every stop/start cycle.
+    const existingEnv =
+      (rec.environment_vars as Record<string, string>) ?? {};
+    const jwtSecret = existingEnv.JWT_SECRET || crypto.randomUUID();
+    const miladyApiToken =
+      existingEnv.MILADY_API_TOKEN ||
+      existingEnv.JWT_SECRET ||
+      crypto.randomUUID();
+
+    const callerEnvVars: Record<string, string> = {
+      ...existingEnv,
+      DATABASE_URL: dbUri,
+      JWT_SECRET: jwtSecret,
+      MILADY_API_TOKEN: miladyApiToken,
+    };
+
+    // Persist generated secrets back to DB so they survive stop/start
+    // cycles and container migration to different nodes.
+    const envVarsToSave: Record<string, string> = { ...existingEnv };
+    let envVarsChanged = false;
+    if (!existingEnv.JWT_SECRET) {
+      envVarsToSave.JWT_SECRET = jwtSecret;
+      envVarsChanged = true;
+    }
+    if (!existingEnv.MILADY_API_TOKEN) {
+      envVarsToSave.MILADY_API_TOKEN = miladyApiToken;
+      envVarsChanged = true;
+    }
+    if (envVarsChanged) {
+      await miladySandboxesRepository.update(rec.id, {
+        environment_vars: envVarsToSave,
+      });
+      logger.info(
+        "[milady-sandbox] Persisted auto-generated secrets to environment_vars",
+        {
+          agentId: rec.id,
+          newKeys: Object.keys(envVarsToSave).filter((k) => !existingEnv[k]),
+        },
+      );
+    }
+
     for (let attempt = 1; attempt <= MAX_PROVISION_ATTEMPTS; attempt++) {
       let handle;
 
@@ -278,10 +323,7 @@ export class MiladySandboxService {
         handle = await this.getProvider().create({
           agentId: rec.id,
           agentName: rec.agent_name ?? "CloudAgent",
-          environmentVars: {
-            ...((rec.environment_vars as Record<string, string>) ?? {}),
-            DATABASE_URL: dbUri,
-          },
+          environmentVars: callerEnvVars,
           snapshotId: rec.snapshot_id ?? undefined,
         });
       } catch (err) {
