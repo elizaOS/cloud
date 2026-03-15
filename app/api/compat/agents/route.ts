@@ -3,14 +3,17 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { envelope, toCompatAgent, toCompatCreateResult } from "@/lib/api/compat-envelope";
-import { stripReservedMiladyConfigKeys } from "@/lib/services/milady-agent-config";
-import { prepareManagedMiladyEnvironment } from "@/lib/services/milady-managed-launch";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { stripReservedMiladyConfigKeys } from "@/lib/services/milady-agent-config";
+import { z } from "zod";
 import { requireCompatAuth } from "../_lib/auth";
 import { handleCompatError } from "../_lib/error-handler";
+import {
+  toCompatAgent,
+  toCompatCreateResult,
+  envelope,
+} from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
 
@@ -49,19 +52,16 @@ export async function POST(request: NextRequest) {
 
     // Strip reserved __milady* keys from user-supplied agentConfig to prevent
     // callers from spoofing internal lifecycle flags.
-    const sanitizedConfig = stripReservedMiladyConfigKeys(parsed.data.agentConfig);
-    const managedEnvironment = await prepareManagedMiladyEnvironment({
-      existingEnv: parsed.data.environmentVars,
-      organizationId: user.organization_id,
-      userId: user.id,
-    });
+    const sanitizedConfig = stripReservedMiladyConfigKeys(
+      parsed.data.agentConfig,
+    );
 
     let agent = await miladySandboxService.createAgent({
       organizationId: user.organization_id,
       userId: user.id,
       agentName: parsed.data.agentName,
       agentConfig: sanitizedConfig,
-      environmentVars: managedEnvironment.environmentVars,
+      environmentVars: parsed.data.environmentVars,
     });
 
     logger.info("[compat] Agent created", {
@@ -72,7 +72,10 @@ export async function POST(request: NextRequest) {
     let provisionWarning: string | undefined;
     if (process.env.WAIFU_AUTO_PROVISION === "true") {
       try {
-        const result = await miladySandboxService.provision(agent.id, user.organization_id);
+        const result = await miladySandboxService.provision(
+          agent.id,
+          user.organization_id,
+        );
         if (result.success && result.sandboxRecord) {
           agent = result.sandboxRecord;
         } else if (!result.success) {

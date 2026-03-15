@@ -4,7 +4,7 @@
  * Verifies authorization, job lookup, and response shape.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -237,7 +237,10 @@ describe("GET /api/v1/jobs/[jobId]", () => {
 
     expect(response.status).toBe(404);
     expect(body.error).toBe("Job not found");
-    expect(mockGetJobForOrg).toHaveBeenCalledWith(TEST_JOB_ID, "service-org-001");
+    expect(mockGetJobForOrg).toHaveBeenCalledWith(
+      TEST_JOB_ID,
+      "service-org-001",
+    );
   });
 
   it("falls back to user auth when no service key is present", async () => {

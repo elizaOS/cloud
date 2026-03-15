@@ -4,7 +4,7 @@
  * Covers:
  * - v1 logs route: SSRF guard + tail clamping
  * - provisioning-jobs: webhook URL validation at enqueue time
- * - milady agents route: typeof guards on JSONB fields
+ * - milaidy agents route: typeof guards on JSONB fields
  * - compat handleCompatError: shared error handler
  * - service-key: fixed-length HMAC digest comparison
  * - compat-envelope: default domain placeholder
@@ -12,7 +12,7 @@
  * - cron route: single auth gate
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 
 // ---------------------------------------------------------------------------
 // 1. compat-envelope: default domain should be a placeholder, not a real domain
@@ -29,12 +29,15 @@ describe("compat-envelope default domain", () => {
     }
   });
 
-  test("uses agents.example.com when env var is unset", async () => {
+  test("falls back to waifu.fun default when env var is unset", async () => {
     delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
     // Dynamic import to pick up env change
     const mod = await import(
-      new URL(`../../lib/api/compat-envelope.ts?t=${Date.now()}`, import.meta.url).href
+      new URL(
+        `../../lib/api/compat-envelope.ts?t=${Date.now()}`,
+        import.meta.url,
+      ).href
     );
     const sandbox = {
       id: "test-agent-id",
@@ -69,7 +72,7 @@ describe("compat-envelope default domain", () => {
       updated_at: new Date(),
     };
     const result = mod.toCompatAgent(sandbox);
-    expect(result.web_ui_url).toBe("https://test-agent-id.agents.example.com");
+    expect(result.web_ui_url).toBe("https://test-agent-id.waifu.fun");
   });
 });
 
@@ -80,7 +83,8 @@ describe("compat-envelope default domain", () => {
 describe("handleCompatError", () => {
   test("maps ForbiddenError to 403", async () => {
     const { ForbiddenError } = await import("../../lib/api/errors");
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError(new ForbiddenError("no access"));
     expect(res.status).toBe(403);
@@ -90,21 +94,24 @@ describe("handleCompatError", () => {
   });
 
   test("maps Error with 'Unauthorized' to 401", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError(new Error("Unauthorized token"));
     expect(res.status).toBe(401);
   });
 
   test("maps Error with 'Forbidden' to 403", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError(new Error("Forbidden access"));
     expect(res.status).toBe(403);
   });
 
   test("maps unknown errors to 500", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError("something broke");
     expect(res.status).toBe(500);
@@ -113,7 +120,8 @@ describe("handleCompatError", () => {
   });
 
   test("maps generic Error to 500", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } =
+      await import("../../app/api/compat/_lib/error-handler");
 
     const res = handleCompatError(new Error("db connection lost"));
     expect(res.status).toBe(500);
@@ -137,7 +145,11 @@ describe("service-key HMAC digest compare", () => {
     env: Record<string, string | undefined> = {},
   ): { ok: boolean; value?: unknown; errorName?: string } {
     const mergedEnv = { ...process.env } as Record<string, string | undefined>;
-    for (const key of ["WAIFU_SERVICE_KEY", "WAIFU_SERVICE_ORG_ID", "WAIFU_SERVICE_USER_ID"]) {
+    for (const key of [
+      "WAIFU_SERVICE_KEY",
+      "WAIFU_SERVICE_ORG_ID",
+      "WAIFU_SERVICE_USER_ID",
+    ]) {
       if (key in env) {
         const v = env[key];
         if (v === undefined) delete mergedEnv[key];
@@ -205,17 +217,21 @@ describe("service-key HMAC digest compare", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. JSONB typeof guards (milady agents route)
+// 4. JSONB typeof guards (milaidy agents route)
 // ---------------------------------------------------------------------------
 
 describe("JSONB typeof guards for token fields", () => {
   // Simulates the guard logic extracted from the route
   function extractTokenFromConfig(cfg: Record<string, unknown> | null) {
     return {
-      tokenAddress: typeof cfg?.tokenContractAddress === "string" ? cfg.tokenContractAddress : null,
+      tokenAddress:
+        typeof cfg?.tokenContractAddress === "string"
+          ? cfg.tokenContractAddress
+          : null,
       tokenChain: typeof cfg?.chain === "string" ? cfg.chain : null,
       tokenName: typeof cfg?.tokenName === "string" ? cfg.tokenName : null,
-      tokenTicker: typeof cfg?.tokenTicker === "string" ? cfg.tokenTicker : null,
+      tokenTicker:
+        typeof cfg?.tokenTicker === "string" ? cfg.tokenTicker : null,
     };
   }
 
@@ -267,7 +283,10 @@ describe("JSONB typeof guards for token fields", () => {
 describe("tail parameter clamping", () => {
   function clampTail(raw: string | null): number {
     const rawTail = parseInt(raw ?? "100", 10);
-    return Math.max(1, Math.min(Number.isFinite(rawTail) ? rawTail : 100, 5000));
+    return Math.max(
+      1,
+      Math.min(Number.isFinite(rawTail) ? rawTail : 100, 5000),
+    );
   }
 
   test("defaults to 100 when absent", () => {
@@ -316,7 +335,8 @@ describe("waifu-bridge warn-once on missing JWT secret", () => {
 
   test("authenticateWaifuBridge returns null without crashing when secret unset", async () => {
     const { authenticateWaifuBridge } = await import(
-      new URL(`../../lib/auth/waifu-bridge.ts?t=${Date.now()}`, import.meta.url).href
+      new URL(`../../lib/auth/waifu-bridge.ts?t=${Date.now()}`, import.meta.url)
+        .href
     );
 
     // Minimal NextRequest-like object

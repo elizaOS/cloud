@@ -1,0 +1,115 @@
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import type { MiladySandbox } from "../../db/schemas/milady-sandboxes";
+import {
+  getClientSafeMiladyAgentWebUiUrl,
+  getMiladyAgentDirectWebUiUrl,
+  getMiladyAgentPublicWebUiUrl,
+  getPreferredMiladyAgentWebUiUrl,
+} from "../../lib/milady-web-ui";
+
+const savedAgentBaseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+
+function makeSandbox(
+  overrides: Partial<MiladySandbox> = {},
+): Pick<MiladySandbox, "id" | "headscale_ip" | "web_ui_port" | "bridge_port"> {
+  return {
+    id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    headscale_ip: "100.64.0.5",
+    web_ui_port: 20100,
+    bridge_port: 18800,
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "milady.shad0w.xyz";
+});
+
+afterEach(() => {
+  if (savedAgentBaseDomain === undefined) {
+    delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+  } else {
+    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = savedAgentBaseDomain;
+  }
+});
+
+describe("getMiladyAgentPublicWebUiUrl", () => {
+  test("uses configured canonical domain when available", () => {
+    expect(getMiladyAgentPublicWebUiUrl(makeSandbox())).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz",
+    );
+  });
+
+  test("normalizes configured domains with protocol and trailing path", () => {
+    expect(
+      getMiladyAgentPublicWebUiUrl(makeSandbox(), {
+        baseDomain: "https://milady.shad0w.xyz/dashboard",
+        path: "/chat",
+      }),
+    ).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz/chat",
+    );
+  });
+
+  test("falls back to waifu.fun when env var is unset", () => {
+    delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+
+    expect(getMiladyAgentPublicWebUiUrl(makeSandbox())).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.waifu.fun",
+    );
+  });
+});
+
+describe("getPreferredMiladyAgentWebUiUrl", () => {
+  test("prefers canonical public url over direct node access", () => {
+    expect(getPreferredMiladyAgentWebUiUrl(makeSandbox())).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz",
+    );
+  });
+
+  test("uses waifu.fun default when env var is unset (never falls to direct)", () => {
+    delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+
+    expect(getPreferredMiladyAgentWebUiUrl(makeSandbox())).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.waifu.fun",
+    );
+  });
+
+  test("uses waifu.fun default even when web_ui_port is missing", () => {
+    delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+
+    expect(
+      getPreferredMiladyAgentWebUiUrl(makeSandbox({ web_ui_port: null })),
+    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.waifu.fun");
+  });
+});
+
+describe("getClientSafeMiladyAgentWebUiUrl", () => {
+  test("prefers the server-provided canonical url without consulting env", () => {
+    delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+
+    expect(
+      getClientSafeMiladyAgentWebUiUrl({
+        ...makeSandbox(),
+        canonicalWebUiUrl:
+          "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz",
+      }),
+    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz");
+  });
+
+  test("falls back to direct access when no canonical url is provided", () => {
+    delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+
+    expect(getClientSafeMiladyAgentWebUiUrl(makeSandbox())).toBe(
+      "http://100.64.0.5:20100",
+    );
+  });
+});
+
+describe("getMiladyAgentDirectWebUiUrl", () => {
+  test("returns null when headscale access is unavailable", () => {
+    expect(
+      getMiladyAgentDirectWebUiUrl(makeSandbox({ headscale_ip: null })),
+    ).toBeNull();
+  });
+});

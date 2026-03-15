@@ -75,7 +75,7 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { MiladySandboxService } from "@/lib/services/milady-sandbox";
+import { MiladySandboxService } from "@/lib/services/milaidy-sandbox";
 
 describe("MiladySandboxService follow-ups", () => {
   const provider = {
@@ -135,8 +135,9 @@ describe("MiladySandboxService follow-ups", () => {
       .mockResolvedValueOnce({ rows: [sandbox] })
       .mockResolvedValueOnce({ rows: [{ id: "job-1" }] });
 
-    mockTransaction.mockImplementation(async (fn: (tx: { execute: typeof execute }) => unknown) =>
-      fn({ execute }),
+    mockTransaction.mockImplementation(
+      async (fn: (tx: { execute: typeof execute }) => unknown) =>
+        fn({ execute }),
     );
 
     const result = await service.shutdown("agent-1", "org-1");
@@ -222,8 +223,9 @@ describe("MiladySandboxService follow-ups", () => {
       .mockResolvedValueOnce({ rows: [sandbox] })
       .mockResolvedValueOnce({ rows: [{ id: "job-1" }] });
 
-    mockTransaction.mockImplementation(async (fn: (tx: { execute: typeof execute }) => unknown) =>
-      fn({ execute }),
+    mockTransaction.mockImplementation(
+      async (fn: (tx: { execute: typeof execute }) => unknown) =>
+        fn({ execute }),
     );
 
     const result = await service.deleteAgent("agent-1", "org-1");
@@ -234,5 +236,69 @@ describe("MiladySandboxService follow-ups", () => {
     });
     expect(provider.stop).not.toHaveBeenCalled();
     expect(mockMiladySandboxesRepository.delete).not.toHaveBeenCalled();
+  });
+
+  test("restore rejects historical backup ids for stopped agents", async () => {
+    const service = new MiladySandboxService(provider as never);
+
+    mockMiladySandboxesRepository.findByIdAndOrg.mockResolvedValue({
+      id: "agent-1",
+      organization_id: "org-1",
+      user_id: "user-1",
+      character_id: null,
+      sandbox_id: null,
+      status: "stopped",
+      bridge_url: null,
+      health_url: null,
+      agent_name: "Test Agent",
+      agent_config: null,
+      neon_project_id: null,
+      neon_branch_id: null,
+      database_uri: null,
+      database_status: "none",
+      database_error: null,
+      snapshot_id: null,
+      last_backup_at: null,
+      last_heartbeat_at: null,
+      error_message: null,
+      error_count: 0,
+      environment_vars: {},
+      node_id: null,
+      container_name: null,
+      bridge_port: null,
+      web_ui_port: null,
+      headscale_ip: null,
+      docker_image: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    mockMiladySandboxesRepository.getBackupById.mockResolvedValue({
+      id: "backup-old",
+      sandbox_record_id: "agent-1",
+      snapshot_type: "manual",
+      state_data: { memories: [], config: {}, workspaceFiles: {} },
+      vercel_snapshot_id: null,
+      size_bytes: 128,
+      created_at: new Date("2026-03-01T00:00:00.000Z"),
+    });
+
+    mockMiladySandboxesRepository.getLatestBackup.mockResolvedValue({
+      id: "backup-latest",
+      sandbox_record_id: "agent-1",
+      snapshot_type: "pre-shutdown",
+      state_data: { memories: [], config: {}, workspaceFiles: {} },
+      vercel_snapshot_id: null,
+      size_bytes: 256,
+      created_at: new Date("2026-03-02T00:00:00.000Z"),
+    });
+
+    const result = await service.restore("agent-1", "org-1", "backup-old");
+
+    expect(result).toEqual({
+      success: false,
+      error: "Stopped agents can only restore the latest backup",
+    });
+    expect(provider.create).not.toHaveBeenCalled();
   });
 });

@@ -4,23 +4,26 @@
  * Tests the utility functions extracted to docker-sandbox-utils.ts.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import {
+  shellQuote,
+  validateAgentId,
+  validateAgentName,
   allocatePort,
   getContainerName,
   getVolumePath,
   parseDockerNodes,
-  shellQuote,
-  validateAgentId,
-  validateAgentName,
+  type DockerNodeEnv,
 } from "@/lib/services/docker-sandbox-utils";
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-const sandboxProviderModuleUrl = new URL("../../lib/services/sandbox-provider.ts", import.meta.url)
-  .href;
+const sandboxProviderModuleUrl = new URL(
+  "../../lib/services/sandbox-provider.ts",
+  import.meta.url,
+).href;
 
 function runSandboxProviderFactory(providerEnv?: string) {
   const env = { ...process.env };
@@ -60,7 +63,9 @@ function runSandboxProviderFactory(providerEnv?: string) {
   expect(result.exitCode).toBe(0);
   expect(stderr).toBe("");
 
-  return JSON.parse(stdout) as { ok: true; name: string | null } | { ok: false; message: string };
+  return JSON.parse(stdout) as
+    | { ok: true; name: string | null }
+    | { ok: false; message: string };
 }
 
 describe("Docker Infrastructure - Pure Functions", () => {
@@ -140,7 +145,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("throws for shell injection chars (semicolon, space)", () => {
-      expect(() => validateAgentId("agent;rm -rf /")).toThrow(/Invalid agent ID/);
+      expect(() => validateAgentId("agent;rm -rf /")).toThrow(
+        /Invalid agent ID/,
+      );
     });
 
     test("throws for dots", () => {
@@ -193,15 +200,21 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("throws for control characters (null byte)", () => {
-      expect(() => validateAgentName("agent\x00name")).toThrow(/control characters/);
+      expect(() => validateAgentName("agent\x00name")).toThrow(
+        /control characters/,
+      );
     });
 
     test("throws for control characters (newline)", () => {
-      expect(() => validateAgentName("agent\nname")).toThrow(/control characters/);
+      expect(() => validateAgentName("agent\nname")).toThrow(
+        /control characters/,
+      );
     });
 
     test("throws for control characters (tab)", () => {
-      expect(() => validateAgentName("agent\tname")).toThrow(/control characters/);
+      expect(() => validateAgentName("agent\tname")).toThrow(
+        /control characters/,
+      );
     });
   });
 
@@ -242,7 +255,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
     test("throws when all ports in range are excluded", () => {
       // Range [10, 13) = 3 ports; exclude all 3
       const excluded = new Set([10, 11, 12]);
-      expect(() => allocatePort(10, 13, excluded)).toThrow(/No available ports in range/);
+      expect(() => allocatePort(10, 13, excluded)).toThrow(
+        /No available ports in range/,
+      );
     });
 
     test("works with an empty exclusion set", () => {
@@ -338,7 +353,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("throws when env var is not set", () => {
       delete process.env.MILADY_DOCKER_NODES;
-      expect(() => parseDockerNodes()).toThrow(/MILADY_DOCKER_NODES env var is not set/);
+      expect(() => parseDockerNodes()).toThrow(
+        /MILADY_DOCKER_NODES env var is not set/,
+      );
     });
 
     test("throws when all entries are invalid", () => {
@@ -379,7 +396,8 @@ describe("Docker Infrastructure - Pure Functions", () => {
       const result = runSandboxProviderFactory("unknown");
       expect(result).toEqual({
         ok: false,
-        message: 'Unknown sandbox provider: "unknown". Supported values: vercel, docker',
+        message:
+          'Unknown sandbox provider: "unknown". Supported values: vercel, docker',
       });
     });
 

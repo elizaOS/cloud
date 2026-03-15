@@ -7,13 +7,16 @@
  * Reference: milady-cloud/backend/services/node-manager.ts
  */
 
-import { and, eq, notInArray, sql } from "drizzle-orm";
-import { dbRead } from "@/db/helpers";
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
 import type { DockerNode, DockerNodeStatus } from "@/db/schemas/docker-nodes";
-import { type MiladySandboxStatus, miladySandboxes } from "@/db/schemas/milady-sandboxes";
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
 import { logger } from "@/lib/utils/logger";
+import { dbRead } from "@/db/helpers";
+import {
+  miladySandboxes,
+  type MiladySandboxStatus,
+} from "@/db/schemas/milady-sandboxes";
+import { eq, and, sql, notInArray } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -117,7 +120,10 @@ export class DockerNodeManager {
           node.ssh_user ?? undefined,
         );
         await ssh.connect();
-        const dockerId = await ssh.exec("docker info --format '{{.ID}}'", 10_000);
+        const dockerId = await ssh.exec(
+          "docker info --format '{{.ID}}'",
+          10_000,
+        );
 
         if (dockerId.trim()) {
           await dockerNodesRepository.updateStatus(node.node_id, "healthy");
@@ -140,7 +146,9 @@ export class DockerNodeManager {
     logger.warn(
       `[docker-node-manager] Health check failed for ${node.node_id} after ${MAX_RETRIES} attempts: ${lastError}`,
     );
-    const status: DockerNodeStatus = lastError.includes("empty ID") ? "degraded" : "offline";
+    const status: DockerNodeStatus = lastError.includes("empty ID")
+      ? "degraded"
+      : "offline";
     await dockerNodesRepository.updateStatus(node.node_id, status);
     return status;
   }
@@ -158,7 +166,9 @@ export class DockerNodeManager {
       hostname: node.hostname,
       capacity: node.capacity,
       allocated: node.allocated_count,
-      available: node.enabled ? Math.max(0, node.capacity - node.allocated_count) : 0,
+      available: node.enabled
+        ? Math.max(0, node.capacity - node.allocated_count)
+        : 0,
       status: node.status,
       enabled: node.enabled,
       lastHealthCheck: node.last_health_check,
@@ -182,7 +192,9 @@ export class DockerNodeManager {
    *
    * Active sandboxes are those not in terminal states (stopped/error).
    */
-  async syncAllocatedCounts(): Promise<Map<string, { before: number; after: number }>> {
+  async syncAllocatedCounts(): Promise<
+    Map<string, { before: number; after: number }>
+  > {
     const nodes = await dockerNodesRepository.findEnabled();
     const changes = new Map<string, { before: number; after: number }>();
 
@@ -206,7 +218,10 @@ export class DockerNodeManager {
         logger.info(
           `[docker-node-manager] Sync ${node.node_id}: allocated_count ${node.allocated_count} → ${actualCount}`,
         );
-        await dockerNodesRepository.setAllocatedCount(node.node_id, actualCount);
+        await dockerNodesRepository.setAllocatedCount(
+          node.node_id,
+          actualCount,
+        );
         changes.set(node.node_id, {
           before: node.allocated_count,
           after: actualCount,
@@ -215,7 +230,9 @@ export class DockerNodeManager {
     }
 
     if (changes.size > 0) {
-      logger.info(`[docker-node-manager] Synced allocated counts for ${changes.size} node(s)`);
+      logger.info(
+        `[docker-node-manager] Synced allocated counts for ${changes.size} node(s)`,
+      );
     }
 
     return changes;
@@ -229,7 +246,9 @@ export class DockerNodeManager {
    */
   async getRuntimeContainers(
     node: DockerNode,
-  ): Promise<{ name: string; id: string; state: string; status: string }[] | null> {
+  ): Promise<
+    { name: string; id: string; state: string; status: string }[] | null
+  > {
     try {
       const ssh = DockerSSHClient.getClient(
         node.hostname,
@@ -254,7 +273,9 @@ export class DockerNodeManager {
         });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
-      logger.warn(`[docker-node-manager] Failed to list containers on ${node.node_id}: ${msg}`);
+      logger.warn(
+        `[docker-node-manager] Failed to list containers on ${node.node_id}: ${msg}`,
+      );
       return null;
     }
   }

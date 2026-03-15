@@ -55,7 +55,7 @@ vi.mock("@/db/repositories/milady-sandboxes", () => ({
   miladySandboxesRepository: mockMiladySandboxesRepository,
 }));
 
-vi.mock("@/lib/services/milady-sandbox", () => ({
+vi.mock("@/lib/services/milaidy-sandbox", () => ({
   miladySandboxService: mockMiladySandboxService,
 }));
 
@@ -92,7 +92,10 @@ vi.mock("@/lib/utils/logger", () => ({
 // Import service under test (after mocks)
 // ---------------------------------------------------------------------------
 
-import { JOB_TYPES, ProvisioningJobService } from "@/lib/services/provisioning-jobs";
+import {
+  ProvisioningJobService,
+  JOB_TYPES,
+} from "@/lib/services/provisioning-jobs";
 
 describe("ProvisioningJobService", () => {
   let service: ProvisioningJobService;
@@ -139,11 +142,11 @@ describe("ProvisioningJobService", () => {
               from: vi.fn().mockReturnValue({
                 where: vi.fn().mockReturnValue({
                   // First select (sandbox existence check) → sandbox found
-                  limit: vi
-                    .fn()
-                    .mockResolvedValue(
-                      current === 1 ? [{ id: TEST_AGENT_ID, updated_at: new Date() }] : [],
-                    ),
+                  limit: vi.fn().mockResolvedValue(
+                    current === 1
+                      ? [{ id: TEST_AGENT_ID, updated_at: new Date() }]
+                      : [],
+                  ),
                   // Second select (existing job check) → no existing jobs
                   orderBy: vi.fn().mockReturnValue({
                     limit: vi.fn().mockResolvedValue([]),
@@ -272,7 +275,10 @@ describe("ProvisioningJobService", () => {
 
       const result = await service.getJobForOrg(TEST_JOB_ID, TEST_ORG_ID);
       expect(result).toEqual(fakeJob);
-      expect(mockJobsRepository.findByIdAndOrg).toHaveBeenCalledWith(TEST_JOB_ID, TEST_ORG_ID);
+      expect(mockJobsRepository.findByIdAndOrg).toHaveBeenCalledWith(
+        TEST_JOB_ID,
+        TEST_ORG_ID,
+      );
     });
 
     it("returns undefined when org-scoped lookup misses", async () => {
@@ -308,7 +314,8 @@ describe("ProvisioningJobService", () => {
       const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
 
       // claimPendingJobs returns atomically claimed jobs
-      mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([job]); // milady_provision
+      mockJobsRepository.claimPendingJobs
+        .mockResolvedValueOnce([job]); // milady_provision
       mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       mockJobsRepository.updateStatus.mockResolvedValue(undefined);
@@ -329,7 +336,10 @@ describe("ProvisioningJobService", () => {
       expect(result.failed).toBe(0);
 
       // Should have called provision
-      expect(mockMiladySandboxService.provision).toHaveBeenCalledWith(TEST_AGENT_ID, TEST_ORG_ID);
+      expect(mockMiladySandboxService.provision).toHaveBeenCalledWith(
+        TEST_AGENT_ID,
+        TEST_ORG_ID,
+      );
 
       // Should have used claimPendingJobs (atomic FOR UPDATE SKIP LOCKED)
       expect(mockJobsRepository.claimPendingJobs).toHaveBeenCalledWith({
@@ -354,7 +364,8 @@ describe("ProvisioningJobService", () => {
     it("increments attempt on provision failure", async () => {
       const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
 
-      mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([job]);
+      mockJobsRepository.claimPendingJobs
+        .mockResolvedValueOnce([job]);
       mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       mockMiladySandboxService.provision.mockResolvedValue({
@@ -394,7 +405,8 @@ describe("ProvisioningJobService", () => {
     it("stores partial result in job data on failure", async () => {
       const job = makePendingJob(TEST_JOB_ID, TEST_AGENT_ID);
 
-      mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([job]);
+      mockJobsRepository.claimPendingJobs
+        .mockResolvedValueOnce([job]);
       mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       mockMiladySandboxService.provision.mockResolvedValue({
@@ -545,7 +557,8 @@ describe("ProvisioningJobService", () => {
         updated_at: new Date(),
       };
 
-      mockJobsRepository.claimPendingJobs.mockResolvedValueOnce([job]);
+      mockJobsRepository.claimPendingJobs
+        .mockResolvedValueOnce([job]);
       mockJobsRepository.recoverStaleJobs.mockResolvedValueOnce(0);
 
       mockJobsRepository.updateStatus.mockResolvedValue(undefined);

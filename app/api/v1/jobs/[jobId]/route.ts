@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { validateServiceKey } from "@/lib/auth/service-key";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
-import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +40,16 @@ export async function GET(
 
     const { jobId } = await params;
 
-    const job = await provisioningJobService.getJobForOrg(jobId, organizationId);
+    const job = await provisioningJobService.getJobForOrg(
+      jobId,
+      organizationId,
+    );
 
     if (!job) {
-      return NextResponse.json({ success: false, error: "Job not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Job not found" },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json({
@@ -64,22 +70,23 @@ export async function GET(
         updatedAt: job.updated_at,
       },
       // Polling hints for clients
-      polling:
-        job.status === "pending" || job.status === "in_progress"
-          ? {
-              intervalMs: 5000,
-              shouldContinue: true,
-            }
-          : {
-              shouldContinue: false,
-            },
+      polling: job.status === "pending" || job.status === "in_progress"
+        ? {
+            intervalMs: 5000,
+            shouldContinue: true,
+          }
+        : {
+            shouldContinue: false,
+          },
     });
   } catch (error) {
     logger.error("[Jobs API] Error fetching job:", error);
 
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch job";
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to fetch job";
     const isAuthError =
-      errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication required");
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("Authentication required");
 
     return NextResponse.json(
       { success: false, error: isAuthError ? "Unauthorized" : errorMessage },

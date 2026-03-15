@@ -21,7 +21,7 @@ mock.module("@/lib/auth/waifu-bridge", () => ({
   authenticateWaifuBridge: mockAuthenticateWaifuBridge,
 }));
 
-mock.module("@/lib/services/milady-sandbox", () => ({
+mock.module("@/lib/services/milaidy-sandbox", () => ({
   miladySandboxService: {
     createAgent: mockCreateAgent,
     provision: mock(),
@@ -45,8 +45,8 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
+import { POST as postV1MiladyAgent } from "@/app/api/v1/milaidy/agents/route";
 import { POST as postCompatAgent } from "@/app/api/compat/agents/route";
-import { POST as postV1MiladyAgent } from "@/app/api/v1/milady/agents/route";
 
 describe("Milady create routes reserved config stripping", () => {
   const savedAutoProvision = process.env.WAIFU_AUTO_PROVISION;
@@ -88,7 +88,7 @@ describe("Milady create routes reserved config stripping", () => {
 
   test("v1 route strips reserved __milady keys case-insensitively", async () => {
     const response = await postV1MiladyAgent(
-      jsonRequest("https://example.com/api/v1/milady/agents", "POST", {
+      jsonRequest("https://example.com/api/v1/milaidy/agents", "POST", {
         agentName: "Test Agent",
         agentConfig: {
           safe: true,

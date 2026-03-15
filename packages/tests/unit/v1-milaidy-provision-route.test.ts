@@ -18,7 +18,7 @@ mock.module("@/lib/security/outbound-url", () => ({
   assertSafeOutboundUrl: mockAssertSafeOutboundUrl,
 }));
 
-mock.module("@/lib/services/milady-sandbox", () => ({
+mock.module("@/lib/services/milaidy-sandbox", () => ({
   miladySandboxService: {
     getAgentForWrite: mockGetAgentForWrite,
     provision: mockProvision,
@@ -40,9 +40,9 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { POST } from "@/app/api/v1/milady/agents/[agentId]/provision/route";
+import { POST } from "@/app/api/v1/milaidy/agents/[agentId]/provision/route";
 
-describe("POST /api/v1/milady/agents/[agentId]/provision", () => {
+describe("POST /api/v1/milaidy/agents/[agentId]/provision", () => {
   beforeEach(() => {
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockAssertSafeOutboundUrl.mockReset();
@@ -75,9 +75,10 @@ describe("POST /api/v1/milady/agents/[agentId]/provision", () => {
     });
 
     const response = await POST(
-      new NextRequest("https://example.com/api/v1/milady/agents/agent-1/provision?sync=true", {
-        method: "POST",
-      }),
+      new NextRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1/provision?sync=true",
+        { method: "POST" },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -95,9 +96,10 @@ describe("POST /api/v1/milady/agents/[agentId]/provision", () => {
     );
 
     const response = await POST(
-      new NextRequest("https://example.com/api/v1/milady/agents/agent-1/provision", {
-        method: "POST",
-      }),
+      new NextRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
+        { method: "POST" },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 

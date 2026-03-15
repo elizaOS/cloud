@@ -1,21 +1,21 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
-  BrandButton,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Input,
-  Label,
-  Switch,
-} from "@elizaos/cloud-ui";
-import { Loader2, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { type ReactNode, useState } from "react";
-import { toast } from "sonner";
+} from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import { Label } from "@elizaos/ui";
+import { Switch } from "@elizaos/ui";
+import { BrandButton } from "@elizaos/ui";
+import { Plus, Loader2 } from "lucide-react";
 
 interface CreateMiladySandboxDialogProps {
   trigger?: ReactNode;
@@ -45,7 +45,7 @@ export function CreateMiladySandboxDialog({
     setPhase("creating");
 
     try {
-      const createRes = await fetch("/api/v1/milady/agents", {
+      const createRes = await fetch("/api/v1/milaidy/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agentName: trimmedName }),
@@ -54,7 +54,8 @@ export function CreateMiladySandboxDialog({
       const createData = await createRes.json().catch(() => ({}));
       if (!createRes.ok) {
         throw new Error(
-          (createData as { error?: string }).error ?? `Create failed (${createRes.status})`,
+          (createData as { error?: string }).error ??
+            `Create failed (${createRes.status})`,
         );
       }
 
@@ -67,13 +68,15 @@ export function CreateMiladySandboxDialog({
 
       if (autoStart) {
         setPhase("provisioning");
-        const provisionRes = await fetch(`/api/v1/milady/agents/${agentId}/provision`, {
-          method: "POST",
-        });
+        const provisionRes = await fetch(
+          `/api/v1/milaidy/agents/${agentId}/provision`,
+          { method: "POST" },
+        );
         const provisionData = await provisionRes.json().catch(() => ({}));
 
         if (provisionRes.status === 202 || provisionRes.status === 409) {
-          const jobId = (provisionData as { data?: { jobId?: string } }).data?.jobId;
+          const jobId = (provisionData as { data?: { jobId?: string } }).data
+            ?.jobId;
           if (jobId) {
             onProvisionQueued?.(agentId, jobId);
           }
@@ -120,12 +123,18 @@ export function CreateMiladySandboxDialog({
         </BrandButton>
       )}
 
-      <Dialog open={open} onOpenChange={(nextOpen) => !busy && setOpen(nextOpen)}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => !busy && setOpen(nextOpen)}
+      >
         <DialogContent className="sm:max-w-md bg-neutral-900 border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-white">Create Milady Sandbox</DialogTitle>
+            <DialogTitle className="text-white">
+              Create Milady Sandbox
+            </DialogTitle>
             <DialogDescription className="text-neutral-400">
-              Create a new agent sandbox and optionally start provisioning right away.
+              Create a new agent sandbox and optionally start provisioning right
+              away.
             </DialogDescription>
           </DialogHeader>
 
@@ -154,7 +163,10 @@ export function CreateMiladySandboxDialog({
 
             <div className="flex items-center justify-between gap-4 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
               <div>
-                <Label htmlFor="milady-auto-start" className="text-sm text-neutral-300">
+                <Label
+                  htmlFor="milady-auto-start"
+                  className="text-sm text-neutral-300"
+                >
                   Start immediately after creation
                 </Label>
                 <p className="text-xs text-neutral-500">
@@ -177,10 +189,17 @@ export function CreateMiladySandboxDialog({
           </div>
 
           <DialogFooter>
-            <BrandButton variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+            <BrandButton
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={busy}
+            >
               Cancel
             </BrandButton>
-            <BrandButton onClick={() => void handleCreate()} disabled={!agentName.trim() || busy}>
+            <BrandButton
+              onClick={() => void handleCreate()}
+              disabled={!agentName.trim() || busy}
+            >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {phase === "creating"
                 ? "Creating..."

@@ -11,6 +11,7 @@ const mockGetAgentForWrite = mock();
 const mockShutdown = mock();
 const mockDeleteAgent = mock();
 const mockProvision = mock();
+const mockRestore = mock();
 const mockEnqueueMiladyProvisionOnce = mock();
 const mockFindCharacterForWrite = mock();
 const mockCharacterDelete = mock();
@@ -28,7 +29,7 @@ mock.module("@/lib/auth/waifu-bridge", () => ({
   authenticateWaifuBridge: mockAuthenticateWaifuBridge,
 }));
 
-mock.module("@/lib/services/milady-sandbox", () => ({
+mock.module("@/lib/services/milaidy-sandbox", () => ({
   miladySandboxService: {
     createAgent: mockCreateAgent,
     getAgent: mockGetAgent,
@@ -36,6 +37,7 @@ mock.module("@/lib/services/milady-sandbox", () => ({
     shutdown: mockShutdown,
     deleteAgent: mockDeleteAgent,
     provision: mockProvision,
+    restore: mockRestore,
   },
 }));
 
@@ -65,13 +67,14 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { POST as postCompatAgents } from "@/app/api/compat/agents/route";
-import { POST as postProvisionRoute } from "@/app/api/v1/milady/agents/[agentId]/provision/route";
+import { POST as postV1MilaidyAgents } from "@/app/api/v1/milaidy/agents/route";
+import { POST as postProvisionRoute } from "@/app/api/v1/milaidy/agents/[agentId]/provision/route";
 import {
-  DELETE as deleteMilaidyAgent,
   PATCH as patchMilaidyAgent,
-} from "@/app/api/v1/milady/agents/[agentId]/route";
-import { POST as postV1MilaidyAgents } from "@/app/api/v1/milady/agents/route";
+  DELETE as deleteMilaidyAgent,
+} from "@/app/api/v1/milaidy/agents/[agentId]/route";
+import { POST as postRestoreRoute } from "@/app/api/v1/milaidy/agents/[agentId]/restore/route";
+import { POST as postCompatAgents } from "@/app/api/compat/agents/route";
 
 describe("milady agent route follow-ups", () => {
   beforeEach(() => {
@@ -86,6 +89,7 @@ describe("milady agent route follow-ups", () => {
     mockShutdown.mockReset();
     mockDeleteAgent.mockReset();
     mockProvision.mockReset();
+    mockRestore.mockReset();
     mockEnqueueMiladyProvisionOnce.mockReset();
     mockFindCharacterForWrite.mockReset();
     mockCharacterDelete.mockReset();
@@ -100,7 +104,7 @@ describe("milady agent route follow-ups", () => {
     mockAuthenticateWaifuBridge.mockResolvedValue(null);
   });
 
-  test("POST /api/v1/milady/agents strips reserved __milady keys case-insensitively", async () => {
+  test("POST /api/v1/milaidy/agents strips reserved __milady keys case-insensitively", async () => {
     mockFindCharacterForWrite.mockResolvedValue({ id: "char-1" });
     mockCreateAgent.mockResolvedValue({
       id: "agent-1",
@@ -110,7 +114,7 @@ describe("milady agent route follow-ups", () => {
     });
 
     const response = await postV1MilaidyAgents(
-      jsonRequest("https://example.com/api/v1/milady/agents", "POST", {
+      jsonRequest("https://example.com/api/v1/milaidy/agents", "POST", {
         agentName: "Agent One",
         characterId: "11111111-1111-4111-8111-111111111111",
         agentConfig: {
@@ -161,7 +165,7 @@ describe("milady agent route follow-ups", () => {
     );
   });
 
-  test("POST /api/v1/milady/agents/[agentId]/provision returns 409 for stale expectedUpdatedAt state", async () => {
+  test("POST /api/v1/milaidy/agents/[agentId]/provision returns 409 for stale expectedUpdatedAt state", async () => {
     const updatedAt = new Date("2026-03-01T12:00:00.000Z");
     mockGetAgentForWrite.mockResolvedValue({
       id: "agent-1",
@@ -174,9 +178,12 @@ describe("milady agent route follow-ups", () => {
     );
 
     const response = await postProvisionRoute(
-      new NextRequest("https://example.com/api/v1/milady/agents/agent-1/provision", {
-        method: "POST",
-      }),
+      new NextRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
+        {
+          method: "POST",
+        },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -190,7 +197,7 @@ describe("milady agent route follow-ups", () => {
     );
   });
 
-  test("POST /api/v1/milady/agents/[agentId]/provision returns existing job details on duplicate enqueue", async () => {
+  test("POST /api/v1/milaidy/agents/[agentId]/provision returns existing job details on duplicate enqueue", async () => {
     const updatedAt = new Date("2026-03-01T12:00:00.000Z");
     const estimatedCompletionAt = new Date("2026-03-01T12:01:30.000Z");
     mockGetAgentForWrite.mockResolvedValue({
@@ -209,9 +216,12 @@ describe("milady agent route follow-ups", () => {
     });
 
     const response = await postProvisionRoute(
-      new NextRequest("https://example.com/api/v1/milady/agents/agent-1/provision", {
-        method: "POST",
-      }),
+      new NextRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
+        {
+          method: "POST",
+        },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -220,7 +230,8 @@ describe("milady agent route follow-ups", () => {
       success: true,
       created: false,
       alreadyInProgress: true,
-      message: "Provisioning is already in progress. Poll the existing job for status.",
+      message:
+        "Provisioning is already in progress. Poll the existing job for status.",
       data: {
         jobId: "job-existing",
         agentId: "agent-1",
@@ -235,11 +246,15 @@ describe("milady agent route follow-ups", () => {
     });
   });
 
-  test("PATCH /api/v1/milady/agents/[agentId] rejects invalid lifecycle payloads", async () => {
+  test("PATCH /api/v1/milaidy/agents/[agentId] rejects invalid lifecycle payloads", async () => {
     const response = await patchMilaidyAgent(
-      jsonRequest("https://example.com/api/v1/milady/agents/agent-1", "PATCH", {
-        action: "restart",
-      }),
+      jsonRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1",
+        "PATCH",
+        {
+          action: "restart",
+        },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -249,16 +264,20 @@ describe("milady agent route follow-ups", () => {
     expect(body.error).toBe("Invalid request data");
   });
 
-  test("PATCH /api/v1/milady/agents/[agentId] maps active provisioning shutdown conflicts to 409", async () => {
+  test("PATCH /api/v1/milaidy/agents/[agentId] maps active provisioning shutdown conflicts to 409", async () => {
     mockShutdown.mockResolvedValue({
       success: false,
       error: "Agent provisioning is in progress",
     });
 
     const response = await patchMilaidyAgent(
-      jsonRequest("https://example.com/api/v1/milady/agents/agent-1", "PATCH", {
-        action: "shutdown",
-      }),
+      jsonRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1",
+        "PATCH",
+        {
+          action: "shutdown",
+        },
+      ),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -269,7 +288,7 @@ describe("milady agent route follow-ups", () => {
     });
   });
 
-  test("DELETE /api/v1/milady/agents/[agentId] maps active provisioning conflicts to 409", async () => {
+  test("DELETE /api/v1/milaidy/agents/[agentId] maps active provisioning conflicts to 409", async () => {
     mockGetAgentForWrite.mockResolvedValue({
       id: "agent-1",
       character_id: "char-1",
@@ -281,7 +300,7 @@ describe("milady agent route follow-ups", () => {
     });
 
     const response = await deleteMilaidyAgent(
-      new NextRequest("https://example.com/api/v1/milady/agents/agent-1", {
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1", {
         method: "DELETE",
       }),
       routeParams({ agentId: "agent-1" }),
@@ -295,14 +314,38 @@ describe("milady agent route follow-ups", () => {
     expect(mockCharacterDelete).not.toHaveBeenCalled();
   });
 
-  test("DELETE /api/v1/milady/agents/[agentId] maps infrastructure delete failures to 500", async () => {
+  test("POST /api/v1/milaidy/agents/[agentId]/restore maps stopped historical restore attempts to 409", async () => {
+    mockRestore.mockResolvedValue({
+      success: false,
+      error: "Stopped agents can only restore the latest backup",
+    });
+
+    const response = await postRestoreRoute(
+      jsonRequest(
+        "https://example.com/api/v1/milaidy/agents/agent-1/restore",
+        "POST",
+        {
+          backupId: "11111111-1111-4111-8111-111111111111",
+        },
+      ),
+      routeParams({ agentId: "agent-1" }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: "Stopped agents can only restore the latest backup",
+    });
+  });
+
+  test("DELETE /api/v1/milaidy/agents/[agentId] maps infrastructure delete failures to 500", async () => {
     mockDeleteAgent.mockResolvedValue({
       success: false,
       error: "Failed to delete sandbox",
     });
 
     const response = await deleteMilaidyAgent(
-      new NextRequest("https://example.com/api/v1/milady/agents/agent-1", {
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1", {
         method: "DELETE",
       }),
       routeParams({ agentId: "agent-1" }),

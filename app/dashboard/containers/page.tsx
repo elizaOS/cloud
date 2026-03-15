@@ -1,19 +1,17 @@
-import {
-  BrandCard,
-  ContainersEmptyState,
-  ContainersSkeleton,
-  DashboardStatCard,
-} from "@elizaos/cloud-ui";
-import { Activity, AlertCircle, Box, Server, TrendingUp } from "lucide-react";
-import type { Metadata } from "next";
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services/containers";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
-import { ContainersPageWrapper } from "@/packages/ui/src/components/containers/containers-page-wrapper";
-import { ContainersTable } from "@/packages/ui/src/components/containers/containers-table";
-import { DeployFromCLI } from "@/packages/ui/src/components/containers/deploy-from-cli";
-import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/milady-sandboxes-table";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { ContainersTable } from "@/components/containers/containers-table";
+import { ContainersSkeleton } from "@elizaos/ui";
+import { MiladySandboxesTable } from "@/components/containers/milady-sandboxes-table";
+import { Server, Activity, TrendingUp, AlertCircle, Box } from "lucide-react";
+import { ContainersPageWrapper } from "@/components/containers/containers-page-wrapper";
+import { ContainersEmptyState } from "@elizaos/ui";
+import { DeployFromCLI } from "@/components/containers/deploy-from-cli";
+import { BrandCard, DashboardStatCard } from "@elizaos/ui";
+import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 
 export const metadata: Metadata = {
   title: "Containers",
@@ -39,13 +37,23 @@ export default async function ContainersPage() {
     // Table likely missing — show empty list
   }
 
+  // Read base domain once rather than per-sandbox in the map
+  const baseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+  const miladySandboxes = sandboxes.map((sandbox) => ({
+    ...sandbox,
+    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, { baseDomain }),
+  }));
+
   const stats = {
     total: containers.length,
     running: containers.filter((c) => c.status === "running").length,
     stopped: containers.filter((c) => c.status === "stopped").length,
     failed: containers.filter((c) => c.status === "failed").length,
     building: containers.filter(
-      (c) => c.status === "building" || c.status === "deploying" || c.status === "pending",
+      (c) =>
+        c.status === "building" ||
+        c.status === "deploying" ||
+        c.status === "pending",
     ).length,
   };
 
@@ -106,7 +114,7 @@ export default async function ContainersPage() {
             <h2 className="text-lg font-semibold">Milady Sandboxes</h2>
           </div>
           <Suspense fallback={<ContainersSkeleton />}>
-            <MiladySandboxesTable sandboxes={sandboxes} />
+            <MiladySandboxesTable sandboxes={miladySandboxes} />
           </Suspense>
         </BrandCard>
       </div>

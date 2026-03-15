@@ -1,10 +1,37 @@
 /**
  * Milady Sandboxes Table — lists AI agent sandboxes in the containers dashboard.
  * Distinguishes between Docker-backed (node_id set) and Vercel-backed sandboxes.
- * Docker containers show VPN IP, node, ports, and a Connect button.
+ * Keeps the user-facing surface focused on Milady actions instead of raw infra.
  */
 "use client";
 
+import { useState, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@elizaos/ui";
+import { Badge } from "@elizaos/ui";
+import { Input } from "@elizaos/ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@elizaos/ui";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@elizaos/ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,44 +41,24 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Badge,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@elizaos/cloud-ui";
+} from "@elizaos/ui";
 import {
+  Server,
+  Cloud,
+  Trash2,
+  ExternalLink,
+  FileText,
+  Search,
   ArrowUpDown,
   Boxes,
-  Cloud,
-  FileText,
-  Loader2,
-  Network,
   Play,
-  Search,
-  Server,
-  Square,
-  Trash2,
-  Wifi,
+  Pause,
+  Loader2,
 } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { useJobPoller } from "@/lib/hooks/use-job-poller";
 import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
+import { useJobPoller } from "@/lib/hooks/use-job-poller";
+import { getClientSafeMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
+import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 
 // ----------------------------------------------------------------
 // Types
@@ -61,6 +68,7 @@ export interface MiladySandboxRow {
   id: string;
   agent_name: string | null;
   status: string;
+  canonical_web_ui_url?: string | null;
   // Docker fields
   node_id: string | null;
   container_name: string | null;
@@ -120,10 +128,10 @@ function isDockerBacked(sb: MiladySandboxRow): boolean {
 }
 
 function getConnectUrl(sb: MiladySandboxRow): string | null {
-  if (!sb.headscale_ip) return null;
-  const port = sb.web_ui_port ?? sb.bridge_port;
-  if (!port) return null;
-  return `http://${sb.headscale_ip}:${port}`;
+  return getClientSafeMiladyAgentWebUiUrl({
+    ...sb,
+    canonicalWebUiUrl: sb.canonical_web_ui_url,
+  });
 }
 
 function formatRelative(date: Date | string | null): string {
@@ -149,7 +157,6 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
-  const [launchingId, setLaunchingId] = useState<string | null>(null);
 
   const poller = useJobPoller({
     onComplete: () => toast.success("Agent provisioning completed"),
@@ -158,16 +165,20 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortField, setSortField] = useState<"name" | "status" | "created">("created");
+  const [sortField, setSortField] = useState<"name" | "status" | "created">(
+    "created",
+  );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const handleSort = (field: typeof sortField) => {
-    setSortDir((prev) => (sortField === field && prev === "asc" ? "desc" : "asc"));
+    setSortDir((prev) =>
+      sortField === field && prev === "asc" ? "desc" : "asc",
+    );
     setSortField(field);
   };
 
   const filtered = useMemo(() => {
-    const list = sandboxes.filter((sb) => {
+    let list = sandboxes.filter((sb) => {
       const q = searchQuery.toLowerCase();
       const displayStatus = poller.isActive(sb.id) ? "provisioning" : sb.status;
       const matchSearch =
@@ -176,7 +187,8 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
         (sb.container_name ?? "").toLowerCase().includes(q) ||
         (sb.node_id ?? "").toLowerCase().includes(q) ||
         (sb.headscale_ip ?? "").toLowerCase().includes(q);
-      const matchStatus = statusFilter === "all" || displayStatus === statusFilter;
+      const matchStatus =
+        statusFilter === "all" || displayStatus === statusFilter;
       return matchSearch && matchStatus;
     });
 
@@ -189,19 +201,27 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       } else if (sortField === "status") {
         cmp = aStatus.localeCompare(bStatus);
       } else {
-        cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        cmp =
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [sandboxes, searchQuery, statusFilter, sortField, sortDir, poller.isActive]);
+  }, [
+    sandboxes,
+    searchQuery,
+    statusFilter,
+    sortField,
+    sortDir,
+    poller.isActive,
+  ]);
 
   // ── Actions ──────────────────────────────────────────────────────
 
   async function handleProvision(id: string) {
     setActionInProgress(id);
     try {
-      const res = await fetch(`/api/v1/milady/agents/${id}/provision`, {
+      const res = await fetch(`/api/v1/milaidy/agents/${id}/provision`, {
         method: "POST",
       });
       const data = await res.json().catch(() => ({}));
@@ -216,7 +236,9 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       }
 
       if (!res.ok) {
-        throw new Error((data as { error?: string }).error ?? "Provision failed");
+        throw new Error(
+          (data as { error?: string }).error ?? "Provision failed",
+        );
       }
 
       if (res.status === 202) {
@@ -242,19 +264,19 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
     }
   }
 
-  async function handleShutdown(id: string) {
+  async function handleSuspend(id: string) {
     setActionInProgress(id);
     try {
-      const res = await fetch(`/api/v1/milady/agents/${id}`, {
+      const res = await fetch(`/api/v1/milaidy/agents/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "shutdown" }),
+        body: JSON.stringify({ action: "suspend" }),
       });
-      if (!res.ok) throw new Error("Shutdown failed");
-      toast.success("Agent shutdown initiated");
+      if (!res.ok) throw new Error("Suspend failed");
+      toast.success("Agent suspended (snapshot saved)");
       router.refresh();
     } catch {
-      toast.error("Failed to stop agent");
+      toast.error("Failed to suspend agent");
     } finally {
       setActionInProgress(null);
     }
@@ -263,7 +285,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
   async function handleDelete(id: string) {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/v1/milady/agents/${id}`, {
+      const res = await fetch(`/api/v1/milaidy/agents/${id}`, {
         method: "DELETE",
       });
       const data = await res.json().catch(() => ({}));
@@ -273,37 +295,12 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       toast.success("Agent deleted");
       router.refresh();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to delete agent";
+      const message =
+        err instanceof Error ? err.message : "Failed to delete agent";
       toast.error(message);
     } finally {
       setIsDeleting(false);
       setDeleteId(null);
-    }
-  }
-
-  async function handleLaunch(id: string) {
-    setLaunchingId(id);
-    try {
-      const res = await fetch(`/api/compat/agents/${id}/launch`, {
-        method: "POST",
-      });
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error((data as { error?: string }).error ?? "Launch failed");
-      }
-
-      const appUrl = (data as { data?: { appUrl?: string } }).data?.appUrl;
-      if (!appUrl) {
-        throw new Error("Launch succeeded but no app URL was returned");
-      }
-
-      window.location.assign(appUrl);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to open Milady app";
-      toast.error(message);
-    } finally {
-      setLaunchingId(null);
     }
   }
 
@@ -334,7 +331,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
             <Input
-              placeholder="Search agents, nodes, IPs..."
+              placeholder="Search agents or IDs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-10 rounded-lg border-white/10 bg-black/40 text-white placeholder:text-neutral-500 focus-visible:ring-[#FF5800]/50"
@@ -389,9 +386,11 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                   </button>
                 </TableHead>
                 <TableHead className="text-xs font-medium text-neutral-400">
-                  Infrastructure
+                  Runtime
                 </TableHead>
-                <TableHead className="text-xs font-medium text-neutral-400">Network</TableHead>
+                <TableHead className="text-xs font-medium text-neutral-400">
+                  Web UI
+                </TableHead>
                 <TableHead>
                   <button
                     onClick={() => handleSort("created")}
@@ -422,12 +421,14 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                   const connectUrl = getConnectUrl(sb);
                   const trackedJob = poller.getStatus(sb.id);
                   const isProvisioning = poller.isActive(sb.id);
-                  const displayStatus = isProvisioning ? "provisioning" : sb.status;
-                  const busy =
-                    actionInProgress === sb.id || launchingId === sb.id || isProvisioning;
+                  const displayStatus = isProvisioning
+                    ? "provisioning"
+                    : sb.status;
+                  const busy = actionInProgress === sb.id || isProvisioning;
                   const canStart =
-                    ["stopped", "error", "pending", "disconnected"].includes(displayStatus) &&
-                    !busy;
+                    ["stopped", "error", "pending", "disconnected"].includes(
+                      displayStatus,
+                    ) && !busy;
                   const canStop = displayStatus === "running" && !busy;
 
                   return (
@@ -499,73 +500,61 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                         </div>
                       </TableCell>
 
-                      {/* Infrastructure */}
+                      {/* Runtime */}
                       <TableCell>
-                        {isDocker ? (
-                          <div className="space-y-0.5 text-xs text-neutral-400">
-                            <div className="flex items-center gap-1">
-                              <Server className="h-3 w-3 text-blue-400 shrink-0" />
-                              <span className="truncate max-w-[120px]" title={sb.node_id ?? ""}>
-                                {sb.node_id}
-                              </span>
-                            </div>
-                            {sb.container_name && (
-                              <div
-                                className="font-mono text-neutral-500 truncate max-w-[160px]"
-                                title={sb.container_name}
-                              >
-                                {sb.container_name}
-                              </div>
-                            )}
-                            {(sb.bridge_port || sb.web_ui_port) && (
-                              <div className="text-neutral-600">
-                                {sb.bridge_port && <span>Bridge: {sb.bridge_port}</span>}
-                                {sb.bridge_port && sb.web_ui_port && " · "}
-                                {sb.web_ui_port && <span>UI: {sb.web_ui_port}</span>}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-neutral-500">
-                            <Cloud className="h-3 w-3 text-purple-400 inline mr-1" />
-                            {sb.sandbox_id ? (
-                              <span className="font-mono">{sb.sandbox_id.slice(0, 12)}…</span>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center gap-1.5 text-neutral-300">
+                            {isDocker ? (
+                              <>
+                                <Server className="h-3 w-3 text-blue-400 shrink-0" />
+                                <span>Managed runtime</span>
+                              </>
                             ) : (
-                              <span className="italic">No sandbox yet</span>
+                              <>
+                                <Cloud className="h-3 w-3 text-purple-400 shrink-0" />
+                                <span>Cloud sandbox</span>
+                              </>
                             )}
                           </div>
-                        )}
+                          <p className="text-neutral-500">
+                            {isDocker
+                              ? "Private Milady infrastructure"
+                              : sb.sandbox_id
+                                ? "Provisioned sandbox"
+                                : "No sandbox yet"}
+                          </p>
+                        </div>
                       </TableCell>
 
-                      {/* Network */}
+                      {/* Web UI */}
                       <TableCell>
-                        {sb.headscale_ip ? (
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1 text-xs">
-                              <Network className="h-3 w-3 text-green-400 shrink-0" />
-                              <span className="font-mono text-green-400">{sb.headscale_ip}</span>
-                            </div>
-                            {connectUrl && displayStatus === "running" && (
-                              <a
-                                href={connectUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[10px] text-[#FF5800] hover:text-[#FF5800]/80 transition-colors"
-                              >
-                                <Wifi className="h-2.5 w-2.5" />
-                                Connect
-                              </a>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-neutral-600">—</span>
-                        )}
+                        <div className="space-y-1 text-xs">
+                          {connectUrl && displayStatus === "running" ? (
+                            <button
+                              onClick={() => openWebUIWithPairing(sb.id)}
+                              className="inline-flex items-center gap-1 text-[#FF5800] hover:text-[#FF5800]/80 transition-colors cursor-pointer bg-transparent border-0 p-0 text-xs"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              Open Web UI
+                            </button>
+                          ) : displayStatus === "running" ? (
+                            <span className="text-neutral-500">
+                              Web UI unavailable
+                            </span>
+                          ) : (
+                            <span className="text-neutral-600">
+                              Start agent to open
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
 
                       {/* Created */}
                       <TableCell>
                         <div className="text-sm">
-                          <div className="text-white">{formatRelative(sb.created_at)}</div>
+                          <div className="text-white">
+                            {formatRelative(sb.created_at)}
+                          </div>
                           {sb.last_heartbeat_at && (
                             <div className="text-xs text-neutral-500">
                               Heartbeat {formatRelative(sb.last_heartbeat_at)}
@@ -577,29 +566,12 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                       {/* Actions */}
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => void handleLaunch(sb.id)}
-                                disabled={busy}
-                                className="p-2 text-neutral-400 hover:text-[#FF5800] hover:bg-[#FF5800]/10 rounded-lg transition-colors disabled:opacity-50"
-                              >
-                                {launchingId === sb.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Wifi className="h-4 w-4" />
-                                )}
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-neutral-900 border-white/10">
-                              Open in Milady app
-                            </TooltipContent>
-                          </Tooltip>
-
                           {/* Details */}
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Link href={`/dashboard/containers/agents/${sb.id}`}>
+                              <Link
+                                href={`/dashboard/containers/agents/${sb.id}`}
+                              >
                                 <button className="p-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                                   <FileText className="h-4 w-4" />
                                 </button>
@@ -610,7 +582,24 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                             </TooltipContent>
                           </Tooltip>
 
-                          {/* Start */}
+                          {/* Connect via pairing token */}
+                          {connectUrl && displayStatus === "running" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => openWebUIWithPairing(sb.id)}
+                                  className="p-2 text-neutral-400 hover:text-[#FF5800] hover:bg-[#FF5800]/10 rounded-lg transition-colors"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-neutral-900 border-white/10">
+                                Open Web UI
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+
+                          {/* Resume */}
                           {canStart && (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -623,25 +612,25 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="bg-neutral-900 border-white/10">
-                                Start agent
+                                Resume agent
                               </TooltipContent>
                             </Tooltip>
                           )}
 
-                          {/* Stop */}
+                          {/* Suspend */}
                           {canStop && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  onClick={() => handleShutdown(sb.id)}
+                                  onClick={() => handleSuspend(sb.id)}
                                   disabled={busy}
                                   className="p-2 text-neutral-400 hover:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors disabled:opacity-50"
                                 >
-                                  <Square className="h-4 w-4" />
+                                  <Pause className="h-4 w-4" />
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="bg-neutral-900 border-white/10">
-                                Stop agent
+                                Suspend agent (saves snapshot)
                               </TooltipContent>
                             </Tooltip>
                           )}
@@ -673,10 +662,15 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       </div>
 
       {/* Delete confirmation */}
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+      <AlertDialog
+        open={deleteId !== null}
+        onOpenChange={() => setDeleteId(null)}
+      >
         <AlertDialogContent className="bg-neutral-900 border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Agent</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">
+              Delete Agent
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-neutral-400">
               {deleteTargetBusy
                 ? "This agent is still provisioning. Wait for the job to finish before deleting it."
@@ -688,7 +682,9 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteId && !deleteTargetBusy && handleDelete(deleteId)}
+              onClick={() =>
+                deleteId && !deleteTargetBusy && handleDelete(deleteId)
+              }
               disabled={isDeleting || deleteTargetBusy}
               className="bg-red-500 hover:bg-red-600 text-white disabled:opacity-50"
             >

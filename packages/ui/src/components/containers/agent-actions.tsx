@@ -4,19 +4,32 @@
  */
 "use client";
 
-import { BrandButton, BrandCard } from "@elizaos/cloud-ui";
-import { Camera, Loader2, Play, Square, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import {
+  Play,
+  Pause,
+  Square,
+  Camera,
+  Trash2,
+  Loader2,
+  ExternalLink,
+} from "lucide-react";
+import { BrandCard, BrandButton } from "@elizaos/ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
 
 interface MiladyAgentActionsProps {
   agentId: string;
   status: string;
+  webUiUrl: string | null;
 }
 
-export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps) {
+export function MiladyAgentActions({
+  agentId,
+  status,
+  webUiUrl,
+}: MiladyAgentActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -30,24 +43,28 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
   const effectiveStatus = poller.isActive(agentId) ? "provisioning" : status;
 
   const isRunning = effectiveStatus === "running";
-  const isStopped = ["stopped", "error", "pending", "disconnected"].includes(effectiveStatus);
+  const isStopped = ["stopped", "error", "pending", "disconnected"].includes(
+    effectiveStatus,
+  );
   const isBusy = effectiveStatus === "provisioning";
 
   async function doAction(action: string, method = "POST") {
     setLoading(action);
     try {
-      let url = `/api/v1/milady/agents/${agentId}`;
+      let url = `/api/v1/milaidy/agents/${agentId}`;
       let body: string | undefined;
 
-      if (action === "provision") {
-        url = `/api/v1/milady/agents/${agentId}/provision`;
+      if (action === "resume") {
+        url = `/api/v1/milaidy/agents/${agentId}/resume`;
+      } else if (action === "provision") {
+        url = `/api/v1/milaidy/agents/${agentId}/provision`;
       } else if (action === "snapshot") {
-        url = `/api/v1/milady/agents/${agentId}/snapshot`;
+        url = `/api/v1/milaidy/agents/${agentId}/snapshot`;
       } else if (action === "delete") {
         method = "DELETE";
-      } else if (action === "shutdown") {
+      } else if (action === "shutdown" || action === "suspend") {
         method = "PATCH";
-        body = JSON.stringify({ action: "shutdown" });
+        body = JSON.stringify({ action: "suspend" });
       }
 
       const res = await fetch(url, {
@@ -58,7 +75,7 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
 
       const data = await res.json().catch(() => ({}));
 
-      if (action === "provision" && res.status === 409) {
+      if ((action === "provision" || action === "resume") && res.status === 409) {
         const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
         if (jobId) {
           poller.track(agentId, jobId);
@@ -68,7 +85,9 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
       }
 
       if (!res.ok) {
-        throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+        throw new Error(
+          (data as { error?: string }).error ?? `HTTP ${res.status}`,
+        );
       }
 
       if (action === "delete") {
@@ -77,7 +96,7 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
         return;
       }
 
-      if (action === "provision" && res.status === 202) {
+      if ((action === "provision" || action === "resume") && res.status === 202) {
         const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
         if (jobId) {
           poller.track(agentId, jobId);
@@ -92,8 +111,9 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
 
       const messages: Record<string, string> = {
         provision: "Agent provisioning started",
+        resume: "Agent resuming from snapshot",
         snapshot: "Snapshot saved",
-        shutdown: "Agent shutdown complete",
+        suspend: "Agent suspended (snapshot saved)",
       };
       toast.success(messages[action] ?? "Done");
       router.refresh();
@@ -119,94 +139,109 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
           </h2>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          {isStopped && (
-            <BrandButton
-              variant="primary"
-              size="sm"
-              onClick={() => doAction("provision")}
-              disabled={!!loading || isBusy}
-            >
-              {loading === "provision" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              Start Agent
-            </BrandButton>
-          )}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-wrap gap-3">
+            {isRunning && webUiUrl && (
+              <BrandButton asChild variant="primary" size="sm">
+                <a href={webUiUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  Open Web UI
+                </a>
+              </BrandButton>
+            )}
 
-          {isRunning && (
-            <BrandButton
-              variant="outline"
-              size="sm"
-              onClick={() => doAction("shutdown", "PATCH")}
-              disabled={!!loading || isBusy}
-            >
-              {loading === "shutdown" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Square className="h-4 w-4" />
-              )}
-              Stop Agent
-            </BrandButton>
-          )}
-
-          {isRunning && (
-            <BrandButton
-              variant="outline"
-              size="sm"
-              onClick={() => doAction("snapshot")}
-              disabled={!!loading || isBusy}
-            >
-              {loading === "snapshot" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Camera className="h-4 w-4" />
-              )}
-              Save Snapshot
-            </BrandButton>
-          )}
-
-          {!showDeleteConfirm ? (
-            <BrandButton
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={!!loading || isBusy}
-              className="text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete Agent
-            </BrandButton>
-          ) : (
-            <div className="flex items-center gap-2 p-3 rounded-none border border-red-500/30 bg-red-950/20">
-              <span
-                className="text-sm text-red-400"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
+            {isStopped && (
+              <BrandButton
+                variant="primary"
+                size="sm"
+                onClick={() => doAction("resume")}
+                disabled={!!loading || isBusy}
               >
-                Confirm delete?
-              </span>
+                {loading === "resume" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Resume Agent
+              </BrandButton>
+            )}
+
+            {isRunning && (
               <BrandButton
                 variant="outline"
                 size="sm"
-                onClick={() => doAction("delete", "DELETE")}
-                disabled={!!loading}
-                className="text-red-400 border-red-500/50 hover:bg-red-500/20"
+                onClick={() => doAction("snapshot")}
+                disabled={!!loading || isBusy}
               >
-                {loading === "delete" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                Yes, delete
+                {loading === "snapshot" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
+                Save Snapshot
               </BrandButton>
+            )}
+
+            {isRunning && (
               <BrandButton
                 variant="outline"
                 size="sm"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="text-white/60"
+                onClick={() => doAction("suspend", "PATCH")}
+                disabled={!!loading || isBusy}
               >
-                Cancel
+                {loading === "suspend" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Pause className="h-4 w-4" />
+                )}
+                Suspend Agent
               </BrandButton>
-            </div>
-          )}
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            {!showDeleteConfirm ? (
+              <BrandButton
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={!!loading || isBusy}
+                className="text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Agent
+              </BrandButton>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2 rounded-none border border-red-500/30 bg-red-950/20 p-3">
+                <span
+                  className="text-sm text-red-400"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  Confirm delete?
+                </span>
+                <BrandButton
+                  variant="outline"
+                  size="sm"
+                  onClick={() => doAction("delete", "DELETE")}
+                  disabled={!!loading}
+                  className="text-red-400 border-red-500/50 hover:bg-red-500/20"
+                >
+                  {loading === "delete" ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : null}
+                  Yes, delete
+                </BrandButton>
+                <BrandButton
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="text-white/60"
+                >
+                  Cancel
+                </BrandButton>
+              </div>
+            )}
+          </div>
         </div>
 
         {poller.isActive(agentId) && (
@@ -216,7 +251,8 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
               style={{ fontFamily: "var(--font-roboto-mono)" }}
             >
               <Loader2 className="h-4 w-4 animate-spin" />
-              Agent is provisioning. This page will refresh when the job finishes.
+              Agent is provisioning. This page will refresh when the job
+              finishes.
             </p>
             {trackedJob && (
               <p

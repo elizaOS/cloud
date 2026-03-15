@@ -49,6 +49,25 @@ export class JobsRepository {
   }
 
   /**
+   * Finds a job by ID scoped to a single organization.
+   *
+   * @param id - Job ID.
+   * @param organizationId - Owning organization ID.
+   * @returns Job record or undefined.
+   */
+  async findByIdAndOrg(
+    id: string,
+    organizationId: string,
+  ): Promise<Job | undefined> {
+    const [job] = await dbRead
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, id), eq(jobs.organization_id, organizationId)))
+      .limit(1);
+    return job;
+  }
+
+  /**
    * Gets jobs filtered by type, status, and organization.
    * Generic method that can be used by any service.
    *
