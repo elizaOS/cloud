@@ -114,6 +114,30 @@ export async function PATCH(
   }
 
   if (parsed.data.action === "shutdown" || parsed.data.action === "suspend") {
+    // Check if already stopped — return success without re-running shutdown
+    // (consistent with the dedicated suspend/route.ts endpoint)
+    const agent = await miladySandboxService.getAgentForWrite(
+      agentId,
+      user.organization_id,
+    );
+    if (!agent) {
+      return NextResponse.json(
+        { success: false, error: "Agent not found" },
+        { status: 404 },
+      );
+    }
+    if (agent.status === "stopped") {
+      return NextResponse.json({
+        success: true,
+        data: {
+          agentId,
+          action: parsed.data.action,
+          message: "Agent is already suspended",
+          previousStatus: agent.status,
+        },
+      });
+    }
+
     const result = await miladySandboxService.shutdown(
       agentId,
       user.organization_id,

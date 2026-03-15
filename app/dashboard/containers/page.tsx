@@ -37,9 +37,11 @@ export default async function ContainersPage() {
     // Table likely missing — show empty list
   }
 
+  // Read base domain once rather than per-sandbox in the map
+  const baseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
   const miladySandboxes = sandboxes.map((sandbox) => ({
     ...sandbox,
-    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox),
+    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, { baseDomain }),
   }));
 
   const stats = {

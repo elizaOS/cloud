@@ -28,6 +28,10 @@ class PairingTokenService {
   start() {
     if (this.cleanupTimer) return;
     this.cleanupTimer = setInterval(() => this.cleanup(), CLEANUP_INTERVAL_MS);
+    // Prevent the timer from keeping the process alive during tests / hot-reload
+    if (typeof this.cleanupTimer === "object" && "unref" in this.cleanupTimer) {
+      this.cleanupTimer.unref();
+    }
   }
 
   stop() {

@@ -113,7 +113,6 @@ export function MiladyAgentActions({
         provision: "Agent provisioning started",
         resume: "Agent resuming from snapshot",
         snapshot: "Snapshot saved",
-        shutdown: "Agent shutdown complete",
         suspend: "Agent suspended (snapshot saved)",
       };
       toast.success(messages[action] ?? "Done");
