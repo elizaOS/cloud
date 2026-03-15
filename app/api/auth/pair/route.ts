@@ -52,26 +52,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For Docker containers, the API key is typically set via the
-    // environment variable SERVER_API_KEY or similar. We can either
-    // retrieve it from environment_vars or generate a session token.
-    //
-    // For now, return a deterministic key derived from the agent ID
-    // that the container can validate, or return the stored key.
+    // Return the container's explicit API token so pair.html can
+    // bootstrap the web UI session.  Never expose JWT_SECRET or
+    // generic API_KEY (which could be an OpenAI key etc.).
     const envVars = (sandbox.environment_vars ?? {}) as Record<string, string>;
     const apiKey =
       envVars.MILADY_API_TOKEN ||
-      envVars.JWT_SECRET ||
       envVars.SERVER_API_KEY ||
       envVars.AGENT_API_KEY ||
-      envVars.API_KEY ||
       null;
 
     // If no API key configured, still allow pairing — the web UI may
     // work without auth or use a different mechanism.
     const response = NextResponse.json({
       message: "Paired successfully",
-      apiKey: apiKey ?? `milady_pair_${pairingToken.agentId}`,
+      apiKey: apiKey ?? null,
       agentName: sandbox.agent_name ?? "Agent",
     });
 

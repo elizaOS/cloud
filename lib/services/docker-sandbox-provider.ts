@@ -13,6 +13,7 @@ import { dockerNodeManager } from "@/lib/services/docker-node-manager";
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { logger } from "@/lib/utils/logger";
+import { getAgentBaseDomain } from "@/lib/milady-web-ui";
 import type {
   SandboxProvider,
   SandboxHandle,
@@ -308,12 +309,12 @@ export class DockerSandboxProvider implements SandboxProvider {
       // The milady server auto-generates a random MILADY_API_TOKEN when
       // MILADY_API_BIND is non-loopback (0.0.0.0) and no token is set.
       // Set it explicitly so our pairing endpoint can return it.
+      // IMPORTANT: use a separate random value — do NOT reuse JWT_SECRET,
+      // which is the container's auth signing key.
       MILADY_API_TOKEN:
-        environmentVars.MILADY_API_TOKEN ||
-        environmentVars.JWT_SECRET ||
-        crypto.randomUUID(),
+        environmentVars.MILADY_API_TOKEN || crypto.randomUUID(),
       // Allow the agent subdomain origin so the browser can call the API.
-      MILADY_ALLOWED_ORIGINS: `https://${agentId}.waifu.fun,https://${agentId}.shad0w.xyz`,
+      MILADY_ALLOWED_ORIGINS: `https://${agentId}.${getAgentBaseDomain()}`,
     };
 
     // Validate env var keys to prevent shell command injection via malformed keys

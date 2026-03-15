@@ -11,10 +11,17 @@ type MiladyClientWebUiTarget = MiladyWebUiTarget & {
   canonicalWebUiUrl?: string | null;
 };
 
-interface MiladyWebUiUrlOptions {
+export interface MiladyWebUiUrlOptions {
   baseDomain?: string | null;
-  allowExampleFallback?: boolean;
   path?: string;
+}
+
+/** Resolved base domain for the current deployment (e.g. "waifu.fun"). */
+export function getAgentBaseDomain(): string {
+  return (
+    normalizeAgentBaseDomain(process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN) ??
+    DEFAULT_AGENT_BASE_DOMAIN
+  );
 }
 
 function normalizeAgentBaseDomain(baseDomain?: string | null): string | null {

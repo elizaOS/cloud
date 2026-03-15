@@ -29,7 +29,7 @@ describe("compat-envelope default domain", () => {
     }
   });
 
-  test("uses agents.example.com when env var is unset", async () => {
+  test("falls back to waifu.fun default when env var is unset", async () => {
     delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
     // Dynamic import to pick up env change

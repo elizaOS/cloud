@@ -29,7 +29,6 @@ import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 function getAgentWebUiUrl(sandbox: MiladySandbox): string | null {
   return getMiladyAgentPublicWebUiUrl(sandbox, {
     baseDomain: process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN,
-    allowExampleFallback: true,
   });
 }
 

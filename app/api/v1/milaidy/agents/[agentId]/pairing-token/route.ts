@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { getPairingTokenService } from "@/lib/services/pairing-token";
+import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -46,8 +47,9 @@ export async function POST(
     );
   }
 
-  // Build the web UI base URL from the agent ID
-  const webUiUrl = `https://${agentId}.waifu.fun`;
+  // Build the web UI base URL from the agent ID + configured domain
+  const webUiUrl = getMiladyAgentPublicWebUiUrl({ id: agentId, headscale_ip: null })
+    ?? `https://${agentId}.waifu.fun`;
 
   const tokenService = getPairingTokenService();
   const pairingToken = tokenService.generateToken(
