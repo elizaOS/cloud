@@ -393,6 +393,28 @@ function mapFinishReason(
   return "end_turn";
 }
 
+function resolveStopSequence(
+  stopReason: AnthropicStopReason,
+  rawFinishReason: string | undefined,
+  requestedStopSequences: string[] | undefined,
+): string | null {
+  if (stopReason !== "stop_sequence") return null;
+
+  if (
+    rawFinishReason &&
+    rawFinishReason !== "stop_sequence" &&
+    requestedStopSequences?.includes(rawFinishReason)
+  ) {
+    return rawFinishReason;
+  }
+
+  if (requestedStopSequences?.length === 1) {
+    return requestedStopSequences[0];
+  }
+
+  return null;
+}
+
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return addCorsHeaders(createPreflightResponse(origin, ["POST", "OPTIONS"]));
@@ -695,6 +717,11 @@ async function handleNonStream(
 
   const hasToolCalls = Boolean(result.toolCalls?.length);
   const stopReason = mapFinishReason(result.finishReason, result.rawFinishReason, hasToolCalls);
+  const stopSequence = resolveStopSequence(
+    stopReason,
+    result.rawFinishReason,
+    request.stop_sequences,
+  );
 
   return addCorsHeaders(
     Response.json({
@@ -704,7 +731,7 @@ async function handleNonStream(
       content: responseContent,
       model: request.model,
       stop_reason: stopReason,
-      stop_sequence: null,
+      stop_sequence: stopSequence,
       usage: {
         input_tokens: billing.inputTokens,
         output_tokens: billing.outputTokens,
@@ -994,11 +1021,16 @@ async function handleStream(
         }
 
         const stopReason = mapFinishReason(finishReason, rawFinishReason, sawToolCalls);
+        const stopSequence = resolveStopSequence(
+          stopReason,
+          rawFinishReason,
+          request.stop_sequences,
+        );
 
         controller.enqueue(
           sse("message_delta", {
             type: "message_delta",
-            delta: { stop_reason: stopReason, stop_sequence: null },
+            delta: { stop_reason: stopReason, stop_sequence: stopSequence },
             usage: {
               output_tokens: totalUsage?.outputTokens ?? 0,
             },
