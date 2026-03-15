@@ -10,20 +10,17 @@
  * - Rejections automatically refund user balance
  */
 
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
-import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
-import { dbRead } from "@/db/client";
-import {
-  tokenRedemptions,
-  type TokenRedemption,
-} from "@/db/schemas/token-redemptions";
-import { users } from "@/db/schemas/users";
-import { apps } from "@/db/schemas/apps";
-import { eq, and, inArray, desc, sql } from "drizzle-orm";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { dbRead } from "@/db/client";
+import { apps } from "@/db/schemas/apps";
+import { type TokenRedemption, tokenRedemptions } from "@/db/schemas/token-redemptions";
+import { users } from "@/db/schemas/users";
+import { requireAdmin } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
+import { logger } from "@/lib/utils/logger";
 
 // Request schemas
 const AdminActionSchema = z.object({
@@ -36,9 +33,7 @@ const AdminActionSchema = z.object({
  * GET /api/admin/redemptions
  * List redemptions pending admin review.
  */
-async function listPendingRedemptionsHandler(
-  request: NextRequest,
-): Promise<Response> {
+async function listPendingRedemptionsHandler(request: NextRequest): Promise<Response> {
   const { user: adminUser } = await requireAdmin(request);
 
   const statusFilter = request.nextUrl.searchParams.get("status") || "pending";
@@ -192,10 +187,7 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
     );
 
     if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
 
     logger.info("[Admin Redemptions] Approved redemption", {
@@ -216,10 +208,7 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
     );
 
     if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
 
     logger.info("[Admin Redemptions] Rejected redemption", {
@@ -235,10 +224,7 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
   }
 }
 
-export const GET = withRateLimit(
-  listPendingRedemptionsHandler,
-  RateLimitPresets.STANDARD,
-);
+export const GET = withRateLimit(listPendingRedemptionsHandler, RateLimitPresets.STANDARD);
 export const POST = withRateLimit(adminActionHandler, RateLimitPresets.STRICT);
 
 /**
@@ -250,8 +236,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

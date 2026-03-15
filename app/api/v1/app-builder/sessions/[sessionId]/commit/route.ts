@@ -1,13 +1,13 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { dbWrite } from "@/db/client";
+import { appSandboxSessions } from "@/db/schemas/app-sandboxes";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { appsService } from "@/lib/services/apps";
 import { gitSyncService } from "@/lib/services/git-sync";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
-import { dbWrite } from "@/db/client";
-import { appSandboxSessions } from "@/db/schemas/app-sandboxes";
-import { eq } from "drizzle-orm";
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -52,10 +52,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { message, files } = validationResult.data;
 
     // Verify session ownership and get session data
-    const session = await aiAppBuilder.verifySessionOwnership(
-      sessionId,
-      user.id,
-    );
+    const session = await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
     if (!session.sandbox_id) {
       return NextResponse.json(
@@ -92,8 +89,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     // Generate commit message if not provided
-    const commitMessage =
-      message || `Manual save at ${new Date().toISOString()}`;
+    const commitMessage = message || `Manual save at ${new Date().toISOString()}`;
 
     // Perform the commit
     const commitResult = await gitSyncService.commitAndPush(
@@ -147,14 +143,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       message: commitMessage,
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to commit changes";
+    const errorMessage = error instanceof Error ? error.message : "Failed to commit changes";
     const status =
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication")
+      errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")
         ? 401
-        : errorMessage.includes("Access denied") ||
-            errorMessage.includes("don't own")
+        : errorMessage.includes("Access denied") || errorMessage.includes("don't own")
           ? 403
           : errorMessage.includes("not found")
             ? 404
@@ -162,10 +155,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     logger.error("Manual commit error", { error: errorMessage });
 
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status },
-    );
+    return NextResponse.json({ success: false, error: errorMessage }, { status });
   }
 }
 
@@ -183,10 +173,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { sessionId } = await params;
 
     // Verify session ownership and get session data
-    const session = await aiAppBuilder.verifySessionOwnership(
-      sessionId,
-      user.id,
-    );
+    const session = await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
     if (!session.sandbox_id) {
       return NextResponse.json(
@@ -202,17 +189,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Unable to get git status - sandbox may not be a git repository",
+          error: "Unable to get git status - sandbox may not be a git repository",
         },
         { status: 400 },
       );
     }
 
     // Get current commit SHA
-    const currentSha = await gitSyncService.getCurrentCommitSha(
-      session.sandbox_id,
-    );
+    const currentSha = await gitSyncService.getCurrentCommitSha(session.sandbox_id);
 
     return NextResponse.json({
       success: true,
@@ -224,14 +208,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       lastSavedCommitSha: session.last_commit_sha,
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to get git status";
+    const errorMessage = error instanceof Error ? error.message : "Failed to get git status";
     const status =
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication")
+      errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")
         ? 401
-        : errorMessage.includes("Access denied") ||
-            errorMessage.includes("don't own")
+        : errorMessage.includes("Access denied") || errorMessage.includes("don't own")
           ? 403
           : errorMessage.includes("not found")
             ? 404
@@ -239,9 +220,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     logger.error("Get commit status error", { error: errorMessage });
 
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status },
-    );
+    return NextResponse.json({ success: false, error: errorMessage }, { status });
   }
 }

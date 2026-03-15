@@ -12,33 +12,36 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { logger } from "@/lib/utils/logger";
+import type { Organization } from "@/db/schemas/organizations";
+import type { User } from "@/db/schemas/users";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import {
-  telegramAuthService,
-  elizaAppUserService,
   elizaAppSessionService,
+  elizaAppUserService,
   type TelegramAuthData,
+  telegramAuthService,
   type ValidatedSession,
 } from "@/lib/services/eliza-app";
-import { normalizePhoneNumber, isValidE164 } from "@/lib/utils/phone-normalization";
-import type { User } from "@/db/schemas/users";
-import type { Organization } from "@/db/schemas/organizations";
+import { logger } from "@/lib/utils/logger";
+import { isValidE164, normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 
 /**
  * E.164 phone number validation (after normalization)
  */
-const phoneNumberSchema = z.string().min(1, "Phone number is required").transform((val, ctx) => {
-  const normalized = normalizePhoneNumber(val);
-  if (!isValidE164(normalized)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Invalid phone number format. Please use international format (e.g., +1234567890)",
-    });
-    return z.NEVER;
-  }
-  return normalized;
-});
+const phoneNumberSchema = z
+  .string()
+  .min(1, "Phone number is required")
+  .transform((val, ctx) => {
+    const normalized = normalizePhoneNumber(val);
+    if (!isValidE164(normalized)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invalid phone number format. Please use international format (e.g., +1234567890)",
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  });
 
 /**
  * Request body schema: Telegram Login Widget data + phone number from frontend + optional signup code
@@ -55,7 +58,10 @@ const telegramAuthSchema = z.object({
   auth_date: z.number().int().positive(),
   hash: z.string().length(64), // SHA-256 hash is 64 hex characters
   // Optional signup code for bonus credits (new users only; one per org)
-  signup_code: z.string().optional().transform((s) => s?.trim() || undefined),
+  signup_code: z
+    .string()
+    .optional()
+    .transform((s) => s?.trim() || undefined),
 });
 
 /**
@@ -161,7 +167,9 @@ async function handleTelegramAuth(
       return NextResponse.json(
         {
           success: false,
-          error: linkTelegramResult.error || "This Telegram account is already linked to another account",
+          error:
+            linkTelegramResult.error ||
+            "This Telegram account is already linked to another account",
           code: "TELEGRAM_ALREADY_LINKED",
         },
         { status: 409 },
@@ -286,16 +294,12 @@ async function handleTelegramAuth(
   });
 
   // Create session (new session includes all known identities)
-  const session = await elizaAppSessionService.createSession(
-    user.id,
-    organization.id,
-    {
-      telegramId: String(authData.id),
-      phoneNumber: user.phone_number || phoneNumber,
-      ...(user.discord_id && { discordId: user.discord_id }),
-      ...(user.whatsapp_id && { whatsappId: user.whatsapp_id }),
-    },
-  );
+  const session = await elizaAppSessionService.createSession(user.id, organization.id, {
+    telegramId: String(authData.id),
+    phoneNumber: user.phone_number || phoneNumber,
+    ...(user.discord_id && { discordId: user.discord_id }),
+    ...(user.whatsapp_id && { whatsappId: user.whatsapp_id }),
+  });
 
   return NextResponse.json({
     success: true,

@@ -8,16 +8,16 @@
  * 3. Vercel deployment configuration
  */
 
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { dbWrite } from "@/db/client";
+import type { AppDeploymentStatus } from "@/db/schemas";
+import { apps } from "@/db/schemas";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { vercelDeploymentsService } from "@/lib/services/vercel-deployments";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
-import { dbWrite } from "@/db/client";
-import { apps } from "@/db/schemas";
-import { eq } from "drizzle-orm";
-import type { AppDeploymentStatus } from "@/db/schemas";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -40,20 +40,14 @@ const DeploySchema = z.object({
  * @param request - Request body with optional branch, target, and commitSha
  * @returns Deployment result with deployment ID and URL
  */
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const user = await requireAuthWithOrg();
   const { id: appId } = await params;
 
   // Verify app ownership
   const app = await appsService.getById(appId);
   if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "App not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
   }
 
   // Check if deployment is configured
@@ -129,10 +123,7 @@ export async function POST(
       })
       .where(eq(apps.id, appId));
 
-    return NextResponse.json(
-      { success: false, error: result.error },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: result.error }, { status: 500 });
   }
 
   // If deployment was triggered successfully, update status to "deployed"
@@ -165,20 +156,14 @@ export async function POST(
  *
  * @returns Deployment information including production URL and recent deployments
  */
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function GET(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const user = await requireAuthWithOrg();
   const { id: appId } = await params;
 
   // Verify app ownership
   const app = await appsService.getById(appId);
   if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "App not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
   }
 
   // Get production URL
@@ -188,8 +173,7 @@ export async function GET(
   const deployments = await vercelDeploymentsService.listDeployments(appId, 10);
 
   // Check if deployment is configured
-  const deploymentConfigured =
-    vercelDeploymentsService.isDeploymentConfigured();
+  const deploymentConfigured = vercelDeploymentsService.isDeploymentConfigured();
 
   return NextResponse.json({
     success: true,

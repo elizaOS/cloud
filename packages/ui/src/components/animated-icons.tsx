@@ -19,11 +19,7 @@ interface AnimatedIconProps {
  * Animated checkmark with drawing effect
  * Circle draws first, then checkmark pops in
  */
-export function AnimatedCheckmark({
-  className,
-  size = 16,
-  delay = 0,
-}: AnimatedIconProps) {
+export function AnimatedCheckmark({ className, size = 16, delay = 0 }: AnimatedIconProps) {
   return (
     <svg
       width={size}
@@ -85,11 +81,7 @@ export function AnimatedCheckmark({
 /**
  * Simple checkmark without circle - draws in smoothly
  */
-export function AnimatedCheck({
-  className,
-  size = 14,
-  delay = 0,
-}: AnimatedIconProps) {
+export function AnimatedCheck({ className, size = 14, delay = 0 }: AnimatedIconProps) {
   return (
     <svg
       width={size}
@@ -127,10 +119,7 @@ export function AnimatedCheck({
 /**
  * Animated loading ring with rotating gradient
  */
-export function AnimatedLoadingRing({
-  className,
-  size = 16,
-}: AnimatedIconProps) {
+export function AnimatedLoadingRing({ className, size = 16 }: AnimatedIconProps) {
   return (
     <svg
       width={size}

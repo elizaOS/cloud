@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyCronSecret } from "@/lib/api/cron-auth";
 import { cache } from "@/lib/cache/client";
 import { refreshGatewayModelCatalog } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
-import { verifyCronSecret } from "@/lib/api/cron-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,10 +39,7 @@ async function handleRefresh(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Model catalog refresh failed",
+        error: error instanceof Error ? error.message : "Model catalog refresh failed",
       },
       { status: 500 },
     );

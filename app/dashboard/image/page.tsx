@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { ImagePageClient } from "@/components/image/image-page-client";
+import { type GalleryItem, listUserMedia } from "@/app/actions/gallery";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
-import { listUserMedia, type GalleryItem } from "@/app/actions/gallery";
+import { ImagePageClient } from "@/packages/ui/src/components/image/image-page-client";
 
 export const dynamic = "force-dynamic";
 

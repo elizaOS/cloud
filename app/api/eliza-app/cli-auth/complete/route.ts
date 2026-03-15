@@ -1,7 +1,7 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { cliAuthSessions } from "@/db/schemas/cli-auth-sessions";
-import { eq } from "drizzle-orm";
 import { elizaAppSessionService } from "@/lib/services/eliza-app";
 
 /**
@@ -14,26 +14,17 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization");
     if (!authHeader) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const userSession = await elizaAppSessionService.validateAuthHeader(authHeader);
     if (!userSession) {
-      return NextResponse.json(
-        { success: false, error: "Invalid session" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
     }
 
     const { session_id } = await request.json();
     if (!session_id) {
-      return NextResponse.json(
-        { success: false, error: "Missing session_id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Missing session_id" }, { status: 400 });
     }
 
     const [cliSession] = await db
@@ -45,7 +36,7 @@ export async function POST(request: NextRequest) {
     if (!cliSession || cliSession.status !== "pending" || new Date() > cliSession.expires_at) {
       return NextResponse.json(
         { success: false, error: "Invalid or expired CLI session" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -69,7 +60,7 @@ export async function POST(request: NextRequest) {
     console.error("[CLI Auth Complete] Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to complete CLI auth" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

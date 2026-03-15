@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * POST /api/auth/cli-session/[sessionId]/complete
@@ -16,10 +16,7 @@ export async function POST(
     const { sessionId } = await params;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: "Session ID is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Session ID is required" }, { status: 400 });
     }
 
     // Require user to be authenticated via Privy
@@ -53,9 +50,6 @@ export async function POST(
       }
     }
 
-    return NextResponse.json(
-      { error: "Failed to complete authentication" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to complete authentication" }, { status: 500 });
   }
 }

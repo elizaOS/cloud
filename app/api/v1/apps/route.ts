@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService, AppNameConflictError } from "@/lib/services/apps";
-import { appFactoryService } from "@/lib/services/app-factory";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { appsService } from "@/lib/services/apps";
+import { logger } from "@/lib/utils/logger";
 
-const CreateAppSchema = z.object({
+const _CreateAppSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
   app_url: z.string().url(),
@@ -17,7 +16,7 @@ const CreateAppSchema = z.object({
   skipGitHubRepo: z.boolean().optional(),
 });
 
-const CheckNameSchema = z.object({
+const _CheckNameSchema = z.object({
   name: z.string().min(1).max(100),
 });
 

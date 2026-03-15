@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -32,9 +32,12 @@ export async function POST(
 
   const result = await miladySandboxService.provision(agentId, identity.organizationId);
   if (!result.success) {
-    const status = result.error === "Agent not found" ? 404
-      : result.error === "Agent is already being provisioned" ? 409
-      : 500;
+    const status =
+      result.error === "Agent not found"
+        ? 404
+        : result.error === "Agent is already being provisioned"
+          ? 409
+          : 500;
     return NextResponse.json(
       { success: false, status: result.sandboxRecord?.status ?? "error", error: result.error },
       { status },

@@ -5,17 +5,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { oauthService, OAuthError, Errors, internalErrorResponse } from "@/lib/services/oauth";
+import { Errors, internalErrorResponse, OAuthError, oauthService } from "@/lib/services/oauth";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: connectionId } = await params;
 

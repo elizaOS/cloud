@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { BlogPage } from "@/components/landing/blog-page";
-import Blog from "@/components/landing/Blog";
-import { getAllPosts, getPublicPosts, getPublicCategories } from "@/lib/blog";
+import { getAllPosts, getPublicCategories, getPublicPosts } from "@/lib/blog";
+import Blog from "@/packages/ui/src/components/landing/Blog";
+import { BlogPage } from "@/packages/ui/src/components/landing/blog-page";
 
 export const metadata = {
   title: "Cloud Blog",
@@ -13,13 +13,7 @@ function BlogContent() {
   const publicPosts = getPublicPosts();
   const categories = getPublicCategories();
 
-  return (
-    <Blog
-      allPosts={allPosts}
-      publicPosts={publicPosts}
-      categories={categories}
-    />
-  );
+  return <Blog allPosts={allPosts} publicPosts={publicPosts} categories={categories} />;
 }
 
 export default function BlogListingPage() {
@@ -27,9 +21,7 @@ export default function BlogListingPage() {
     <BlogPage>
       <Suspense
         fallback={
-          <div className="flex-1 px-4 pt-24 pb-12 text-center text-white/50">
-            Loading...
-          </div>
+          <div className="flex-1 px-4 pt-24 pb-12 text-center text-white/50">Loading...</div>
         }
       >
         <BlogContent />

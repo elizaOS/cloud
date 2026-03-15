@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -16,10 +16,7 @@ const ShareSchema = z.object({
  * Get the current sharing status of a character.
  * Supports both Privy session and API key authentication.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -27,21 +24,16 @@ export async function GET(
     const character = await charactersService.getByIdForUser(id, user.id);
 
     if (!character) {
-      return NextResponse.json(
-        { success: false, error: "Character not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Character not found" }, { status: 404 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
     return NextResponse.json({
       success: true,
       data: {
         isPublic: character.is_public,
-        shareUrl: character.is_public
-          ? `${baseUrl}/chat/${character.id}`
-          : null,
+        shareUrl: character.is_public ? `${baseUrl}/chat/${character.id}` : null,
         // Additional info for shared characters
         shareInfo: character.is_public
           ? {
@@ -78,10 +70,7 @@ export async function GET(
  * - Only "shared" knowledge items are accessible to public users
  * - User billing is based on who chats (not the character owner)
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -136,7 +125,7 @@ export async function PUT(
     revalidatePath("/dashboard/my-agents");
     revalidatePath("/dashboard/build");
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
     return NextResponse.json({
       success: true,
@@ -162,10 +151,7 @@ export async function PUT(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to update share status",
+        error: error instanceof Error ? error.message : "Failed to update share status",
       },
       { status: 500 },
     );

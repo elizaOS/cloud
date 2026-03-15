@@ -8,9 +8,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
-  oauthService,
-  OAuthError,
   internalErrorResponse,
+  OAuthError,
+  oauthService,
   validationErrorResponse,
 } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
@@ -39,7 +39,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (!isValidString(body.platform)) {
-    return NextResponse.json(validationErrorResponse("platform is required and must be a non-empty string"), { status: 400 });
+    return NextResponse.json(
+      validationErrorResponse("platform is required and must be a non-empty string"),
+      { status: 400 },
+    );
   }
 
   // Sanitize platform - lowercase and max 50 chars

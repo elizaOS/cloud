@@ -9,8 +9,8 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { logger } from "@/lib/utils/logger";
 import { requireStripe } from "@/lib/stripe";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -124,8 +124,7 @@ export async function GET(request: NextRequest) {
       { headers: corsHeaders },
     );
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Verification failed";
+    const errorMessage = error instanceof Error ? error.message : "Verification failed";
     const isAuthError =
       errorMessage.includes("Unauthorized") ||
       errorMessage.includes("Authentication required") ||

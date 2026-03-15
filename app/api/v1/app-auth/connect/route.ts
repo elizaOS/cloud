@@ -1,11 +1,11 @@
+import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { dbRead, dbWrite } from "@/db/client";
-import { users } from "@/db/schemas/users";
-import { apps, appUsers } from "@/db/schemas/apps";
-import { eq, and, sql } from "drizzle-orm";
-import { verifyAuthTokenCached } from "@/lib/auth";
 import { z } from "zod";
+import { dbRead, dbWrite } from "@/db/client";
+import { apps, appUsers } from "@/db/schemas/apps";
+import { users } from "@/db/schemas/users";
+import { verifyAuthTokenCached } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +13,7 @@ export const dynamic = "force-dynamic";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -110,13 +109,7 @@ export async function POST(request: NextRequest) {
         name: apps.name,
       })
       .from(apps)
-      .where(
-        and(
-          eq(apps.id, appId),
-          eq(apps.is_active, true),
-          eq(apps.is_approved, true),
-        ),
-      )
+      .where(and(eq(apps.id, appId), eq(apps.is_active, true), eq(apps.is_approved, true)))
       .limit(1);
 
     if (!app) {
@@ -154,8 +147,7 @@ export async function POST(request: NextRequest) {
         app_id: appId,
         user_id: user.id,
         signup_source: "oauth",
-        ip_address:
-          request.headers.get("x-forwarded-for")?.split(",")[0] || null,
+        ip_address: request.headers.get("x-forwarded-for")?.split(",")[0] || null,
         user_agent: request.headers.get("user-agent") || null,
       });
 

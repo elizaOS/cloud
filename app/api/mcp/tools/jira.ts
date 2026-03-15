@@ -10,10 +10,10 @@
 
 import type { McpServer } from "mcp-handler";
 import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getJiraToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -48,7 +48,9 @@ async function getCloudId(token: string, orgId: string): Promise<string> {
   }
   const resources = await response.json();
   if (!Array.isArray(resources) || resources.length === 0) {
-    throw new Error("No Jira sites found. Ensure your Atlassian account has access to a Jira Cloud site.");
+    throw new Error(
+      "No Jira sites found. Ensure your Atlassian account has access to a Jira Cloud site.",
+    );
   }
 
   const cloudId = resources[0].id;
@@ -77,9 +79,7 @@ async function jiraApi(method: string, path: string, body?: unknown) {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(
-      error?.errorMessages?.join("; ") ||
-      error?.message ||
-      `Jira API error: ${response.status}`,
+      error?.errorMessages?.join("; ") || error?.message || `Jira API error: ${response.status}`,
     );
   }
 
@@ -146,10 +146,17 @@ export function registerJiraTools(server: McpServer): void {
   server.registerTool(
     "jira_search_issues",
     {
-      description: "Search Jira issues using JQL (Jira Query Language). Example JQL: 'project = KEY AND status = \"In Progress\" ORDER BY created DESC'",
+      description:
+        "Search Jira issues using JQL (Jira Query Language). Example JQL: 'project = KEY AND status = \"In Progress\" ORDER BY created DESC'",
       inputSchema: {
         jql: z.string().min(1).describe("JQL query string"),
-        maxResults: z.number().int().min(1).max(100).optional().describe("Max results (default 50)"),
+        maxResults: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Max results (default 50)"),
         startAt: z.number().int().min(0).optional().describe("Pagination offset"),
         fields: z.array(z.string()).optional().describe("Fields to return"),
       },
@@ -160,7 +167,11 @@ export function registerJiraTools(server: McpServer): void {
         if (maxResults) params.set("maxResults", String(maxResults));
         if (startAt) params.set("startAt", String(startAt));
         if (fields) params.set("fields", fields.join(","));
-        else params.set("fields", "summary,status,assignee,priority,issuetype,created,updated,project");
+        else
+          params.set(
+            "fields",
+            "summary,status,assignee,priority,issuetype,created,updated,project",
+          );
         const data = await jiraApi("GET", `/search?${params.toString()}`);
         return jsonResponse(data);
       } catch (error) {
@@ -196,15 +207,30 @@ export function registerJiraTools(server: McpServer): void {
       inputSchema: {
         projectKey: z.string().min(1).describe("Project key (e.g., PROJ)"),
         summary: z.string().min(1).describe("Issue summary/title"),
-        issueType: z.string().optional().describe("Issue type (default: Task). Common: Bug, Story, Task, Epic"),
-        description: z.string().optional().describe("Issue description (plain text, converted to ADF)"),
+        issueType: z
+          .string()
+          .optional()
+          .describe("Issue type (default: Task). Common: Bug, Story, Task, Epic"),
+        description: z
+          .string()
+          .optional()
+          .describe("Issue description (plain text, converted to ADF)"),
         assigneeAccountId: z.string().optional().describe("Assignee account ID"),
         priority: z.string().optional().describe("Priority name (e.g., High, Medium, Low)"),
         labels: z.array(z.string()).optional().describe("Labels to add"),
         parentKey: z.string().optional().describe("Parent issue key for subtasks"),
       },
     },
-    async ({ projectKey, summary, issueType, description, assigneeAccountId, priority, labels, parentKey }) => {
+    async ({
+      projectKey,
+      summary,
+      issueType,
+      description,
+      assigneeAccountId,
+      priority,
+      labels,
+      parentKey,
+    }) => {
       try {
         const fields: Record<string, unknown> = {
           project: { key: projectKey },
@@ -231,7 +257,10 @@ export function registerJiraTools(server: McpServer): void {
       inputSchema: {
         issueKey: z.string().min(1).describe("Issue key (e.g., PROJ-123)"),
         summary: z.string().optional().describe("New summary"),
-        description: z.string().optional().describe("New description (plain text, converted to ADF)"),
+        description: z
+          .string()
+          .optional()
+          .describe("New description (plain text, converted to ADF)"),
         assigneeAccountId: z.string().optional().describe("New assignee account ID"),
         priority: z.string().optional().describe("New priority name"),
         labels: z.array(z.string()).optional().describe("New labels (replaces existing)"),
@@ -360,7 +389,8 @@ export function registerJiraTools(server: McpServer): void {
   server.registerTool(
     "jira_transition_issue",
     {
-      description: "Transition a Jira issue to a new status (use jira_get_transitions to find valid transition IDs)",
+      description:
+        "Transition a Jira issue to a new status (use jira_get_transitions to find valid transition IDs)",
       inputSchema: {
         issueKey: z.string().min(1).describe("Issue key (e.g., PROJ-123)"),
         transitionId: z.string().min(1).describe("Transition ID (from jira_get_transitions)"),

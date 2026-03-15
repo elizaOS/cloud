@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { apiKeysService } from "@/lib/services/api-keys";
 import { z } from "zod";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { logger } from "@/lib/utils/logger";
 import { createApiKeySchema } from "./schemas";
 
 /**
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const { apiKey, plainKey } = await apiKeysService.create({
       name,
       description,
-      organization_id: user.organization_id!!,
+      organization_id: user.organization_id!,
       user_id: user.id,
       permissions,
       rate_limit,

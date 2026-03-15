@@ -1,14 +1,14 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { ScrollArea } from './scroll-area';
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { ScrollArea } from "./scroll-area";
 
-describe('ScrollArea', () => {
-  it('renders correctly', () => {
+describe("ScrollArea", () => {
+  it("renders correctly", () => {
     render(
       <ScrollArea>
         <div>Scrollable Content</div>
-      </ScrollArea>
+      </ScrollArea>,
     );
-    expect(screen.getByText('Scrollable Content')).toBeInTheDocument();
+    expect(screen.getByText("Scrollable Content")).toBeInTheDocument();
   });
 });

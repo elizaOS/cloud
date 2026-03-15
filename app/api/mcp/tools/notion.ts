@@ -6,10 +6,10 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getNotionToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -160,7 +160,10 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ id, body }) => {
       try {
-        const data = await notionFetch(`/v1/pages/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+        const data = await notionFetch(`/v1/pages/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update page"));
@@ -179,7 +182,10 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ id, archived }) => {
       try {
-        const data = await notionFetch(`/v1/pages/${id}`, { method: "PATCH", body: JSON.stringify({ archived }) });
+        const data = await notionFetch(`/v1/pages/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ archived }),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to archive page"));
@@ -240,7 +246,10 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ id, body }) => {
       try {
-        const data = await notionFetch(`/v1/blocks/${id}/children`, { method: "PATCH", body: JSON.stringify(body) });
+        const data = await notionFetch(`/v1/blocks/${id}/children`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to append blocks"));
@@ -259,7 +268,10 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ id, body }) => {
       try {
-        const data = await notionFetch(`/v1/blocks/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+        const data = await notionFetch(`/v1/blocks/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update block"));
@@ -313,7 +325,10 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ body }) => {
       try {
-        const data = await notionFetch("/v1/databases", { method: "POST", body: JSON.stringify(body) });
+        const data = await notionFetch("/v1/databases", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create database"));
@@ -332,7 +347,10 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ id, body }) => {
       try {
-        const data = await notionFetch(`/v1/databases/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+        const data = await notionFetch(`/v1/databases/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update database"));
@@ -476,7 +494,10 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ body }) => {
       try {
-        const data = await notionFetch("/v1/comments", { method: "POST", body: JSON.stringify(body) });
+        const data = await notionFetch("/v1/comments", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create comment"));

@@ -8,8 +8,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { withInternalAuth } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
+import { withInternalAuth } from "@/lib/auth/internal-api";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -48,9 +48,7 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
     podName: pod_name,
   });
 
-  const released = await discordConnectionsRepository.clearPodAssignments(
-    pod_name,
-  );
+  const released = await discordConnectionsRepository.clearPodAssignments(pod_name);
 
   logger.info("[Gateway Shutdown] Released connections", {
     podName: pod_name,

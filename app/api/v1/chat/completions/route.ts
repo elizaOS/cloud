@@ -9,35 +9,30 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import {
-  streamText,
-  generateText,
-  type UIMessage,
-  convertToModelMessages,
-} from "ai";
+import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getLanguageModel } from "@/lib/providers/language-model";
-import { contentModerationService } from "@/lib/services/content-moderation";
-import { appsService } from "@/lib/services/apps";
-import { appCreditsService } from "@/lib/services/app-credits";
-import {
-  reserveCredits,
-  billUsage,
-  recordUsageAnalytics,
-  estimateInputTokens,
-  InsufficientCreditsError,
-} from "@/lib/services/ai-billing";
-import { creditsService, type CreditReservation } from "@/lib/services/credits";
+import { createPreflightResponse } from "@/lib/middleware/cors-apps";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import {
   calculateCost,
   getProviderFromModel,
-  normalizeModelName,
   getSafeModelParams,
+  normalizeModelName,
 } from "@/lib/pricing";
+import { getLanguageModel } from "@/lib/providers/language-model";
+import {
+  billUsage,
+  estimateInputTokens,
+  InsufficientCreditsError,
+  recordUsageAnalytics,
+  reserveCredits,
+} from "@/lib/services/ai-billing";
+import { appCreditsService } from "@/lib/services/app-credits";
+import { appsService } from "@/lib/services/apps";
+import { contentModerationService } from "@/lib/services/content-moderation";
+import { type CreditReservation, creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { createPreflightResponse } from "@/lib/middleware/cors-apps";
-import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
 
@@ -47,9 +42,7 @@ export const maxDuration = 60;
 
 interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content:
-    | string
-    | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
   name?: string;
   tool_calls?: Array<{
     id: string;
@@ -77,10 +70,7 @@ interface ChatRequest {
       parameters?: Record<string, unknown>;
     };
   }>;
-  tool_choice?:
-    | "auto"
-    | "none"
-    | { type: "function"; function: { name: string } };
+  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
 }
 
 // ============================================================================
@@ -117,14 +107,10 @@ function addCorsHeaders(response: Response): Response {
  */
 function inferImageMediaType(url: string): string {
   const lowerUrl = url.toLowerCase();
-  if (lowerUrl.includes(".png") || lowerUrl.includes("image/png"))
-    return "image/png";
-  if (lowerUrl.includes(".gif") || lowerUrl.includes("image/gif"))
-    return "image/gif";
-  if (lowerUrl.includes(".webp") || lowerUrl.includes("image/webp"))
-    return "image/webp";
-  if (lowerUrl.includes(".svg") || lowerUrl.includes("image/svg"))
-    return "image/svg+xml";
+  if (lowerUrl.includes(".png") || lowerUrl.includes("image/png")) return "image/png";
+  if (lowerUrl.includes(".gif") || lowerUrl.includes("image/gif")) return "image/gif";
+  if (lowerUrl.includes(".webp") || lowerUrl.includes("image/webp")) return "image/webp";
+  if (lowerUrl.includes(".svg") || lowerUrl.includes("image/svg")) return "image/svg+xml";
   // Default to JPEG for .jpg, .jpeg, or unknown
   return "image/jpeg";
 }
@@ -184,8 +170,7 @@ async function handlePOST(req: NextRequest) {
     // 2. Check for app monetization
     const appId = req.headers.get("X-App-Id");
     let useAppCredits = false;
-    let monetizedApp: Awaited<ReturnType<typeof appsService.getById>> | null =
-      null;
+    let monetizedApp: Awaited<ReturnType<typeof appsService.getById>> | null = null;
 
     if (appId) {
       monetizedApp = await appsService.getById(appId);
@@ -223,8 +208,7 @@ async function handlePOST(req: NextRequest) {
         Response.json(
           {
             error: {
-              message:
-                "Your account has been suspended due to policy violations.",
+              message: "Your account has been suspended due to policy violations.",
               type: "account_suspended",
               code: "moderation_violation",
             },
@@ -235,26 +219,16 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Start async moderation in background
-    const lastUserMessage = request.messages
-      .filter((m) => m.role === "user")
-      .pop();
+    const lastUserMessage = request.messages.filter((m) => m.role === "user").pop();
     if (lastUserMessage) {
       const content = getMessageContent(lastUserMessage);
       if (content) {
-        contentModerationService.moderateInBackground(
-          content,
-          user.id,
-          undefined,
-          (result) => {
-            logger.warn(
-              "[Chat Completions] Async moderation detected violation",
-              {
-                userId: user.id,
-                categories: result.flaggedCategories,
-              },
-            );
-          },
-        );
+        contentModerationService.moderateInBackground(content, user.id, undefined, (result) => {
+          logger.warn("[Chat Completions] Async moderation detected violation", {
+            userId: user.id,
+            categories: result.flaggedCategories,
+          });
+        });
       }
     }
 
@@ -278,10 +252,7 @@ async function handlePOST(req: NextRequest) {
         estimatedInputTokens,
         estimatedOutputTokens,
       );
-      const costWithMarkup = await appCreditsService.calculateCostWithMarkup(
-        appId,
-        totalCost,
-      );
+      const costWithMarkup = await appCreditsService.calculateCostWithMarkup(appId, totalCost);
 
       const balanceCheck = await appCreditsService.checkBalance(
         appId,
@@ -344,12 +315,8 @@ async function handlePOST(req: NextRequest) {
 
     // 7. Convert messages for AI SDK
     const systemMessage = request.messages.find((m) => m.role === "system");
-    const systemPrompt = systemMessage
-      ? getMessageContent(systemMessage)
-      : undefined;
-    const nonSystemMessages = request.messages.filter(
-      (m) => m.role !== "system",
-    );
+    const systemPrompt = systemMessage ? getMessageContent(systemMessage) : undefined;
+    const nonSystemMessages = request.messages.filter((m) => m.role !== "system");
     const uiMessages = convertToUIMessages(nonSystemMessages);
 
     logger.info("[Chat Completions] Request", {
@@ -395,22 +362,13 @@ async function handlePOST(req: NextRequest) {
     let status = 500;
     let errorType = "api_error";
 
-    if (
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication")
-    ) {
+    if (errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")) {
       status = 401;
       errorType = "authentication_error";
-    } else if (
-      errorMessage.includes("Insufficient") ||
-      errorMessage.includes("credits")
-    ) {
+    } else if (errorMessage.includes("Insufficient") || errorMessage.includes("credits")) {
       status = 402;
       errorType = "insufficient_quota";
-    } else if (
-      errorMessage.includes("Invalid") ||
-      errorMessage.includes("validation")
-    ) {
+    } else if (errorMessage.includes("Invalid") || errorMessage.includes("validation")) {
       status = 400;
       errorType = "invalid_request_error";
     }
@@ -441,9 +399,7 @@ async function handleStreamingRequest(
   user: { id: string; organization_id: string },
   apiKey: { id: string } | null,
   reservation: CreditReservation,
-  appCreditsInfo:
-    | { appId: string; estimatedBaseCost: number; app: unknown }
-    | undefined,
+  appCreditsInfo: { appId: string; estimatedBaseCost: number; app: unknown } | undefined,
   affiliateCode: string | null,
   startTime: number,
 ) {
@@ -527,7 +483,7 @@ async function handleStreamingRequest(
   const openAIStream = new ReadableStream({
     async start(controller) {
       const reader = stream.getReader();
-      let fullContent = "";
+      let _fullContent = "";
       const responseId = `chatcmpl-${Date.now()}`;
 
       try {
@@ -535,7 +491,7 @@ async function handleStreamingRequest(
           const { done, value } = await reader.read();
           if (done) break;
 
-          fullContent += value;
+          _fullContent += value;
 
           // Send OpenAI-format SSE chunk
           const chunk = {
@@ -552,9 +508,7 @@ async function handleStreamingRequest(
             ],
           };
 
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`),
-          );
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
         }
 
         // Send final chunk with finish_reason
@@ -571,9 +525,7 @@ async function handleStreamingRequest(
             },
           ],
         };
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(finalChunk)}\n\n`),
-        );
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalChunk)}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       } catch (error) {
@@ -605,9 +557,7 @@ async function handleNonStreamingRequest(
   user: { id: string; organization_id: string },
   apiKey: { id: string } | null,
   reservation: CreditReservation,
-  appCreditsInfo:
-    | { appId: string; estimatedBaseCost: number; app: unknown }
-    | undefined,
+  appCreditsInfo: { appId: string; estimatedBaseCost: number; app: unknown } | undefined,
   affiliateCode: string | null,
   startTime: number,
 ) {

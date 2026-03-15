@@ -7,9 +7,9 @@
  * See: https://github.com/vercel/next.js/issues/58611
  */
 
-import type { NextRequest } from "next/server";
 import { PrivyClient } from "@privy-io/server-auth";
 import { Redis } from "@upstash/redis";
+import type { NextRequest } from "next/server";
 
 // Helper to create "next" response (continue to route handler)
 // Uses internal Next.js header that NextResponse.next() sets
@@ -51,10 +51,7 @@ function middlewareRedirect(
   // Set cookies to delete
   if (options?.deleteCookies) {
     for (const cookie of options.deleteCookies) {
-      headers.append(
-        "Set-Cookie",
-        `${cookie}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
-      );
+      headers.append("Set-Cookie", `${cookie}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
     }
   }
 
@@ -71,8 +68,7 @@ let redis: Redis | null = null;
 function getRedis(): Redis | null {
   if (redis) return redis;
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token =
-    process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (url && token) redis = new Redis({ url, token });
   return redis;
 }
@@ -99,9 +95,7 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
   const client = getRedis();
   if (!client) return null;
   try {
-    const cached = await client.get<CachedAuth | string>(
-      `proxy:auth:${hashToken(token)}`,
-    );
+    const cached = await client.get<CachedAuth | string>(`proxy:auth:${hashToken(token)}`);
     if (!cached) return null;
     // Handle both old string format and new object format
     if (typeof cached === "string") {
@@ -112,11 +106,7 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
       return JSON.parse(cached);
     }
     // Validate it's actually a CachedAuth object
-    if (
-      typeof cached === "object" &&
-      "valid" in cached &&
-      "cachedAt" in cached
-    ) {
+    if (typeof cached === "object" && "valid" in cached && "cachedAt" in cached) {
       return cached;
     }
     return null;
@@ -137,11 +127,7 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
   const client = getRedis();
   if (!client) return;
   try {
-    await client.setex(
-      `proxy:auth:${hashToken(token)}`,
-      AUTH_CACHE_TTL,
-      JSON.stringify(auth),
-    );
+    await client.setex(`proxy:auth:${hashToken(token)}`, AUTH_CACHE_TTL, JSON.stringify(auth));
   } catch (error) {
     // Log Redis write errors but don't block auth - caching is best-effort
     console.warn(
@@ -154,10 +140,7 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
 function isJwtExpiredError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const e = error as { code?: unknown; claim?: unknown; reason?: unknown };
-  return (
-    e.code === "ERR_JWT_EXPIRED" ||
-    (e.claim === "exp" && e.reason === "check_failed")
-  );
+  return e.code === "ERR_JWT_EXPIRED" || (e.claim === "exp" && e.reason === "check_failed");
 }
 
 const publicPaths = [
@@ -247,8 +230,7 @@ export async function proxy(request: NextRequest) {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods":
-          "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers":
           "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Gateway-Secret, X-Wallet-Address, X-Timestamp, X-Wallet-Signature",
         "Access-Control-Max-Age": "86400",
@@ -276,16 +258,13 @@ export async function proxy(request: NextRequest) {
   try {
     const authToken = request.cookies.get("privy-token");
     const authHeader = request.headers.get("Authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const apiKey = request.headers.get("X-API-Key");
 
     // Wallet-sig passthrough only for paths that verify the signature (getTopupRecipient or verifyWalletSignature)
     const walletSig = request.headers.get("X-Wallet-Signature");
     const allowWalletPassthrough =
-      pathname.startsWith("/api/v1/topup") ||
-      pathname.startsWith("/api/v1/user/wallets");
+      pathname.startsWith("/api/v1/topup") || pathname.startsWith("/api/v1/user/wallets");
     if (
       apiKey ||
       (walletSig && allowWalletPassthrough) ||
@@ -342,8 +321,7 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    let user: Awaited<ReturnType<typeof privyClient.verifyAuthToken>> | null =
-      null;
+    let user: Awaited<ReturnType<typeof privyClient.verifyAuthToken>> | null = null;
     try {
       user = await privyClient.verifyAuthToken(token);
     } catch (error) {
@@ -367,10 +345,10 @@ export async function proxy(request: NextRequest) {
     if (!user) {
       await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
       if (pathname.startsWith("/api/")) {
-        return new Response(
-          JSON.stringify({ error: "Invalid authentication token" }),
-          { status: 401, headers: { "Content-Type": "application/json" } },
-        );
+        return new Response(JSON.stringify({ error: "Invalid authentication token" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
       }
       const url = request.nextUrl.clone();
       url.pathname = "/";
@@ -381,8 +359,7 @@ export async function proxy(request: NextRequest) {
       valid: true,
       userId: user.userId,
       expiration:
-        typeof (user as unknown as { expiration?: unknown }).expiration ===
-        "number"
+        typeof (user as unknown as { expiration?: unknown }).expiration === "number"
           ? ((user as unknown as { expiration: number }).expiration as number)
           : undefined,
       cachedAt: Date.now(),
@@ -410,7 +387,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

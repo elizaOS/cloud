@@ -28,11 +28,7 @@ export function errorResponse(message: string, details?: JsonObject) {
     content: [
       {
         type: "text" as const,
-        text: JSON.stringify(
-          { error: message, ...(details ?? {}) },
-          null,
-          2,
-        ),
+        text: JSON.stringify({ error: message, ...(details ?? {}) }, null, 2),
       },
     ],
     isError: true,

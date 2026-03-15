@@ -6,10 +6,10 @@
 
 import type { McpServer } from "mcp-handler";
 import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getAirtableToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -134,20 +134,43 @@ export function registerAirtableTools(server: McpServer): void {
   server.registerTool(
     "airtable_list_records",
     {
-      description: "List records from an Airtable table with optional filtering, sorting, and field selection",
+      description:
+        "List records from an Airtable table with optional filtering, sorting, and field selection",
       inputSchema: {
         baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
         tableIdOrName: z.string().min(1).describe("Table ID (starts with 'tbl') or table name"),
         fields: z.array(z.string()).optional().describe("Only return these fields"),
-        filterByFormula: z.string().optional().describe("Airtable formula to filter records, e.g. {Status}='Done'"),
+        filterByFormula: z
+          .string()
+          .optional()
+          .describe("Airtable formula to filter records, e.g. {Status}='Done'"),
         maxRecords: z.number().int().min(1).optional().describe("Maximum total records to return"),
-        pageSize: z.number().int().min(1).max(100).optional().describe("Records per page (max 100)"),
+        pageSize: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Records per page (max 100)"),
         offset: z.string().optional().describe("Pagination cursor from a previous response"),
-        sort: z.array(z.object({ field: z.string(), direction: z.enum(["asc", "desc"]).optional() })).optional().describe("Sort configuration"),
+        sort: z
+          .array(z.object({ field: z.string(), direction: z.enum(["asc", "desc"]).optional() }))
+          .optional()
+          .describe("Sort configuration"),
         view: z.string().optional().describe("View name or ID to use for filtering/sorting"),
       },
     },
-    async ({ baseId, tableIdOrName, fields, filterByFormula, maxRecords, pageSize, offset, sort, view }) => {
+    async ({
+      baseId,
+      tableIdOrName,
+      fields,
+      filterByFormula,
+      maxRecords,
+      pageSize,
+      offset,
+      sort,
+      view,
+    }) => {
       try {
         const params = new URLSearchParams();
         if (fields) fields.forEach((f) => params.append("fields[]", f));
@@ -163,7 +186,9 @@ export function registerAirtableTools(server: McpServer): void {
           });
         }
         const suffix = params.toString() ? `?${params.toString()}` : "";
-        const data = await airtableFetch(`/v0/${baseId}/${encodeURIComponent(tableIdOrName)}${suffix}`);
+        const data = await airtableFetch(
+          `/v0/${baseId}/${encodeURIComponent(tableIdOrName)}${suffix}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list records"));
@@ -184,7 +209,9 @@ export function registerAirtableTools(server: McpServer): void {
     },
     async ({ baseId, tableIdOrName, recordId }) => {
       try {
-        const data = await airtableFetch(`/v0/${baseId}/${encodeURIComponent(tableIdOrName)}/${recordId}`);
+        const data = await airtableFetch(
+          `/v0/${baseId}/${encodeURIComponent(tableIdOrName)}/${recordId}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get record"));
@@ -200,8 +227,15 @@ export function registerAirtableTools(server: McpServer): void {
       inputSchema: {
         baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
         tableIdOrName: z.string().min(1).describe("Table ID or table name"),
-        records: z.array(z.object({ fields: z.record(z.any()) })).min(1).max(10).describe("Array of records to create, each with a fields object"),
-        typecast: z.boolean().optional().describe("If true, auto-convert string values to appropriate types"),
+        records: z
+          .array(z.object({ fields: z.record(z.any()) }))
+          .min(1)
+          .max(10)
+          .describe("Array of records to create, each with a fields object"),
+        typecast: z
+          .boolean()
+          .optional()
+          .describe("If true, auto-convert string values to appropriate types"),
       },
     },
     async ({ baseId, tableIdOrName, records, typecast }) => {
@@ -223,12 +257,20 @@ export function registerAirtableTools(server: McpServer): void {
   server.registerTool(
     "airtable_update_records",
     {
-      description: "Update one or more records in an Airtable table (partial update, max 10 per request)",
+      description:
+        "Update one or more records in an Airtable table (partial update, max 10 per request)",
       inputSchema: {
         baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
         tableIdOrName: z.string().min(1).describe("Table ID or table name"),
-        records: z.array(z.object({ id: z.string().min(1), fields: z.record(z.any()) })).min(1).max(10).describe("Array of records to update, each with id and fields"),
-        typecast: z.boolean().optional().describe("If true, auto-convert string values to appropriate types"),
+        records: z
+          .array(z.object({ id: z.string().min(1), fields: z.record(z.any()) }))
+          .min(1)
+          .max(10)
+          .describe("Array of records to update, each with id and fields"),
+        typecast: z
+          .boolean()
+          .optional()
+          .describe("If true, auto-convert string values to appropriate types"),
       },
     },
     async ({ baseId, tableIdOrName, records, typecast }) => {
@@ -254,16 +296,23 @@ export function registerAirtableTools(server: McpServer): void {
       inputSchema: {
         baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
         tableIdOrName: z.string().min(1).describe("Table ID or table name"),
-        recordIds: z.array(z.string().min(1)).min(1).max(10).describe("Array of record IDs to delete"),
+        recordIds: z
+          .array(z.string().min(1))
+          .min(1)
+          .max(10)
+          .describe("Array of record IDs to delete"),
       },
     },
     async ({ baseId, tableIdOrName, recordIds }) => {
       try {
         const params = new URLSearchParams();
         recordIds.forEach((id) => params.append("records[]", id));
-        const data = await airtableFetch(`/v0/${baseId}/${encodeURIComponent(tableIdOrName)}?${params.toString()}`, {
-          method: "DELETE",
-        });
+        const data = await airtableFetch(
+          `/v0/${baseId}/${encodeURIComponent(tableIdOrName)}?${params.toString()}`,
+          {
+            method: "DELETE",
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete records"));
@@ -275,14 +324,23 @@ export function registerAirtableTools(server: McpServer): void {
   server.registerTool(
     "airtable_search_records",
     {
-      description: "Search for records in an Airtable table using a formula filter. Use SEARCH() for case-insensitive text matching, FIND() for exact matching, or direct comparisons like {Field}='value'",
+      description:
+        "Search for records in an Airtable table using a formula filter. Use SEARCH() for case-insensitive text matching, FIND() for exact matching, or direct comparisons like {Field}='value'",
       inputSchema: {
         baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
         tableIdOrName: z.string().min(1).describe("Table ID or table name"),
-        formula: z.string().min(1).describe("Airtable formula, e.g. SEARCH('term',{Name}), AND({Status}='Active',{Priority}='High')"),
+        formula: z
+          .string()
+          .min(1)
+          .describe(
+            "Airtable formula, e.g. SEARCH('term',{Name}), AND({Status}='Active',{Priority}='High')",
+          ),
         fields: z.array(z.string()).optional().describe("Only return these fields"),
         maxRecords: z.number().int().min(1).optional().describe("Maximum records to return"),
-        sort: z.array(z.object({ field: z.string(), direction: z.enum(["asc", "desc"]).optional() })).optional().describe("Sort configuration"),
+        sort: z
+          .array(z.object({ field: z.string(), direction: z.enum(["asc", "desc"]).optional() }))
+          .optional()
+          .describe("Sort configuration"),
       },
     },
     async ({ baseId, tableIdOrName, formula, fields, maxRecords, sort }) => {
@@ -297,7 +355,9 @@ export function registerAirtableTools(server: McpServer): void {
             if (s.direction) params.set(`sort[${i}][direction]`, s.direction);
           });
         }
-        const data = await airtableFetch(`/v0/${baseId}/${encodeURIComponent(tableIdOrName)}?${params.toString()}`);
+        const data = await airtableFetch(
+          `/v0/${baseId}/${encodeURIComponent(tableIdOrName)}?${params.toString()}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to search records"));
@@ -314,12 +374,17 @@ export function registerAirtableTools(server: McpServer): void {
         baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
         name: z.string().min(1).describe("Name for the new table"),
         description: z.string().optional().describe("Optional table description"),
-        fields: z.array(z.object({
-          name: z.string().min(1),
-          type: z.string().min(1),
-          description: z.string().optional(),
-          options: z.record(z.any()).optional(),
-        })).min(1).describe("Array of field definitions"),
+        fields: z
+          .array(
+            z.object({
+              name: z.string().min(1),
+              type: z.string().min(1),
+              description: z.string().optional(),
+              options: z.record(z.any()).optional(),
+            }),
+          )
+          .min(1)
+          .describe("Array of field definitions"),
       },
     },
     async ({ baseId, name, description, fields: fieldDefs }) => {
@@ -374,7 +439,10 @@ export function registerAirtableTools(server: McpServer): void {
         baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
         tableId: z.string().min(1).describe("The table ID (starts with 'tbl')"),
         name: z.string().min(1).describe("Field name"),
-        type: z.string().min(1).describe("Field type, e.g. singleLineText, number, singleSelect, date, checkbox, etc."),
+        type: z
+          .string()
+          .min(1)
+          .describe("Field type, e.g. singleLineText, number, singleSelect, date, checkbox, etc."),
         description: z.string().optional().describe("Field description"),
         options: z.record(z.any()).optional().describe("Field-type-specific options"),
       },
@@ -415,10 +483,13 @@ export function registerAirtableTools(server: McpServer): void {
         if (name) body.name = name;
         if (description !== undefined) body.description = description;
         if (options) body.options = options;
-        const data = await airtableFetch(`/v0/meta/bases/${baseId}/tables/${tableId}/fields/${fieldId}`, {
-          method: "PATCH",
-          body: JSON.stringify(body),
-        });
+        const data = await airtableFetch(
+          `/v0/meta/bases/${baseId}/tables/${tableId}/fields/${fieldId}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update field"));

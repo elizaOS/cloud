@@ -1,22 +1,18 @@
+import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { getCurrentUser } from "@/lib/auth";
-import { ElizaPageClient } from "@/components/chat/eliza-page-client";
 import { listCharacters } from "@/app/actions/characters";
-import {
-  generatePageMetadata,
-  generateCharacterMetadata,
-  ROUTE_METADATA,
-} from "@/lib/seo";
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { users } from "@/db/schemas/users";
-import { eq } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth";
+import { generateCharacterMetadata, generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { charactersService } from "@/lib/services/characters/characters";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
-import { charactersService } from "@/lib/services/characters/characters";
 import { sanitizeUUID } from "@/lib/utils/validation";
+import { ElizaPageClient } from "@/packages/ui/src/components/chat/eliza-page-client";
 
 interface PageProps {
   searchParams: Promise<{
@@ -36,9 +32,7 @@ export const dynamic = "force-dynamic";
  * @param searchParams - Search parameters, including optional `characterId` for character-specific metadata.
  * @returns Metadata object with title and description for the chat page or character chat.
  */
-export async function generateMetadata({
-  searchParams,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const params = (await searchParams) ?? {};
   // Sanitize UUID to handle malformed input (e.g., trailing backslashes from URL encoding)
   const characterId = sanitizeUUID(params.characterId);
@@ -109,26 +103,18 @@ export default async function ElizaPage({ searchParams }: PageProps) {
     const anonSessionCookie = cookieStore.get("eliza-anon-session");
 
     if (anonSessionCookie?.value) {
-      logger.info(
-        "[Dashboard Chat] Found anonymous session cookie, attempting migration",
-        {
-          userId: user.id,
-          sessionToken: anonSessionCookie.value.slice(0, 8) + "...",
-        },
-      );
+      logger.info("[Dashboard Chat] Found anonymous session cookie, attempting migration", {
+        userId: user.id,
+        sessionToken: anonSessionCookie.value.slice(0, 8) + "...",
+      });
 
-      const anonSession = await anonymousSessionsService.getByToken(
-        anonSessionCookie.value,
-      );
+      const anonSession = await anonymousSessionsService.getByToken(anonSessionCookie.value);
 
       if (anonSession && !anonSession.converted_at) {
-        logger.info(
-          "[Dashboard Chat] Found unconverted session, migrating...",
-          {
-            sessionId: anonSession.id,
-            anonymousUserId: anonSession.user_id,
-          },
-        );
+        logger.info("[Dashboard Chat] Found unconverted session, migrating...", {
+          sessionId: anonSession.id,
+          anonymousUserId: anonSession.user_id,
+        });
 
         await migrateAnonymousSession(anonSession.user_id, user.privy_user_id);
 
@@ -186,8 +172,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
           const isPublic = character.is_public === true;
 
           // Check if this is a claimable affiliate character
-          const claimCheck =
-            await charactersService.isClaimableAffiliateCharacter(character.id);
+          const claimCheck = await charactersService.isClaimableAffiliateCharacter(character.id);
           const isClaimableAffiliate = claimCheck.claimable;
 
           if (isPublic || isOwner || isClaimableAffiliate) {
@@ -207,10 +192,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
                   .where(eq(users.id, character.user_id))
                   .limit(1);
                 const ownerRecord = ownerUser[0];
-                creatorUsername =
-                  ownerRecord?.nickname ||
-                  ownerRecord?.telegramUsername ||
-                  null;
+                creatorUsername = ownerRecord?.nickname || ownerRecord?.telegramUsername || null;
               } catch {
                 // Ignore errors fetching creator username
               }
@@ -221,9 +203,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
               name: character.name,
               username: character.username,
               avatarUrl: character.avatar_url,
-              bio: Array.isArray(character.bio)
-                ? character.bio[0]
-                : character.bio,
+              bio: Array.isArray(character.bio) ? character.bio[0] : character.bio,
               ownerId: character.user_id,
               creatorUsername,
             };
@@ -248,10 +228,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
           }
         }
       } catch (error) {
-        logger.warn(
-          `[Dashboard Chat] Failed to load character ${initialCharacterId}:`,
-          error,
-        );
+        logger.warn(`[Dashboard Chat] Failed to load character ${initialCharacterId}:`, error);
         initialCharacterId = undefined;
       }
     }
@@ -266,11 +243,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
       initialCharacterId={initialCharacterId}
       sharedCharacter={sharedCharacter}
       isOwnerOfSelectedCharacter={isOwnerOfSelectedCharacter}
-      accessError={
-        errorType
-          ? { type: errorType, characterName: errorCharacterName }
-          : undefined
-      }
+      accessError={errorType ? { type: errorType, characterName: errorCharacterName } : undefined}
     />
   );
 }

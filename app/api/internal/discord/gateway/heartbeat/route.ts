@@ -6,9 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { withInternalAuth } from "@/lib/auth/internal-api";
-import { discordConnectionsRepository } from "@/db/repositories";
 import { z } from "zod";
+import { discordConnectionsRepository } from "@/db/repositories";
+import { withInternalAuth } from "@/lib/auth/internal-api";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -82,9 +82,6 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
       podName: pod_name,
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      { error: "Failed to update heartbeats" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to update heartbeats" }, { status: 500 });
   }
 });

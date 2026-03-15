@@ -20,8 +20,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { x402FacilitatorService } from "@/lib/services/x402-facilitator";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
 
 async function settleHandler(request: NextRequest): Promise<Response> {
@@ -48,8 +48,7 @@ async function settleHandler(request: NextRequest): Promise<Response> {
         success: false,
         transaction: "",
         network: "",
-        errorReason:
-          "missing_fields: paymentPayload and paymentRequirements are required",
+        errorReason: "missing_fields: paymentPayload and paymentRequirements are required",
       },
       { status: 400 },
     );
@@ -57,12 +56,8 @@ async function settleHandler(request: NextRequest): Promise<Response> {
 
   try {
     const result = await x402FacilitatorService.settle(
-      paymentPayload as Parameters<
-        typeof x402FacilitatorService.settle
-      >[0],
-      paymentRequirements as Parameters<
-        typeof x402FacilitatorService.settle
-      >[1],
+      paymentPayload as Parameters<typeof x402FacilitatorService.settle>[0],
+      paymentRequirements as Parameters<typeof x402FacilitatorService.settle>[1],
     );
 
     const status = result.success ? 200 : 400;

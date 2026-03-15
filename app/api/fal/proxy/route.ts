@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   DEFAULT_ALLOWED_URL_PATTERNS,
   fromHeaders,
   handleRequest,
+  type ProxyConfig,
   resolveApiKeyFromEnv,
   responsePassthrough,
-  type ProxyConfig,
 } from "@fal-ai/server-proxy";
+import { NextRequest, NextResponse } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 

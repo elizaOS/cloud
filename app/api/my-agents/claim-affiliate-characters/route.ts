@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
 import {
-  userCharactersRepository,
   participantsRepository,
   roomsRepository,
+  userCharactersRepository,
 } from "@/db/repositories";
-import { charactersService } from "@/lib/services/characters/characters";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { charactersService } from "@/lib/services/characters/characters";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
 
@@ -33,9 +33,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
 
-    logger.info(
-      `[Claim Affiliate Chars] Starting claim process for user ${user.id}`,
-    );
+    logger.info(`[Claim Affiliate Chars] Starting claim process for user ${user.id}`);
 
     // Parse request body for session token
     let sessionToken: string | undefined;
@@ -56,16 +54,12 @@ export async function POST(request: NextRequest) {
     }> = [];
 
     // Get all rooms the user participates in
-    const userRoomIds = await participantsRepository.findRoomsByEntityId(
-      user.id,
-    );
+    const userRoomIds = await participantsRepository.findRoomsByEntityId(user.id);
 
     if (userRoomIds.length > 0) {
       // Get the rooms with their agentIds (characterIds)
       const rooms = await roomsRepository.findByIds(userRoomIds);
-      const characterIds = [
-        ...new Set(rooms.map((r) => r.agentId).filter(Boolean)),
-      ] as string[];
+      const characterIds = [...new Set(rooms.map((r) => r.agentId).filter(Boolean))] as string[];
 
       if (characterIds.length > 0) {
         // Get characters and check their owners
@@ -81,8 +75,7 @@ export async function POST(request: NextRequest) {
           if (
             owner &&
             (owner.is_anonymous === true ||
-              (owner.email?.includes("@anonymous.elizacloud.ai") &&
-                !owner.privy_user_id))
+              (owner.email?.includes("@anonymous.elizacloud.ai") && !owner.privy_user_id))
           ) {
             const room = rooms.find((r) => r.agentId === char.id);
             claimableCharacters.push({
@@ -98,9 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Also find characters via session token if provided
     if (sessionToken) {
-      logger.info(
-        `[Claim Affiliate Chars] Session token provided, looking up session...`,
-      );
+      logger.info(`[Claim Affiliate Chars] Session token provided, looking up session...`);
 
       const session = await anonymousSessionsService.getByToken(sessionToken);
 
@@ -112,14 +103,10 @@ export async function POST(request: NextRequest) {
           sessionOwner.is_anonymous &&
           sessionOwner.email?.includes("@anonymous.elizacloud.ai")
         ) {
-          logger.info(
-            `[Claim Affiliate Chars] Found affiliate session owner: ${sessionOwner.id}`,
-          );
+          logger.info(`[Claim Affiliate Chars] Found affiliate session owner: ${sessionOwner.id}`);
 
           // Find characters owned by this anonymous user
-          const sessionCharacters = await userCharactersRepository.listByUser(
-            sessionOwner.id,
-          );
+          const sessionCharacters = await userCharactersRepository.listByUser(sessionOwner.id);
 
           for (const char of sessionCharacters) {
             // Only add if not already in the list and owned by the session owner
@@ -133,25 +120,19 @@ export async function POST(request: NextRequest) {
                 ownerId: sessionOwner.id,
                 roomId: "", // No room association, but we'll claim via session
               });
-              logger.info(
-                `[Claim Affiliate Chars] Added character from session: ${char.name}`,
-              );
+              logger.info(`[Claim Affiliate Chars] Added character from session: ${char.name}`);
             }
           }
 
           // Mark session as converted to prevent future claims
           await anonymousSessionsService.markConverted(session.id);
-          logger.info(
-            `[Claim Affiliate Chars] Marked session as converted: ${session.id}`,
-          );
+          logger.info(`[Claim Affiliate Chars] Marked session as converted: ${session.id}`);
         }
       }
     }
 
     if (claimableCharacters.length === 0) {
-      logger.info(
-        `[Claim Affiliate Chars] No claimable characters found for user ${user.id}`,
-      );
+      logger.info(`[Claim Affiliate Chars] No claimable characters found for user ${user.id}`);
       return NextResponse.json({
         success: true,
         claimed: [],
@@ -185,9 +166,7 @@ export async function POST(request: NextRequest) {
           id: char.characterId,
           name: char.characterName,
         });
-        logger.info(
-          `[Claim Affiliate Chars] ✅ Claimed character: ${char.characterName}`,
-        );
+        logger.info(`[Claim Affiliate Chars] ✅ Claimed character: ${char.characterName}`);
       } else {
         failedClaims.push({ id: char.characterId, reason: result.message });
         logger.warn(
@@ -210,8 +189,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to claim characters",
+        error: error instanceof Error ? error.message : "Failed to claim characters",
       },
       { status: 500 },
     );

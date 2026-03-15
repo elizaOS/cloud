@@ -6,10 +6,10 @@
 
 import type { McpServer } from "mcp-handler";
 import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getDropboxToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -240,12 +240,19 @@ export function registerDropboxTools(server: McpServer): void {
   server.registerTool(
     "dropbox_upload_text",
     {
-      description: "Upload/create a text file in Dropbox. Use for creating new files with text content.",
+      description:
+        "Upload/create a text file in Dropbox. Use for creating new files with text content.",
       inputSchema: {
         path: z.string().min(1).describe("File path including name (e.g. /Documents/notes.txt)"),
         content: z.string().describe("Text content of the file"),
-        mode: z.enum(["add", "overwrite"]).optional().describe("'add' to avoid overwriting (default), 'overwrite' to replace existing"),
-        autorename: z.boolean().optional().describe("Auto-rename if file exists (only with mode=add)"),
+        mode: z
+          .enum(["add", "overwrite"])
+          .optional()
+          .describe("'add' to avoid overwriting (default), 'overwrite' to replace existing"),
+        autorename: z
+          .boolean()
+          .optional()
+          .describe("Auto-rename if file exists (only with mode=add)"),
       },
     },
     async ({ path, content, mode, autorename }) => {
@@ -310,7 +317,8 @@ export function registerDropboxTools(server: McpServer): void {
       try {
         const body: Record<string, unknown> = { from_path, to_path };
         if (autorename !== undefined) body.autorename = autorename;
-        if (allow_ownership_transfer !== undefined) body.allow_ownership_transfer = allow_ownership_transfer;
+        if (allow_ownership_transfer !== undefined)
+          body.allow_ownership_transfer = allow_ownership_transfer;
         const data = await dropboxRpc("/2/files/move_v2", body);
         return jsonResponse(data);
       } catch (error) {

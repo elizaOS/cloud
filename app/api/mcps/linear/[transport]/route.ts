@@ -7,11 +7,11 @@
  */
 
 import type { NextRequest } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { oauthService } from "@/lib/services/oauth";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -22,7 +22,11 @@ interface McpHandlerResponse {
 }
 
 function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
-  return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
+  return (
+    typeof resp === "object" &&
+    resp !== null &&
+    typeof (resp as McpHandlerResponse).status === "number"
+  );
 }
 
 async function getLinearMcpHandler() {
@@ -30,15 +34,14 @@ async function getLinearMcpHandler() {
   const { z } = await import("zod");
 
   async function getLinearToken(organizationId: string): Promise<string> {
-    const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "linear" });
+    const result = await oauthService.getValidTokenByPlatform({
+      organizationId,
+      platform: "linear",
+    });
     return result.accessToken;
   }
 
-  async function linearGraphQL(
-    orgId: string,
-    query: string,
-    variables?: Record<string, unknown>,
-  ) {
+  async function linearGraphQL(orgId: string, query: string, variables?: Record<string, unknown>) {
     const token = await getLinearToken(orgId);
     const response = await fetch("https://api.linear.app/graphql", {
       method: "POST",
@@ -63,7 +66,9 @@ async function getLinearMcpHandler() {
       throw new Error(`Linear API returned invalid JSON: ${text.slice(0, 200)}`);
     }
     if (data?.errors?.length) {
-      throw new Error(data.errors.map((e: { message: string }) => e.message).join("; ") || "Linear API error");
+      throw new Error(
+        data.errors.map((e: { message: string }) => e.message).join("; ") || "Linear API error",
+      );
     }
     return data?.data;
   }
@@ -79,7 +84,10 @@ async function getLinearMcpHandler() {
   }
 
   function errorResult(msg: string) {
-    return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      isError: true,
+    };
   }
 
   return createMcpHandler(
@@ -87,12 +95,19 @@ async function getLinearMcpHandler() {
       server.tool("linear_status", "Check Linear OAuth connection status", {}, async () => {
         try {
           const orgId = getOrgId();
-          const connections = await oauthService.listConnections({ organizationId: orgId, platform: "linear" });
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            platform: "linear",
+          });
           const active = connections.find((c) => c.status === "active");
           if (!active) {
             const expired = connections.find((c) => c.status === "expired");
             if (expired) {
-              return jsonResult({ connected: false, status: "expired", message: "Linear connection expired. Please reconnect in Settings > Connections." });
+              return jsonResult({
+                connected: false,
+                status: "expired",
+                message: "Linear connection expired. Please reconnect in Settings > Connections.",
+              });
             }
             return jsonResult({ connected: false });
           }
@@ -824,16 +839,23 @@ async function getLinearMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { streamableHttpEndpoint: "/api/mcps/linear/streamable-http", disableSse: true, maxDuration: 60 },
+    {
+      streamableHttpEndpoint: "/api/mcps/linear/streamable-http",
+      disableSse: true,
+      maxDuration: 60,
+    },
   );
 }
 
-async function handleRequest(req: NextRequest, { params }: { params: Promise<{ transport: string }> }): Promise<Response> {
+async function handleRequest(
+  req: NextRequest,
+  { params }: { params: Promise<{ transport: string }> },
+): Promise<Response> {
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
       JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
-      { status: 405, headers: { "Content-Type": "application/json" } }
+      { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -843,26 +865,40 @@ async function handleRequest(req: NextRequest, { params }: { params: Promise<{ t
     const rateLimitKey = `mcp:ratelimit:linear:${authResult.user.organization_id}`;
     const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
     if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), { status: 429, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const handler = await getLinearMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
-      return new Response(JSON.stringify({ error: "invalid_response" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "invalid_response" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    mcpResponse.headers?.forEach((v: string, k: string) => { headers[k] = v; });
+    mcpResponse.headers?.forEach((v: string, k: string) => {
+      headers[k] = v;
+    });
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     logger.error(`[LinearMCP] ${msg}`);
     const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(JSON.stringify({ error: isAuth ? "authentication_required" : "internal_error", message: msg }), { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: isAuth ? "authentication_required" : "internal_error",
+        message: msg,
+      }),
+      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 }
 

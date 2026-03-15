@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
-import { cryptoPaymentsRepository } from "@/db/repositories/crypto-payments";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
+import { cryptoPaymentsRepository } from "@/db/repositories/crypto-payments";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { logger, redact } from "@/lib/utils/logger";
 
 /**
@@ -57,17 +57,11 @@ function validateTransactionHashFormat(hash: string, network: string): boolean {
     return ethereumTxHashRegex.test(hash);
   }
 
-  if (
-    normalizedNetwork.includes("TRC20") ||
-    normalizedNetwork.includes("TRON")
-  ) {
+  if (normalizedNetwork.includes("TRC20") || normalizedNetwork.includes("TRON")) {
     return tronTxHashRegex.test(hash);
   }
 
-  if (
-    normalizedNetwork.includes("SOL") ||
-    normalizedNetwork.includes("SOLANA")
-  ) {
+  if (normalizedNetwork.includes("SOL") || normalizedNetwork.includes("SOLANA")) {
     return solanaTxHashRegex.test(hash);
   }
 
@@ -97,10 +91,7 @@ async function handleConfirmPayment(
     const { id } = await context.params;
 
     if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
     const payment = await cryptoPaymentsRepository.findById(id);
@@ -134,10 +125,7 @@ async function handleConfirmPayment(
     }
 
     if (payment.status === "expired") {
-      return NextResponse.json(
-        { error: "Payment has expired" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Payment has expired" }, { status: 400 });
     }
 
     const body = await req.json();
@@ -162,16 +150,13 @@ async function handleConfirmPayment(
 
     // Format validation for fast rejection - full on-chain verification via OxaPay happens in verifyAndConfirmByTxHash()
     if (!validateTransactionHashFormat(transactionHash, payment.network)) {
-      logger.warn(
-        "[Crypto Payments API] Invalid transaction hash format for network",
-        {
-          paymentId: redact.paymentId(id),
-          ip: redact.ip(ip),
-          userId: redact.userId(user.id),
-          network: payment.network,
-          txHashLength: transactionHash.length,
-        },
-      );
+      logger.warn("[Crypto Payments API] Invalid transaction hash format for network", {
+        paymentId: redact.paymentId(id),
+        ip: redact.ip(ip),
+        userId: redact.userId(user.id),
+        network: payment.network,
+        txHashLength: transactionHash.length,
+      });
       return NextResponse.json(
         {
           error: `Invalid transaction hash format for ${payment.network} network`,
@@ -188,10 +173,7 @@ async function handleConfirmPayment(
       ip: redact.ip(ip),
     });
 
-    const result = await cryptoPaymentsService.verifyAndConfirmByTxHash(
-      id,
-      transactionHash,
-    );
+    const result = await cryptoPaymentsService.verifyAndConfirmByTxHash(id, transactionHash);
 
     if (result.success) {
       logger.info("[Crypto Payments API] Manual confirmation successful", {
@@ -226,14 +208,8 @@ async function handleConfirmPayment(
       ip: redact.ip(ip),
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json(
-      { error: "Failed to process confirmation" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to process confirmation" }, { status: 500 });
   }
 }
 
-export const POST = withRateLimit(
-  handleConfirmPayment,
-  RateLimitPresets.STRICT,
-);
+export const POST = withRateLimit(handleConfirmPayment, RateLimitPresets.STRICT);

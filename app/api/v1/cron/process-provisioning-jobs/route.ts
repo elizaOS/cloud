@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { logger } from "@/lib/utils/logger";
 
@@ -11,9 +11,7 @@ function verifyCronSecret(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
 
   if (!cronSecret) {
-    logger.error(
-      "[Provisioning Jobs] CRON_SECRET not configured - rejecting request for security",
-    );
+    logger.error("[Provisioning Jobs] CRON_SECRET not configured - rejecting request for security");
     return false;
   }
 
@@ -62,10 +60,7 @@ async function handleProcessProvisioningJobs(request: NextRequest) {
         ip: request.headers.get("x-forwarded-for"),
         timestamp: new Date().toISOString(),
       });
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     logger.info("[Provisioning Jobs] Starting job processing cycle");
@@ -96,10 +91,7 @@ async function handleProcessProvisioningJobs(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Provisioning job processing failed",
+        error: error instanceof Error ? error.message : "Provisioning job processing failed",
       },
       { status: 500 },
     );

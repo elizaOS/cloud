@@ -8,10 +8,10 @@
  *        GET /api/v1/proxy/birdeye/v1/wallet/token_list?wallet=...
  */
 
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { proxyBillingService } from "@/lib/services/proxy-billing";
 import { logger } from "@/lib/utils/logger";
-import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -36,16 +36,18 @@ export async function GET(
     );
   }
 
-  const deductResult = await proxyBillingService.deductProxyCredits({
-    organizationId: organization_id,
-    userId: authResult.user.id,
-    service: "birdeye",
-    path: pathStr,
-  }).catch(() => null);
+  const deductResult = await proxyBillingService
+    .deductProxyCredits({
+      organizationId: organization_id,
+      userId: authResult.user.id,
+      service: "birdeye",
+      path: pathStr,
+    })
+    .catch(() => null);
 
   if (deductResult === null) {
     return Response.json(
-      { error: "Insufficient credits", topUpUrl: "https://www.elizacloud.ai/dashboard/billing" },
+      { error: "Insufficient credits", topUpUrl: "https://cloud.milady.ai/dashboard/billing" },
       { status: 402 },
     );
   }

@@ -6,12 +6,12 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { logger } from "@/lib/utils/logger";
 import { isE164PhoneNumber } from "@/lib/utils/twilio-api";
-import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
-import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -30,17 +30,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return NextResponse.json(
-        { error: "Request body must be a JSON object" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Request body must be a JSON object" }, { status: 400 });
     }
 
     const parsedBody = twilioConnectSchema.safeParse(body);
@@ -62,10 +56,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Validate the credentials
-    const validation = await twilioAutomationService.validateCredentials(
-      accountSid,
-      authToken,
-    );
+    const validation = await twilioAutomationService.validateCredentials(accountSid, authToken);
 
     if (!validation.valid) {
       return NextResponse.json(
@@ -75,20 +66,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Store credentials
-    await twilioAutomationService.storeCredentials(
-      user.organization_id,
-      user.id,
-      {
-        accountSid,
-        authToken,
-        phoneNumber,
-      },
-    );
+    await twilioAutomationService.storeCredentials(user.organization_id, user.id, {
+      accountSid,
+      authToken,
+      phoneNumber,
+    });
 
     // Get the webhook URL to display to user
-    const webhookUrl = twilioAutomationService.getWebhookUrl(
-      user.organization_id,
-    );
+    const webhookUrl = twilioAutomationService.getWebhookUrl(user.organization_id);
 
     await invalidateOAuthState(user.organization_id, "twilio", user.id);
 
@@ -113,9 +98,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       organizationId: user.organization_id,
     });
-    return NextResponse.json(
-      { error: "Failed to connect Twilio" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to connect Twilio" }, { status: 500 });
   }
 }

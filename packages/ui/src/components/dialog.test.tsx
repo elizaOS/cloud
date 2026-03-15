@@ -1,12 +1,12 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from './dialog';
+import { render, screen } from "@testing-library/react";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "./dialog";
 
 // Mock matchMedia for Radix UI
 beforeAll(() => {
-  Object.defineProperty(window, 'matchMedia', {
+  Object.defineProperty(window, "matchMedia", {
     writable: true,
-    value: vi.fn().mockImplementation(query => ({
+    value: vi.fn().mockImplementation((query) => ({
       matches: false,
       media: query,
       onchange: null,
@@ -19,16 +19,16 @@ beforeAll(() => {
   });
 });
 
-describe('Dialog', () => {
-  it('renders trigger correctly', () => {
+describe("Dialog", () => {
+  it("renders trigger correctly", () => {
     render(
       <Dialog>
         <DialogTrigger>Open</DialogTrigger>
         <DialogContent>
           <DialogTitle>Title</DialogTitle>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
-    expect(screen.getByRole('button', { name: /open/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open/i })).toBeInTheDocument();
   });
 });

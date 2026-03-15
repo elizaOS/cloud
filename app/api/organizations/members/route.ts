@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { usersService } from "@/lib/services/users";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/organizations/members
@@ -25,9 +25,7 @@ async function handleGET() {
       );
     }
 
-    const members = await usersService.listByOrganization(
-      user.organization_id!,
-    );
+    const members = await usersService.listByOrganization(user.organization_id!);
 
     return NextResponse.json({
       success: true,
@@ -49,8 +47,7 @@ async function handleGET() {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch members",
+        error: error instanceof Error ? error.message : "Failed to fetch members",
       },
       { status: 500 },
     );

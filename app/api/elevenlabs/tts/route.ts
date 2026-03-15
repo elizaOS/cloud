@@ -1,20 +1,20 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getElevenLabsService } from "@/lib/services/elevenlabs";
-import { voiceCloningService } from "@/lib/services/voice-cloning";
-import { usageService } from "@/lib/services/usage";
-import {
-  creditsService,
-  InsufficientCreditsError,
-  type CreditReservation,
-} from "@/lib/services/credits";
-import { calculateTTSCost } from "@/lib/pricing";
-import { CUSTOM_VOICE_TTS_MARKUP } from "@/lib/pricing-constants";
 import { dbRead } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
-import { eq } from "drizzle-orm";
-import { logger } from "@/lib/utils/logger";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { calculateTTSCost } from "@/lib/pricing";
+import { CUSTOM_VOICE_TTS_MARKUP } from "@/lib/pricing-constants";
+import {
+  type CreditReservation,
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { usageService } from "@/lib/services/usage";
+import { voiceCloningService } from "@/lib/services/voice-cloning";
+import { logger } from "@/lib/utils/logger";
 
 const MAX_TEXT_LENGTH = 5000;
 
@@ -44,10 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (text.length === 0) {
-      return NextResponse.json(
-        { error: "Text cannot be empty" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Text cannot be empty" }, { status: 400 });
     }
 
     if (text.length > MAX_TEXT_LENGTH) {
@@ -59,9 +56,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info(
-      `[TTS API] Generating speech for user ${user.id}: ${text.length} chars`,
-    );
+    logger.info(`[TTS API] Generating speech for user ${user.id}: ${text.length} chars`);
 
     // Track custom voice usage (async, non-blocking)
     let userVoiceId: string | null = null;
@@ -106,8 +101,7 @@ export async function POST(request: NextRequest) {
 
     // Apply additional custom voice markup if using a custom cloned voice
     if (isCustomVoice) {
-      estimatedCost =
-        Math.round(estimatedCost * CUSTOM_VOICE_TTS_MARKUP * 10000) / 10000;
+      estimatedCost = Math.round(estimatedCost * CUSTOM_VOICE_TTS_MARKUP * 10000) / 10000;
     }
 
     // Reserve credits BEFORE generation
@@ -206,10 +200,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (status !== 500) {
-      return NextResponse.json(
-        { error: getSafeErrorMessage(error) },
-        { status },
-      );
+      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
     }
 
     if (error instanceof Error) {
@@ -240,10 +231,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (error.message.includes("ELEVENLABS_API_KEY")) {
-        return NextResponse.json(
-          { error: "Service not configured" },
-          { status: 500 },
-        );
+        return NextResponse.json({ error: "Service not configured" }, { status: 500 });
       }
     }
 

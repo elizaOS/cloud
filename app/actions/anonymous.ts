@@ -1,7 +1,7 @@
 "use server";
 
-import { getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { cookies } from "next/headers";
+import { getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 

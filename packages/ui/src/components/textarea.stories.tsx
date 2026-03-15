@@ -1,12 +1,18 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Textarea } from "./textarea";
 import { Label } from "./label";
+import { Textarea } from "./textarea";
 
 const meta: Meta<typeof Textarea> = {
   title: "Primitives/Textarea",
   component: Textarea,
   parameters: { backgrounds: { default: "dark" } },
-  decorators: [(Story) => <div style={{ maxWidth: 400, padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 400, padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 export default meta;
 type Story = StoryObj<typeof Textarea>;

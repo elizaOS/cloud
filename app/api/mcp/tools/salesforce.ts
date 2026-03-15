@@ -9,10 +9,10 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 const SALESFORCE_API_VERSION = "v60.0";
 
@@ -90,9 +90,10 @@ async function salesforceFetch(path: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => []);
-    const msg = Array.isArray(error) && error[0]?.message
-      ? error[0].message
-      : error?.message || `Salesforce API error: ${response.status}`;
+    const msg =
+      Array.isArray(error) && error[0]?.message
+        ? error[0].message
+        : error?.message || `Salesforce API error: ${response.status}`;
     throw new Error(msg);
   }
 
@@ -157,7 +158,9 @@ export function registerSalesforceTools(server: McpServer): void {
         query: z
           .string()
           .min(1)
-          .describe("SOQL query string, e.g. SELECT Id, Name FROM Account WHERE Industry = 'Technology' LIMIT 20"),
+          .describe(
+            "SOQL query string, e.g. SELECT Id, Name FROM Account WHERE Industry = 'Technology' LIMIT 20",
+          ),
       },
     },
     async ({ query }) => {
@@ -184,7 +187,10 @@ export function registerSalesforceTools(server: McpServer): void {
       description:
         "Fetch the next page of results from a paginated SOQL query using the nextRecordsUrl returned from salesforce_query",
       inputSchema: {
-        nextRecordsUrl: z.string().min(1).describe("The nextRecordsUrl from a previous query response"),
+        nextRecordsUrl: z
+          .string()
+          .min(1)
+          .describe("The nextRecordsUrl from a previous query response"),
       },
     },
     async ({ nextRecordsUrl }) => {
@@ -266,7 +272,9 @@ export function registerSalesforceTools(server: McpServer): void {
         objectName: z
           .string()
           .min(1)
-          .describe("API name of the SObject, e.g. Account, Contact, Opportunity, Lead, or a custom object like MyObject__c"),
+          .describe(
+            "API name of the SObject, e.g. Account, Contact, Opportunity, Lead, or a custom object like MyObject__c",
+          ),
       },
     },
     async ({ objectName }) => {
@@ -293,7 +301,9 @@ export function registerSalesforceTools(server: McpServer): void {
           name: data.name,
           label: data.label,
           fields,
-          recordTypeInfos: data.recordTypeInfos?.filter((rt: Record<string, unknown>) => rt.available),
+          recordTypeInfos: data.recordTypeInfos?.filter(
+            (rt: Record<string, unknown>) => rt.available,
+          ),
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to describe object"));
@@ -305,7 +315,8 @@ export function registerSalesforceTools(server: McpServer): void {
   server.registerTool(
     "salesforce_get_record",
     {
-      description: "Get a single Salesforce record by its ID. Optionally specify which fields to return.",
+      description:
+        "Get a single Salesforce record by its ID. Optionally specify which fields to return.",
       inputSchema: {
         objectName: z.string().min(1).describe("API name of the SObject, e.g. Account, Contact"),
         recordId: z.string().min(1).describe("The 15 or 18-character Salesforce record ID"),
@@ -333,12 +344,18 @@ export function registerSalesforceTools(server: McpServer): void {
   server.registerTool(
     "salesforce_create_record",
     {
-      description: "Create a new record in Salesforce. Use salesforce_describe_object first to see available fields.",
+      description:
+        "Create a new record in Salesforce. Use salesforce_describe_object first to see available fields.",
       inputSchema: {
-        objectName: z.string().min(1).describe("API name of the SObject, e.g. Account, Contact, Lead"),
+        objectName: z
+          .string()
+          .min(1)
+          .describe("API name of the SObject, e.g. Account, Contact, Lead"),
         fields: z
           .record(z.any())
-          .describe("Field values for the new record, e.g. { Name: 'Acme Corp', Industry: 'Technology' }"),
+          .describe(
+            "Field values for the new record, e.g. { Name: 'Acme Corp', Industry: 'Technology' }",
+          ),
       },
     },
     async ({ objectName, fields }) => {
@@ -362,7 +379,8 @@ export function registerSalesforceTools(server: McpServer): void {
   server.registerTool(
     "salesforce_update_record",
     {
-      description: "Update fields on an existing Salesforce record. Only include the fields you want to change.",
+      description:
+        "Update fields on an existing Salesforce record. Only include the fields you want to change.",
       inputSchema: {
         objectName: z.string().min(1).describe("API name of the SObject, e.g. Account, Contact"),
         recordId: z.string().min(1).describe("The record ID to update"),
@@ -422,7 +440,13 @@ export function registerSalesforceTools(server: McpServer): void {
           .string()
           .min(1)
           .describe("API name of the SObject, e.g. Account, Contact, Opportunity"),
-        limit: z.number().int().min(1).max(200).optional().describe("Maximum records to return (default 10)"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe("Maximum records to return (default 10)"),
       },
     },
     async ({ objectName, limit = 10 }) => {

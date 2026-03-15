@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { appsService } from "@/lib/services/apps";
 import { gitSyncService } from "@/lib/services/git-sync";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -26,15 +26,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { sessionId } = await params;
 
     // Verify session ownership
-    const session = await aiAppBuilder.verifySessionOwnership(
-      sessionId,
-      user.id,
-    );
+    const session = await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
     // Need app with GitHub repo to rollback
@@ -85,11 +79,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Perform the rollback using git reset --hard
-    const rollbackResult = await performRollback(
-      session.sandbox_id,
-      commitSha,
-      app.github_repo,
-    );
+    const rollbackResult = await performRollback(session.sandbox_id, commitSha, app.github_repo);
 
     if (!rollbackResult.success) {
       logger.error("Rollback failed", {
@@ -97,10 +87,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         commitSha,
         error: rollbackResult.error,
       });
-      return NextResponse.json(
-        { success: false, error: rollbackResult.error },
-        { status: 500 },
-      );
+      return NextResponse.json({ success: false, error: rollbackResult.error }, { status: 500 });
     }
 
     logger.info("Rollback successful", {
@@ -114,8 +101,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       currentSha: rollbackResult.currentSha,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to rollback";
+    const message = error instanceof Error ? error.message : "Failed to rollback";
     const status =
       message.includes("Unauthorized") || message.includes("Authentication")
         ? 401
@@ -147,9 +133,7 @@ async function performRollback(
 ): Promise<RollbackResult> {
   try {
     // First ensure git is configured properly
-    const repoName = repoFullName.includes("/")
-      ? repoFullName.split("/").pop()!
-      : repoFullName;
+    const repoName = repoFullName.includes("/") ? repoFullName.split("/").pop()! : repoFullName;
 
     const configResult = await gitSyncService.configureGit({
       sandboxId,
@@ -243,8 +227,6 @@ async function performRollback(
  * Gets the active sandbox instance from global state.
  */
 function getSandboxInstance(sandboxId: string) {
-  const sandboxes = (global as any).__sandboxInstances as
-    | Map<string, any>
-    | undefined;
+  const sandboxes = (global as any).__sandboxInstances as Map<string, any> | undefined;
   return sandboxes?.get(sandboxId) || null;
 }

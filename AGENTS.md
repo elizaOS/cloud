@@ -22,9 +22,9 @@ bun run db:studio    # Open Drizzle Studio
 **Never use `db:push` - it's removed. All schema changes go through migrations.**
 
 ### Schema Change Workflow
-1. Edit schema in `db/schemas/`
+1. Edit schema in `packages/db/schemas/`
 2. `bun run db:generate`
-3. Review SQL in `db/migrations/`
+3. Review SQL in `packages/db/migrations/`
 4. `bun run db:migrate`
 5. Commit both schema + migration
 
@@ -41,12 +41,18 @@ npx drizzle-kit generate --custom --name=descriptive_name
 
 ## Project Structure
 ```
-app/           # Next.js App Router pages
-lib/           # Business logic, services
-db/
-  schemas/     # Drizzle schema definitions
-  migrations/  # SQL migration files
-  repositories/# Data access layer
-components/    # React components
-scripts/       # CLI utilities
+app/               # Next.js App Router pages
+packages/
+  lib/             # Business logic, services
+  db/
+    schemas/       # Drizzle schema definitions
+    migrations/    # SQL migration files
+    repositories/  # Data access layer
+  components/      # React components
+  ui/              # Shared UI component library
+  tests/           # Test suites
+  types/           # Shared TypeScript generic types
+  scripts/         # CLI utilities
+  infra/           # Infrastructure logic
+  config/          # Shared settings
 ```

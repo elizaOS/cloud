@@ -1,14 +1,14 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { Avatar, AvatarFallback } from './avatar';
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { Avatar, AvatarFallback } from "./avatar";
 
-describe('Avatar', () => {
-  it('renders fallback when image is missing', () => {
+describe("Avatar", () => {
+  it("renders fallback when image is missing", () => {
     render(
       <Avatar>
         <AvatarFallback>CN</AvatarFallback>
-      </Avatar>
+      </Avatar>,
     );
-    expect(screen.getByText('CN')).toBeInTheDocument();
+    expect(screen.getByText("CN")).toBeInTheDocument();
   });
 });

@@ -18,17 +18,14 @@
  * - Eligibility status for redemption
  */
 
+import { and, desc, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { dbRead } from "@/db/client";
-import {
-  redeemableEarnings,
-  redeemableEarningsLedger,
-} from "@/db/schemas/redeemable-earnings";
+import { redeemableEarnings, redeemableEarningsLedger } from "@/db/schemas/redeemable-earnings";
 import { tokenRedemptions } from "@/db/schemas/token-redemptions";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 
 interface EarningsBySource {
   source: "miniapp" | "agent" | "mcp";
@@ -147,9 +144,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
         ? lastRedemption.created_at.getTime()
         : new Date(lastRedemption.created_at).getTime()
       : null;
-    const cooldownEndsAt = lastRedemptionTime
-      ? new Date(lastRedemptionTime + cooldownMs)
-      : null;
+    const cooldownEndsAt = lastRedemptionTime ? new Date(lastRedemptionTime + cooldownMs) : null;
     const isInCooldown = cooldownEndsAt && cooldownEndsAt > new Date();
 
     // Check daily limit
@@ -164,27 +159,17 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     AND created_at >= ${todayStart}
   `);
 
-    const dailyRedeemed = Number(
-      (dailyRedeemedResult.rows[0] as { total: string })?.total || 0,
-    );
+    const dailyRedeemed = Number((dailyRedeemedResult.rows[0] as { total: string })?.total || 0);
     const dailyLimitRemaining = Math.max(
       0,
       SUPPLY_SHOCK_PROTECTION.USER_DAILY_LIMIT_USD - dailyRedeemed,
     );
 
     // Build balance
-    const availableBalance = earningsRecord
-      ? Number(earningsRecord.available_balance)
-      : 0;
-    const pendingBalance = earningsRecord
-      ? Number(earningsRecord.total_pending)
-      : 0;
-    const totalEarned = earningsRecord
-      ? Number(earningsRecord.total_earned)
-      : 0;
-    const totalPending = earningsRecord
-      ? Number(earningsRecord.total_pending)
-      : 0;
+    const availableBalance = earningsRecord ? Number(earningsRecord.available_balance) : 0;
+    const pendingBalance = earningsRecord ? Number(earningsRecord.total_pending) : 0;
+    const totalEarned = earningsRecord ? Number(earningsRecord.total_earned) : 0;
+    const totalPending = earningsRecord ? Number(earningsRecord.total_pending) : 0;
 
     // Determine eligibility
     let canRedeem = true;
@@ -209,20 +194,18 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     }));
 
     // Format recent earnings (handle createdAt as Date or string)
-    const formattedRecentEarnings: RecentEarning[] = recentEarnings.map(
-      (e) => ({
-        id: e.id,
-        source: (e.source || "miniapp") as "miniapp" | "agent" | "mcp",
-        sourceId: e.sourceId || "",
-        amount: Number(e.amount),
-        description: e.description || "",
-        createdAt: e.createdAt
-          ? e.createdAt instanceof Date
-            ? e.createdAt.toISOString()
-            : String(e.createdAt)
-          : "",
-      }),
-    );
+    const formattedRecentEarnings: RecentEarning[] = recentEarnings.map((e) => ({
+      id: e.id,
+      source: (e.source || "miniapp") as "miniapp" | "agent" | "mcp",
+      sourceId: e.sourceId || "",
+      amount: Number(e.amount),
+      description: e.description || "",
+      createdAt: e.createdAt
+        ? e.createdAt instanceof Date
+          ? e.createdAt.toISOString()
+          : String(e.createdAt)
+        : "",
+    }));
 
     return NextResponse.json({
       success: true,
@@ -237,8 +220,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
       recentEarnings: formattedRecentEarnings,
       limits: {
         minRedemptionUsd: SUPPLY_SHOCK_PROTECTION.MIN_REDEMPTION_USD,
-        maxSingleRedemptionUsd:
-          SUPPLY_SHOCK_PROTECTION.MAX_SINGLE_REDEMPTION_USD,
+        maxSingleRedemptionUsd: SUPPLY_SHOCK_PROTECTION.MAX_SINGLE_REDEMPTION_USD,
         userDailyLimitUsd: SUPPLY_SHOCK_PROTECTION.USER_DAILY_LIMIT_USD,
         userHourlyLimitUsd: SUPPLY_SHOCK_PROTECTION.USER_HOURLY_LIMIT_USD,
       },
@@ -273,8 +255,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

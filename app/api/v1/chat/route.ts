@@ -1,27 +1,27 @@
-import { streamText, type UIMessage, convertToModelMessages } from "ai";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import { getLanguageModel } from "@/lib/providers/language-model";
-import { conversationsService } from "@/lib/services/conversations";
-import { usageService } from "@/lib/services/usage";
-import { generationsService } from "@/lib/services/generations";
-import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
-import { contentModerationService } from "@/lib/services/content-moderation";
-import {
-  creditsService,
-  InsufficientCreditsError,
-  type CreditReservation,
-} from "@/lib/services/credits";
-import { billUsage } from "@/lib/services/ai-billing";
-import { calculateCost, estimateTokens } from "@/lib/pricing";
-import { resolveModel } from "@/lib/models";
-import { logger } from "@/lib/utils/logger";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { AnonymousSession } from "@/db/schemas";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { resolveModel } from "@/lib/models";
+import { calculateCost, estimateTokens } from "@/lib/pricing";
+import { getLanguageModel } from "@/lib/providers/language-model";
+import { billUsage } from "@/lib/services/ai-billing";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { contentModerationService } from "@/lib/services/content-moderation";
+import { conversationsService } from "@/lib/services/conversations";
+import {
+  type CreditReservation,
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import { generationsService } from "@/lib/services/generations";
+import { usageService } from "@/lib/services/usage";
+import type { ApiKey, UserWithOrganization } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -75,9 +75,7 @@ function normalizeMessages(
 /**
  * Extract text content from message parts.
  */
-function extractTextFromParts(
-  parts: Array<{ type: string; text?: string }>,
-): string {
+function extractTextFromParts(parts: Array<{ type: string; text?: string }>): string {
   return parts.map((p) => (p.type === "text" ? p.text : "")).join("");
 }
 
@@ -105,7 +103,7 @@ function getMessageText(msg: UIMessage | { content?: string }): string {
 async function handlePOST(req: NextRequest) {
   try {
     let user: UserWithOrganization;
-    let apiKey: ApiKey | undefined = undefined;
+    let apiKey: ApiKey | undefined;
     let isAnonymous = false;
     let anonymousSession: AnonymousSession | null = null;
 
@@ -150,10 +148,7 @@ async function handlePOST(req: NextRequest) {
 
     // Validate messages array is not empty
     if (!rawMessages || rawMessages.length === 0) {
-      return NextResponse.json(
-        { error: "Messages array cannot be empty" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Messages array cannot be empty" }, { status: 400 });
     }
 
     // Normalize messages to UIMessage format (handles both OpenAI and UIMessage formats)
@@ -161,10 +156,7 @@ async function handlePOST(req: NextRequest) {
     try {
       messages = normalizeMessages(rawMessages);
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.includes("Invalid message role")
-      ) {
+      if (error instanceof Error && error.message.includes("Invalid message role")) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
       throw error;
@@ -219,9 +211,7 @@ async function handlePOST(req: NextRequest) {
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
       // Check message limit for anonymous users
-      const limitCheck = await checkAnonymousLimit(
-        anonymousSession.session_token,
-      );
+      const limitCheck = await checkAnonymousLimit(anonymousSession.session_token);
 
       if (!limitCheck.allowed) {
         const errorMessage =
@@ -256,14 +246,11 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Reserve credits BEFORE making API call (prevents TOCTOU race condition)
-    let reservation: CreditReservation =
-      creditsService.createAnonymousReservation();
+    let reservation: CreditReservation = creditsService.createAnonymousReservation();
     const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     if (!isAnonymous && user.organization_id) {
-      const messageText = messages
-        .map((m) => extractTextFromParts(m.parts))
-        .join(" ");
+      const messageText = messages.map((m) => extractTextFromParts(m.parts)).join(" ");
       const estimatedInputTokens = estimateTokens(messageText);
 
       try {
@@ -300,18 +287,12 @@ async function handlePOST(req: NextRequest) {
         try {
           // Increment message count AFTER successful completion (for anonymous users)
           if (isAnonymous && anonymousSession) {
-            await anonymousSessionsService.incrementMessageCount(
-              anonymousSession.id,
-            );
+            await anonymousSessionsService.incrementMessageCount(anonymousSession.id);
 
-            logger.info(
-              "chat-api",
-              "Incremented anonymous message count after success",
-              {
-                sessionId: anonymousSession.id,
-                newCount: anonymousSession.message_count + 1,
-              },
-            );
+            logger.info("chat-api", "Incremented anonymous message count after success", {
+              sessionId: anonymousSession.id,
+              newCount: anonymousSession.message_count + 1,
+            });
           }
 
           const userMessage = messages[messages.length - 1];
@@ -322,19 +303,23 @@ async function handlePOST(req: NextRequest) {
             usage.inputTokens || 0,
             usage.outputTokens || 0,
           );
-          
+
           // Use AI Billing wrapper to handle affiliate markup/redemption easily
           // Since this route still manually tracks conversations and uses standalone `calculateCost`
           // We will use the common `billUsage` instead, which calculates cost, markups and reconciles.
-          const billing = await billUsage({
+          const billing = await billUsage(
+            {
               organizationId: user.organization_id || "anonymous",
               userId: user.id,
               apiKeyId: apiKey?.id,
               model: selectedModel,
               provider,
               affiliateCode,
-          }, usage, reservation);
-           
+            },
+            usage,
+            reservation,
+          );
+
           const totalCostBilled = billing.totalCost;
           const inputCostBilled = billing.inputCost;
           const outputCostBilled = billing.outputCost;
@@ -392,9 +377,7 @@ async function handlePOST(req: NextRequest) {
 
             if (apiKey) {
               const lastMessageParts = messages[messages.length - 1]?.parts;
-              const userPrompt = lastMessageParts
-                ? extractTextFromParts(lastMessageParts)
-                : "";
+              const userPrompt = lastMessageParts ? extractTextFromParts(lastMessageParts) : "";
               await generationsService.create({
                 organization_id: user.organization_id,
                 user_id: user.id,
@@ -414,8 +397,7 @@ async function handlePOST(req: NextRequest) {
                   text: text,
                   inputTokens: usage.inputTokens,
                   outputTokens: usage.outputTokens,
-                  totalTokens:
-                    (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                  totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
                 },
               });
             }
@@ -427,11 +409,9 @@ async function handlePOST(req: NextRequest) {
             outputCost: outputCostBilled,
           });
         } catch (error) {
-          logger.error(
-            "chat-api",
-            "Error persisting messages or deducting credits",
-            { error: error instanceof Error ? error.message : "Unknown error" },
-          );
+          logger.error("chat-api", "Error persisting messages or deducting credits", {
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
 
           if (usage && user.organization_id) {
             try {
@@ -447,15 +427,12 @@ async function handlePOST(req: NextRequest) {
                 input_cost: String(0),
                 output_cost: String(0),
                 is_successful: false,
-                error_message:
-                  error instanceof Error ? error.message : "Unknown error",
+                error_message: error instanceof Error ? error.message : "Unknown error",
               });
 
               if (apiKey) {
                 const lastMessageParts = messages[messages.length - 1]?.parts;
-                const userPrompt = lastMessageParts
-                  ? extractTextFromParts(lastMessageParts)
-                  : "";
+                const userPrompt = lastMessageParts ? extractTextFromParts(lastMessageParts) : "";
                 await generationsService.create({
                   organization_id: user.organization_id,
                   user_id: user.id,
@@ -465,18 +442,14 @@ async function handlePOST(req: NextRequest) {
                   provider: provider,
                   prompt: userPrompt,
                   status: "failed",
-                  error:
-                    error instanceof Error ? error.message : "Unknown error",
+                  error: error instanceof Error ? error.message : "Unknown error",
                   usage_record_id: errorUsageRecord.id,
                   completed_at: new Date(),
                 });
               }
             } catch (usageError) {
               logger.error("chat-api", "Error creating usage record", {
-                error:
-                  usageError instanceof Error
-                    ? usageError.message
-                    : "Unknown error",
+                error: usageError instanceof Error ? usageError.message : "Unknown error",
               });
             }
           }
@@ -492,10 +465,7 @@ async function handlePOST(req: NextRequest) {
     const status = getErrorStatusCode(error);
     return new Response(
       JSON.stringify({
-        error:
-          status === 500
-            ? "Failed to process chat"
-            : getSafeErrorMessage(error),
+        error: status === 500 ? "Failed to process chat" : getSafeErrorMessage(error),
       }),
       {
         status,

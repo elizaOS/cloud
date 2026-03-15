@@ -1,19 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { userContextService } from "@/lib/eliza/user-context";
-import { RuntimeFactory, invalidateRuntime } from "@/lib/eliza/runtime-factory";
-import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { NextRequest, NextResponse } from "next/server";
 import { userCharactersRepository } from "@/db/repositories/characters";
+import { requireAuthOrApiKey } from "@/lib/auth";
 import {
-  KNOWLEDGE_CONSTANTS,
-  ALLOWED_EXTENSIONS,
   ALLOWED_CONTENT_TYPES,
+  ALLOWED_EXTENSIONS,
   isValidFilename,
+  KNOWLEDGE_CONSTANTS,
 } from "@/lib/constants/knowledge";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
+import { invalidateRuntime, RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 300; // 5 minutes for large file processing
 
@@ -53,8 +53,7 @@ async function handlePOST(req: NextRequest) {
     try {
       formData = await req.formData();
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       const lowerMessage = errorMessage.toLowerCase();
 
       // Check for specific body size limit errors (413 Payload Too Large)
@@ -167,10 +166,7 @@ async function handlePOST(req: NextRequest) {
 
       // Validate file extension
       const ext = getFileExtension(file.name);
-      if (
-        !ext ||
-        !ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])
-      ) {
+      if (!ext || !ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])) {
         return NextResponse.json(
           {
             error: "Unsupported file type",
@@ -182,11 +178,7 @@ async function handlePOST(req: NextRequest) {
 
       // Validate content type (allow octet-stream for text files like md, txt)
       const contentType = file.type || "application/octet-stream";
-      if (
-        !ALLOWED_CONTENT_TYPES.includes(
-          contentType as (typeof ALLOWED_CONTENT_TYPES)[number],
-        )
-      ) {
+      if (!ALLOWED_CONTENT_TYPES.includes(contentType as (typeof ALLOWED_CONTENT_TYPES)[number])) {
         return NextResponse.json(
           {
             error: "Unsupported content type",
@@ -202,10 +194,7 @@ async function handlePOST(req: NextRequest) {
     if (characterId) {
       const character = await userCharactersRepository.findById(characterId);
       if (!character || character.organization_id !== user.organization_id) {
-        return NextResponse.json(
-          { error: "Character not found or unauthorized" },
-          { status: 403 },
-        );
+        return NextResponse.json({ error: "Character not found or unauthorized" }, { status: 403 });
       }
     }
 
@@ -228,10 +217,7 @@ async function handlePOST(req: NextRequest) {
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {
-      return NextResponse.json(
-        { error: "Knowledge service not available" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "Knowledge service not available" }, { status: 503 });
     }
 
     // Process all files
@@ -283,8 +269,7 @@ async function handlePOST(req: NextRequest) {
             size: file.size,
             uploadedAt: Date.now(),
             status: "error_processing",
-            error:
-              fileError instanceof Error ? fileError.message : "Unknown error",
+            error: fileError instanceof Error ? fileError.message : "Unknown error",
           };
         }
       }),

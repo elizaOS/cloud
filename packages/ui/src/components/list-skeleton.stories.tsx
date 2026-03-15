@@ -5,7 +5,13 @@ const meta: Meta<typeof ListSkeleton> = {
   title: "Components/ListSkeleton",
   component: ListSkeleton,
   parameters: { backgrounds: { default: "dark" } },
-  decorators: [(Story) => <div style={{ maxWidth: 600, padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 600, padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 export default meta;
 type Story = StoryObj<typeof ListSkeleton>;

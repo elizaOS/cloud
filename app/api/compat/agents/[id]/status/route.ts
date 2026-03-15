@@ -3,10 +3,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { envelope, errorEnvelope, toCompatStatus } from "@/lib/api/compat-envelope";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { requireCompatAuth } from "../../../_lib/auth";
 import { handleCompatError } from "../../../_lib/error-handler";
-import { toCompatStatus, envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
 

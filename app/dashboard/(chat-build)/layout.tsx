@@ -6,10 +6,10 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
-import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
-import { ChatSidebar } from "@/components/layout/chat-sidebar";
+import { usePathname } from "next/navigation";
+import { useCallback, useState } from "react";
+import { ChatSidebar } from "@/packages/ui/src/components/layout/chat-sidebar";
 
 /**
  * Shared layout component for chat and build pages.
@@ -19,38 +19,21 @@ import { ChatSidebar } from "@/components/layout/chat-sidebar";
  * @param children - The page content to render.
  * @returns The rendered layout with sidebar and content area.
  */
-export default function ChatBuildLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ChatBuildLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
 
   // Hide sidebar on build pages (creator mode and edit mode)
   const isBuildPage = pathname?.startsWith("/dashboard/build");
 
-  // Memoize toggle callbacks to prevent child re-renders
   const handleToggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
-  }, []);
-
-  const handleToggleCollapse = useCallback(() => {
-    setSidebarCollapsed((prev) => !prev);
   }, []);
 
   return (
     <div className="dashboard-theme flex h-screen w-full overflow-hidden bg-neutral-950">
       {/* Chat Sidebar - hidden in build mode */}
-      {!isBuildPage && (
-        <ChatSidebar
-          isOpen={sidebarOpen}
-          onToggle={handleToggleSidebar}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={handleToggleCollapse}
-        />
-      )}
+      {!isBuildPage && <ChatSidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />}
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden relative">

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { Image as ImageIcon, KeyRound, Mic, Plus } from "lucide-react";
 import { EmptyState } from "./empty-state";
-import { KeyRound, Image as ImageIcon, Mic, Plus } from "lucide-react";
 
 const meta: Meta<typeof EmptyState> = {
   title: "Components/EmptyState",
@@ -20,8 +20,7 @@ export const WithIcon: Story = {
   args: {
     icon: <KeyRound className="h-7 w-7 text-[#FF5800]" />,
     title: "No API keys yet",
-    description:
-      "Create your first API key to start authenticating requests.",
+    description: "Create your first API key to start authenticating requests.",
     action: (
       <button className="inline-flex items-center gap-2 bg-[#FF5800] text-white px-4 py-2 text-sm">
         <Plus className="h-4 w-4" /> Create API Key
@@ -43,10 +42,6 @@ export const Minimal: Story = {
     variant: "minimal",
     icon: <Mic className="h-7 w-7 text-[#FF5800]" />,
     title: "Create a Voice Clone",
-    action: (
-      <button className="bg-[#FF5800] text-white px-6 py-2 text-sm">
-        Get Started
-      </button>
-    ),
+    action: <button className="bg-[#FF5800] text-white px-6 py-2 text-sm">Get Started</button>,
   },
 };

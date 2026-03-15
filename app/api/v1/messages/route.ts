@@ -5,43 +5,43 @@
  * This route lets them use elizaOS Cloud credits/auth without a custom proxy.
  */
 
+import { gateway } from "@ai-sdk/gateway";
 import {
-  generateText,
-  jsonSchema,
-  streamText,
   type AssistantModelMessage,
+  generateText,
   type ImagePart,
   type JSONValue,
+  jsonSchema,
   type ModelMessage,
+  streamText,
   type TextPart,
   type ToolCallPart,
   type ToolContent,
   type ToolResultPart,
   type UserModelMessage,
 } from "ai";
-import { gateway } from "@ai-sdk/gateway";
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { contentModerationService } from "@/lib/services/content-moderation";
-import { appsService } from "@/lib/services/apps";
-import { appCreditsService } from "@/lib/services/app-credits";
-import {
-  reserveCredits,
-  billUsage,
-  recordUsageAnalytics,
-  estimateInputTokens,
-  InsufficientCreditsError,
-} from "@/lib/services/ai-billing";
-import { creditsService, type CreditReservation } from "@/lib/services/credits";
+import { createPreflightResponse } from "@/lib/middleware/cors-apps";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import {
   calculateCost,
   getProviderFromModel,
-  normalizeModelName,
   getSafeModelParams,
+  normalizeModelName,
 } from "@/lib/pricing";
+import {
+  billUsage,
+  estimateInputTokens,
+  InsufficientCreditsError,
+  recordUsageAnalytics,
+  reserveCredits,
+} from "@/lib/services/ai-billing";
+import { appCreditsService } from "@/lib/services/app-credits";
+import { appsService } from "@/lib/services/apps";
+import { contentModerationService } from "@/lib/services/content-moderation";
+import { type CreditReservation, creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { createPreflightResponse } from "@/lib/middleware/cors-apps";
-import type { NextRequest } from "next/server";
 
 export const maxDuration = 300;
 
@@ -49,9 +49,7 @@ type AnthropicTextBlock = { type: "text"; text: string };
 
 type AnthropicImageBlock = {
   type: "image";
-  source:
-    | { type: "url"; url: string }
-    | { type: "base64"; media_type: string; data: string };
+  source: { type: "url"; url: string } | { type: "base64"; media_type: string; data: string };
 };
 
 type AnthropicToolUseBlock = {
@@ -80,9 +78,7 @@ interface AnthropicMessageParam {
   content: string | AnthropicContentBlock[];
 }
 
-type AnthropicSystemParam =
-  | string
-  | Array<{ type: "text"; text: string; cache_control?: unknown }>;
+type AnthropicSystemParam = string | Array<{ type: "text"; text: string; cache_control?: unknown }>;
 
 interface AnthropicTool {
   name: string;
@@ -110,11 +106,7 @@ interface AnthropicMessagesRequest {
   tool_choice?: AnthropicToolChoice;
 }
 
-type AnthropicStopReason =
-  | "end_turn"
-  | "max_tokens"
-  | "stop_sequence"
-  | "tool_use";
+type AnthropicStopReason = "end_turn" | "max_tokens" | "stop_sequence" | "tool_use";
 
 type ToolNameMap = Map<string, string>;
 type AppCreditsInfo = {
@@ -160,9 +152,7 @@ function inferImageMediaType(urlOrType: string): string {
   return "image/jpeg";
 }
 
-function normalizeSystemPrompt(
-  system: AnthropicSystemParam | undefined,
-): string | undefined {
+function normalizeSystemPrompt(system: AnthropicSystemParam | undefined): string | undefined {
   if (!system) return undefined;
   if (typeof system === "string") return system;
   return system.map((block) => block.text).join("\n\n");
@@ -170,12 +160,7 @@ function normalizeSystemPrompt(
 
 function mapToolChoice(
   toolChoice: AnthropicToolChoice | undefined,
-):
-  | "auto"
-  | "none"
-  | "required"
-  | { type: "tool"; toolName: string }
-  | undefined {
+): "auto" | "none" | "required" | { type: "tool"; toolName: string } | undefined {
   if (!toolChoice) return undefined;
   if (toolChoice.type === "auto") return "auto";
   if (toolChoice.type === "none") return "none";
@@ -243,9 +228,7 @@ function serializeToolResultContent(
   return content;
 }
 
-function toToolResultOutput(
-  content: string | AnthropicContentBlock[],
-): ToolResultPart["output"] {
+function toToolResultOutput(content: string | AnthropicContentBlock[]): ToolResultPart["output"] {
   const serialized = serializeToolResultContent(content);
 
   if (typeof serialized === "string") {
@@ -258,10 +241,7 @@ function toToolResultOutput(
   };
 }
 
-function trackToolNames(
-  content: string | AnthropicContentBlock[],
-  toolNames: ToolNameMap,
-): void {
+function trackToolNames(content: string | AnthropicContentBlock[], toolNames: ToolNameMap): void {
   if (typeof content === "string") return;
 
   for (const block of content) {
@@ -271,9 +251,7 @@ function trackToolNames(
   }
 }
 
-function anthropicMessagesToModelMessages(
-  messages: AnthropicMessageParam[],
-): ModelMessage[] {
+function anthropicMessagesToModelMessages(messages: AnthropicMessageParam[]): ModelMessage[] {
   const modelMessages: ModelMessage[] = [];
   const toolNames = new Map<string, string>();
 
@@ -378,10 +356,7 @@ function anthropicMessagesToModelMessages(
 
     const assistantMessage: AssistantModelMessage = {
       role: "assistant",
-      content:
-        assistantParts.length > 0
-          ? assistantParts
-          : [{ type: "text", text: "" }],
+      content: assistantParts.length > 0 ? assistantParts : [{ type: "text", text: "" }],
     };
     modelMessages.push(assistantMessage);
   }
@@ -398,9 +373,7 @@ function getMessageContentForEstimate(message: AnthropicMessageParam): string {
       if (block.type === "tool_use") return JSON.stringify(block.input);
       if (block.type === "tool_result") {
         const serialized = serializeToolResultContent(block.content);
-        return typeof serialized === "string"
-          ? serialized
-          : JSON.stringify(serialized);
+        return typeof serialized === "string" ? serialized : JSON.stringify(serialized);
       }
       return "";
     })
@@ -439,14 +412,8 @@ function addCorsHeaders(response: Response): Response {
   });
 }
 
-function anthropicError(
-  type: string,
-  message: string,
-  status: number,
-): Response {
-  return addCorsHeaders(
-    Response.json({ type: "error", error: { type, message } }, { status }),
-  );
+function anthropicError(type: string, message: string, status: number): Response {
+  return addCorsHeaders(Response.json({ type: "error", error: { type, message } }, { status }));
 }
 
 async function handlePOST(req: NextRequest) {
@@ -465,8 +432,7 @@ async function handlePOST(req: NextRequest) {
 
   const appId = req.headers.get("X-App-Id");
   let useAppCredits = false;
-  let monetizedApp: NonNullable<Awaited<ReturnType<typeof appsService.getById>>> | null =
-    null;
+  let monetizedApp: NonNullable<Awaited<ReturnType<typeof appsService.getById>>> | null = null;
   if (appId) {
     monetizedApp = (await appsService.getById(appId)) ?? null;
     useAppCredits = Boolean(monetizedApp?.monetization_enabled);
@@ -484,11 +450,7 @@ async function handlePOST(req: NextRequest) {
   }
 
   const request = body as AnthropicMessagesRequest;
-  if (
-    !request.model ||
-    request.max_tokens == null ||
-    !request.messages?.length
-  ) {
+  if (!request.model || request.max_tokens == null || !request.messages?.length) {
     return anthropicError(
       "invalid_request_error",
       "Missing required fields: model, max_tokens, messages",
@@ -509,23 +471,16 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  const lastUserMessage = request.messages
-    .filter((message) => message.role === "user")
-    .pop();
+  const lastUserMessage = request.messages.filter((message) => message.role === "user").pop();
   if (lastUserMessage) {
     const content = getMessageContentForEstimate(lastUserMessage);
     if (content) {
-      contentModerationService.moderateInBackground(
-        content,
-        user.id,
-        undefined,
-        (result) => {
-          logger.warn("[Messages API] Async moderation detected violation", {
-            userId: user.id,
-            categories: result.flaggedCategories,
-          });
-        },
-      );
+      contentModerationService.moderateInBackground(content, user.id, undefined, (result) => {
+        logger.warn("[Messages API] Async moderation detected violation", {
+          userId: user.id,
+          categories: result.flaggedCategories,
+        });
+      });
     }
   }
 
@@ -551,10 +506,7 @@ async function handlePOST(req: NextRequest) {
       estimatedInputTokens,
       estimatedOutputTokens,
     );
-    const costWithMarkup = await appCreditsService.calculateCostWithMarkup(
-      appId,
-      totalCost,
-    );
+    const costWithMarkup = await appCreditsService.calculateCostWithMarkup(appId, totalCost);
     const balanceCheck = await appCreditsService.checkBalance(
       appId,
       user.id,
@@ -665,12 +617,7 @@ async function handleNonStream(
   startTime: number,
   safeParams: ReturnType<typeof getSafeModelParams>,
   tools: ReturnType<typeof convertTools>,
-  toolChoice:
-    | "auto"
-    | "none"
-    | "required"
-    | { type: "tool"; toolName: string }
-    | undefined,
+  toolChoice: "auto" | "none" | "required" | { type: "tool"; toolName: string } | undefined,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -747,11 +694,7 @@ async function handleNonStream(
   }
 
   const hasToolCalls = Boolean(result.toolCalls?.length);
-  const stopReason = mapFinishReason(
-    result.finishReason,
-    result.rawFinishReason,
-    hasToolCalls,
-  );
+  const stopReason = mapFinishReason(result.finishReason, result.rawFinishReason, hasToolCalls);
 
   return addCorsHeaders(
     Response.json({
@@ -784,12 +727,7 @@ async function handleStream(
   estimatedInputTokens: number,
   safeParams: ReturnType<typeof getSafeModelParams>,
   tools: ReturnType<typeof convertTools>,
-  toolChoice:
-    | "auto"
-    | "none"
-    | "required"
-    | { type: "tool"; toolName: string }
-    | undefined,
+  toolChoice: "auto" | "none" | "required" | { type: "tool"; toolName: string } | undefined,
 ) {
   const provider = getProviderFromModel(model);
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
@@ -1055,11 +993,7 @@ async function handleStream(
           }
         }
 
-        const stopReason = mapFinishReason(
-          finishReason,
-          rawFinishReason,
-          sawToolCalls,
-        );
+        const stopReason = mapFinishReason(finishReason, rawFinishReason, sawToolCalls);
 
         controller.enqueue(
           sse("message_delta", {

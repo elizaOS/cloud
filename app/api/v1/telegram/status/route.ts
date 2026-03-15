@@ -16,13 +16,10 @@ export const maxDuration = 30;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  const status = await telegramAutomationService.getConnectionStatus(
-    user.organization_id,
-  );
+  const status = await telegramAutomationService.getConnectionStatus(user.organization_id);
 
   // Optionally include webhook info for debugging
-  const includeWebhookInfo =
-    request.nextUrl.searchParams.get("webhook") === "true";
+  const includeWebhookInfo = request.nextUrl.searchParams.get("webhook") === "true";
 
   let webhookInfo: {
     url?: string;
@@ -36,9 +33,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   } | null = null;
 
   if (includeWebhookInfo && status.connected) {
-    const botToken = await telegramAutomationService.getBotToken(
-      user.organization_id,
-    );
+    const botToken = await telegramAutomationService.getBotToken(user.organization_id);
     if (botToken) {
       const bot = new Telegraf(botToken);
       const info = await bot.telegram.getWebhookInfo();

@@ -10,12 +10,12 @@
  *        Body: JSON-RPC 2.0 request (or batch)
  */
 
+import { NextRequest, type NextRequest as NextRequestType } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services/credits";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
+import { creditsService } from "@/lib/services/credits";
 import { proxyBillingService } from "@/lib/services/proxy-billing";
 import { logger } from "@/lib/utils/logger";
-import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 const MAX_BATCH_SIZE = 100;
@@ -52,7 +52,7 @@ const ALCHEMY_CHAIN_MAP: Record<string, string> = {
 };
 
 async function postHandler(
-  request: NextRequest,
+  request: NextRequestType,
   context?: { params: Promise<{ chain: string }> },
 ) {
   const params = await context?.params;
@@ -62,7 +62,20 @@ async function postHandler(
 
   const { chain } = params;
 
-  const authResult = await requireAuthOrApiKeyWithOrg(request);
+  // Support auth via query param for RPC clients that cannot set headers.
+  const queryApiKey = request.nextUrl.searchParams.get("api_key");
+  let authRequest = request;
+  if (queryApiKey && !request.headers.get("authorization") && !request.headers.get("X-API-Key")) {
+    const headers = new Headers(request.headers);
+    headers.set("Authorization", `Bearer ${queryApiKey}`);
+    authRequest = new NextRequest(request.url, {
+      headers,
+      method: request.method,
+      body: request.clone().body,
+    });
+  }
+
+  const authResult = await requireAuthOrApiKeyWithOrg(authRequest);
   const { organization_id } = authResult.user;
 
   const alchemySlug = ALCHEMY_CHAIN_MAP[chain];
@@ -91,10 +104,7 @@ async function postHandler(
   try {
     parsedBody = JSON.parse(body);
   } catch {
-    return Response.json(
-      { error: "Invalid JSON-RPC body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid JSON-RPC body" }, { status: 400 });
   }
 
   let requestCount = 1;
@@ -118,20 +128,22 @@ async function postHandler(
 
   if (requestCount > 0) {
     const totalCost = proxyBillingService.getProxyCost("evm-rpc") * requestCount;
-    const ok = await creditsService.deductCredits({
-      organizationId: organization_id,
-      amount: totalCost,
-      description: `API proxy: evm-rpc — ${chain} (batch of ${requestCount})`,
-      metadata: {
-        type: "proxy_evm-rpc",
-        service: "evm-rpc",
-        path: chain,
-        batchSize: requestCount,
-      },
-    }).catch(() => ({ success: false }));
+    const ok = await creditsService
+      .deductCredits({
+        organizationId: organization_id,
+        amount: totalCost,
+        description: `API proxy: evm-rpc — ${chain} (batch of ${requestCount})`,
+        metadata: {
+          type: "proxy_evm-rpc",
+          service: "evm-rpc",
+          path: chain,
+          batchSize: requestCount,
+        },
+      })
+      .catch(() => ({ success: false }));
     if (!ok.success) {
       return Response.json(
-        { error: "Insufficient credits", topUpUrl: "https://www.elizacloud.ai/dashboard/billing" },
+        { error: "Insufficient credits", topUpUrl: "https://cloud.milady.ai/dashboard/billing" },
         { status: 402 },
       );
     }

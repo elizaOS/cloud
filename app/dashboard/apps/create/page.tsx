@@ -1,38 +1,38 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo, memo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+  useSetPageHeader,
+} from "@elizaos/cloud-ui";
 import { nanoid } from "nanoid";
-import { generateRandomName } from "@/lib/utils/random-names";
-import { useChatInput, useModelSelection, type ImageAttachment } from "@/lib/app-builder/store";
-import { formatToolDisplay, getTimeString } from "@/lib/app-builder/tool-display";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { markdownComponents } from "@/lib/app-builder/markdown-components";
+import { type ImageAttachment, useChatInput, useModelSelection } from "@/lib/app-builder/store";
+import { formatToolDisplay, getTimeString } from "@/lib/app-builder/tool-display";
 import type {
+  AppData,
+  CommitInfo,
+  GitStatusInfo,
   Message,
+  PreviewTab,
+  ProgressStep,
   SessionData,
   SessionStatus,
-  ProgressStep,
-  TemplateType,
-  AppData,
-  GitStatusInfo,
-  CommitInfo,
-  TemplateOption,
-  SourceType,
   SourceContext,
-  PreviewTab,
+  SourceType,
+  TemplateOption,
+  TemplateType,
 } from "@/lib/app-builder/types";
-import { ChatInput } from "@/components/app-builder/chat-input";
-import { HistoryTab } from "@/components/app-builder/history-tab";
-import { SessionLoader } from "@/components/app-builder/session-loader";
-import { WebTerminal } from "@/components/app-builder/x-terminal";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@elizaos/ui";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
-import { useSetPageHeader } from "@elizaos/ui";
+import { generateRandomName } from "@/lib/utils/random-names";
+import { ChatInput } from "@/packages/ui/src/components/app-builder/chat-input";
+import { HistoryTab } from "@/packages/ui/src/components/app-builder/history-tab";
+import { SessionLoader } from "@/packages/ui/src/components/app-builder/session-loader";
+import { WebTerminal } from "@/packages/ui/src/components/app-builder/x-terminal";
 
 async function fetchWithRetry(
   url: string,
@@ -60,72 +60,69 @@ async function fetchWithRetry(
       lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, 500));
-        continue;
       }
     }
   }
 
   throw lastError || new Error("Request failed after retries");
 }
+
 import {
-  Loader2,
-  Sparkles,
-  RefreshCw,
-  ExternalLink,
-  ArrowLeft,
-  Bot,
-  Square,
-  Copy,
-  Check,
-  Maximize2,
-  Minimize2,
-  Grid3x3,
-  Workflow,
-  Puzzle,
-  Terminal,
-  Monitor,
-  Timer,
-  Plus,
-  AlertCircle,
-  Settings,
-  GitBranch,
-  Save,
-  History,
-  Cloud,
-  CloudOff,
-  Rocket,
-  FolderCode,
-  MessageSquare,
-  FileCode,
-  Globe,
-  Wand2,
-  X,
-  MoreVertical,
-  type LucideIcon,
-} from "lucide-react";
-import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
-import { toast } from "sonner";
-import { BrandCard, CornerBrackets } from "@elizaos/ui";
-import { Input } from "@elizaos/ui";
-import { Label } from "@elizaos/ui";
-import { Textarea } from "@elizaos/ui";
-import { Button } from "@elizaos/ui";
-import { ScrollArea } from "@elizaos/ui";
-import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+  BrandCard,
+  Button,
+  CornerBrackets,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@elizaos/ui";
+  Label,
+  ScrollArea,
+  Textarea,
+} from "@elizaos/cloud-ui";
 import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@elizaos/ui";
+  AlertCircle,
+  ArrowLeft,
+  Bot,
+  Check,
+  Cloud,
+  CloudOff,
+  Copy,
+  ExternalLink,
+  FileCode,
+  FolderCode,
+  GitBranch,
+  Globe,
+  Grid3x3,
+  History,
+  Loader2,
+  type LucideIcon,
+  Maximize2,
+  MessageSquare,
+  Minimize2,
+  Monitor,
+  MoreVertical,
+  Plus,
+  Puzzle,
+  RefreshCw,
+  Rocket,
+  Save,
+  Settings,
+  Sparkles,
+  Square,
+  Terminal,
+  Timer,
+  Workflow,
+  X,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { toast } from "sonner";
+import { SandboxFileExplorer } from "@/packages/ui/src/components/sandbox/sandbox-file-explorer";
 
 // Memoized chat message component to prevent re-renders when input changes
 interface ChatMessageProps {
@@ -144,7 +141,7 @@ const ChatMessage = memo(function ChatMessage({
   sendPrompt,
 }: ChatMessageProps) {
   const isProcessing = !!msg._thinkingId;
-  const msgTime = new Date(msg.timestamp)
+  const _msgTime = new Date(msg.timestamp)
     .toLocaleTimeString("en-US", {
       hour12: true,
       hour: "numeric",
@@ -167,22 +164,19 @@ const ChatMessage = memo(function ChatMessage({
         {isProcessing && (
           <div className="flex items-center gap-1.5 xl:gap-2 mb-1 xl:mb-1.5">
             <Loader2 className="h-2.5 w-2.5 xl:h-3 xl:w-3 animate-spin text-[#FF8C42]" />
-            <span className="text-[10px] xl:text-[11px] text-[#FF8C42]">
-              Building
-            </span>
+            <span className="text-[10px] xl:text-[11px] text-[#FF8C42]">Building</span>
           </div>
         )}
-        
+
         {/* Image attachments preview */}
         {msg.images && msg.images.length > 0 && (
-          <div className={`flex flex-wrap gap-2 ${msg.content ? 'mb-2' : ''}`}>
+          <div className={`flex flex-wrap gap-2 ${msg.content ? "mb-2" : ""}`}>
             {msg.images.map((img) => (
               <div
                 key={img.id}
                 className="relative rounded-lg overflow-hidden border border-white/[0.1] bg-white/[0.04] group/img cursor-pointer"
-                onClick={() => window.open(img.previewUrl, '_blank')}
+                onClick={() => window.open(img.previewUrl, "_blank")}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={img.previewUrl}
                   alt="Attached image"
@@ -192,14 +186,11 @@ const ChatMessage = memo(function ChatMessage({
             ))}
           </div>
         )}
-        
+
         {/* Text content */}
         {msg.content && (
           <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto [&>*:last-child]:mb-0">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={markdownComponents}
-            >
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {msg.content}
             </ReactMarkdown>
           </div>
@@ -224,9 +215,7 @@ const ChatMessage = memo(function ChatMessage({
                     <AccordionTrigger className="px-2.5 py-2 text-[11px] hover:no-underline hover:bg-white/[0.03] data-[state=open]:bg-white/[0.03] data-[state=open]:hover:bg-white/[0.05] transition-colors">
                       <div className="flex items-center gap-2 text-left w-full">
                         <Check className="h-3 w-3 text-emerald-400 flex-shrink-0" />
-                        <span className="font-medium text-white/80">
-                          {op.tool}
-                        </span>
+                        <span className="font-medium text-white/80">{op.tool}</span>
                         <span className="text-[10px] text-white/40 font-mono truncate max-w-[200px]">
                           {op.detail}
                         </span>
@@ -238,9 +227,7 @@ const ChatMessage = memo(function ChatMessage({
                     {op.reasoning && (
                       <AccordionContent className="p-2.5">
                         <div className="text-[11px] leading-[1.6] text-white/50 pr-0.5 rounded-lg max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 scrollbar-thumb-rounded">
-                          <pre className="whitespace-pre-wrap font-sans">
-                            {op.reasoning}
-                          </pre>
+                          <pre className="whitespace-pre-wrap font-sans">{op.reasoning}</pre>
                         </div>
                       </AccordionContent>
                     )}
@@ -477,36 +464,25 @@ export default function AppCreatorPage() {
     return null;
   }, [searchParams]);
 
-  const [isInitializing, setIsInitializing] = useState(
-    isEditMode || !!sessionIdFromUrl,
-  );
-  const [step, setStep] = useState<"setup" | "building">(
-    isEditMode ? "building" : "setup",
-  );
+  const [isInitializing, setIsInitializing] = useState(isEditMode || !!sessionIdFromUrl);
+  const [step, setStep] = useState<"setup" | "building">(isEditMode ? "building" : "setup");
   const [appData, setAppData] = useState<AppData | null>(null);
   // Agent selection removed - agents can be added later from the app builder
   // App name is auto-generated when building starts (user doesn't need to provide it)
-  const [appName, setAppName] = useState(
-    sourceContext ? `${sourceContext.name} App` : "",
-  );
+  const [appName, setAppName] = useState(sourceContext ? `${sourceContext.name} App` : "");
   const [appDescription, setAppDescription] = useState(
-    sourceContext
-      ? `An app built with ${sourceContext.name} ${sourceContext.type}`
-      : "",
+    sourceContext ? `An app built with ${sourceContext.name} ${sourceContext.type}` : "",
   );
   // Minimum description length
   const MIN_DESCRIPTION_LENGTH = 10;
 
-  const [templateType, setTemplateType] = useState<TemplateType>(
-    sourceContext
-      ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
-      : "blank",
+  const [templateType, _setTemplateType] = useState<TemplateType>(
+    sourceContext ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion : "blank",
   );
   const [includeMonetization, setIncludeMonetization] = useState(true);
-  const [includeAnalytics, setIncludeAnalytics] = useState(true);
-  const [includePersistentStorage, setIncludePersistentStorage] =
-    useState(false);
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [includeAnalytics, _setIncludeAnalytics] = useState(true);
+  const [includePersistentStorage, _setIncludePersistentStorage] = useState(false);
+  const [_isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const [session, setSession] = useState<SessionData | null>(null);
   const [status, setStatus] = useState<SessionStatus>("idle");
@@ -524,8 +500,7 @@ export default function AppCreatorPage() {
   // Track iframe loading state to prevent white flash
   const [iframeLoaded, setIframeLoaded] = useState(false);
   // Track if first generation has completed (to hide template preview until then)
-  const [hasCompletedFirstGeneration, setHasCompletedFirstGeneration] =
-    useState(false);
+  const [hasCompletedFirstGeneration, setHasCompletedFirstGeneration] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [isExtending, setIsExtending] = useState(false);
@@ -549,16 +524,14 @@ export default function AppCreatorPage() {
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
-  const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(
-    null,
-  );
-  const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
-  const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
+  const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(null);
+  const [_lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
+  const [_lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
   const [productionUrl, setProductionUrl] = useState<string | null>(null);
   const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
 
   // Sandbox health tracking for automatic recovery
-  const [sandboxHealthy, setSandboxHealthy] = useState(true);
+  const [_sandboxHealthy, setSandboxHealthy] = useState(true);
   const healthCheckFailCountRef = useRef(0);
   const isRecoveringRef = useRef(false);
   const lastHealthCheckRef = useRef<number>(0);
@@ -607,10 +580,7 @@ export default function AppCreatorPage() {
       try {
         // CASE 1: Have a specific session ID - try to connect to it
         if (sessionIdFromUrl && appIdFromUrl) {
-          const connected = await connectToSession(
-            sessionIdFromUrl,
-            appIdFromUrl,
-          );
+          const connected = await connectToSession(sessionIdFromUrl, appIdFromUrl);
           if (connected) {
             setIsInitializing(false);
             return;
@@ -633,17 +603,12 @@ export default function AppCreatorPage() {
         console.error("[AppBuilder] Initialization failed:", error);
         setIsInitializing(false);
         setStatus("error");
-        setErrorMessage(
-          error instanceof Error ? error.message : "Initialization failed",
-        );
+        setErrorMessage(error instanceof Error ? error.message : "Initialization failed");
       }
     };
 
     // Connect to existing session - returns true if successful
-    const connectToSession = async (
-      sessionId: string,
-      appId: string,
-    ): Promise<boolean> => {
+    const connectToSession = async (sessionId: string, appId: string): Promise<boolean> => {
       // Fetch session and app data together
       const [sessionRes, appRes] = await Promise.all([
         fetchWithRetry(`/api/v1/app-builder/sessions/${sessionId}`),
@@ -741,9 +706,7 @@ export default function AppCreatorPage() {
       }
 
       // Check for existing active session
-      const sessionRes = await fetchWithRetry(
-        `/api/v1/app-builder?appId=${appId}&limit=1`,
-      );
+      const sessionRes = await fetchWithRetry(`/api/v1/app-builder?appId=${appId}&limit=1`);
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json();
         if (sessionData.success && sessionData.sessions?.length > 0) {
@@ -777,26 +740,20 @@ export default function AppCreatorPage() {
       requestAnimationFrame(() => {
         setTimeout(() => {
           if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop =
-              messagesContainerRef.current.scrollHeight;
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
           }
         }, 50);
       });
     }
-  }, [messages, isLoading]);
+  }, [messages]);
 
   // Additional scroll on initialization complete (handles page refresh)
   useEffect(() => {
-    if (
-      !isInitializing &&
-      messages.length > 0 &&
-      messagesContainerRef.current
-    ) {
+    if (!isInitializing && messages.length > 0 && messagesContainerRef.current) {
       // Delay scroll to ensure layout is complete after initialization
       const timeoutId = setTimeout(() => {
         if (messagesContainerRef.current) {
-          messagesContainerRef.current.scrollTop =
-            messagesContainerRef.current.scrollHeight;
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
         }
       }, 150);
       return () => clearTimeout(timeoutId);
@@ -812,16 +769,11 @@ export default function AppCreatorPage() {
 
   // Auto-scroll to bottom when switching to console tab
   useEffect(() => {
-    if (
-      previewTab === "console" &&
-      consoleLogsRef.current &&
-      consoleLogs.length > 0
-    ) {
+    if (previewTab === "console" && consoleLogsRef.current && consoleLogs.length > 0) {
       // Use setTimeout to ensure DOM has rendered
       setTimeout(() => {
         if (consoleLogsRef.current) {
-          consoleLogsRef.current.scrollTop =
-            consoleLogsRef.current.scrollHeight;
+          consoleLogsRef.current.scrollTop = consoleLogsRef.current.scrollHeight;
         }
       }, 0);
     }
@@ -830,19 +782,10 @@ export default function AppCreatorPage() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "console" && event.data?.message) {
-        setConsoleLogs((prev) => [
-          ...prev,
-          `[${event.data.level || "log"}] ${event.data.message}`,
-        ]);
+        setConsoleLogs((prev) => [...prev, `[${event.data.level || "log"}] ${event.data.message}`]);
       }
-      if (
-        event.data?.type === "webpack-hmr" ||
-        event.data?.action === "built"
-      ) {
-        setConsoleLogs((prev) => [
-          ...prev,
-          `[hmr] ${event.data.action || "update"}`,
-        ]);
+      if (event.data?.type === "webpack-hmr" || event.data?.action === "built") {
+        setConsoleLogs((prev) => [...prev, `[hmr] ${event.data.action || "update"}`]);
       }
     };
     window.addEventListener("message", handleMessage);
@@ -899,10 +842,7 @@ export default function AppCreatorPage() {
   const addLog = useCallback((message: string, level: string = "info") => {
     const timestamp = new Date().toLocaleTimeString();
     // Limit console logs to prevent memory issues
-    setConsoleLogs((prev) => [
-      ...prev.slice(-499),
-      `[${timestamp}] [${level}] ${message}`,
-    ]);
+    setConsoleLogs((prev) => [...prev.slice(-499), `[${timestamp}] [${level}] ${message}`]);
   }, []);
 
   const extendSession = useCallback(async () => {
@@ -910,14 +850,11 @@ export default function AppCreatorPage() {
 
     setIsExtending(true);
     try {
-      const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ durationMs: 900000 }),
-        },
-      );
+      const response = await fetchWithRetry(`/api/v1/app-builder/sessions/${session.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ durationMs: 900000 }),
+      });
 
       if (!response.ok) {
         throw new Error("Failed to extend session");
@@ -940,12 +877,10 @@ export default function AppCreatorPage() {
     }
   }, [session, isExtending, addLog]);
 
-  const checkSnapshots = useCallback(async () => {
+  const _checkSnapshots = useCallback(async () => {
     if (!session) return;
     try {
-      const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/snapshots`,
-      );
+      const response = await fetchWithRetry(`/api/v1/app-builder/sessions/${session.id}/snapshots`);
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -966,9 +901,7 @@ export default function AppCreatorPage() {
   const checkGitStatus = useCallback(async () => {
     if (!session) return;
     try {
-      const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/commit`,
-      );
+      const response = await fetchWithRetry(`/api/v1/app-builder/sessions/${session.id}/commit`);
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -991,9 +924,7 @@ export default function AppCreatorPage() {
   const fetchCommitHistory = useCallback(async () => {
     if (!session) return;
     try {
-      const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/history`,
-      );
+      const response = await fetchWithRetry(`/api/v1/app-builder/sessions/${session.id}/history`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.commits) {
@@ -1011,16 +942,13 @@ export default function AppCreatorPage() {
 
     setIsSaving(true);
     try {
-      const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/commit`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: `Manual save at ${new Date().toLocaleString()}`,
-          }),
-        },
-      );
+      const response = await fetchWithRetry(`/api/v1/app-builder/sessions/${session.id}/commit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Manual save at ${new Date().toLocaleString()}`,
+        }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -1053,10 +981,7 @@ export default function AppCreatorPage() {
       toast.error("Failed to save", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
-      addLog(
-        `Save failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error",
-      );
+      addLog(`Save failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
     } finally {
       setIsSaving(false);
     }
@@ -1076,14 +1001,11 @@ export default function AppCreatorPage() {
 
     setDeployPhase("deploying");
     try {
-      const response = await fetchWithRetry(
-        `/api/v1/apps/${appData.id}/deploy`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ target: "production" }),
-        },
-      );
+      const response = await fetchWithRetry(`/api/v1/apps/${appData.id}/deploy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target: "production" }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -1113,10 +1035,7 @@ export default function AppCreatorPage() {
       toast.error("Deployment failed", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
-      addLog(
-        `Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error",
-      );
+      addLog(`Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
     } finally {
       setIsDeploying(false);
       setDeployPhase(null);
@@ -1129,9 +1048,7 @@ export default function AppCreatorPage() {
 
     const fetchDeploymentInfo = async () => {
       try {
-        const response = await fetchWithRetry(
-          `/api/v1/apps/${appData.id}/deploy`,
-        );
+        const response = await fetchWithRetry(`/api/v1/apps/${appData.id}/deploy`);
         if (response.ok) {
           const data = await response.json();
           if (data.productionUrl) {
@@ -1140,10 +1057,7 @@ export default function AppCreatorPage() {
         }
       } catch (deployInfoError) {
         // Not critical but log for debugging
-        console.warn(
-          "[AppBuilder] Deployment info fetch failed:",
-          deployInfoError,
-        );
+        console.warn("[AppBuilder] Deployment info fetch failed:", deployInfoError);
       }
     };
 
@@ -1165,13 +1079,7 @@ export default function AppCreatorPage() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [
-    status,
-    session,
-    appData?.github_repo,
-    checkGitStatus,
-    fetchCommitHistory,
-  ]);
+  }, [status, session, appData?.github_repo, checkGitStatus, fetchCommitHistory]);
 
   const restoreSession = useCallback(async () => {
     if (!session || isRestoring) return;
@@ -1228,10 +1136,7 @@ export default function AppCreatorPage() {
                   total: data.total,
                   filePath: data.filePath,
                 });
-                addLog(
-                  `Restoring: ${data.filePath} (${data.current}/${data.total})`,
-                  "info",
-                );
+                addLog(`Restoring: ${data.filePath} (${data.current}/${data.total})`, "info");
               } else if (eventType === "complete") {
                 setSession({
                   ...data.session,
@@ -1253,8 +1158,7 @@ export default function AppCreatorPage() {
                 setRestoreProgress(null);
                 addLog("Session restored successfully!", "success");
                 toast.success("Session restored!", {
-                  description:
-                    "Your work has been restored. You can continue building.",
+                  description: "Your work has been restored. You can continue building.",
                 });
 
                 // Refresh git status after session restore
@@ -1271,8 +1175,7 @@ export default function AppCreatorPage() {
         }
       }
     } catch (error) {
-      const errorMsg =
-        error instanceof Error ? error.message : "Restoration failed";
+      const errorMsg = error instanceof Error ? error.message : "Restoration failed";
 
       // If the error indicates session is already ready, just set status to ready
       // This prevents infinite loops when trying to resume an already-ready session
@@ -1295,8 +1198,7 @@ export default function AppCreatorPage() {
         lastBackup: null,
       });
       toast.error("Could not resume session", {
-        description:
-          "Click 'Start New Session' to restore your code from GitHub.",
+        description: "Click 'Start New Session' to restore your code from GitHub.",
       });
     } finally {
       setIsRestoring(false);
@@ -1324,9 +1226,7 @@ export default function AppCreatorPage() {
 
     // Check if we can restore - either from snapshotInfo or directly from app's github repo
     const canAutoRestore =
-      snapshotInfo?.canRestore ||
-      !!appSnapshotInfo?.githubRepo ||
-      !!appData?.github_repo;
+      snapshotInfo?.canRestore || !!appSnapshotInfo?.githubRepo || !!appData?.github_repo;
 
     if (canAutoRestore) {
       // Mark as triggered to prevent re-entry
@@ -1432,8 +1332,7 @@ export default function AppCreatorPage() {
         }
       }
     } catch (error) {
-      const errorMsg =
-        error instanceof Error ? error.message : "Recovery failed";
+      const errorMsg = error instanceof Error ? error.message : "Recovery failed";
 
       // If the error indicates session is already ready, just set status to ready
       // This prevents infinite loops when trying to recover an already-ready session
@@ -1481,7 +1380,7 @@ export default function AppCreatorPage() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-        const response = await fetch(session.sandboxUrl, {
+        const _response = await fetch(session.sandboxUrl, {
           method: "HEAD",
           mode: "no-cors",
           signal: controller.signal,
@@ -1492,7 +1391,7 @@ export default function AppCreatorPage() {
         // Reset fail counter on success
         healthCheckFailCountRef.current = 0;
         setSandboxHealthy(true);
-      } catch (error) {
+      } catch (_error) {
         // Network error or timeout - sandbox may be dead
         healthCheckFailCountRef.current++;
 
@@ -1578,9 +1477,7 @@ export default function AppCreatorPage() {
           if (newLogs.length > 0) {
             setConsoleLogs((prev) => {
               const timestamp = new Date().toLocaleTimeString();
-              const formatted = newLogs.map(
-                (log: string) => `[${timestamp}] ${log}`,
-              );
+              const formatted = newLogs.map((log: string) => `[${timestamp}] ${log}`);
               return [...prev, ...formatted];
             });
             lastLogIndexRef.current = data.logs.length;
@@ -1605,10 +1502,8 @@ export default function AppCreatorPage() {
 
   const startSession = useCallback(async () => {
     // Auto-generate app name with unique suffix for new apps
-    const generatedAppName = !isEditMode
-      ? `${generateRandomName()}-${nanoid(6)}`
-      : appName;
-    
+    const generatedAppName = !isEditMode ? `${generateRandomName()}-${nanoid(6)}` : appName;
+
     // Update the appName state so it's available for display
     if (!isEditMode) {
       setAppName(generatedAppName);
@@ -1621,24 +1516,23 @@ export default function AppCreatorPage() {
     setErrorMessage(null);
     sessionActionsLogRef.current = [];
 
-    const shouldAutoScaffold =
-      !isEditMode && (appDescription || templateType !== "blank");
-    
+    const shouldAutoScaffold = !isEditMode && (appDescription || templateType !== "blank");
+
     // Check if description is too vague/short to build meaningfully
-    const isDescriptionVague = appDescription && (
-      appDescription.trim().length < 20 ||
-      appDescription.trim().split(/\s+/).length < 4 ||
-      /^[a-z]{10,}$/i.test(appDescription.trim()) || // gibberish like "sjhfbvjslahdfbljashfbl"
-      /^[bcdfghjklmnpqrstvwxyz]{5,}$/i.test(appDescription.trim()) // all consonants
-    );
-    
+    const isDescriptionVague =
+      appDescription &&
+      (appDescription.trim().length < 20 ||
+        appDescription.trim().split(/\s+/).length < 4 ||
+        /^[a-z]{10,}$/i.test(appDescription.trim()) || // gibberish like "sjhfbvjslahdfbljashfbl"
+        /^[bcdfghjklmnpqrstvwxyz]{5,}$/i.test(appDescription.trim())); // all consonants
+
     // User's message (what they see in chat) - just their raw input
     const initialPrompt = shouldAutoScaffold
       ? appDescription
         ? appDescription // Just show their raw description
         : `Set up the initial ${templateType} app structure with all the core features, components, and styling.`
       : undefined;
-    
+
     // Description sent to system prompt - includes clarification instructions if vague
     const effectiveDescription = appDescription
       ? isDescriptionVague
@@ -1736,9 +1630,7 @@ export default function AppCreatorPage() {
                   });
                 }
 
-                const displayName = isEditMode
-                  ? appData?.name || appName
-                  : appName;
+                const displayName = isEditMode ? appData?.name || appName : appName;
 
                 // Use appId from URL or from newly created session
                 const effectiveAppId = appIdFromUrl || data.session.appId;
@@ -1756,10 +1648,7 @@ export default function AppCreatorPage() {
 
                 router.replace(newUrl, { scroll: false });
 
-                addLog(
-                  `Sandbox ready at ${data.session.sandboxUrl}`,
-                  "success",
-                );
+                addLog(`Sandbox ready at ${data.session.sandboxUrl}`, "success");
 
                 if (data.hasInitialPrompt) {
                   const thinkingId = Date.now();
@@ -1806,10 +1695,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                     description: "Your development environment is ready.",
                   });
                 }
-              } else if (
-                eventType === "thinking" ||
-                eventType === "reasoning"
-              ) {
+              } else if (eventType === "thinking" || eventType === "reasoning") {
                 // Stream reasoning/thinking text to show chain of thought
                 // "thinking" = regular text output, "reasoning" = deep CoT tokens
                 const reasoningText = data.text || "";
@@ -1826,9 +1712,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
                   // Accumulate chunk in buffer (prefix reasoning with 💭 to distinguish)
                   const chunkText =
-                    eventType === "reasoning"
-                      ? `💭 ${reasoningText}`
-                      : reasoningText;
+                    eventType === "reasoning" ? `💭 ${reasoningText}` : reasoningText;
                   accumulateThinkingChunk(streamId, chunkText);
 
                   // Schedule throttled UI update
@@ -1836,8 +1720,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                     let content = `**Setting up ${appName}**\n\n`;
                     if (sessionActionsLogRef.current.length > 0) {
                       sessionActionsLogRef.current.forEach((action) => {
-                        const statusMarker =
-                          action.status === "active" ? "⏳" : "✓";
+                        const statusMarker = action.status === "active" ? "⏳" : "✓";
                         content += `${statusMarker} **${action.tool}**\n`;
                         content += `> \`${action.detail}\`\n`;
                         // Show reasoning inline with this action
@@ -1858,8 +1741,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
                     setMessages((prev) =>
                       prev.map((m) =>
-                        (m as Message & { _thinkingId?: number })
-                          ._thinkingId === thinkingId
+                        (m as Message & { _thinkingId?: number })._thinkingId === thinkingId
                           ? { ...m, content }
                           : m,
                       ),
@@ -1868,23 +1750,17 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                 }
               } else if (eventType === "tool_use") {
                 const toolName = data.tool;
-                const { display: toolDisplay, detail } = formatToolDisplay(
-                  toolName,
-                  data.input,
-                );
+                const { display: toolDisplay, detail } = formatToolDisplay(toolName, data.input);
 
                 // Mark previous action as done
                 if (sessionActionsLogRef.current.length > 0) {
-                  sessionActionsLogRef.current[
-                    sessionActionsLogRef.current.length - 1
-                  ].status = "done";
+                  sessionActionsLogRef.current[sessionActionsLogRef.current.length - 1].status =
+                    "done";
                 }
 
                 // Capture current reasoning for this action (before clearing buffer)
                 const streamId = initialThinkingStreamIdRef.current;
-                const actionReasoning = streamId
-                  ? getThinkingText(streamId).trim()
-                  : undefined;
+                const actionReasoning = streamId ? getThinkingText(streamId).trim() : undefined;
 
                 // Add new action WITH its reasoning context
                 sessionActionsLogRef.current.push({
@@ -1914,8 +1790,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   // Build organized content showing each action with its inline reasoning
                   let progressContent = `**Setting up ${appName}**\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
-                    const statusMarker =
-                      action.status === "active" ? "⏳" : "✓";
+                    const statusMarker = action.status === "active" ? "⏳" : "✓";
                     progressContent += `${statusMarker} **${action.tool}**\n`;
                     progressContent += `> \`${action.detail}\`\n`;
                     // Show reasoning inline with this action
@@ -1931,8 +1806,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
                   setMessages((prev) =>
                     prev.map((m) =>
-                      (m as Message & { _thinkingId?: number })._thinkingId ===
-                      thinkingId
+                      (m as Message & { _thinkingId?: number })._thinkingId === thinkingId
                         ? { ...m, content: progressContent }
                         : m,
                     ),
@@ -1946,10 +1820,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   setHasCompletedFirstGeneration(true);
                 }
 
-                if (
-                  data.session.initialPromptResult &&
-                  initialThinkingIdRef.current
-                ) {
+                if (data.session.initialPromptResult && initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
                   initialThinkingIdRef.current = null;
                   initialThinkingStreamIdRef.current = null;
@@ -1963,9 +1834,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   // AI's raw output goes in reasoning accordion for transparency
                   const result = data.session.initialPromptResult;
                   const fileCount = result.filesAffected?.length || 0;
-                  const hasBuildErrors =
-                    result.output?.includes("BUILD ERRORS");
-
+                  const hasBuildErrors = result.output?.includes("BUILD ERRORS");
 
                   // Check if we have a meaningful LLM response (not just default text)
                   const llmOutput = result.output?.trim();
@@ -1987,21 +1856,16 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   }
 
                   // Build operations array for accordion display (same format as sendPrompt)
-                  const operations = sessionActionsLogRef.current.map(
-                    (action) => ({
-                      tool: action.tool,
-                      detail: action.detail,
-                      timestamp: action.timestamp,
-                      reasoning: action.context, // Per-action reasoning
-                    }),
-                  );
+                  const operations = sessionActionsLogRef.current.map((action) => ({
+                    tool: action.tool,
+                    detail: action.detail,
+                    timestamp: action.timestamp,
+                    reasoning: action.context, // Per-action reasoning
+                  }));
 
                   setMessages((prev) =>
                     prev.map((m) => {
-                      if (
-                        (m as Message & { _thinkingId?: number })
-                          ._thinkingId === thinkingId
-                      ) {
+                      if ((m as Message & { _thinkingId?: number })._thinkingId === thinkingId) {
                         const { _thinkingId: _, ...rest } = m as Message & {
                           _thinkingId?: number;
                         };
@@ -2010,8 +1874,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                           content: assistantContent,
                           operations, // Operations array for accordions
                           reasoning: data.session.initialPromptResult.reasoning, // Fallback reasoning
-                          filesAffected:
-                            data.session.initialPromptResult.filesAffected,
+                          filesAffected: data.session.initialPromptResult.filesAffected,
                         };
                       }
                       return m;
@@ -2051,8 +1914,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
       setStatus("error");
       setErrorMessage(error instanceof Error ? error.message : "Unknown error");
       toast.error("Failed to start sandbox", {
-        description:
-          error instanceof Error ? error.message : "Please try again",
+        description: error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsLoading(false);
@@ -2107,16 +1969,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
     if (session || !isEditMode) {
       autoStartTriggeredRef.current = false;
     }
-  }, [
-    isEditMode,
-    appData,
-    session,
-    status,
-    isLoading,
-    isRestoring,
-    isInitializing,
-    startSession,
-  ]);
+  }, [isEditMode, appData, session, status, isLoading, isRestoring, isInitializing, startSession]);
 
   const sendPrompt = useCallback(
     async (promptText?: string, images?: ImageAttachment[]) => {
@@ -2125,7 +1978,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
       const currentImages = images || useChatInput.getState().images;
       const selectedModel = useModelSelection.getState().selectedModel;
       const text = promptText || currentInput.trim();
-      
+
       // Allow sending with text or images (or both)
       const hasContent = text || currentImages.length > 0;
       if (!hasContent || !session || isLoading) return;
@@ -2145,12 +1998,13 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
         role: "user",
         content: text || "",
         timestamp: new Date().toISOString(),
-        images: currentImages.length > 0 
-          ? currentImages.map(img => ({ 
-              id: img.id, 
-              previewUrl: img.blobUrl || img.previewUrl // Use blobUrl for persistence, fallback to previewUrl
-            }))
-          : undefined,
+        images:
+          currentImages.length > 0
+            ? currentImages.map((img) => ({
+                id: img.id,
+                previewUrl: img.blobUrl || img.previewUrl, // Use blobUrl for persistence, fallback to previewUrl
+              }))
+            : undefined,
       };
       setMessages((prev) => [...prev, userMessage]);
       // Clear input using Zustand
@@ -2174,10 +2028,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
       // Clear any previous thinking buffer
       clearThinkingBuffer();
 
-      const buildLocalProgressContent = (
-        newThinkingChunk?: string,
-        currentStatus?: string,
-      ) => {
+      const buildLocalProgressContent = (newThinkingChunk?: string, currentStatus?: string) => {
         let content = "";
 
         // Show current status when no actions have started yet
@@ -2193,8 +2044,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
         // Show operations list with reasoning context
         if (actionsLog.length > 0) {
           actionsLog.forEach((action, idx) => {
-            const isActive =
-              action.status === "active" || action.status === "pending";
+            const isActive = action.status === "active" || action.status === "pending";
             const statusIcon = isActive ? "⏳" : "✓";
 
             // Action display with status, tool, detail, and timestamp
@@ -2226,9 +2076,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
         const content = buildLocalProgressContent(undefined, currentStatus);
         setMessages((prev) => {
           const updated = [...prev];
-          const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId,
-          );
+          const thinkingIdx = updated.findIndex((m) => m._thinkingId === thinkingId);
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
               ...updated[thinkingIdx],
@@ -2247,9 +2095,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
         const content = buildLocalProgressContent(accumulatedText);
         setMessages((prev) => {
           const updated = [...prev];
-          const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId,
-          );
+          const thinkingIdx = updated.findIndex((m) => m._thinkingId === thinkingId);
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
               ...updated[thinkingIdx],
@@ -2279,13 +2125,15 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              prompt: text || "Please analyze the attached image(s) and help me with this design.", 
+            body: JSON.stringify({
+              prompt: text || "Please analyze the attached image(s) and help me with this design.",
               model: selectedModel,
-              images: currentImages.filter(img => img.base64).map(img => ({
-                base64: img.base64,
-                mimeType: img.file.type,
-              })),
+              images: currentImages
+                .filter((img) => img.base64)
+                .map((img) => ({
+                  base64: img.base64,
+                  mimeType: img.file.type,
+                })),
             }),
             signal: generationAbortControllerRef.current.signal,
           },
@@ -2336,10 +2184,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                     // Accumulate chunk without triggering re-render
                     accumulateThinkingChunk(thinkingStreamId, reasoningText);
                     // Schedule throttled UI update (~30fps for smooth text appearance)
-                    scheduleThinkingUpdate(
-                      thinkingStreamId,
-                      updateThinkingThrottled,
-                    );
+                    scheduleThinkingUpdate(thinkingStreamId, updateThinkingThrottled);
                   }
                   // Note: Not logging individual chunks - shown in UI only
                 } else if (eventType === "reasoning") {
@@ -2348,15 +2193,9 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   const reasoningText = data.text || "";
                   if (reasoningText) {
                     // Prefix reasoning chunks with 💭 to distinguish from regular output
-                    accumulateThinkingChunk(
-                      thinkingStreamId,
-                      `💭 ${reasoningText}`,
-                    );
+                    accumulateThinkingChunk(thinkingStreamId, `💭 ${reasoningText}`);
                     // Schedule throttled UI update (~30fps for smooth text appearance)
-                    scheduleThinkingUpdate(
-                      thinkingStreamId,
-                      updateThinkingThrottled,
-                    );
+                    scheduleThinkingUpdate(thinkingStreamId, updateThinkingThrottled);
                   }
                 } else if (eventType === "tool_start") {
                   // Instant feedback when tool begins (before execution)
@@ -2370,9 +2209,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   // Add as pending action WITH reasoning context for accordion display
                   // Use server's reasoningContext, fallback to client's accumulated thinking
                   const reasoningForAction =
-                    data.reasoningContext ||
-                    currentThinkingPreview ||
-                    undefined;
+                    data.reasoningContext || currentThinkingPreview || undefined;
                   actionsLog.push({
                     tool: toolDisplay,
                     detail,
@@ -2533,8 +2370,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                 const { _thinkingId: _, ...rest } = m;
 
                 let content = "**Generation stopped**\n\n";
-                content +=
-                  "The operation was cancelled. You can start a new request when ready.";
+                content += "The operation was cancelled. You can start a new request when ready.";
 
                 if (actionsLog.length > 0) {
                   content += "\n\n---\n\n";
@@ -2589,13 +2425,9 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
           });
 
           setStatus("ready");
-          addLog(
-            `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-            "error",
-          );
+          addLog(`Error: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
           toast.error("Failed to process prompt", {
-            description:
-              error instanceof Error ? error.message : "Please try again",
+            description: error instanceof Error ? error.message : "Please try again",
           });
         }
       } finally {
@@ -2664,9 +2496,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
     setTimeout(() => setCopied(false), 2000);
   }, [session]);
 
-  const backLink = isEditMode
-    ? `/dashboard/apps/${appIdFromUrl}`
-    : "/dashboard/apps";
+  const backLink = isEditMode ? `/dashboard/apps/${appIdFromUrl}` : "/dashboard/apps";
 
   // ============================================================================
   // SIMPLE VIEW STATE - Priority order matters!
@@ -2728,18 +2558,13 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                 <Settings className="h-8 w-8 text-yellow-500" />
               </div>
 
-              <h2 className="text-2xl font-bold text-white mb-3">
-                Sandbox Not Configured
-              </h2>
+              <h2 className="text-2xl font-bold text-white mb-3">Sandbox Not Configured</h2>
               <p className="text-white/60 mb-6">
-                The AI App Builder requires sandbox credentials to create
-                development environments.
+                The AI App Builder requires sandbox credentials to create development environments.
               </p>
 
               <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-left mb-6">
-                <h3 className="font-semibold text-white mb-3">
-                  Setup Instructions:
-                </h3>
+                <h3 className="font-semibold text-white mb-3">Setup Instructions:</h3>
                 <ol className="space-y-3 text-sm text-white/70">
                   <li className="flex gap-2">
                     <span className="text-[#FF5800] font-mono">1.</span>
@@ -2761,18 +2586,13 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   </li>
                   <li className="flex gap-2">
                     <span className="text-[#FF5800] font-mono">3.</span>
-                    <span>
-                      Find your Project ID in Project Settings General
-                    </span>
+                    <span>Find your Project ID in Project Settings General</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-[#FF5800] font-mono">4.</span>
                     <span>
                       Add to your{" "}
-                      <code className="bg-white/10 px-1.5 py-0.5 rounded">
-                        .env.local
-                      </code>
-                      :
+                      <code className="bg-white/10 px-1.5 py-0.5 rounded">.env.local</code>:
                     </span>
                   </li>
                 </ol>
@@ -2788,12 +2608,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               <div className="flex justify-center gap-3">
                 <Button
                   variant="outline"
-                  onClick={() =>
-                    window.open(
-                      "https://vercel.com/docs/vercel-sandbox",
-                      "_blank",
-                    )
-                  }
+                  onClick={() => window.open("https://vercel.com/docs/vercel-sandbox", "_blank")}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   View Documentation
@@ -2815,16 +2630,14 @@ ANTHROPIC_API_KEY=your_key_here`}
   }
 
   // AI Description generation
-  const generateAIDescription = async () => {
+  const _generateAIDescription = async () => {
     if (!appName.trim()) {
       toast.error("Please enter an app name first");
       return;
     }
 
     setIsGeneratingDescription(true);
-    const selectedTemplateInfo = TEMPLATE_OPTIONS.find(
-      (t) => t.value === templateType,
-    );
+    const selectedTemplateInfo = TEMPLATE_OPTIONS.find((t) => t.value === templateType);
 
     try {
       const response = await fetchWithRetry("/api/v1/generate-prompts", {
@@ -2860,9 +2673,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         "saas-starter": `${appName} - A SaaS starter app with billing, auth, and user management.`,
         "ai-tool": `${appName} - An AI-powered tool designed to automate and enhance workflows.`,
       };
-      setAppDescription(
-        fallbackDescriptions[templateType] || fallbackDescriptions.blank,
-      );
+      setAppDescription(fallbackDescriptions[templateType] || fallbackDescriptions.blank);
     } finally {
       setIsGeneratingDescription(false);
     }
@@ -2887,10 +2698,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   );
                 })()}
                 <p className="text-xs text-white/60">
-                  Building for{" "}
-                  <span className="text-white font-medium">
-                    {sourceContext.name}
-                  </span>
+                  Building for <span className="text-white font-medium">{sourceContext.name}</span>
                 </p>
               </div>
             </div>
@@ -2899,12 +2707,8 @@ ANTHROPIC_API_KEY=your_key_here`}
           {/* Simplified App Creation - Just Name and Prompt */}
           <div className="max-w-3xl w-full space-y-4 md:space-y-6">
             <div>
-              <h2 className="text-xl font-semibold text-white">
-                Create your app
-              </h2>
-              <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                Tell us what you want to build
-              </p>
+              <h2 className="text-xl font-semibold text-white">Create your app</h2>
+              <p className="text-white/50 text-sm mt-0.5 md:mt-1">Tell us what you want to build</p>
             </div>
 
             <div className="space-y-4 p-5 rounded-xl bg-white/5 border border-white/10">
@@ -2934,24 +2738,20 @@ ANTHROPIC_API_KEY=your_key_here`}
                   className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
                     appDescription.length > 500
                       ? "border-red-500/50 focus:border-red-500"
-                      : appDescription.length > 0 &&
-                          appDescription.length < MIN_DESCRIPTION_LENGTH
+                      : appDescription.length > 0 && appDescription.length < MIN_DESCRIPTION_LENGTH
                         ? "border-amber-500/30 focus:border-amber-500"
                         : appDescription.length >= MIN_DESCRIPTION_LENGTH
                           ? "border-emerald-500/30 focus:border-emerald-500"
                           : "border-white/10 focus:border-[#FF5800]"
                   }`}
                 />
-                {appDescription.length > 0 &&
-                  appDescription.length < MIN_DESCRIPTION_LENGTH && (
-                    <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      Description must be at least {MIN_DESCRIPTION_LENGTH}{" "}
-                      characters (
-                      {MIN_DESCRIPTION_LENGTH - appDescription.length} more
-                      needed)
-                    </p>
-                  )}
+                {appDescription.length > 0 && appDescription.length < MIN_DESCRIPTION_LENGTH && (
+                  <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    Description must be at least {MIN_DESCRIPTION_LENGTH} characters (
+                    {MIN_DESCRIPTION_LENGTH - appDescription.length} more needed)
+                  </p>
+                )}
               </div>
             </div>
 
@@ -2959,10 +2759,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div className="flex items-center justify-end pt-4">
               <button
                 onClick={startSession}
-                disabled={
-                  isLoading ||
-                  appDescription.length < MIN_DESCRIPTION_LENGTH
-                }
+                disabled={isLoading || appDescription.length < MIN_DESCRIPTION_LENGTH}
                 className="group flex items-center gap-2 px-6 py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
               >
                 {isLoading ? (
@@ -2981,16 +2778,14 @@ ANTHROPIC_API_KEY=your_key_here`}
 
             {/* Summary footer */}
             <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 pt-4">
-              {["Live sandbox", "Hot reload", "AI assist", "GitHub sync"].map(
-                (feature) => (
-                  <div key={feature} className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
-                    <span className="text-[11px] md:text-xs text-white/50 font-medium">
-                      {feature}
-                    </span>
-                  </div>
-                ),
-              )}
+              {["Live sandbox", "Hot reload", "AI assist", "GitHub sync"].map((feature) => (
+                <div key={feature} className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
+                  <span className="text-[11px] md:text-xs text-white/50 font-medium">
+                    {feature}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -3094,10 +2889,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               <MoreVertical className="h-5 w-5 text-white/60" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-56 bg-[#1a1a1a] border-white/10"
-          >
+          <DropdownMenuContent align="end" className="w-56 bg-[#1a1a1a] border-white/10">
             {/* Timer & Session */}
             {timeRemaining && (
               <>
@@ -3159,65 +2951,56 @@ ANTHROPIC_API_KEY=your_key_here`}
             )}
 
             {/* GitHub Actions */}
-            {(status === "ready" || status === "recovering") &&
-              appData?.github_repo && (
-                <>
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem
-                    onClick={saveToGitHub}
-                    disabled={
-                      isSaving ||
-                      !gitStatus?.hasChanges ||
-                      status === "recovering"
-                    }
-                    className={
-                      gitStatus?.hasChanges
-                        ? "text-green-400 focus:text-green-400 focus:bg-green-500/10"
-                        : ""
-                    }
-                  >
-                    {isSaving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    {isSaving
-                      ? "Saving..."
-                      : gitStatus?.hasChanges
-                        ? "Save to GitHub"
-                        : "Saved"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={deployToProduction}
-                    disabled={isDeploying || status === "recovering"}
-                    className="text-[#FF5800] focus:text-[#FF5800] focus:bg-[#FF5800]/10"
-                  >
-                    {isDeploying ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Rocket className="h-4 w-4" />
-                    )}
-                    {isDeploying
-                      ? deployPhase === "saving"
-                        ? "Saving to GitHub..."
-                        : "Deploying..."
-                      : "Deploy"}
-                  </DropdownMenuItem>
-                  {productionUrl && (
-                    <DropdownMenuItem asChild>
-                      <a
-                        href={productionUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-cyan-400 focus:text-cyan-400"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        View Live Site
-                      </a>
-                    </DropdownMenuItem>
+            {(status === "ready" || status === "recovering") && appData?.github_repo && (
+              <>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem
+                  onClick={saveToGitHub}
+                  disabled={isSaving || !gitStatus?.hasChanges || status === "recovering"}
+                  className={
+                    gitStatus?.hasChanges
+                      ? "text-green-400 focus:text-green-400 focus:bg-green-500/10"
+                      : ""
+                  }
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
                   )}
-                </>
-              )}
+                  {isSaving ? "Saving..." : gitStatus?.hasChanges ? "Save to GitHub" : "Saved"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={deployToProduction}
+                  disabled={isDeploying || status === "recovering"}
+                  className="text-[#FF5800] focus:text-[#FF5800] focus:bg-[#FF5800]/10"
+                >
+                  {isDeploying ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Rocket className="h-4 w-4" />
+                  )}
+                  {isDeploying
+                    ? deployPhase === "saving"
+                      ? "Saving to GitHub..."
+                      : "Deploying..."
+                    : "Deploy"}
+                </DropdownMenuItem>
+                {productionUrl && (
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={productionUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-cyan-400 focus:text-cyan-400"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      View Live Site
+                    </a>
+                  </DropdownMenuItem>
+                )}
+              </>
+            )}
 
             {/* GitHub Repo Link */}
             {appData?.github_repo && (
@@ -3248,11 +3031,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {copied ? "Copied!" : "Copy Preview URL"}
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <a
-                    href={session.sandboxUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a href={session.sandboxUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4" />
                     Open in New Tab
                   </a>
@@ -3281,18 +3060,12 @@ ANTHROPIC_API_KEY=your_key_here`}
       {/* DESKTOP TOOLBAR - visible from xl (1280px) and up */}
       <div className="flex-shrink-0 hidden xl:flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
         <div className="flex items-center gap-4">
-          <Link
-            href={backLink}
-            className="p-2 hover:bg-white/10 rounded-md transition-colors"
-          >
+          <Link href={backLink} className="p-2 hover:bg-white/10 rounded-md transition-colors">
             <ArrowLeft className="h-4 w-4 text-white/60" />
           </Link>
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-cyan-400" />
-            <span
-              className="text-sm text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
+            <span className="text-sm text-white" style={{ fontFamily: "var(--font-roboto-mono)" }}>
               {appData?.name || appName}
             </span>
             {isEditMode && (
@@ -3370,12 +3143,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               <span className="ml-1">Restore</span>
             </Button>
           ) : status === "recovering" ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled
-              className="h-7 text-xs text-cyan-400"
-            >
+            <Button variant="ghost" size="sm" disabled className="h-7 text-xs text-cyan-400">
               <Loader2 className="h-3 w-3 animate-spin" />
               <span className="ml-1">Reconnecting...</span>
             </Button>
@@ -3473,9 +3241,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               onClick={stopSession}
               disabled={status === "recovering"}
               className="p-2 hover:bg-red-500/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                status === "recovering" ? "Reconnecting..." : "Stop session"
-              }
+              title={status === "recovering" ? "Reconnecting..." : "Stop session"}
             >
               <Square className="h-4 w-4 text-red-400" />
             </button>
@@ -3512,11 +3278,7 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
 
           {/* Isolated ChatInput component - uses Zustand for zero re-renders on typing */}
-          <ChatInput
-            onSendPrompt={sendPrompt}
-            onStopGeneration={stopGeneration}
-            status={status}
-          />
+          <ChatInput onSendPrompt={sendPrompt} onStopGeneration={stopGeneration} status={status} />
         </div>
 
         {/* PREVIEW PANEL - visible on desktop (flex-1), toggled on mobile/tablet */}
@@ -3729,28 +3491,42 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* Background with gradient and grid */}
                   <div className="absolute inset-0 bg-gradient-to-br from-[#0f0f12] via-[#0a0a0d] to-[#080810]" />
                   {/* Subtle grid pattern */}
-                  <div 
+                  <div
                     className="absolute inset-0 opacity-[0.03]"
                     style={{
                       backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-                      backgroundSize: '40px 40px'
+                      backgroundSize: "40px 40px",
                     }}
                   />
                   {/* Subtle radial glow */}
-                  <div className="absolute inset-0 bg-gradient-radial from-[#FF5800]/5 via-transparent to-transparent" style={{ background: 'radial-gradient(circle at 50% 40%, rgba(255,88,0,0.08) 0%, transparent 50%)' }} />
-                  
+                  <div
+                    className="absolute inset-0 bg-gradient-radial from-[#FF5800]/5 via-transparent to-transparent"
+                    style={{
+                      background:
+                        "radial-gradient(circle at 50% 40%, rgba(255,88,0,0.08) 0%, transparent 50%)",
+                    }}
+                  />
+
                   <div className="text-center relative z-10">
                     <div className="mb-6">
-                      <Sparkles className="h-12 w-12 text-[#FF5800] mx-auto animate-pulse" style={{ opacity: 0.4 }} strokeWidth={1.5} />
+                      <Sparkles
+                        className="h-12 w-12 text-[#FF5800] mx-auto animate-pulse"
+                        style={{ opacity: 0.4 }}
+                        strokeWidth={1.5}
+                      />
                     </div>
                     <p
                       className="text-white/50 text-lg font-medium tracking-wide"
                       style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
-                      {hasCompletedFirstGeneration ? "Loading preview..." : "Building your dream..."}
+                      {hasCompletedFirstGeneration
+                        ? "Loading preview..."
+                        : "Building your dream..."}
                     </p>
                     <p className="text-white/20 text-sm mt-2">
-                      {hasCompletedFirstGeneration ? "Your app is starting up" : "AI is generating your app"}
+                      {hasCompletedFirstGeneration
+                        ? "Your app is starting up"
+                        : "AI is generating your app"}
                     </p>
                   </div>
                 </div>
@@ -3780,9 +3556,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   >
                     Starting sandbox...
                   </p>
-                  <p className="text-white/25 text-xs mt-1">
-                    This usually takes 10-20 seconds
-                  </p>
+                  <p className="text-white/25 text-xs mt-1">This usually takes 10-20 seconds</p>
                 </div>
               </div>
             )}
@@ -3895,10 +3669,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                             ) {
                               colorClass = "text-red-400";
                               bgClass = "bg-red-500/10";
-                            } else if (
-                              log.includes("[warning]") ||
-                              log.includes("Warning")
-                            ) {
+                            } else if (log.includes("[warning]") || log.includes("Warning")) {
                               colorClass = "text-yellow-400";
                               bgClass = "bg-yellow-500/5";
                             } else if (log.includes("Progress:")) {
@@ -3911,18 +3682,12 @@ ANTHROPIC_API_KEY=your_key_here`}
                             ) {
                               if (log.includes(" 2")) {
                                 colorClass = "text-green-400/70";
-                              } else if (
-                                log.includes(" 4") ||
-                                log.includes(" 5")
-                              ) {
+                              } else if (log.includes(" 4") || log.includes(" 5")) {
                                 colorClass = "text-red-400/70";
                               } else {
                                 colorClass = "text-cyan-400/70";
                               }
-                            } else if (
-                              log.includes("Next.js") ||
-                              log.includes("Turbopack")
-                            ) {
+                            } else if (log.includes("Next.js") || log.includes("Turbopack")) {
                               colorClass = "text-white/80";
                             }
 
@@ -3934,9 +3699,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                                 <span className="text-white/20 select-none w-5 text-right shrink-0 text-[10px]">
                                   {i + 1}
                                 </span>
-                                <pre
-                                  className={`whitespace-pre-wrap break-all ${colorClass}`}
-                                >
+                                <pre className={`whitespace-pre-wrap break-all ${colorClass}`}>
                                   {log}
                                 </pre>
                               </div>
@@ -3967,8 +3730,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-white/20">
-                          Type <code className="text-[#FF5800]/70">help</code>{" "}
-                          for commands
+                          Type <code className="text-[#FF5800]/70">help</code> for commands
                         </span>
                       </div>
                     </div>

@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { Button } from "@elizaos/ui";
-import { AlertCircle, Loader2, Home, RefreshCw } from "lucide-react";
+import { Button } from "@elizaos/cloud-ui";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
+import { AlertCircle, Home, Loader2, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
@@ -14,24 +14,20 @@ function AuthErrorContent() {
   const reason = searchParams.get("reason") || "unknown";
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const errorMessages: Record<string, { title: string; description: string }> =
-    {
-      auth_failed: {
-        title: "Authentication Failed",
-        description:
-          "We could not authenticate your account. Please try signing in again.",
-      },
-      sync_failed: {
-        title: "Authentication Sync Failed",
-        description:
-          "We could not sync your account information. Please try signing in again.",
-      },
-      unknown: {
-        title: "Authentication Error",
-        description:
-          "An unexpected error occurred during authentication. Please try again.",
-      },
-    };
+  const errorMessages: Record<string, { title: string; description: string }> = {
+    auth_failed: {
+      title: "Authentication Failed",
+      description: "We could not authenticate your account. Please try signing in again.",
+    },
+    sync_failed: {
+      title: "Authentication Sync Failed",
+      description: "We could not sync your account information. Please try signing in again.",
+    },
+    unknown: {
+      title: "Authentication Error",
+      description: "An unexpected error occurred during authentication. Please try again.",
+    },
+  };
 
   const error = errorMessages[reason] || errorMessages.unknown;
 
@@ -111,12 +107,8 @@ export default function AuthErrorPage() {
                 <AlertCircle className="h-7 w-7 text-red-500" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-white">
-                  Authentication Error
-                </h2>
-                <p className="text-sm text-neutral-500">
-                  Loading error details...
-                </p>
+                <h2 className="text-xl font-semibold text-white">Authentication Error</h2>
+                <p className="text-sm text-neutral-500">Loading error details...</p>
               </div>
             </div>
           </div>

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { InvoiceDetailClient } from "@/components/invoices/invoice-detail-client";
-import { invoicesService } from "@/lib/services/invoices";
 import { notFound } from "next/navigation";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { invoicesService } from "@/lib/services/invoices";
+import { InvoiceDetailClient } from "@/packages/ui/src/components/invoices/invoice-detail-client";
 
 export const metadata: Metadata = {
   title: "Invoice Details",
@@ -18,11 +18,7 @@ export const dynamic = "force-dynamic";
  * @param params - Route parameters containing the invoice ID.
  * @returns The rendered invoice detail page client component, or redirects to 404 if not found.
  */
-export default async function InvoiceDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuthWithOrg();
   const { id } = await params;
 

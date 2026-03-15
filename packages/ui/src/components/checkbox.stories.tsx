@@ -6,7 +6,13 @@ const meta: Meta<typeof Checkbox> = {
   title: "Primitives/Checkbox",
   component: Checkbox,
   parameters: { backgrounds: { default: "dark" } },
-  decorators: [(Story) => <div style={{ padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 export default meta;
 type Story = StoryObj<typeof Checkbox>;
@@ -33,7 +39,9 @@ export const Disabled: Story = {
   render: () => (
     <div className="flex items-center space-x-2">
       <Checkbox id="disabled" disabled />
-      <Label htmlFor="disabled" className="text-muted-foreground">This option is disabled</Label>
+      <Label htmlFor="disabled" className="text-muted-foreground">
+        This option is disabled
+      </Label>
     </div>
   ),
 };

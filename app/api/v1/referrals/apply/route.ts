@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { referralsService } from "@/lib/services/referrals";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { referralsService } from "@/lib/services/referrals";
 import { getCorsHeaders } from "@/lib/utils/cors";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -68,19 +68,13 @@ async function handlePOST(request: NextRequest) {
             ? 409
             : 400;
 
-      return NextResponse.json(
-        { error: result.message },
-        { status, headers: corsHeaders },
-      );
+      return NextResponse.json({ error: result.message }, { status, headers: corsHeaders });
     }
 
     return NextResponse.json(result, { headers: corsHeaders });
   } catch (error) {
     if (isAuthError(error)) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     logger.error("[Referral Apply] Error applying referral code", {

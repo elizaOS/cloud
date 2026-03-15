@@ -6,10 +6,10 @@
 
 import type { McpServer } from "mcp-handler";
 import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 const ZOOM_API_BASE = "https://api.zoom.us/v2";
 
@@ -97,7 +97,8 @@ export function registerZoomTools(server: McpServer): void {
   server.registerTool(
     "zoom_get_user",
     {
-      description: "Get the current Zoom user's profile information including name, email, and account details",
+      description:
+        "Get the current Zoom user's profile information including name, email, and account details",
       inputSchema: {},
     },
     async () => {
@@ -125,13 +126,25 @@ export function registerZoomTools(server: McpServer): void {
   server.registerTool(
     "zoom_list_meetings",
     {
-      description: "List meetings for the current Zoom user. Returns upcoming, past, or all meetings depending on type parameter.",
+      description:
+        "List meetings for the current Zoom user. Returns upcoming, past, or all meetings depending on type parameter.",
       inputSchema: {
-        type: z.enum(["scheduled", "live", "upcoming", "upcoming_meetings", "previous_meetings"]).optional()
-          .describe("Meeting type filter. Default: 'scheduled'. Use 'upcoming' for future meetings, 'previous_meetings' for past ones."),
-        page_size: z.number().int().min(1).max(300).optional()
+        type: z
+          .enum(["scheduled", "live", "upcoming", "upcoming_meetings", "previous_meetings"])
+          .optional()
+          .describe(
+            "Meeting type filter. Default: 'scheduled'. Use 'upcoming' for future meetings, 'previous_meetings' for past ones.",
+          ),
+        page_size: z
+          .number()
+          .int()
+          .min(1)
+          .max(300)
+          .optional()
           .describe("Number of meetings per page (default 30, max 300)"),
-        next_page_token: z.string().optional()
+        next_page_token: z
+          .string()
+          .optional()
           .describe("Pagination token from a previous response"),
       },
     },
@@ -166,7 +179,8 @@ export function registerZoomTools(server: McpServer): void {
   server.registerTool(
     "zoom_get_meeting",
     {
-      description: "Get detailed information about a specific Zoom meeting including settings, recurrence, and join URL",
+      description:
+        "Get detailed information about a specific Zoom meeting including settings, recurrence, and join URL",
       inputSchema: {
         meetingId: z.union([z.string(), z.number()]).describe("The meeting ID to retrieve"),
       },
@@ -208,29 +222,43 @@ export function registerZoomTools(server: McpServer): void {
   server.registerTool(
     "zoom_create_meeting",
     {
-      description: "Create a new Zoom meeting. Returns the meeting details including join URL and password.",
+      description:
+        "Create a new Zoom meeting. Returns the meeting details including join URL and password.",
       inputSchema: {
         topic: z.string().describe("Meeting topic/title"),
-        type: z.number().int().min(1).max(8).optional()
-          .describe("Meeting type: 1=instant, 2=scheduled (default), 3=recurring no fixed time, 8=recurring fixed time"),
-        start_time: z.string().optional()
-          .describe("Meeting start time in ISO 8601 format (e.g. 2024-01-15T10:00:00Z). Required for scheduled meetings."),
-        duration: z.number().int().optional()
-          .describe("Meeting duration in minutes"),
-        timezone: z.string().optional()
-          .describe("Timezone (e.g. America/New_York, UTC)"),
-        agenda: z.string().optional()
-          .describe("Meeting description/agenda"),
-        password: z.string().optional()
-          .describe("Meeting password (max 10 chars)"),
-        settings: z.object({
-          host_video: z.boolean().optional().describe("Start with host video on"),
-          participant_video: z.boolean().optional().describe("Start with participant video on"),
-          join_before_host: z.boolean().optional().describe("Allow joining before host"),
-          mute_upon_entry: z.boolean().optional().describe("Mute participants on entry"),
-          waiting_room: z.boolean().optional().describe("Enable waiting room"),
-          auto_recording: z.enum(["local", "cloud", "none"]).optional().describe("Auto recording setting"),
-        }).optional().describe("Meeting settings"),
+        type: z
+          .number()
+          .int()
+          .min(1)
+          .max(8)
+          .optional()
+          .describe(
+            "Meeting type: 1=instant, 2=scheduled (default), 3=recurring no fixed time, 8=recurring fixed time",
+          ),
+        start_time: z
+          .string()
+          .optional()
+          .describe(
+            "Meeting start time in ISO 8601 format (e.g. 2024-01-15T10:00:00Z). Required for scheduled meetings.",
+          ),
+        duration: z.number().int().optional().describe("Meeting duration in minutes"),
+        timezone: z.string().optional().describe("Timezone (e.g. America/New_York, UTC)"),
+        agenda: z.string().optional().describe("Meeting description/agenda"),
+        password: z.string().optional().describe("Meeting password (max 10 chars)"),
+        settings: z
+          .object({
+            host_video: z.boolean().optional().describe("Start with host video on"),
+            participant_video: z.boolean().optional().describe("Start with participant video on"),
+            join_before_host: z.boolean().optional().describe("Allow joining before host"),
+            mute_upon_entry: z.boolean().optional().describe("Mute participants on entry"),
+            waiting_room: z.boolean().optional().describe("Enable waiting room"),
+            auto_recording: z
+              .enum(["local", "cloud", "none"])
+              .optional()
+              .describe("Auto recording setting"),
+          })
+          .optional()
+          .describe("Meeting settings"),
       },
     },
     async ({ topic, type = 2, start_time, duration, timezone, agenda, password, settings }) => {
@@ -280,14 +308,17 @@ export function registerZoomTools(server: McpServer): void {
         timezone: z.string().optional().describe("New timezone"),
         agenda: z.string().optional().describe("New agenda/description"),
         password: z.string().optional().describe("New password"),
-        settings: z.object({
-          host_video: z.boolean().optional(),
-          participant_video: z.boolean().optional(),
-          join_before_host: z.boolean().optional(),
-          mute_upon_entry: z.boolean().optional(),
-          waiting_room: z.boolean().optional(),
-          auto_recording: z.enum(["local", "cloud", "none"]).optional(),
-        }).optional().describe("Updated meeting settings"),
+        settings: z
+          .object({
+            host_video: z.boolean().optional(),
+            participant_video: z.boolean().optional(),
+            join_before_host: z.boolean().optional(),
+            mute_upon_entry: z.boolean().optional(),
+            waiting_room: z.boolean().optional(),
+            auto_recording: z.enum(["local", "cloud", "none"]).optional(),
+          })
+          .optional()
+          .describe("Updated meeting settings"),
       },
     },
     async ({ meetingId, topic, start_time, duration, timezone, agenda, password, settings }) => {

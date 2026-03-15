@@ -13,8 +13,8 @@
 
 "use client";
 
+import { ChevronDown, Download, Upload } from "lucide-react";
 import { Button } from "../button";
-import { Download, Upload } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../dropdown-menu";
-import { ChevronDown } from "lucide-react";
 
 interface ExportButtonProps {
   startDate: Date;
@@ -118,11 +117,7 @@ export function ExportButton({
   }
 
   return (
-    <Button
-      onClick={() => handleExport(format, type)}
-      variant="outline"
-      size="sm"
-    >
+    <Button onClick={() => handleExport(format, type)} variant="outline" size="sm">
       <Download className="mr-2 h-4 w-4" />
       Export {format.toUpperCase()}
     </Button>

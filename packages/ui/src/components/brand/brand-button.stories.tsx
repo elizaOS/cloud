@@ -1,8 +1,8 @@
 "use client";
 
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { ArrowRight, Plus, Settings } from "lucide-react";
 import { BrandButton } from "./brand-button";
-import { Plus, ArrowRight, Settings } from "lucide-react";
 
 const meta: Meta<typeof BrandButton> = {
   title: "Brand/BrandButton",

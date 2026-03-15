@@ -1,25 +1,25 @@
+import type { UUID } from "@elizaos/core";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userCharactersRepository } from "@/db/repositories/characters";
-import { isValidBlobUrl, deleteBlob } from "@/lib/blob";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { deleteBlob, isValidBlobUrl } from "@/lib/blob";
 import {
-  KNOWLEDGE_CONSTANTS,
   ALLOWED_CONTENT_TYPES,
   isValidFilename,
+  KNOWLEDGE_CONSTANTS,
 } from "@/lib/constants/knowledge";
-import { logger } from "@/lib/utils/logger";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
+import { invalidateRuntime, RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import {
   extractUserIdFromBlobPath,
-  trackOrphanedBlobBatch,
   type OrphanedBlobInfo,
+  trackOrphanedBlobBatch,
 } from "@/lib/utils/knowledge";
-import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
-import type { UUID } from "@elizaos/core";
-import { userContextService } from "@/lib/eliza/user-context";
-import { RuntimeFactory, invalidateRuntime } from "@/lib/eliza/runtime-factory";
-import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 300; // 5 minutes for large file processing
 
@@ -35,22 +35,14 @@ const FileSchema = z.object({
 
 const RequestSchema = z.object({
   characterId: z.string().uuid(),
-  files: z
-    .array(FileSchema)
-    .min(1)
-    .max(KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST),
+  files: z.array(FileSchema).min(1).max(KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST),
 });
-
-type FileToProcess = z.infer<typeof FileSchema>;
 
 /**
  * Fetches a blob URL with timeout protection.
  * Prevents hanging requests from consuming the entire request timeout.
  */
-async function fetchWithTimeout(
-  url: string,
-  timeoutMs: number,
-): Promise<Response> {
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -89,10 +81,7 @@ async function handlePOST(req: NextRequest) {
   const { user } = authResult;
 
   if (!user.organization_id) {
-    return NextResponse.json(
-      { error: "Organization ID not found" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Organization ID not found" }, { status: 400 });
   }
 
   let body: unknown;
@@ -117,10 +106,7 @@ async function handlePOST(req: NextRequest) {
 
   const character = await userCharactersRepository.findById(characterId);
   if (!character || character.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { error: "Character not found or unauthorized" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "Character not found or unauthorized" }, { status: 403 });
   }
 
   // Validate business rules (Zod handles type validation above)
@@ -152,9 +138,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     if (
-      !ALLOWED_CONTENT_TYPES.includes(
-        file.contentType as (typeof ALLOWED_CONTENT_TYPES)[number],
-      )
+      !ALLOWED_CONTENT_TYPES.includes(file.contentType as (typeof ALLOWED_CONTENT_TYPES)[number])
     ) {
       return NextResponse.json(
         { error: `Invalid content type: ${file.contentType}` },
@@ -191,10 +175,7 @@ async function handlePOST(req: NextRequest) {
   const knowledgeService = await getKnowledgeService(runtime);
 
   if (!knowledgeService) {
-    return NextResponse.json(
-      { error: "Knowledge service not available" },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "Knowledge service not available" }, { status: 503 });
   }
 
   const results: ProcessResult[] = [];
@@ -213,9 +194,7 @@ async function handlePOST(req: NextRequest) {
         KNOWLEDGE_CONSTANTS.BLOB_FETCH_TIMEOUT_MS,
       );
       if (!response.ok) {
-        throw new Error(
-          `Failed to fetch blob: ${response.status} ${response.statusText}`,
-        );
+        throw new Error(`Failed to fetch blob: ${response.status} ${response.statusText}`);
       }
 
       // Validate content-length to prevent malicious oversized responses
@@ -224,15 +203,10 @@ async function handlePOST(req: NextRequest) {
       if (contentLength) {
         const actualSize = parseInt(contentLength, 10);
         if (actualSize > file.size * 1.01) {
-          throw new Error(
-            `Blob size mismatch: expected ${file.size} bytes, got ${actualSize}`,
-          );
+          throw new Error(`Blob size mismatch: expected ${file.size} bytes, got ${actualSize}`);
         }
         // Check if downloading this file would exceed batch limit
-        if (
-          totalDownloadedBytes + actualSize >
-          KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE
-        ) {
+        if (totalDownloadedBytes + actualSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
           throw new Error(
             `Cumulative download size would exceed ${KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / (1024 * 1024)}MB limit`,
           );
@@ -291,10 +265,7 @@ async function handlePOST(req: NextRequest) {
         fragmentCount: result.fragmentCount,
       });
     } catch (error) {
-      logger.error(
-        `[KnowledgeSubmit] Error processing ${file.filename}:`,
-        error,
-      );
+      logger.error(`[KnowledgeSubmit] Error processing ${file.filename}:`, error);
       results.push({
         filename: file.filename,
         blobUrl: file.blobUrl,
@@ -329,9 +300,7 @@ async function handlePOST(req: NextRequest) {
           userId: user.id,
           reason: "cleanup_failed",
           originalError:
-            result.reason instanceof Error
-              ? result.reason.message
-              : String(result.reason),
+            result.reason instanceof Error ? result.reason.message : String(result.reason),
           timestamp: Date.now(),
         });
       }
@@ -344,9 +313,7 @@ async function handlePOST(req: NextRequest) {
       });
     }
 
-    const cleanedCount = cleanupResults.filter(
-      (r) => r.status === "fulfilled",
-    ).length;
+    const cleanedCount = cleanupResults.filter((r) => r.status === "fulfilled").length;
     logger.info("[KnowledgeSubmit] Cleaned up blobs", {
       cleaned: cleanedCount,
       orphaned: orphanedBlobs.length,

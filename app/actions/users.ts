@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { logger } from "@/lib/utils/logger";
-import { requireAuth } from "@/lib/auth";
-import { usersService } from "@/lib/services/users";
-import { uploadToBlob } from "@/lib/blob";
 import { z } from "zod";
+import { requireAuth } from "@/lib/auth";
+import { uploadToBlob } from "@/lib/blob";
+import { usersService } from "@/lib/services/users";
+import { logger } from "@/lib/utils/logger";
 
 const updateProfileSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
@@ -59,10 +59,7 @@ export async function updateProfile(formData: FormData) {
 
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to update profile. Please try again.",
+      error: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
     };
   }
 }
@@ -82,8 +79,7 @@ export async function updateEmail(formData: FormData) {
     if (user.email) {
       return {
         success: false,
-        error:
-          "Email already set. Please contact support to change your email.",
+        error: "Email already set. Please contact support to change your email.",
       };
     }
 
@@ -128,10 +124,7 @@ export async function updateEmail(formData: FormData) {
 
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to update email. Please try again.",
+      error: error instanceof Error ? error.message : "Failed to update email. Please try again.",
     };
   }
 }
@@ -206,10 +199,7 @@ export async function uploadAvatar(formData: FormData) {
 
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to upload avatar. Please try again.",
+      error: error instanceof Error ? error.message : "Failed to upload avatar. Please try again.",
     };
   }
 }

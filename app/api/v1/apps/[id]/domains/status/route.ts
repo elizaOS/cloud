@@ -6,10 +6,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { vercelDomainsService } from "@/lib/services/vercel-domains";
-import { z } from "zod";
 
 const StatusSchema = z.object({
   domain: z
@@ -27,29 +27,20 @@ interface RouteParams {
  * POST /api/v1/apps/:id/domains/status
  * Check the DNS status of a domain
  */
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const user = await requireAuthWithOrg();
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);
   if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "App not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
   }
 
   const body = await request.json();
   const validation = StatusSchema.safeParse(body);
 
   if (!validation.success) {
-    return NextResponse.json(
-      { success: false, error: "Invalid domain format" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid domain format" }, { status: 400 });
   }
 
   const { domain } = validation.data;
@@ -69,10 +60,7 @@ export async function POST(
 
   // Get DNS instructions based on domain type
   const isApex = vercelDomainsService.isApexDomain(domain);
-  const dnsInstructions = vercelDomainsService.getDnsInstructions(
-    domain,
-    isApex,
-  );
+  const dnsInstructions = vercelDomainsService.getDnsInstructions(domain, isApex);
 
   // If verified, sync status to database
   if (status.verified) {

@@ -14,15 +14,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    const session = await aiAppBuilder.verifySessionOwnership(
-      sessionId,
-      user.id,
-    );
+    const session = await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
     // Need app with GitHub repo to get history
@@ -63,8 +57,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to get history";
+    const message = error instanceof Error ? error.message : "Failed to get history";
     const status =
       message.includes("Unauthorized") || message.includes("Authentication")
         ? 401

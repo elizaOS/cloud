@@ -14,30 +14,30 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { logger } from "@/lib/utils/logger";
+import { distributedLocks } from "@/lib/cache/distributed-locks";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { roomsService } from "@/lib/services/agents/rooms";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
+import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { whatsAppAuthService } from "@/lib/services/eliza-app/whatsapp-auth";
 import type { UserWithOrganization } from "@/lib/types";
-import { roomsService } from "@/lib/services/agents/rooms";
-import { tryClaimForProcessing, releaseProcessingClaim } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
+import { releaseProcessingClaim, tryClaimForProcessing } from "@/lib/utils/idempotency";
+import { logger } from "@/lib/utils/logger";
+import { createPerfTrace } from "@/lib/utils/perf-trace";
 import {
-  parseWhatsAppWebhookPayload,
   extractWhatsAppMessages,
-  sendWhatsAppMessage,
-  markWhatsAppMessageAsRead,
-  startWhatsAppTypingIndicator,
   isValidWhatsAppId,
+  markWhatsAppMessageAsRead,
+  parseWhatsAppWebhookPayload,
+  sendWhatsAppMessage,
+  startWhatsAppTypingIndicator,
   type WhatsAppIncomingMessage,
 } from "@/lib/utils/whatsapp-api";
-import { elizaAppConfig } from "@/lib/services/eliza-app/config";
-import { runtimeFactory } from "@/lib/eliza/runtime-factory";
-import { createMessageHandler } from "@/lib/eliza/message-handler";
-import { userContextService } from "@/lib/eliza/user-context";
-import { AgentMode } from "@/lib/eliza/agent-mode-types";
-import { distributedLocks } from "@/lib/cache/distributed-locks";
-import { createPerfTrace } from "@/lib/utils/perf-trace";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -52,19 +52,11 @@ function getWhatsAppConfig() {
   return elizaAppConfig.whatsapp;
 }
 
-async function sendWhatsAppResponse(
-  to: string,
-  text: string,
-): Promise<boolean> {
+async function sendWhatsAppResponse(to: string, text: string): Promise<boolean> {
   const { accessToken, phoneNumberId } = getWhatsAppConfig();
 
   try {
-    const response = await sendWhatsAppMessage(
-      accessToken,
-      phoneNumberId,
-      to,
-      text,
-    );
+    const response = await sendWhatsAppMessage(accessToken, phoneNumberId, to, text);
 
     logger.info("[ElizaApp WhatsAppWebhook] Message sent", {
       to,
@@ -124,8 +116,11 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
       profileName: msg.profileName,
     });
 
-    const { user: userWithOrg, organization, isNew } =
-      await elizaAppUserService.findOrCreateByWhatsAppId(msg.from, msg.profileName);
+    const {
+      user: userWithOrg,
+      organization,
+      isNew,
+    } = await elizaAppUserService.findOrCreateByWhatsAppId(msg.from, msg.profileName);
 
     logger.info("[ElizaApp WhatsAppWebhook] User provisioned", {
       userId: userWithOrg.id,
@@ -160,7 +155,11 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
       await roomsService.addParticipant(roomId, entityId, getDefaultAgentId());
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      if (!errMsg.includes("already") && !errMsg.includes("duplicate") && !errMsg.includes("exists")) {
+      if (
+        !errMsg.includes("already") &&
+        !errMsg.includes("duplicate") &&
+        !errMsg.includes("exists")
+      ) {
         throw error;
       }
     }
@@ -208,9 +207,7 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
 
       const responseContent = result.message.content;
       const responseText =
-        typeof responseContent === "string"
-          ? responseContent
-          : responseContent?.text || "";
+        typeof responseContent === "string" ? responseContent : responseContent?.text || "";
 
       perfTrace.mark("send-response");
       if (responseText) {
@@ -248,8 +245,7 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
 async function handleWhatsAppWebhookPost(request: NextRequest): Promise<NextResponse> {
   const rawBody = await request.text();
   const skipVerification =
-    process.env.SKIP_WEBHOOK_VERIFICATION === "true" &&
-    process.env.NODE_ENV !== "production";
+    process.env.SKIP_WEBHOOK_VERIFICATION === "true" && process.env.NODE_ENV !== "production";
 
   const signatureHeader = request.headers.get("x-hub-signature-256") || "";
 

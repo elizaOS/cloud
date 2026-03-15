@@ -6,8 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
  * GET /api/v1/redemptions/[id]
@@ -19,23 +19,14 @@ async function getRedemptionHandler(
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   if (!context) {
-    return NextResponse.json(
-      { success: false, error: "Missing route params" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Missing route params" }, { status: 400 });
   }
   const { id } = await context.params;
 
-  const redemption = await secureTokenRedemptionService.getRedemption(
-    id,
-    user.id,
-  );
+  const redemption = await secureTokenRedemptionService.getRedemption(id, user.id);
 
   if (!redemption) {
-    return NextResponse.json(
-      { success: false, error: "Redemption not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Redemption not found" }, { status: 404 });
   }
 
   return NextResponse.json({
@@ -63,10 +54,7 @@ async function getRedemptionHandler(
   });
 }
 
-export const GET = withRateLimit(
-  getRedemptionHandler,
-  RateLimitPresets.STANDARD,
-);
+export const GET = withRateLimit(getRedemptionHandler, RateLimitPresets.STANDARD);
 
 /**
  * OPTIONS - CORS preflight
@@ -77,8 +65,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

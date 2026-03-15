@@ -13,10 +13,7 @@ import { logger } from "@/lib/utils/logger";
  * @param params - Route parameters containing the app ID.
  * @returns List of linked characters.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Allow both authenticated users and API key access
     let organizationId: string;
@@ -50,18 +47,12 @@ export async function GET(
     const app = await appsService.getById(id);
 
     if (!app) {
-      return NextResponse.json(
-        { success: false, error: "App not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
     }
 
     // Verify ownership (unless accessed via the app's own API key)
     if (app.organization_id !== organizationId) {
-      return NextResponse.json(
-        { success: false, error: "Access denied" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
     // Get the linked character IDs
@@ -108,8 +99,7 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to get characters",
+        error: error instanceof Error ? error.message : "Failed to get characters",
       },
       { status: 500 },
     );
@@ -125,10 +115,7 @@ export async function GET(
  * @param params - Route parameters containing the app ID.
  * @returns Updated list of linked characters.
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -136,17 +123,11 @@ export async function PUT(
     const existingApp = await appsService.getById(id);
 
     if (!existingApp) {
-      return NextResponse.json(
-        { success: false, error: "App not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
     }
 
     if (existingApp.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "Access denied" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -207,10 +188,7 @@ export async function PUT(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to update characters",
+        error: error instanceof Error ? error.message : "Failed to update characters",
       },
       { status: 500 },
     );

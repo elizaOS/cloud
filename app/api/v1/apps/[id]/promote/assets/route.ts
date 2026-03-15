@@ -1,20 +1,20 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
-import {
-  appPromotionAssetsService,
-  type AdSize,
-  AD_SIZES,
-} from "@/lib/services/app-promotion-assets";
-import { creditsService } from "@/lib/services/credits";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
-  PROMO_IMAGE_COST,
   AD_COPY_GENERATION_COST,
   estimateAssetGenerationCost,
+  PROMO_IMAGE_COST,
 } from "@/lib/promotion-pricing";
+import {
+  AD_SIZES,
+  type AdSize,
+  appPromotionAssetsService,
+} from "@/lib/services/app-promotion-assets";
+import { appsService } from "@/lib/services/apps";
+import { creditsService } from "@/lib/services/credits";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Asset generation with AI can take 30-60 seconds
@@ -24,9 +24,7 @@ interface RouteParams {
 }
 
 const GenerateAssetsSchema = z.object({
-  sizes: z
-    .array(z.enum(Object.keys(AD_SIZES) as [AdSize, ...AdSize[]]))
-    .optional(),
+  sizes: z.array(z.enum(Object.keys(AD_SIZES) as [AdSize, ...AdSize[]])).optional(),
   includeCopy: z.boolean().optional(),
   includeAdBanners: z.boolean().optional(),
   targetAudience: z.string().max(500).optional(),
@@ -56,8 +54,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const imageCount = 1; // Social cards always generated (includeSocialCards: true)
   const bannerCount = parsed.data.includeAdBanners ? 1 : 0;
   const totalImageCost = (imageCount + bannerCount) * PROMO_IMAGE_COST;
-  const copyCost =
-    parsed.data.includeCopy !== false ? AD_COPY_GENERATION_COST : 0;
+  const copyCost = parsed.data.includeCopy !== false ? AD_COPY_GENERATION_COST : 0;
   const totalCost = totalImageCost + copyCost;
 
   const deduction = await creditsService.deductCredits({

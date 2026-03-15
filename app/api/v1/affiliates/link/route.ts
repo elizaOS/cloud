@@ -1,13 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  affiliatesService,
-  ERRORS as AFFILIATE_ERRORS,
-} from "@/lib/services/affiliates";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { ERRORS as AFFILIATE_ERRORS, affiliatesService } from "@/lib/services/affiliates";
 import { getCorsHeaders } from "@/lib/utils/cors";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -55,10 +52,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       );
     }
 
-    const link = await affiliatesService.linkUserToAffiliateCode(
-      user.id,
-      validation.data.code,
-    );
+    const link = await affiliatesService.linkUserToAffiliateCode(user.id, validation.data.code);
 
     return NextResponse.json({ success: true, link }, { headers: corsHeaders });
   } catch (error: unknown) {
@@ -69,10 +63,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
     });
 
     if (isAuthError(error)) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     if (error instanceof Error) {
@@ -80,24 +71,15 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
         error.message === AFFILIATE_ERRORS.INVALID_CODE ||
         error.message === AFFILIATE_ERRORS.CODE_NOT_FOUND
       ) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 404, headers: corsHeaders },
-        );
+        return NextResponse.json({ error: error.message }, { status: 404, headers: corsHeaders });
       }
 
       if (error.message === AFFILIATE_ERRORS.SELF_REFERRAL) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400, headers: corsHeaders },
-        );
+        return NextResponse.json({ error: error.message }, { status: 400, headers: corsHeaders });
       }
 
       if (error.message === AFFILIATE_ERRORS.ALREADY_LINKED) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 409, headers: corsHeaders },
-        );
+        return NextResponse.json({ error: error.message }, { status: 409, headers: corsHeaders });
       }
     }
 

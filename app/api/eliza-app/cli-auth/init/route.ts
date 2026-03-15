@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 import { db } from "@/db/client";
 import { cliAuthSessions } from "@/db/schemas/cli-auth-sessions";
-import { v4 as uuidv4 } from "uuid";
 
 /**
  * Creates a new pending CLI auth session.
@@ -30,7 +30,7 @@ export async function POST() {
     console.error("[CLI Auth Init] Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to initialize session" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

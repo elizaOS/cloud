@@ -13,14 +13,10 @@
  * RECOMMENDED SCHEDULE: Every 5 minutes
  */
 
-import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
+import { elizaTokenPriceService, type SupportedNetwork } from "@/lib/services/eliza-token-price";
 import { twapPriceOracle } from "@/lib/services/twap-price-oracle";
-import {
-  elizaTokenPriceService,
-  ELIZA_TOKEN_ADDRESSES,
-  type SupportedNetwork,
-} from "@/lib/services/eliza-token-price";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 30;
@@ -42,9 +38,7 @@ function verifyCronSecret(request: NextRequest): boolean {
     return false;
   }
 
-  const providedSecret = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : authHeader;
+  const providedSecret = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
 
   // SECURITY: Timing-safe comparison to prevent timing attacks
   try {
@@ -77,10 +71,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Verify cron secret
   if (!verifyCronSecret(request)) {
     logger.warn("[PriceSample Cron] Unauthorized access attempt");
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   logger.info("[PriceSample Cron] Starting price sampling");
@@ -96,11 +87,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const quote = await elizaTokenPriceService.getPrice(network);
 
         // Record the sample for TWAP calculation
-        await twapPriceOracle.recordPriceSample(
-          network,
-          quote.priceUsd,
-          quote.source,
-        );
+        await twapPriceOracle.recordPriceSample(network, quote.priceUsd, quote.source);
 
         results.push({
           network,
@@ -115,8 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           source: quote.source,
         });
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         results.push({
           network,
           success: false,

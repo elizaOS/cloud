@@ -5,7 +5,13 @@ const meta: Meta<typeof MiniStatCard> = {
   title: "Brand/MiniStatCard",
   component: MiniStatCard,
   parameters: { backgrounds: { default: "dark" } },
-  decorators: [(Story) => <div style={{ maxWidth: 200, padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 200, padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 export default meta;
 type Story = StoryObj<typeof MiniStatCard>;

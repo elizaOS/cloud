@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { generationsService } from "@/lib/services/generations";
 import { z } from "zod";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { generationsService } from "@/lib/services/generations";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -89,13 +89,8 @@ export async function GET(request: NextRequest) {
     logger.error("[GALLERY API] Error:", error);
     const status = getErrorStatusCode(error);
     const errorMessage =
-      status === 500
-        ? "Failed to fetch gallery items"
-        : getSafeErrorMessage(error);
+      status === 500 ? "Failed to fetch gallery items" : getSafeErrorMessage(error);
 
-    return NextResponse.json(
-      { error: errorMessage },
-      { status },
-    );
+    return NextResponse.json({ error: errorMessage }, { status });
   }
 }

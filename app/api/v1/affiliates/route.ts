@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { affiliatesService } from "@/lib/services/affiliates";
-import { logger } from "@/lib/utils/logger";
-import { getCorsHeaders } from "@/lib/utils/cors";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { affiliatesService } from "@/lib/services/affiliates";
+import { getCorsHeaders } from "@/lib/utils/cors";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -39,22 +39,16 @@ async function handleGET(request: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const code = await affiliatesService.getAffiliateCode(user.id);
 
-    return NextResponse.json(
-      { code: code ?? null },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json({ code: code ?? null }, { headers: corsHeaders });
   } catch (error) {
     if (isAuthError(error)) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     logger.error("[Affiliates API] Error getting code:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
@@ -81,35 +75,29 @@ async function handlePUT(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Invalid markup. Must be a number between 0 and 1000%." },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
     const { markupPercent } = validation.data;
     const code = await affiliatesService.updateMarkup(user.id, markupPercent);
 
-    return NextResponse.json(
-      { code },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json({ code }, { headers: corsHeaders });
   } catch (error) {
     if (isAuthError(error)) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
     if (error instanceof Error && error.message.includes("Affiliate code not found")) {
       return NextResponse.json(
         { error: "No affiliate code. Create one with POST first." },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
     logger.error("[Affiliates API] Error updating markup:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
@@ -132,29 +120,23 @@ async function handlePOST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Invalid markup. Must be a number between 0 and 1000%." },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
     const { markupPercent } = validation.data;
     const code = await affiliatesService.getOrCreateAffiliateCode(user.id, markupPercent);
 
-    return NextResponse.json(
-      { code },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json({ code }, { headers: corsHeaders });
   } catch (error) {
     if (isAuthError(error)) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     logger.error("[Affiliates API] Error creating affiliate code:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }

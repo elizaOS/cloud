@@ -1,15 +1,15 @@
 /**
  * App Builder Image Upload API
- * 
+ *
  * Uploads images to Vercel Blob storage for persistent storage
  * and multimodal AI analysis in the app builder.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { uploadBase64Image } from "@/lib/blob";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
 
 const ImageUploadSchema = z.object({
   // Base64 data URI (e.g., "data:image/png;base64,...")
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       try {
         // Generate a filename if not provided
         const filename = img.filename || `image-${Date.now()}-${index}.png`;
-        
+
         const result = await uploadBase64Image(img.base64, {
           filename,
           folder: "app-builder/images",

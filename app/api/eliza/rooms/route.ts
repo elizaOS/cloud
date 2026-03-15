@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
-import { roomsService } from "@/lib/services/agents/rooms";
+import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { agentsService } from "@/lib/services/agents/agents";
+import { roomsService } from "@/lib/services/agents/rooms";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
-import { usersService } from "@/lib/services/users";
 import { charactersService } from "@/lib/services/characters/characters";
+import { usersService } from "@/lib/services/users";
+import { logger } from "@/lib/utils/logger";
 
 // Default agent ID - used when no character is selected
 // This is the ID of the built-in Eliza character
@@ -108,16 +105,12 @@ export async function POST(request: NextRequest) {
         "[Eliza Rooms API POST] Checking provided session token:",
         providedSessionToken.slice(0, 8) + "...",
       );
-      const session =
-        await anonymousSessionsService.getByToken(providedSessionToken);
+      const session = await anonymousSessionsService.getByToken(providedSessionToken);
       if (session) {
         const sessionUser = await usersService.getById(session.user_id);
         if (sessionUser && sessionUser.is_anonymous) {
           userId = sessionUser.id;
-          logger.info(
-            "[Eliza Rooms API POST] Anonymous auth via provided token:",
-            userId,
-          );
+          logger.info("[Eliza Rooms API POST] Anonymous auth via provided token:", userId);
         }
       }
     }
@@ -128,31 +121,20 @@ export async function POST(request: NextRequest) {
 
       if (anonData) {
         userId = anonData.user.id;
-        logger.info(
-          "[Eliza Rooms API POST] Anonymous auth via cookie:",
-          userId,
-        );
+        logger.info("[Eliza Rooms API POST] Anonymous auth via cookie:", userId);
       } else {
         // No cookie found - create a new anonymous session
-        logger.info(
-          "[Eliza Rooms API POST] No session cookie - creating new anonymous session",
-        );
+        logger.info("[Eliza Rooms API POST] No session cookie - creating new anonymous session");
 
         const newAnonData = await getOrCreateAnonymousUser();
         userId = newAnonData.user.id;
-        logger.info(
-          "[Eliza Rooms API POST] Created new anonymous session:",
-          userId,
-        );
+        logger.info("[Eliza Rooms API POST] Created new anonymous session:", userId);
       }
     }
   }
 
   if (!userId) {
-    return NextResponse.json(
-      { error: "Authentication required" },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
   logger.info(
@@ -164,14 +146,8 @@ export async function POST(request: NextRequest) {
 
   // Validate characterId if provided
   if (characterId && typeof characterId !== "string") {
-    logger.error(
-      "[Eliza Rooms API POST] Invalid characterId type:",
-      typeof characterId,
-    );
-    return NextResponse.json(
-      { error: "characterId must be a string" },
-      { status: 400 },
-    );
+    logger.error("[Eliza Rooms API POST] Invalid characterId type:", typeof characterId);
+    return NextResponse.json({ error: "characterId must be a string" }, { status: 400 });
   }
 
   // ACCESS CONTROL: Check if user has permission to chat with this character
@@ -181,10 +157,7 @@ export async function POST(request: NextRequest) {
 
     if (!character) {
       logger.warn("[Eliza Rooms API POST] Character not found:", characterId);
-      return NextResponse.json(
-        { error: "Character not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Character not found" }, { status: 404 });
     }
 
     // Check access permissions
@@ -192,31 +165,27 @@ export async function POST(request: NextRequest) {
     const isPublic = character.is_public === true;
 
     // Check if this is a claimable affiliate character
-    const claimCheck =
-      await charactersService.isClaimableAffiliateCharacter(characterId);
+    const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
     const isClaimableAffiliate = claimCheck.claimable;
 
     if (!isPublic && !isOwner && !isClaimableAffiliate) {
-      logger.warn(
-        "[Eliza Rooms API POST] Access denied to private character:",
-        {
-          characterId,
-          userId,
-          characterOwnerId: character.user_id,
-          isPublic: character.is_public,
-        },
-      );
+      logger.warn("[Eliza Rooms API POST] Access denied to private character:", {
+        characterId,
+        userId,
+        characterOwnerId: character.user_id,
+        isPublic: character.is_public,
+      });
       return NextResponse.json(
         { error: "Access denied - this character is private" },
         { status: 403 },
       );
     }
 
-    logger.info(
-      "[Eliza Rooms API POST] Access granted to character:",
-      characterId,
-      { isPublic, isOwner, isClaimableAffiliate },
-    );
+    logger.info("[Eliza Rooms API POST] Access granted to character:", characterId, {
+      isPublic,
+      isOwner,
+      isClaimableAffiliate,
+    });
   }
 
   // Determine the agent ID - use provided characterId or default

@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { userContextService } from "@/lib/eliza/user-context";
-import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuthOrApiKey } from "@/lib/auth";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
+import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -19,10 +19,7 @@ export const maxDuration = 60;
  * @param context - Route context containing the document ID parameter.
  * @returns Success status.
  */
-async function handleDELETE(
-  req: NextRequest,
-  context?: { params: Promise<{ id: string }> },
-) {
+async function handleDELETE(req: NextRequest, context?: { params: Promise<{ id: string }> }) {
   try {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;
@@ -50,17 +47,11 @@ async function handleDELETE(
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {
-      return NextResponse.json(
-        { error: "Knowledge service not available" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "Knowledge service not available" }, { status: 503 });
     }
 
     if (!context?.params) {
-      return NextResponse.json(
-        { error: "Document ID is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Document ID is required" }, { status: 400 });
     }
 
     const { id } = await context.params;

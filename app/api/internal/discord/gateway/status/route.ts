@@ -5,8 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { withInternalAuth } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
+import { withInternalAuth } from "@/lib/auth/internal-api";
 import { ConnectionStatusUpdateSchema } from "@/lib/services/gateway-discord/schemas";
 import { logger } from "@/lib/utils/logger";
 
@@ -31,8 +31,7 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
     );
   }
 
-  const { connection_id, pod_name, status, error_message, bot_user_id } =
-    parsed.data;
+  const { connection_id, pod_name, status, error_message, bot_user_id } = parsed.data;
 
   logger.info("[Gateway Status] Updating connection status", {
     connectionId: connection_id,
@@ -51,10 +50,7 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
   );
 
   if (!updated) {
-    return NextResponse.json(
-      { error: "Connection not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Connection not found" }, { status: 404 });
   }
 
   return NextResponse.json({ success: true });

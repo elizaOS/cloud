@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
 import { advertisingService } from "@/lib/services/advertising";
+import { appsService } from "@/lib/services/apps";
 import { conversionTrackingService } from "@/lib/services/conversion-tracking";
 
 export const dynamic = "force-dynamic";
@@ -24,10 +24,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const days = parseInt(url.searchParams.get("days") || "30");
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    const campaigns = await advertisingService.listCampaigns(
-      user.organization_id!,
-      { appId: id },
-    );
+    const campaigns = await advertisingService.listCampaigns(user.organization_id!, { appId: id });
 
     const totals = campaigns.reduce(
       (acc, c) => ({
@@ -40,8 +37,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
 
     const round2 = (n: number) => Math.round(n * 100) / 100;
-    const safeDiv = (a: number, b: number, mult = 1) =>
-      b > 0 ? (a / b) * mult : 0;
+    const safeDiv = (a: number, b: number, mult = 1) => (b > 0 ? (a / b) * mult : 0);
 
     const attribution = await conversionTrackingService.getCampaignAttribution(
       user.organization_id!,
@@ -87,15 +83,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal error";
     let status = 500;
-    if (
-      message.includes("Authentication") ||
-      message.includes("Unauthorized")
-    ) {
+    if (message.includes("Authentication") || message.includes("Unauthorized")) {
       status = 401;
-    } else if (
-      message.includes("Forbidden") ||
-      message.includes("Access denied")
-    ) {
+    } else if (message.includes("Forbidden") || message.includes("Access denied")) {
       status = 403;
     }
     return NextResponse.json({ error: message }, { status });

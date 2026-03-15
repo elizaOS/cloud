@@ -1,17 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { invitesService } from "@/lib/services/invites";
 import { z } from "zod";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { invitesService } from "@/lib/services/invites";
+import { logger } from "@/lib/utils/logger";
 
 const createInviteSchema = z.object({
   email: z.string().email("Invalid email address"),
-  role: z
-    .enum(["admin", "member"])
-    .refine((val) => val === "admin" || val === "member", {
-      message: "Role must be 'admin' or 'member'",
-    }),
+  role: z.enum(["admin", "member"]).refine((val) => val === "admin" || val === "member", {
+    message: "Role must be 'admin' or 'member'",
+  }),
 });
 
 /**
@@ -40,7 +38,7 @@ async function handlePOST(request: NextRequest) {
     const validated = createInviteSchema.parse(body);
 
     const result = await invitesService.createInvite({
-      organizationId: user.organization_id!!,
+      organizationId: user.organization_id!,
       inviterUserId: user.id,
       invitedEmail: validated.email,
       invitedRole: validated.role,
@@ -71,8 +69,7 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to create invitation";
+    const errorMessage = error instanceof Error ? error.message : "Failed to create invitation";
 
     return NextResponse.json(
       {
@@ -81,8 +78,7 @@ async function handlePOST(request: NextRequest) {
       },
       {
         status:
-          errorMessage.includes("already a member") ||
-          errorMessage.includes("already pending")
+          errorMessage.includes("already a member") || errorMessage.includes("already pending")
             ? 409
             : 500,
       },
@@ -111,9 +107,7 @@ async function handleGET() {
       );
     }
 
-    const invites = await invitesService.listByOrganization(
-      user.organization_id!,
-    );
+    const invites = await invitesService.listByOrganization(user.organization_id!);
 
     /**
      * Type for invite with inviter relation.
@@ -157,10 +151,7 @@ async function handleGET() {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch invitations",
+        error: error instanceof Error ? error.message : "Failed to fetch invitations",
       },
       { status: 500 },
     );

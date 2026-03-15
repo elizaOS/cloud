@@ -8,12 +8,12 @@
  */
 
 import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
 import { TwitterApi } from "twitter-api-v2";
-import { logger } from "@/lib/utils/logger";
+import { z } from "zod3";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY || "";
 const TWITTER_API_SECRET_KEY = process.env.TWITTER_API_SECRET_KEY || "";
@@ -23,7 +23,9 @@ const USER_ID_CACHE_MAX_SIZE = 100;
 
 async function getTwitterClient(): Promise<TwitterApi> {
   if (!TWITTER_API_KEY || !TWITTER_API_SECRET_KEY) {
-    throw new Error("Twitter API credentials not configured at platform level. Set TWITTER_API_KEY and TWITTER_API_SECRET_KEY.");
+    throw new Error(
+      "Twitter API credentials not configured at platform level. Set TWITTER_API_KEY and TWITTER_API_SECRET_KEY.",
+    );
   }
 
   const { user } = getAuthContext();
@@ -85,7 +87,11 @@ async function getAuthenticatedUserId(client: TwitterApi): Promise<string> {
 
 function errMsg(error: unknown, fallback: string): string {
   if (!(error instanceof Error)) return fallback;
-  const err = error as Error & { code?: number; data?: { detail?: string; title?: string; status?: number }; rateLimit?: { remaining?: number; reset?: number } };
+  const err = error as Error & {
+    code?: number;
+    data?: { detail?: string; title?: string; status?: number };
+    rateLimit?: { remaining?: number; reset?: number };
+  };
   const parts: string[] = [err.message];
   if (err.data?.detail) parts.push(err.data.detail);
   if (err.code) parts.push(`code: ${err.code}`);
@@ -129,8 +135,24 @@ function extractTweetIdFromUrl(url: string): string | null {
 const TIMELINE_TWEET_FIELDS = ["created_at", "public_metrics", "entities", "referenced_tweets"];
 const SEARCH_TWEET_FIELDS = ["created_at", "public_metrics", "author_id", "entities"];
 const MENTION_TWEET_FIELDS = [...SEARCH_TWEET_FIELDS, "referenced_tweets"];
-const DETAIL_TWEET_FIELDS = ["created_at", "public_metrics", "author_id", "conversation_id", "in_reply_to_user_id", "referenced_tweets", "entities"];
-const USER_PROFILE_FIELDS = ["description", "public_metrics", "profile_image_url", "created_at", "location", "url", "verified"];
+const DETAIL_TWEET_FIELDS = [
+  "created_at",
+  "public_metrics",
+  "author_id",
+  "conversation_id",
+  "in_reply_to_user_id",
+  "referenced_tweets",
+  "entities",
+];
+const USER_PROFILE_FIELDS = [
+  "description",
+  "public_metrics",
+  "profile_image_url",
+  "created_at",
+  "location",
+  "url",
+  "verified",
+];
 const USER_SUMMARY_FIELDS = ["description", "public_metrics", "profile_image_url", "verified"];
 
 // ── Shared mappers ───────────────────────────────────────────────────────────
@@ -222,12 +244,24 @@ function paginatedTweetResponse(
 async function fetchUserTimeline(
   client: TwitterApi,
   userId: string,
-  { maxResults = 10, startTime, endTime, exclude, paginationToken }: {
-    maxResults?: number; startTime?: string; endTime?: string;
-    exclude?: string[]; paginationToken?: string;
+  {
+    maxResults = 10,
+    startTime,
+    endTime,
+    exclude,
+    paginationToken,
+  }: {
+    maxResults?: number;
+    startTime?: string;
+    endTime?: string;
+    exclude?: string[];
+    paginationToken?: string;
   },
 ) {
-  const opts: Record<string, unknown> = { max_results: maxResults, "tweet.fields": TIMELINE_TWEET_FIELDS };
+  const opts: Record<string, unknown> = {
+    max_results: maxResults,
+    "tweet.fields": TIMELINE_TWEET_FIELDS,
+  };
   if (startTime) opts.start_time = startTime;
   if (endTime) opts.end_time = endTime;
   if (exclude?.length) opts.exclude = exclude;
@@ -320,7 +354,9 @@ export function registerTwitterTools(server: McpServer): void {
     async ({ username }) => {
       try {
         const client = await getTwitterClient();
-        const user = await client.v2.userByUsername(username, { "user.fields": USER_PROFILE_FIELDS });
+        const user = await client.v2.userByUsername(username, {
+          "user.fields": USER_PROFILE_FIELDS,
+        });
         if (!user.data) return errorResponse(`User @${username} not found`);
         return jsonResponse(mapUserProfile(user.data));
       } catch (error) {
@@ -336,8 +372,16 @@ export function registerTwitterTools(server: McpServer): void {
       description: "Post a new tweet on Twitter/X. Supports text tweets and replies.",
       inputSchema: {
         text: z.string().min(1).max(280).describe("The tweet text content (max 280 characters)"),
-        replyToTweetId: z.string().regex(/^\d+$/).optional().describe("Tweet ID to reply to (makes this a reply)"),
-        quoteTweetId: z.string().regex(/^\d+$/).optional().describe("Tweet ID to quote (makes this a quote tweet)"),
+        replyToTweetId: z
+          .string()
+          .regex(/^\d+$/)
+          .optional()
+          .describe("Tweet ID to reply to (makes this a reply)"),
+        quoteTweetId: z
+          .string()
+          .regex(/^\d+$/)
+          .optional()
+          .describe("Tweet ID to quote (makes this a quote tweet)"),
       },
     },
     async ({ text, replyToTweetId, quoteTweetId }) => {
@@ -411,14 +455,33 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_search_tweets",
     {
-      description: "Search for recent tweets matching a query (last 7 days only). Supports date filtering within that window, sorting, and pagination. Use Twitter search operators like from:username, #hashtag, has:media. For older tweets from a specific user, use twitter_get_user_tweets or twitter_get_my_tweets with date filters instead.",
+      description:
+        "Search for recent tweets matching a query (last 7 days only). Supports date filtering within that window, sorting, and pagination. Use Twitter search operators like from:username, #hashtag, has:media. For older tweets from a specific user, use twitter_get_user_tweets or twitter_get_my_tweets with date filters instead.",
       inputSchema: {
-        query: z.string().describe("Search query (supports Twitter operators: from:user, to:user, #hashtag, has:media, has:links, is:reply, is:retweet, lang:en, etc.)"),
-        maxResults: z.number().min(10).max(100).optional().describe("Number of results per page (10-100, default 10)"),
-        startTime: z.string().optional().describe("Only tweets after this date (ISO 8601, must be within last 7 days)"),
+        query: z
+          .string()
+          .describe(
+            "Search query (supports Twitter operators: from:user, to:user, #hashtag, has:media, has:links, is:reply, is:retweet, lang:en, etc.)",
+          ),
+        maxResults: z
+          .number()
+          .min(10)
+          .max(100)
+          .optional()
+          .describe("Number of results per page (10-100, default 10)"),
+        startTime: z
+          .string()
+          .optional()
+          .describe("Only tweets after this date (ISO 8601, must be within last 7 days)"),
         endTime: z.string().optional().describe("Only tweets before this date (ISO 8601)"),
-        sortOrder: z.enum(["recency", "relevancy"]).optional().describe("Sort by recency (newest first) or relevancy"),
-        paginationToken: z.string().optional().describe("Token from a previous response's nextToken to fetch the next page"),
+        sortOrder: z
+          .enum(["recency", "relevancy"])
+          .optional()
+          .describe("Sort by recency (newest first) or relevancy"),
+        paginationToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextToken to fetch the next page"),
       },
     },
     async ({ query, maxResults = 10, startTime, endTime, sortOrder, paginationToken }) => {
@@ -436,11 +499,12 @@ export function registerTwitterTools(server: McpServer): void {
         if (paginationToken) opts.next_token = paginationToken;
 
         const results = await client.v2.search(query, opts);
-        return jsonResponse(paginatedTweetResponse(
-          results.data?.data || [],
-          results.data?.meta,
-          { query, includes: results.data?.includes },
-        ));
+        return jsonResponse(
+          paginatedTweetResponse(results.data?.data || [], results.data?.meta, {
+            query,
+            includes: results.data?.includes,
+          }),
+        );
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to search tweets"));
       }
@@ -451,20 +515,46 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_get_user_tweets",
     {
-      description: "Get tweets posted by a specific user. Supports date filtering, pagination, and excluding retweets/replies. For the authenticated user's own tweets, prefer twitter_get_my_tweets.",
+      description:
+        "Get tweets posted by a specific user. Supports date filtering, pagination, and excluding retweets/replies. For the authenticated user's own tweets, prefer twitter_get_my_tweets.",
       inputSchema: {
         userId: z.string().regex(/^\d+$/).describe("The Twitter user ID (numeric)"),
-        maxResults: z.number().min(5).max(100).optional().describe("Number of tweets per page (5-100, default 10)"),
-        startTime: z.string().optional().describe("Only tweets after this date (ISO 8601, e.g. 2026-02-01T00:00:00Z)"),
-        endTime: z.string().optional().describe("Only tweets before this date (ISO 8601, e.g. 2026-02-28T23:59:59Z)"),
-        exclude: z.array(z.enum(["retweets", "replies"])).optional().describe("Exclude retweets and/or replies from results"),
-        paginationToken: z.string().optional().describe("Token from a previous response's nextToken to fetch the next page"),
+        maxResults: z
+          .number()
+          .min(5)
+          .max(100)
+          .optional()
+          .describe("Number of tweets per page (5-100, default 10)"),
+        startTime: z
+          .string()
+          .optional()
+          .describe("Only tweets after this date (ISO 8601, e.g. 2026-02-01T00:00:00Z)"),
+        endTime: z
+          .string()
+          .optional()
+          .describe("Only tweets before this date (ISO 8601, e.g. 2026-02-28T23:59:59Z)"),
+        exclude: z
+          .array(z.enum(["retweets", "replies"]))
+          .optional()
+          .describe("Exclude retweets and/or replies from results"),
+        paginationToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextToken to fetch the next page"),
       },
     },
     async ({ userId, maxResults, startTime, endTime, exclude, paginationToken }) => {
       try {
         const client = await getTwitterClient();
-        return jsonResponse(await fetchUserTimeline(client, userId, { maxResults, startTime, endTime, exclude, paginationToken }));
+        return jsonResponse(
+          await fetchUserTimeline(client, userId, {
+            maxResults,
+            startTime,
+            endTime,
+            exclude,
+            paginationToken,
+          }),
+        );
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get user tweets"));
       }
@@ -475,20 +565,46 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_get_my_tweets",
     {
-      description: "Get the authenticated user's own tweets. No user ID needed. Supports date range filtering via ISO 8601 timestamps (convert natural language like 'last week' or 'January' to ISO dates), excluding retweets/replies, and pagination for fetching all results.",
+      description:
+        "Get the authenticated user's own tweets. No user ID needed. Supports date range filtering via ISO 8601 timestamps (convert natural language like 'last week' or 'January' to ISO dates), excluding retweets/replies, and pagination for fetching all results.",
       inputSchema: {
-        maxResults: z.number().min(5).max(100).optional().describe("Number of tweets per page (5-100, default 10)"),
-        startTime: z.string().optional().describe("Only tweets after this date (ISO 8601, e.g. 2026-02-01T00:00:00Z)"),
-        endTime: z.string().optional().describe("Only tweets before this date (ISO 8601, e.g. 2026-02-28T23:59:59Z)"),
-        exclude: z.array(z.enum(["retweets", "replies"])).optional().describe("Exclude retweets and/or replies from results"),
-        paginationToken: z.string().optional().describe("Token from a previous response's nextToken to fetch the next page"),
+        maxResults: z
+          .number()
+          .min(5)
+          .max(100)
+          .optional()
+          .describe("Number of tweets per page (5-100, default 10)"),
+        startTime: z
+          .string()
+          .optional()
+          .describe("Only tweets after this date (ISO 8601, e.g. 2026-02-01T00:00:00Z)"),
+        endTime: z
+          .string()
+          .optional()
+          .describe("Only tweets before this date (ISO 8601, e.g. 2026-02-28T23:59:59Z)"),
+        exclude: z
+          .array(z.enum(["retweets", "replies"]))
+          .optional()
+          .describe("Exclude retweets and/or replies from results"),
+        paginationToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextToken to fetch the next page"),
       },
     },
     async ({ maxResults, startTime, endTime, exclude, paginationToken }) => {
       try {
         const client = await getTwitterClient();
         const userId = await getAuthenticatedUserId(client);
-        return jsonResponse(await fetchUserTimeline(client, userId, { maxResults, startTime, endTime, exclude, paginationToken }));
+        return jsonResponse(
+          await fetchUserTimeline(client, userId, {
+            maxResults,
+            startTime,
+            endTime,
+            exclude,
+            paginationToken,
+          }),
+        );
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get your tweets"));
       }
@@ -587,17 +703,29 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_get_followers",
     {
-      description: "Get a list of users who follow the specified user. Supports pagination to fetch all followers.",
+      description:
+        "Get a list of users who follow the specified user. Supports pagination to fetch all followers.",
       inputSchema: {
         userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get followers for"),
-        maxResults: z.number().min(1).max(100).optional().describe("Number of followers per page (1-100, default 20)"),
-        paginationToken: z.string().optional().describe("Token from a previous response's nextToken to fetch the next page"),
+        maxResults: z
+          .number()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Number of followers per page (1-100, default 20)"),
+        paginationToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextToken to fetch the next page"),
       },
     },
     async ({ userId, maxResults = 20, paginationToken }) => {
       try {
         const client = await getTwitterClient();
-        const opts: Record<string, unknown> = { max_results: maxResults, "user.fields": USER_SUMMARY_FIELDS };
+        const opts: Record<string, unknown> = {
+          max_results: maxResults,
+          "user.fields": USER_SUMMARY_FIELDS,
+        };
         if (paginationToken) opts.pagination_token = paginationToken;
 
         const followers = await client.v2.followers(userId, opts);
@@ -618,17 +746,29 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_get_following",
     {
-      description: "Get a list of users that the specified user is following. Supports pagination to fetch all.",
+      description:
+        "Get a list of users that the specified user is following. Supports pagination to fetch all.",
       inputSchema: {
         userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get following list for"),
-        maxResults: z.number().min(1).max(100).optional().describe("Number of users per page (1-100, default 20)"),
-        paginationToken: z.string().optional().describe("Token from a previous response's nextToken to fetch the next page"),
+        maxResults: z
+          .number()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Number of users per page (1-100, default 20)"),
+        paginationToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextToken to fetch the next page"),
       },
     },
     async ({ userId, maxResults = 20, paginationToken }) => {
       try {
         const client = await getTwitterClient();
-        const opts: Record<string, unknown> = { max_results: maxResults, "user.fields": USER_SUMMARY_FIELDS };
+        const opts: Record<string, unknown> = {
+          max_results: maxResults,
+          "user.fields": USER_SUMMARY_FIELDS,
+        };
         if (paginationToken) opts.pagination_token = paginationToken;
 
         const following = await client.v2.following(userId, opts);
@@ -649,10 +789,20 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_follow_user",
     {
-      description: "Follow a user on Twitter/X. Accepts either a username (handle) or a numeric user ID.",
+      description:
+        "Follow a user on Twitter/X. Accepts either a username (handle) or a numeric user ID.",
       inputSchema: {
-        targetUserId: z.string().regex(/^\d+$/).optional().describe("The numeric user ID of the account to follow"),
-        username: z.string().optional().describe("The Twitter username/handle to follow (without @). Provide this or targetUserId."),
+        targetUserId: z
+          .string()
+          .regex(/^\d+$/)
+          .optional()
+          .describe("The numeric user ID of the account to follow"),
+        username: z
+          .string()
+          .optional()
+          .describe(
+            "The Twitter username/handle to follow (without @). Provide this or targetUserId.",
+          ),
       },
     },
     async ({ targetUserId, username }) => {
@@ -667,7 +817,12 @@ export function registerTwitterTools(server: McpServer): void {
         ]);
         const result = await client.v2.follow(userId, resolvedId);
         logger.warn("[TwitterMCP] Followed user", { targetUserId: resolvedId });
-        return jsonResponse({ success: true, following: result.data.following, pendingFollow: result.data.pending_follow, targetUserId: resolvedId });
+        return jsonResponse({
+          success: true,
+          following: result.data.following,
+          pendingFollow: result.data.pending_follow,
+          targetUserId: resolvedId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to follow user"));
       }
@@ -678,10 +833,20 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_unfollow_user",
     {
-      description: "Unfollow a user on Twitter/X. Accepts either a username (handle) or a numeric user ID.",
+      description:
+        "Unfollow a user on Twitter/X. Accepts either a username (handle) or a numeric user ID.",
       inputSchema: {
-        targetUserId: z.string().regex(/^\d+$/).optional().describe("The numeric user ID of the account to unfollow"),
-        username: z.string().optional().describe("The Twitter username/handle to unfollow (without @). Provide this or targetUserId."),
+        targetUserId: z
+          .string()
+          .regex(/^\d+$/)
+          .optional()
+          .describe("The numeric user ID of the account to unfollow"),
+        username: z
+          .string()
+          .optional()
+          .describe(
+            "The Twitter username/handle to unfollow (without @). Provide this or targetUserId.",
+          ),
       },
     },
     async ({ targetUserId, username }) => {
@@ -696,7 +861,11 @@ export function registerTwitterTools(server: McpServer): void {
         ]);
         const result = await client.v2.unfollow(userId, resolvedId);
         logger.warn("[TwitterMCP] Unfollowed user", { targetUserId: resolvedId });
-        return jsonResponse({ success: true, following: result.data.following, targetUserId: resolvedId });
+        return jsonResponse({
+          success: true,
+          following: result.data.following,
+          targetUserId: resolvedId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unfollow user"));
       }
@@ -707,12 +876,21 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_get_mentions",
     {
-      description: "Get tweets that mention the authenticated user. Use when user asks 'who mentioned me', 'show my mentions', or 'who tagged me'. Supports date filtering and pagination.",
+      description:
+        "Get tweets that mention the authenticated user. Use when user asks 'who mentioned me', 'show my mentions', or 'who tagged me'. Supports date filtering and pagination.",
       inputSchema: {
-        maxResults: z.number().min(5).max(100).optional().describe("Number of mentions per page (5-100, default 10)"),
+        maxResults: z
+          .number()
+          .min(5)
+          .max(100)
+          .optional()
+          .describe("Number of mentions per page (5-100, default 10)"),
         startTime: z.string().optional().describe("Only mentions after this date (ISO 8601)"),
         endTime: z.string().optional().describe("Only mentions before this date (ISO 8601)"),
-        paginationToken: z.string().optional().describe("Token from a previous response's nextToken to fetch the next page"),
+        paginationToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextToken to fetch the next page"),
       },
     },
     async ({ maxResults = 10, startTime, endTime, paginationToken }) => {
@@ -731,11 +909,12 @@ export function registerTwitterTools(server: McpServer): void {
         if (paginationToken) opts.pagination_token = paginationToken;
 
         const mentions = await client.v2.userMentionTimeline(userId, opts);
-        return jsonResponse(paginatedTweetResponse(
-          mentions.data?.data || [],
-          mentions.data?.meta,
-          { userId, includes: mentions.data?.includes },
-        ));
+        return jsonResponse(
+          paginatedTweetResponse(mentions.data?.data || [], mentions.data?.meta, {
+            userId,
+            includes: mentions.data?.includes,
+          }),
+        );
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get mentions"));
       }
@@ -746,10 +925,19 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_get_liked_tweets",
     {
-      description: "Get tweets that the authenticated user has liked. Use when user asks 'show my likes' or 'tweets I liked'. Supports pagination.",
+      description:
+        "Get tweets that the authenticated user has liked. Use when user asks 'show my likes' or 'tweets I liked'. Supports pagination.",
       inputSchema: {
-        maxResults: z.number().min(10).max(100).optional().describe("Number of liked tweets per page (10-100, default 10)"),
-        paginationToken: z.string().optional().describe("Token from a previous response's nextToken to fetch the next page"),
+        maxResults: z
+          .number()
+          .min(10)
+          .max(100)
+          .optional()
+          .describe("Number of liked tweets per page (10-100, default 10)"),
+        paginationToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextToken to fetch the next page"),
       },
     },
     async ({ maxResults = 10, paginationToken }) => {
@@ -766,11 +954,11 @@ export function registerTwitterTools(server: McpServer): void {
         if (paginationToken) opts.pagination_token = paginationToken;
 
         const liked = await client.v2.userLikedTweets(userId, opts);
-        return jsonResponse(paginatedTweetResponse(
-          liked.data?.data || [],
-          liked.data?.meta,
-          { includes: liked.data?.includes },
-        ));
+        return jsonResponse(
+          paginatedTweetResponse(liked.data?.data || [], liked.data?.meta, {
+            includes: liked.data?.includes,
+          }),
+        );
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get liked tweets"));
       }
@@ -781,10 +969,19 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_get_bookmarks",
     {
-      description: "Get the authenticated user's bookmarked tweets. Supports pagination. Note: may require OAuth 2.0 scope depending on connection type.",
+      description:
+        "Get the authenticated user's bookmarked tweets. Supports pagination. Note: may require OAuth 2.0 scope depending on connection type.",
       inputSchema: {
-        maxResults: z.number().min(1).max(100).optional().describe("Number of bookmarks per page (1-100, default 10)"),
-        paginationToken: z.string().optional().describe("Token from a previous response's nextToken to fetch the next page"),
+        maxResults: z
+          .number()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Number of bookmarks per page (1-100, default 10)"),
+        paginationToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextToken to fetch the next page"),
       },
     },
     async ({ maxResults = 10, paginationToken }) => {
@@ -800,13 +997,15 @@ export function registerTwitterTools(server: McpServer): void {
         if (paginationToken) opts.pagination_token = paginationToken;
 
         const bookmarks = await client.v2.bookmarks(opts);
-        return jsonResponse(paginatedTweetResponse(
-          bookmarks.data?.data || [],
-          bookmarks.data?.meta,
-          { includes: bookmarks.data?.includes },
-        ));
+        return jsonResponse(
+          paginatedTweetResponse(bookmarks.data?.data || [], bookmarks.data?.meta, {
+            includes: bookmarks.data?.includes,
+          }),
+        );
       } catch (error) {
-        return errorResponse(errMsg(error, "Failed to get bookmarks — requires OAuth 2.0 user context"));
+        return errorResponse(
+          errMsg(error, "Failed to get bookmarks — requires OAuth 2.0 user context"),
+        );
       }
     },
   );
@@ -815,9 +1014,14 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_create_thread",
     {
-      description: "Post a tweet thread (multiple tweets chained as replies). Provide an array of tweet texts in order. The first tweet starts the thread and each subsequent tweet is a reply to the previous one.",
+      description:
+        "Post a tweet thread (multiple tweets chained as replies). Provide an array of tweet texts in order. The first tweet starts the thread and each subsequent tweet is a reply to the previous one.",
       inputSchema: {
-        tweets: z.array(z.string().min(1).max(280)).min(2).max(25).describe("Array of tweet texts in thread order (2-25 tweets, each max 280 chars)"),
+        tweets: z
+          .array(z.string().min(1).max(280))
+          .min(2)
+          .max(25)
+          .describe("Array of tweet texts in thread order (2-25 tweets, each max 280 chars)"),
       },
     },
     async ({ tweets }) => {
@@ -838,15 +1042,26 @@ export function registerTwitterTools(server: McpServer): void {
             lastTweetId = tweet.data.id;
           } catch (error) {
             const threadUrl = posted[0] ? `https://x.com/i/status/${posted[0].id}` : null;
-            logger.error("[TwitterMCP] Thread partially failed", { posted: posted.length, total: tweets.length });
+            logger.error("[TwitterMCP] Thread partially failed", {
+              posted: posted.length,
+              total: tweets.length,
+            });
             return errorResponse(
               errMsg(error, `Thread failed at tweet ${posted.length + 1} of ${tweets.length}`),
-              { partialThread: posted, threadUrl, completedCount: posted.length, totalCount: tweets.length },
+              {
+                partialThread: posted,
+                threadUrl,
+                completedCount: posted.length,
+                totalCount: tweets.length,
+              },
             );
           }
         }
 
-        logger.info("[TwitterMCP] Thread created", { tweetCount: posted.length, firstTweetId: posted[0].id });
+        logger.info("[TwitterMCP] Thread created", {
+          tweetCount: posted.length,
+          firstTweetId: posted[0].id,
+        });
 
         return jsonResponse({
           success: true,
@@ -864,7 +1079,8 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_resolve_tweet_url",
     {
-      description: "Get full tweet details from a Twitter/X URL (e.g. https://x.com/user/status/123). Use when user pastes a tweet link and wants to interact with it.",
+      description:
+        "Get full tweet details from a Twitter/X URL (e.g. https://x.com/user/status/123). Use when user pastes a tweet link and wants to interact with it.",
       inputSchema: {
         url: z.string().min(1).describe("The tweet URL from twitter.com or x.com"),
       },
@@ -892,7 +1108,8 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_check_relationship",
     {
-      description: "Check the follow relationship between two Twitter users. Use when user asks 'does X follow me', 'do I follow X', or 'are we mutuals'. Provide usernames (handles).",
+      description:
+        "Check the follow relationship between two Twitter users. Use when user asks 'does X follow me', 'do I follow X', or 'are we mutuals'. Provide usernames (handles).",
       inputSchema: {
         sourceUsername: z.string().describe("First username/handle (without @)"),
         targetUsername: z.string().describe("Second username/handle (without @)"),

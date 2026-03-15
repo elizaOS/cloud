@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
+import { usageRecordsRepository } from "@/db/repositories/usage-records";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { containersService } from "@/lib/services/containers";
-import { usageRecordsRepository } from "@/db/repositories/usage-records";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -14,19 +14,13 @@ export const dynamic = "force-dynamic";
  * @param params - Route parameters containing the container ID.
  * @returns Deployment history with status, costs, and metadata.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     // Verify container belongs to user's organization
-    const container = await containersService.getById(
-      id,
-      user.organization_id!,
-    );
+    const container = await containersService.getById(id, user.organization_id!);
 
     if (!container) {
       return NextResponse.json(
@@ -42,15 +36,10 @@ export async function GET(
     // Note: This needs a custom query since we're filtering by type and metadata
     // For now, we'll use the repository's list method and filter in memory
     // A better approach would be to add a specific repository method for this
-    const allRecords = await usageRecordsRepository.listByOrganization(
-      user.organization_id!,
-      50,
-    );
+    const allRecords = await usageRecordsRepository.listByOrganization(user.organization_id!, 50);
 
     // Filter for container deployments
-    const deployments = allRecords.filter(
-      (record) => record.type === "container_deployment",
-    );
+    const deployments = allRecords.filter((record) => record.type === "container_deployment");
 
     // Filter for this specific container
     interface DeploymentMetadata {
@@ -64,10 +53,7 @@ export async function GET(
 
     const containerDeployments = deployments.filter((d) => {
       const metadata = (d.metadata as DeploymentMetadata | null) ?? {};
-      return (
-        metadata.container_id === id ||
-        metadata.container_name === container.name
-      );
+      return metadata.container_id === id || metadata.container_name === container.name;
     });
 
     // Enhance with container status snapshots
@@ -126,10 +112,7 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch deployment history",
+        error: error instanceof Error ? error.message : "Failed to fetch deployment history",
       },
       { status: 500 },
     );

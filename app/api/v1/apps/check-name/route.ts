@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
 
 const CheckNameSchema = z.object({
   name: z.string().min(1).max(100),
@@ -52,8 +52,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to check app name",
+        error: error instanceof Error ? error.message : "Failed to check app name",
       },
       { status: 500 },
     );

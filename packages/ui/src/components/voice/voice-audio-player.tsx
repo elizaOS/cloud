@@ -9,11 +9,11 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "../button";
 import { Slider } from "../slider";
-import { cn } from "@/lib/utils";
 
 interface VoiceAudioPlayerProps {
   audioUrl: string;
@@ -28,10 +28,7 @@ interface PlayerState {
   isMuted: boolean;
 }
 
-export function VoiceAudioPlayer({
-  audioUrl,
-  className,
-}: VoiceAudioPlayerProps) {
+export function VoiceAudioPlayer({ audioUrl, className }: VoiceAudioPlayerProps) {
   const [playerState, setPlayerState] = useState<PlayerState>({
     isPlaying: false,
     currentTime: 0,
@@ -41,18 +38,16 @@ export function VoiceAudioPlayer({
   });
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const updatePlayer = (updates: Partial<PlayerState>) => {
+  const updatePlayer = useCallback((updates: Partial<PlayerState>) => {
     setPlayerState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleTimeUpdate = () =>
-      updatePlayer({ currentTime: audio.currentTime });
-    const handleDurationChange = () =>
-      updatePlayer({ duration: audio.duration });
+    const handleTimeUpdate = () => updatePlayer({ currentTime: audio.currentTime });
+    const handleDurationChange = () => updatePlayer({ duration: audio.duration });
     const handleEnded = () => updatePlayer({ isPlaying: false });
 
     audio.addEventListener("timeupdate", handleTimeUpdate);
@@ -64,7 +59,7 @@ export function VoiceAudioPlayer({
       audio.removeEventListener("durationchange", handleDurationChange);
       audio.removeEventListener("ended", handleEnded);
     };
-  }, []);
+  }, [updatePlayer]);
 
   const togglePlay = () => {
     const audio = audioRef.current;
@@ -120,17 +115,8 @@ export function VoiceAudioPlayer({
         <track kind="captions" />
       </audio>
 
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={togglePlay}
-        className="h-8 w-8"
-      >
-        {playerState.isPlaying ? (
-          <Pause className="h-4 w-4" />
-        ) : (
-          <Play className="h-4 w-4" />
-        )}
+      <Button variant="outline" size="icon" onClick={togglePlay} className="h-8 w-8">
+        {playerState.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
       </Button>
 
       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -150,17 +136,8 @@ export function VoiceAudioPlayer({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleMute}
-          className="h-8 w-8"
-        >
-          {playerState.isMuted ? (
-            <VolumeX className="h-4 w-4" />
-          ) : (
-            <Volume2 className="h-4 w-4" />
-          )}
+        <Button variant="ghost" size="icon" onClick={toggleMute} className="h-8 w-8">
+          {playerState.isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </Button>
         <Slider
           value={[playerState.isMuted ? 0 : playerState.volume]}

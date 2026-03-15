@@ -1,10 +1,11 @@
 // app/api/v1/models/[...model]/route.ts
+
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getGroqCatalogModel, isGroqNativeModel } from "@/lib/models";
+import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
 import { getCachedGatewayModelById } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
-import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
-import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,7 @@ export const dynamic = "force-dynamic";
  * @param context - Route context containing model segments as an array.
  * @returns Model details from the provider gateway.
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ model: string[] }> },
-) {
+export async function GET(request: NextRequest, context: { params: Promise<{ model: string[] }> }) {
   try {
     await requireAuthOrApiKey(request);
 

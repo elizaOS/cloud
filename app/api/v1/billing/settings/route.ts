@@ -26,14 +26,11 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  autoTopUpService,
-  AUTO_TOP_UP_LIMITS,
-} from "@/lib/services/auto-top-up";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { AUTO_TOP_UP_LIMITS, autoTopUpService } from "@/lib/services/auto-top-up";
+import { logger } from "@/lib/utils/logger";
 
 const UpdateSettingsSchema = z.object({
   autoTopUp: z
@@ -81,9 +78,7 @@ async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    const autoTopUpSettings = await autoTopUpService.getSettings(
-      user.organization_id,
-    );
+    const autoTopUpSettings = await autoTopUpService.getSettings(user.organization_id);
 
     return NextResponse.json({
       success: true,
@@ -105,10 +100,7 @@ async function handleGET(req: NextRequest) {
   } catch (error) {
     logger.error("[Billing Settings API] Error getting settings:", error);
 
-    const errorMessage = getErrorMessage(
-      error,
-      "Failed to get billing settings",
-    );
+    const errorMessage = getErrorMessage(error, "Failed to get billing settings");
     const isAuthError = isAuthenticationError(errorMessage);
 
     return NextResponse.json(
@@ -166,9 +158,7 @@ async function handlePUT(req: NextRequest) {
     }
 
     // Return updated settings
-    const updatedSettings = await autoTopUpService.getSettings(
-      user.organization_id,
-    );
+    const updatedSettings = await autoTopUpService.getSettings(user.organization_id);
 
     return NextResponse.json({
       success: true,
@@ -185,10 +175,7 @@ async function handlePUT(req: NextRequest) {
   } catch (error) {
     logger.error("[Billing Settings API] Error updating settings:", error);
 
-    const errorMessage = getErrorMessage(
-      error,
-      "Failed to update billing settings",
-    );
+    const errorMessage = getErrorMessage(error, "Failed to update billing settings");
     const isAuthError = isAuthenticationError(errorMessage);
 
     const isValidationError =

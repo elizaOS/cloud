@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import nextra from "nextra";
 import path from "path";
-import { shouldBlockUnsafeWebhookSkip } from "./lib/config/deployment-environment";
+import { shouldBlockUnsafeWebhookSkip } from "./packages/lib/config/deployment-environment";
 
 // =============================================================================
 // CRITICAL SECURITY VALIDATION
@@ -10,14 +10,12 @@ import { shouldBlockUnsafeWebhookSkip } from "./lib/config/deployment-environmen
 // This environment variable bypasses webhook signature verification and must
 // NEVER be enabled in production environments.
 // =============================================================================
-if (
-  shouldBlockUnsafeWebhookSkip(process.env)
-) {
+if (shouldBlockUnsafeWebhookSkip(process.env)) {
   throw new Error(
     "FATAL: SKIP_WEBHOOK_VERIFICATION cannot be enabled in production. " +
       "This is a critical security misconfiguration that would allow " +
       "unauthenticated webhook requests. Remove this environment variable " +
-      "from your production deployment."
+      "from your production deployment.",
   );
 }
 
@@ -113,8 +111,8 @@ const nextConfig: NextConfig = {
     // which cannot be resolved in serverless environments
     // Note: turbopack requires relative paths from project root
     resolveAlias: {
-      "thread-stream": "./lib/stubs/thread-stream.ts",
-      "@walletconnect/logger": "./lib/stubs/walletconnect-logger.ts",
+      "thread-stream": "./packages/lib/stubs/thread-stream.ts",
+      "@walletconnect/logger": "./packages/lib/stubs/walletconnect-logger.ts",
     },
   },
   webpack: (config, { isServer }) => {
@@ -142,11 +140,8 @@ const nextConfig: NextConfig = {
     if (isServer) {
       // Resolve thread-stream to synchronous stub in production webpack builds
       // This prevents pino from creating dynamic worker modules like pino-28069d5257187539
-      const stubPath = path.join(__dirname, "lib/stubs/thread-stream.ts");
-      const loggerStubPath = path.join(
-        __dirname,
-        "lib/stubs/walletconnect-logger.ts",
-      );
+      const stubPath = path.join(__dirname, "packages/lib/stubs/thread-stream.ts");
+      const loggerStubPath = path.join(__dirname, "packages/lib/stubs/walletconnect-logger.ts");
       config.resolve.alias = {
         ...config.resolve.alias,
         "thread-stream": stubPath,
@@ -162,13 +157,12 @@ const nextConfig: NextConfig = {
     return config;
   },
   transpilePackages: ["next-mdx-remote", "@elizaos/ui"],
-  // Note: eslint config is no longer supported in next.config.ts for Next.js 16+
-  // Use eslint.config.mjs instead
+  // Note: linting is handled by Biome (biome.json), not next.config.ts
   outputFileTracingRoot: undefined,
   outputFileTracingIncludes: {
-    "/api/v1/containers": ["./scripts/cloudformation/**/*"],
-    "/api/v1/containers/[id]": ["./scripts/cloudformation/**/*"],
-    "/api/v1/cron/deployment-monitor": ["./scripts/cloudformation/**/*"],
+    "/api/v1/containers": ["./packages/scripts/cloudformation/**/*"],
+    "/api/v1/containers/[id]": ["./packages/scripts/cloudformation/**/*"],
+    "/api/v1/cron/deployment-monitor": ["./packages/scripts/cloudformation/**/*"],
   },
   serverExternalPackages: [
     "pdfjs-dist",
@@ -215,8 +209,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Access-Control-Allow-Headers",
-            value:
-              "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie",
+            value: "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie",
           },
           { key: "Access-Control-Max-Age", value: "86400" },
           { key: "X-Content-Type-Options", value: "nosniff" },
@@ -242,8 +235,8 @@ const nextConfig: NextConfig = {
               "form-action 'self'",
               // Allow iframes from any origin - sandbox apps need to embed
               "frame-ancestors *",
-              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://www.elizacloud.ai https://elizacloud.ai",
-              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://www.elizacloud.ai https://elizacloud.ai",
+              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://cloud.milady.ai",
+              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://cloud.milady.ai",
               ["connect-src *"].join(" "),
               "worker-src 'self' blob:",
               "manifest-src 'self'",

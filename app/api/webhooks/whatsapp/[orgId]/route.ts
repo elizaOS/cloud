@@ -11,20 +11,20 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { messageRouterService } from "@/lib/services/message-router";
 import { whatsappAutomationService } from "@/lib/services/whatsapp-automation";
+import { releaseProcessingClaim, tryClaimForProcessing } from "@/lib/utils/idempotency";
+import { logger } from "@/lib/utils/logger";
+import { createPerfTrace } from "@/lib/utils/perf-trace";
 import {
-  parseWhatsAppWebhookPayload,
   extractWhatsAppMessages,
-  markWhatsAppMessageAsRead,
-  startWhatsAppTypingIndicator,
   isValidWhatsAppId,
+  markWhatsAppMessageAsRead,
+  parseWhatsAppWebhookPayload,
+  startWhatsAppTypingIndicator,
   type WhatsAppIncomingMessage,
 } from "@/lib/utils/whatsapp-api";
-import { tryClaimForProcessing, releaseProcessingClaim } from "@/lib/utils/idempotency";
-import { createPerfTrace } from "@/lib/utils/perf-trace";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -44,10 +44,7 @@ async function handleWhatsAppWebhook(
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
-    return NextResponse.json(
-      { error: "Organization ID is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
   }
 
   try {
@@ -56,24 +53,16 @@ async function handleWhatsAppWebhook(
 
     // Verify signature - only skip if explicitly disabled AND not in production
     const isProduction = process.env.NODE_ENV === "production";
-    const skipVerification =
-      process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
+    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
 
     if (process.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
-      logger.error(
-        "[WhatsAppWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production",
-        { orgId },
-      );
+      logger.error("[WhatsAppWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production", { orgId });
     }
 
     if (skipVerification) {
-      logger.warn(
-        "[WhatsAppWebhook] Signature verification disabled (non-production)",
-        { orgId },
-      );
+      logger.warn("[WhatsAppWebhook] Signature verification disabled (non-production)", { orgId });
     } else {
-      const signatureHeader =
-        request.headers.get("x-hub-signature-256") || "";
+      const signatureHeader = request.headers.get("x-hub-signature-256") || "";
 
       const isValid = await whatsappAutomationService.verifyWebhookSignature(
         orgId,
@@ -83,10 +72,7 @@ async function handleWhatsAppWebhook(
 
       if (!isValid) {
         logger.warn("[WhatsAppWebhook] Invalid signature", { orgId });
-        return NextResponse.json(
-          { error: "Invalid signature" },
-          { status: 401 },
-        );
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
       }
     }
 
@@ -98,10 +84,7 @@ async function handleWhatsAppWebhook(
     } catch (parseError) {
       if (parseError instanceof SyntaxError) {
         logger.warn("[WhatsAppWebhook] Invalid JSON payload", { orgId });
-        return NextResponse.json(
-          { error: "Invalid JSON" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
       }
       if (parseError instanceof ZodError) {
         logger.warn("[WhatsAppWebhook] Invalid payload schema", {
@@ -157,10 +140,7 @@ async function handleWhatsAppWebhook(
       orgId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -175,10 +155,7 @@ async function handleWhatsAppVerification(
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
-    return NextResponse.json(
-      { error: "Organization ID is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
   }
 
   const searchParams = request.nextUrl.searchParams;
@@ -210,10 +187,7 @@ async function handleWhatsAppVerification(
 // Message Handling
 // ============================================================================
 
-async function handleIncomingMessage(
-  orgId: string,
-  msg: WhatsAppIncomingMessage,
-): Promise<void> {
+async function handleIncomingMessage(orgId: string, msg: WhatsAppIncomingMessage): Promise<void> {
   const text = msg.text?.trim();
   if (!text) {
     logger.info("[WhatsAppWebhook] Skipping non-text message", {
@@ -265,9 +239,10 @@ async function handleIncomingMessage(
     void markRead();
   }
 
-  const stopTyping = accessToken && phoneNumberId
-    ? startWhatsAppTypingIndicator(accessToken, phoneNumberId, msg.messageId)
-    : () => {};
+  const stopTyping =
+    accessToken && phoneNumberId
+      ? startWhatsAppTypingIndicator(accessToken, phoneNumberId, msg.messageId)
+      : () => {};
 
   try {
     logger.info("[WhatsAppWebhook] Processing incoming message", {
@@ -295,22 +270,14 @@ async function handleIncomingMessage(
       },
     };
 
-    const routeResult =
-      await messageRouterService.routeIncomingMessage(messageContext);
+    const routeResult = await messageRouterService.routeIncomingMessage(messageContext);
 
-    if (
-      !routeResult.success ||
-      !routeResult.agentId ||
-      !routeResult.organizationId
-    ) {
-      logger.info(
-        "[WhatsAppWebhook] Message received (agent routing not configured)",
-        {
-          orgId,
-          from: `***${msg.from.slice(-4)}`,
-          text: text.substring(0, 50),
-        },
-      );
+    if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
+      logger.info("[WhatsAppWebhook] Message received (agent routing not configured)", {
+        orgId,
+        from: `***${msg.from.slice(-4)}`,
+        text: text.substring(0, 50),
+      });
       return;
     }
 
@@ -358,11 +325,5 @@ async function handleIncomingMessage(
 }
 
 // Export handlers with rate limiting
-export const GET = withRateLimit(
-  handleWhatsAppVerification,
-  RateLimitPresets.STANDARD,
-);
-export const POST = withRateLimit(
-  handleWhatsAppWebhook,
-  RateLimitPresets.AGGRESSIVE,
-);
+export const GET = withRateLimit(handleWhatsAppVerification, RateLimitPresets.STANDARD);
+export const POST = withRateLimit(handleWhatsAppWebhook, RateLimitPresets.AGGRESSIVE);

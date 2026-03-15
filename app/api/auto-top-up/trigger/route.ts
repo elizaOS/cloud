@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { autoTopUpService } from "@/lib/services/auto-top-up";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { organizationsRepository } from "@/db/repositories";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { autoTopUpService } from "@/lib/services/auto-top-up";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * POST /api/auto-top-up/trigger
@@ -22,10 +22,7 @@ async function handleTriggerAutoTopUp(req: NextRequest) {
     // Get organization details
     const org = await organizationsRepository.findById(organizationId);
     if (!org) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
     // Check if auto top-up is enabled
@@ -80,15 +77,9 @@ async function handleTriggerAutoTopUp(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(
-      { error: "Failed to trigger auto top-up" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to trigger auto top-up" }, { status: 500 });
   }
 }
 
 // Export rate-limited handler
-export const POST = withRateLimit(
-  handleTriggerAutoTopUp,
-  RateLimitPresets.STRICT,
-);
+export const POST = withRateLimit(handleTriggerAutoTopUp, RateLimitPresets.STRICT);

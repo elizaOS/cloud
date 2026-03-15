@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { executeServerWalletRpc } from "@/lib/services/server-wallets";
-import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
 import { z } from "zod";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { executeServerWalletRpc } from "@/lib/services/server-wallets";
+import { logger } from "@/lib/utils/logger";
 
 const rpcPayloadSchema = z.object({
   clientAddress: z.string().min(10),
@@ -30,15 +30,11 @@ async function handlePOST(request: NextRequest) {
     }
 
     const authenticatedWallet = authenticatedUser.wallet_address?.toLowerCase();
-    if (
-      !authenticatedWallet ||
-      authenticatedWallet !== validated.clientAddress.toLowerCase()
-    ) {
+    if (!authenticatedWallet || authenticatedWallet !== validated.clientAddress.toLowerCase()) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Unauthorized: clientAddress does not belong to the authenticated wallet",
+          error: "Unauthorized: clientAddress does not belong to the authenticated wallet",
         },
         { status: 403 },
       );
@@ -76,38 +72,23 @@ async function handlePOST(request: NextRequest) {
         error.message.includes("Signature timestamp expired") ||
         error.message.includes("Service temporarily unavailable"))
     ) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 401 },
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 401 });
     }
 
     if (error instanceof Error && error.name === "RpcRequestExpiredError") {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
     if (error instanceof Error && error.name === "RpcReplayError") {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 409 },
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 409 });
     }
 
     if (error instanceof Error && error.name === "InvalidRpcSignatureError") {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 401 },
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 401 });
     }
 
     if (error instanceof Error && error.name === "ServerWalletNotFoundError") {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 404 });
     }
 
     return NextResponse.json(

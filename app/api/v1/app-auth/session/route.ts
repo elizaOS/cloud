@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { dbRead } from "@/db/client";
-import { users } from "@/db/schemas/users";
-import { apps } from "@/db/schemas/apps";
 import { eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
+import { dbRead } from "@/db/client";
+import { apps } from "@/db/schemas/apps";
+import { users } from "@/db/schemas/users";
 import { verifyAuthTokenCached } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,7 @@ export const dynamic = "force-dynamic";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -128,10 +127,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Session verification failed",
+        error: error instanceof Error ? error.message : "Session verification failed",
       },
       { status: 500, headers: CORS_HEADERS },
     );

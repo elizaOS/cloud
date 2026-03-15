@@ -5,9 +5,9 @@
 
 "use client";
 
+import { CheckCircle2, Target } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Target } from "lucide-react";
 
 interface MilestoneProgressProps {
   current: number;
@@ -55,9 +55,7 @@ export function MilestoneProgress({
         <div
           className={cn(
             "absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out",
-            isComplete
-              ? "bg-emerald-500"
-              : "bg-[#FF5800]"
+            isComplete ? "bg-emerald-500" : "bg-[#FF5800]",
           )}
           style={{ width: `${animatedProgress}%` }}
         />
@@ -75,9 +73,7 @@ export function MilestoneProgress({
             ${(target - current).toFixed(2)} more to unlock
           </span>
         )}
-        <span className="text-xs font-mono text-neutral-500">
-          {progress.toFixed(0)}%
-        </span>
+        <span className="text-xs font-mono text-neutral-500">{progress.toFixed(0)}%</span>
       </div>
     </div>
   );
@@ -87,19 +83,14 @@ interface MilestoneCardProps extends MilestoneProgressProps {
   title?: string;
 }
 
-export function MilestoneCard({
-  title = "Withdrawal Progress",
-  ...props
-}: MilestoneCardProps) {
+export function MilestoneCard({ title = "Withdrawal Progress", ...props }: MilestoneCardProps) {
   const isComplete = props.current >= props.target;
 
   return (
     <div
       className={cn(
         "p-4 rounded-xl border transition-colors",
-        isComplete
-          ? "bg-emerald-500/5 border-emerald-500/30"
-          : "bg-neutral-900 border-white/10"
+        isComplete ? "bg-emerald-500/5 border-emerald-500/30" : "bg-neutral-900 border-white/10",
       )}
     >
       <h4 className="text-sm font-medium text-white mb-3">{title}</h4>

@@ -11,8 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { payoutStatusService } from "@/lib/services/payout-status";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
  * GET /api/v1/redemptions/status
@@ -80,8 +80,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

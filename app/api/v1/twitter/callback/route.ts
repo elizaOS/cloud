@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
-import { twitterAutomationService } from "@/lib/services/twitter-automation";
 import { cache } from "@/lib/cache/client";
-import { logger } from "@/lib/utils/logger";
+import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
+import { twitterAutomationService } from "@/lib/services/twitter-automation";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -14,18 +14,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const oauthVerifier = searchParams.get("oauth_verifier");
   const denied = searchParams.get("denied");
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
   const defaultRedirectPath = "/dashboard/settings?tab=connections";
 
-  function buildRedirectUrl(
-    redirectUrl: string | undefined,
-    params: Record<string, string>,
-  ): URL {
-    const target = resolveSafeRedirectTarget(
-      redirectUrl,
-      baseUrl,
-      defaultRedirectPath,
-    );
+  function buildRedirectUrl(redirectUrl: string | undefined, params: Record<string, string>): URL {
+    const target = resolveSafeRedirectTarget(redirectUrl, baseUrl, defaultRedirectPath);
 
     Object.entries(params).forEach(([key, value]) => {
       target.searchParams.set(key, value);
@@ -70,8 +63,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   };
 
   try {
-    const parsed =
-      typeof stateData === "string" ? JSON.parse(stateData) : stateData;
+    const parsed = typeof stateData === "string" ? JSON.parse(stateData) : stateData;
 
     // Validate required fields exist
     if (
@@ -120,16 +112,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    await twitterAutomationService.storeCredentials(
-      state.organizationId,
-      state.userId,
-      {
-        accessToken: tokens.accessToken,
-        accessSecret: tokens.accessSecret,
-        screenName: tokens.screenName,
-        twitterUserId: tokens.userId,
-      },
-    );
+    await twitterAutomationService.storeCredentials(state.organizationId, state.userId, {
+      accessToken: tokens.accessToken,
+      accessSecret: tokens.accessSecret,
+      screenName: tokens.screenName,
+      twitterUserId: tokens.userId,
+    });
   } catch (error) {
     logger.error("[Twitter Callback] Failed to store credentials", {
       error: error instanceof Error ? error.message : String(error),

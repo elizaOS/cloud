@@ -1,16 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { Button } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
-import { Button } from "@elizaos/ui";
-import {
-  Loader2,
-  Terminal,
-  CheckCircle2,
-  AlertCircle,
-  Key,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Key, Loader2, Terminal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 function CliLoginContent() {
   const { authenticated, login, user, ready } = usePrivy();
@@ -34,9 +28,7 @@ function CliLoginContent() {
   const [status, setStatus] = useState<
     "loading" | "waiting_auth" | "completing" | "success" | "error"
   >(initialStatus.status);
-  const [errorMessage, setErrorMessage] = useState<string>(
-    initialStatus.errorMessage,
-  );
+  const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -50,15 +42,12 @@ function CliLoginContent() {
     setStatus("completing");
 
     try {
-      const response = await fetch(
-        `/api/auth/cli-session/${sessionId}/complete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+      const response = await fetch(`/api/auth/cli-session/${sessionId}/complete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -74,21 +63,14 @@ function CliLoginContent() {
 
       // Signal the opener window (Milady UI) that auth is complete
       try {
-        window.opener?.postMessage(
-          { type: "eliza-cloud-auth-complete", sessionId },
-          "*",
-        );
+        window.opener?.postMessage({ type: "eliza-cloud-auth-complete", sessionId }, "*");
       } catch {
         // opener may not be accessible (cross-origin policy or popup blocker)
       }
     } catch (error) {
       console.error("CLI login error:", error);
       setStatus("error");
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Network error. Please try again.",
-      );
+      setErrorMessage(error instanceof Error ? error.message : "Network error. Please try again.");
     }
   }, [sessionId]);
 
@@ -136,9 +118,7 @@ function CliLoginContent() {
             </div>
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-white">Loading...</h2>
-              <p className="text-sm text-neutral-500">
-                Preparing authentication
-              </p>
+              <p className="text-sm text-neutral-500">Preparing authentication</p>
             </div>
           </div>
         </div>
@@ -156,9 +136,7 @@ function CliLoginContent() {
               <AlertCircle className="h-7 w-7 text-red-500" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">
-                Authentication Error
-              </h2>
+              <h2 className="text-xl font-semibold text-white">Authentication Error</h2>
               <p className="text-sm text-neutral-500">{errorMessage}</p>
             </div>
             <Button
@@ -184,11 +162,9 @@ function CliLoginContent() {
               <Terminal className="h-7 w-7 text-[#FF5800]" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-white">
-                CLI Authentication
-              </h2>
+              <h2 className="text-xl font-semibold text-white">CLI Authentication</h2>
               <p className="text-sm text-neutral-500">
-                Sign in to connect your elizaOS CLI to the cloud
+                Sign in to connect your Milady app or CLI to Milady Cloud
               </p>
             </div>
             <Button
@@ -225,9 +201,7 @@ function CliLoginContent() {
               <Key className="h-7 w-7 text-[#FF5800] animate-pulse" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">
-                Generating API Key
-              </h2>
+              <h2 className="text-xl font-semibold text-white">Generating API Key</h2>
               <p className="text-sm text-neutral-500">
                 Creating your credentials for CLI access...
               </p>
@@ -253,18 +227,14 @@ function CliLoginContent() {
               <CheckCircle2 className="h-7 w-7 text-green-500" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">
-                Authentication Complete!
-              </h2>
+              <h2 className="text-xl font-semibold text-white">Authentication Complete!</h2>
               <p className="text-sm text-neutral-500">
                 Your API key has been generated and sent to the CLI
               </p>
             </div>
 
             <div className="w-full rounded-xl bg-black/40 border border-white/10 p-4 space-y-3">
-              <p className="text-xs font-medium text-neutral-400">
-                API Key Details
-              </p>
+              <p className="text-xs font-medium text-neutral-400">API Key Details</p>
               <div className="text-sm space-y-2">
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Prefix</span>
@@ -272,9 +242,7 @@ function CliLoginContent() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Created for</span>
-                  <span className="text-white">
-                    {user?.email?.address || "Your account"}
-                  </span>
+                  <span className="text-white">{user?.email?.address || "Your account"}</span>
                 </div>
               </div>
             </div>
@@ -319,9 +287,7 @@ export default function CliLoginPage() {
               </div>
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold text-white">Loading...</h2>
-                <p className="text-sm text-neutral-500">
-                  Initializing authentication
-                </p>
+                <p className="text-sm text-neutral-500">Initializing authentication</p>
               </div>
             </div>
           </div>

@@ -9,7 +9,7 @@ import { analyticsService } from "@/lib/services/analytics";
 import { charactersService } from "@/lib/services/characters/characters";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 export function registerAnalyticsTools(server: McpServer): void {
   server.registerTool(
@@ -17,11 +17,7 @@ export function registerAnalyticsTools(server: McpServer): void {
     {
       description: "Get organization analytics. FREE tool.",
       inputSchema: {
-        period: z
-          .enum(["day", "week", "month"])
-          .optional()
-          .default("week")
-          .describe("Time period"),
+        period: z.enum(["day", "week", "month"]).optional().default("week").describe("Time period"),
       },
     },
     async ({ period }) => {
@@ -37,16 +33,14 @@ export function registerAnalyticsTools(server: McpServer): void {
           startDate.setMonth(now.getMonth() - 1);
         }
 
-        const analytics = await analyticsService.getUsageStats(
-          user.organization_id,
-          { startDate, endDate: now },
-        );
+        const analytics = await analyticsService.getUsageStats(user.organization_id, {
+          startDate,
+          endDate: now,
+        });
 
         return jsonResponse({ success: true, analytics });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to get analytics",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to get analytics");
       }
     },
   );
@@ -54,15 +48,13 @@ export function registerAnalyticsTools(server: McpServer): void {
   server.registerTool(
     "stream_credit_updates",
     {
-      description:
-        "Get SSE stream URL for real-time credit updates. FREE tool.",
+      description: "Get SSE stream URL for real-time credit updates. FREE tool.",
       inputSchema: {},
     },
     async () => {
       try {
         const { user } = getAuthContext();
-        const baseUrl =
-          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const sseUrl = `${baseUrl}/api/mcp/stream?eventType=credits&resourceId=${user.organization_id}`;
 
         return jsonResponse({
@@ -72,9 +64,7 @@ export function registerAnalyticsTools(server: McpServer): void {
           eventTypes: ["balance_update", "transaction", "low_balance_alert"],
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to generate SSE URL",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to generate SSE URL");
       }
     },
   );
@@ -83,40 +73,23 @@ export function registerAnalyticsTools(server: McpServer): void {
     "discover_services",
     {
       description:
-        "Discover services (agents, MCPs, apps) from Eliza Cloud. " +
+        "Discover services (agents, MCPs, apps) from Milady Cloud. " +
         "Use this to find services to interact with. FREE tool.",
       inputSchema: {
-        query: z
-          .string()
-          .optional()
-          .describe("Search query to filter by name or description"),
+        query: z.string().optional().describe("Search query to filter by name or description"),
         types: z
           .array(z.enum(["agent", "mcp", "a2a", "app"]))
           .optional()
           .describe("Types of services to find"),
-        categories: z
-          .array(z.string())
-          .optional()
-          .describe("Filter by categories"),
+        categories: z.array(z.string()).optional().describe("Filter by categories"),
         tags: z.array(z.string()).optional().describe("Filter by tags"),
-        x402Only: z
-          .boolean()
-          .optional()
-          .describe("Only return services with x402 payment support"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .default(20)
-          .describe("Max results"),
+        x402Only: z.boolean().optional().describe("Only return services with x402 payment support"),
+        limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
       },
     },
     async ({ query, types, categories, x402Only, limit }) => {
       try {
-        const baseUrl =
-          process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
         const services: Array<{
           id: string;
           name: string;
@@ -139,10 +112,8 @@ export function registerAnalyticsTools(server: McpServer): void {
             chars = chars.filter(
               (c) =>
                 c.name.toLowerCase().includes(q) ||
-                (typeof c.bio === "string" &&
-                  c.bio.toLowerCase().includes(q)) ||
-                (Array.isArray(c.bio) &&
-                  c.bio.some((b) => b.toLowerCase().includes(q))),
+                (typeof c.bio === "string" && c.bio.toLowerCase().includes(q)) ||
+                (Array.isArray(c.bio) && c.bio.some((b) => b.toLowerCase().includes(q))),
             );
           }
           if (categories?.length) {
@@ -153,9 +124,7 @@ export function registerAnalyticsTools(server: McpServer): void {
             services.push({
               id: char.id,
               name: char.name,
-              description: Array.isArray(char.bio)
-                ? char.bio.join(" ")
-                : char.bio,
+              description: Array.isArray(char.bio) ? char.bio.join(" ") : char.bio,
               type: "agent",
               source: "local",
               a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
@@ -194,9 +163,7 @@ export function registerAnalyticsTools(server: McpServer): void {
           services: services.slice(0, limit),
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Discovery failed",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Discovery failed");
       }
     },
   );

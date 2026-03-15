@@ -9,8 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
+import { requireAdmin } from "@/lib/auth";
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
 import { logger } from "@/lib/utils/logger";
 
@@ -110,7 +110,12 @@ async function runNodeHealthCheck(node: {
   try {
     // 1. SSH connectivity check
     const sshStart = Date.now();
-    ssh = new DockerSSHClient({ hostname: node.hostname, port: node.ssh_port, username: node.ssh_user, hostKeyFingerprint: node.host_key_fingerprint ?? undefined });
+    ssh = new DockerSSHClient({
+      hostname: node.hostname,
+      port: node.ssh_port,
+      username: node.ssh_user,
+      hostKeyFingerprint: node.host_key_fingerprint ?? undefined,
+    });
     await ssh.exec("echo ok");
     checks.ssh = { ok: true, latencyMs: Date.now() - sshStart };
   } catch (error) {
@@ -166,8 +171,7 @@ async function runNodeHealthCheck(node: {
   await cleanupSSH(ssh);
 
   // Determine overall status
-  const isDegraded =
-    (checks.diskUsage && !checks.diskUsage.ok) || !checks.docker.ok;
+  const isDegraded = (checks.diskUsage && !checks.diskUsage.ok) || !checks.docker.ok;
 
   return {
     status: isDegraded ? "degraded" : "healthy",

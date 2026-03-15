@@ -41,16 +41,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("[Saved Agents API] Error fetching saved agents:", error);
 
-    const status =
-      error instanceof Error && error.message.includes("auth") ? 401 : 500;
+    const status = error instanceof Error && error.message.includes("auth") ? 401 : 500;
 
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch saved agents",
+        error: error instanceof Error ? error.message : "Failed to fetch saved agents",
       },
       { status },
     );

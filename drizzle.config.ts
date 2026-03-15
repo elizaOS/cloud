@@ -14,8 +14,8 @@ const envFile = envFiles[process.env.NODE_ENV || "local"] || ".env.local";
 config({ path: envFile });
 
 export default defineConfig({
-  schema: "./db/schemas/index.ts",
-  out: "./db/migrations",
+  schema: "./packages/db/schemas/index.ts",
+  out: "./packages/db/migrations",
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL!,

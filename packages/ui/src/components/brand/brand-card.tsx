@@ -9,8 +9,9 @@
  * @param props.cornerColor - Color of corner brackets
  * @param props.asChild - If true, renders as a child component
  */
-import * as React from "react";
+
 import { Slot } from "@radix-ui/react-slot";
+import * as React from "react";
 import { cn } from "../../lib/utils";
 import { CornerBrackets } from "./corner-brackets";
 
@@ -62,14 +63,7 @@ interface AgentCardProps {
   className?: string;
 }
 
-export function AgentCard({
-  title,
-  description,
-  icon,
-  color,
-  action,
-  className,
-}: AgentCardProps) {
+export function AgentCard({ title, description, icon, color, action, className }: AgentCardProps) {
   return (
     <BrandCard hover className={cn("group", className)}>
       {/* Icon */}

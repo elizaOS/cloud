@@ -1,10 +1,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 const userVoicesQuerySchema = z.object({
   includeInactive: z
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const { includeInactive, cloneType, limit, offset } = parsedQuery.data;
 
     logger.info(`[User Voices API] Fetching voices for user ${user.id}`, {
-      organizationId: user.organization_id!!,
+      organizationId: user.organization_id!,
       includeInactive,
       cloneType,
       limit,
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     // Get user's voices
     const allVoices = await voiceCloningService.getUserVoices({
-      organizationId: user.organization_id!!,
+      organizationId: user.organization_id!,
       includeInactive,
       cloneType,
     });
@@ -102,10 +102,7 @@ export async function GET(request: NextRequest) {
     const status = getErrorStatusCode(error);
 
     if (status !== 500) {
-      return NextResponse.json(
-        { error: getSafeErrorMessage(error) },
-        { status },
-      );
+      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
     }
 
     return NextResponse.json(

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import {
-  SUPPORTED_PAY_CURRENCIES,
-  NETWORK_CONFIGS,
   getSupportedNetworks,
+  NETWORK_CONFIGS,
+  SUPPORTED_PAY_CURRENCIES,
 } from "@/lib/config/crypto";
+import { isOxaPayConfigured } from "@/lib/services/oxapay";
 
 export interface CryptoStatusResponse {
   enabled: boolean;

@@ -1,24 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { type UserWithOrganization, usersRepository } from "@/db/repositories/users";
 import { withInternalAuth } from "@/lib/auth/internal-api";
-import {
-  usersRepository,
-  type UserWithOrganization,
-} from "@/db/repositories/users";
-import { logger } from "@/lib/utils/logger";
-import { elizaAppConfig } from "@/lib/services/eliza-app/config";
-import { elizaAppUserService } from "@/lib/services/eliza-app";
-import { withCache } from "@/lib/cache/service-cache";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { withCache } from "@/lib/cache/service-cache";
+import { elizaAppUserService } from "@/lib/services/eliza-app";
+import { elizaAppConfig } from "@/lib/services/eliza-app/config";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
-const SUPPORTED_PLATFORMS = [
-  "discord",
-  "telegram",
-  "twilio",
-  "blooio",
-  "whatsapp",
-] as const;
+const SUPPORTED_PLATFORMS = ["discord", "telegram", "twilio", "blooio", "whatsapp"] as const;
 type Platform = (typeof SUPPORTED_PLATFORMS)[number];
 
 function lookupUser(platform: Platform, platformId: string) {
@@ -32,17 +23,11 @@ function lookupUser(platform: Platform, platformId: string) {
       return usersRepository.findByPhoneNumberWithOrganization(platformId);
     case "whatsapp":
       // WhatsApp ID is digits only (e.g., "14245074963"), derive E.164 for phone lookup
-      return usersRepository.findByPhoneNumberWithOrganization(
-        `+${platformId.replace(/\D/g, "")}`,
-      );
+      return usersRepository.findByPhoneNumberWithOrganization(`+${platformId.replace(/\D/g, "")}`);
   }
 }
 
-async function autoCreateUser(
-  platform: Platform,
-  platformId: string,
-  platformName?: string,
-) {
+async function autoCreateUser(platform: Platform, platformId: string, platformName?: string) {
   switch (platform) {
     case "discord":
       return elizaAppUserService.findOrCreateByDiscordId(platformId, {
@@ -66,9 +51,7 @@ async function autoCreateUser(
       return elizaAppUserService.findOrCreateByPhone(platformId);
     case "whatsapp":
       // WhatsApp ID is digits only — derive E.164 phone number
-      return elizaAppUserService.findOrCreateByPhone(
-        `+${platformId.replace(/\D/g, "")}`,
-      );
+      return elizaAppUserService.findOrCreateByPhone(`+${platformId.replace(/\D/g, "")}`);
   }
 }
 
@@ -113,52 +96,41 @@ export const GET = withInternalAuth(async (request: NextRequest) => {
   const typedPlatform = platform as Platform;
   const cacheKey = CacheKeys.identity.resolve(typedPlatform, platformId);
 
-  const result = await withCache(
-    cacheKey,
-    CacheTTL.identity.resolve,
-    async () => {
-      let user = await lookupUser(typedPlatform, platformId);
+  const result = await withCache(cacheKey, CacheTTL.identity.resolve, async () => {
+    let user = await lookupUser(typedPlatform, platformId);
 
-      if (!user) {
-        logger.info("[Identity] User not found, auto-creating", {
+    if (!user) {
+      logger.info("[Identity] User not found, auto-creating", {
+        platform,
+        platformId,
+      });
+      try {
+        const created = await autoCreateUser(typedPlatform, platformId, platformName);
+        // findOrCreate returns { user: User, organization }, build UserWithOrganization shape
+        user = {
+          ...created.user,
+          organization: created.organization,
+        } as UserWithOrganization;
+      } catch (err) {
+        logger.error("[Identity] Auto-create failed", {
           platform,
           platformId,
+          error: err instanceof Error ? err.message : String(err),
         });
-        try {
-          const created = await autoCreateUser(
-            typedPlatform,
-            platformId,
-            platformName,
-          );
-          // findOrCreate returns { user: User, organization }, build UserWithOrganization shape
-          user = {
-            ...created.user,
-            organization: created.organization,
-          } as UserWithOrganization;
-        } catch (err) {
-          logger.error("[Identity] Auto-create failed", {
-            platform,
-            platformId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-          return null;
-        }
+        return null;
       }
+    }
 
-      return {
-        userId: user.id,
-        organizationId: user.organization_id,
-        agentId: elizaAppConfig.defaultAgentId,
-        platformData: extractPlatformData(typedPlatform, user),
-      };
-    },
-  );
+    return {
+      userId: user.id,
+      organizationId: user.organization_id,
+      agentId: elizaAppConfig.defaultAgentId,
+      platformData: extractPlatformData(typedPlatform, user),
+    };
+  });
 
   if (!result) {
-    return NextResponse.json(
-      { error: "Failed to resolve identity" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to resolve identity" }, { status: 500 });
   }
 
   return NextResponse.json(result);

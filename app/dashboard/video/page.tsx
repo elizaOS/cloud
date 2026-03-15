@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-
-import { VideoPageClient } from "@/components/video/video-page-client";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import type {
   GeneratedVideo,
   VideoModelOption,
   VideoUsageSummary,
-} from "@/components/video/types";
-import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
+} from "@/packages/ui/src/components/video/types";
+import { VideoPageClient } from "@/packages/ui/src/components/video/video-page-client";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +19,14 @@ const modelPresets: VideoModelOption[] = [
   {
     id: "fal-ai/veo3",
     label: "Google Veo 3",
-    description:
-      "State-of-the-art video generation with 1080p quality and audio support.",
+    description: "State-of-the-art video generation with 1080p quality and audio support.",
     durationEstimate: "5-10s",
     dimensions: "1920 × 1080",
   },
   {
     id: "fal-ai/kling-video/v2.1/master/text-to-video",
     label: "Kling 2.1 Master",
-    description:
-      "Top-tier text-to-video with unparalleled motion fluidity and cinematic visuals.",
+    description: "Top-tier text-to-video with unparalleled motion fluidity and cinematic visuals.",
     durationEstimate: "5-10s",
     dimensions: "1920 × 1080",
   },
@@ -44,8 +41,7 @@ const modelPresets: VideoModelOption[] = [
 
 const featuredVideo: GeneratedVideo = {
   id: "vd_903c",
-  prompt:
-    "A neon-lit hovercar weaving through a layered cyberpunk skyline during golden hour",
+  prompt: "A neon-lit hovercar weaving through a layered cyberpunk skyline during golden hour",
   modelId: "fal-ai/veo3",
   thumbnailUrl:
     "https://images.unsplash.com/photo-1520350094755-0e30f98c70b0?auto=format&fit=crop&w=1600&q=80",
@@ -82,13 +78,11 @@ const recentVideos: GeneratedVideo[] = [
     resolution: "1920 × 1080",
     seed: 2191,
     requestId: "req_vd_903b",
-    referenceUrl:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+    referenceUrl: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
   },
   {
     id: "vd_903a",
-    prompt:
-      "Product carousel with floating glass smartwatch over soft studio lighting",
+    prompt: "Product carousel with floating glass smartwatch over soft studio lighting",
     modelId: "fal-ai/minimax/hailuo-02/standard/text-to-video",
     thumbnailUrl:
       "https://images.unsplash.com/photo-1523475472560-d2df97ec485c?auto=format&fit=crop&w=1600&q=80",
@@ -103,8 +97,7 @@ const recentVideos: GeneratedVideo[] = [
   },
   {
     id: "vd_902z",
-    prompt:
-      "Slow motion desert landscape with sculpted sandstone pillars at dusk",
+    prompt: "Slow motion desert landscape with sculpted sandstone pillars at dusk",
     modelId: "fal-ai/veo3",
     thumbnailUrl:
       "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=1600&q=80",

@@ -21,8 +21,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { x402FacilitatorService } from "@/lib/services/x402-facilitator";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
 
 async function verifyHandler(request: NextRequest): Promise<Response> {
@@ -42,8 +42,7 @@ async function verifyHandler(request: NextRequest): Promise<Response> {
     return NextResponse.json(
       {
         isValid: false,
-        invalidReason:
-          "missing_fields: paymentPayload and paymentRequirements are required",
+        invalidReason: "missing_fields: paymentPayload and paymentRequirements are required",
       },
       { status: 400 },
     );
@@ -51,12 +50,8 @@ async function verifyHandler(request: NextRequest): Promise<Response> {
 
   try {
     const result = await x402FacilitatorService.verify(
-      paymentPayload as Parameters<
-        typeof x402FacilitatorService.verify
-      >[0],
-      paymentRequirements as Parameters<
-        typeof x402FacilitatorService.verify
-      >[1],
+      paymentPayload as Parameters<typeof x402FacilitatorService.verify>[0],
+      paymentRequirements as Parameters<typeof x402FacilitatorService.verify>[1],
     );
 
     const status = result.isValid ? 200 : 400;

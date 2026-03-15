@@ -1,22 +1,22 @@
+import { fileTypeFromBuffer } from "file-type";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { logger } from "@/lib/utils/logger";
+import { deleteBlob, isValidBlobUrl, uploadToBlob } from "@/lib/blob";
 import {
-  extractUserIdFromBlobPath,
-  trackOrphanedBlobBatch,
-  type OrphanedBlobInfo,
-} from "@/lib/utils/knowledge";
-import { uploadToBlob, deleteBlob, isValidBlobUrl } from "@/lib/blob";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+  ALLOWED_CONTENT_TYPES,
+  ALLOWED_EXTENSIONS,
+  isValidFilename,
+  KNOWLEDGE_CONSTANTS,
+  TEXT_EXTENSIONS_FOR_OCTET_STREAM,
+} from "@/lib/constants/knowledge";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
 import {
-  KNOWLEDGE_CONSTANTS,
-  ALLOWED_EXTENSIONS,
-  ALLOWED_CONTENT_TYPES,
-  TEXT_EXTENSIONS_FOR_OCTET_STREAM,
-  isValidFilename,
-} from "@/lib/constants/knowledge";
-import { fileTypeFromBuffer } from "file-type";
+  extractUserIdFromBlobPath,
+  type OrphanedBlobInfo,
+  trackOrphanedBlobBatch,
+} from "@/lib/utils/knowledge";
+import { logger } from "@/lib/utils/logger";
 
 const MAX_FILENAME_LENGTH = 255;
 
@@ -110,9 +110,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     const ext = getFileExtension(file.name);
-    if (
-      !ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])
-    ) {
+    if (!ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])) {
       return NextResponse.json(
         {
           error: "Invalid file type",
@@ -123,11 +121,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     const contentType = file.type || "application/octet-stream";
-    if (
-      !ALLOWED_CONTENT_TYPES.includes(
-        contentType as (typeof ALLOWED_CONTENT_TYPES)[number],
-      )
-    ) {
+    if (!ALLOWED_CONTENT_TYPES.includes(contentType as (typeof ALLOWED_CONTENT_TYPES)[number])) {
       return NextResponse.json(
         {
           error: "Invalid content type",
@@ -182,16 +176,13 @@ async function handlePOST(req: NextRequest) {
 
           if (isTextExtension) {
             // SECURITY: Log content mismatch before rejection for audit purposes
-            logger.warn(
-              "[PreUpload] Content mismatch detected - rejecting file",
-              {
-                filename: file.name,
-                declaredExtension: ext,
-                detectedMimeType: detectedType.mime,
-                userId: user.id,
-                reason: "binary_file_with_text_extension",
-              },
-            );
+            logger.warn("[PreUpload] Content mismatch detected - rejecting file", {
+              filename: file.name,
+              declaredExtension: ext,
+              detectedMimeType: detectedType.mime,
+              userId: user.id,
+              reason: "binary_file_with_text_extension",
+            });
             // Expected text file but detected as binary - reject
             throw new Error(
               `Content mismatch: ${file.name} appears to be a binary file (${detectedType.mime}) but has a text extension`,
@@ -237,9 +228,7 @@ async function handlePOST(req: NextRequest) {
         blobUrl: blobResult.url,
         size: blobResult.size,
         detectedContentType:
-          finalContentType !== declaredContentType
-            ? finalContentType
-            : undefined,
+          finalContentType !== declaredContentType ? finalContentType : undefined,
       });
     } catch (error) {
       logger.error(`[PreUpload] Error uploading file ${file.name}:`, error);
@@ -252,13 +241,10 @@ async function handlePOST(req: NextRequest) {
 
   // Cleanup: If some files failed, delete successfully uploaded blobs to avoid orphans
   if (errors.length > 0 && results.length > 0) {
-    logger.info(
-      "[PreUpload] Partial failure - cleaning up successful uploads",
-      {
-        successCount: results.length,
-        errorCount: errors.length,
-      },
-    );
+    logger.info("[PreUpload] Partial failure - cleaning up successful uploads", {
+      successCount: results.length,
+      errorCount: errors.length,
+    });
 
     // Parallel cleanup for better performance
     const cleanupResults = await Promise.allSettled(
@@ -278,9 +264,7 @@ async function handlePOST(req: NextRequest) {
           userId: user.id,
           reason: "partial_upload_failure",
           originalError:
-            result.reason instanceof Error
-              ? result.reason.message
-              : String(result.reason),
+            result.reason instanceof Error ? result.reason.message : String(result.reason),
           timestamp: Date.now(),
         });
       }
@@ -298,10 +282,7 @@ async function handlePOST(req: NextRequest) {
       {
         error: "Some files failed to upload - batch rolled back",
         details: errors,
-        orphanedBlobs:
-          orphanedBlobs.length > 0
-            ? orphanedBlobs.map((b) => b.blobUrl)
-            : undefined,
+        orphanedBlobs: orphanedBlobs.length > 0 ? orphanedBlobs.map((b) => b.blobUrl) : undefined,
       },
       { status: 400 },
     );
@@ -347,19 +328,13 @@ async function handleDELETE(req: NextRequest) {
   }
 
   if (!isValidBlobUrl(blobUrl)) {
-    return NextResponse.json(
-      { error: "Invalid or untrusted blob URL" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid or untrusted blob URL" }, { status: 400 });
   }
 
   // Verify blob ownership - user can only delete their own pre-uploaded files
   const blobOwnerId = extractUserIdFromBlobPath(blobUrl);
   if (!blobOwnerId || blobOwnerId !== user.id) {
-    return NextResponse.json(
-      { error: "Unauthorized to delete this file" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "Unauthorized to delete this file" }, { status: 403 });
   }
 
   try {
@@ -373,10 +348,7 @@ async function handleDELETE(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("[PreUpload] Error deleting blob:", error);
-    return NextResponse.json(
-      { error: "Failed to delete file" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to delete file" }, { status: 500 });
   }
 }
 

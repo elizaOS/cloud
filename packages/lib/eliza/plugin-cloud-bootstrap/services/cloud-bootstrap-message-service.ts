@@ -1,0 +1,1449 @@
+/**
+ * CloudBootstrapMessageService - Multi-step message execution for cloud.
+ */
+
+import {
+  asUUID,
+  ChannelType,
+  type Content,
+  composePromptFromState,
+  createUniqueUuid,
+  EventType,
+  type HandlerCallback,
+  type IAgentRuntime,
+  type IMessageService,
+  logger,
+  type Media,
+  type Memory,
+  type MentionContext,
+  ModelType,
+  parseBooleanFromText,
+  parseKeyValueXml,
+  type Room,
+  type State,
+  truncateToCompleteSentence,
+  type UUID,
+} from "@elizaos/core";
+import { v4 } from "uuid";
+import { createPerfTrace } from "@/lib/utils/perf-trace";
+import { invalidateActionValidationCache } from "../providers/actions";
+import {
+  multiStepDecisionTemplate,
+  multiStepSummaryTemplate,
+  shouldRespondTemplate,
+} from "../templates/multi-step";
+import {
+  type CloudMessageOptions,
+  type MultiStepActionResult,
+  type ParsedMultiStepDecision,
+  type StrategyMode,
+  type StrategyResult,
+  TRANSPARENT_META_ACTIONS,
+} from "../types";
+import { getActionResultsFromCache, refreshStateAfterAction } from "../utils/state";
+
+const latestResponseIds = new Map<string, Map<string, string>>();
+
+const RETRY_CONFIG = {
+  baseDelayMs: 200,
+  maxDelayMs: 1000,
+  backoffMultiplier: 2,
+} as const;
+
+const EMPTY_STATE: State = { values: {}, data: {}, text: "" } as State;
+
+const SINGLE_SHOT_TEMPLATE = `<task>Generate a response for the character {{agentName}}.</task>
+
+<providers>
+{{providers}}
+</providers>
+
+<instructions>
+Write a response for {{agentName}} based on the conversation.
+Available actions: {{actionNames}}
+</instructions>
+
+<output>
+Respond using XML format:
+<response>
+  <thought>Your reasoning here</thought>
+  <actions>ACTION1,ACTION2 (or empty)</actions>
+  <text>Your response text here</text>
+</response>
+</output>`;
+
+function getRetryDelay(attempt: number): number {
+  const delay = RETRY_CONFIG.baseDelayMs * RETRY_CONFIG.backoffMultiplier ** (attempt - 1);
+  return Math.min(delay, RETRY_CONFIG.maxDelayMs);
+}
+
+/**
+ * Clean up race tracking entry, but only if it still belongs to the given responseId.
+ * This prevents a completed message A from deleting the tracking entry of a newer message B.
+ */
+function cleanupRaceTracking(agentId: string, roomId: string, responseId?: string): void {
+  const agentResponses = latestResponseIds.get(agentId);
+  if (!agentResponses) return;
+
+  // If responseId provided, only delete if it still matches (ownership check)
+  if (responseId) {
+    const currentResponseId = agentResponses.get(roomId);
+    if (currentResponseId !== responseId) {
+      // A newer message has taken over - don't delete their entry
+      return;
+    }
+  }
+
+  agentResponses.delete(roomId);
+  if (agentResponses.size === 0) {
+    latestResponseIds.delete(agentId);
+  }
+}
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  validate: (result: T) => boolean,
+  maxRetries: number,
+  label: string,
+): Promise<T | null> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await operation();
+      if (validate(result)) {
+        logger.debug(`[MultiStep] ${label} succeeded on attempt ${attempt}`);
+        return result;
+      }
+      logger.warn(`[MultiStep] ${label} validation failed on attempt ${attempt}/${maxRetries}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`[MultiStep] ${label} error on attempt ${attempt}/${maxRetries}:`, errorMessage);
+      if (attempt >= maxRetries) throw error;
+    }
+
+    if (attempt < maxRetries) {
+      await new Promise((r) => setTimeout(r, getRetryDelay(attempt)));
+    }
+  }
+  return null;
+}
+
+interface MessageProcessingResult {
+  didRespond: boolean;
+  responseContent: Content | null;
+  responseMessages: Memory[];
+  state: State;
+  mode: StrategyMode;
+}
+
+interface ResponseDecision {
+  shouldRespond: boolean;
+  skipEvaluation: boolean;
+  reason: string;
+}
+
+export class CloudBootstrapMessageService implements IMessageService {
+  async handleMessage(
+    runtime: IAgentRuntime,
+    message: Memory,
+    callback?: HandlerCallback,
+    options?: CloudMessageOptions,
+  ): Promise<MessageProcessingResult> {
+    const timeoutDuration = options?.timeoutDuration ?? 60 * 60 * 1000; // 1 hour default
+    let timeoutId: NodeJS.Timeout | undefined;
+    let runId: UUID | undefined;
+    // Initialize startTime at declaration to avoid non-null assertion in timeout callback
+    const startTime = Date.now();
+    const responseId = v4();
+
+    try {
+      logger.info(
+        `[CloudBootstrap] Message received from ${message.entityId} in room ${message.roomId}`,
+      );
+
+      // Set up response tracking
+      if (!latestResponseIds.has(runtime.agentId)) {
+        latestResponseIds.set(runtime.agentId, new Map<string, string>());
+      }
+      const agentResponses = latestResponseIds.get(runtime.agentId)!;
+      const previousResponseId = agentResponses.get(message.roomId);
+      if (previousResponseId) {
+        logger.debug(`[CloudBootstrap] Updating response ID for room ${message.roomId}`);
+      }
+      agentResponses.set(message.roomId, responseId);
+
+      // Start run tracking
+      runId = runtime.startRun(message.roomId) as UUID;
+
+      await runtime.emitEvent(EventType.RUN_STARTED, {
+        runtime,
+        runId,
+        messageId: message.id!,
+        roomId: message.roomId,
+        entityId: message.entityId,
+        startTime,
+        status: "started",
+        source: "CloudBootstrapMessageService",
+      } as never);
+
+      // Set up timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(async () => {
+          await runtime.emitEvent(EventType.RUN_TIMEOUT, {
+            runtime,
+            runId,
+            messageId: message.id!,
+            roomId: message.roomId,
+            entityId: message.entityId,
+            startTime,
+            status: "timeout",
+            endTime: Date.now(),
+            duration: Date.now() - startTime,
+            error: "Run exceeded timeout",
+            source: "CloudBootstrapMessageService",
+          } as never);
+          reject(new Error("Run exceeded timeout"));
+        }, timeoutDuration);
+      });
+
+      const processingPromise = this.processMessage(
+        runtime,
+        message,
+        callback,
+        responseId,
+        runId,
+        startTime,
+        options,
+      );
+
+      const result = await Promise.race([processingPromise, timeoutPromise]);
+
+      clearTimeout(timeoutId);
+      return result;
+    } catch (error) {
+      cleanupRaceTracking(runtime.agentId, message.roomId, responseId);
+
+      // Emit RUN_ENDED event on error so tracking is complete
+      if (runId && startTime) {
+        await runtime.emitEvent(EventType.RUN_ENDED, {
+          runtime,
+          runId,
+          messageId: message.id!,
+          roomId: message.roomId,
+          entityId: message.entityId,
+          startTime,
+          status: "error",
+          endTime: Date.now(),
+          duration: Date.now() - startTime,
+          error: error instanceof Error ? error.message : String(error),
+          source: "CloudBootstrapMessageService",
+        } as never);
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  private async processMessage(
+    runtime: IAgentRuntime,
+    message: Memory,
+    callback: HandlerCallback | undefined,
+    responseId: string,
+    runId: UUID,
+    startTime: number,
+    options?: CloudMessageOptions,
+  ): Promise<MessageProcessingResult> {
+    // PERF: Granular timing for message processing phases
+    const perfTrace = createPerfTrace("cloud-bootstrap-message");
+    perfTrace.mark("init");
+
+    const agentResponses = latestResponseIds.get(runtime.agentId)!;
+
+    // Skip messages from self
+    if (message.entityId === runtime.agentId) {
+      logger.debug(`[CloudBootstrap] Skipping message from self`);
+      await this.emitRunEnded(runtime, runId, message, startTime, "self");
+      return {
+        didRespond: false,
+        responseContent: null,
+        responseMessages: [],
+        state: EMPTY_STATE,
+        mode: "none",
+      };
+    }
+
+    logger.debug(
+      `[CloudBootstrap] Processing: ${truncateToCompleteSentence(message.content.text || "", 50)}...`,
+    );
+
+    // Save incoming message to memory
+    let memoryToQueue: Memory;
+    if (message.id) {
+      const existingMemory = await runtime.getMemoryById(message.id);
+      if (existingMemory) {
+        memoryToQueue = existingMemory;
+      } else {
+        const createdMemoryId = await runtime.createMemory(message, "messages");
+        memoryToQueue = { ...message, id: createdMemoryId };
+      }
+      await runtime.queueEmbeddingGeneration(memoryToQueue, "high");
+    } else {
+      const memoryId = await runtime.createMemory(message, "messages");
+      message.id = memoryId;
+      memoryToQueue = { ...message, id: memoryId };
+      await runtime.queueEmbeddingGeneration(memoryToQueue, "normal");
+    }
+
+    // Check LLM off by default setting
+    const agentUserState = await runtime.getParticipantUserState(message.roomId, runtime.agentId);
+    const defLlmOff = parseBooleanFromText(String(runtime.getSetting("BOOTSTRAP_DEFLLMOFF") ?? ""));
+
+    if (defLlmOff && agentUserState === null) {
+      logger.debug("[CloudBootstrap] LLM is off by default");
+      await this.emitRunEnded(runtime, runId, message, startTime, "off");
+      return {
+        didRespond: false,
+        responseContent: null,
+        responseMessages: [],
+        state: EMPTY_STATE,
+        mode: "none",
+      };
+    }
+
+    // Check if room is muted
+    const isMuted =
+      agentUserState === "MUTED" &&
+      !message.content.text?.toLowerCase().includes(runtime.character.name.toLowerCase());
+    if (isMuted) {
+      logger.debug(`[CloudBootstrap] Ignoring muted room ${message.roomId}`);
+      await this.emitRunEnded(runtime, runId, message, startTime, "muted");
+      return {
+        didRespond: false,
+        responseContent: null,
+        responseMessages: [],
+        state: EMPTY_STATE,
+        mode: "none",
+      };
+    }
+
+    // Process attachments if any
+    if (message.content.attachments && message.content.attachments.length > 0) {
+      logger.debug(`[CloudBootstrap] Processing ${message.content.attachments.length} attachments`);
+      message.content.attachments = await this.processAttachments(
+        runtime,
+        message.content.attachments,
+      );
+    }
+
+    // Get room context for shouldRespond decision
+    const room = await runtime.getRoom(message.roomId);
+
+    // Extract mention context from message metadata
+    const metadata = message.content.metadata as Record<string, unknown> | undefined;
+    const mentionContext: MentionContext | undefined = metadata
+      ? {
+          isMention: !!metadata.isMention,
+          isReply: !!metadata.isReply,
+          isThread: !!metadata.isThread,
+          mentionType: metadata.mentionType as MentionContext["mentionType"],
+        }
+      : undefined;
+
+    // Check if we should respond
+    const respondDecision = this.shouldRespond(runtime, message, room ?? undefined, mentionContext);
+    logger.debug(
+      `[CloudBootstrap] shouldRespond: ${respondDecision.shouldRespond} (${respondDecision.reason})`,
+    );
+
+    // Determine if we should respond, using LLM evaluation if needed
+    let shouldRespondToMessage = true;
+
+    if (respondDecision.skipEvaluation) {
+      shouldRespondToMessage = respondDecision.shouldRespond;
+    } else {
+      // Need LLM evaluation
+      const evalState = await runtime.composeState(
+        message,
+        ["RECENT_MESSAGES", "CHARACTER", "ENTITIES"],
+        true,
+      );
+
+      const shouldRespondPrompt = composePromptFromState({
+        state: evalState,
+        template: runtime.character.templates?.shouldRespondTemplate || shouldRespondTemplate,
+      });
+
+      // === LLM CALL LOG: shouldRespond ===
+      logger.info("========== LLM CALL: shouldRespond ==========");
+      logger.info(`[LLM:shouldRespond] System Prompt:\n${runtime.character.system || "(none)"}`);
+      logger.info(`[LLM:shouldRespond] User Prompt:\n${shouldRespondPrompt}`);
+      logger.info("==============================================");
+
+      const response = await runtime.useModel(ModelType.TEXT_SMALL, {
+        prompt: shouldRespondPrompt,
+      });
+
+      logger.info(`[LLM:shouldRespond] Response:\n${response}`);
+
+      const responseObject = parseKeyValueXml(String(response));
+      const nonResponseActions = ["IGNORE", "NONE", "STOP"];
+      const actionValue = responseObject?.action;
+
+      shouldRespondToMessage =
+        typeof actionValue === "string" && !nonResponseActions.includes(actionValue.toUpperCase());
+
+      logger.debug(
+        `[CloudBootstrap] LLM decided: ${shouldRespondToMessage ? "RESPOND" : "IGNORE"}`,
+      );
+    }
+
+    if (!shouldRespondToMessage) {
+      logger.debug(`[CloudBootstrap] Not responding based on evaluation`);
+      await this.emitRunEnded(runtime, runId, message, startTime, "shouldRespond:no");
+      return {
+        didRespond: false,
+        responseContent: null,
+        responseMessages: [],
+        state: EMPTY_STATE,
+        mode: "none",
+      };
+    }
+
+    perfTrace.mark("compose-state");
+    // PERF: Compose initial state with minimal providers.
+    // runMultiStepCore fetches the full provider set (RECENT_MESSAGES, ACTIONS, etc.)
+    // at the start of its decision loop. runSingleShotCore fetches them before prompt
+    // composition. This avoids double-fetching in the multi-step path.
+    let state = await runtime.composeState(message, ["ENTITIES", "CHARACTER"], true);
+
+    // Determine processing mode - default to multi-step for cloud
+    const useMultiStep =
+      options?.useMultiStep ??
+      parseBooleanFromText(String(runtime.getSetting("USE_MULTI_STEP") ?? "true"));
+
+    perfTrace.mark("llm-processing");
+    // Run appropriate processing strategy
+    let result: StrategyResult;
+    if (useMultiStep) {
+      logger.debug("[CloudBootstrap] Using multi-step processing");
+      result = await this.runMultiStepCore(runtime, message, state, callback, options);
+    } else {
+      logger.debug("[CloudBootstrap] Using single-shot processing");
+      result = await this.runSingleShotCore(runtime, message, state, callback, options);
+    }
+
+    const responseContent = result.responseContent;
+    const responseMessages = result.responseMessages;
+    state = result.state;
+
+    // Race check before sending response
+    if (agentResponses.get(message.roomId) !== responseId) {
+      logger.info(`[CloudBootstrap] Response discarded - newer message being processed`);
+      await this.emitRunEnded(runtime, runId, message, startTime, "race-discarded");
+      return {
+        didRespond: false,
+        responseContent: null,
+        responseMessages: [],
+        state,
+        mode: "none",
+      };
+    }
+
+    if (responseContent && message.id) {
+      responseContent.inReplyTo = createUniqueUuid(runtime, message.id);
+    }
+
+    if (responseContent) {
+      const mode = result.mode ?? "actions";
+
+      if (mode === "simple") {
+        // Simple mode - just call callback with content
+        if (callback) {
+          await callback(responseContent);
+        }
+      } else if (mode === "actions") {
+        // Actions mode - run processActions (though in multi-step we already did this)
+        await runtime.processActions(message, responseMessages, state, async (content) => {
+          responseContent!.actionCallbacks = content;
+          if (callback) {
+            return callback(content);
+          }
+          return [];
+        });
+      }
+    }
+
+    // Clean up response ID tracking (only if we still own it)
+    cleanupRaceTracking(runtime.agentId, message.roomId, responseId);
+
+    // Run evaluators
+    await runtime.evaluate(
+      message,
+      state,
+      true,
+      async (content) => {
+        if (responseContent) {
+          responseContent.evalCallbacks = content;
+        }
+        if (callback) {
+          return callback(content);
+        }
+        return [];
+      },
+      responseMessages,
+    );
+
+    // Emit run ended event
+    await runtime.emitEvent(EventType.RUN_ENDED, {
+      runtime,
+      runId,
+      messageId: message.id!,
+      roomId: message.roomId,
+      entityId: message.entityId,
+      startTime,
+      status: "completed",
+      endTime: Date.now(),
+      duration: Date.now() - startTime,
+      source: "CloudBootstrapMessageService",
+    } as never);
+
+    perfTrace.mark("finalize");
+    perfTrace.end();
+    logger.info(`[CloudBootstrap] Completed in ${Date.now() - startTime}ms`);
+
+    return {
+      didRespond: true,
+      responseContent,
+      responseMessages,
+      state,
+      mode: result.mode,
+    };
+  }
+
+  /**
+   * Multi-step execution: ONE action at a time, LLM decides next step.
+   * Decision phase: functional system prompt. Summary phase: character personality.
+   */
+  private async runMultiStepCore(
+    runtime: IAgentRuntime,
+    message: Memory,
+    state: State,
+    callback?: HandlerCallback,
+    options?: CloudMessageOptions,
+  ): Promise<StrategyResult> {
+    const traceActionResult: MultiStepActionResult[] = [];
+    const discoveredActions = new Set<string>();
+    let totalActionsExecuted = 0;
+    let lastActionKey = "";
+    let accumulatedState: State = state;
+    let finishResponse: string | null = null;
+
+    // Save the original system prompt so we can restore it after the multi-step loop.
+    // The decision phase uses a functional system prompt (embedded in the template),
+    // but runtime.character.system is still passed to the LLM by the OpenAI plugin.
+    // If the agent has no system prompt configured, the empty string causes OpenAI to
+    // reject the request ("Each message must have content..."). Set a fallback.
+    const originalSystemPrompt = runtime.character.system;
+    if (!runtime.character.system) {
+      runtime.character.system =
+        "You are an AI task executor that helps complete user requests by selecting and executing actions.";
+    }
+
+    const maxIterations =
+      options?.maxMultiStepIterations ??
+      parseInt(String(runtime.getSetting("MAX_MULTISTEP_ITERATIONS") ?? "6"));
+    let iterationCount = 0;
+
+    try {
+      // ASSUMPTION: MCP service init already completed during runtime creation
+      // (RuntimeFactory.waitForMcpServiceIfNeeded). If RuntimeFactory changes to
+      // skip that call, MCP tools will be missing on the first message.
+
+      // PERF: Fetch providers once upfront. ACTIONS and USER_AUTH_STATUS are truly stable
+      // for the request lifetime. RECENT_MESSAGES is cached here to give the decision LLM
+      // a consistent view during the loop; the summary step re-fetches it fresh.
+      accumulatedState = await runtime.composeState(
+        message,
+        [
+          "RECENT_MESSAGES",
+          "ACTION_STATE",
+          "ACTIONS",
+          "CHARACTER",
+          "USER_AUTH_STATUS",
+          // NOTE: "MCP" provider removed - MCP tools are now registered as native actions
+          // via McpService.registerToolsAsActions() and appear in ACTIONS provider
+        ],
+        true,
+      );
+      accumulatedState.data.actionResults = traceActionResult;
+
+      // Snapshot provider values for use in the decision loop. ACTIONS and USER_AUTH_STATUS
+      // are truly stable. RECENT_MESSAGES is intentionally frozen here so the decision LLM
+      // sees a consistent baseline; the summary step fetches fresh RECENT_MESSAGES.
+      //
+      // TRADE-OFF: Actions that write to memory (notes, lookups, etc.) during iteration N
+      // will NOT be visible in recentMessages for the decision at iteration N+1. This is
+      // acceptable because (a) the decision prompt focuses on action selection, not memory
+      // recall, and (b) refreshing recentMessages per iteration would add ~200-400ms each.
+      // If a future action requires cross-iteration memory visibility, fetch fresh
+      // recentMessages inside that specific iteration instead of using the cached snapshot.
+      const cachedStableValues: Record<string, unknown> = {};
+      const stableProviderKeys = [
+        "recentMessages",
+        "actions",
+        "actionNames",
+        "actionExamples",
+        "actionsWithDescriptions",
+        "actionsWithParams",
+        "userAuthStatus",
+      ];
+      for (const key of stableProviderKeys) {
+        const val =
+          accumulatedState.values?.[key] ?? (accumulatedState as Record<string, unknown>)[key];
+        if (val !== undefined) {
+          cachedStableValues[key] = val;
+        }
+      }
+      // Also cache provider data (used by action execution, not templates)
+      const cachedStableData = accumulatedState.data
+        ? { actionsData: accumulatedState.data.actionsData }
+        : {};
+
+      const streamThinking = async (phase: string, content: string): Promise<void> => {
+        if (options?.onReasoningChunk) {
+          await options.onReasoningChunk(
+            content,
+            phase as "planning" | "actions" | "response" | "thinking",
+            message.id as UUID,
+          );
+        }
+      };
+
+      while (iterationCount < maxIterations) {
+        iterationCount++;
+        logger.debug(`[MultiStep] Starting iteration ${iterationCount}/${maxIterations}`);
+
+        await streamThinking("thinking", `\n--- Step ${iterationCount}/${maxIterations} ---\n`);
+
+        // Inject actionResults into message metadata BEFORE composeState
+        // so ACTION_STATE provider can read it during state composition
+        const messageWithResults = {
+          ...message,
+          content: {
+            ...message.content,
+            metadata: {
+              ...(message.content.metadata || {}),
+              actionResults: traceActionResult,
+            },
+          },
+        };
+
+        // Only refresh ACTION_STATE + CHARACTER per iteration. ACTIONS, USER_AUTH_STATUS,
+        // and RECENT_MESSAGES are stable for the request lifetime and reused from cache.
+        const actionOnlyState = await runtime.composeState(
+          messageWithResults,
+          ["ACTION_STATE", "CHARACTER"],
+          true,
+        );
+        // Merge: start with fresh ACTION_STATE, overlay cached stable provider values
+        accumulatedState = {
+          ...actionOnlyState,
+          values: { ...actionOnlyState.values, ...cachedStableValues },
+          data: { ...actionOnlyState.data, ...cachedStableData },
+        };
+        // Also set on state.data for consistency
+        accumulatedState.data.actionResults = traceActionResult;
+
+        const remainingSteps = maxIterations - iterationCount;
+        const stateWithIterationContext = {
+          ...accumulatedState,
+          iterationCount,
+          maxIterations,
+          traceActionResult,
+          totalActionsExecuted,
+          discoveredActions: discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "",
+          stepsWarning: remainingSteps <= 2,
+          remainingSteps,
+        };
+
+        const prompt = composePromptFromState({
+          state: stateWithIterationContext,
+          template:
+            runtime.character.templates?.multiStepDecisionTemplate || multiStepDecisionTemplate,
+        });
+
+        // === LLM CALL LOG: multiStepDecision ===
+        logger.info(
+          `========== LLM CALL: multiStepDecision (iteration ${iterationCount}/${maxIterations}) ==========`,
+        );
+        logger.info(`[LLM:multiStepDecision] System Prompt:\n${runtime.character.system}`);
+        logger.info(`[LLM:multiStepDecision] User Prompt:\n${prompt}`);
+        logger.info("==============================================");
+
+        // PERF: Reduced from 5 to 3 retries. Each retry adds 1-4s with exponential backoff.
+        // 3 balances latency (~6-12s max) vs. reliability for complex multi-step queries
+        // where LLMs occasionally produce malformed JSON. Override via MULTISTEP_PARSE_RETRIES.
+        const maxParseRetries = parseInt(
+          String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "2"),
+        );
+        let stepResultRaw = "";
+        let parsedStep: ParsedMultiStepDecision | null = null;
+
+        for (let parseAttempt = 1; parseAttempt <= maxParseRetries; parseAttempt++) {
+          try {
+            logger.debug(
+              `[MultiStep] Decision model call attempt ${parseAttempt}/${maxParseRetries}`,
+            );
+
+            stepResultRaw = await runtime.useModel(ModelType.TEXT_LARGE, {
+              prompt,
+            });
+
+            logger.info(
+              `[LLM:multiStepDecision] Response (attempt ${parseAttempt}):\n${stepResultRaw}`,
+            );
+            parsedStep = parseKeyValueXml(stepResultRaw) as ParsedMultiStepDecision | null;
+
+            if (parsedStep) {
+              logger.debug(`[MultiStep] Successfully parsed on attempt ${parseAttempt}`);
+
+              if (parsedStep.thought && options?.onReasoningChunk) {
+                await streamThinking("planning", parsedStep.thought);
+              }
+              break;
+            } else {
+              logger.warn(
+                `[MultiStep] Failed to parse XML on attempt ${parseAttempt}/${maxParseRetries}`,
+              );
+              if (parseAttempt < maxParseRetries) {
+                const delay = getRetryDelay(parseAttempt);
+                await new Promise((resolve) => setTimeout(resolve, delay));
+              }
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error(
+              `[MultiStep] Error during model call attempt ${parseAttempt}:`,
+              errorMessage,
+            );
+            if (parseAttempt >= maxParseRetries) {
+              throw error;
+            }
+            const delay = getRetryDelay(parseAttempt);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
+
+        if (!parsedStep) {
+          logger.warn(`[MultiStep] Failed to parse step result after ${maxParseRetries} attempts`);
+          traceActionResult.push({
+            data: { actionName: "parse_error" },
+            success: false,
+            error: `Failed to parse step result after ${maxParseRetries} attempts`,
+          });
+          break;
+        }
+
+        const { thought, action, isFinish, parameters } = parsedStep;
+
+        // Dedup guard: detect identical consecutive calls
+        // Sort keys for deterministic comparison (key order varies across LLM outputs)
+        const canonicalParams = (() => {
+          if (!parameters || typeof parameters !== "object")
+            return JSON.stringify(parameters || {});
+          const obj = parameters as Record<string, unknown>;
+          const sorted: Record<string, unknown> = {};
+          for (const k of Object.keys(obj).sort()) sorted[k] = obj[k];
+          return JSON.stringify(sorted);
+        })();
+        const dedupKey = action ? `${action}::${canonicalParams}` : "";
+        if (action && dedupKey === lastActionKey) {
+          logger.warn(
+            `[MultiStep] Duplicate action detected: ${action} with same params. Forcing completion.`,
+          );
+          traceActionResult.push({
+            data: { actionName: action },
+            success: false,
+            error: `Duplicate call detected — ${action} was already executed with these parameters. Try a different action or set isFinish=true.`,
+          });
+          break;
+        }
+        lastActionKey = dedupKey;
+
+        if (!action) {
+          // Deprecated fallback: isFinish without an action
+          if (isFinish === "true" || isFinish === true) {
+            logger.info(`[MultiStep] Task complete (isFinish) at iteration ${iterationCount}`);
+            await streamThinking("response", "\n--- Completing task ---\n");
+
+            break;
+          }
+          logger.warn(`[MultiStep] No action at iteration ${iterationCount}, forcing completion`);
+          break;
+        }
+
+        // Handle FINISH action — extract response param, skip normal action execution
+        if (action === "FINISH") {
+          let actionParams: Record<string, unknown> = {};
+          if (parameters) {
+            if (typeof parameters === "string") {
+              try {
+                actionParams = JSON.parse(parameters);
+              } catch {
+                /* ignore */
+              }
+            } else if (typeof parameters === "object") {
+              actionParams = parameters;
+            }
+          }
+          finishResponse = (actionParams.response as string) || "";
+          logger.info(
+            `[MultiStep] FINISH called at iteration ${iterationCount}, response length: ${finishResponse.length}`,
+          );
+          await streamThinking("response", "\n--- FINISH ---\n");
+          break;
+        }
+
+        try {
+          if (!accumulatedState.data) accumulatedState.data = {};
+          if (!accumulatedState.data.workingMemory) accumulatedState.data.workingMemory = {};
+
+          let actionParams: Record<string, unknown> = {};
+          if (parameters) {
+            if (typeof parameters === "string") {
+              try {
+                actionParams = JSON.parse(parameters);
+                logger.debug(`[MultiStep] Parsed parameters: ${JSON.stringify(actionParams)}`);
+              } catch {
+                logger.warn(`[MultiStep] Failed to parse parameters JSON: ${parameters}`);
+              }
+            } else if (typeof parameters === "object") {
+              actionParams = parameters;
+            }
+          }
+
+          const hasActionParams = Object.keys(actionParams).length > 0;
+
+          if (action && hasActionParams) {
+            accumulatedState.data.actionParams = actionParams;
+            const actionKey = action.toLowerCase().replace(/_/g, "");
+            accumulatedState.data[actionKey] = {
+              ...actionParams,
+              _source: "multiStepDecisionTemplate",
+              _timestamp: Date.now(),
+            };
+            logger.info(
+              `[MultiStep] Stored parameters for ${action}: ${JSON.stringify(actionParams)}`,
+            );
+          }
+
+          await streamThinking(
+            "actions",
+            `\nExecuting action: ${action}${hasActionParams ? ` with params: ${JSON.stringify(actionParams)}` : ""}\n`,
+          );
+
+          const actionContent: Content & {
+            actionParams?: Record<string, unknown>;
+            actionInput?: Record<string, unknown>;
+          } = {
+            text: `Executing action: ${action}`,
+            actions: [action],
+            thought: thought ?? "",
+          };
+
+          if (hasActionParams) {
+            actionContent.actionParams = actionParams;
+            actionContent.actionInput = actionParams;
+          }
+
+          let capturedResult: {
+            text?: string;
+            success?: boolean;
+            values?: Record<string, unknown>;
+            data?: Record<string, unknown>;
+          } | null = null;
+
+          await runtime.processActions(
+            message,
+            [
+              {
+                id: v4() as UUID,
+                entityId: runtime.agentId,
+                roomId: message.roomId,
+                createdAt: Date.now(),
+                content: actionContent,
+              },
+            ],
+            accumulatedState,
+            async (result) => {
+              capturedResult = result;
+              return [];
+            },
+          );
+
+          const result =
+            capturedResult ||
+            (() => {
+              const actionResults = getActionResultsFromCache(runtime, message.id as string);
+              return actionResults.length > 0
+                ? (actionResults[0] as Record<string, unknown>)
+                : null;
+            })();
+          const success = (result?.success as boolean) ?? false;
+
+          const actionResult: MultiStepActionResult = {
+            data: { actionName: action },
+            success,
+            text: result?.text as string | undefined,
+            values: result?.values as Record<string, unknown> | undefined,
+            error: success ? undefined : (result?.text as string | undefined),
+          };
+
+          // Transparent meta-actions (e.g., SEARCH_ACTIONS) don't appear in
+          // # Previous Action Results on success — their side-effects (registering
+          // new actions) are sufficient. Failures are still recorded so the LLM
+          // can retry with different parameters.
+          const isTransparent = TRANSPARENT_META_ACTIONS.has(action) && actionResult.success;
+          if (!isTransparent) {
+            traceActionResult.push(actionResult);
+          }
+          totalActionsExecuted++;
+
+          // Track newly discovered actions from SEARCH_ACTIONS for explicit visibility
+          if (action === "SEARCH_ACTIONS" && actionResult.success && result) {
+            const data = (result as Record<string, unknown>).data as
+              | Record<string, unknown>
+              | undefined;
+            const newlyRegistered = data?.newlyRegistered as string[] | undefined;
+            if (newlyRegistered?.length) {
+              newlyRegistered.forEach((name) => discoveredActions.add(name));
+              if (message.id) {
+                invalidateActionValidationCache(String(message.id));
+              }
+              logger.info(`[MultiStep] Discovered actions: ${newlyRegistered.join(", ")}`);
+            }
+          }
+
+          await streamThinking(
+            "actions",
+            `\nAction ${action} ${success ? "succeeded" : "failed"}: ${actionResult.text || "(no output)"}\n`,
+          );
+
+          accumulatedState = await refreshStateAfterAction(
+            runtime,
+            message,
+            accumulatedState,
+            traceActionResult,
+          );
+
+          // Check if action requires user input before continuing
+          const resultData = result?.data as Record<string, unknown> | undefined;
+          if (resultData?.awaitingUserInput === true) {
+            logger.info(`[MultiStep] Action ${action} awaiting user input, pausing loop`);
+            break;
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          logger.error(`[MultiStep] Error executing action ${action}: ${errorMessage}`);
+          traceActionResult.push({
+            data: { actionName: action || "unknown" },
+            success: false,
+            error: errorMessage,
+          });
+
+          await streamThinking("actions", `\nAction ${action} error: ${errorMessage}\n`);
+        }
+
+        // Deprecated fallback: isFinish flag without FINISH action
+        if (isFinish === "true" || isFinish === true) {
+          logger.info(
+            `[MultiStep] Task complete (isFinish fallback) at iteration ${iterationCount}`,
+          );
+          break;
+        }
+      }
+
+      if (iterationCount >= maxIterations) {
+        logger.warn(`[MultiStep] Reached maximum iterations (${maxIterations})`);
+      }
+
+      // If FINISH was called, use its response directly — skip summary LLM call
+      if (finishResponse !== null) {
+        logger.info("[MultiStep] Using FINISH response, skipping summary LLM call");
+
+        const responseContent: Content = {
+          actions: ["FINISH"],
+          text: finishResponse,
+          thought: "FINISH action called by decision LLM.",
+          simple: true,
+        };
+
+        if (options?.onStreamChunk) {
+          await options.onStreamChunk(finishResponse, message.id as UUID);
+        }
+
+        const responseMessages: Memory[] = [
+          {
+            id: asUUID(v4()),
+            entityId: runtime.agentId,
+            agentId: runtime.agentId,
+            content: responseContent,
+            roomId: message.roomId,
+            createdAt: Date.now(),
+          },
+        ];
+
+        return {
+          responseContent,
+          responseMessages,
+          state: accumulatedState,
+          mode: "simple",
+        };
+      }
+
+      // Fallback: summary LLM call (FINISH wasn't called — hit max iterations or isFinish fallback)
+      await streamThinking("response", "\n--- Generating final response ---\n");
+
+      // Inject actionResults into message metadata BEFORE composeState
+      // so ACTION_STATE provider can read them during state composition
+      const summaryMessageWithResults = {
+        ...message,
+        content: {
+          ...message.content,
+          metadata: {
+            ...(message.content.metadata || {}),
+            actionResults: traceActionResult,
+          },
+        },
+      };
+
+      // Fetch all providers fresh for the summary. RECENT_MESSAGES will include
+      // messages created by action execution, which the summary LLM needs to see.
+      const summaryFreshState = await runtime.composeState(
+        summaryMessageWithResults,
+        [
+          "RECENT_MESSAGES",
+          "ACTION_STATE",
+          "ACTIONS",
+          "CHARACTER",
+          "USER_AUTH_STATUS",
+          "APP_CONFIG",
+        ],
+        true,
+      );
+      // Summary merge: fresh values take precedence over cached. RECENT_MESSAGES
+      // changed after actions executed, so the stale cached copy must NOT win.
+      accumulatedState = {
+        ...summaryFreshState,
+        values: { ...cachedStableValues, ...summaryFreshState.values },
+        data: { ...cachedStableData, ...summaryFreshState.data },
+      };
+      // Also set on state.data for consistency
+      accumulatedState.data.actionResults = traceActionResult;
+      accumulatedState.totalActionsExecuted = totalActionsExecuted;
+      accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
+      accumulatedState.values.hasActionResults = traceActionResult.length > 0;
+      accumulatedState.values.discoveredActions =
+        discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "";
+
+      const summaryPrompt = composePromptFromState({
+        state: accumulatedState,
+        template: runtime.character.templates?.multiStepSummaryTemplate || multiStepSummaryTemplate,
+      });
+
+      // === LLM CALL LOG: multiStepSummary ===
+      logger.info("========== LLM CALL: multiStepSummary ==========");
+      logger.info(`[LLM:multiStepSummary] System Prompt:\n${runtime.character.system || "(none)"}`);
+      logger.info(`[LLM:multiStepSummary] User Prompt:\n${summaryPrompt}`);
+      logger.info("==============================================");
+
+      const maxSummaryRetries = parseInt(
+        String(runtime.getSetting("MULTISTEP_SUMMARY_PARSE_RETRIES") ?? "2"),
+      );
+      let finalOutput = "";
+      let summary: Record<string, unknown> | null = null;
+
+      for (let summaryAttempt = 1; summaryAttempt <= maxSummaryRetries; summaryAttempt++) {
+        try {
+          logger.debug(`[MultiStep] Summary generation attempt ${summaryAttempt}`);
+          finalOutput = await runtime.useModel(ModelType.TEXT_LARGE, {
+            prompt: summaryPrompt,
+          });
+
+          logger.info(
+            `[LLM:multiStepSummary] Response (attempt ${summaryAttempt}):\n${finalOutput}`,
+          );
+          summary = parseKeyValueXml(finalOutput);
+
+          if (summary?.text) {
+            logger.debug(`[MultiStep] Parsed summary on attempt ${summaryAttempt}`);
+            break;
+          } else {
+            logger.warn(
+              `[MultiStep] Failed to parse summary on attempt ${summaryAttempt}/${maxSummaryRetries}`,
+            );
+            if (summaryAttempt < maxSummaryRetries) {
+              const delay = getRetryDelay(summaryAttempt);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error(
+            `[MultiStep] Summary generation error on attempt ${summaryAttempt}:`,
+            errorMessage,
+          );
+          if (summaryAttempt >= maxSummaryRetries) {
+            logger.warn("[MultiStep] Failed to generate summary after all retries");
+            break;
+          }
+          const delay = getRetryDelay(summaryAttempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+
+      let responseContent: Content | null = null;
+      if (summary?.text) {
+        responseContent = {
+          actions: ["MULTI_STEP_SUMMARY"],
+          text: summary.text as string,
+          thought:
+            (summary.thought as string) || "Final user-facing message after task completion.",
+          simple: true,
+        };
+
+        if (options?.onStreamChunk) {
+          await options.onStreamChunk(summary.text as string, message.id as UUID);
+        }
+      } else {
+        logger.warn(`[MultiStep] No valid summary generated, using fallback`);
+        const fallbackText =
+          "I completed the requested actions, but encountered an issue generating the summary.";
+        responseContent = {
+          actions: ["MULTI_STEP_SUMMARY"],
+          text: fallbackText,
+          thought: "Summary generation failed after retries.",
+          simple: true,
+        };
+
+        // Stream fallback text for consistent user experience
+        if (options?.onStreamChunk) {
+          await options.onStreamChunk(fallbackText, message.id as UUID);
+        }
+      }
+
+      const responseMessages: Memory[] = responseContent
+        ? [
+            {
+              id: asUUID(v4()),
+              entityId: runtime.agentId,
+              agentId: runtime.agentId,
+              content: responseContent,
+              roomId: message.roomId,
+              createdAt: Date.now(),
+            },
+          ]
+        : [];
+
+      return {
+        responseContent,
+        responseMessages,
+        state: accumulatedState,
+        mode: "simple",
+      };
+    } finally {
+      // Restore the original system prompt so other handlers/phases
+      // that share this runtime aren't affected by our fallback override.
+      runtime.character.system = originalSystemPrompt;
+    }
+  }
+
+  private async runSingleShotCore(
+    runtime: IAgentRuntime,
+    message: Memory,
+    state: State,
+    callback?: HandlerCallback,
+    options?: CloudMessageOptions,
+  ): Promise<StrategyResult> {
+    // Ensure runtime.character.system is non-empty so the OpenAI plugin
+    // doesn't send an empty system message (which OpenAI rejects).
+    const originalSystemPrompt = runtime.character.system;
+    if (!runtime.character.system) {
+      runtime.character.system = "You are a helpful AI assistant that responds to user messages.";
+    }
+
+    try {
+      state = await runtime.composeState(
+        message,
+        ["RECENT_MESSAGES", "ACTIONS", "CHARACTER"],
+        true,
+      );
+
+      const template = runtime.character.templates?.messageHandlerTemplate || SINGLE_SHOT_TEMPLATE;
+      const prompt = composePromptFromState({ state, template });
+
+      logger.info("========== LLM CALL: singleShot ==========");
+      logger.info(`[LLM:singleShot] System Prompt:\n${runtime.character.system || "(none)"}`);
+      logger.info(`[LLM:singleShot] User Prompt:\n${prompt}`);
+      logger.info("==============================================");
+
+      const maxRetries = options?.maxRetries ?? 3;
+      const parsedResponse = await withRetry(
+        async () => {
+          const response = String(await runtime.useModel(ModelType.TEXT_LARGE, { prompt }));
+          logger.info(`[LLM:singleShot] Response:\n${response}`);
+          return parseKeyValueXml(response);
+        },
+        (result) => !!(result?.text || result?.thought),
+        maxRetries,
+        "singleShot",
+      );
+
+      if (!parsedResponse) {
+        logger.error("[CloudBootstrap] All single-shot attempts failed");
+        return {
+          responseContent: null,
+          responseMessages: [],
+          state,
+          mode: "none",
+        };
+      }
+
+      const actions = parsedResponse.actions
+        ? String(parsedResponse.actions)
+            .split(",")
+            .map((a: string) => a.trim())
+            .filter(Boolean)
+        : [];
+
+      const responseContent: Content = {
+        text: String(parsedResponse.text || ""),
+        thought: String(parsedResponse.thought || ""),
+        actions,
+        source: message.content.source,
+        inReplyTo: message.id ? createUniqueUuid(runtime, message.id) : undefined,
+      };
+
+      if (options?.onStreamChunk && responseContent.text) {
+        await options.onStreamChunk(responseContent.text, message.id as UUID);
+      }
+
+      const responseMessages: Memory[] = responseContent.text
+        ? [
+            {
+              id: asUUID(v4()),
+              entityId: runtime.agentId,
+              agentId: runtime.agentId,
+              roomId: message.roomId,
+              content: responseContent,
+              createdAt: Date.now(),
+            },
+          ]
+        : [];
+
+      return {
+        responseContent: responseContent.text ? responseContent : null,
+        responseMessages,
+        state,
+        mode: actions.length ? "actions" : "simple",
+      };
+    } finally {
+      runtime.character.system = originalSystemPrompt;
+    }
+  }
+
+  shouldRespond(
+    runtime: IAgentRuntime,
+    message: Memory,
+    room?: Room,
+    mentionContext?: MentionContext,
+  ): ResponseDecision {
+    if (!room) {
+      return {
+        shouldRespond: false,
+        skipEvaluation: true,
+        reason: "no room context",
+      };
+    }
+
+    const alwaysRespondChannels = [
+      ChannelType.DM,
+      ChannelType.VOICE_DM,
+      ChannelType.SELF,
+      ChannelType.API,
+    ];
+
+    const alwaysRespondSources = ["client_chat"];
+
+    function normalizeEnvList(value: unknown): string[] {
+      if (!value || typeof value !== "string") return [];
+      const cleaned = value.trim().replace(/^\[|\]$/g, "");
+      return cleaned
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+    }
+
+    const customChannels = normalizeEnvList(
+      runtime.getSetting("ALWAYS_RESPOND_CHANNELS") ||
+        runtime.getSetting("SHOULD_RESPOND_BYPASS_TYPES"),
+    );
+    const customSources = normalizeEnvList(
+      runtime.getSetting("ALWAYS_RESPOND_SOURCES") ||
+        runtime.getSetting("SHOULD_RESPOND_BYPASS_SOURCES"),
+    );
+
+    const respondChannels = new Set(
+      [...alwaysRespondChannels.map((t) => t.toString()), ...customChannels].map((s) =>
+        s.trim().toLowerCase(),
+      ),
+    );
+
+    const respondSources = [...alwaysRespondSources, ...customSources].map((s) =>
+      s.trim().toLowerCase(),
+    );
+
+    const roomType = room.type?.toString().toLowerCase();
+    const sourceStr = message.content.source?.toLowerCase() || "";
+
+    // DM/VOICE_DM/API channels: always respond
+    if (respondChannels.has(roomType)) {
+      return {
+        shouldRespond: true,
+        skipEvaluation: true,
+        reason: `private channel: ${roomType}`,
+      };
+    }
+
+    // Specific sources (e.g., client_chat): always respond
+    if (respondSources.some((pattern) => sourceStr.includes(pattern))) {
+      return {
+        shouldRespond: true,
+        skipEvaluation: true,
+        reason: `whitelisted source: ${sourceStr}`,
+      };
+    }
+
+    // Platform mentions and replies: always respond
+    const hasPlatformMention = !!(mentionContext?.isMention || mentionContext?.isReply);
+    if (hasPlatformMention) {
+      const mentionType = mentionContext?.isMention ? "mention" : "reply";
+      return {
+        shouldRespond: true,
+        skipEvaluation: true,
+        reason: `platform ${mentionType}`,
+      };
+    }
+
+    // All other cases: let the LLM decide
+    return {
+      shouldRespond: false,
+      skipEvaluation: false,
+      reason: "needs LLM evaluation",
+    };
+  }
+
+  async processAttachments(runtime: IAgentRuntime, attachments: Media[]): Promise<Media[]> {
+    if (!attachments?.length) return attachments;
+
+    return Promise.all(
+      attachments.map(async (attachment) => {
+        if (attachment.description) return attachment;
+
+        const contentType = attachment.contentType || "";
+        const label = attachment.title || attachment.url;
+
+        if (contentType.startsWith("image/")) {
+          try {
+            const result = await runtime.useModel(ModelType.IMAGE_DESCRIPTION, {
+              imageUrl: attachment.url,
+              prompt: "Describe this image in detail.",
+            });
+            attachment.description =
+              typeof result === "string"
+                ? result
+                : (result as { description?: string })?.description || "Image attachment";
+          } catch (error) {
+            logger.warn(
+              `[CloudBootstrap] Failed to generate image description for ${label}: ${error}`,
+            );
+            attachment.description = `Image: ${label}`;
+          }
+        } else if (
+          contentType.startsWith("text/") ||
+          contentType.includes("pdf") ||
+          contentType.includes("document")
+        ) {
+          attachment.description = attachment.text
+            ? `Document content: ${attachment.text.substring(0, 500)}${attachment.text.length > 500 ? "..." : ""}`
+            : `Document: ${label}`;
+        } else {
+          attachment.description = `Attachment: ${label}`;
+        }
+
+        return attachment;
+      }),
+    );
+  }
+
+  async deleteMessage(runtime: IAgentRuntime, message: Memory): Promise<void> {
+    if (!message.id) {
+      logger.error("[CloudBootstrap] Cannot delete memory: message ID is missing");
+      return;
+    }
+
+    logger.info(
+      `[CloudBootstrap] Deleting memory for message ${message.id} from room ${message.roomId}`,
+    );
+    await runtime.deleteMemory(message.id);
+  }
+
+  async clearChannel(runtime: IAgentRuntime, roomId: UUID, channelId: string): Promise<void> {
+    logger.info(
+      `[CloudBootstrap] Clearing message memories from channel ${channelId} -> room ${roomId}`,
+    );
+
+    const memories = await runtime.getMemoriesByRoomIds({
+      tableName: "messages",
+      roomIds: [roomId],
+    });
+
+    let deletedCount = 0;
+    for (const memory of memories) {
+      if (memory.id) {
+        try {
+          await runtime.deleteMemory(memory.id);
+          deletedCount++;
+        } catch (error) {
+          logger.warn(`[CloudBootstrap] Failed to delete memory ${memory.id}: ${error}`);
+        }
+      }
+    }
+
+    logger.info(
+      `[CloudBootstrap] Cleared ${deletedCount}/${memories.length} memories from channel ${channelId}`,
+    );
+  }
+
+  private async emitRunEnded(
+    runtime: IAgentRuntime,
+    runId: UUID,
+    message: Memory,
+    startTime: number,
+    status: string,
+  ): Promise<void> {
+    await runtime.emitEvent(EventType.RUN_ENDED, {
+      runtime,
+      runId,
+      messageId: message.id!,
+      roomId: message.roomId,
+      entityId: message.entityId,
+      startTime,
+      status,
+      endTime: Date.now(),
+      duration: Date.now() - startTime,
+      source: "CloudBootstrapMessageService",
+    } as never);
+  }
+}

@@ -5,7 +5,13 @@ const meta: Meta<typeof Progress> = {
   title: "Primitives/Progress",
   component: Progress,
   parameters: { backgrounds: { default: "dark" } },
-  decorators: [(Story) => <div style={{ maxWidth: 400, padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 400, padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 export default meta;
 type Story = StoryObj<typeof Progress>;

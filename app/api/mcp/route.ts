@@ -59,10 +59,31 @@ export async function getMcpHandler() {
       ]);
 
       const [
-        credits, apiKeys, generation, memory, conversations, agents,
-        containers, mcps, rooms, user, knowledge, redemption, analytics,
-        google, linear, notion, github, asana, dropbox, salesforce,
-        airtable, zoom, jira, linkedin, twitter,
+        credits,
+        apiKeys,
+        generation,
+        memory,
+        conversations,
+        agents,
+        containers,
+        mcps,
+        rooms,
+        user,
+        knowledge,
+        redemption,
+        analytics,
+        google,
+        linear,
+        notion,
+        github,
+        asana,
+        dropbox,
+        salesforce,
+        airtable,
+        zoom,
+        jira,
+        linkedin,
+        twitter,
       ] = toolModules;
 
       return createMcpHandler(
@@ -155,10 +176,7 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
 
     const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    if (
-      mcpResponse.headers &&
-      typeof mcpResponse.headers.forEach === "function"
-    ) {
+    if (mcpResponse.headers && typeof mcpResponse.headers.forEach === "function") {
       mcpResponse.headers.forEach((value: string, key: string) => {
         headers[key] = value;
       });
@@ -169,8 +187,7 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
       headers,
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const isAuthError =
       errorMessage.includes("API key") ||
       errorMessage.includes("auth") ||

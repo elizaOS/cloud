@@ -4,8 +4,8 @@
  * Initiates the OAuth2 flow to add the bot to a Discord server.
  */
 
-import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
 import { discordAutomationService } from "@/lib/services/discord-automation";
@@ -17,10 +17,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Check if Discord is configured
   if (!discordAutomationService.isConfigured()) {
-    return NextResponse.json(
-      { error: "Discord integration not configured" },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "Discord integration not configured" }, { status: 503 });
   }
 
   const { searchParams } = new URL(request.url);

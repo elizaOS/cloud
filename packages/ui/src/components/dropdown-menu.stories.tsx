@@ -18,7 +18,16 @@ export const Default: StoryObj = {
   render: () => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button style={{ padding: "8px 16px", background: "#222", color: "white", border: "1px solid #444", borderRadius: 6, cursor: "pointer" }}>
+        <button
+          style={{
+            padding: "8px 16px",
+            background: "#222",
+            color: "white",
+            border: "1px solid #444",
+            borderRadius: 6,
+            cursor: "pointer",
+          }}
+        >
           Actions ▾
         </button>
       </DropdownMenuTrigger>

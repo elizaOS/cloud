@@ -1,25 +1,19 @@
+import { nanoid } from "nanoid";
+import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { nanoid } from "nanoid";
 import { z } from "zod";
-import { logger } from "@/lib/utils/logger";
 import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
-import { cookies } from "next/headers";
+import { logger } from "@/lib/utils/logger";
 
 // Cookie name - must match auth-anonymous.ts
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
 // Session expiry in days
-const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(
-  process.env.ANON_SESSION_EXPIRY_DAYS || "7",
-  10,
-);
+const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(process.env.ANON_SESSION_EXPIRY_DAYS || "7", 10);
 
 // Get message limit from env or default
-const ANON_MESSAGE_LIMIT = Number.parseInt(
-  process.env.ANON_MESSAGE_LIMIT || "5",
-  10,
-);
+const ANON_MESSAGE_LIMIT = Number.parseInt(process.env.ANON_MESSAGE_LIMIT || "5", 10);
 
 // Schema validation for incoming request
 const CreateSessionSchema = z.object({
@@ -42,10 +36,7 @@ export async function POST(request: NextRequest) {
     const validationResult = CreateSessionSchema.safeParse(body);
 
     if (!validationResult.success) {
-      logger.warn(
-        "[Create Session] Invalid request body:",
-        validationResult.error.format(),
-      );
+      logger.warn("[Create Session] Invalid request body:", validationResult.error.format());
       return NextResponse.json(
         {
           success: false,
@@ -62,15 +53,12 @@ export async function POST(request: NextRequest) {
     const sessionToken = nanoid(32);
 
     // Session expires in configured days
-    const expiresAt = new Date(
-      Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-    );
+    const expiresAt = new Date(Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
     // Extract client info
     const realIp = request.headers.get("x-real-ip")?.trim();
     const forwardedFor = request.headers.get("x-forwarded-for");
-    const ipAddress =
-      realIp || forwardedFor?.split(",")[0]?.trim() || undefined;
+    const ipAddress = realIp || forwardedFor?.split(",")[0]?.trim() || undefined;
     const userAgent = request.headers.get("user-agent") || undefined;
     // NOTE: IP-based anonymous-session abuse checks intentionally removed.
 
@@ -98,13 +86,10 @@ export async function POST(request: NextRequest) {
       expires: expiresAt,
     });
 
-    logger.info(
-      `[Create Session] Created anonymous session for character ${characterId}`,
-      {
-        userId: result.user.id,
-        source,
-      },
-    );
+    logger.info(`[Create Session] Created anonymous session for character ${characterId}`, {
+      userId: result.user.id,
+      source,
+    });
 
     return NextResponse.json({
       success: true,

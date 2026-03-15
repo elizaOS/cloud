@@ -5,7 +5,13 @@ const meta: Meta<typeof HUDContainer> = {
   title: "Brand/HUDContainer",
   component: HUDContainer,
   parameters: { backgrounds: { default: "dark" } },
-  decorators: [(Story) => <div style={{ maxWidth: 500, padding: 32 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 500, padding: 32 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 export default meta;
 type Story = StoryObj<typeof HUDContainer>;
@@ -19,7 +25,9 @@ export const Default: Story = {
 export const SmallCorners: Story = {
   args: {
     cornerSize: "sm",
-    children: <div style={{ padding: 16, color: "white", fontSize: 14 }}>Small corner brackets</div>,
+    children: (
+      <div style={{ padding: 16, color: "white", fontSize: 14 }}>Small corner brackets</div>
+    ),
   },
 };
 

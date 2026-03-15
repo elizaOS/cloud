@@ -1,19 +1,16 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { voiceCloningService } from "@/lib/services/voice-cloning";
+import { VOICE_CLONE_INSTANT_COST, VOICE_CLONE_PROFESSIONAL_COST } from "@/lib/pricing-constants";
 import {
+  type CreditReservation,
   creditsService,
   InsufficientCreditsError,
-  type CreditReservation,
 } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
+import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
-import {
-  VOICE_CLONE_INSTANT_COST,
-  VOICE_CLONE_PROFESSIONAL_COST,
-} from "@/lib/pricing-constants";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 const MAX_FILES = 10;
 const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
@@ -82,24 +79,15 @@ export async function POST(request: NextRequest) {
 
     // Validate files
     if (files.length === 0) {
-      return NextResponse.json(
-        { error: "At least one audio file is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "At least one audio file is required" }, { status: 400 });
     }
 
     if (files.length > MAX_FILES) {
-      return NextResponse.json(
-        { error: `Maximum ${MAX_FILES} files allowed` },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: `Maximum ${MAX_FILES} files allowed` }, { status: 400 });
     }
 
     if (totalSize > MAX_TOTAL_SIZE) {
-      return NextResponse.json(
-        { error: "Total file size exceeds 100MB limit" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Total file size exceeds 100MB limit" }, { status: 400 });
     }
 
     // Parse settings if provided
@@ -108,27 +96,18 @@ export async function POST(request: NextRequest) {
       try {
         settings = JSON.parse(settingsStr);
       } catch {
-        return NextResponse.json(
-          { error: "Invalid settings JSON" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Invalid settings JSON" }, { status: 400 });
       }
     }
 
-    logger.info(
-      `[Voice Clone API] Creating ${cloneType} voice clone: ${name}`,
-      {
-        userId: user.id,
-        organizationId,
-        fileCount: files.length,
-        totalSize,
-      },
-    );
+    logger.info(`[Voice Clone API] Creating ${cloneType} voice clone: ${name}`, {
+      userId: user.id,
+      organizationId,
+      fileCount: files.length,
+      totalSize,
+    });
 
-    const cost =
-      cloneType === "instant"
-        ? VOICE_CLONE_INSTANT_COST
-        : VOICE_CLONE_PROFESSIONAL_COST;
+    const cost = cloneType === "instant" ? VOICE_CLONE_INSTANT_COST : VOICE_CLONE_PROFESSIONAL_COST;
 
     let reservation: CreditReservation;
     try {
@@ -224,8 +203,7 @@ export async function POST(request: NextRequest) {
             progress: result.job.progress,
           },
           creditsDeducted: cost,
-          estimatedCompletionTime:
-            cloneType === "professional" ? "30-60 minutes" : "30 seconds",
+          estimatedCompletionTime: cloneType === "professional" ? "30-60 minutes" : "30 seconds",
         },
         { status: 201 },
       );
@@ -306,10 +284,7 @@ export async function POST(request: NextRequest) {
     logger.error("[Voice Clone API] Unexpected error:", error);
     const status = getErrorStatusCode(error);
     if (status !== 500) {
-      return NextResponse.json(
-        { error: getSafeErrorMessage(error) },
-        { status },
-      );
+      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
     }
 
     return NextResponse.json(

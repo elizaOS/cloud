@@ -11,8 +11,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { userMcpsService } from "@/lib/services/user-mcps";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
+import { userMcpsService } from "@/lib/services/user-mcps";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -74,9 +74,7 @@ const createMcpSchema = z.object({
 const listMcpsSchema = z.object({
   category: z.string().max(30).optional(),
   search: z.string().max(100).optional(),
-  status: z
-    .enum(["draft", "pending_review", "live", "suspended", "deprecated"])
-    .optional(),
+  status: z.enum(["draft", "pending_review", "live", "suspended", "deprecated"]).optional(),
   scope: z.enum(["own", "public", "all"]).optional().default("own"),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
@@ -130,10 +128,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       return NextResponse.json(
         {
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unsafe external endpoint",
+          error: error instanceof Error ? error.message : "Unsafe external endpoint",
         },
         { status: 400 },
       );
@@ -192,10 +187,11 @@ export async function GET(request: NextRequest) {
     });
   } else if (scope === "own") {
     // List user's own MCPs
-    mcps = await userMcpsService.listByOrganization(
-      authResult.user.organization_id,
-      { status, limit, offset },
-    );
+    mcps = await userMcpsService.listByOrganization(authResult.user.organization_id, {
+      status,
+      limit,
+      offset,
+    });
   } else {
     // List all (own + public)
     const [ownMcps, publicMcps] = await Promise.all([
@@ -235,8 +231,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

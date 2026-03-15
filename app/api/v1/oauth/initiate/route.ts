@@ -9,10 +9,7 @@ async function handle(request: NextRequest): Promise<Response> {
   const provider = request.nextUrl.searchParams.get("provider")?.toLowerCase();
 
   if (!provider) {
-    return NextResponse.json(
-      { error: "provider query parameter is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "provider query parameter is required" }, { status: 400 });
   }
 
   return initiateOAuth(request, {

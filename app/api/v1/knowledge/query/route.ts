@@ -1,15 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
+import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { userContextService } from "@/lib/eliza/user-context";
-import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { requireAuthOrApiKey } from "@/lib/auth";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
+import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import type { QueryResult } from "@/lib/types/knowledge";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -52,10 +52,7 @@ async function handlePOST(req: NextRequest) {
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {
-      return NextResponse.json(
-        { error: "Knowledge service not available" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "Knowledge service not available" }, { status: 503 });
     }
 
     // Use runtime.agentId as roomId (matching plugin pattern)
@@ -74,14 +71,11 @@ async function handlePOST(req: NextRequest) {
     };
 
     // Get relevant knowledge
-    const relevantKnowledge = await knowledgeService.getKnowledge(
-      queryMessage as never,
-      {
-        roomId,
-        worldId: roomId,
-        entityId: stringToUuid(user.id) as UUID,
-      },
-    );
+    const relevantKnowledge = await knowledgeService.getKnowledge(queryMessage as never, {
+      roomId,
+      worldId: roomId,
+      entityId: stringToUuid(user.id) as UUID,
+    });
 
     // Limit results on our side
     const limitedResults = relevantKnowledge.slice(0, limit);
@@ -93,11 +87,7 @@ async function handlePOST(req: NextRequest) {
           id: item.id,
           content: item.content.text ?? "",
           similarity: (() => {
-            if (
-              typeof item === "object" &&
-              item !== null &&
-              "similarity" in item
-            ) {
+            if (typeof item === "object" && item !== null && "similarity" in item) {
               const similarity = (item as { similarity: unknown }).similarity;
               if (typeof similarity === "number") {
                 return similarity;

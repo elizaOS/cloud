@@ -5,15 +5,12 @@
  * For image models, verifies the provider is configured and reachable.
  */
 
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
+import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { isGroqNativeModel } from "@/lib/models";
 import { hasGroqProviderConfigured } from "@/lib/providers";
 import { getCachedGatewayModelCatalog } from "@/lib/services/model-catalog";
-import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -76,30 +73,19 @@ export async function POST(request: NextRequest) {
   const { modelIds } = body as { modelIds: string[] };
 
   if (!Array.isArray(modelIds) || modelIds.length === 0) {
-    return Response.json(
-      { error: "modelIds array is required" },
-      { status: 400 },
-    );
+    return Response.json({ error: "modelIds array is required" }, { status: 400 });
   }
 
   if (modelIds.length > 50) {
-    return Response.json(
-      { error: "Maximum 50 models can be checked at once" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Maximum 50 models can be checked at once" }, { status: 400 });
   }
 
   // Validate each modelId is a non-empty string
   if (!modelIds.every((id) => typeof id === "string" && id.length > 0)) {
-    return Response.json(
-      { error: "Each modelId must be a non-empty string" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Each modelId must be a non-empty string" }, { status: 400 });
   }
 
-  const gatewayModelIds = new Set(
-    (await getCachedGatewayModelCatalog()).map((model) => model.id),
-  );
+  const gatewayModelIds = new Set((await getCachedGatewayModelCatalog()).map((model) => model.id));
 
   // Check availability for each requested model
   const results: ModelAvailability[] = modelIds.map((modelId) => {

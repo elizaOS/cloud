@@ -8,16 +8,16 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
+import type Stripe from "stripe";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { organizationsService } from "@/lib/services/organizations";
 import {
   assertAllowedAbsoluteRedirectUrl,
   getDefaultPlatformRedirectOrigins,
 } from "@/lib/security/redirect-validation";
+import { organizationsService } from "@/lib/services/organizations";
 import { requireStripe } from "@/lib/stripe";
-import { z } from "zod";
-import type Stripe from "stripe";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -194,9 +194,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Failed to create checkout session";
+      error instanceof Error ? error.message : "Failed to create checkout session";
 
     // Return 401 for authentication errors
     const isAuthError =
@@ -209,27 +207,17 @@ export async function POST(request: NextRequest) {
       errorMessage.includes("Forbidden");
 
     const isValidationError =
-      errorMessage.includes("Invalid success_url") ||
-      errorMessage.includes("Invalid cancel_url");
+      errorMessage.includes("Invalid success_url") || errorMessage.includes("Invalid cancel_url");
 
     if (isAuthError) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     if (isValidationError) {
-      return NextResponse.json(
-        { error: errorMessage },
-        { status: 400, headers: corsHeaders },
-      );
+      return NextResponse.json({ error: errorMessage }, { status: 400, headers: corsHeaders });
     }
 
     logger.error("[Credits Checkout API v1] Error:", error);
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500, headers: corsHeaders },
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500, headers: corsHeaders });
   }
 }

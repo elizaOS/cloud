@@ -7,15 +7,15 @@
  * @route GET /api/v1/discovery
  */
 
+import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { userMcpsService } from "@/lib/services/user-mcps";
-import { charactersService } from "@/lib/services/characters/characters";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
-import { createHash } from "crypto";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { charactersService } from "@/lib/services/characters/characters";
+import { userMcpsService } from "@/lib/services/user-mcps";
 import { logger } from "@/lib/utils/logger";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 // ============================================================================
 // Types
@@ -105,7 +105,7 @@ const querySchema = z.object({
 // Route Handler
 // ============================================================================
 
-export const GET = withRateLimit(async function (request: NextRequest) {
+export const GET = withRateLimit(async (request: NextRequest) => {
   const url = new URL(request.url);
   const rawParams = Object.fromEntries(url.searchParams);
 
@@ -121,10 +121,7 @@ export const GET = withRateLimit(async function (request: NextRequest) {
   const params = parseResult.data;
 
   // Generate cache key from params
-  const paramHash = createHash("md5")
-    .update(JSON.stringify(params))
-    .digest("hex")
-    .substring(0, 12);
+  const paramHash = createHash("md5").update(JSON.stringify(params)).digest("hex").substring(0, 12);
   const cacheKey = CacheKeys.discovery.list(paramHash);
 
   // Use cache for discovery results
@@ -163,9 +160,7 @@ export const GET = withRateLimit(async function (request: NextRequest) {
   if (params.query) {
     const query = params.query.toLowerCase();
     filtered = filtered.filter(
-      (s) =>
-        s.name.toLowerCase().includes(query) ||
-        s.description.toLowerCase().includes(query),
+      (s) => s.name.toLowerCase().includes(query) || s.description.toLowerCase().includes(query),
     );
   }
 
@@ -181,16 +176,12 @@ export const GET = withRateLimit(async function (request: NextRequest) {
 
   // Filter by categories
   if (params.categories?.length) {
-    filtered = filtered.filter(
-      (s) => s.category && params.categories!.includes(s.category),
-    );
+    filtered = filtered.filter((s) => s.category && params.categories!.includes(s.category));
   }
 
   // Filter by tags
   if (params.tags?.length) {
-    filtered = filtered.filter((s) =>
-      s.tags.some((tag) => params.tags!.includes(tag)),
-    );
+    filtered = filtered.filter((s) => s.tags.some((tag) => params.tags!.includes(tag)));
   }
 
   // Sort by name
@@ -226,10 +217,8 @@ export const GET = withRateLimit(async function (request: NextRequest) {
 /**
  * Fetch local public agents
  */
-async function fetchLocalAgents(
-  params: z.infer<typeof querySchema>,
-): Promise<DiscoveredService[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
   // Get all public characters
   let characters = await charactersService.listPublic();
@@ -240,17 +229,13 @@ async function fetchLocalAgents(
     characters = characters.filter(
       (char) =>
         char.name.toLowerCase().includes(query) ||
-        (typeof char.bio === "string" &&
-          char.bio.toLowerCase().includes(query)) ||
-        (Array.isArray(char.bio) &&
-          char.bio.some((b) => b.toLowerCase().includes(query))),
+        (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
+        (Array.isArray(char.bio) && char.bio.some((b) => b.toLowerCase().includes(query))),
     );
   }
 
   if (params.categories?.length) {
-    characters = characters.filter((char) =>
-      params.categories?.includes(char.category ?? ""),
-    );
+    characters = characters.filter((char) => params.categories?.includes(char.category ?? ""));
   }
 
   // Apply pagination
@@ -260,8 +245,7 @@ async function fetchLocalAgents(
 
   return characters.map((char): DiscoveredService => {
     const bio = Array.isArray(char.bio) ? char.bio.join(" ") : char.bio;
-    const slug =
-      "slug" in char ? (char as { slug?: string }).slug : undefined;
+    const slug = "slug" in char ? (char as { slug?: string }).slug : undefined;
 
     return {
       id: char.id,
@@ -295,10 +279,8 @@ async function fetchLocalAgents(
 /**
  * Fetch local MCPs from the registry
  */
-async function fetchLocalMcps(
-  params: z.infer<typeof querySchema>,
-): Promise<DiscoveredService[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+async function fetchLocalMcps(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
   const mcps = await userMcpsService.listPublic({
     category: params.categories?.[0],

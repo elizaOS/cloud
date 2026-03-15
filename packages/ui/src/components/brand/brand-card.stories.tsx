@@ -1,8 +1,8 @@
 "use client";
 
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { BrandCard, AgentCard } from "./brand-card";
-import { Bot, Zap, Shield } from "lucide-react";
+import { Bot, Shield, Zap } from "lucide-react";
+import { AgentCard, BrandCard } from "./brand-card";
 
 const meta: Meta<typeof BrandCard> = {
   title: "Brand/BrandCard",
@@ -24,7 +24,14 @@ export const Default: Story = {
   args: {
     children: (
       <div>
-        <h3 style={{ color: "white", fontSize: "1.25rem", fontWeight: "bold", marginBottom: "0.5rem" }}>
+        <h3
+          style={{
+            color: "white",
+            fontSize: "1.25rem",
+            fontWeight: "bold",
+            marginBottom: "0.5rem",
+          }}
+        >
           Card Title
         </h3>
         <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.875rem" }}>
@@ -40,7 +47,14 @@ export const WithHover: Story = {
     hover: true,
     children: (
       <div>
-        <h3 style={{ color: "white", fontSize: "1.25rem", fontWeight: "bold", marginBottom: "0.5rem" }}>
+        <h3
+          style={{
+            color: "white",
+            fontSize: "1.25rem",
+            fontWeight: "bold",
+            marginBottom: "0.5rem",
+          }}
+        >
           Hover Me
         </h3>
         <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.875rem" }}>
@@ -54,9 +68,7 @@ export const WithHover: Story = {
 export const NoCorners: Story = {
   args: {
     corners: false,
-    children: (
-      <p style={{ color: "white" }}>A card without corner brackets.</p>
-    ),
+    children: <p style={{ color: "white" }}>A card without corner brackets.</p>,
   },
 };
 

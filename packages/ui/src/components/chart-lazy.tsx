@@ -5,11 +5,10 @@
 
 "use client";
 
-import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 
 // Loading skeleton for charts
-function ChartSkeleton({ height = "340px" }: { height?: string }) {
+function _ChartSkeleton({ height = "340px" }: { height?: string }) {
   return (
     <div
       className="flex items-center justify-center rounded-2xl border border-border/70 bg-background/70"
@@ -25,13 +24,11 @@ function ChartSkeleton({ height = "340px" }: { height?: string }) {
 
 // Export re-exports from chart.tsx for components that don't need lazy loading
 export {
+  type ChartConfig,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
   ChartStyle,
-  type ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent,
 } from "./chart";
-
-
