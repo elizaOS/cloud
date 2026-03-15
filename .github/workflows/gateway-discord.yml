@@ -40,6 +40,8 @@ on:
     branches: [main, dev]
     paths:
       - "services/gateway-discord/**"
+      - "infra/terraform/**"
+      - "infra/charts/gateway-discord/**"
       - "lib/services/gateway-discord/**"
       - "lib/auth/jwks.ts"
       - "lib/auth/jwt-internal.ts"
@@ -54,6 +56,8 @@ on:
     branches: [main, dev]
     paths:
       - "services/gateway-discord/**"
+      - "infra/terraform/**"
+      - "infra/charts/gateway-discord/**"
       - "lib/services/gateway-discord/**"
       - "lib/auth/jwks.ts"
       - "lib/auth/jwt-internal.ts"
@@ -90,7 +94,7 @@ env:
   TF_VERSION: "1.7.0"
   IMAGE_REPO: ghcr.io/elizaos/cloud/gateway-discord
   REGISTRY: ghcr.io
-  TF_WORKING_DIR: services/gateway-discord/terraform
+  TF_WORKING_DIR: infra/terraform
 
 jobs:
   # =============================================================================
@@ -119,10 +123,10 @@ jobs:
           base: ${{ github.event.before }}
           filters: |
             terraform:
-              - 'services/gateway-discord/terraform/**'
+              - 'infra/terraform/**'
             app:
               - 'services/gateway-discord/src/**'
-              - 'services/gateway-discord/chart/**'
+              - 'infra/charts/gateway-discord/**'
               - 'services/gateway-discord/Dockerfile'
               - 'services/gateway-discord/package.json'
               - 'services/gateway-discord/tsconfig.json'
@@ -149,34 +153,28 @@ jobs:
             ENV="gateway-dev"
           fi
 
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+
           if [[ "$ENV" == "gateway-prd" ]]; then
-            {
-              echo "environment=$ENV"
-              echo "tfvars_file=tfvars/production.tfvars"
-              echo "backend_config=backend-production.hcl"
-              echo "values_file=values-production.yaml"
-            } >> "$GITHUB_OUTPUT"
+            echo "tfvars_file=tfvars/production.tfvars" >> $GITHUB_OUTPUT
+            echo "backend_config=backend-production.hcl" >> $GITHUB_OUTPUT
+            echo "values_file=values-production.yaml" >> $GITHUB_OUTPUT
           else
-            {
-              echo "environment=$ENV"
-              echo "tfvars_file=tfvars/development.tfvars"
-              echo "backend_config=backend-development.hcl"
-              echo "values_file=values-development.yaml"
-            } >> "$GITHUB_OUTPUT"
+            echo "tfvars_file=tfvars/development.tfvars" >> $GITHUB_OUTPUT
+            echo "backend_config=backend-development.hcl" >> $GITHUB_OUTPUT
+            echo "values_file=values-development.yaml" >> $GITHUB_OUTPUT
           fi
 
           echo "Target environment: $ENV"
 
       - name: Summary
         run: |
-          {
-            echo "### Change Detection Summary"
-            echo "| Category | Changed |"
-            echo "|----------|---------|"
-            echo "| Terraform | ${{ steps.filter.outputs.terraform }} |"
-            echo "| App | ${{ steps.filter.outputs.app }} |"
-            echo "| Environment | ${{ steps.env.outputs.environment }} |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "### Change Detection Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Changed |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform | ${{ steps.filter.outputs.terraform }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| App | ${{ steps.filter.outputs.app }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ steps.env.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # TERRAFORM - Infrastructure provisioning (runs if terraform files changed)
@@ -196,7 +194,7 @@ jobs:
       pull-requests: write
     defaults:
       run:
-        working-directory: services/gateway-discord/terraform
+        working-directory: infra/terraform
     outputs:
       cluster_name: ${{ steps.outputs.outputs.cluster_name }}
       cluster_endpoint: ${{ steps.outputs.outputs.cluster_endpoint }}
@@ -212,7 +210,7 @@ jobs:
       # Run tfsec BEFORE AWS auth - it's static analysis and doesn't need credentials
       - name: Security Scan with tfsec
         id: tfsec
-        working-directory: services/gateway-discord/terraform
+        working-directory: infra/terraform
         run: |
           # Install tfsec
           curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
@@ -227,7 +225,7 @@ jobs:
         if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: services/gateway-discord/terraform/tfsec-results.sarif
+          sarif_file: infra/terraform/tfsec-results.sarif
         continue-on-error: true
 
       - name: Terraform Format Check
@@ -377,16 +375,14 @@ jobs:
           # Now destroy infrastructure
           echo "Destroying infrastructure..."
           terraform destroy -auto-approve \
-            "-var-file=${{ needs.detect-changes.outputs.tfvars_file }}"
+            -var-file=${{ needs.detect-changes.outputs.tfvars_file }}
 
       - name: Get Terraform Outputs
         id: outputs
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-apply')
         run: |
-          {
-            echo "cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo '')"
-            echo "cluster_endpoint=$(terraform output -raw cluster_endpoint 2>/dev/null || echo '')"
-          } >> "$GITHUB_OUTPUT"
+          echo "cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "cluster_endpoint=$(terraform output -raw cluster_endpoint 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
 
   # =============================================================================
   # TEST - Run tests (runs if app files changed)
@@ -538,27 +534,27 @@ jobs:
           version: "v3.14.0"
 
       - name: Configure kubectl for EKS
-        run: aws eks update-kubeconfig --name "${{ vars.CLUSTER_NAME }}" --region "${{ vars.AWS_REGION }}"
+        run: aws eks update-kubeconfig --name ${{ vars.CLUSTER_NAME }} --region ${{ vars.AWS_REGION }}
 
       - name: Deploy with Helm
         run: |
           # Determine image to deploy
-          HELM_ARGS=()
           if [[ "${{ needs.build.result }}" == "success" ]]; then
             IMAGE_DIGEST="${{ needs.build.outputs.digest }}"
             echo "Deploying newly built image: ${{ env.IMAGE_REPO }}@${IMAGE_DIGEST}"
-            HELM_ARGS+=(--set "image.digest=${IMAGE_DIGEST}")
+            DIGEST_ARG="--set image.digest=${IMAGE_DIGEST}"
           else
             echo "Deploying with existing image (terraform-only change)"
+            DIGEST_ARG=""
           fi
 
           # Note: Namespace is created by Terraform (k8s-resources module)
-          helm upgrade --install gateway-discord ./services/gateway-discord/chart \
+          helm upgrade --install gateway-discord ./infra/charts/gateway-discord \
             --namespace gateway-discord \
-            -f ./services/gateway-discord/chart/values.yaml \
-            -f ./services/gateway-discord/chart/${{ needs.detect-changes.outputs.values_file }} \
+            -f ./infra/charts/gateway-discord/values.yaml \
+            -f ./infra/charts/gateway-discord/${{ needs.detect-changes.outputs.values_file }} \
             --set image.repository=${{ env.IMAGE_REPO }} \
-            "${HELM_ARGS[@]}" \
+            $DIGEST_ARG \
             --wait \
             --timeout 5m
 
