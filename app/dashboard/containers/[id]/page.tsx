@@ -1,14 +1,14 @@
-import { Badge, BrandButton, BrandCard } from "@elizaos/ui";
+import { Badge, BrandButton, BrandCard } from "@elizaos/cloud-ui";
 import { AlertCircle, ArrowLeft, Clock, Cpu, ExternalLink, HardDrive, Server } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
-import { ContainerLogsViewer } from "@/components/containers/container-logs-viewer";
-import { ContainerMetrics } from "@/components/containers/container-metrics";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { generateContainerMetadata } from "@/lib/seo";
 import { getContainer } from "@/lib/services/containers";
+import { ContainerDeploymentHistory } from "@/packages/ui/src/components/containers/container-deployment-history";
+import { ContainerLogsViewer } from "@/packages/ui/src/components/containers/container-logs-viewer";
+import { ContainerMetrics } from "@/packages/ui/src/components/containers/container-metrics";
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";

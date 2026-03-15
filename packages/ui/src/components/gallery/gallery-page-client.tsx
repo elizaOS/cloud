@@ -5,14 +5,14 @@
  */
 "use client";
 
-import type { TabItem } from "@elizaos/ui";
+import type { TabItem } from "@elizaos/cloud-ui";
 import {
   BrandButton,
   BrandCard,
   BrandTabsContent,
   BrandTabsResponsive,
   useSetPageHeader,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { AlertCircle, ImageIcon, LayoutGridIcon, RefreshCw, VideoIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

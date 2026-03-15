@@ -26,7 +26,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { formatDistanceToNow } from "date-fns";
 import { ExternalLink, Play, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -166,7 +166,7 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
             <AlertDialogTitle>Delete Voice Clone?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &quot;{voice.name}&quot;? This action cannot be undone
-              and the voice will be permanently removed from both Eliza Cloud and ElevenLabs.
+              and the voice will be permanently removed from both Milady Cloud and ElevenLabs.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -14,7 +14,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   ScrollArea,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   AlertCircle,
   Check,

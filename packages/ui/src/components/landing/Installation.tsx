@@ -5,7 +5,7 @@
 
 "use client";
 
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import { motion } from "framer-motion";
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { AuthorizeContent } from "@/components/auth/authorize-content";
+import { AuthorizeContent } from "@/packages/ui/src/components/auth/authorize-content";
 
 export const dynamic = "force-dynamic";
 

@@ -18,7 +18,7 @@ import {
   BrandCard,
   CornerBrackets,
   Input,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Check, ImagePlus, Loader2, Mail, Shield, Upload, User, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";

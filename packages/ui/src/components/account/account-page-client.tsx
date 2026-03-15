@@ -8,7 +8,7 @@
 
 "use client";
 
-import { BrandCard, CornerBrackets, useSetPageHeader } from "@elizaos/ui";
+import { BrandCard, CornerBrackets, useSetPageHeader } from "@elizaos/cloud-ui";
 import type { UserWithOrganization } from "@/lib/types";
 import { AccountDetails } from "./account-details";
 import { OrganizationInfo } from "./organization-info";

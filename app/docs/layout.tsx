@@ -6,36 +6,36 @@ import "./docs.css";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { LlmsTxtBadge } from "@/components/docs/llms-txt-badge";
+import { LlmsTxtBadge } from "@/packages/ui/src/components/docs/llms-txt-badge";
 
 export const metadata: Metadata = {
   title: {
-    default: "ELIZA CLOUD Documentation",
-    template: "%s | ELIZA CLOUD",
+    default: "MILADY CLOUD Documentation",
+    template: "%s | MILADY CLOUD",
   },
   description:
-    "Documentation for ELIZA CLOUD - The AI Agent Development Platform.",
+    "Documentation for MILADY CLOUD - The AI Agent Development Platform.",
   keywords: ["elizaOS", "AI agents", "cloud platform", "documentation", "API"],
   openGraph: {
-    title: "ELIZA CLOUD Documentation",
+    title: "MILADY CLOUD Documentation",
     description:
-      "Documentation for ELIZA CLOUD - The AI Agent Development Platform.",
-    siteName: "ELIZA CLOUD",
+      "Documentation for MILADY CLOUD - The AI Agent Development Platform.",
+    siteName: "MILADY CLOUD",
     type: "website",
     images: [
       {
         url: "/cloudlogo.png",
         width: 1200,
         height: 630,
-        alt: "ELIZA CLOUD - Make Agents in Seconds",
+        alt: "MILADY CLOUD - Make Agents in Seconds",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ELIZA CLOUD Documentation",
+    title: "MILADY CLOUD Documentation",
     description:
-      "Documentation for ELIZA CLOUD - The AI Agent Development Platform.",
+      "Documentation for MILADY CLOUD - The AI Agent Development Platform.",
     images: ["/cloudlogo.png"],
     creator: "@elizaos",
     site: "@elizaos",
@@ -48,7 +48,7 @@ const navbar = (
       <div className="flex items-center gap-3 pointer-events-none select-none">
         <Image
           src="/cloudlogo-white.svg"
-          alt="ELIZA CLOUD"
+          alt="MILADY CLOUD"
           width={90}
           height={35}
           priority

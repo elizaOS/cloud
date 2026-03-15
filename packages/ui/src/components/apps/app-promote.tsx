@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Button } from "@elizaos/ui";
+import { Badge, Button } from "@elizaos/cloud-ui";
 import {
   ExternalLink,
   Image as ImageIcon,
@@ -14,8 +14,8 @@ import {
   Video,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PromoteAppDialog } from "@/components/promotion/promote-app-dialog";
 import type { App } from "@/db/schemas";
+import { PromoteAppDialog } from "@/packages/ui/src/components/promotion/promote-app-dialog";
 
 interface AppPromoteProps {
   app: App;

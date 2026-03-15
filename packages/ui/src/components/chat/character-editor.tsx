@@ -10,15 +10,18 @@
 
 "use client";
 
-import { AnimatedTabs, Button, ScrollArea } from "@elizaos/ui";
+import { AnimatedTabs, Button, ScrollArea } from "@elizaos/cloud-ui";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CharacterForm, type FormTab } from "@/components/character-builder/character-form";
-import { JsonEditor } from "@/components/character-builder/json-editor";
-import { PluginsTab } from "@/components/chat/plugins-tab";
-import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
+import {
+  CharacterForm,
+  type FormTab,
+} from "@/packages/ui/src/components/character-builder/character-form";
+import { JsonEditor } from "@/packages/ui/src/components/character-builder/json-editor";
+import { PluginsTab } from "@/packages/ui/src/components/chat/plugins-tab";
+import { UploadsTab } from "@/packages/ui/src/components/chat/uploads-tab";
 
 interface CharacterEditorProps {
   character: ElizaCharacter;

@@ -10,7 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { format } from "date-fns";
 import {
@@ -24,7 +24,7 @@ import {
   User,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface InviteDetails {

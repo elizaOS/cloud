@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { AlertCircle, CheckCircle2, Key, Loader2, Terminal } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -164,7 +164,7 @@ function CliLoginContent() {
             <div className="space-y-2">
               <h2 className="text-xl font-semibold text-white">CLI Authentication</h2>
               <p className="text-sm text-neutral-500">
-                Sign in to connect your elizaOS CLI to the cloud
+                Sign in to connect your Milady app or CLI to Milady Cloud
               </p>
             </div>
             <Button

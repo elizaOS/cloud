@@ -13,7 +13,7 @@ export function ElizaCloudLockup({
   textClassName,
 }: ElizaCloudLockupProps) {
   return (
-    <div aria-label="ELIZA CLOUD" className={cn("flex items-center gap-2.5", className)}>
+    <div aria-label="Milady Cloud" className={cn("flex items-center gap-2.5", className)}>
       <ElizaLogo className={cn("h-4 shrink-0 text-white md:h-5", logoClassName)} />
       <span
         className={cn(

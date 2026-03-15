@@ -11,7 +11,7 @@ import {
   Input,
   Label,
   Switch,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
@@ -45,7 +45,7 @@ export function CreateMiladySandboxDialog({
     setPhase("creating");
 
     try {
-      const createRes = await fetch("/api/v1/milaidy/agents", {
+      const createRes = await fetch("/api/v1/milady/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agentName: trimmedName }),
@@ -67,7 +67,7 @@ export function CreateMiladySandboxDialog({
 
       if (autoStart) {
         setPhase("provisioning");
-        const provisionRes = await fetch(`/api/v1/milaidy/agents/${agentId}/provision`, {
+        const provisionRes = await fetch(`/api/v1/milady/agents/${agentId}/provision`, {
           method: "POST",
         });
         const provisionData = await provisionRes.json().catch(() => ({}));

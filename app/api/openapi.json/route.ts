@@ -1,7 +1,7 @@
 /**
  * OpenAPI Specification Endpoint
  *
- * Returns the OpenAPI 3.1.0 specification for the Eliza Cloud API.
+ * Returns the OpenAPI 3.1.0 specification for the Milady Cloud API.
  * Referenced in ERC-8004 registration for service discovery.
  *
  * GET /api/openapi.json
@@ -42,7 +42,7 @@ function tagForPath(routePath: string) {
 }
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
   const discovered = await discoverPublicApiRoutes();
   const discoveredPaths: Record<string, OpenApiPathItem> = {};
@@ -73,13 +73,13 @@ export async function GET() {
   const spec = {
     openapi: "3.1.0",
     info: {
-      title: "Eliza Cloud API",
+      title: "Milady Cloud API",
       version: "1.0.0",
       description:
         "AI agent infrastructure API. Supports REST, MCP, and A2A protocols with API key authentication.",
       contact: {
-        name: "Eliza Cloud",
-        url: "https://elizacloud.ai",
+        name: "Milady Cloud",
+        url: "https://cloud.milady.ai",
       },
       license: {
         name: "MIT",
@@ -113,8 +113,8 @@ export async function GET() {
     },
     tags: [],
     externalDocs: {
-      description: "Eliza Cloud Documentation",
-      url: "https://elizacloud.ai/docs",
+      description: "Milady Cloud Documentation",
+      url: "https://cloud.milady.ai/docs",
     },
   };
 

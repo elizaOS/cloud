@@ -22,7 +22,7 @@ import {
   DialogTitle,
   Input,
   Label,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { ArrowRight, Lock, Mail, Sparkles } from "lucide-react";
 import { type FormEvent, useState } from "react";

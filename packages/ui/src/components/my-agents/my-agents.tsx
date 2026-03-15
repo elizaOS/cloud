@@ -1,14 +1,14 @@
 "use client";
 
-import { useSetPageHeader } from "@elizaos/ui";
+import { useSetPageHeader } from "@elizaos/cloud-ui";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CharacterFilters } from "@/components/my-agents/character-filters";
-import type { AgentWithOwnership } from "@/components/my-agents/character-library-grid";
-import { CharacterLibraryGrid } from "@/components/my-agents/character-library-grid";
 import { logger } from "@/lib/utils/logger";
+import { CharacterFilters } from "@/packages/ui/src/components/my-agents/character-filters";
+import type { AgentWithOwnership } from "@/packages/ui/src/components/my-agents/character-library-grid";
+import { CharacterLibraryGrid } from "@/packages/ui/src/components/my-agents/character-library-grid";
 
 export type ViewMode = "grid" | "list";
 export type SortOption = "name" | "created" | "modified" | "recent";

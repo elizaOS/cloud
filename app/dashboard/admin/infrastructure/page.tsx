@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { InfrastructureDashboard } from "@/components/admin/infrastructure-dashboard";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { adminService } from "@/lib/services/admin";
+import { InfrastructureDashboard } from "@/packages/ui/src/components/admin/infrastructure-dashboard";
 
 export const metadata: Metadata = {
   title: "Admin: Infrastructure",

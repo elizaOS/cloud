@@ -27,7 +27,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { formatDistanceToNow } from "date-fns";
 import { FileText, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Label } from "@elizaos/ui";
+import { Label } from "@elizaos/cloud-ui";
 import * as LabelPrimitive from "@radix-ui/react-label";
 import { Slot } from "@radix-ui/react-slot";
 import * as React from "react";

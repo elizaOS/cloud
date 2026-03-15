@@ -90,7 +90,7 @@ export async function POST(
 
   // Check if already published
   if (agent.is_public) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
     return NextResponse.json({
       success: true,
       message: "Agent is already published",
@@ -120,7 +120,7 @@ export async function POST(
     })
     .where(eq(userCharacters.id, agentId));
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
   logger.info("[Agent Publish API] Agent published", {
     agentId,

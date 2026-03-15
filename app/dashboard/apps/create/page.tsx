@@ -5,15 +5,11 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
   useSetPageHeader,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { nanoid } from "nanoid";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChatInput } from "@/components/app-builder/chat-input";
-import { HistoryTab } from "@/components/app-builder/history-tab";
-import { SessionLoader } from "@/components/app-builder/session-loader";
-import { WebTerminal } from "@/components/app-builder/x-terminal";
 import { markdownComponents } from "@/lib/app-builder/markdown-components";
 import { type ImageAttachment, useChatInput, useModelSelection } from "@/lib/app-builder/store";
 import { formatToolDisplay, getTimeString } from "@/lib/app-builder/tool-display";
@@ -33,6 +29,10 @@ import type {
 } from "@/lib/app-builder/types";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 import { generateRandomName } from "@/lib/utils/random-names";
+import { ChatInput } from "@/packages/ui/src/components/app-builder/chat-input";
+import { HistoryTab } from "@/packages/ui/src/components/app-builder/history-tab";
+import { SessionLoader } from "@/packages/ui/src/components/app-builder/session-loader";
+import { WebTerminal } from "@/packages/ui/src/components/app-builder/x-terminal";
 
 async function fetchWithRetry(
   url: string,
@@ -83,7 +83,7 @@ import {
   Label,
   ScrollArea,
   Textarea,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   AlertCircle,
   ArrowLeft,
@@ -122,7 +122,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
-import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
+import { SandboxFileExplorer } from "@/packages/ui/src/components/sandbox/sandbox-file-explorer";
 
 // Memoized chat message component to prevent re-renders when input changes
 interface ChatMessageProps {

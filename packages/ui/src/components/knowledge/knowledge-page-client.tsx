@@ -25,7 +25,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Bot, InfoIcon, List, Search, Upload } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ElizaCharacter } from "@/lib/types";

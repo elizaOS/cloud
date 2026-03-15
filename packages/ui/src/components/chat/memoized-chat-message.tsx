@@ -6,7 +6,7 @@
 "use client";
 
 import { ContentType, type Media } from "@elizaos/core";
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import { Check, Copy, Loader2, Square, Volume2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";

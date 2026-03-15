@@ -15,12 +15,12 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Check, Copy, Info, Terminal } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
-import { ContainersTable } from "@/components/containers/containers-table";
 import { cn } from "@/lib/utils";
+import { ContainersTable } from "@/packages/ui/src/components/containers/containers-table";
 
 // Simplified container type matching getDashboardData output
 interface DashboardContainer {

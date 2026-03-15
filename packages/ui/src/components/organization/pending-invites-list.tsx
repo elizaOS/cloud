@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { formatDistanceToNow } from "date-fns";
 import { CheckCircle2, Clock, Mail, Shield, User, X, XCircle } from "lucide-react";
 import { useState } from "react";

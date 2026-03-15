@@ -6,16 +6,16 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { ArrowRight, CheckCircle, XCircle } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CreditBalanceDisplay } from "@/components/billing/success-client";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
+import { CreditBalanceDisplay } from "@/packages/ui/src/components/billing/success-client";
 
 export const dynamic = "force-dynamic";
 

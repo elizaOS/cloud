@@ -29,7 +29,7 @@ async function handlePOST(request: NextRequest) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>New Feedback from Eliza Cloud</title>
+  <title>New Feedback from Milady Cloud</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0a0a0a; color: #ffffff;">
   <div style="background: linear-gradient(135deg, rgba(255, 88, 0, 0.1) 0%, rgba(0, 0, 0, 0.8) 100%); padding: 30px; border-radius: 12px; border: 1px solid rgba(255, 88, 0, 0.2);">
@@ -60,14 +60,14 @@ async function handlePOST(request: NextRequest) {
     <hr style="border: none; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 30px 0;">
     
     <p style="color: #666; font-size: 12px; text-align: center; margin-bottom: 0;">
-      This feedback was submitted via Eliza Cloud
+      This feedback was submitted via Milady Cloud
     </p>
   </div>
 </body>
 </html>`;
 
   const text = `
-New Feedback from Eliza Cloud
+New Feedback from Milady Cloud
 ==============================
 
 From: ${displayName}
@@ -78,12 +78,12 @@ Message:
 ${comment}
 
 ---
-This feedback was submitted via Eliza Cloud
+This feedback was submitted via Milady Cloud
 `;
 
   const sent = await emailService.send({
     to: "developer@elizalabs.ai",
-    subject: `[Eliza Cloud Feedback] from ${displayName}`,
+    subject: `[Milady Cloud Feedback] from ${displayName}`,
     html,
     text,
     ...(email && { replyTo: email }),

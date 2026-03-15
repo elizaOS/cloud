@@ -31,7 +31,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { ArrowUpDown, Boxes, ExternalLink, FileText, Search, Server, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

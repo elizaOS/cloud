@@ -8,7 +8,7 @@
 
 "use client";
 
-import { BrandCard, CornerBrackets, Input } from "@elizaos/ui";
+import { BrandCard, CornerBrackets, Input } from "@elizaos/cloud-ui";
 import { AlertCircle, CheckCircle, CreditCard, Loader2, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";

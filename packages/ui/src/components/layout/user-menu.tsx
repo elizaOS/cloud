@@ -18,7 +18,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { useLogout, usePrivy } from "@privy-io/react-auth";
 import {
   BookOpen,

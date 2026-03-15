@@ -16,7 +16,7 @@
 
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage, Badge, Button, Card, CardContent } from "@elizaos/ui";
+import { Avatar, AvatarFallback, AvatarImage, Badge, Button, Card, CardContent } from "@elizaos/cloud-ui";
 import { MessageCircle, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";

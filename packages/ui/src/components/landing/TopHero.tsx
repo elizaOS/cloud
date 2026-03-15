@@ -6,7 +6,7 @@
 
 "use client";
 
-import { BrandButton, Button, CornerBrackets } from "@elizaos/ui";
+import { BrandButton, Button, CornerBrackets } from "@elizaos/cloud-ui";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -267,7 +267,7 @@ const TopHero = () => {
                     delay: status === "deploy" ? 5.6 : 0,
                   }}
                 >
-                  Running on Eliza Cloud
+                  Running on Milady Cloud
                 </motion.div>
                 <motion.div
                   className="flex items-center gap-2 text-[#FF5800] break-all"
@@ -278,7 +278,7 @@ const TopHero = () => {
                     delay: status === "deploy" ? 6 : 0,
                   }}
                 >
-                  → https://my-agent.containers.elizacloud.ai
+                  → https://my-agent.cloud.milady.ai
                   {cursorLine === "url" && status === "deploy" && (
                     <span
                       className="inline-block w-0.5 h-3.5 bg-white ml-px shrink-0"

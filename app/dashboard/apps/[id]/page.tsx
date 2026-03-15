@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AppDetailsTabs } from "@/components/apps/app-details-tabs";
-import { AppPageWrapper } from "@/components/apps/single-app-page-wrapper";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { isValidUUID } from "@/lib/utils";
+import { AppDetailsTabs } from "@/packages/ui/src/components/apps/app-details-tabs";
+import { AppPageWrapper } from "@/packages/ui/src/components/apps/single-app-page-wrapper";
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   return {
-    title: `${app.name} | Eliza Cloud`,
+    title: `${app.name} | Milady Cloud`,
     description: app.description || `Manage ${app.name} app settings and analytics`,
     robots: { index: false, follow: false },
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import { Label } from "@elizaos/ui";
+import { Label } from "@elizaos/cloud-ui";
 import { CardElement } from "@stripe/react-stripe-js";
 import type { StripeCardElementChangeEvent } from "@stripe/stripe-js";
 

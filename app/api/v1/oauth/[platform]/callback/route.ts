@@ -104,7 +104,7 @@ async function handleCallback(
   const platformLower = platform.toLowerCase();
   const searchParams = request.nextUrl.searchParams;
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
   const defaultRedirect = `${baseUrl}/dashboard/settings?tab=connections`;
 
   // Get provider configuration

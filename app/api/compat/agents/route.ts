@@ -6,7 +6,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { envelope, toCompatAgent, toCompatCreateResult } from "@/lib/api/compat-envelope";
 import { stripReservedMiladyConfigKeys } from "@/lib/services/milady-agent-config";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { prepareManagedMiladyEnvironment } from "@/lib/services/milady-managed-launch";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../_lib/auth";
 import { handleCompatError } from "../_lib/error-handler";
@@ -49,13 +50,18 @@ export async function POST(request: NextRequest) {
     // Strip reserved __milady* keys from user-supplied agentConfig to prevent
     // callers from spoofing internal lifecycle flags.
     const sanitizedConfig = stripReservedMiladyConfigKeys(parsed.data.agentConfig);
+    const managedEnvironment = await prepareManagedMiladyEnvironment({
+      existingEnv: parsed.data.environmentVars,
+      organizationId: user.organization_id,
+      userId: user.id,
+    });
 
     let agent = await miladySandboxService.createAgent({
       organizationId: user.organization_id,
       userId: user.id,
       agentName: parsed.data.agentName,
       agentConfig: sanitizedConfig,
-      environmentVars: parsed.data.environmentVars,
+      environmentVars: managedEnvironment.environmentVars,
     });
 
     logger.info("[compat] Agent created", {

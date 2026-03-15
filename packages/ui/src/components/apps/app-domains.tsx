@@ -17,7 +17,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   AlertTriangle,
   Check,

@@ -9,7 +9,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { formatDistanceToNow } from "date-fns";
 import {
   Activity,

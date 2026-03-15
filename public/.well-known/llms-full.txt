@@ -2,15 +2,15 @@
 
 This file contains the concatenated contents of the elizaOS Cloud docs for LLM ingestion (Cursor, ChatGPT, etc.).
 
-Base URL: https://elizacloud.ai
-Docs root: https://elizacloud.ai/docs
-Index: https://elizacloud.ai/.well-known/llms.txt
+Base URL: https://cloud.milady.ai
+Docs root: https://cloud.milady.ai/docs
+Index: https://cloud.milady.ai/.well-known/llms.txt
 
 ---
 
 ## elizaOS Cloud Documentation
 
-URL: https://elizacloud.ai/docs
+URL: https://cloud.milady.ai/docs
 
 Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 
@@ -299,7 +299,7 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 All API requests require authentication via API key:
 
 ```bash
-curl https://elizacloud.ai/api/v1/chat/completions \
+curl https://cloud.milady.ai/api/v1/chat/completions \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -415,7 +415,7 @@ curl https://elizacloud.ai/api/v1/chat/completions \
 
 ## A2A Protocol
 
-URL: https://elizacloud.ai/docs/a2a
+URL: https://cloud.milady.ai/docs/a2a
 
 Summary: Agent-to-Agent communication protocol on elizaOS Cloud. Enable agents to communicate and collaborate.
 
@@ -439,14 +439,14 @@ A2A (Agent-to-Agent) protocol enables:
 Every agent has an Agent Card describing its capabilities:
 
 ```bash
-curl -X GET "https://elizacloud.ai/.well-known/agent-card.json"
+curl -X GET "https://cloud.milady.ai/.well-known/agent-card.json"
 ```
 
 ```json
 {
   "name": "elizaOS Cloud",
   "description": "AI agent infrastructure platform",
-  "image": "https://elizacloud.ai/logo.png",
+  "image": "https://cloud.milady.ai/logo.png",
   "version": "1.0.0",
   "capabilities": {
     "streaming": true,
@@ -483,7 +483,7 @@ curl -X GET "https://elizacloud.ai/.well-known/agent-card.json"
 ### Discover Agents
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/discovery" \
+curl -X GET "https://cloud.milady.ai/api/v1/discovery" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -495,7 +495,7 @@ curl -X GET "https://elizacloud.ai/api/v1/discovery" \
     {
       "id": "agent_abc123",
       "name": "Research Assistant",
-      "url": "https://elizacloud.ai/agents/abc123",
+      "url": "https://cloud.milady.ai/agents/abc123",
       "skills": ["chat", "research", "summarize"],
       "pricing": {
         "perMessage": 0.001
@@ -510,7 +510,7 @@ curl -X GET "https://elizacloud.ai/api/v1/discovery" \
 ### Task Request
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/a2a" \
+curl -X POST "https://cloud.milady.ai/api/a2a" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -563,7 +563,7 @@ curl -X POST "https://elizacloud.ai/api/a2a" \
 For long-running tasks, use streaming:
 
 ```javascript
-const response = await fetch("https://elizacloud.ai/api/a2a", {
+const response = await fetch("https://cloud.milady.ai/api/a2a", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -624,7 +624,7 @@ const result = await agentA.delegateTask({
 ### API Key
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/a2a" \
+curl -X POST "https://cloud.milady.ai/api/a2a" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '...'
@@ -633,7 +633,7 @@ curl -X POST "https://elizacloud.ai/api/a2a" \
 ### x402 Payment
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/a2a" \
+curl -X POST "https://cloud.milady.ai/api/a2a" \
   -H "X-PAYMENT: <payment-header>" \
   -H "Content-Type: application/json" \
   -d '...'
@@ -644,7 +644,7 @@ curl -X POST "https://elizacloud.ai/api/a2a" \
 Make your agent discoverable:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/agents/{agentId}/registration.json" \
+curl -X POST "https://cloud.milady.ai/api/agents/{agentId}/registration.json" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -691,7 +691,7 @@ A2A follows the Google A2A specification with extensions:
 
 ## Agent Creator
 
-URL: https://elizacloud.ai/docs/agent-creator
+URL: https://cloud.milady.ai/docs/agent-creator
 
 Summary: Build AI agents visually with the elizaOS Cloud Agent Creator. No code required to create powerful conversational agents.
 
@@ -953,7 +953,7 @@ Upload a character JSON file to populate the creator:
 
 ## AI Agents
 
-URL: https://elizacloud.ai/docs/agents
+URL: https://cloud.milady.ai/docs/agents
 
 Summary: Create, deploy, and manage intelligent AI agents on elizaOS Cloud. Build conversational agents with custom personalities, knowledge, and capabilities.
 
@@ -1006,7 +1006,7 @@ Click "Deploy" to launch your agent.
 ### Using the API
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/app/agents" \
+curl -X POST "https://cloud.milady.ai/api/v1/app/agents" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1103,21 +1103,21 @@ The character JSON defines your agent's personality and behavior.
 ### List Agents
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/my-agents/characters" \
+curl -X GET "https://cloud.milady.ai/api/my-agents/characters" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Get Agent Details
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/my-agents/characters/{agentId}" \
+curl -X GET "https://cloud.milady.ai/api/my-agents/characters/{agentId}" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Delete Agent
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/my-agents/characters/{agentId}" \
+curl -X DELETE "https://cloud.milady.ai/api/my-agents/characters/{agentId}" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -1139,7 +1139,7 @@ Agents can be in one of these states:
 Publish your agents to the marketplace and earn from usage.
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/agents/{agentId}/publish" \
+curl -X POST "https://cloud.milady.ai/api/v1/agents/{agentId}/publish" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1179,7 +1179,7 @@ curl -X POST "https://elizacloud.ai/api/v1/agents/{agentId}/publish" \
 
 ## API Overview
 
-URL: https://elizacloud.ai/docs/api
+URL: https://cloud.milady.ai/docs/api
 
 Summary: Complete REST API reference for elizaOS Cloud. OpenAI-compatible endpoints for chat, embeddings, and more.
 
@@ -1195,7 +1195,7 @@ elizaOS Cloud provides a comprehensive REST API for all platform features.
 ## Base URL
 
 ```
-https://elizacloud.ai/api/v1
+https://cloud.milady.ai/api/v1
 ```
 
 ## Authentication
@@ -1203,7 +1203,7 @@ https://elizacloud.ai/api/v1
 All API requests require authentication via API key or session token:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/dashboard" \
+curl -X GET "https://cloud.milady.ai/api/v1/dashboard" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -1288,7 +1288,7 @@ All errors follow a consistent format:
 The full OpenAPI specification is available at:
 
 ```
-https://elizacloud.ai/api/openapi.json
+https://cloud.milady.ai/api/openapi.json
 ```
 
 You can use this with tools like Swagger UI, Postman, or to generate client SDKs.
@@ -1297,7 +1297,7 @@ You can use this with tools like Swagger UI, Postman, or to generate client SDKs
 
 ## Agents
 
-URL: https://elizacloud.ai/docs/api/agents
+URL: https://cloud.milady.ai/docs/api/agents
 
 Summary: Create and manage AI agents on elizaOS Cloud.
 
@@ -1320,11 +1320,11 @@ All agent endpoints accept authentication via:
 
 ```bash
 # Using X-API-Key header (recommended)
-curl "https://elizacloud.ai/api/my-agents/characters" \
+curl "https://cloud.milady.ai/api/my-agents/characters" \
   -H "X-API-Key: YOUR_API_KEY"
 
 # Using Authorization header
-curl "https://elizacloud.ai/api/my-agents/characters" \
+curl "https://cloud.milady.ai/api/my-agents/characters" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -1530,7 +1530,7 @@ Publish an agent to the marketplace.
 
 ## API Keys
 
-URL: https://elizacloud.ai/docs/api/api-keys
+URL: https://cloud.milady.ai/docs/api/api-keys
 
 Summary: Manage API keys for elizaOS Cloud.
 
@@ -1699,7 +1699,7 @@ Generate a new secret for an existing key.
 
 ## Apps
 
-URL: https://elizacloud.ai/docs/api/apps
+URL: https://cloud.milady.ai/docs/api/apps
 
 Summary: Create and manage applications on elizaOS Cloud.
 
@@ -1877,7 +1877,7 @@ Get all domains for an app including subdomain and custom domain status.
     {
       "id": "dom_abc123",
       "subdomain": "myapp",
-      "subdomainUrl": "https://myapp.apps.elizacloud.ai",
+      "subdomainUrl": "https://myapp.apps.cloud.milady.ai",
       "customDomain": "myapp.example.com",
       "customDomainUrl": "https://myapp.example.com",
       "customDomainVerified": true,
@@ -2073,7 +2073,7 @@ Refresh all domain statuses from Vercel to the database.
 
 ## Chat Completions
 
-URL: https://elizacloud.ai/docs/api/chat
+URL: https://cloud.milady.ai/docs/api/chat
 
 Summary: OpenAI-compatible chat completions API with streaming support for elizaOS Cloud.
 
@@ -2096,7 +2096,7 @@ Generate a chat completion response from the model.
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
+curl -X POST "https://cloud.milady.ai/api/v1/chat/completions" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -2111,7 +2111,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/chat/completions', {
+const response = await fetch('https://cloud.milady.ai/api/v1/chat/completions', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
@@ -2136,7 +2136,7 @@ console.log(data.choices[0].message.content);
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/v1/chat/completions',
+    'https://cloud.milady.ai/api/v1/chat/completions',
     headers={
         'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json',
@@ -2215,7 +2215,7 @@ Enable streaming for real-time responses by setting `stream: true`.
 ### Streaming Request
 
 ```javascript
-const response = await fetch("https://elizacloud.ai/api/v1/chat/completions", {
+const response = await fetch("https://cloud.milady.ai/api/v1/chat/completions", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -2280,7 +2280,7 @@ See the [Models API](/docs/api/models) for a complete list.
 
 ## Containers
 
-URL: https://elizacloud.ai/docs/api/containers
+URL: https://cloud.milady.ai/docs/api/containers
 
 Summary: Deploy and manage containers on elizaOS Cloud.
 
@@ -2351,7 +2351,7 @@ Get all containers for your organization.
       "name": "my-agent-runtime",
       "project_name": "my-project",
       "status": "running",
-      "url": "https://my-project.containers.elizacloud.ai",
+      "url": "https://my-project.containers.cloud.milady.ai",
       "cpu": 1792,
       "memory": 1792,
       "port": 3000,
@@ -2581,7 +2581,7 @@ Get container health status.
 
 ## Credits & Billing
 
-URL: https://elizacloud.ai/docs/api/credits
+URL: https://cloud.milady.ai/docs/api/credits
 
 Summary: Manage credits and billing on elizaOS Cloud.
 
@@ -2966,7 +2966,7 @@ _Input / Output token pricing shown for chat models_
 
 ## Embeddings
 
-URL: https://elizacloud.ai/docs/api/embeddings
+URL: https://cloud.milady.ai/docs/api/embeddings
 
 Summary: Generate vector embeddings for text using elizaOS Cloud embedding API.
 
@@ -2989,7 +2989,7 @@ Generate vector embeddings for the provided text.
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/embeddings" \
+curl -X POST "https://cloud.milady.ai/api/v1/embeddings" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -3000,7 +3000,7 @@ curl -X POST "https://elizacloud.ai/api/v1/embeddings" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/embeddings', {
+const response = await fetch('https://cloud.milady.ai/api/v1/embeddings', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
@@ -3021,7 +3021,7 @@ console.log(data.data[0].embedding);
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/v1/embeddings',
+    'https://cloud.milady.ai/api/v1/embeddings',
     headers={
         'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json',
@@ -3104,7 +3104,7 @@ Embed multiple texts in a single request:
 
 ```javascript
 // Embed your query
-const queryResponse = await fetch("https://elizacloud.ai/api/v1/embeddings", {
+const queryResponse = await fetch("https://cloud.milady.ai/api/v1/embeddings", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -3135,7 +3135,7 @@ function cosineSimilarity(a, b) {
 
 ## Gallery
 
-URL: https://elizacloud.ai/docs/api/gallery
+URL: https://cloud.milady.ai/docs/api/gallery
 
 Summary: Store and manage generated media on elizaOS Cloud.
 
@@ -3240,7 +3240,7 @@ Deleted items cannot be recovered.
 
 ## Image Generation
 
-URL: https://elizacloud.ai/docs/api/images
+URL: https://cloud.milady.ai/docs/api/images
 
 Summary: Generate images from text prompts using elizaOS Cloud.
 
@@ -3263,7 +3263,7 @@ Create images from text descriptions.
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/generate-image" \
+curl -X POST "https://cloud.milady.ai/api/v1/generate-image" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -3276,7 +3276,7 @@ curl -X POST "https://elizacloud.ai/api/v1/generate-image" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
+const response = await fetch('https://cloud.milady.ai/api/v1/generate-image', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
@@ -3299,7 +3299,7 @@ console.log(data.images[0].url);
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/v1/generate-image',
+    'https://cloud.milady.ai/api/v1/generate-image',
     headers={
         'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json',
@@ -3399,7 +3399,7 @@ print(data['images'][0]['url'])
 Transform existing images by providing a `sourceImage` parameter:
 
 ```javascript
-const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
+const response = await fetch("https://cloud.milady.ai/api/v1/generate-image", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -3480,7 +3480,7 @@ Enhance your prompts with these style modifiers:
 Generate multiple images in a single request (up to 4):
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/generate-image" \
+curl -X POST "https://cloud.milady.ai/api/v1/generate-image" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -3497,7 +3497,7 @@ Each image in the batch is generated with the style preset applied.
 
 ## Knowledge
 
-URL: https://elizacloud.ai/docs/api/knowledge
+URL: https://cloud.milady.ai/docs/api/knowledge
 
 Summary: Upload and query documents for RAG on elizaOS Cloud.
 
@@ -3521,7 +3521,7 @@ Upload one or more documents to your knowledge base using multipart form data.
 Use `multipart/form-data` with the `files` field:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/knowledge/upload-file" \
+curl -X POST "https://cloud.milady.ai/api/v1/knowledge/upload-file" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "files=@document.pdf" \
   -F "characterId=optional_agent_id"
@@ -3686,7 +3686,7 @@ Check if a document exists (by hash).
 
 ## MCPs
 
-URL: https://elizacloud.ai/docs/api/mcps
+URL: https://cloud.milady.ai/docs/api/mcps
 
 Summary: Model Context Protocol servers on elizaOS Cloud.
 
@@ -3854,7 +3854,7 @@ Pre-configured demo MCPs for testing:
 
 ## Messages
 
-URL: https://elizacloud.ai/docs/api/messages
+URL: https://cloud.milady.ai/docs/api/messages
 
 Summary: Anthropic Messages API-compatible endpoint for Claude Code and Anthropic SDK clients.
 
@@ -3884,7 +3884,7 @@ Claude Code and Anthropic SDK clients should also send:
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/messages" \
+curl -X POST "https://cloud.milady.ai/api/v1/messages" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
   -H "Content-Type: application/json" \
@@ -3956,7 +3956,7 @@ Tool calls stream as Anthropic `tool_use` content blocks so Claude Code can cont
 
 ## Models
 
-URL: https://elizacloud.ai/docs/api/models
+URL: https://cloud.milady.ai/docs/api/models
 
 Summary: List and discover available AI models on elizaOS Cloud.
 
@@ -3978,7 +3978,7 @@ Returns a list of all available models.
 ### Request
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/models" \
+curl -X GET "https://cloud.milady.ai/api/v1/models" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -4073,7 +4073,7 @@ The `/api/v1/models` response is the source of truth for the full live catalog. 
 
 ## API Explorer
 
-URL: https://elizacloud.ai/docs/api/overview
+URL: https://cloud.milady.ai/docs/api/overview
 
 Summary: Browse every public Cloud API route (mostly under /api/v1) with a full left-side explorer and OpenAPI-friendly paths.
 
@@ -4088,7 +4088,7 @@ This page gives you a **complete route map** of the elizaOS Cloud REST API, gene
 ## Base URL
 
 ```text
-https://elizacloud.ai/api/v1
+https://cloud.milady.ai/api/v1
 ```
 
 ## Authentication (recommended)
@@ -4096,7 +4096,7 @@ https://elizacloud.ai/api/v1
 For server-to-server usage, send your API key as a Bearer token:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/models" \
+curl -X GET "https://cloud.milady.ai/api/v1/models" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -4122,7 +4122,7 @@ For OpenAI-style chat, use the OpenAI-compatible route:
 The platform exposes an OpenAPI spec endpoint at:
 
 ```text
-https://elizacloud.ai/api/openapi.json
+https://cloud.milady.ai/api/openapi.json
 ```
 
 You can generate TypeScript types/clients from that spec using your preferred tooling (e.g. `openapi-typescript`, `orval`, or OpenAPI Generator).
@@ -4131,7 +4131,7 @@ You can generate TypeScript types/clients from that spec using your preferred to
 
 ## Redemptions
 
-URL: https://elizacloud.ai/docs/api/redemptions
+URL: https://cloud.milady.ai/docs/api/redemptions
 
 Summary: Redeem earnings on elizaOS Cloud.
 
@@ -4302,7 +4302,7 @@ Redemptions are processed within 24-48 hours.
 
 ## Video Generation
 
-URL: https://elizacloud.ai/docs/api/video
+URL: https://cloud.milady.ai/docs/api/video
 
 Summary: Generate videos from text prompts using elizaOS Cloud.
 
@@ -4325,7 +4325,7 @@ Create videos from text prompts.
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/generate-video" \
+curl -X POST "https://cloud.milady.ai/api/v1/generate-video" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -4336,7 +4336,7 @@ curl -X POST "https://elizacloud.ai/api/v1/generate-video" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
+const response = await fetch('https://cloud.milady.ai/api/v1/generate-video', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
@@ -4357,7 +4357,7 @@ console.log(data.video.url);
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/v1/generate-video',
+    'https://cloud.milady.ai/api/v1/generate-video',
     headers={
         'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json',
@@ -4450,7 +4450,7 @@ Be specific about the scene:
 
 ## Voice & TTS
 
-URL: https://elizacloud.ai/docs/api/voice
+URL: https://cloud.milady.ai/docs/api/voice
 
 Summary: Text-to-speech and voice cloning on elizaOS Cloud.
 
@@ -4489,7 +4489,7 @@ Convert text to speech audio using premium AI voices.
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/voice/tts" \
+curl -X POST "https://cloud.milady.ai/api/v1/voice/tts" \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -4502,7 +4502,7 @@ curl -X POST "https://elizacloud.ai/api/v1/voice/tts" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/voice/tts', {
+const response = await fetch('https://cloud.milady.ai/api/v1/voice/tts', {
   method: 'POST',
   headers: {
     'X-API-Key': 'YOUR_API_KEY',
@@ -4524,7 +4524,7 @@ const audioUrl = URL.createObjectURL(audioBlob);
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/v1/voice/tts',
+    'https://cloud.milady.ai/api/v1/voice/tts',
     headers={
         'X-API-Key': 'YOUR_API_KEY',
         'Content-Type': 'application/json',
@@ -4582,7 +4582,7 @@ Transcribe audio to text.
 Upload audio as `multipart/form-data`:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/voice/stt" \
+curl -X POST "https://cloud.milady.ai/api/v1/voice/stt" \
   -H "X-API-Key: YOUR_API_KEY" \
   -F "audio=@recording.mp3"
 ```
@@ -4668,7 +4668,7 @@ Create a voice clone from audio samples.
 Upload audio samples as `multipart/form-data`:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/voice/clone" \
+curl -X POST "https://cloud.milady.ai/api/v1/voice/clone" \
   -H "X-API-Key: YOUR_API_KEY" \
   -F "name=My Voice" \
   -F "cloneType=instant" \
@@ -4705,7 +4705,7 @@ curl -X POST "https://elizacloud.ai/api/v1/voice/clone" \
 Get details for a specific voice by its internal UUID.
 
 ```bash
-curl "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
+curl "https://cloud.milady.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
@@ -4721,7 +4721,7 @@ curl "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
 Update a voice's metadata.
 
 ```bash
-curl -X PATCH "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
+curl -X PATCH "https://cloud.milady.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "Updated Voice Name", "isActive": true}'
@@ -4741,7 +4741,7 @@ curl -X PATCH "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614
 Delete a cloned voice from your account.
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
+curl -X DELETE "https://cloud.milady.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
@@ -4821,7 +4821,7 @@ Check status of active voice cloning jobs.
 
 ## App Domains
 
-URL: https://elizacloud.ai/docs/app-domains
+URL: https://cloud.milady.ai/docs/app-domains
 
 Summary: Configure custom domains for your multi-tenant applications on elizaOS Cloud. Add wildcard subdomains and bring your own custom domains.
 
@@ -4835,7 +4835,7 @@ Configure custom domains for your multi-tenant applications with automatic SSL a
 
 Domain management in elizaOS Cloud supports:
 
-- **Wildcard Subdomains**: Automatic `*.apps.elizacloud.ai` subdomains for every app
+- **Wildcard Subdomains**: Automatic `*.apps.cloud.milady.ai` subdomains for every app
 - **Custom Domains**: Bring your own domain like `myapp.com` or `app.example.com`
 - **Automatic SSL**: Free TLS certificates provisioned automatically
 - **DNS Verification**: Easy domain ownership verification
@@ -4851,7 +4851,7 @@ Navigate to [Dashboard → Apps](/dashboard/apps) and select an app to manage it
 
 ```bash
 # Add a custom domain to your app
-curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains" \
+curl -X POST "https://cloud.milady.ai/api/v1/apps/{appId}/domains" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -4863,7 +4863,7 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains" \
 
 ### App Deployment
 
-When you deploy an app, it automatically receives a subdomain like `myapp.apps.elizacloud.ai`.
+When you deploy an app, it automatically receives a subdomain like `myapp.apps.cloud.milady.ai`.
 
 ### Custom Domain (Optional)
 
@@ -4879,10 +4879,10 @@ Requests are routed to your app based on the incoming domain.
 
 ## Using Wildcard Subdomains
 
-Every deployed app automatically gets a subdomain under `apps.elizacloud.ai`:
+Every deployed app automatically gets a subdomain under `apps.cloud.milady.ai`:
 
 ```
-https://myapp.apps.elizacloud.ai
+https://myapp.apps.cloud.milady.ai
 ```
 
 This works immediately with no DNS configuration required.
@@ -4913,7 +4913,7 @@ Custom domains let you use your own branded URLs like `myapp.com` or `app.compan
 ### Add Domain via API
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains" \
+curl -X POST "https://cloud.milady.ai/api/v1/apps/{appId}/domains" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -4974,7 +4974,7 @@ If your domain is already registered elsewhere on Vercel, you'll need to add a T
 ### Verify via API
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains/verify" \
+curl -X POST "https://cloud.milady.ai/api/v1/apps/{appId}/domains/verify" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -5005,7 +5005,7 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains/verify" \
 Monitor your domain's DNS and SSL status:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains/status" \
+curl -X POST "https://cloud.milady.ai/api/v1/apps/{appId}/domains/status" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -5060,7 +5060,7 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains/status" \
 Refresh all domain statuses for an app:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains/sync" \
+curl -X POST "https://cloud.milady.ai/api/v1/apps/{appId}/domains/sync" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -5073,7 +5073,7 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains/sync" \
     {
       "id": "dom_abc123",
       "subdomain": "myapp",
-      "subdomainUrl": "https://myapp.apps.elizacloud.ai",
+      "subdomainUrl": "https://myapp.apps.cloud.milady.ai",
       "customDomain": "myapp.example.com",
       "customDomainUrl": "https://myapp.example.com",
       "customDomainVerified": true,
@@ -5090,7 +5090,7 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains/sync" \
 Remove a custom domain from your app:
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/apps/{appId}/domains" \
+curl -X DELETE "https://cloud.milady.ai/api/v1/apps/{appId}/domains" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -5099,7 +5099,7 @@ curl -X DELETE "https://elizacloud.ai/api/v1/apps/{appId}/domains" \
 ```
 
   After removing a domain, users will no longer be able to access your app via
-  that URL. The subdomain at `*.apps.elizacloud.ai` remains active.
+  that URL. The subdomain at `*.apps.cloud.milady.ai` remains active.
 
 ## Apex and WWW Redirects
 
@@ -5228,7 +5228,7 @@ All domains are validated for:
 
 ## Best Practices
 
-- **Use Subdomains First** — Test with `*.apps.elizacloud.ai` before adding custom domains
+- **Use Subdomains First** — Test with `*.apps.cloud.milady.ai` before adding custom domains
 - **Add Both Apex + WWW** — Configure both versions with redirects for consistency
 - **Monitor SSL Expiry** — Check `sslExpiresAt` in status responses (auto-renewed)
 - **Canonical URLs** — Set canonical tags to avoid duplicate content issues
@@ -5249,7 +5249,7 @@ All domains are validated for:
 
 ## Apps
 
-URL: https://elizacloud.ai/docs/apps
+URL: https://cloud.milady.ai/docs/apps
 
 Summary: Create and manage applications on elizaOS Cloud. Build integrations with your agents and APIs.
 
@@ -5279,7 +5279,7 @@ Navigate to [Dashboard → Apps](/dashboard/apps) to create and manage apps.
 
 ```bash
 # Create a new app
-curl -X POST "https://elizacloud.ai/api/v1/apps" \
+curl -X POST "https://cloud.milady.ai/api/v1/apps" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -5351,7 +5351,7 @@ Use the API key to make requests on behalf of your app.
 Monitor your app's API usage:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/analytics" \
+curl -X GET "https://cloud.milady.ai/api/v1/apps/{appId}/analytics" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -5384,7 +5384,7 @@ curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/analytics" \
 Track users of your app:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/users" \
+curl -X GET "https://cloud.milady.ai/api/v1/apps/{appId}/users" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -5412,7 +5412,7 @@ curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/users" \
 Earn from your app's usage:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/monetization" \
+curl -X POST "https://cloud.milady.ai/api/v1/apps/{appId}/monetization" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -5427,7 +5427,7 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/monetization" \
 ### Earnings
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/earnings" \
+curl -X GET "https://cloud.milady.ai/api/v1/apps/{appId}/earnings" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -5476,7 +5476,7 @@ Receive real-time notifications:
 ### Regenerate Key
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/regenerate-api-key" \
+curl -X POST "https://cloud.milady.ai/api/v1/apps/{appId}/regenerate-api-key" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -5497,13 +5497,13 @@ Restrict what your app key can access:
 
 Apps support custom domains for multi-tenant deployments:
 
-- **Wildcard Subdomains**: Every app gets `{app-slug}.apps.elizacloud.ai`
+- **Wildcard Subdomains**: Every app gets `{app-slug}.apps.cloud.milady.ai`
 - **Custom Domains**: Bring your own domain with automatic SSL
 - **DNS Management**: Easy verification and configuration
 
 ```bash
 # Add a custom domain
-curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains" \
+curl -X POST "https://cloud.milady.ai/api/v1/apps/{appId}/domains" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"domain": "myapp.example.com"}'
@@ -5537,7 +5537,7 @@ See [App Domains](/docs/app-domains) for complete domain management documentatio
 
 ## Authentication
 
-URL: https://elizacloud.ai/docs/authentication
+URL: https://cloud.milady.ai/docs/authentication
 
 Summary: Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, wallet signatures (SIWE and per-request), and x402 payments.
 
@@ -5574,13 +5574,13 @@ elizaOS Cloud supports multiple authentication methods:
 
   
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/dashboard" \
+curl -X GET "https://cloud.milady.ai/api/v1/dashboard" \
   -H "Authorization: Bearer ek_live_xxxxxxxxxxxx"
 ```
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/dashboard', {
+const response = await fetch('https://cloud.milady.ai/api/v1/dashboard', {
   headers: {
     'Authorization': 'Bearer ek_live_xxxxxxxxxxxx',
   },
@@ -5591,7 +5591,7 @@ const response = await fetch('https://elizacloud.ai/api/v1/dashboard', {
 ```python
 
 response = requests.get(
-'https://elizacloud.ai/api/v1/dashboard',
+'https://cloud.milady.ai/api/v1/dashboard',
 headers={'Authorization': 'Bearer ek_live_xxxxxxxxxxxx'}
 )
 
@@ -5645,21 +5645,21 @@ Permissions can be used to restrict what operations an API key can perform.
 ### List Keys
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/api-keys" \
+curl -X GET "https://cloud.milady.ai/api/v1/api-keys" \
   -H "Authorization: Bearer ek_live_xxxxxxxxxxxx"
 ```
 
 ### Regenerate Key
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/api-keys/{id}/regenerate" \
+curl -X POST "https://cloud.milady.ai/api/v1/api-keys/{id}/regenerate" \
   -H "Authorization: Bearer ek_live_xxxxxxxxxxxx"
 ```
 
 ### Revoke Key
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/api-keys/{id}" \
+curl -X DELETE "https://cloud.milady.ai/api/v1/api-keys/{id}" \
   -H "Authorization: Bearer ek_live_xxxxxxxxxxxx"
 ```
 
@@ -5675,7 +5675,7 @@ function MyComponent() {
   const makeApiCall = async () => {
     const token = await getAccessToken();
 
-    const response = await fetch("https://elizacloud.ai/api/v1/dashboard", {
+    const response = await fetch("https://cloud.milady.ai/api/v1/dashboard", {
       credentials: "include",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -5722,7 +5722,7 @@ See [Wallet API](/docs/wallet-api) for full reference, WHYs, and file list.
 Pay per request with cryptocurrency:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
+curl -X POST "https://cloud.milady.ai/api/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -H "X-PAYMENT: <x402-payment-header>" \
   -d '{"model": "gpt-4o", "messages": [...]}'
@@ -5828,7 +5828,7 @@ X-RateLimit-Reset: 1705312860
 
 ## Billing & Credits
 
-URL: https://elizacloud.ai/docs/billing
+URL: https://cloud.milady.ai/docs/billing
 
 Summary: Understand elizaOS Cloud pricing, credits system, and billing management.
 
@@ -5923,7 +5923,7 @@ View your balance at [Dashboard → Billing](/dashboard/billing).
 ### API
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/credits/summary" \
+curl -X GET "https://cloud.milady.ai/api/v1/credits/summary" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -5943,7 +5943,7 @@ curl -X GET "https://elizacloud.ai/api/v1/credits/summary" \
 ### Stripe Checkout
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/stripe/create-checkout-session" \
+curl -X POST "https://cloud.milady.ai/api/stripe/create-checkout-session" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -5958,7 +5958,7 @@ curl -X POST "https://elizacloud.ai/api/stripe/create-checkout-session" \
 Pay with USDC via x402 protocol:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/credits/topup" \
+curl -X POST "https://cloud.milady.ai/api/v1/credits/topup" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-PAYMENT: <x402-payment-header>"
 ```
@@ -5970,7 +5970,7 @@ See crypto payment documentation for details.
 Configure automatic credit refills:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/auto-top-up/settings" \
+curl -X POST "https://cloud.milady.ai/api/auto-top-up/settings" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -5991,7 +5991,7 @@ curl -X POST "https://elizacloud.ai/api/auto-top-up/settings" \
 Track your spending via the credits summary endpoint:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/credits/summary" \
+curl -X GET "https://cloud.milady.ai/api/v1/credits/summary" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -6002,14 +6002,14 @@ See the [Credits API](/docs/api/credits) for the complete response format includ
 ### List Invoices
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/invoices/list" \
+curl -X GET "https://cloud.milady.ai/api/invoices/list" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Download Invoice
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/invoices/{id}" \
+curl -X GET "https://cloud.milady.ai/api/invoices/{id}" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -6064,7 +6064,7 @@ Contact [sales@eliza.ai](mailto:sales@eliza.ai) for enterprise plans.
 
 ## Build AI Agents Faster. Ship Them Instantly. Introducing Eliza Cloud.
 
-URL: https://elizacloud.ai/docs/blog/introducing-eliza-cloud
+URL: https://cloud.milady.ai/docs/blog/introducing-eliza-cloud
 
 Summary: Eliza Cloud is a low-code platform for building and deploying AI agents. Focus on what your agent does - we handle everything else.
 
@@ -6151,7 +6151,7 @@ Whether you're coding from scratch or using our visual builder, we'll help you g
 
 ---
 
-**Ready to build?** [Get started with Eliza Cloud →](https://elizacloud.ai)
+**Ready to build?** [Get started with Eliza Cloud →](https://cloud.milady.ai)
 
 _Questions? Find us in the elizaOS Discord:_ https://discord.gg/elizaos
 
@@ -6159,7 +6159,7 @@ _Questions? Find us in the elizaOS Discord:_ https://discord.gg/elizaos
 
 ## Changelog
 
-URL: https://elizacloud.ai/docs/changelog
+URL: https://cloud.milady.ai/docs/changelog
 
 Summary: Latest updates, new features, and improvements to elizaOS Cloud.
 
@@ -6338,7 +6338,7 @@ Get notified about new features and changes:
 
 ## Character JSON
 
-URL: https://elizacloud.ai/docs/character-json
+URL: https://cloud.milady.ai/docs/character-json
 
 Summary: Complete reference for elizaOS character JSON configuration. Define agent personality, behavior, and settings.
 
@@ -6660,7 +6660,7 @@ The character JSON is validated on upload. Common errors:
 
 ## Containers
 
-URL: https://elizacloud.ai/docs/containers
+URL: https://cloud.milady.ai/docs/containers
 
 Summary: Deploy custom Docker containers on elizaOS Cloud with managed infrastructure and auto-scaling.
 
@@ -6689,7 +6689,7 @@ Navigate to [Dashboard → Containers](/dashboard/containers) for the visual int
 ### API
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/containers" \
+curl -X POST "https://cloud.milady.ai/api/v1/containers" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -6780,7 +6780,7 @@ Use `{{secrets.NAME}}` to reference secrets stored in elizaOS Cloud.
 ### Add Credentials
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/containers/credentials" \
+curl -X POST "https://cloud.milady.ai/api/v1/containers/credentials" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -6829,14 +6829,14 @@ Configure health monitoring:
 ### View Logs
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/logs?lines=100" \
+curl -X GET "https://cloud.milady.ai/api/v1/containers/{id}/logs?lines=100" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Stream Logs
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/logs/stream" \
+curl -X GET "https://cloud.milady.ai/api/v1/containers/{id}/logs/stream" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Accept: text/event-stream"
 ```
@@ -6844,7 +6844,7 @@ curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/logs/stream" \
 ### Get Metrics
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/metrics" \
+curl -X GET "https://cloud.milady.ai/api/v1/containers/{id}/metrics" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -6874,14 +6874,14 @@ curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/metrics" \
 ### List Deployments
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/containers/{id}/deployments" \
+curl -X GET "https://cloud.milady.ai/api/v1/containers/{id}/deployments" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Rollback
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/containers/{id}/deployments/{deploymentId}/rollback" \
+curl -X POST "https://cloud.milady.ai/api/v1/containers/{id}/deployments/{deploymentId}/rollback" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -6890,7 +6890,7 @@ curl -X POST "https://elizacloud.ai/api/v1/containers/{id}/deployments/{deployme
 ### Manual Scaling
 
 ```bash
-curl -X PATCH "https://elizacloud.ai/api/v1/containers/{id}" \
+curl -X PATCH "https://cloud.milady.ai/api/v1/containers/{id}" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"replicas": 5}'
@@ -6915,7 +6915,7 @@ curl -X PATCH "https://elizacloud.ai/api/v1/containers/{id}" \
 Check your container quota:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/containers/quota" \
+curl -X GET "https://cloud.milady.ai/api/v1/containers/quota" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -6962,7 +6962,7 @@ See [Billing & Credits](/docs/billing) for current pricing on CPU, memory, netwo
 
 ## Earnings
 
-URL: https://elizacloud.ai/docs/earnings
+URL: https://cloud.milady.ai/docs/earnings
 
 Summary: Monetize your agents and apps on elizaOS Cloud. Earn from usage and marketplace listings.
 
@@ -7002,7 +7002,7 @@ Convert earned credits to USDC or other currencies.
 ### Publish via API
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/agents/{agentId}/publish" \
+curl -X POST "https://cloud.milady.ai/api/v1/agents/{agentId}/publish" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7032,7 +7032,7 @@ View earnings at [Dashboard → Earnings](/dashboard/earnings).
 ### API
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/redemptions/balance" \
+curl -X GET "https://cloud.milady.ai/api/v1/redemptions/balance" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7062,7 +7062,7 @@ curl -X GET "https://elizacloud.ai/api/v1/redemptions/balance" \
 ### Request Redemption
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/redemptions" \
+curl -X POST "https://cloud.milady.ai/api/v1/redemptions" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7083,7 +7083,7 @@ curl -X POST "https://elizacloud.ai/api/v1/redemptions" \
 ### Check Status
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/redemptions/status" \
+curl -X GET "https://cloud.milady.ai/api/v1/redemptions/status" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7106,7 +7106,7 @@ curl -X GET "https://elizacloud.ai/api/v1/redemptions/status" \
 Track your agent's performance:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/my-agents/characters/{id}/stats" \
+curl -X GET "https://cloud.milady.ai/api/v1/my-agents/characters/{id}/stats" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7161,7 +7161,7 @@ Let users clone your agent template:
 Enable automatic monthly payouts:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/redemptions/auto" \
+curl -X POST "https://cloud.milady.ai/api/v1/redemptions/auto" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7175,7 +7175,7 @@ curl -X POST "https://elizacloud.ai/api/v1/redemptions/auto" \
 ### Payout History
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/earnings/history" \
+curl -X GET "https://cloud.milady.ai/api/v1/apps/{appId}/earnings/history" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7206,7 +7206,7 @@ curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/earnings/history" \
 
 ## Error Handling
 
-URL: https://elizacloud.ai/docs/errors
+URL: https://cloud.milady.ai/docs/errors
 
 Summary: Understand elizaOS Cloud API errors and how to handle them gracefully in your applications.
 
@@ -7424,7 +7424,7 @@ Include this when contacting support.
 Enable verbose errors in development:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
+curl -X POST "https://cloud.milady.ai/api/v1/chat/completions" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-Debug: true" \
   -d '...'
@@ -7504,7 +7504,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 
 ## Gallery
 
-URL: https://elizacloud.ai/docs/gallery
+URL: https://cloud.milady.ai/docs/gallery
 
 Summary: Manage your generated images and videos in the elizaOS Cloud Gallery.
 
@@ -7532,7 +7532,7 @@ Access your gallery at [Dashboard → Gallery](/dashboard/gallery).
 ### List Gallery Items
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/gallery?type=image&limit=20" \
+curl -X GET "https://cloud.milady.ai/api/v1/gallery?type=image&limit=20" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7573,14 +7573,14 @@ curl -X GET "https://elizacloud.ai/api/v1/gallery?type=image&limit=20" \
 ### Get Single Item
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/gallery/gal_abc123" \
+curl -X GET "https://cloud.milady.ai/api/v1/gallery/gal_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Delete Item
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/gallery/gal_abc123" \
+curl -X DELETE "https://cloud.milady.ai/api/v1/gallery/gal_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7591,7 +7591,7 @@ Organize items into collections:
 ### Create Collection
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/gallery/collections" \
+curl -X POST "https://cloud.milady.ai/api/v1/gallery/collections" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7603,7 +7603,7 @@ curl -X POST "https://elizacloud.ai/api/v1/gallery/collections" \
 ### Add to Collection
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/gallery/collections/{collectionId}/items" \
+curl -X POST "https://cloud.milady.ai/api/v1/gallery/collections/{collectionId}/items" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7614,7 +7614,7 @@ curl -X POST "https://elizacloud.ai/api/v1/gallery/collections/{collectionId}/it
 ### List Collections
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/gallery/collections" \
+curl -X GET "https://cloud.milady.ai/api/v1/gallery/collections" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7625,7 +7625,7 @@ Add tags for organization:
 ### Update Tags
 
 ```bash
-curl -X PATCH "https://elizacloud.ai/api/v1/gallery/gal_abc123" \
+curl -X PATCH "https://cloud.milady.ai/api/v1/gallery/gal_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7636,7 +7636,7 @@ curl -X PATCH "https://elizacloud.ai/api/v1/gallery/gal_abc123" \
 ### Search by Tags
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/gallery?tags=landscape,sunset" \
+curl -X GET "https://cloud.milady.ai/api/v1/gallery?tags=landscape,sunset" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7645,7 +7645,7 @@ curl -X GET "https://elizacloud.ai/api/v1/gallery?tags=landscape,sunset" \
 ### Generate Share Link
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/gallery/gal_abc123/share" \
+curl -X POST "https://cloud.milady.ai/api/v1/gallery/gal_abc123/share" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7656,7 +7656,7 @@ curl -X POST "https://elizacloud.ai/api/v1/gallery/gal_abc123/share" \
 
 ```json
 {
-  "shareUrl": "https://elizacloud.ai/share/xyz789",
+  "shareUrl": "https://cloud.milady.ai/share/xyz789",
   "expiresAt": "2024-01-22T10:30:00Z"
 }
 ```
@@ -7672,7 +7672,7 @@ curl -X POST "https://elizacloud.ai/api/v1/gallery/gal_abc123/share" \
 ### Revoke Share
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/gallery/gal_abc123/share" \
+curl -X DELETE "https://cloud.milady.ai/api/v1/gallery/gal_abc123/share" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7689,7 +7689,7 @@ curl -X DELETE "https://elizacloud.ai/api/v1/gallery/gal_abc123/share" \
 ### Check Usage
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/gallery/storage" \
+curl -X GET "https://cloud.milady.ai/api/v1/gallery/storage" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -7707,7 +7707,7 @@ curl -X GET "https://elizacloud.ai/api/v1/gallery/storage" \
 ### Bulk Delete
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/gallery/bulk/delete" \
+curl -X POST "https://cloud.milady.ai/api/v1/gallery/bulk/delete" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7718,7 +7718,7 @@ curl -X POST "https://elizacloud.ai/api/v1/gallery/bulk/delete" \
 ### Bulk Tag
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/gallery/bulk/tag" \
+curl -X POST "https://cloud.milady.ai/api/v1/gallery/bulk/tag" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7732,7 +7732,7 @@ curl -X POST "https://elizacloud.ai/api/v1/gallery/bulk/tag" \
 ### Single Item
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/gallery/gal_abc123/download" \
+curl -X GET "https://cloud.milady.ai/api/v1/gallery/gal_abc123/download" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   --output image.png
 ```
@@ -7740,7 +7740,7 @@ curl -X GET "https://elizacloud.ai/api/v1/gallery/gal_abc123/download" \
 ### Bulk Download (ZIP)
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/gallery/bulk/download" \
+curl -X POST "https://cloud.milady.ai/api/v1/gallery/bulk/download" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7785,7 +7785,7 @@ console.log(image.galleryId); // gal_abc123
 
 ## Image Generation
 
-URL: https://elizacloud.ai/docs/image-generation
+URL: https://cloud.milady.ai/docs/image-generation
 
 Summary: Generate images with AI on elizaOS Cloud using Google Gemini, OpenAI, and other models.
 
@@ -7813,7 +7813,7 @@ Navigate to [Dashboard → Images](/dashboard/image) for the visual interface.
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/generate-image" \
+curl -X POST "https://cloud.milady.ai/api/v1/generate-image" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -7826,7 +7826,7 @@ curl -X POST "https://elizacloud.ai/api/v1/generate-image" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
+const response = await fetch('https://cloud.milady.ai/api/v1/generate-image', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
@@ -7849,7 +7849,7 @@ console.log(result.images[0].url);
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/v1/generate-image',
+    'https://cloud.milady.ai/api/v1/generate-image',
     headers={
         'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json',
@@ -7935,7 +7935,7 @@ print(result['images'][0]['url'])
 Transform existing images by providing a \`sourceImage\` parameter:
 
 ```javascript
-const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
+const response = await fetch("https://cloud.milady.ai/api/v1/generate-image", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -8017,7 +8017,7 @@ const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
 
 ## Installation
 
-URL: https://elizacloud.ai/docs/installation
+URL: https://cloud.milady.ai/docs/installation
 
 Summary: Install the elizaOS SDK and CLI tools for local development.
 
@@ -8085,7 +8085,7 @@ Create a `.env` file:
 ```bash
 # elizaOS Cloud Configuration
 ELIZA_API_KEY=your_api_key_here
-ELIZA_API_URL=https://elizacloud.ai/api/v1
+ELIZA_API_URL=https://cloud.milady.ai/api/v1
 
 # Optional: Model Provider Keys (if using direct providers)
 OPENAI_API_KEY=sk-...
@@ -8135,7 +8135,7 @@ bun add @elizaos/core@latest @elizaos/plugin-elizacloud@latest
 
 ## Knowledge Base
 
-URL: https://elizacloud.ai/docs/knowledge
+URL: https://cloud.milady.ai/docs/knowledge
 
 Summary: Add documents to your agents' knowledge base for RAG-powered responses on elizaOS Cloud.
 
@@ -8165,7 +8165,7 @@ Navigate to [Dashboard → Knowledge](/dashboard/knowledge) for the visual inter
   
 ```bash
 # Upload a document
-curl -X POST "https://elizacloud.ai/api/v1/knowledge/upload-file" \
+curl -X POST "https://cloud.milady.ai/api/v1/knowledge/upload-file" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@document.pdf" \
   -F "agentId=agent_abc123"
@@ -8177,7 +8177,7 @@ const formData = new FormData();
 formData.append('file', file);
 formData.append('agentId', 'agent_abc123');
 
-const response = await fetch('https://elizacloud.ai/api/v1/knowledge/upload-file', {
+const response = await fetch('https://cloud.milady.ai/api/v1/knowledge/upload-file', {
 method: 'POST',
 headers: {
 'Authorization': 'Bearer YOUR_API_KEY',
@@ -8195,7 +8195,7 @@ console.log('Document uploaded:', result.id);
 
 with open('document.pdf', 'rb') as f:
     response = requests.post(
-        'https://elizacloud.ai/api/v1/knowledge/upload-file',
+        'https://cloud.milady.ai/api/v1/knowledge/upload-file',
         headers={'Authorization': 'Bearer YOUR_API_KEY'},
         files={'file': f},
         data={'agentId': 'agent_abc123'},
@@ -8254,7 +8254,7 @@ Link the knowledge base to your agent for RAG.
 ### Check Processing Status
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/knowledge/check?documentId=doc_abc123" \
+curl -X GET "https://cloud.milady.ai/api/v1/knowledge/check?documentId=doc_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -8272,7 +8272,7 @@ curl -X GET "https://elizacloud.ai/api/v1/knowledge/check?documentId=doc_abc123"
 Search your knowledge base semantically:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/knowledge/query" \
+curl -X POST "https://cloud.milady.ai/api/v1/knowledge/query" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -8314,21 +8314,21 @@ curl -X POST "https://elizacloud.ai/api/v1/knowledge/query" \
 ### List Documents
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/knowledge?agentId=agent_abc123" \
+curl -X GET "https://cloud.milady.ai/api/v1/knowledge?agentId=agent_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Get Document Details
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/knowledge/doc_abc123" \
+curl -X GET "https://cloud.milady.ai/api/v1/knowledge/doc_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Delete Document
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/knowledge/doc_abc123" \
+curl -X DELETE "https://cloud.milady.ai/api/v1/knowledge/doc_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -8362,7 +8362,7 @@ When knowledge is connected to an agent, relevant context is automatically retri
 
 ```javascript
 // Agent with knowledge base
-const response = await fetch("https://elizacloud.ai/api/v1/chat/completions", {
+const response = await fetch("https://cloud.milady.ai/api/v1/chat/completions", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -8383,7 +8383,7 @@ Query knowledge and inject context manually:
 
 ```javascript
 // 1. Query knowledge
-const knowledge = await fetch("https://elizacloud.ai/api/v1/knowledge/query", {
+const knowledge = await fetch("https://cloud.milady.ai/api/v1/knowledge/query", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -8398,7 +8398,7 @@ const knowledge = await fetch("https://elizacloud.ai/api/v1/knowledge/query", {
 // 2. Include in chat
 const context = knowledge.results.map((r) => r.content).join("\n\n");
 
-const response = await fetch("https://elizacloud.ai/api/v1/chat/completions", {
+const response = await fetch("https://cloud.milady.ai/api/v1/chat/completions", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -8440,7 +8440,7 @@ See [Billing & Credits](/docs/billing) for current pricing on document uploads, 
 
 ## MCP Protocol
 
-URL: https://elizacloud.ai/docs/mcp
+URL: https://cloud.milady.ai/docs/mcp
 
 Summary: Model Context Protocol implementation on elizaOS Cloud. Connect tools and resources to AI models.
 
@@ -8466,7 +8466,7 @@ MCP (Model Context Protocol) is a standard for connecting AI models to external 
 elizaOS Cloud exposes an MCP-compatible endpoint:
 
 ```
-https://elizacloud.ai/api/mcp
+https://cloud.milady.ai/api/mcp
 ```
 
 ## Protocol Methods
@@ -8474,7 +8474,7 @@ https://elizacloud.ai/api/mcp
 ### Initialize
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/mcp" \
+curl -X POST "https://cloud.milady.ai/api/mcp" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -8663,7 +8663,7 @@ curl -X POST "https://elizacloud.ai/api/mcp" \
 Standard HTTP POST requests:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/mcp" \
+curl -X POST "https://cloud.milady.ai/api/mcp" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", ...}'
 ```
@@ -8673,7 +8673,7 @@ curl -X POST "https://elizacloud.ai/api/mcp" \
 For streaming responses:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/mcp/stream" \
+curl -X GET "https://cloud.milady.ai/api/mcp/stream" \
   -H "Accept: text/event-stream"
 ```
 
@@ -8699,7 +8699,7 @@ elizaOS Cloud provides these built-in MCP tools:
 ### Add MCP Server
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/mcps" \
+curl -X POST "https://cloud.milady.ai/api/v1/mcps" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -8717,7 +8717,7 @@ curl -X POST "https://elizacloud.ai/api/v1/mcps" \
 Access external MCPs through elizaOS:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/mcp/proxy/{mcpId}" \
+curl -X POST "https://cloud.milady.ai/api/mcp/proxy/{mcpId}" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -8817,7 +8817,7 @@ app.post('/mcp', (req, res) => {
 
 ## MCP Integration
 
-URL: https://elizacloud.ai/docs/mcps
+URL: https://cloud.milady.ai/docs/mcps
 
 Summary: Connect Model Context Protocol (MCP) servers to your agents on elizaOS Cloud for extended capabilities.
 
@@ -8847,7 +8847,7 @@ Browse and connect MCP servers at [Dashboard → MCPs](/dashboard/mcps).
 ### API
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/mcps" \
+curl -X POST "https://cloud.milady.ai/api/v1/mcps" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -8872,7 +8872,7 @@ elizaOS Cloud provides a curated registry of MCP servers:
 ### Browse Registry
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/mcp/registry" \
+curl -X GET "https://cloud.milady.ai/api/mcp/registry" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -8921,7 +8921,7 @@ Verify the tools are available in the agent.
 ### Connect via API
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/mcps" \
+curl -X POST "https://cloud.milady.ai/api/v1/mcps" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -8940,7 +8940,7 @@ curl -X POST "https://elizacloud.ai/api/v1/mcps" \
 When MCP servers are connected, agents can use their tools automatically:
 
 ```javascript
-const response = await fetch("https://elizacloud.ai/api/v1/chat/completions", {
+const response = await fetch("https://cloud.milady.ai/api/v1/chat/completions", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -8962,7 +8962,7 @@ The agent will automatically invoke the `get_weather` tool and include the resul
 elizaOS Cloud exposes an MCP-compatible JSON-RPC interface:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/mcp" \
+curl -X POST "https://cloud.milady.ai/api/mcp" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -9096,7 +9096,7 @@ elizaOS Cloud provides demo MCP servers for testing:
 ### Test Demo Server
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/mcps/weather" \
+curl -X POST "https://cloud.milady.ai/api/mcps/weather" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -9115,14 +9115,14 @@ curl -X POST "https://elizacloud.ai/api/mcps/weather" \
 ### List Connected MCPs
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/mcps?agentId=agent_abc123" \
+curl -X GET "https://cloud.milady.ai/api/v1/mcps?agentId=agent_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Disconnect MCP
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/mcps/mcp_abc123" \
+curl -X DELETE "https://cloud.milady.ai/api/v1/mcps/mcp_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -9131,7 +9131,7 @@ curl -X DELETE "https://elizacloud.ai/api/v1/mcps/mcp_abc123" \
 Share your MCP server in the registry:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/mcps/{mcpId}/publish" \
+curl -X POST "https://cloud.milady.ai/api/v1/mcps/{mcpId}/publish" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -9163,7 +9163,7 @@ curl -X POST "https://elizacloud.ai/api/v1/mcps/{mcpId}/publish" \
 
 ## Quickstart
 
-URL: https://elizacloud.ai/docs/quickstart
+URL: https://cloud.milady.ai/docs/quickstart
 
 Summary: Get started with elizaOS Cloud in 5 minutes. Deploy your first AI agent and start building.
 
@@ -9293,7 +9293,7 @@ ELIZA_API_KEY=ek_live_xxxxxxxxxxxxxxxxxxxx
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/app/agents" \
+curl -X POST "https://cloud.milady.ai/api/v1/app/agents" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -9304,7 +9304,7 @@ curl -X POST "https://elizacloud.ai/api/v1/app/agents" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/app/agents', {
+const response = await fetch('https://cloud.milady.ai/api/v1/app/agents', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
@@ -9325,7 +9325,7 @@ console.log('Created agent:', agent.agent.id);
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/v1/app/agents',
+    'https://cloud.milady.ai/api/v1/app/agents',
     headers={
         'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json',
@@ -9346,7 +9346,7 @@ print(f'Created agent: {agent["agent"]["id"]}')
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
+curl -X POST "https://cloud.milady.ai/api/v1/chat/completions" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -9359,7 +9359,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/chat/completions', {
+const response = await fetch('https://cloud.milady.ai/api/v1/chat/completions', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
@@ -9381,7 +9381,7 @@ console.log(completion.choices[0].message.content);
   
 ```python
 response = requests.post(
-    'https://elizacloud.ai/api/v1/chat/completions',
+    'https://cloud.milady.ai/api/v1/chat/completions',
     headers={
         'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json',
@@ -9431,7 +9431,7 @@ Configure your local development environment:
 ```bash
 # .env
 ELIZA_API_KEY=ek_live_xxxxxxxxxxxxxxxxxxxx
-ELIZA_API_URL=https://elizacloud.ai/api/v1
+ELIZA_API_URL=https://cloud.milady.ai/api/v1
 ```
 
 ## What's Next?
@@ -9529,7 +9529,7 @@ ELIZA_API_URL=https://elizacloud.ai/api/v1
 
 ## Rate Limits
 
-URL: https://elizacloud.ai/docs/rate-limits
+URL: https://cloud.milady.ai/docs/rate-limits
 
 Summary: Understand rate limiting on elizaOS Cloud APIs and how to handle rate limit errors.
 
@@ -9695,7 +9695,7 @@ The BURST preset (10 req/sec) is available for real-time features. Standard AI e
 Track your API usage:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/quotas/usage" \
+curl -X GET "https://cloud.milady.ai/api/quotas/usage" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -9724,7 +9724,7 @@ curl -X GET "https://elizacloud.ai/api/quotas/usage" \
 
 ## SDKs & Libraries
 
-URL: https://elizacloud.ai/docs/sdks
+URL: https://cloud.milady.ai/docs/sdks
 
 Summary: Official and community SDKs for integrating with elizaOS Cloud in your preferred language.
 
@@ -9743,7 +9743,7 @@ Since elizaOS Cloud is **100% OpenAI API compatible**, you can use any existing 
 
 const client = new OpenAI({
 apiKey: process.env.ELIZA_API_KEY,
-baseURL: 'https://elizacloud.ai/api/v1',
+baseURL: 'https://cloud.milady.ai/api/v1',
 });
 
 const response = await client.chat.completions.create({
@@ -9761,7 +9761,7 @@ from openai import OpenAI
 
 client = OpenAI(
     api_key="ek_xxx",
-    base_url="https://elizacloud.ai/api/v1"
+    base_url="https://cloud.milady.ai/api/v1"
 )
 
 response = client.chat.completions.create(
@@ -9775,7 +9775,7 @@ print(response.choices[0].message.content)
   
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
+curl -X POST "https://cloud.milady.ai/api/v1/chat/completions" \
   -H "Authorization: Bearer $ELIZA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -9801,7 +9801,7 @@ bun add openai
 
 const client = new OpenAI({
   apiKey: process.env.ELIZA_API_KEY,
-  baseURL: "https://elizacloud.ai/api/v1",
+  baseURL: "https://cloud.milady.ai/api/v1",
 });
 ```
 
@@ -9843,7 +9843,7 @@ from openai import OpenAI
 
 client = OpenAI(
     api_key="ek_xxx",
-    base_url="https://elizacloud.ai/api/v1"
+    base_url="https://cloud.milady.ai/api/v1"
 )
 
 response = client.chat.completions.create(
@@ -9875,7 +9875,7 @@ For APIs that extend beyond OpenAI compatibility (images, video, voice), use dir
 ### Image Generation
 
 ```typescript
-const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
+const response = await fetch("https://cloud.milady.ai/api/v1/generate-image", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
@@ -9894,7 +9894,7 @@ console.log(data.images[0].url);
 ### Video Generation
 
 ```typescript
-const response = await fetch("https://elizacloud.ai/api/v1/generate-video", {
+const response = await fetch("https://cloud.milady.ai/api/v1/generate-video", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
@@ -9919,7 +9919,7 @@ console.log(data.video.url);
 const model = new ChatOpenAI({
   openAIApiKey: process.env.ELIZA_API_KEY,
   configuration: {
-    baseURL: "https://elizacloud.ai/api/v1",
+    baseURL: "https://cloud.milady.ai/api/v1",
   },
   modelName: "gpt-4o",
 });
@@ -9933,7 +9933,7 @@ const response = await model.invoke("Hello!");
 
 const openai = createOpenAI({
   apiKey: process.env.ELIZA_API_KEY,
-  baseURL: "https://elizacloud.ai/api/v1",
+  baseURL: "https://cloud.milady.ai/api/v1",
 });
 
 const { text } = await generateText({
@@ -9949,7 +9949,7 @@ from llama_index.llms.openai import OpenAI
 
 llm = OpenAI(
     api_key="ek_xxx",
-    api_base="https://elizacloud.ai/api/v1",
+    api_base="https://cloud.milady.ai/api/v1",
     model="gpt-4o"
 )
 
@@ -9963,7 +9963,7 @@ Connect to elizaOS Cloud MCP endpoint:
 ```typescript
 
 const client = new Client({
-  url: "https://elizacloud.ai/api/mcp",
+  url: "https://cloud.milady.ai/api/mcp",
   headers: {
     Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
   },
@@ -9988,7 +9988,7 @@ Since elizaOS Cloud is OpenAI-compatible, you can use any OpenAI SDK in your pre
 | Ruby     | `ruby-openai`            | `gem install ruby-openai`                  |
 | PHP      | `openai-php/client`      | `composer require openai-php/client`       |
 
-Simply configure the base URL to `https://elizacloud.ai/api/v1` and use your elizaOS API key.
+Simply configure the base URL to `https://cloud.milady.ai/api/v1` and use your elizaOS API key.
 
 ## Feature Support
 
@@ -10026,7 +10026,7 @@ We welcome SDK contributions! See our [GitHub](https://github.com/elizaOS/eliza)
 
 ## Video Generation
 
-URL: https://elizacloud.ai/docs/video-generation
+URL: https://cloud.milady.ai/docs/video-generation
 
 Summary: Generate AI videos from text prompts on elizaOS Cloud using Google Veo, Kling, and MiniMax video models.
 
@@ -10054,7 +10054,7 @@ Navigate to [Dashboard → Videos](/dashboard/video) for the visual interface.
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/generate-video" \
+curl -X POST "https://cloud.milady.ai/api/v1/generate-video" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -10065,7 +10065,7 @@ curl -X POST "https://elizacloud.ai/api/v1/generate-video" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
+const response = await fetch('https://cloud.milady.ai/api/v1/generate-video', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
@@ -10086,7 +10086,7 @@ console.log(result.video.url);
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/v1/generate-video',
+    'https://cloud.milady.ai/api/v1/generate-video',
     headers={
         'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json',
@@ -10199,7 +10199,7 @@ Be specific about motion and timing:
 
 ## Voice Cloning
 
-URL: https://elizacloud.ai/docs/voice-cloning
+URL: https://cloud.milady.ai/docs/voice-cloning
 
 Summary: Clone voices and generate speech with ElevenLabs integration on elizaOS Cloud.
 
@@ -10229,7 +10229,7 @@ Navigate to [Dashboard → Voices](/dashboard/voices) for the visual interface.
   
 ```bash
 # Clone a voice from audio samples
-curl -X POST "https://elizacloud.ai/api/elevenlabs/voices/clone" \
+curl -X POST "https://cloud.milady.ai/api/elevenlabs/voices/clone" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "name=My Voice Clone" \
   -F "files=@sample1.mp3" \
@@ -10239,7 +10239,7 @@ curl -X POST "https://elizacloud.ai/api/elevenlabs/voices/clone" \
   
 ```bash
 # Generate speech
-curl -X POST "https://elizacloud.ai/api/elevenlabs/tts" \
+curl -X POST "https://cloud.milady.ai/api/elevenlabs/tts" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -10253,7 +10253,7 @@ curl -X POST "https://elizacloud.ai/api/elevenlabs/tts" \
   
 ```bash
 # List your voices
-curl -X GET "https://elizacloud.ai/api/elevenlabs/voices/user" \
+curl -X GET "https://cloud.milady.ai/api/elevenlabs/voices/user" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
   
@@ -10299,7 +10299,7 @@ Test the cloned voice with sample text.
 ### Generate Speech
 
 ```javascript
-const response = await fetch("https://elizacloud.ai/api/elevenlabs/tts", {
+const response = await fetch("https://cloud.milady.ai/api/elevenlabs/tts", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -10342,7 +10342,7 @@ const audioUrl = URL.createObjectURL(audioBlob);
 elizaOS Cloud provides pre-built voices:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/elevenlabs/voices" \
+curl -X GET "https://cloud.milady.ai/api/elevenlabs/voices" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -10369,21 +10369,21 @@ curl -X GET "https://elizacloud.ai/api/elevenlabs/voices" \
 ### Get Voice Details
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/elevenlabs/voices/voice_abc123" \
+curl -X GET "https://cloud.milady.ai/api/elevenlabs/voices/voice_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Delete Voice
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/elevenlabs/voices/voice_abc123" \
+curl -X DELETE "https://cloud.milady.ai/api/elevenlabs/voices/voice_abc123" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Check Clone Status
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/elevenlabs/voices/jobs" \
+curl -X GET "https://cloud.milady.ai/api/elevenlabs/voices/jobs" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -10410,7 +10410,7 @@ Use cloned voices with your agents:
 Convert audio to text:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/elevenlabs/stt" \
+curl -X POST "https://cloud.milady.ai/api/elevenlabs/stt" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@audio.mp3"
 ```
@@ -10454,7 +10454,7 @@ See [Billing & Credits](/docs/billing) for current pricing. Voice cloning costs 
 
 ## Wallet API
 
-URL: https://elizacloud.ai/docs/wallet-api
+URL: https://cloud.milady.ai/docs/wallet-api
 
 Summary: Authenticate and sign up with an Ethereum wallet using SIWE (EIP-4361) or per-request wallet header signature. Get API keys or sign each request without storing a key.
 

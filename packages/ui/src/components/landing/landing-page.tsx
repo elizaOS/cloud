@@ -11,11 +11,11 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import Footer from "@/components/landing/Footer";
-import Installation from "@/components/landing/Installation";
-import OnChainTrust from "@/components/landing/OnChainTrust";
-import TopHero from "@/components/landing/TopHero";
-import LandingHeader from "@/components/layout/landing-header-old";
+import Footer from "@/packages/ui/src/components/landing/Footer";
+import Installation from "@/packages/ui/src/components/landing/Installation";
+import OnChainTrust from "@/packages/ui/src/components/landing/OnChainTrust";
+import TopHero from "@/packages/ui/src/components/landing/TopHero";
+import LandingHeader from "@/packages/ui/src/components/layout/landing-header-old";
 import BayerDitheringBackground from "./BayerDitheringBackground";
 
 interface LandingPageProps {

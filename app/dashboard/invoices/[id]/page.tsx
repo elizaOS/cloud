@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { InvoiceDetailClient } from "@/components/invoices/invoice-detail-client";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { invoicesService } from "@/lib/services/invoices";
+import { InvoiceDetailClient } from "@/packages/ui/src/components/invoices/invoice-detail-client";
 
 export const metadata: Metadata = {
   title: "Invoice Details",

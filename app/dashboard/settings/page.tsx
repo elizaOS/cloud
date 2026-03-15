@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { SettingsPageClient } from "@/components/settings/settings-page-client";
 import { requireAuth } from "@/lib/auth";
+import { SettingsPageClient } from "@/packages/ui/src/components/settings/settings-page-client";
 
 export const metadata: Metadata = {
   title: "Settings",

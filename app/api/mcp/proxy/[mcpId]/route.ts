@@ -50,7 +50,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ mcpId: 
     return NextResponse.json({ error: "MCP is not available" }, { status: 404 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
   return NextResponse.json({
     id: mcp.id,

@@ -32,7 +32,7 @@ import {
   TabsTrigger,
   VoiceAudioPlayer,
   VoiceStatusBadge,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { formatDistanceToNow } from "date-fns";
 import {
   AlertCircle,
@@ -102,9 +102,9 @@ export function VoiceStudioAdvanced({
     setPreviewState((prev) => ({ ...prev, ...updates }));
   };
 
-  const updateOperation = (updates: Partial<OperationState>) => {
+  const updateOperation = useCallback((updates: Partial<OperationState>) => {
     setOperationState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   // Manual refresh function
   const manualRefresh = useCallback(async () => {

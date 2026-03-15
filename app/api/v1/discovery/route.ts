@@ -218,7 +218,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
  * Fetch local public agents
  */
 async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
   // Get all public characters
   let characters = await charactersService.listPublic();
@@ -280,7 +280,7 @@ async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<Di
  * Fetch local MCPs from the registry
  */
 async function fetchLocalMcps(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
   const mcps = await userMcpsService.listPublic({
     category: params.categories?.[0],

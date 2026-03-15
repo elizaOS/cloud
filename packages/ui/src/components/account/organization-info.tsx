@@ -8,7 +8,7 @@
 
 "use client";
 
-import { BrandCard, CornerBrackets } from "@elizaos/ui";
+import { BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
 import { Building2, Calendar, CreditCard } from "lucide-react";
 import type { Organization } from "@/lib/types";
 

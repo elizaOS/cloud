@@ -10,7 +10,7 @@
 
 "use client";
 
-import { BrandButton, usePageHeader } from "@elizaos/ui";
+import { BrandButton, usePageHeader } from "@elizaos/cloud-ui";
 import { LogIn, Menu } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, useCallback, useState } from "react";

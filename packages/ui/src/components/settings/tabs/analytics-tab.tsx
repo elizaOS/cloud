@@ -16,7 +16,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Activity, BarChart, Coins, Loader2, Shield } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { UserWithOrganization } from "@/lib/types";

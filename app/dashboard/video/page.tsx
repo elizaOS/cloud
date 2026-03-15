@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
-import type { GeneratedVideo, VideoModelOption, VideoUsageSummary } from "@/components/video/types";
-import { VideoPageClient } from "@/components/video/video-page-client";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
+import type {
+  GeneratedVideo,
+  VideoModelOption,
+  VideoUsageSummary,
+} from "@/packages/ui/src/components/video/types";
+import { VideoPageClient } from "@/packages/ui/src/components/video/video-page-client";
 
 export const dynamic = "force-dynamic";
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { AccountPageClient } from "@/components/account/account-page-client";
 import { requireAuth } from "@/lib/auth";
+import { AccountPageClient } from "@/packages/ui/src/components/account/account-page-client";
 
 export const metadata: Metadata = {
   title: "Account Settings",

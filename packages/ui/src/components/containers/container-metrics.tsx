@@ -18,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
   Skeleton,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Activity, Cpu, HardDrive, Network, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 

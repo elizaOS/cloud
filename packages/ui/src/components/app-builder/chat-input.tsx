@@ -11,7 +11,7 @@
  * - Production-ready AAA UI
  */
 
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import { ArrowUp, ImageIcon, Loader2, Mic, Square, X } from "lucide-react";
 import Image from "next/image";
 import { memo, useCallback, useEffect, useRef } from "react";

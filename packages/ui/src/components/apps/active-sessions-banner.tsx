@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandCard, CornerBrackets } from "@elizaos/ui";
+import { BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
 import { ArrowRight, Clock, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";

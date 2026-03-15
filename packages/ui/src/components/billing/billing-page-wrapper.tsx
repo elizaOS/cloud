@@ -10,23 +10,10 @@
 
 "use client";
 
-import { Alert, AlertDescription, AlertTitle, BrandCard, useSetPageHeader } from "@elizaos/ui";
+import { Alert, AlertDescription, AlertTitle, BrandCard, useSetPageHeader } from "@elizaos/cloud-ui";
 import { Info } from "lucide-react";
 import type { CreditPack as DBCreditPack } from "@/lib/types";
 import { BillingPageClient } from "./billing-page-client";
-
-// Local interface with credits as number for display
-interface CreditPack {
-  id: string;
-  name: string;
-  description: string | null;
-  credits: number; // Converted from NUMERIC string
-  price_cents: number;
-  stripe_price_id: string;
-  stripe_product_id: string;
-  is_active: boolean;
-  sort_order: number;
-}
 
 interface BillingPageWrapperProps {
   creditPacks: DBCreditPack[];

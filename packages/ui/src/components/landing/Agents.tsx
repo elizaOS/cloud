@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandCard, CornerBrackets, SectionLabel } from "@elizaos/ui";
+import { BrandCard, CornerBrackets, SectionLabel } from "@elizaos/cloud-ui";
 import { ChevronRight, MessageSquare, MoreVertical } from "lucide-react";
 import Image from "next/image";
 

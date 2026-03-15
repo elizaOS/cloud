@@ -2,18 +2,21 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { Suspense } from "react";
-import { AgentsSection, AgentsSectionSkeleton } from "@/components/dashboard/agents-section";
+import { getDashboardData } from "@/lib/actions/dashboard";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
+import {
+  AgentsSection,
+  AgentsSectionSkeleton,
+} from "@/packages/ui/src/components/dashboard/agents-section";
 import {
   ContainersSection,
   ContainersSectionSkeleton,
-} from "@/components/dashboard/containers-section";
+} from "@/packages/ui/src/components/dashboard/containers-section";
 import {
   DashboardActionCards,
   DashboardActionCardsSkeleton,
-} from "@/components/dashboard/dashboard-action-cards";
-import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
-import { getDashboardData } from "@/lib/actions/dashboard";
-import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
+} from "@/packages/ui/src/components/dashboard/dashboard-action-cards";
+import { DashboardPageWrapper } from "@/packages/ui/src/components/dashboard/dashboard-page-wrapper";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.dashboard,

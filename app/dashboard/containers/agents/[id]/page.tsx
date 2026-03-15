@@ -8,7 +8,7 @@
  * - Admin-only: Docker container logs via /api/v1/admin/docker-containers/[id]/logs
  */
 
-import { Badge, BrandButton, BrandCard } from "@elizaos/ui";
+import { Badge, BrandButton, BrandCard } from "@elizaos/cloud-ui";
 import {
   Activity,
   AlertCircle,
@@ -25,11 +25,11 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { MiladyAgentActions } from "@/components/containers/agent-actions";
-import { DockerLogsViewer } from "@/components/containers/docker-logs-viewer";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { adminService } from "@/lib/services/admin";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { MiladyAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
+import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
 
 export const dynamic = "force-dynamic";
 

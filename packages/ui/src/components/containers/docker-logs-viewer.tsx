@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Copy, Download, RefreshCw, Search, Terminal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";

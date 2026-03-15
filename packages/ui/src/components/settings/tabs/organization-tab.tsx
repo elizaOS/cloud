@@ -15,12 +15,12 @@ import {
   BrandTabsList,
   BrandTabsTrigger,
   CornerBrackets,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Settings, Users } from "lucide-react";
 import { useState } from "react";
-import { MembersTab } from "@/components/organization/members-tab";
-import { OrganizationGeneralTab } from "@/components/organization/organization-general-tab";
 import type { UserWithOrganization } from "@/lib/types";
+import { MembersTab } from "@/packages/ui/src/components/organization/members-tab";
+import { OrganizationGeneralTab } from "@/packages/ui/src/components/organization/organization-general-tab";
 
 interface OrganizationTabProps {
   user: UserWithOrganization;

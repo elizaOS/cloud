@@ -11,7 +11,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";

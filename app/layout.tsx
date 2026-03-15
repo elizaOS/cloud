@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ThemeProvider } from "@elizaos/ui";
+import { ThemeProvider } from "@elizaos/cloud-ui";
 import { Analytics } from "@vercel/analytics/next";
 import { DM_Mono, Inter } from "next/font/google";
 import localFont from "next/font/local";
@@ -66,11 +66,11 @@ const baseUrl =
 
 export const metadata: Metadata = {
   title: {
-    default: "ELIZA CLOUD - AI Agent Development Platform",
-    template: "%s | ELIZA CLOUD",
+    default: "Milady Cloud - Managed Hosting for Milady Agents",
+    template: "%s | Milady Cloud",
   },
   description:
-    "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
+    "Managed hosting, provisioning, and deployment for Milady agents with Eliza Cloud infrastructure under the hood.",
   keywords: [
     "AI",
     "agents",
@@ -83,19 +83,18 @@ export const metadata: Metadata = {
     "LLM",
     "deployment",
   ],
-  authors: [{ name: "elizaOS Team" }],
-  creator: "ELIZA CLOUD",
-  publisher: "ELIZA CLOUD",
+  authors: [{ name: "Milady Cloud" }],
+  creator: "Milady Cloud",
+  publisher: "Milady Cloud",
   metadataBase: new URL(baseUrl),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "ELIZA CLOUD - AI Agent Development Platform",
-    description:
-      "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
+    title: "Milady Cloud - Managed Hosting for Milady Agents",
+    description: "Managed hosting, provisioning, and deployment for Milady agents",
     url: "/",
-    siteName: "ELIZA CLOUD",
+    siteName: "Milady Cloud",
     type: "website",
     locale: "en_US",
     images: [
@@ -103,18 +102,15 @@ export const metadata: Metadata = {
         url: "/cloudlogo.png",
         width: 1200,
         height: 630,
-        alt: "ELIZA CLOUD - Make Agents in Seconds",
+        alt: "Milady Cloud",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ELIZA CLOUD",
-    description:
-      "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
+    title: "Milady Cloud",
+    description: "Managed hosting, provisioning, and deployment for Milady agents",
     images: ["/cloudlogo.png"],
-    creator: "@elizaos",
-    site: "@elizaos",
   },
   robots: {
     index: true,

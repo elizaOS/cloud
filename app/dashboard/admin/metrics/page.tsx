@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AdminMetricsWrapper } from "@/components/admin/admin-metrics-wrapper";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { adminService } from "@/lib/services/admin";
+import { AdminMetricsWrapper } from "@/packages/ui/src/components/admin/admin-metrics-wrapper";
 
 export const metadata: Metadata = {
   title: "Admin: Engagement Metrics",

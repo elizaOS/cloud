@@ -8,7 +8,7 @@
 
 "use client";
 
-import { BrandCard, CornerBrackets } from "@elizaos/ui";
+import { BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
 import { ArrowLeft, Download, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Invoice } from "@/db/schemas";

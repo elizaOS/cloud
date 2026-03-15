@@ -9,19 +9,24 @@
 
 "use client";
 
-import { AnimatedTabs, ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@elizaos/ui";
+import {
+  AnimatedTabs,
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createCharacter, getCharacter, updateCharacter } from "@/app/actions/characters";
-import { BuildModeAssistant } from "@/components/chat/build-mode-assistant";
-import { CharacterEditor } from "@/components/chat/character-editor";
 import { useChatStore } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
 import { createDefaultCharacter } from "@/lib/utils/character-names";
+import { BuildModeAssistant } from "@/packages/ui/src/components/chat/build-mode-assistant";
+import { CharacterEditor } from "@/packages/ui/src/components/chat/character-editor";
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];

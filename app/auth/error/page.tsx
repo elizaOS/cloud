@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { AlertCircle, Home, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";

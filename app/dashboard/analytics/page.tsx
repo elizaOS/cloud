@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { AnalyticsPageClient } from "@/components/analytics/analytics-page-client";
 import { getEnhancedAnalyticsData, getProjectionsData } from "@/lib/actions/analytics-enhanced";
 import { requireAuth } from "@/lib/auth";
+import { AnalyticsPageClient } from "@/packages/ui/src/components/analytics/analytics-page-client";
 
 // Force dynamic rendering for authenticated pages
 export const dynamic = "force-dynamic";

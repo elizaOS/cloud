@@ -27,7 +27,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   AlertCircle,
   Bot,

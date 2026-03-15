@@ -23,7 +23,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   AlertTriangle,
   AppWindow,

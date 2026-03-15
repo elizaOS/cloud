@@ -15,7 +15,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   Check,
   Clock,

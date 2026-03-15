@@ -95,7 +95,7 @@ function generateCurlExample(route: DiscoveredApiRoute): string {
   const method = route.methods[0] ?? "GET";
   const isBodyMethod = ["POST", "PUT", "PATCH"].includes(method);
 
-  let curl = `curl -X ${method} "https://elizacloud.ai${route.path}"`;
+  let curl = `curl -X ${method} "https://cloud.milady.ai${route.path}"`;
   curl += ` \\\n  -H "Authorization: Bearer YOUR_API_KEY"`;
 
   if (isBodyMethod) {
@@ -518,7 +518,7 @@ export function ApiRouteExplorerClient({
                       </span>
                       <span className="text-white/60"> </span>
                       <span className="text-blue-400">
-                        &quot;https://elizacloud.ai{selected.path}&quot;
+                        &quot;https://cloud.milady.ai{selected.path}&quot;
                       </span>
                       <span className="text-white/40"> \</span>
                       {"\n"}

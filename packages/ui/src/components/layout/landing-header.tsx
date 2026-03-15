@@ -5,12 +5,12 @@
 
 "use client";
 
-import { Button, ElizaCloudLockup } from "@elizaos/ui";
+import { Button, ElizaCloudLockup } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import UserMenu from "@/components/layout/user-menu";
+import UserMenu from "@/packages/ui/src/components/layout/user-menu";
 
 export default function LandingHeader() {
   const { ready, authenticated } = usePrivy();

@@ -5,7 +5,7 @@
 
 "use client";
 
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import * as React from "react";

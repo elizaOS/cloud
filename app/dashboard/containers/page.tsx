@@ -3,17 +3,17 @@ import {
   ContainersEmptyState,
   ContainersSkeleton,
   DashboardStatCard,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Activity, AlertCircle, Box, Server, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ContainersPageWrapper } from "@/components/containers/containers-page-wrapper";
-import { ContainersTable } from "@/components/containers/containers-table";
-import { DeployFromCLI } from "@/components/containers/deploy-from-cli";
-import { MiladySandboxesTable } from "@/components/containers/milady-sandboxes-table";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services/containers";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { ContainersPageWrapper } from "@/packages/ui/src/components/containers/containers-page-wrapper";
+import { ContainersTable } from "@/packages/ui/src/components/containers/containers-table";
+import { DeployFromCLI } from "@/packages/ui/src/components/containers/deploy-from-cli";
+import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/milady-sandboxes-table";
 
 export const metadata: Metadata = {
   title: "Containers",

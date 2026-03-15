@@ -24,7 +24,7 @@ import {
   SheetTitle,
   Slider,
   Switch,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Bot, CheckCircle, Hash, Loader2, RefreshCw, Send } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
@@ -178,6 +178,27 @@ export function AutomationEditSheet({
     setLoadError(null);
     setIsLoading(true);
   }, [platform]);
+  const fetchDiscordChannels = useCallback(
+    async (guildId: string): Promise<DiscordChannel[] | null> => {
+      setIsLoadingChannels(true);
+      try {
+        const res = await fetch(`/api/v1/discord/channels?guildId=${guildId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const channels = data.channels || [];
+          setDiscordChannels(channels);
+          return channels;
+        }
+        return null;
+      } catch {
+        setDiscordChannels([]);
+        return null;
+      } finally {
+        setIsLoadingChannels(false);
+      }
+    },
+    [],
+  );
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
@@ -317,25 +338,6 @@ export function AutomationEditSheet({
       fetchData();
     }
   }, [open, fetchData, resetForm]);
-
-  const fetchDiscordChannels = async (guildId: string): Promise<DiscordChannel[] | null> => {
-    setIsLoadingChannels(true);
-    try {
-      const res = await fetch(`/api/v1/discord/channels?guildId=${guildId}`);
-      if (res.ok) {
-        const data = await res.json();
-        const channels = data.channels || [];
-        setDiscordChannels(channels);
-        return channels;
-      }
-      return null;
-    } catch {
-      setDiscordChannels([]);
-      return null;
-    } finally {
-      setIsLoadingChannels(false);
-    }
-  };
 
   const scanTelegramChats = async () => {
     setIsScanning(true);

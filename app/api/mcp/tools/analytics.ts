@@ -73,7 +73,7 @@ export function registerAnalyticsTools(server: McpServer): void {
     "discover_services",
     {
       description:
-        "Discover services (agents, MCPs, apps) from Eliza Cloud. " +
+        "Discover services (agents, MCPs, apps) from Milady Cloud. " +
         "Use this to find services to interact with. FREE tool.",
       inputSchema: {
         query: z.string().optional().describe("Search query to filter by name or description"),
@@ -89,7 +89,7 @@ export function registerAnalyticsTools(server: McpServer): void {
     },
     async ({ query, types, categories, x402Only, limit }) => {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
         const services: Array<{
           id: string;
           name: string;

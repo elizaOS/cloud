@@ -10,7 +10,7 @@
 
 "use client";
 
-import { BrandButton } from "@elizaos/ui";
+import { BrandButton } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { Clock, X, Zap } from "lucide-react";
 import { useState } from "react";

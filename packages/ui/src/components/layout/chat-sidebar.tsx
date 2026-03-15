@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
   ElizaCloudLockup,
   Switch,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   Globe,
   Link as LinkIcon,
@@ -32,11 +32,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { cn } from "@/lib/utils";
+import { ElizaAvatar } from "@/packages/ui/src/components/chat/eliza-avatar";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 
 interface ChatSidebarProps {
@@ -95,9 +95,9 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
   const [isPublic, setIsPublic] = useState<boolean | null>(null);
   const [isTogglingShare, setIsTogglingShare] = useState(false);
 
-  const updateOperation = (updates: Partial<OperationState>) => {
+  const updateOperation = useCallback((updates: Partial<OperationState>) => {
     setOperationState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   const handleCloseClick = () => {
     onToggle?.();
@@ -302,7 +302,7 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
           className,
         )}
       >
-        {/* Header with Logo */}
+        {/* Header with Logo and Collapse Toggle */}
         <div className="relative flex h-14 mb-2 shrink-0 grow-0 items-center justify-between px-3">
           <Link
             href="/dashboard"

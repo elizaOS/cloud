@@ -6,6 +6,7 @@ import { HomeIcon, ImageIcon, LayersIcon } from "@radix-ui/react-icons";
 import {
   BarChart3,
   Bot,
+  Boxes,
   Code,
   Coins,
   MessageSquare,
@@ -17,6 +18,7 @@ import {
   Video,
   Wallet,
 } from "lucide-react";
+
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
 
@@ -70,6 +72,18 @@ export const sidebarSections: SidebarSection[] = [
   //     },
   //   ],
   // },
+  {
+    title: "Milady",
+    items: [
+      {
+        id: "milady",
+        label: "Instances",
+        href: "/dashboard/milady",
+        icon: Boxes,
+        freeAllowed: false,
+      },
+    ],
+  },
   {
     title: "Agents",
     items: [

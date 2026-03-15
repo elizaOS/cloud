@@ -1,5 +1,5 @@
 import { discoverApiV1Routes } from "@/lib/docs/api-route-discovery";
-import { ApiRouteExplorerClient } from "@/components/docs/api-route-explorer-client";
+import { ApiRouteExplorerClient } from "@/packages/ui/src/components/docs/api-route-explorer-client";
 
 /**
  * Server component that discovers real `app/api/v1/<...>/route.ts` endpoints at build/runtime

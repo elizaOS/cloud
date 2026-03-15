@@ -5,12 +5,18 @@
 
 "use client";
 
-import { BrandButton, EmptyState, Tooltip, TooltipContent, TooltipTrigger } from "@elizaos/ui";
+import {
+  BrandButton,
+  EmptyState,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@elizaos/cloud-ui";
 import { Info, Plus } from "lucide-react";
 import Link from "next/link";
-import { AgentCard } from "@/components/agents/agent-card";
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
 import { cn } from "@/lib/utils";
+import { AgentCard } from "@/packages/ui/src/components/agents/agent-card";
 
 interface Agent {
   id: string;

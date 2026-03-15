@@ -1,12 +1,12 @@
 "use client";
 
-import { BrandButton, BrandCard, CornerBrackets } from "@elizaos/ui";
+import { BrandButton, BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { AlertTriangle, ArrowRight, Loader2, Shield } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import LandingHeader from "@/components/layout/landing-header";
+import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 interface AppInfo {
   id: string;
@@ -35,7 +35,7 @@ export function AuthorizeContent() {
   useEffect(() => {
     async function validateApp() {
       if (!appId) {
-        setError("Missing app_id parameter. Apps must be registered with Eliza Cloud.");
+        setError("Missing app_id parameter. Apps must be registered with Milady Cloud.");
         setIsLoading(false);
         return;
       }
@@ -66,7 +66,7 @@ export function AuthorizeContent() {
         );
         if (!res.ok) {
           if (res.status === 404) {
-            setError("App not found. Please ensure the app is registered with Eliza Cloud.");
+            setError("App not found. Please ensure the app is registered with Milady Cloud.");
           } else if (res.status === 400) {
             setError("This redirect URI is not registered for the selected app.");
           } else {
@@ -202,7 +202,7 @@ export function AuthorizeContent() {
                 <p className="text-sm text-white/60 max-w-xs">{error}</p>
               </div>
               <BrandButton variant="outline" onClick={() => router.push("/")} className="mt-4">
-                Go to Eliza Cloud
+                Go to Milady Cloud
               </BrandButton>
             </div>
           </BrandCard>
@@ -281,7 +281,7 @@ export function AuthorizeContent() {
               <ul className="space-y-2 text-sm text-white/60 ml-6">
                 <li className="flex items-center gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
-                  Access your Eliza Cloud account
+                  Access your Milady Cloud account
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
@@ -299,7 +299,7 @@ export function AuthorizeContent() {
                     Continue as {user?.email?.address || "User"}
                   </>
                 ) : (
-                  "Sign in with Eliza Cloud"
+                  "Sign in with Milady Cloud"
                 )}
               </BrandButton>
               <BrandButton variant="ghost" onClick={handleCancel} className="w-full">

@@ -17,10 +17,10 @@
       "!**/build",
       "!**/next-env.d.ts",
       "!**/docs",
-      "!**/tests/playwright/test-reports",
-      "!**/tests/playwright/test-results",
+      "!**/packages/tests/playwright/test-reports",
+      "!**/packages/tests/playwright/test-results",
       "!**/packages/ui/storybook-static",
-      "!**/db/migrations",
+      "!**/packages/db/migrations",
       "!**/*.html",
       "!**/*.css"
     ]
@@ -120,5 +120,17 @@
         "noImgElement": "off"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/lib/eliza/**/*.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useHookAtTopLevel": "off"
+          }
+        }
+      }
+    }
+  ]
 }

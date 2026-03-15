@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { MyAgentsClient } from "@/components/my-agents/my-agents";
 import { requireAuth } from "@/lib/auth";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
+import { MyAgentsClient } from "@/packages/ui/src/components/my-agents/my-agents";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.myAgents,

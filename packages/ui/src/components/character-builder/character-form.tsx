@@ -9,12 +9,19 @@
 
 "use client";
 
-import { BrandButton, Input, Textarea, Tooltip, TooltipContent, TooltipTrigger } from "@elizaos/ui";
+import {
+  BrandButton,
+  Input,
+  Textarea,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@elizaos/cloud-ui";
 import { Globe, Info, Link as LinkIcon, Lock, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AvatarGenerator } from "@/components/character-builder/avatar-generator";
 import type { ElizaCharacter } from "@/lib/types";
+import { AvatarGenerator } from "@/packages/ui/src/components/character-builder/avatar-generator";
 
 export type FormTab = "basics" | "personality" | "style" | "avatar";
 

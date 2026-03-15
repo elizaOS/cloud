@@ -12,8 +12,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 // import DiscoverAgents from "./discover-agents";
 import { toast } from "sonner";
-import Footer from "@/components/landing/Footer";
-import LandingHeader from "@/components/layout/landing-header";
+import Footer from "@/packages/ui/src/components/landing/Footer";
+import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 import HeroSection from "./hero-section";
 
 interface LandingPageProps {
@@ -53,7 +53,7 @@ export function LandingPage({ accessError }: LandingPageProps) {
     // Web: Redirect authenticated users to dashboard
     if (authenticated) {
       hasRedirectedRef.current = true;
-      router.replace("/dashboard");
+      router.replace("/dashboard/milady");
     }
   }, [ready, authenticated, router]);
 
@@ -65,7 +65,7 @@ export function LandingPage({ accessError }: LandingPageProps) {
     return (
       <div className="flex min-h-screen items-center justify-center flex-col gap-2">
         <Loader2 className="h-6 w-6 animate-spin" />
-        <span>Redirecting to dashboard...</span>
+        <span>Redirecting to Milady instances...</span>
       </div>
     );
   }

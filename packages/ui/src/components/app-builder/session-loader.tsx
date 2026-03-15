@@ -7,7 +7,7 @@
  * All modes share the same visual language for a cohesive feel.
  */
 
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import {
   AlertCircle,
   Check,

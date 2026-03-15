@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { listCharacters } from "@/app/actions/characters";
-import { KnowledgePageClient } from "@/components/knowledge/knowledge-page-client";
 import { getCurrentUser } from "@/lib/auth";
 import { generatePageMetadata } from "@/lib/seo";
+import { KnowledgePageClient } from "@/packages/ui/src/components/knowledge/knowledge-page-client";
 
 export const metadata: Metadata = generatePageMetadata({
-  title: "File Management - ELIZA CLOUD",
+  title: "File Management - MILADY CLOUD",
   description:
     "Upload and manage documents for your agents. These files provide context and information for enhanced AI responses.",
   path: "/dashboard/knowledge",

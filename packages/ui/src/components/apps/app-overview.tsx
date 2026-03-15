@@ -13,7 +13,7 @@ import {
   Badge,
   DashboardStatCard,
   StatusBadge,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   Activity,
   Check,

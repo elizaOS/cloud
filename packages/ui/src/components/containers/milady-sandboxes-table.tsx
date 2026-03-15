@@ -31,12 +31,11 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   ArrowUpDown,
   Boxes,
   Cloud,
-  ExternalLink,
   FileText,
   Loader2,
   Network,
@@ -150,6 +149,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [launchingId, setLaunchingId] = useState<string | null>(null);
 
   const poller = useJobPoller({
     onComplete: () => toast.success("Agent provisioning completed"),
@@ -201,7 +201,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
   async function handleProvision(id: string) {
     setActionInProgress(id);
     try {
-      const res = await fetch(`/api/v1/milaidy/agents/${id}/provision`, {
+      const res = await fetch(`/api/v1/milady/agents/${id}/provision`, {
         method: "POST",
       });
       const data = await res.json().catch(() => ({}));
@@ -245,7 +245,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
   async function handleShutdown(id: string) {
     setActionInProgress(id);
     try {
-      const res = await fetch(`/api/v1/milaidy/agents/${id}`, {
+      const res = await fetch(`/api/v1/milady/agents/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "shutdown" }),
@@ -263,7 +263,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
   async function handleDelete(id: string) {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/v1/milaidy/agents/${id}`, {
+      const res = await fetch(`/api/v1/milady/agents/${id}`, {
         method: "DELETE",
       });
       const data = await res.json().catch(() => ({}));
@@ -278,6 +278,32 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
     } finally {
       setIsDeleting(false);
       setDeleteId(null);
+    }
+  }
+
+  async function handleLaunch(id: string) {
+    setLaunchingId(id);
+    try {
+      const res = await fetch(`/api/compat/agents/${id}/launch`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error ?? "Launch failed");
+      }
+
+      const appUrl = (data as { data?: { appUrl?: string } }).data?.appUrl;
+      if (!appUrl) {
+        throw new Error("Launch succeeded but no app URL was returned");
+      }
+
+      window.location.assign(appUrl);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to open Milady app";
+      toast.error(message);
+    } finally {
+      setLaunchingId(null);
     }
   }
 
@@ -397,7 +423,8 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                   const trackedJob = poller.getStatus(sb.id);
                   const isProvisioning = poller.isActive(sb.id);
                   const displayStatus = isProvisioning ? "provisioning" : sb.status;
-                  const busy = actionInProgress === sb.id || isProvisioning;
+                  const busy =
+                    actionInProgress === sb.id || launchingId === sb.id || isProvisioning;
                   const canStart =
                     ["stopped", "error", "pending", "disconnected"].includes(displayStatus) &&
                     !busy;
@@ -550,6 +577,25 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                       {/* Actions */}
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => void handleLaunch(sb.id)}
+                                disabled={busy}
+                                className="p-2 text-neutral-400 hover:text-[#FF5800] hover:bg-[#FF5800]/10 rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                {launchingId === sb.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Wifi className="h-4 w-4" />
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-neutral-900 border-white/10">
+                              Open in Milady app
+                            </TooltipContent>
+                          </Tooltip>
+
                           {/* Details */}
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -563,23 +609,6 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                               View details
                             </TooltipContent>
                           </Tooltip>
-
-                          {/* Connect (external) */}
-                          {connectUrl && displayStatus === "running" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={() => window.open(connectUrl, "_blank")}
-                                  className="p-2 text-neutral-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-neutral-900 border-white/10">
-                                Open Web UI ({connectUrl})
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
 
                           {/* Start */}
                           {canStart && (

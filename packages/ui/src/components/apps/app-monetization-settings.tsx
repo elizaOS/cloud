@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { ChevronRight, DollarSign, Info, Loader2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

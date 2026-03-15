@@ -11,7 +11,7 @@
 
 "use client";
 
-import { BrandButton, MonacoEditorSkeleton } from "@elizaos/ui";
+import { BrandButton, MonacoEditorSkeleton } from "@elizaos/cloud-ui";
 import { AlertCircle, CheckCircle, Save, Upload } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
@@ -20,7 +20,10 @@ import type { ElizaCharacter } from "@/lib/types";
 
 // Dynamic import Monaco editor to reduce initial bundle size (~500KB savings)
 const MonacoJsonEditor = dynamic(
-  () => import("@/components/chat/monaco-json-editor").then((mod) => mod.MonacoJsonEditor),
+  () =>
+    import("@/packages/ui/src/components/chat/monaco-json-editor").then(
+      (mod) => mod.MonacoJsonEditor,
+    ),
   {
     ssr: false,
     loading: () => <MonacoEditorSkeleton />,

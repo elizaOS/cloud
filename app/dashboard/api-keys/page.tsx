@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
-import { ApiKeysPage as ApiKeysPageView } from "@/components/api-keys/api-keys-page";
-import type { ApiKeyDisplay, ApiKeyStatus, ApiKeysSummaryData } from "@/components/api-keys/types";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
+import { ApiKeysPage as ApiKeysPageView } from "@/packages/ui/src/components/api-keys/api-keys-page";
+import type {
+  ApiKeyDisplay,
+  ApiKeyStatus,
+  ApiKeysSummaryData,
+} from "@/packages/ui/src/components/api-keys/types";
 
 export const metadata: Metadata = {
   title: "API Keys",

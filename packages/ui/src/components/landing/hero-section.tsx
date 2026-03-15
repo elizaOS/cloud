@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import { ArrowRight, Cloud, Code, Database, Server } from "lucide-react";
 import { useRouter } from "next/navigation";
 

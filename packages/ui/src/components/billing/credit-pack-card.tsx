@@ -15,7 +15,7 @@
 
 "use client";
 
-import { BrandButton, BrandCard, CornerBrackets } from "@elizaos/ui";
+import { BrandButton, BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
 import { Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 

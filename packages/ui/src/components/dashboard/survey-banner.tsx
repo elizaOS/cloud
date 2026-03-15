@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandButton } from "@elizaos/ui";
+import { BrandButton } from "@elizaos/cloud-ui";
 import { ArrowRight, MessageCircleQuestion, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";

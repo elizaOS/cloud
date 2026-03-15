@@ -21,7 +21,7 @@ import {
   CornerBrackets,
   Input,
   Slider,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   AlertCircle,
   CheckCircle,
@@ -35,9 +35,9 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useAudioRecorder } from "@/components/chat/hooks/use-audio-recorder";
 import { VOICE_CLONE_INSTANT_COST, VOICE_CLONE_PROFESSIONAL_COST } from "@/lib/pricing-constants";
 import { cn } from "@/lib/utils";
+import { useAudioRecorder } from "@/packages/ui/src/components/chat/hooks/use-audio-recorder";
 import type { Voice } from "./types";
 
 interface VoiceCloneFormProps {

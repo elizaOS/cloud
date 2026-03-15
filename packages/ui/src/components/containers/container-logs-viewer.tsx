@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Copy, Download, RefreshCw, Search, Wifi, WifiOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -73,17 +73,17 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
     searchQuery: "",
   });
 
-  const updateLogs = (updates: Partial<LogsState>) => {
+  const updateLogs = useCallback((updates: Partial<LogsState>) => {
     setLogsState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
-  const updateStreaming = (updates: Partial<StreamingState>) => {
+  const updateStreaming = useCallback((updates: Partial<StreamingState>) => {
     setStreamingState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
-  const updateFilter = (updates: Partial<FilterState>) => {
+  const updateFilter = useCallback((updates: Partial<FilterState>) => {
     setFilterState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);

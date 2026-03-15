@@ -11,14 +11,14 @@
 
 "use client";
 
-import { useSetPageHeader } from "@elizaos/ui";
+import { useSetPageHeader } from "@elizaos/cloud-ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
-import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
 import { type Character, useChatStore } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
+import { ElizaChatInterface } from "@/packages/ui/src/components/chat/eliza-chat-interface";
 
 interface SharedCharacter {
   id: string;

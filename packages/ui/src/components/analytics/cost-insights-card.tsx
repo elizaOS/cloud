@@ -7,9 +7,9 @@
  * @param props.creditBalance - Current credit balance
  */
 
-import { Badge, BrandCard, Progress } from "@elizaos/ui";
-import { CostAlerts } from "@/components/analytics/cost-alerts";
+import { Badge, BrandCard, Progress } from "@elizaos/cloud-ui";
 import type { AnalyticsData } from "@/lib/actions/analytics";
+import { CostAlerts } from "@/packages/ui/src/components/analytics/cost-alerts";
 
 interface CostInsightsCardProps {
   costTrending: AnalyticsData["costTrending"];

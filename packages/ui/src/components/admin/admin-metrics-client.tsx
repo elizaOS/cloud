@@ -1,6 +1,6 @@
 "use client";
 
-import type { TabItem } from "@elizaos/ui";
+import type { TabItem } from "@elizaos/cloud-ui";
 import {
   BrandCard,
   BrandTabsContent,
@@ -9,7 +9,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   CornerBrackets,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,

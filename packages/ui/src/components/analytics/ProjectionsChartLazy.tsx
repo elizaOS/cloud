@@ -5,7 +5,7 @@
 
 "use client";
 
-import { Skeleton } from "@elizaos/ui";
+import { Skeleton } from "@elizaos/cloud-ui";
 import dynamic from "next/dynamic";
 import { ComponentProps } from "react";
 

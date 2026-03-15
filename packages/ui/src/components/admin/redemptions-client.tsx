@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
   Textarea,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   Ban,
   Check,

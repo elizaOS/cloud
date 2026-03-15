@@ -28,7 +28,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { format } from "date-fns";
 import { Crown, Mail, Shield, User, UserMinus, Wallet } from "lucide-react";
 

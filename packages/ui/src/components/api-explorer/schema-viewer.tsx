@@ -18,7 +18,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { ChevronDownIcon, ChevronRightIcon, CopyIcon, DatabaseIcon, InfoIcon } from "lucide-react";
 import { useState } from "react";
 import type { OpenAPISchema, OpenAPISpec } from "@/lib/swagger/openapi-generator";

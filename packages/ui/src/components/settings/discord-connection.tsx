@@ -17,7 +17,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { CheckCircle, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";

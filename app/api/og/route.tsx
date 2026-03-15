@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const type = searchParams.get("type") || "default";
-    const title = searchParams.get("title") || "ELIZA CLOUD";
+    const title = searchParams.get("title") || "MILADY CLOUD";
     const description = searchParams.get("description") || "AI Agent Development Platform";
     const name = searchParams.get("name");
     const characterName = searchParams.get("characterName");

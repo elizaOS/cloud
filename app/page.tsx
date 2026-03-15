@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { LandingPage } from "@/components/landing/landing-page-new";
 import { generateOrganizationSchema, generateWebApplicationSchema } from "@/lib/seo";
+import { LandingPage } from "@/packages/ui/src/components/landing/landing-page-new";
 
 interface HomeProps {
   searchParams: Promise<{ session_id?: string; from?: string; error?: string }>;

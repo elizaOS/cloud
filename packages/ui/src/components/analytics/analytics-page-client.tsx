@@ -9,7 +9,7 @@
 
 "use client";
 
-import type { TabItem } from "@elizaos/ui";
+import type { TabItem } from "@elizaos/cloud-ui";
 import {
   BrandCard,
   BrandTabsContent,
@@ -18,7 +18,7 @@ import {
   ExportButton,
   KeyMetricsGrid,
   useSetPageHeader,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { format } from "date-fns";
 import { Activity, BarChart3, CalendarRange, Coins, ShieldCheck, TrendingUp } from "lucide-react";
 import type { EnhancedAnalyticsData, ProjectionsData } from "@/lib/actions/analytics-enhanced";

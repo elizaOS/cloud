@@ -9,9 +9,9 @@
 
 "use client";
 
-import { Badge, Button, ChartContainer, ChartTooltip, ChartTooltipContent } from "@elizaos/ui";
+import { Badge, Button, ChartContainer, ChartTooltip, ChartTooltipContent } from "@elizaos/cloud-ui";
 import { format } from "date-fns";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -51,17 +51,20 @@ const metricDescriptions: Record<MetricKey, string> = {
 export function UsageChart({ data, granularity }: UsageChartProps) {
   const [activeMetric, setActiveMetric] = useState<MetricKey>("requests");
 
-  const formatDate = (date: Date) => {
-    const formatMap = {
-      hour: "MMM d, HH:mm",
-      day: "MMM d",
-      week: "MMM d",
-      month: "MMM yyyy",
-    } as const;
-    return format(date, formatMap[granularity]);
-  };
+  const formatDate = useCallback(
+    (date: Date) => {
+      const formatMap = {
+        hour: "MMM d, HH:mm",
+        day: "MMM d",
+        week: "MMM d",
+        month: "MMM yyyy",
+      } as const;
+      return format(date, formatMap[granularity]);
+    },
+    [granularity],
+  );
 
-  const detailedDate = (date: Date) => format(date, "MMM d, yyyy · HH:mm");
+  const detailedDate = useCallback((date: Date) => format(date, "MMM d, yyyy · HH:mm"), []);
 
   const chartData = useMemo(
     () =>

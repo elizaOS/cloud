@@ -15,7 +15,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { formatDistanceToNow } from "date-fns";
 import {
   AlertCircle,
@@ -31,7 +31,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -105,7 +105,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
   const [error, setError] = useState<string | null>(null);
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
 
-  const fetchEarnings = async () => {
+  const fetchEarnings = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -140,7 +140,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [appId, period, testDataParam]);
 
   useEffect(() => {
     fetchEarnings();

@@ -5,7 +5,7 @@
 
 "use client";
 
-import { ElizaCloudLockup } from "@elizaos/ui";
+import { ElizaCloudLockup } from "@elizaos/cloud-ui";
 import { Check, Copy } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -89,7 +89,7 @@ export default function Footer() {
                 Agent infrastructure, billing, and deployment
               </p>
             </div>
-            <p className="text-sm text-white/60 whitespace-nowrap">© 2026 ELIZA CLOUD · USA</p>
+            <p className="text-sm text-white/60 whitespace-nowrap">© 2026 MILADY CLOUD · USA</p>
           </div>
 
           <div className="hidden md:flex justify-center">

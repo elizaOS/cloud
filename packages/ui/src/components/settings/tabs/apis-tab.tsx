@@ -27,7 +27,7 @@ import {
   Input,
   Label,
   Textarea,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -84,9 +84,9 @@ export function ApisTab({ user }: ApisTabProps) {
     setModalState((prev) => ({ ...prev, ...updates }));
   };
 
-  const updateOperation = (updates: Partial<OperationState>) => {
+  const updateOperation = useCallback((updates: Partial<OperationState>) => {
     setOperationState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   const updateForm = (updates: Partial<FormState>) => {
     setFormState((prev) => ({ ...prev, ...updates }));

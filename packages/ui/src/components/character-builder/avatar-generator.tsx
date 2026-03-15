@@ -12,7 +12,7 @@
 
 "use client";
 
-import { Button, ScrollArea } from "@elizaos/ui";
+import { Button, ScrollArea } from "@elizaos/cloud-ui";
 import { ImagePlus, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";

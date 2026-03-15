@@ -34,7 +34,7 @@ import {
   SelectValue,
   Textarea,
   useSetPageHeader,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Copy, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

@@ -28,7 +28,7 @@ import {
   TabsList,
   TabsTrigger,
   Textarea,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   CheckIcon,
   CodeIcon,
@@ -47,12 +47,12 @@ import {
   XCircleIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useAudioRecorder } from "@/components/chat/hooks/use-audio-recorder";
+import { useCallback, useEffect, useState } from "react";
 import { getApiBaseUrl } from "@/lib/config/client-env";
 import { type ApiEndpoint, type EndpointPricing } from "@/lib/swagger/endpoint-discovery";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/utils/toast-adapter";
+import { useAudioRecorder } from "@/packages/ui/src/components/chat/hooks/use-audio-recorder";
 import { CodeDisplay } from "./code-display";
 import { CustomSelect } from "./custom-select";
 
@@ -91,7 +91,9 @@ export function ApiTester({ endpoint, authToken, refreshCredits }: ApiTesterProp
   // Audio recorder hook for STT endpoint
   const audioRecorder = useAudioRecorder();
 
-  const initializeParameters = () => {
+  const initializeParameters = useCallback(() => {
+    if (!endpoint) return;
+
     const defaultParams: Record<string, unknown> = {};
 
     if (endpoint.parameters?.body) {
@@ -113,7 +115,7 @@ export function ApiTester({ endpoint, authToken, refreshCredits }: ApiTesterProp
     }
 
     setParameters(defaultParams);
-  };
+  }, [endpoint]);
 
   useEffect(() => {
     initializeParameters();

@@ -6,7 +6,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { Brain, ChevronDown, Cpu, Sparkles, Zap } from "lucide-react";
 import { useState } from "react";
 import type { AppBuilderModel } from "@/lib/app-builder/types";

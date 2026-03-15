@@ -80,7 +80,6 @@ export interface McpRegistryEntry {
   };
 }
 
-type RegistrySource = "platform" | "community";
 type BuiltInRegistryEntry = McpRegistryEntry & {
   source: "platform";
   fullEndpoint: string;
@@ -191,9 +190,9 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
   },
   {
     id: "eliza-platform",
-    name: "ELIZA CLOUD",
+    name: "MILADY CLOUD",
     description:
-      "Access ELIZA CLOUD features: credits, usage, generations, conversations, and agent management via MCP. Requires API key authentication.",
+      "Access MILADY CLOUD features: credits, usage, generations, conversations, and agent management via MCP. Requires API key authentication.",
     category: "platform",
     endpoint: "/api/mcp",
     type: "streamable-http",

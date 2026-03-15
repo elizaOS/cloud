@@ -265,7 +265,7 @@ ${matchingApp.website_url ? `🌐 Website: ${matchingApp.website_url}` : ""}`;
 
       await ctx.reply(aboutText.trim());
     } else {
-      await ctx.reply("I'm an AI assistant powered by Eliza Cloud.");
+      await ctx.reply("I'm an AI assistant powered by Milady Cloud.");
     }
   });
 

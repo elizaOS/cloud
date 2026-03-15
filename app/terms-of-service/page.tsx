@@ -1,14 +1,14 @@
-import { BrandCard, CornerBrackets, ElizaCloudLockup } from "@elizaos/ui";
+import { BrandCard, CornerBrackets, ElizaCloudLockup } from "@elizaos/cloud-ui";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import LandingHeader from "@/components/layout/landing-header";
 import { generatePageMetadata } from "@/lib/seo";
+import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 export const metadata: Metadata = generatePageMetadata({
   title: "Terms of Service",
   description:
-    "Terms of Service for ELIZA CLOUD - Read our terms and conditions for using our AI agent development platform.",
+    "Terms of Service for MILADY CLOUD - Read our terms and conditions for using our AI agent development platform.",
   path: "/terms-of-service",
   keywords: ["terms of service", "terms and conditions", "legal", "agreement", "elizaOS"],
 });

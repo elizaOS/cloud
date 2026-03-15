@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { envelope, errorEnvelope, toCompatOpResult } from "@/lib/api/compat-envelope";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../../../_lib/auth";
 import { handleCompatError } from "../../../_lib/error-handler";

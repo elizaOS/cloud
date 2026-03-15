@@ -8,7 +8,7 @@
 
 "use client";
 
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from "@elizaos/ui";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from "@elizaos/cloud-ui";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import type { EnhancedAnalyticsData } from "@/lib/actions/analytics-enhanced";

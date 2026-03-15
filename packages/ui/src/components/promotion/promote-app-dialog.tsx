@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   AlertCircle,
   ArrowLeft,

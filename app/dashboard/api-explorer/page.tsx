@@ -1,6 +1,6 @@
 "use client";
 
-import { MonacoEditorSkeleton } from "@elizaos/ui";
+import { MonacoEditorSkeleton } from "@elizaos/cloud-ui";
 import {
   ActivityIcon,
   AudioLinesIcon,
@@ -20,9 +20,6 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { ApiTester } from "@/components/api-explorer/api-tester";
-import { AuthManager } from "@/components/api-explorer/auth-manager";
-import { EndpointCard } from "@/components/api-explorer/endpoint-card";
 import {
   API_ENDPOINTS,
   type ApiEndpoint,
@@ -32,16 +29,22 @@ import {
 } from "@/lib/swagger/endpoint-discovery";
 import { generateOpenAPISpec, type OpenAPISpec } from "@/lib/swagger/openapi-generator";
 import { toast } from "@/lib/utils/toast-adapter";
+import { ApiTester } from "@/packages/ui/src/components/api-explorer/api-tester";
+import { AuthManager } from "@/packages/ui/src/components/api-explorer/auth-manager";
+import { EndpointCard } from "@/packages/ui/src/components/api-explorer/endpoint-card";
 
 const OpenApiViewer = dynamic(
-  () => import("@/components/api-explorer/openapi-viewer").then((mod) => mod.OpenApiViewer),
+  () =>
+    import("@/packages/ui/src/components/api-explorer/openapi-viewer").then(
+      (mod) => mod.OpenApiViewer,
+    ),
   {
     ssr: false,
     loading: () => <MonacoEditorSkeleton height="600px" />,
   },
 );
 
-import { useSetPageHeader } from "@elizaos/ui";
+import { useSetPageHeader } from "@elizaos/cloud-ui";
 import { cn } from "@/lib/utils";
 
 const categoryDescriptions: Record<string, string> = {

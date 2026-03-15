@@ -10,7 +10,7 @@
  *        Body: JSON-RPC 2.0 request (or batch)
  */
 
-import type { NextRequest } from "next/server";
+import { NextRequest, type NextRequest as NextRequestType } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
 import { creditsService } from "@/lib/services/credits";
@@ -51,7 +51,10 @@ const ALCHEMY_CHAIN_MAP: Record<string, string> = {
   gnosis: "gnosis-mainnet",
 };
 
-async function postHandler(request: NextRequest, context?: { params: Promise<{ chain: string }> }) {
+async function postHandler(
+  request: NextRequestType,
+  context?: { params: Promise<{ chain: string }> },
+) {
   const params = await context?.params;
   if (!params?.chain) {
     return Response.json({ error: "Missing chain parameter" }, { status: 400 });
@@ -59,7 +62,20 @@ async function postHandler(request: NextRequest, context?: { params: Promise<{ c
 
   const { chain } = params;
 
-  const authResult = await requireAuthOrApiKeyWithOrg(request);
+  // Support auth via query param for RPC clients that cannot set headers.
+  const queryApiKey = request.nextUrl.searchParams.get("api_key");
+  let authRequest = request;
+  if (queryApiKey && !request.headers.get("authorization") && !request.headers.get("X-API-Key")) {
+    const headers = new Headers(request.headers);
+    headers.set("Authorization", `Bearer ${queryApiKey}`);
+    authRequest = new NextRequest(request.url, {
+      headers,
+      method: request.method,
+      body: request.clone().body,
+    });
+  }
+
+  const authResult = await requireAuthOrApiKeyWithOrg(authRequest);
   const { organization_id } = authResult.user;
 
   const alchemySlug = ALCHEMY_CHAIN_MAP[chain];
@@ -127,7 +143,7 @@ async function postHandler(request: NextRequest, context?: { params: Promise<{ c
       .catch(() => ({ success: false }));
     if (!ok.success) {
       return Response.json(
-        { error: "Insufficient credits", topUpUrl: "https://www.elizacloud.ai/dashboard/billing" },
+        { error: "Insufficient credits", topUpUrl: "https://cloud.milady.ai/dashboard/billing" },
         { status: 402 },
       );
     }

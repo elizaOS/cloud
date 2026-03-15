@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { ChatInterface } from "@/components/chat/chat-interface";
 import type { UserCharacter } from "@/db/schemas";
 import { getCurrentUser } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
@@ -9,6 +8,7 @@ import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { charactersService } from "@/lib/services/characters/characters";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
+import { ChatInterface } from "@/packages/ui/src/components/chat/chat-interface";
 
 export const dynamic = "force-dynamic";
 
@@ -407,7 +407,7 @@ export async function generateMetadata({ params, searchParams }: ChatPageProps):
   // This prevents leaking character info in page title/meta tags to unauthorized users
   if (!isPublic && !isClaimableAffiliate && !isOwner) {
     return {
-      title: "Chat | Eliza Cloud",
+      title: "Chat | Milady Cloud",
       robots: {
         index: false,
         follow: false,
@@ -427,7 +427,7 @@ export async function generateMetadata({ params, searchParams }: ChatPageProps):
     : `/chat/${character.id}`;
 
   // Build the full canonical URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
   return {
     title: `Chat with ${character.name} | ${theme.branding.title}`,

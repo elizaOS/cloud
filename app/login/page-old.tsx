@@ -1,12 +1,12 @@
 "use client";
 
-import { BrandButton, BrandCard, CornerBrackets, Input } from "@elizaos/ui";
+import { BrandButton, BrandCard, CornerBrackets, Input } from "@elizaos/cloud-ui";
 import { useLoginWithEmail, useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
 import { ArrowLeft, Chrome, Github, Loader2, Mail, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import LandingHeader from "@/components/layout/landing-header";
+import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 // Discord SVG Icon Component
 const DiscordIcon = ({ className }: { className?: string }) => (

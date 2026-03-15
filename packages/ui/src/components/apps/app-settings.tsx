@@ -16,7 +16,7 @@ import {
   Label,
   Switch,
   Textarea,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { AlertTriangle, Key, Loader2, Plus, Save, Settings, Shield, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

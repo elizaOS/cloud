@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { listCharacters } from "@/app/actions/characters";
-import { ElizaPageClient } from "@/components/chat/eliza-page-client";
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { users } from "@/db/schemas/users";
@@ -13,6 +12,7 @@ import { charactersService } from "@/lib/services/characters/characters";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
 import { sanitizeUUID } from "@/lib/utils/validation";
+import { ElizaPageClient } from "@/packages/ui/src/components/chat/eliza-page-client";
 
 interface PageProps {
   searchParams: Promise<{

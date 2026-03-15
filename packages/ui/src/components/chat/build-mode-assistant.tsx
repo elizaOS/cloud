@@ -17,7 +17,7 @@
 
 "use client";
 
-import { ScrollArea } from "@elizaos/ui";
+import { ScrollArea } from "@elizaos/cloud-ui";
 import {
   ArrowUp,
   Check,
@@ -43,7 +43,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import Link from "next/link";
 import { toast } from "sonner";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";

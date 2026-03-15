@@ -32,7 +32,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import {
   AlertTriangle,

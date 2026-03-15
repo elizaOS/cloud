@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import confetti from "canvas-confetti";
 import { AlertCircle, ArrowRight, CheckCircle2, Loader2, Wallet } from "lucide-react";
 import { useCallback, useState } from "react";

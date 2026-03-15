@@ -17,7 +17,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { formatDistanceToNow } from "date-fns";
 import { /* Sparkles, */ Activity, Info, Users } from "lucide-react";
 import Link from "next/link";
@@ -75,7 +75,7 @@ export function AppsSection({ apps = [], className }: AppsSectionProps) {
                 side="right"
                 className="max-w-[180px] text-xs bg-zinc-900 text-white/80 border border-white/10"
               >
-                Third-party applications that integrate with Eliza Cloud.
+                Third-party applications that integrate with Milady Cloud.
               </TooltipContent>
             </Tooltip>
           </div>

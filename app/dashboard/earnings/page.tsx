@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { EarningsPageWrapper } from "@/components/earnings/earnings-page-wrapper";
 import { requireAuth } from "@/lib/auth";
+import { EarningsPageWrapper } from "@/packages/ui/src/components/earnings/earnings-page-wrapper";
 
 export const metadata: Metadata = {
   title: "Earnings & Redemptions",

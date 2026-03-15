@@ -9,7 +9,7 @@
 
 "use client";
 
-import { BrandCard, CornerBrackets } from "@elizaos/ui";
+import { BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
 import { DollarSign, Info, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { UserWithOrganization } from "@/lib/types";
@@ -65,9 +65,6 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
 
         const data = await response.json();
 
-        interface Transaction {
-          amount: string | number;
-        }
         interface Transaction {
           amount: string | number;
         }

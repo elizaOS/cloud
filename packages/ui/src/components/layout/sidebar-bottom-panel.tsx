@@ -8,7 +8,7 @@
 
 "use client";
 
-import { CornerBrackets } from "@elizaos/ui";
+import { CornerBrackets } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { LogIn, Settings, UserPlus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -20,7 +20,7 @@ interface SidebarBottomPanelProps {
 }
 
 export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBottomPanelProps) {
-  const { ready, authenticated, user, logout } = usePrivy();
+  const { ready, authenticated, user } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
 

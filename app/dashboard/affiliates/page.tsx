@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { AffiliatesPageWrapper } from "@/components/affiliates/affiliates-page-wrapper";
 import { requireAuth } from "@/lib/auth";
+import { AffiliatesPageWrapper } from "@/packages/ui/src/components/affiliates/affiliates-page-wrapper";
 
 export const metadata: Metadata = {
   title: "Affiliates",

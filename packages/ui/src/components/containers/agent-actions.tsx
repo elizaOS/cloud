@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { BrandButton, BrandCard } from "@elizaos/ui";
+import { BrandButton, BrandCard } from "@elizaos/cloud-ui";
 import { Camera, Loader2, Play, Square, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -36,13 +36,13 @@ export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps)
   async function doAction(action: string, method = "POST") {
     setLoading(action);
     try {
-      let url = `/api/v1/milaidy/agents/${agentId}`;
+      let url = `/api/v1/milady/agents/${agentId}`;
       let body: string | undefined;
 
       if (action === "provision") {
-        url = `/api/v1/milaidy/agents/${agentId}/provision`;
+        url = `/api/v1/milady/agents/${agentId}/provision`;
       } else if (action === "snapshot") {
-        url = `/api/v1/milaidy/agents/${agentId}/snapshot`;
+        url = `/api/v1/milady/agents/${agentId}/snapshot`;
       } else if (action === "delete") {
         method = "DELETE";
       } else if (action === "shutdown") {

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { charactersService } from "@/lib/services/characters/characters";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 import { logger } from "@/lib/utils/logger";

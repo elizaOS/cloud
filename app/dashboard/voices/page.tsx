@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import type { Voice } from "@/components/voices/types";
-import { VoicePageClient } from "@/components/voices/voice-page-client";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { organizationsService } from "@/lib/services/organizations";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
+import type { Voice } from "@/packages/ui/src/components/voices/types";
+import { VoicePageClient } from "@/packages/ui/src/components/voices/voice-page-client";
 
 export const dynamic = "force-dynamic";
 

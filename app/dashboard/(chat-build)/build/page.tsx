@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
-import { BuildPageClient } from "@/components/chat/build-page-client";
+import { BuildPageClient } from "@/packages/ui/src/components/chat/build-page-client";
 import { listCharacters } from "@/app/actions/characters";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { logger } from "@/lib/utils/logger";

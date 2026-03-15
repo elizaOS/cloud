@@ -8,7 +8,7 @@
 
 "use client";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@elizaos/ui";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { Lock } from "lucide-react";
 import Link from "next/link";

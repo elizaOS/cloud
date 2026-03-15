@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, AlertDescription, Badge, Button, Card } from "@elizaos/ui";
+import { Alert, AlertDescription, Badge, Button, Card } from "@elizaos/cloud-ui";
 import { InfoIcon, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -58,7 +58,7 @@ export function ChatInterface({
   const router = useRouter();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
   const [_isLoadingSessionData, setIsLoadingSessionData] = useState(false);
-  const { setSelectedCharacterId, setAnonymousSessionToken, loadRooms, rooms, setRoomId, roomId } =
+  const { setSelectedCharacterId, setAnonymousSessionToken, loadRooms, setRoomId, roomId } =
     useChatStore();
   const isAnonymous = !user && !!session;
 

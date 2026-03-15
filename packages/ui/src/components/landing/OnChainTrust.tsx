@@ -5,7 +5,7 @@
 
 "use client";
 
-import { BrandCard, SectionLabel } from "@elizaos/ui";
+import { BrandCard, SectionLabel } from "@elizaos/cloud-ui";
 import { ReactFlowProvider } from "@xyflow/react";
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";

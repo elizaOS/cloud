@@ -41,17 +41,6 @@ interface BillingResult {
   error?: string;
 }
 
-interface BillingSummary {
-  timestamp: Date;
-  containersProcessed: number;
-  containersBilled: number;
-  warningsSent: number;
-  containersShutdown: number;
-  totalRevenue: number;
-  errors: number;
-  results: BillingResult[];
-}
-
 /**
  * Verify CRON secret using timing-safe comparison
  */
@@ -178,7 +167,7 @@ async function processContainerBilling(
       // Send warning email
       const recipientEmail = org.billing_email || (await getOrgUserEmail(organizationId));
       if (recipientEmail) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
         await emailService.sendContainerShutdownWarningEmail({
           email: recipientEmail,
           organizationName: org.name,

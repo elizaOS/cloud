@@ -20,7 +20,7 @@ import {
   DialogTitle,
   VoiceAudioPlayer,
   VoiceEmptyState,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

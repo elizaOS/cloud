@@ -10,7 +10,7 @@
 "use client";
 
 import { Pause, Play, Volume2, VolumeX } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "../button";
 import { Slider } from "../slider";
@@ -38,9 +38,9 @@ export function VoiceAudioPlayer({ audioUrl, className }: VoiceAudioPlayerProps)
   });
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const updatePlayer = (updates: Partial<PlayerState>) => {
+  const updatePlayer = useCallback((updates: Partial<PlayerState>) => {
     setPlayerState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;

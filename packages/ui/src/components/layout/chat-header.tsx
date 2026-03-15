@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   Check,
@@ -35,9 +35,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { cn } from "@/lib/utils";
+import { ElizaAvatar } from "@/packages/ui/src/components/chat/eliza-avatar";
 
 // ==========================================================================
 // SHARED COMPONENTS (defined at module scope to prevent re-creation on render)

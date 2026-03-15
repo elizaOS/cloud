@@ -32,7 +32,7 @@ import {
   TabsList,
   TabsTrigger,
   useSetPageHeader,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   Activity,
   AlertTriangle,

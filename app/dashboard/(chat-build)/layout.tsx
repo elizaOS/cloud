@@ -9,7 +9,7 @@
 import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCallback, useState } from "react";
-import { ChatSidebar } from "@/components/layout/chat-sidebar";
+import { ChatSidebar } from "@/packages/ui/src/components/layout/chat-sidebar";
 
 /**
  * Shared layout component for chat and build pages.

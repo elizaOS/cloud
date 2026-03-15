@@ -10,16 +10,16 @@
 
 "use client";
 
-import { useSetPageHeader } from "@elizaos/ui";
+import { useSetPageHeader } from "@elizaos/cloud-ui";
 import { TriangleAlert } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
-import { CharacterBuildMode } from "@/components/chat/character-build-mode";
-import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
 import { trackEvent } from "@/lib/analytics/posthog";
 import { type Character, useChatStore } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
+import { CharacterBuildMode } from "@/packages/ui/src/components/chat/character-build-mode";
+import { SignupPromptBanner } from "@/packages/ui/src/components/chat/signup-prompt-banner";
 
 interface BuildPageClientProps {
   initialCharacters: ElizaCharacter[];

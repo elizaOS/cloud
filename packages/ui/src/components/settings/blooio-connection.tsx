@@ -22,7 +22,7 @@ import {
   CollapsibleTrigger,
   Input,
   Label,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   CheckCircle,
   ChevronDown,
@@ -32,7 +32,7 @@ import {
   Smartphone,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface BlooioStatus {
@@ -55,7 +55,7 @@ export function BlooioConnection() {
   const [showInstructions, setShowInstructions] = useState(false);
   const [isSavingSecret, setIsSavingSecret] = useState(false);
 
-  const fetchStatus = async (signal?: AbortSignal) => {
+  const fetchStatus = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     try {
       const response = await fetch("/api/v1/blooio/status", { signal });
@@ -71,7 +71,7 @@ export function BlooioConnection() {
         setIsLoading(false);
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();

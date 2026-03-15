@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import Editor, { Monaco } from "@monaco-editor/react";
 import {
   ChevronDown,

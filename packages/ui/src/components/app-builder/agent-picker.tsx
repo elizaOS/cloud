@@ -1,6 +1,6 @@
 "use client";
 
-import { ScrollArea } from "@elizaos/ui";
+import { ScrollArea } from "@elizaos/cloud-ui";
 import { Bot, Check, Search, Sparkles, Users, X } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";

@@ -20,7 +20,7 @@ import {
   SelectValue,
   Switch,
   Textarea,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";

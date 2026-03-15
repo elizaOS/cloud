@@ -1,14 +1,14 @@
 "use client";
 
-import { PageHeaderProvider, ScrollArea } from "@elizaos/ui";
+import { PageHeaderProvider, ScrollArea } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import Header from "@/components/layout/header";
-import Sidebar from "@/components/layout/sidebar";
-import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
-import { OnboardingProvider } from "@/components/onboarding/onboarding-provider";
+import Header from "@/packages/ui/src/components/layout/header";
+import Sidebar from "@/packages/ui/src/components/layout/sidebar";
+import { OnboardingOverlay } from "@/packages/ui/src/components/onboarding/onboarding-overlay";
+import { OnboardingProvider } from "@/packages/ui/src/components/onboarding/onboarding-provider";
 
 /**
  * Free Mode Paths (accessible without auth):

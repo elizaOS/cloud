@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { GalleryPageClient } from "@/components/gallery/gallery-page-client";
+import { GalleryPageClient } from "@/packages/ui/src/components/gallery/gallery-page-client";
 
 export const dynamic = "force-dynamic";
 

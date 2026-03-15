@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandCard, Button, Input, Skeleton } from "@elizaos/ui";
+import { BrandCard, Button, Input, Skeleton } from "@elizaos/cloud-ui";
 import { AlertTriangle, CheckCircle2, Copy, Link as LinkIcon, UserCog } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";

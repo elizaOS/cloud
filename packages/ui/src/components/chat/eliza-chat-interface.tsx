@@ -18,7 +18,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
 import {
   ArrowUp,
   Check,
@@ -55,7 +55,6 @@ import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useModelTier } from "./hooks/use-model-tier";
 import { MemoizedChatMessage } from "./memoized-chat-message";
 import "highlight.js/styles/github-dark.css";
-import { ContentType, type Media } from "@elizaos/core";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,9 +63,9 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@elizaos/ui";
+} from "@elizaos/cloud-ui";
+import { ContentType, type Media } from "@elizaos/core";
 import { usePrivy } from "@privy-io/react-auth";
-import type { Voice as CustomVoice } from "@/components/voices/types";
 import {
   ADDITIONAL_IMAGE_MODELS,
   ADDITIONAL_MODELS,
@@ -74,6 +73,7 @@ import {
   formatSelectorProvider,
   IMAGE_TIERS,
 } from "@/lib/models";
+import type { Voice as CustomVoice } from "@/packages/ui/src/components/voices/types";
 import { useAvailableModels } from "./hooks/use-available-models";
 import { useModelAvailability } from "./hooks/use-model-availability";
 import { PendingKnowledgeProcessor } from "./pending-knowledge-processor";

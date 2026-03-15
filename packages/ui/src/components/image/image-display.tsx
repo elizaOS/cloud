@@ -13,7 +13,7 @@
 
 "use client";
 
-import { Button } from "@elizaos/ui";
+import { Button } from "@elizaos/cloud-ui";
 import { Download, Sparkles } from "lucide-react";
 import Image from "next/image";
 
