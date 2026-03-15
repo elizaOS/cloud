@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 /**
- * POST /api/v1/milady/agents/[agentId]/resume
+ * POST /api/v1/milaidy/agents/[agentId]/resume
  *
  * Resume a suspended agent:
  * 1. Creates a new Docker container (possibly on a different node)

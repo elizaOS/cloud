@@ -47,9 +47,9 @@ export async function POST(
     );
   }
 
-  // Build the web UI base URL from the agent ID + configured domain
-  const webUiUrl = getMiladyAgentPublicWebUiUrl({ id: agentId, headscale_ip: null })
-    ?? `https://${agentId}.waifu.fun`;
+  // Build the web UI base URL from the agent ID + configured domain.
+  // getMiladyAgentPublicWebUiUrl defaults to waifu.fun via DEFAULT_AGENT_BASE_DOMAIN.
+  const webUiUrl = getMiladyAgentPublicWebUiUrl({ id: agentId, headscale_ip: null })!;
 
   const tokenService = getPairingTokenService();
   const pairingToken = tokenService.generateToken(

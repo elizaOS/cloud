@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[auth/pair] error:", msg);
     return NextResponse.json(
-      { error: msg || "Pairing failed" },
+      { error: "Pairing failed" },
       { status: 500 },
     );
   }

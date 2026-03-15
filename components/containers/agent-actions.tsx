@@ -54,7 +54,9 @@ export function MiladyAgentActions({
       let url = `/api/v1/milaidy/agents/${agentId}`;
       let body: string | undefined;
 
-      if (action === "provision" || action === "resume") {
+      if (action === "resume") {
+        url = `/api/v1/milaidy/agents/${agentId}/resume`;
+      } else if (action === "provision") {
         url = `/api/v1/milaidy/agents/${agentId}/provision`;
       } else if (action === "snapshot") {
         url = `/api/v1/milaidy/agents/${agentId}/snapshot`;

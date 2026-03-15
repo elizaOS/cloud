@@ -39,6 +39,10 @@ export async function openWebUIWithPairing(agentId: string): Promise<void> {
     }
 
     const { data } = await res.json();
+    if (popup.closed) {
+      // User closed the popup before the fetch completed — nothing to do
+      return;
+    }
     if (data?.redirectUrl) {
       popup.location.href = data.redirectUrl;
     } else {
