@@ -36,6 +36,8 @@ export interface SandboxCreateConfig {
   snapshotId?: string;
   resources?: { vcpus?: number; memoryMb?: number };
   timeout?: number;
+  /** Override the default Docker image for the container. */
+  dockerImage?: string;
 }
 
 /**

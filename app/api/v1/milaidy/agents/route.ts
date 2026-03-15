@@ -16,6 +16,8 @@ const createAgentSchema = z.object({
   characterId: z.string().uuid().optional(),
   agentConfig: z.record(z.string(), z.unknown()).optional(),
   environmentVars: z.record(z.string(), z.string()).optional(),
+  /** Docker image override — use with agent flavors or custom images. */
+  dockerImage: z.string().max(256).optional(),
 });
 
 /**
@@ -129,6 +131,7 @@ export async function POST(request: NextRequest) {
       ? withReusedMiladyCharacterOwnership(sanitizedConfig)
       : sanitizedConfig,
     environmentVars: parsed.data.environmentVars,
+    dockerImage: parsed.data.dockerImage,
   });
 
   logger.info("[milady-api] Agent created", {

@@ -42,6 +42,8 @@ export interface CreateAgentParams {
   environmentVars?: Record<string, string>;
   /** Link to a user_characters record (canonical character with token linkage). */
   characterId?: string;
+  /** Override the default Docker image (e.g. for different agent flavors). */
+  dockerImage?: string;
 }
 
 export type ProvisionResult =
@@ -125,6 +127,7 @@ export class MiladySandboxService {
       status: "pending",
       database_status: "none",
       ...(params.characterId && { character_id: params.characterId }),
+      ...(params.dockerImage && { docker_image: params.dockerImage }),
     });
   }
 
@@ -327,6 +330,7 @@ export class MiladySandboxService {
           agentName: rec.agent_name ?? "CloudAgent",
           environmentVars: callerEnvVars,
           snapshotId: rec.snapshot_id ?? undefined,
+          dockerImage: rec.docker_image ?? undefined,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

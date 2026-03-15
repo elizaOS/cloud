@@ -208,6 +208,9 @@ export class DockerSandboxProvider implements SandboxProvider {
   ): Promise<SandboxHandle> {
     const { agentId, agentName, environmentVars } = config;
 
+    // Resolve Docker image: explicit config > env var > hardcoded default
+    const resolvedImage = config.dockerImage || DOCKER_IMAGE;
+
     // 1. Input validation
     validateAgentName(agentName);
     validateAgentId(agentId);
@@ -349,7 +352,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       `-p ${bridgePort}:31337`,
       `-p ${webUiPort}:2138`,
       envFlags,
-      shellQuote(DOCKER_IMAGE),
+      shellQuote(resolvedImage),
     ].join(" ");
 
     // 7. SSH to node, ensure volume dir, pull image, run container
@@ -370,11 +373,11 @@ export class DockerSandboxProvider implements SandboxProvider {
 
       // Pull image (may take a while on first run)
       logger.info(
-        `[docker-sandbox] Pulling image ${DOCKER_IMAGE} on ${nodeId}`,
+        `[docker-sandbox] Pulling image ${resolvedImage} on ${nodeId}`,
       );
       try {
         await ssh.exec(
-          `docker pull ${shellQuote(DOCKER_IMAGE)}`,
+          `docker pull ${shellQuote(resolvedImage)}`,
           PULL_TIMEOUT_MS,
         );
         logger.info(`[docker-sandbox] Image pulled successfully on ${nodeId}`);
@@ -459,7 +462,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       webUiPort,
       agentId,
       volumePath,
-      dockerImage: DOCKER_IMAGE,
+      dockerImage: resolvedImage,
       headscaleIp: headscaleIp || undefined,
     };
 

@@ -14,8 +14,20 @@ import {
 import { Input } from "@elizaos/ui";
 import { Label } from "@elizaos/ui";
 import { Switch } from "@elizaos/ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@elizaos/ui";
 import { BrandButton } from "@elizaos/ui";
 import { Plus, Loader2 } from "lucide-react";
+import {
+  AGENT_FLAVORS,
+  getFlavorById,
+  getDefaultFlavor,
+} from "@/lib/constants/agent-flavors";
 
 interface CreateMiladySandboxDialogProps {
   trigger?: ReactNode;
@@ -31,11 +43,18 @@ export function CreateMiladySandboxDialog({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [agentName, setAgentName] = useState("");
+  const [flavorId, setFlavorId] = useState(getDefaultFlavor().id);
+  const [customImage, setCustomImage] = useState("");
   const [autoStart, setAutoStart] = useState(true);
   const [phase, setPhase] = useState<CreatePhase>("idle");
   const [error, setError] = useState<string | null>(null);
 
   const busy = phase !== "idle";
+  const selectedFlavor = getFlavorById(flavorId);
+  const isCustom = flavorId === "custom";
+  const resolvedDockerImage = isCustom
+    ? customImage.trim()
+    : selectedFlavor?.dockerImage;
 
   async function handleCreate() {
     const trimmedName = agentName.trim();
@@ -45,10 +64,18 @@ export function CreateMiladySandboxDialog({
     setPhase("creating");
 
     try {
+      const createBody: Record<string, string | undefined> = {
+        agentName: trimmedName,
+      };
+      // Only send dockerImage if it differs from the default milady image
+      if (resolvedDockerImage && flavorId !== getDefaultFlavor().id) {
+        createBody.dockerImage = resolvedDockerImage;
+      }
+
       const createRes = await fetch("/api/v1/milaidy/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentName: trimmedName }),
+        body: JSON.stringify(createBody),
       });
 
       const createData = await createRes.json().catch(() => ({}));
@@ -101,6 +128,8 @@ export function CreateMiladySandboxDialog({
 
       setOpen(false);
       setAgentName("");
+      setFlavorId(getDefaultFlavor().id);
+      setCustomImage("");
       setError(null);
       setPhase("idle");
       router.refresh();
@@ -161,6 +190,60 @@ export function CreateMiladySandboxDialog({
               />
             </div>
 
+            {/* Flavor selector */}
+            <div className="space-y-2">
+              <Label htmlFor="milady-flavor" className="text-neutral-300">
+                Agent Flavor
+              </Label>
+              <Select
+                value={flavorId}
+                onValueChange={setFlavorId}
+                disabled={busy}
+              >
+                <SelectTrigger
+                  id="milady-flavor"
+                  className="bg-black/40 border-white/10 text-white"
+                >
+                  <SelectValue placeholder="Select flavor" />
+                </SelectTrigger>
+                <SelectContent className="rounded-lg border-white/10 bg-neutral-900">
+                  {AGENT_FLAVORS.map((flavor) => (
+                    <SelectItem key={flavor.id} value={flavor.id}>
+                      <div className="flex flex-col">
+                        <span>{flavor.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedFlavor && (
+                <p className="text-xs text-neutral-500">
+                  {selectedFlavor.description}
+                </p>
+              )}
+            </div>
+
+            {/* Custom image input (only when "custom" flavor is selected) */}
+            {isCustom && (
+              <div className="space-y-2">
+                <Label
+                  htmlFor="milady-custom-image"
+                  className="text-neutral-300"
+                >
+                  Docker Image
+                </Label>
+                <Input
+                  id="milady-custom-image"
+                  placeholder="e.g. myregistry/agent:latest"
+                  value={customImage}
+                  onChange={(e) => setCustomImage(e.target.value)}
+                  disabled={busy}
+                  className="bg-black/40 border-white/10 text-white placeholder:text-neutral-600"
+                  maxLength={256}
+                />
+              </div>
+            )}
+
             <div className="flex items-center justify-between gap-4 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
               <div>
                 <Label
@@ -198,7 +281,11 @@ export function CreateMiladySandboxDialog({
             </BrandButton>
             <BrandButton
               onClick={() => void handleCreate()}
-              disabled={!agentName.trim() || busy}
+              disabled={
+                !agentName.trim() ||
+                busy ||
+                (isCustom && !customImage.trim())
+              }
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {phase === "creating"
