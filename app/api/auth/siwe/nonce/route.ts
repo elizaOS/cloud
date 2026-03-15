@@ -28,7 +28,7 @@ async function handler(request: NextRequest) {
       uri: getAppUrl(),
       chainId: Number.isNaN(chainId) ? 1 : chainId,
       version: "1",
-      statement: "Sign in to Milady Cloud",
+      statement: "Sign in to Eliza Cloud",
     },
     {
       headers: {

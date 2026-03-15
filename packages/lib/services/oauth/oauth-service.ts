@@ -80,7 +80,7 @@ class OAuthService {
   ): Promise<InitiateAuthResult> {
     const { twitterAutomationService } = await import("@/lib/services/twitter-automation");
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
     const result = await twitterAutomationService.generateAuthLink(
       `${baseUrl}/api/v1/twitter/callback`,
     );

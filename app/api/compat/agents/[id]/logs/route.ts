@@ -6,16 +6,22 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 import { logger } from "@/lib/utils/logger";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
+import { handleCompatCorsOptions, withCompatCors } from "../../../_lib/cors";
 import { requireCompatAuth } from "../../../_lib/auth";
 import { handleCompatError } from "../../../_lib/error-handler";
-import { envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
+const CORS_METHODS = "GET, OPTIONS";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+export function OPTIONS() {
+  return handleCompatCorsOptions(CORS_METHODS);
+}
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -24,7 +30,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
-      return NextResponse.json(errorEnvelope("Agent not found"), { status: 404 });
+      return withCompatCors(
+        NextResponse.json(errorEnvelope("Agent not found"), { status: 404 }),
+        CORS_METHODS,
+      );
     }
 
     const url = new URL(request.url);
@@ -42,7 +51,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         });
         if (res.ok) {
           const logs = await res.text();
-          return NextResponse.json(envelope(logs));
+          return withCompatCors(
+            NextResponse.json(envelope(logs)),
+            CORS_METHODS,
+          );
         }
       } catch (fetchErr) {
         logger.warn("[compat] Failed to fetch logs from bridge", {
@@ -62,10 +74,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       error: `Agent is in error state: ${agent.error_message ?? "unknown error"}`,
     };
 
-    return NextResponse.json(
-      envelope(statusMsg[agent.status] ?? `Agent status: ${agent.status}`),
+    return withCompatCors(
+      NextResponse.json(
+        envelope(statusMsg[agent.status] ?? `Agent status: ${agent.status}`),
+      ),
+      CORS_METHODS,
     );
   } catch (err) {
-    return handleCompatError(err);
+    return handleCompatError(err, CORS_METHODS);
   }
 }

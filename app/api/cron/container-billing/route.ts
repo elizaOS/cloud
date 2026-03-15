@@ -167,7 +167,7 @@ async function processContainerBilling(
       // Send warning email
       const recipientEmail = org.billing_email || (await getOrgUserEmail(organizationId));
       if (recipientEmail) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
         await emailService.sendContainerShutdownWarningEmail({
           email: recipientEmail,
           organizationName: org.name,

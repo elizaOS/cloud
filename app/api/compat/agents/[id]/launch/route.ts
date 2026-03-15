@@ -13,12 +13,18 @@ import {
   ManagedMiladyLaunchError,
 } from "@/lib/services/milady-managed-launch";
 import { requireCompatAuth } from "../../../_lib/auth";
+import { handleCompatCorsOptions, withCompatCors } from "../../../_lib/cors";
 import { handleCompatError } from "../../../_lib/error-handler";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
+const CORS_METHODS = "POST, OPTIONS";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+export function OPTIONS() {
+  return handleCompatCorsOptions(CORS_METHODS);
+}
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
@@ -31,23 +37,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       userId: user.id,
     });
 
-    return NextResponse.json(
-      envelope({
-        agentId: result.agentId,
-        agentName: result.agentName,
-        appUrl: result.appUrl,
-        launchSessionId: result.launchSessionId,
-        issuedAt: result.issuedAt,
-        connection: result.connection,
-      }),
+    return withCompatCors(
+      NextResponse.json(
+        envelope({
+          agentId: result.agentId,
+          agentName: result.agentName,
+          appUrl: result.appUrl,
+          launchSessionId: result.launchSessionId,
+          issuedAt: result.issuedAt,
+          connection: result.connection,
+        }),
+      ),
+      CORS_METHODS,
     );
   } catch (error) {
     if (error instanceof ManagedMiladyLaunchError) {
-      return NextResponse.json(errorEnvelope(error.message), {
-        status: error.status,
-      });
+      return withCompatCors(
+        NextResponse.json(errorEnvelope(error.message), {
+          status: error.status,
+        }),
+        CORS_METHODS,
+      );
     }
 
-    return handleCompatError(error);
+    return handleCompatError(error, CORS_METHODS);
   }
 }

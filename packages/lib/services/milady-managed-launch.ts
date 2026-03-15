@@ -7,7 +7,7 @@ import { apiKeysService } from "./api-keys";
 import { miladySandboxService } from "./milady-sandbox";
 
 const DEFAULT_MILADY_APP_URL = "https://app.milady.ai";
-const DEFAULT_CLOUD_PUBLIC_URL = "https://cloud.milady.ai";
+const DEFAULT_CLOUD_PUBLIC_URL = "https://www.elizacloud.ai";
 const DEFAULT_SMALL_MODEL = "moonshotai/kimi-k2-turbo";
 const DEFAULT_LARGE_MODEL = "moonshotai/kimi-k2-0905";
 const LAUNCH_SESSION_TTL_SECONDS = 300;
@@ -169,8 +169,8 @@ async function getOrCreateUserApiKey(userId: string, organizationId: string): Pr
   }
 
   const { plainKey } = await apiKeysService.create({
-    name: "Milady Cloud Managed Access",
-    description: "Auto-generated for managed Milady Cloud instances",
+    name: "Eliza Cloud Managed Access",
+    description: "Auto-generated for managed Milady instances on Eliza Cloud",
     organization_id: organizationId,
     user_id: userId,
     permissions: [],
@@ -225,9 +225,9 @@ async function ensureManagedOnboarding(
     name: sandbox.agent_name?.trim() || "Milady",
     runMode: "cloud" as const,
     sandboxMode: "light" as const,
-    bio: ["An autonomous AI agent running on Milady Cloud."],
-    systemPrompt: `You are ${sandbox.agent_name?.trim() || "Milady"}, an autonomous AI agent running on Milady Cloud.`,
-    cloudProvider: "miladycloud",
+    bio: ["An autonomous AI agent running on Eliza Cloud."],
+    systemPrompt: `You are ${sandbox.agent_name?.trim() || "Milady"}, an autonomous AI agent running on Eliza Cloud.`,
+    cloudProvider: "elizacloud",
     providerApiKey: userApiKey,
     smallModel: DEFAULT_SMALL_MODEL,
     largeModel: DEFAULT_LARGE_MODEL,

@@ -9,8 +9,8 @@ import { FALLBACK_TEXT_SELECTOR_MODELS } from "@/lib/models";
  * Get the elizaOS Cloud API base URL based on environment
  * - Local: http://localhost:3000/api/v1
  * - Test: http://localhost:3000/api/v1 (same as local)
- * - Development: https://dev.cloud.milady.ai/api/v1
- * - Production: https://cloud.milady.ai/api/v1
+ * - Development: https://dev.elizacloud.ai/api/v1
+ * - Production: https://www.elizacloud.ai/api/v1
  */
 export function getElizaCloudApiUrl(): string {
   // Allow explicit override via environment variable
@@ -32,12 +32,12 @@ export function getElizaCloudApiUrl(): string {
   }
 
   // Development environment
-  if (appUrl?.includes("dev.cloud.milady.ai") || appUrl?.includes("dev.elizacloud.ai")) {
-    return "https://dev.cloud.milady.ai/api/v1";
+  if (appUrl?.includes("dev.elizacloud.ai")) {
+    return "https://dev.elizacloud.ai/api/v1";
   }
 
   // Production (default)
-  return "https://cloud.milady.ai/api/v1";
+  return "https://www.elizacloud.ai/api/v1";
 }
 
 /**

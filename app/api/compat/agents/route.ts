@@ -9,9 +9,11 @@ import { stripReservedMiladyConfigKeys } from "@/lib/services/milady-agent-confi
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../_lib/auth";
+import { handleCompatCorsOptions, withCompatCors } from "../_lib/cors";
 import { handleCompatError } from "../_lib/error-handler";
 
 export const dynamic = "force-dynamic";
+const CORS_METHODS = "GET, POST, OPTIONS";
 
 const createAgentSchema = z.object({
   agentName: z.string().min(1).max(100),
@@ -19,13 +21,17 @@ const createAgentSchema = z.object({
   environmentVars: z.record(z.string(), z.string()).optional(),
 });
 
+export function OPTIONS() {
+  return handleCompatCorsOptions(CORS_METHODS);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireCompatAuth(request);
     const agents = await miladySandboxService.listAgents(user.organization_id);
-    return NextResponse.json(envelope(agents.map(toCompatAgent)));
+    return withCompatCors(NextResponse.json(envelope(agents.map(toCompatAgent))), CORS_METHODS);
   } catch (err) {
-    return handleCompatError(err);
+    return handleCompatError(err, CORS_METHODS);
   }
 }
 
@@ -36,13 +42,16 @@ export async function POST(request: NextRequest) {
 
     const parsed = createAgentSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid request data",
-          details: parsed.error.issues,
-        },
-        { status: 400 },
+      return withCompatCors(
+        NextResponse.json(
+          {
+            success: false,
+            error: "Invalid request data",
+            details: parsed.error.issues,
+          },
+          { status: 400 },
+        ),
+        CORS_METHODS,
       );
     }
 
@@ -92,8 +101,8 @@ export async function POST(request: NextRequest) {
       ? { ...envelope(data), warning: provisionWarning }
       : envelope(data);
 
-    return NextResponse.json(responseBody, { status: 201 });
+    return withCompatCors(NextResponse.json(responseBody, { status: 201 }), CORS_METHODS);
   } catch (err) {
-    return handleCompatError(err);
+    return handleCompatError(err, CORS_METHODS);
   }
 }

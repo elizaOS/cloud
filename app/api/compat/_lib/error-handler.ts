@@ -15,17 +15,22 @@ import { NextResponse } from "next/server";
 import { errorEnvelope } from "@/lib/api/compat-envelope";
 import { ApiError } from "@/lib/api/errors";
 import { ServiceKeyAuthError } from "@/lib/auth/service-key";
+import { applyCorsHeaders } from "@/lib/services/proxy/cors";
 import { logger } from "@/lib/utils/logger";
 
-export function handleCompatError(err: unknown): NextResponse {
+function compatErrorResponse(message: string, status: number, methods: string): Response {
+  return applyCorsHeaders(NextResponse.json(errorEnvelope(message), { status }), methods);
+}
+
+export function handleCompatError(err: unknown, methods = "GET, POST, DELETE, OPTIONS"): Response {
   // 1. Typed API errors — use their built-in status / message.
   if (err instanceof ApiError) {
-    return NextResponse.json(errorEnvelope(err.message), { status: err.status });
+    return compatErrorResponse(err.message, err.status, methods);
   }
 
   // 2. Service-key auth failures → 401.
   if (err instanceof ServiceKeyAuthError) {
-    return NextResponse.json(errorEnvelope(err.message), { status: 401 });
+    return compatErrorResponse(err.message, 401, methods);
   }
 
   // 3. Generic Error — heuristic status from message.
@@ -54,10 +59,10 @@ export function handleCompatError(err: unknown): NextResponse {
       msg.includes("requires org membership");
 
     if (isAuth) {
-      return NextResponse.json(errorEnvelope(msg), { status: 401 });
+      return compatErrorResponse(msg, 401, methods);
     }
     if (isForbid) {
-      return NextResponse.json(errorEnvelope(msg), { status: 403 });
+      return compatErrorResponse(msg, 403, methods);
     }
 
     // 500-level: log the real error, return a generic message.
@@ -65,10 +70,10 @@ export function handleCompatError(err: unknown): NextResponse {
       error: msg,
       stack: err.stack,
     });
-    return NextResponse.json(errorEnvelope("Internal server error"), { status: 500 });
+    return compatErrorResponse("Internal server error", 500, methods);
   }
 
   // 4. Non-Error throw — always generic.
   logger.error("[compat] Unhandled non-Error throw", { value: String(err) });
-  return NextResponse.json(errorEnvelope("Internal server error"), { status: 500 });
+  return compatErrorResponse("Internal server error", 500, methods);
 }

@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   return {
-    title: `${app.name} | Milady Cloud`,
+    title: `${app.name} | Eliza Cloud`,
     description: app.description || `Manage ${app.name} app settings and analytics`,
     robots: { index: false, follow: false },
   };

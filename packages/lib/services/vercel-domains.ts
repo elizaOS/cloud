@@ -24,7 +24,7 @@ import { vercelApiRequest } from "@/lib/utils/vercel-api";
 // Vercel API configuration
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
-const APP_DOMAIN = process.env.APP_DOMAIN || "apps.cloud.milady.ai";
+const APP_DOMAIN = process.env.APP_DOMAIN || "apps.elizacloud.ai";
 
 // Reserved subdomains that cannot be used for apps
 const RESERVED_SUBDOMAINS = new Set([

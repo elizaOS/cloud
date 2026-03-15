@@ -336,7 +336,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
         <DialogHeader>
           <DialogTitle>Create New App</DialogTitle>
           <DialogDescription>
-            Create an app to integrate Milady Cloud services into your website or application.
+            Create an app to integrate Eliza Cloud services into your website or application.
             You&apos;ll receive an API key for authentication.
           </DialogDescription>
         </DialogHeader>
@@ -553,7 +553,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="text-xs">
-                      Select which Milady Cloud features this app can access
+                      Select which Eliza Cloud features this app can access
                     </p>
                   </TooltipContent>
                 </Tooltip>

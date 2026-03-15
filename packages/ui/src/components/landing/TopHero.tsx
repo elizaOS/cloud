@@ -267,7 +267,7 @@ const TopHero = () => {
                     delay: status === "deploy" ? 5.6 : 0,
                   }}
                 >
-                  Running on Milady Cloud
+                  Running on Eliza Cloud
                 </motion.div>
                 <motion.div
                   className="flex items-center gap-2 text-[#FF5800] break-all"
@@ -278,7 +278,7 @@ const TopHero = () => {
                     delay: status === "deploy" ? 6 : 0,
                   }}
                 >
-                  → https://my-agent.cloud.milady.ai
+                  → https://my-agent.apps.elizacloud.ai
                   {cursorLine === "url" && status === "deploy" && (
                     <span
                       className="inline-block w-0.5 h-3.5 bg-white ml-px shrink-0"

@@ -75,7 +75,7 @@ export function AppsSection({ apps = [], className }: AppsSectionProps) {
                 side="right"
                 className="max-w-[180px] text-xs bg-zinc-900 text-white/80 border border-white/10"
               >
-                Third-party applications that integrate with Milady Cloud.
+                Third-party applications that integrate with Eliza Cloud.
               </TooltipContent>
             </Tooltip>
           </div>

@@ -384,7 +384,7 @@ export class AutoTopUpService {
       }
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
     const emailData = {
       email: recipientEmail,
       organizationName: org.name,
@@ -416,7 +416,7 @@ export class AutoTopUpService {
       return;
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
     await emailService.sendAutoTopUpDisabledEmail({
       email: recipientEmail,
       organizationName: org.name,

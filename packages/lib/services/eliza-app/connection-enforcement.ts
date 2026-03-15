@@ -185,7 +185,7 @@ function getBaseUrl(): string {
   logger.warn(
     "[ConnectionEnforcement] NEXT_PUBLIC_APP_URL missing, falling back to production URL",
   );
-  return "https://cloud.milady.ai";
+  return "https://www.elizacloud.ai";
 }
 
 function isClaimingConnected(message: string): boolean {

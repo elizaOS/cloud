@@ -31,7 +31,7 @@ class EmailService {
     if (this.initialized) return;
 
     this.fromEmail =
-      process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM || "noreply@cloud.milady.ai";
+      process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM || "noreply@elizacloud.ai";
 
     if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_PASSWORD) {
       logger.info("[EmailService] Using SMTP configuration");

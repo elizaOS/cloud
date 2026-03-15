@@ -58,7 +58,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
     return NextResponse.json({ error: "MCP not accessible for this agent" }, { status: 403 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
 
   const markupPct = Number(character.inference_markup_percentage || 0);

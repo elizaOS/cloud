@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
 // GET Handler - Service Discovery
 export async function GET() {
   return NextResponse.json({
-    name: "Milady Cloud A2A",
+    name: "Eliza Cloud A2A",
     version: "1.0.0",
     protocolVersion: "0.3.0",
     protocol: "JSON-RPC 2.0",

@@ -66,11 +66,11 @@ const baseUrl =
 
 export const metadata: Metadata = {
   title: {
-    default: "Milady Cloud - Managed Hosting for Milady Agents",
-    template: "%s | Milady Cloud",
+    default: "Eliza Cloud - Managed Hosting for AI Agents",
+    template: "%s | Eliza Cloud",
   },
   description:
-    "Managed hosting, provisioning, and deployment for Milady agents with Eliza Cloud infrastructure under the hood.",
+    "Managed hosting, provisioning, billing, and deployment for AI agents on Eliza Cloud.",
   keywords: [
     "AI",
     "agents",
@@ -83,18 +83,18 @@ export const metadata: Metadata = {
     "LLM",
     "deployment",
   ],
-  authors: [{ name: "Milady Cloud" }],
-  creator: "Milady Cloud",
-  publisher: "Milady Cloud",
+  authors: [{ name: "Eliza Cloud" }],
+  creator: "Eliza Cloud",
+  publisher: "Eliza Cloud",
   metadataBase: new URL(baseUrl),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "Milady Cloud - Managed Hosting for Milady Agents",
-    description: "Managed hosting, provisioning, and deployment for Milady agents",
+    title: "Eliza Cloud - Managed Hosting for AI Agents",
+    description: "Managed hosting, provisioning, billing, and deployment for AI agents",
     url: "/",
-    siteName: "Milady Cloud",
+    siteName: "Eliza Cloud",
     type: "website",
     locale: "en_US",
     images: [
@@ -102,14 +102,14 @@ export const metadata: Metadata = {
         url: "/cloudlogo.png",
         width: 1200,
         height: 630,
-        alt: "Milady Cloud",
+        alt: "Eliza Cloud",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Milady Cloud",
-    description: "Managed hosting, provisioning, and deployment for Milady agents",
+    title: "Eliza Cloud",
+    description: "Managed hosting, provisioning, billing, and deployment for AI agents",
     images: ["/cloudlogo.png"],
   },
   robots: {

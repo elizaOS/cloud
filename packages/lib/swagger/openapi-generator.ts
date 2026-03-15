@@ -310,18 +310,18 @@ export function generateOpenAPISpec(baseUrl?: string): OpenAPISpec {
   const spec: OpenAPISpec = {
     openapi: "3.0.3",
     info: {
-      title: "Milady Cloud API",
+      title: "Eliza Cloud API",
       description:
         "AI agent development platform with multi-model text generation, image creation, and enterprise features",
       version: "1.0.0",
       contact: {
-        name: "Milady Cloud",
-        url: "https://cloud.milady.ai",
+        name: "Eliza Cloud",
+        url: "https://www.elizacloud.ai",
       },
     },
     servers: [
       {
-        url: baseUrl || "https://cloud.milady.ai",
+        url: baseUrl || "https://www.elizacloud.ai",
         description: "Production server",
       },
     ],

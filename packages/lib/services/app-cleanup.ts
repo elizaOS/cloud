@@ -150,7 +150,7 @@ async function removeAppDomains(appId: string): Promise<{
 
     for (const domain of domains) {
       const fullSubdomain = domain.subdomain
-        ? `${domain.subdomain}.${process.env.APP_DOMAIN || "apps.cloud.milady.ai"}`
+        ? `${domain.subdomain}.${process.env.APP_DOMAIN || "apps.elizacloud.ai"}`
         : null;
 
       // Remove custom domain from Vercel if it exists

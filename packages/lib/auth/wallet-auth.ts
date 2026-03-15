@@ -52,7 +52,7 @@ export async function verifyWalletSignature(
     throw new Error("Service temporarily unavailable");
   }
 
-  const message = `Milady Cloud Authentication\nTimestamp: ${timestamp}\nMethod: ${method}\nPath: ${path}`;
+  const message = `Eliza Cloud Authentication\nTimestamp: ${timestamp}\nMethod: ${method}\nPath: ${path}`;
 
   // Note: Verify signature BEFORE consuming nonce to prevent attackers from burning valid nonces with invalid signatures
   const isValid = await verifyMessage({

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ success: false, error: "Character not found" }, { status: 404 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
     return NextResponse.json({
       success: true,
@@ -125,7 +125,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     revalidatePath("/dashboard/my-agents");
     revalidatePath("/dashboard/build");
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
     return NextResponse.json({
       success: true,

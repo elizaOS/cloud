@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: PageProps) {
   const ogImage = post.image || "/cloudlogo.png";
 
   // Use absolute URL for better Twitter compatibility
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const absoluteImageUrl = ogImage.startsWith("http") ? ogImage : `${baseUrl}${ogImage}`;
 
   return {

@@ -8,7 +8,7 @@
  * - Each app = its own Vercel project
  * - Projects are created under VERCEL_TEAM_ID
  * - GitHub repos are linked to their respective projects
- * - Each project gets a subdomain under apps.cloud.milady.ai
+ * - Each project gets a subdomain under apps.elizacloud.ai
  *
  * Flow:
  * 1. App created → GitHub repo created
@@ -28,7 +28,7 @@ import { isReservedSubdomain, validateSubdomain } from "./vercel-domains";
 // Vercel API configuration
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
-const APP_DOMAIN = process.env.APP_DOMAIN || "apps.cloud.milady.ai";
+const APP_DOMAIN = process.env.APP_DOMAIN || "apps.elizacloud.ai";
 
 // GitHub configuration
 const GITHUB_ORG = process.env.GITHUB_ORG_NAME || "eliza-cloud-apps";
@@ -135,7 +135,7 @@ async function isSubdomainAvailableInDb(subdomain: string): Promise<boolean> {
  * Check if a subdomain is available
  *
  * We only check the local database because:
- * 1. We own the parent domain (apps.cloud.milady.ai) - subdomains are managed internally
+ * 1. We own the parent domain (apps.elizacloud.ai) - subdomains are managed internally
  * 2. Vercel's /v6/domains/ API checks domain registration, not project assignments
  * 3. Subdomain assignment to Vercel projects happens later via addDomainToProject
  * 4. The database is the source of truth for our subdomain allocations
@@ -202,7 +202,7 @@ async function getOrCreateVercelProject(
           },
           {
             key: "NEXT_PUBLIC_ELIZA_API_URL",
-            value: process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai",
+            value: process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai",
             target: ["production", "preview", "development"],
             type: "plain",
           },

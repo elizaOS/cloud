@@ -154,7 +154,7 @@ export function CliLoginContent() {
             </div>
             <CardTitle>CLI Authentication</CardTitle>
             <CardDescription>
-              Sign in to connect your Milady app or CLI to Milady Cloud
+              Sign in to connect your Milady app or CLI to Eliza Cloud
             </CardDescription>
           </CardHeader>
           <CardContent>

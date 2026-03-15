@@ -137,7 +137,7 @@ export class N8nCredentialBridge extends Service {
     const connected = await oauthService.isPlatformConnected(organizationId, platform);
 
     if (!connected) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
       const result = await oauthService.initiateAuth({
         organizationId,
         userId: user.id,
@@ -160,7 +160,7 @@ export class N8nCredentialBridge extends Service {
         platform,
         error: error instanceof Error ? error.message : String(error),
       });
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
       const result = await oauthService.initiateAuth({
         organizationId,
         userId: user.id,
@@ -253,7 +253,7 @@ export class N8nCredentialBridge extends Service {
     const apiKey = await this.getUserApiKey(user.id, organizationId);
     if (!apiKey) return null;
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
     logger.info("[N8nCredentialBridge] API key credential resolved", {
       credType,

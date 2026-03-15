@@ -8,8 +8,7 @@ import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/mi
 
 export const metadata: Metadata = {
   title: "Milady Instances",
-  description:
-    "View, launch, and manage your Milady Cloud instances backed by Eliza Cloud containers.",
+  description: "View, launch, and manage your Milady instances backed by Eliza Cloud containers.",
 };
 
 export const dynamic = "force-dynamic";

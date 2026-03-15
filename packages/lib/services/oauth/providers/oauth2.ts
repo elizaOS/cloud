@@ -114,7 +114,7 @@ export async function initiateOAuth2(
     throw new Error(`OAuth not configured: missing authorization endpoint for ${provider.id}`);
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const callbackUrl = getCallbackUrl(provider, baseUrl);
   const scopes = params.scopes || provider.defaultScopes || [];
   const redirectUrl = params.redirectUrl || "/auth/success";
@@ -267,7 +267,7 @@ async function exchangeCodeForTokens(
     throw new Error(`OAuth not configured: missing token endpoint for ${provider.id}`);
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const callbackUrl = getCallbackUrl(provider, baseUrl);
 
   // Build token request body

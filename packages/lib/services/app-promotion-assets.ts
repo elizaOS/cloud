@@ -94,7 +94,7 @@ class AppPromotionAssetsService {
       const response = await Promise.race([
         fetch(safeUrl, {
           headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; MiladyCloudBot/1.0; +https://cloud.milady.ai)",
+            "User-Agent": "Mozilla/5.0 (compatible; ElizaCloudBot/1.0; +https://www.elizacloud.ai)",
             Accept: "text/html",
           },
           redirect: "error",

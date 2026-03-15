@@ -27,7 +27,7 @@ describe("getCorsHeaders", () => {
     });
 
     it("sets Access-Control-Allow-Credentials for allowed origins", () => {
-      const headers = getCorsHeaders("https://cloud.milady.ai");
+      const headers = getCorsHeaders("https://app.milady.ai");
       expect(headers["Access-Control-Allow-Credentials"]).toBe("true");
     });
   });

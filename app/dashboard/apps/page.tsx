@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 export const metadata: Metadata = {
   title: "Apps",
   description:
-    "Create and manage apps that integrate with Milady Cloud services. Build AI-powered applications with custom configurations and track usage.",
+    "Create and manage apps that integrate with Eliza Cloud services. Build AI-powered applications with custom configurations and track usage.",
 };
 
 export const dynamic = "force-dynamic";

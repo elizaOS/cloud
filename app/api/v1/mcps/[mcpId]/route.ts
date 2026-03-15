@@ -92,7 +92,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ mcpId: 
   }
 
   // Get endpoint URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const endpointUrl = userMcpsService.getEndpointUrl(mcp, baseUrl);
 
   return NextResponse.json({

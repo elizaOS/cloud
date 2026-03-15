@@ -130,7 +130,7 @@ export const oauthConnectAction: ActionWithParams = {
       };
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
     let result;
     try {

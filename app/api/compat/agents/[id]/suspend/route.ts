@@ -8,15 +8,21 @@ import { envelope, errorEnvelope, toCompatOpResult } from "@/lib/api/compat-enve
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../../../_lib/auth";
+import { handleCompatCorsOptions, withCompatCors } from "../../../_lib/cors";
 import { handleCompatError } from "../../../_lib/error-handler";
 
 export const dynamic = "force-dynamic";
+const CORS_METHODS = "POST, OPTIONS";
 
 const suspendSchema = z.object({
   reason: z.string().min(1).default("owner requested suspension"),
 });
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+export function OPTIONS() {
+  return handleCompatCorsOptions(CORS_METHODS);
+}
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
@@ -31,9 +37,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
     if (!agent) {
-      return NextResponse.json(errorEnvelope("Agent not found"), {
-        status: 404,
-      });
+      return withCompatCors(
+        NextResponse.json(errorEnvelope("Agent not found"), {
+          status: 404,
+        }),
+        CORS_METHODS,
+      );
     }
 
     const result = await miladySandboxService.shutdown(agentId, user.organization_id);
@@ -44,11 +53,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           : result.error === "Agent provisioning is in progress"
             ? 409
             : 500;
-      return NextResponse.json(errorEnvelope(result.error ?? "Suspend failed"), { status });
+      return withCompatCors(
+        NextResponse.json(errorEnvelope(result.error ?? "Suspend failed"), {
+          status,
+        }),
+        CORS_METHODS,
+      );
     }
 
-    return NextResponse.json(envelope(toCompatOpResult(agentId, "suspend", true)));
+    return withCompatCors(
+      NextResponse.json(envelope(toCompatOpResult(agentId, "suspend", true))),
+      CORS_METHODS,
+    );
   } catch (err) {
-    return handleCompatError(err);
+    return handleCompatError(err, CORS_METHODS);
   }
 }

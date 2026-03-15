@@ -55,7 +55,7 @@ afterEach(() => {
 
 beforeEach(() => {
   cacheStore.clear();
-  process.env.NEXT_PUBLIC_APP_URL = "https://cloud.milady.ai";
+  process.env.NEXT_PUBLIC_APP_URL = "https://www.elizacloud.ai";
 
   mockGenerateText.mockReset();
   mockGetConnectedPlatforms.mockReset();
@@ -100,7 +100,7 @@ describe("connection enforcement", () => {
 
   test("appends a provider-specific OAuth link for telegram nudges", async () => {
     mockInitiateAuth.mockResolvedValue({
-      authUrl: "https://cloud.milady.ai/oauth/google",
+      authUrl: "https://www.elizacloud.ai/oauth/google",
     });
 
     const response = await connectionEnforcementService.generateNudgeResponse({
@@ -111,19 +111,19 @@ describe("connection enforcement", () => {
     });
 
     expect(response).toContain("connect google.");
-    expect(response).toContain("[Connect Google](https://cloud.milady.ai/oauth/google)");
+    expect(response).toContain("[Connect Google](https://www.elizacloud.ai/oauth/google)");
     expect(mockInitiateAuth).toHaveBeenCalledWith({
       organizationId: "org-1",
       userId: "user-1",
       platform: "google",
       redirectUrl:
-        "https://cloud.milady.ai/api/eliza-app/auth/connection-success?platform=telegram",
+        "https://www.elizacloud.ai/api/eliza-app/auth/connection-success?platform=telegram",
     });
   });
 
   test("appends all required provider links on a generic nudge turn", async () => {
     mockInitiateAuth.mockImplementation(async ({ platform }: { platform: string }) => ({
-      authUrl: `https://cloud.milady.ai/oauth/${platform}`,
+      authUrl: `https://www.elizacloud.ai/oauth/${platform}`,
     }));
 
     const response = await connectionEnforcementService.generateNudgeResponse({
@@ -134,14 +134,14 @@ describe("connection enforcement", () => {
     });
 
     expect(response).toContain("connect google.");
-    expect(response).toContain("Google: https://cloud.milady.ai/oauth/google");
-    expect(response).toContain("Microsoft: https://cloud.milady.ai/oauth/microsoft");
-    expect(response).toContain("X: https://cloud.milady.ai/oauth/twitter");
+    expect(response).toContain("Google: https://www.elizacloud.ai/oauth/google");
+    expect(response).toContain("Microsoft: https://www.elizacloud.ai/oauth/microsoft");
+    expect(response).toContain("X: https://www.elizacloud.ai/oauth/twitter");
   });
 
   test("stores conversation history without persisting OAuth URLs", async () => {
     mockInitiateAuth.mockResolvedValue({
-      authUrl: "https://cloud.milady.ai/oauth/google",
+      authUrl: "https://www.elizacloud.ai/oauth/google",
     });
 
     await connectionEnforcementService.generateNudgeResponse({
@@ -163,10 +163,10 @@ describe("connection enforcement", () => {
     expect(storedConversation?.messages.at(-1)?.content).toBe("connect google.");
   });
 
-  test("falls back to the Milady Cloud production URL when app URL is unset", async () => {
+  test("falls back to the Eliza Cloud production URL when app URL is unset", async () => {
     delete process.env.NEXT_PUBLIC_APP_URL;
     mockInitiateAuth.mockResolvedValue({
-      authUrl: "https://cloud.milady.ai/oauth/google",
+      authUrl: "https://www.elizacloud.ai/oauth/google",
     });
 
     await connectionEnforcementService.generateNudgeResponse({
@@ -181,7 +181,7 @@ describe("connection enforcement", () => {
       userId: "user-4",
       platform: "google",
       redirectUrl:
-        "https://cloud.milady.ai/api/eliza-app/auth/connection-success?platform=telegram",
+        "https://www.elizacloud.ai/api/eliza-app/auth/connection-success?platform=telegram",
     });
   });
 });

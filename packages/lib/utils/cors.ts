@@ -1,8 +1,10 @@
 const ALLOWED_ORIGINS = [
   process.env.NEXT_PUBLIC_APP_URL,
-  "https://cloud.milady.ai",
+  "https://app.milady.ai",
   "https://milady.ai",
   "https://www.milady.ai",
+  "https://elizacloud.ai",
+  "https://www.elizacloud.ai",
 ].filter(Boolean) as string[];
 
 export function getCorsHeaders(origin: string | null): Record<string, string> {

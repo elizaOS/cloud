@@ -14,7 +14,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const oauthVerifier = searchParams.get("oauth_verifier");
   const denied = searchParams.get("denied");
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const defaultRedirectPath = "/dashboard/settings?tab=connections";
 
   function buildRedirectUrl(redirectUrl: string | undefined, params: Record<string, string>): URL {

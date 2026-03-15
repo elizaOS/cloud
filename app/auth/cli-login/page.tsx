@@ -164,7 +164,7 @@ function CliLoginContent() {
             <div className="space-y-2">
               <h2 className="text-xl font-semibold text-white">CLI Authentication</h2>
               <p className="text-sm text-neutral-500">
-                Sign in to connect your Milady app or CLI to Milady Cloud
+                Sign in to connect your Milady app or CLI to Eliza Cloud
               </p>
             </div>
             <Button

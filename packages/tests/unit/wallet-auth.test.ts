@@ -71,7 +71,7 @@ describe("Wallet Authentication", () => {
     expect(user?.id).toBe("user-1");
     expect(viem.verifyMessage).toHaveBeenCalled();
     const verifyCall = (viem.verifyMessage as any).mock.calls[0]?.[0];
-    expect(verifyCall?.message).toContain("Milady Cloud Authentication");
+    expect(verifyCall?.message).toContain("Eliza Cloud Authentication");
   });
 
   it("should reject an expired timestamp", async () => {

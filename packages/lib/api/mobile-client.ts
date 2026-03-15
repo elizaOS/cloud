@@ -2,7 +2,7 @@
  * Mobile API Client
  *
  * Provides an API client that works in both web and mobile contexts.
- * In mobile builds, all API calls are routed to Milady Cloud.
+ * In mobile builds, all API calls are routed to Eliza Cloud.
  * In web builds, calls go to the current origin.
  */
 
@@ -33,14 +33,14 @@ export function isAndroid(): boolean {
 
 /**
  * Get the appropriate API base URL
- * - Mobile: Always use the Milady Cloud production API
+ * - Mobile: Always use the Eliza Cloud production API
  * - Web: Use current origin for same-origin requests
  * - SSR: Use environment variable or localhost
  */
 export function getApiBaseUrl(): string {
   // Mobile always uses production API
   if (isMobileApp()) {
-    return process.env.NEXT_PUBLIC_API_URL || "https://cloud.milady.ai";
+    return process.env.NEXT_PUBLIC_API_URL || "https://www.elizacloud.ai";
   }
 
   // Server-side rendering

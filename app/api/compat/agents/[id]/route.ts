@@ -14,11 +14,17 @@ import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-confi
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../../_lib/auth";
+import { handleCompatCorsOptions, withCompatCors } from "../../_lib/cors";
 import { handleCompatError } from "../../_lib/error-handler";
 
 export const dynamic = "force-dynamic";
+const CORS_METHODS = "GET, DELETE, OPTIONS";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+export function OPTIONS() {
+  return handleCompatCorsOptions(CORS_METHODS);
+}
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -27,14 +33,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
-      return NextResponse.json(errorEnvelope("Agent not found"), {
-        status: 404,
-      });
+      return withCompatCors(
+        NextResponse.json(errorEnvelope("Agent not found"), {
+          status: 404,
+        }),
+        CORS_METHODS,
+      );
     }
 
-    return NextResponse.json(envelope(toCompatAgent(agent)));
+    return withCompatCors(NextResponse.json(envelope(toCompatAgent(agent))), CORS_METHODS);
   } catch (err) {
-    return handleCompatError(err);
+    return handleCompatError(err, CORS_METHODS);
   }
 }
 
@@ -51,7 +60,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
           : deleted.error === "Agent provisioning is in progress"
             ? 409
             : 500;
-      return NextResponse.json(errorEnvelope(deleted.error), { status });
+      return withCompatCors(
+        NextResponse.json(errorEnvelope(deleted.error), { status }),
+        CORS_METHODS,
+      );
     }
 
     const characterId = deleted.deletedSandbox.character_id;
@@ -80,8 +92,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       agentId,
       orgId: user.organization_id,
     });
-    return NextResponse.json(envelope(toCompatOpResult(agentId, "delete", true)));
+    return withCompatCors(
+      NextResponse.json(envelope(toCompatOpResult(agentId, "delete", true))),
+      CORS_METHODS,
+    );
   } catch (err) {
-    return handleCompatError(err);
+    return handleCompatError(err, CORS_METHODS);
   }
 }

@@ -498,8 +498,8 @@ function LoginPageContent() {
               </h1>
               <p className="text-sm text-neutral-500">
                 {isSignupIntent
-                  ? "Sign up to get started with Milady Cloud"
-                  : "Sign in to your Milady Cloud account"}
+                  ? "Sign up to get started with Eliza Cloud"
+                  : "Sign in to your Eliza Cloud account"}
               </p>
             </div>
             {/* Email/Code Login Section */}
