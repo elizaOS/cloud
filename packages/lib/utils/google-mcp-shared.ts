@@ -74,24 +74,33 @@ export function sanitizeHeaderValue(value: string): string {
   return value.replace(/[\r\n]/g, "");
 }
 
+type EmailPart = {
+  body?: { data?: string };
+  mimeType?: string;
+  parts?: EmailPart[];
+};
+
 export function extractBody(payload: Record<string, unknown>): string {
-  if (payload?.body?.data) {
-    return Buffer.from(payload.body.data, "base64").toString("utf-8");
+  const current = payload as EmailPart;
+  const bodyData = current.body?.data;
+  if (typeof bodyData === "string") {
+    return Buffer.from(bodyData, "base64").toString("utf-8");
   }
-  if (payload?.parts && Array.isArray(payload.parts)) {
+  if (Array.isArray(current.parts)) {
     for (const mimeType of ["text/plain", "text/html"]) {
-      for (const part of payload.parts) {
-        if (part.mimeType === mimeType && part.body?.data) {
-          return Buffer.from(part.body.data, "base64").toString("utf-8");
+      for (const part of current.parts) {
+        const partBodyData = part.body?.data;
+        if (part.mimeType === mimeType && typeof partBodyData === "string") {
+          return Buffer.from(partBodyData, "base64").toString("utf-8");
         }
         if (part.mimeType?.startsWith("multipart/")) {
-          const nested = extractBody(part);
+          const nested = extractBody(part as Record<string, unknown>);
           if (nested) return nested;
         }
       }
     }
-    for (const part of payload.parts) {
-      const nested = extractBody(part);
+    for (const part of current.parts) {
+      const nested = extractBody(part as Record<string, unknown>);
       if (nested) return nested;
     }
   }

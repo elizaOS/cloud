@@ -26,17 +26,9 @@ export async function POST(
   );
 
   if (!sandbox) {
-    // Check if it exists at all (for 403 vs 404 distinction)
-    const global = await miladySandboxesRepository.findById(agentId);
-    if (!global) {
-      return NextResponse.json(
-        { success: false, error: "Agent not found" },
-        { status: 404 },
-      );
-    }
     return NextResponse.json(
-      { success: false, error: "Access denied — you do not own this agent" },
-      { status: 403 },
+      { success: false, error: "Agent not found" },
+      { status: 404 },
     );
   }
 

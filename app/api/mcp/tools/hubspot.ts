@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * HubSpot MCP Tools - CRM: Contacts, Companies, Deals
  * Uses per-organization OAuth tokens via oauthService.
