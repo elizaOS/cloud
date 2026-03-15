@@ -1,7 +1,7 @@
 /**
  * Milady Sandboxes Table — lists AI agent sandboxes in the containers dashboard.
  * Distinguishes between Docker-backed (node_id set) and Vercel-backed sandboxes.
- * Keeps the user-facing surface focused on Milady actions instead of raw infra.
+ * Auto-refreshes while any sandbox is in an active (pending/provisioning) state.
  */
 "use client";
 
@@ -47,10 +47,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
+import { useSandboxListPoll } from "@/lib/hooks/use-sandbox-status-poll";
 import { getClientSafeMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
 
@@ -143,6 +144,86 @@ function formatRelative(date: Date | string | null): string {
 }
 
 // ----------------------------------------------------------------
+// Status Cell — animated transitions
+// ----------------------------------------------------------------
+
+function StatusCell({
+  displayStatus,
+  isProvisioning,
+  trackedJob,
+  errorMessage,
+}: {
+  displayStatus: string;
+  isProvisioning: boolean;
+  trackedJob?: { jobId: string } | null;
+  errorMessage: string | null;
+}) {
+  const [prevStatus, setPrevStatus] = useState(displayStatus);
+  const [animate, setAnimate] = useState<"success" | "error" | null>(null);
+
+  useEffect(() => {
+    if (prevStatus !== displayStatus) {
+      if (displayStatus === "running" && (prevStatus === "provisioning" || prevStatus === "pending")) {
+        setAnimate("success");
+        const id = setTimeout(() => setAnimate(null), 1500);
+        setPrevStatus(displayStatus);
+        return () => clearTimeout(id);
+      }
+      if (displayStatus === "error") {
+        setAnimate("error");
+        const id = setTimeout(() => setAnimate(null), 600);
+        setPrevStatus(displayStatus);
+        return () => clearTimeout(id);
+      }
+      setPrevStatus(displayStatus);
+    }
+  }, [displayStatus, prevStatus]);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div
+        className={`transition-transform ${
+          animate === "success"
+            ? "animate-[scaleIn_0.3s_ease-out]"
+            : animate === "error"
+              ? "animate-[shake_0.3s_ease-in-out]"
+              : ""
+        }`}
+      >
+        <Badge
+          variant="outline"
+          className={`${statusColor(displayStatus)} text-white border-none w-fit rounded-md text-xs ${
+            (displayStatus === "pending" || displayStatus === "provisioning") && !animate
+              ? "animate-pulse"
+              : ""
+          }`}
+        >
+          {statusDot(displayStatus)} {displayStatus}
+        </Badge>
+      </div>
+      {isProvisioning && trackedJob && (
+        <span className="text-[10px] text-blue-400 flex items-center gap-1">
+          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+          Starting, job {trackedJob.jobId.slice(0, 8)}
+        </span>
+      )}
+      {errorMessage && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p className="text-xs text-red-500 truncate max-w-[180px] cursor-help">
+              {errorMessage}
+            </p>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs bg-neutral-900 border-white/10">
+            <p>{errorMessage}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------
 // Component
 // ----------------------------------------------------------------
 
@@ -156,6 +237,21 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
     onComplete: () => toast.success("Agent provisioning completed"),
     onFailed: (job) => toast.error(job.error ?? "Provisioning failed"),
   });
+
+  // Auto-refresh polling: polls the list endpoint while any sandbox is active
+  useSandboxListPoll(
+    sandboxes.map((sb) => ({
+      id: sb.id,
+      status: poller.isActive(sb.id) ? "provisioning" : sb.status,
+    })),
+    {
+      intervalMs: 10_000,
+      onTransitionToRunning: (_id, name) => {
+        toast.success(`${name ?? "Agent"} is now running!`);
+        router.refresh();
+      },
+    },
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -441,34 +537,14 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                         </div>
                       </TableCell>
 
-                      {/* Status */}
+                      {/* Status — with animated transitions */}
                       <TableCell>
-                        <div className="flex flex-col gap-2">
-                          <Badge
-                            variant="outline"
-                            className={`${statusColor(displayStatus)} text-white border-none w-fit rounded-md text-xs`}
-                          >
-                            {statusDot(displayStatus)} {displayStatus}
-                          </Badge>
-                          {isProvisioning && trackedJob && (
-                            <span className="text-[10px] text-blue-400 flex items-center gap-1">
-                              <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                              Starting, job {trackedJob.jobId.slice(0, 8)}
-                            </span>
-                          )}
-                          {sb.error_message && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="text-xs text-red-500 truncate max-w-[180px] cursor-help">
-                                  {sb.error_message}
-                                </p>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs bg-neutral-900 border-white/10">
-                                <p>{sb.error_message}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
+                        <StatusCell
+                          displayStatus={displayStatus}
+                          isProvisioning={isProvisioning}
+                          trackedJob={trackedJob}
+                          errorMessage={sb.error_message}
+                        />
                       </TableCell>
 
                       {/* Runtime */}
