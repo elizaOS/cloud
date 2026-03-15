@@ -1,3 +1,4 @@
+import * as http from "node:http";
 #!/usr/bin/env npx tsx
 /**
  * Standalone Provisioning Worker
@@ -328,13 +329,27 @@ async function waitForHealth(
 
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: { Host: "localhost" }, // Vite DNS rebinding protection
-        signal: AbortSignal.timeout(HEALTH_CHECK_REQUEST_TIMEOUT_MS),
+      // Use http.request instead of fetch because Node.js fetch (undici)
+      // ignores the Host header override. Vite's DNS rebinding protection
+      // rejects requests where Host !== localhost.
+      const ok = await new Promise<boolean>((resolve) => {
+        const req = http.request(
+          {
+            hostname,
+            port: webUiPort,
+            path: "/health",
+            method: "GET",
+            headers: { Host: "localhost" },
+            timeout: HEALTH_CHECK_REQUEST_TIMEOUT_MS,
+          },
+          (res) => resolve(res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 400),
+        );
+        req.on("error", () => resolve(false));
+        req.on("timeout", () => { req.destroy(); resolve(false); });
+        req.end();
       });
 
-      if (response.ok) {
+      if (ok) {
         log("info", `Health check passed: ${url}`);
         return true;
       }
