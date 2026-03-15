@@ -72,7 +72,7 @@ describe("compat-envelope default domain", () => {
       updated_at: new Date(),
     };
     const result = mod.toCompatAgent(sandbox);
-    expect(result.web_ui_url).toBe("https://test-agent-id.agents.example.com");
+    expect(result.web_ui_url).toBe("https://test-agent-id.waifu.fun");
   });
 });
 

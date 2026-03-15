@@ -110,10 +110,14 @@ describe("toCompatAgent", () => {
     expect(agent.container_id).toBe("vercel-123");
   });
 
-  test("web_ui_url is null when headscale_ip is null", () => {
+  test("web_ui_url uses public domain route when headscale_ip is null", () => {
     const agent = toCompatAgent(makeSandbox({ headscale_ip: null }));
-    expect(agent.web_ui_url).toBeNull();
-    expect(agent.webUiUrl).toBeNull();
+    expect(agent.web_ui_url).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz",
+    );
+    expect(agent.webUiUrl).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz",
+    );
   });
 
   test("uses configurable agent base domain for web UI links", () => {
@@ -265,10 +269,10 @@ describe("toCompatStatus", () => {
     expect(status.suspendedReason).toBe("OOM killed");
   });
 
-  test("webUiUrl is null when no headscale_ip", () => {
+  test("webUiUrl uses public domain route when no headscale_ip", () => {
     expect(
       toCompatStatus(makeSandbox({ headscale_ip: null })).webUiUrl,
-    ).toBeNull();
+    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz");
   });
 });
 

@@ -51,14 +51,12 @@ describe("getMiladyAgentPublicWebUiUrl", () => {
     );
   });
 
-  test("can fall back to the placeholder domain for compat callers", () => {
+  test("falls back to waifu.fun when env var is unset", () => {
     delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
-    expect(
-      getMiladyAgentPublicWebUiUrl(makeSandbox(), {
-        allowExampleFallback: true,
-      }),
-    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.agents.example.com");
+    expect(getMiladyAgentPublicWebUiUrl(makeSandbox())).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.waifu.fun",
+    );
   });
 });
 
@@ -69,20 +67,20 @@ describe("getPreferredMiladyAgentWebUiUrl", () => {
     );
   });
 
-  test("falls back to direct headscale url when no canonical domain is configured", () => {
+  test("uses waifu.fun default when env var is unset (never falls to direct)", () => {
     delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
     expect(getPreferredMiladyAgentWebUiUrl(makeSandbox())).toBe(
-      "http://100.64.0.5:20100",
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.waifu.fun",
     );
   });
 
-  test("falls back to bridge port when web ui port is missing", () => {
+  test("uses waifu.fun default even when web_ui_port is missing", () => {
     delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
     expect(
       getPreferredMiladyAgentWebUiUrl(makeSandbox({ web_ui_port: null })),
-    ).toBe("http://100.64.0.5:18800");
+    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.waifu.fun");
   });
 });
 
