@@ -575,9 +575,9 @@ async function handlePOST(req: NextRequest) {
         );
       }
 
-      // Add 50% buffer to estimated cost to account for longer responses
-      const COST_BUFFER = 1.5;
-      reservedAmount = estimatedCost * COST_BUFFER;
+      // estimateRequestCost() already includes a 50% safety buffer,
+      // so no additional multiplier is needed here
+      reservedAmount = estimatedCost;
 
       // Atomically deduct credits BEFORE calling the API
       // This prevents race conditions where multiple requests pass the check
