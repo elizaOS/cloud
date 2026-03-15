@@ -26,15 +26,17 @@ export async function GET(
   const realIp = request.headers.get("x-real-ip");
   const callerIp = xff?.split(",")[0]?.trim() || realIp || "";
 
+  // Empty callerIp means no IP headers were set — treat as unknown,
+  // not loopback.  This prevents accidental bypass when headers are absent.
   const isLoopback =
-    callerIp === "127.0.0.1" ||
-    callerIp === "::1" ||
-    callerIp === "::ffff:127.0.0.1" ||
-    callerIp === "";
+    callerIp !== "" &&
+    (callerIp === "127.0.0.1" ||
+      callerIp === "::1" ||
+      callerIp === "::ffff:127.0.0.1");
 
   if (!isLoopback) {
     console.warn(
-      `[headscale-ip] blocked non-local lookup for ${agentId} from ${callerIp}`,
+      `[headscale-ip] blocked non-local lookup for ${agentId} from ${callerIp || "(no IP)"}`,
     );
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }

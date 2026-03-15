@@ -278,9 +278,11 @@ export class MiladySandboxService {
     const existingEnv =
       (rec.environment_vars as Record<string, string>) ?? {};
     const jwtSecret = existingEnv.JWT_SECRET || crypto.randomUUID();
+    // Do NOT reuse JWT_SECRET as MILADY_API_TOKEN — they serve different
+    // purposes and sharing them would expose the session-signing secret
+    // via the pairing endpoint.
     const miladyApiToken =
       existingEnv.MILADY_API_TOKEN ||
-      existingEnv.JWT_SECRET ||
       crypto.randomUUID();
 
     const callerEnvVars: Record<string, string> = {
