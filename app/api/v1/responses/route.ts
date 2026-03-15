@@ -551,7 +551,11 @@ async function handlePOST(req: NextRequest) {
 
     // 5. DEDUCT credits BEFORE making API call (prevents TOCTOU race condition)
     // Skip for anonymous users - they use message limits instead
-    const estimatedCost = await estimateRequestCost(model, request.messages);
+    const estimatedCost = await estimateRequestCost(
+      model,
+      request.messages,
+      aiSdkRequest.max_output_tokens,
+    );
     const _org = null;
     let reservedAmount = 0;
 
