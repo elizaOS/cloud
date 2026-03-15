@@ -340,7 +340,7 @@ export function MiladyBackupsPanel({
             <div className="space-y-3">
               {backups.map((backup, index) => {
                 const timestamp = formatTimestamp(backup.createdAt);
-                const isLatest = index === 0;
+                const isLatest = backup.id === latestBackup?.id;
                 const isRestoring = activeRestoreTarget === backup.id;
 
                 return (

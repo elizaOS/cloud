@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     logger.info("[compat] Suspend requested", { agentId, reason });
 
-    const agent = await miladySandboxService.getAgent(
+    const agent = await miladySandboxService.getAgentForWrite(
       agentId,
       user.organization_id,
     );

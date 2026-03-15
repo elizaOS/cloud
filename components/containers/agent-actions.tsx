@@ -94,7 +94,7 @@ export function MiladyAgentActions({
         return;
       }
 
-      if (action === "provision" && res.status === 202) {
+      if ((action === "provision" || action === "resume") && res.status === 202) {
         const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
         if (jobId) {
           poller.track(agentId, jobId);
@@ -109,8 +109,10 @@ export function MiladyAgentActions({
 
       const messages: Record<string, string> = {
         provision: "Agent provisioning started",
+        resume: "Agent resuming from snapshot",
         snapshot: "Snapshot saved",
         shutdown: "Agent shutdown complete",
+        suspend: "Agent suspended (snapshot saved)",
       };
       toast.success(messages[action] ?? "Done");
       router.refresh();
@@ -151,15 +153,15 @@ export function MiladyAgentActions({
               <BrandButton
                 variant="primary"
                 size="sm"
-                onClick={() => doAction("provision")}
+                onClick={() => doAction("resume")}
                 disabled={!!loading || isBusy}
               >
-                {loading === "provision" ? (
+                {loading === "resume" ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-                Start Agent
+                Resume Agent
               </BrandButton>
             )}
 
@@ -183,15 +185,15 @@ export function MiladyAgentActions({
               <BrandButton
                 variant="outline"
                 size="sm"
-                onClick={() => doAction("shutdown", "PATCH")}
+                onClick={() => doAction("suspend", "PATCH")}
                 disabled={!!loading || isBusy}
               >
-                {loading === "shutdown" ? (
+                {loading === "suspend" ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Square className="h-4 w-4" />
+                  <Pause className="h-4 w-4" />
                 )}
-                Stop Agent
+                Suspend Agent
               </BrandButton>
             )}
           </div>

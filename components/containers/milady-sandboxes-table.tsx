@@ -52,7 +52,7 @@ import {
   ArrowUpDown,
   Boxes,
   Play,
-  Square,
+  Pause,
   Loader2,
 } from "lucide-react";
 import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
@@ -264,19 +264,19 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
     }
   }
 
-  async function handleShutdown(id: string) {
+  async function handleSuspend(id: string) {
     setActionInProgress(id);
     try {
       const res = await fetch(`/api/v1/milaidy/agents/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "shutdown" }),
+        body: JSON.stringify({ action: "suspend" }),
       });
-      if (!res.ok) throw new Error("Shutdown failed");
-      toast.success("Agent shutdown initiated");
+      if (!res.ok) throw new Error("Suspend failed");
+      toast.success("Agent suspended (snapshot saved)");
       router.refresh();
     } catch {
-      toast.error("Failed to stop agent");
+      toast.error("Failed to suspend agent");
     } finally {
       setActionInProgress(null);
     }
@@ -599,7 +599,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                             </Tooltip>
                           )}
 
-                          {/* Start */}
+                          {/* Resume */}
                           {canStart && (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -612,25 +612,25 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="bg-neutral-900 border-white/10">
-                                Start agent
+                                Resume agent
                               </TooltipContent>
                             </Tooltip>
                           )}
 
-                          {/* Stop */}
+                          {/* Suspend */}
                           {canStop && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  onClick={() => handleShutdown(sb.id)}
+                                  onClick={() => handleSuspend(sb.id)}
                                   disabled={busy}
                                   className="p-2 text-neutral-400 hover:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors disabled:opacity-50"
                                 >
-                                  <Square className="h-4 w-4" />
+                                  <Pause className="h-4 w-4" />
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="bg-neutral-900 border-white/10">
-                                Stop agent
+                                Suspend agent (saves snapshot)
                               </TooltipContent>
                             </Tooltip>
                           )}

@@ -29,7 +29,7 @@ export async function POST(
     orgId: user.organization_id,
   });
 
-  const agent = await miladySandboxService.getAgent(
+  const agent = await miladySandboxService.getAgentForWrite(
     agentId,
     user.organization_id,
   );

@@ -324,7 +324,7 @@ export function MiladyLogsViewer({
             >
               {filteredLines.map((line, index) => (
                 <div
-                  key={`${index}-${line.slice(0, 32)}`}
+                  key={`${line.slice(0, 120)}:${index}`}
                   className={`whitespace-pre-wrap break-all border-l-2 px-2 py-0.5 transition-colors hover:bg-white/5 ${getLineClass(line)}`}
                 >
                   {line}

@@ -760,8 +760,7 @@ export class MiladySandboxService {
           error: "Stopped agents can only restore the latest backup",
         };
       }
-
-      backup = latestBackup;
+      // backup already equals latestBackup by id — no reassignment needed
     }
 
     const prov = await this.provision(agentId, orgId);

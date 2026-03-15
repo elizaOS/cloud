@@ -95,7 +95,7 @@ export async function GET(
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[headscale-ip] lookup error:", msg);
     return NextResponse.json(
-      { error: msg || "lookup failed" },
+      { error: "lookup failed" },
       { status: 500 },
     );
   }
