@@ -34,6 +34,8 @@ export const oauthRevokeAction: ActionWithParams = {
     "DELETE_CONNECTION",
     "DISCONNECT_GOOGLE",
     "REMOVE_GOOGLE",
+    "DISCONNECT_HUBSPOT",
+    "REMOVE_HUBSPOT",
     "DISCONNECT_LINEAR",
     "DISCONNECT_SLACK",
     "DISCONNECT_GITHUB",
@@ -58,13 +60,13 @@ export const oauthRevokeAction: ActionWithParams = {
     "REMOVE_MICROSOFT",
   ],
   description:
-    "Disconnect an OAuth platform. Removes stored tokens and revokes access. Use when user wants to unlink or remove a connected account.",
+    "Disconnect an OAuth platform. Removes stored tokens and revokes access. Use when user wants to unlink or remove a connected account. Available platforms: google, hubspot, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft.",
 
   parameters: {
     platform: {
       type: "string",
       description:
-        "Platform to disconnect: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
+        "Platform to disconnect: google, hubspot, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
       required: true,
     },
   },
@@ -137,7 +139,11 @@ export const oauthRevokeAction: ActionWithParams = {
     logger.info(`[${actionName}] Revoked connection ${activeConnection.id}`);
 
     if (callback) await callback({ text, actions: [actionName] });
-    return { text, success: true, data: { actionName, revokedConnectionId: activeConnection.id } };
+    return {
+      text,
+      success: true,
+      data: { actionName, revokedConnectionId: activeConnection.id },
+    };
   },
 
   examples: [
@@ -159,6 +165,13 @@ export const oauthRevokeAction: ActionWithParams = {
       },
     ],
     [
+      { name: "{{name1}}", content: { text: "disconnect hubspot" } },
+      {
+        name: "{{name2}}",
+        content: { text: "HubSpot has been disconnected.", actions: ["OAUTH_REVOKE"] },
+      },
+    ],
+    [
       { name: "{{name1}}", content: { text: "disconnect my twitter" } },
       {
         name: "{{name2}}",
@@ -170,6 +183,13 @@ export const oauthRevokeAction: ActionWithParams = {
       {
         name: "{{name2}}",
         content: { text: "Twitter has been disconnected.", actions: ["OAUTH_REVOKE"] },
+      },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "remove my slack connection" } },
+      {
+        name: "{{name2}}",
+        content: { text: "Slack has been disconnected.", actions: ["OAUTH_REVOKE"] },
       },
     ],
   ] as ActionExample[][],

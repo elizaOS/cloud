@@ -44,6 +44,7 @@ export * from "./idempotency-keys";
 export * from "./invoices";
 export * from "./jobs";
 export * from "./managed-domains";
+export * from "./milady-pairing-tokens";
 export * from "./milady-sandboxes";
 export * from "./model-pricing";
 export * from "./moderation-violations";

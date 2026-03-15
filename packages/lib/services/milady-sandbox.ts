@@ -634,6 +634,16 @@ export class MiladySandboxService {
       : await miladySandboxesRepository.getLatestBackup(rec.id);
     if (!backup) return { success: false, error: "No backup found" };
 
+    if (rec.status !== "running" && backupId) {
+      const latestBackup = await miladySandboxesRepository.getLatestBackup(rec.id);
+      if (!latestBackup || backup.id !== latestBackup.id) {
+        return {
+          success: false,
+          error: "Stopped agents can only restore the latest backup",
+        };
+      }
+    }
+
     if (rec.status === "running" && rec.bridge_url) {
       await this.pushState(rec, backup.state_data as MiladyBackupStateData);
       return { success: true, backup };

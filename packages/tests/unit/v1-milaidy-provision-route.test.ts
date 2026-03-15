@@ -25,6 +25,13 @@ mock.module("@/lib/services/milaidy-sandbox", () => ({
   },
 }));
 
+mock.module("@/lib/services/milady-sandbox", () => ({
+  miladySandboxService: {
+    getAgentForWrite: mockGetAgentForWrite,
+    provision: mockProvision,
+  },
+}));
+
 mock.module("@/lib/services/provisioning-jobs", () => ({
   provisioningJobService: {
     enqueueMiladyProvisionOnce: mockEnqueueMiladyProvisionOnce,
@@ -75,10 +82,9 @@ describe("POST /api/v1/milaidy/agents/[agentId]/provision", () => {
     });
 
     const response = await POST(
-      new NextRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1/provision?sync=true",
-        { method: "POST" },
-      ),
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/provision?sync=true", {
+        method: "POST",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -96,10 +102,9 @@ describe("POST /api/v1/milaidy/agents/[agentId]/provision", () => {
     );
 
     const response = await POST(
-      new NextRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
-        { method: "POST" },
-      ),
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/provision", {
+        method: "POST",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 

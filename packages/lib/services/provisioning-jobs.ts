@@ -13,16 +13,16 @@
  * - agent_restore: Restore from backup
  */
 
+import { and, desc, eq, sql } from "drizzle-orm";
 import { dbWrite } from "@/db/helpers";
-import { jobsRepository, type Job, type NewJob } from "@/db/repositories/jobs";
+import { type Job, jobsRepository, type NewJob } from "@/db/repositories/jobs";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { jobs } from "@/db/schemas/jobs";
 import { miladySandboxes } from "@/db/schemas/milady-sandboxes";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { miladyProvisionAdvisoryLockSql } from "@/lib/services/milady-provision-lock";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { logger } from "@/lib/utils/logger";
-import { and, desc, eq, sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // Job type constants
@@ -117,12 +117,7 @@ export class ProvisioningJobService {
     };
 
     return await dbWrite.transaction(async (tx) => {
-      await tx.execute(
-        miladyProvisionAdvisoryLockSql(
-          params.organizationId,
-          params.agentId,
-        ),
-      );
+      await tx.execute(miladyProvisionAdvisoryLockSql(params.organizationId, params.agentId));
 
       const [sandbox] = await tx
         .select({
@@ -144,15 +139,9 @@ export class ProvisioningJobService {
 
       if (params.expectedUpdatedAt) {
         const expectedMs = new Date(params.expectedUpdatedAt).getTime();
-        const currentMs = sandbox.updated_at
-          ? new Date(sandbox.updated_at).getTime()
-          : Number.NaN;
+        const currentMs = sandbox.updated_at ? new Date(sandbox.updated_at).getTime() : Number.NaN;
 
-        if (
-          Number.isFinite(expectedMs) &&
-          Number.isFinite(currentMs) &&
-          currentMs !== expectedMs
-        ) {
+        if (Number.isFinite(expectedMs) && Number.isFinite(currentMs) && currentMs !== expectedMs) {
           throw new Error("Agent state changed while starting");
         }
       }
@@ -202,10 +191,7 @@ export class ProvisioningJobService {
   /**
    * Get a job by ID scoped to a single organization.
    */
-  async getJobForOrg(
-    jobId: string,
-    organizationId: string,
-  ): Promise<Job | undefined> {
+  async getJobForOrg(jobId: string, organizationId: string): Promise<Job | undefined> {
     return jobsRepository.findByIdAndOrg(jobId, organizationId);
   }
 
@@ -290,44 +276,28 @@ export class ProvisioningJobService {
         result.errors.push({ jobId: job.id, error: errorMsg });
 
         // Increment attempt; will auto-fail if max_attempts reached
-        const updated = await jobsRepository.incrementAttempt(
-          job.id,
-          errorMsg,
-          job.max_attempts,
-        );
+        const updated = await jobsRepository.incrementAttempt(job.id, errorMsg, job.max_attempts);
 
         // When retries are exhausted (permanent failure), mark the
         // sandbox as "error" immediately so the UI reflects reality
         // instead of staying stuck in "provisioning".
-        if (
-          updated?.status === "failed" &&
-          job.type === JOB_TYPES.MILADY_PROVISION
-        ) {
+        if (updated?.status === "failed" && job.type === JOB_TYPES.MILADY_PROVISION) {
           const data = job.data as unknown as MiladyProvisionJobData;
           try {
             await miladySandboxesRepository.update(data.agentId, {
               status: "error",
               error_message: `Provisioning permanently failed after ${job.max_attempts} attempts: ${errorMsg}`,
             } as Parameters<typeof miladySandboxesRepository.update>[1]);
-            logger.warn(
-              "[provisioning-jobs] Marked sandbox as error after permanent failure",
-              {
-                jobId: job.id,
-                agentId: data.agentId,
-              },
-            );
+            logger.warn("[provisioning-jobs] Marked sandbox as error after permanent failure", {
+              jobId: job.id,
+              agentId: data.agentId,
+            });
           } catch (sandboxErr) {
-            logger.error(
-              "[provisioning-jobs] Failed to mark sandbox as error",
-              {
-                jobId: job.id,
-                agentId: data.agentId,
-                error:
-                  sandboxErr instanceof Error
-                    ? sandboxErr.message
-                    : String(sandboxErr),
-              },
-            );
+            logger.error("[provisioning-jobs] Failed to mark sandbox as error", {
+              jobId: job.id,
+              agentId: data.agentId,
+              error: sandboxErr instanceof Error ? sandboxErr.message : String(sandboxErr),
+            });
           }
         }
       }
@@ -361,10 +331,7 @@ export class ProvisioningJobService {
       agentId: data.agentId,
     });
 
-    const provResult = await miladySandboxService.provision(
-      data.agentId,
-      data.organizationId,
-    );
+    const provResult = await miladySandboxService.provision(data.agentId, data.organizationId);
 
     if (!provResult.success) {
       // Store partial result for debugging
@@ -420,10 +387,7 @@ export class ProvisioningJobService {
     return totalRecovered;
   }
 
-  private async fireWebhook(
-    job: Job,
-    result: MiladyProvisionJobResult,
-  ): Promise<void> {
+  private async fireWebhook(job: Job, result: MiladyProvisionJobResult): Promise<void> {
     if (!job.webhook_url) return;
 
     try {

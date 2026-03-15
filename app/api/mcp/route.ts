@@ -45,6 +45,7 @@ export async function getMcpHandler() {
         import("./tools/redemption"),
         import("./tools/analytics"),
         import("./tools/google"),
+        import("./tools/hubspot"),
         import("./tools/linear"),
         import("./tools/notion"),
         import("./tools/github"),
@@ -73,6 +74,7 @@ export async function getMcpHandler() {
         redemption,
         analytics,
         google,
+        hubspot,
         linear,
         notion,
         github,
@@ -102,6 +104,7 @@ export async function getMcpHandler() {
           redemption.registerRedemptionTools(server);
           analytics.registerAnalyticsTools(server);
           google.registerGoogleTools(server);
+          hubspot.registerHubSpotTools(server);
           linear.registerLinearTools(server);
           notion.registerNotionTools(server);
           github.registerGitHubTools(server);

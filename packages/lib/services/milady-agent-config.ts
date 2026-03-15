@@ -28,8 +28,5 @@ export function withReusedMiladyCharacterOwnership(
 export function reusesExistingMiladyCharacter(
   agentConfig?: Record<string, unknown> | null,
 ): boolean {
-  return (
-    agentConfig?.[MILADY_CHARACTER_OWNERSHIP_KEY] ===
-    MILADY_REUSE_EXISTING_CHARACTER
-  );
+  return agentConfig?.[MILADY_CHARACTER_OWNERSHIP_KEY] === MILADY_REUSE_EXISTING_CHARACTER;
 }

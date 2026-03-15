@@ -7,33 +7,32 @@
  * - Admin-only infrastructure details, SSH access, and Docker logs
  */
 
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import Link from "next/link";
+import { Badge, BrandCard } from "@elizaos/ui";
 import {
-  ArrowLeft,
-  Server,
-  Cloud,
-  Network,
-  Terminal,
-  Clock,
-  AlertCircle,
-  ExternalLink,
-  Database,
-  Cpu,
   Activity,
+  AlertCircle,
+  ArrowLeft,
+  Clock,
+  Cloud,
+  Cpu,
+  Database,
+  ExternalLink,
+  Network,
+  Server,
+  Terminal,
 } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
-import { adminService } from "@/lib/services/admin";
-import { BrandCard, BrandButton } from "@elizaos/ui";
-import { Badge } from "@elizaos/ui";
-import { DockerLogsViewer } from "@/components/containers/docker-logs-viewer";
-import { MiladyAgentActions } from "@/components/containers/agent-actions";
-import { MiladyBackupsPanel } from "@/components/containers/milady-backups-panel";
-import { MiladyConnectButton } from "@/components/containers/milady-connect-button";
-import { MiladyLogsViewer } from "@/components/containers/milady-logs-viewer";
 import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
+import { adminService } from "@/lib/services/admin";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { MiladyAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
+import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
+import { MiladyBackupsPanel } from "@/packages/ui/src/components/containers/milady-backups-panel";
+import { MiladyConnectButton } from "@/packages/ui/src/components/containers/milady-connect-button";
+import { MiladyLogsViewer } from "@/packages/ui/src/components/containers/milady-logs-viewer";
 
 export const dynamic = "force-dynamic";
 
@@ -41,9 +40,7 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   return {
     title: `Agent ${id.slice(0, 8)} — Containers`,
@@ -85,9 +82,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   const isDockerBacked = !!agent.node_id;
   const webUiUrl = getPreferredMiladyAgentWebUiUrl(agent);
 
-  const sshCommand = agent.headscale_ip
-    ? `ssh root@${agent.headscale_ip}`
-    : null;
+  const sshCommand = agent.headscale_ip ? `ssh root@${agent.headscale_ip}` : null;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -104,9 +99,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           <span className="font-medium">Back to Containers</span>
         </Link>
 
-        {webUiUrl && agent.status === "running" && (
-          <MiladyConnectButton agentId={agent.id} />
-        )}
+        {webUiUrl && agent.status === "running" && <MiladyConnectButton agentId={agent.id} />}
       </div>
 
       {/* ── Header card ── */}
@@ -161,18 +154,13 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       {/* ── Stats grid ── */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Status */}
-        <BrandCard
-          className="relative shadow-md shadow-black/30"
-          corners={false}
-        >
+        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-blue-500/10 border border-blue-500/20">
                 <Activity className="h-5 w-5 text-blue-500" />
               </div>
-              <Badge
-                className={`${getStatusColor(agent.status)} text-white rounded-none`}
-              >
+              <Badge className={`${getStatusColor(agent.status)} text-white rounded-none`}>
                 {agent.status}
               </Badge>
             </div>
@@ -192,10 +180,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         </BrandCard>
 
         {/* Database */}
-        <BrandCard
-          className="relative shadow-md shadow-black/30"
-          corners={false}
-        >
+        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-purple-500/10 border border-purple-500/20">
@@ -229,10 +214,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         </BrandCard>
 
         {/* Created */}
-        <BrandCard
-          className="relative shadow-md shadow-black/30"
-          corners={false}
-        >
+        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-amber-500/10 border border-amber-500/20">
@@ -258,10 +240,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         </BrandCard>
 
         {/* Last Heartbeat */}
-        <BrandCard
-          className="relative shadow-md shadow-black/30"
-          corners={false}
-        >
+        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-emerald-500/10 border border-emerald-500/20">
@@ -314,10 +293,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
 
       {/* ── Docker infrastructure ── */}
       {isAdmin && isDockerBacked && (
-        <BrandCard
-          className="relative shadow-lg shadow-black/50"
-          cornerSize="md"
-        >
+        <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
           <div className="relative z-10 space-y-6">
             <div className="flex items-center gap-2 pb-4 border-b border-white/10">
               <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
@@ -409,10 +385,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
 
       {/* ── SSH connection info ── */}
       {isAdmin && sshCommand && (
-        <BrandCard
-          className="relative shadow-lg shadow-black/50"
-          cornerSize="md"
-        >
+        <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
           <div className="relative z-10 space-y-4">
             <div className="flex items-center gap-2 pb-4 border-b border-white/10">
               <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
@@ -452,10 +425,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
 
       {/* ── Vercel sandbox info ── */}
       {isAdmin && !isDockerBacked && agent.bridge_url && (
-        <BrandCard
-          className="relative shadow-lg shadow-black/50"
-          cornerSize="md"
-        >
+        <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
           <div className="relative z-10 space-y-4">
             <div className="flex items-center gap-2 pb-4 border-b border-white/10">
               <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
@@ -489,11 +459,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       )}
 
       {/* ── Actions card ── */}
-      <MiladyAgentActions
-        agentId={agent.id}
-        status={agent.status}
-        webUiUrl={webUiUrl}
-      />
+      <MiladyAgentActions agentId={agent.id} status={agent.status} webUiUrl={webUiUrl} />
 
       {/* ── Backups / history ── */}
       <MiladyBackupsPanel

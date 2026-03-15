@@ -37,6 +37,7 @@ export const DEFAULT_AGENT_ID_STRING = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
 const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   google: { url: "/api/mcps/google/streamable-http", type: "streamable-http" },
+  hubspot: { url: "/api/mcps/hubspot/streamable-http", type: "streamable-http" },
   github: { url: "/api/mcps/github/streamable-http", type: "streamable-http" },
   notion: { url: "/api/mcps/notion/streamable-http", type: "streamable-http" },
   linear: { url: "/api/mcps/linear/streamable-http", type: "streamable-http" },
@@ -497,8 +498,13 @@ export class RuntimeFactory {
     const agentId = (character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID) as UUID;
 
     const webSearchSuffix = context.webSearchEnabled ? ":ws" : "";
+    // Include MCP-relevant OAuth platforms so runtime is recreated when user connects
+    // e.g. HubSpot; otherwise a cached runtime created with only Google never gets HubSpot tools
+    const connectedMcp = this.getConnectedPlatforms(context);
+    const mcpPlatforms = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connectedMcp.has(p));
+    const mcpSuffix = mcpPlatforms.length > 0 ? `:mcp=${mcpPlatforms.sort().join(",")}` : "";
     // Include organizationId to prevent cross-org API key pollution
-    const cacheKey = `${agentId}:${context.organizationId}${webSearchSuffix}`;
+    const cacheKey = `${agentId}:${context.organizationId}${webSearchSuffix}${mcpSuffix}`;
 
     // Check cross-instance MCP config version (non-blocking fetch, falls back to 0)
     const currentMcpVersion = await edgeRuntimeCache

@@ -233,11 +233,13 @@ export function estimateTokens(text: string): number {
  *
  * @param model - Model identifier.
  * @param messages - Array of messages with role and content (string or multimodal object).
+ * @param maxOutputTokens - Optional explicit output token estimate from the caller.
  * @returns Estimated cost in USD with a 50% safety buffer (includes 20% markup).
  */
 export async function estimateRequestCost(
   model: string,
   messages: Array<{ role: string; content: string | object }>,
+  maxOutputTokens?: number,
 ): Promise<number> {
   const provider = getProviderFromModel(model);
   const normalizedModel = normalizeModelName(model);
@@ -259,8 +261,8 @@ export async function estimateRequestCost(
 
   const estimatedInputTokens = estimateTokens(messageText);
 
-  // Estimate output tokens (conservative estimate: 500 tokens)
-  const estimatedOutputTokens = 500;
+  const estimatedOutputTokens =
+    typeof maxOutputTokens === "number" && maxOutputTokens > 0 ? maxOutputTokens : 500;
 
   const { totalCost } = await calculateCost(
     normalizedModel,

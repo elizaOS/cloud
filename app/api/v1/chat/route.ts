@@ -7,7 +7,7 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { resolveModel } from "@/lib/models";
-import { calculateCost, estimateTokens } from "@/lib/pricing";
+import { estimateTokens } from "@/lib/pricing";
 import { getLanguageModel } from "@/lib/providers/language-model";
 import { billUsage } from "@/lib/services/ai-billing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
@@ -297,16 +297,8 @@ async function handlePOST(req: NextRequest) {
 
           const userMessage = messages[messages.length - 1];
 
-          const { inputCost, outputCost, totalCost } = await calculateCost(
-            selectedModel,
-            provider,
-            usage.inputTokens || 0,
-            usage.outputTokens || 0,
-          );
-
-          // Use AI Billing wrapper to handle affiliate markup/redemption easily
-          // Since this route still manually tracks conversations and uses standalone `calculateCost`
-          // We will use the common `billUsage` instead, which calculates cost, markups and reconciles.
+          // Use the shared AI billing path to calculate cost, apply markups,
+          // and reconcile the reservation in one place.
           const billing = await billUsage(
             {
               organizationId: user.organization_id || "anonymous",

@@ -247,6 +247,7 @@ describe("/api/v1/messages", () => {
       jsonRequest("http://localhost:3000/api/v1/messages", "POST", {
         model: "claude-sonnet-4",
         max_tokens: 64,
+        stop_sequences: ["</stop>"],
         system: [{ type: "text", text: "system prompt" }],
         messages: [
           {
@@ -309,6 +310,7 @@ describe("/api/v1/messages", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.stop_reason).toBe("stop_sequence");
+    expect(body.stop_sequence).toBe("</stop>");
     expect(body.usage).toEqual({
       input_tokens: 42,
       output_tokens: 21,

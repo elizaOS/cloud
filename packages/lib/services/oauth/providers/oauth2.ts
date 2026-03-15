@@ -211,12 +211,13 @@ export async function handleOAuth2Callback(
   // Exchange code for tokens
   const tokens = await exchangeCodeForTokens(provider, code, codeVerifier);
 
-  // Fetch user info if endpoint is configured
+  // Fetch user info: userInfo endpoint, token metadata endpoint, or from token response
   let userInfo: ExtractedUserInfo;
   if (provider.endpoints?.userInfo) {
     userInfo = await fetchUserInfo(provider, tokens.access_token);
+  } else if (provider.endpoints?.tokenInfo) {
+    userInfo = await fetchTokenInfo(provider, tokens.access_token);
   } else {
-    // Extract user info from token response if available
     userInfo = extractUserInfoFromTokens(provider, tokens);
   }
 
@@ -411,6 +412,32 @@ async function fetchUserInfo(
     throw new Error(`GraphQL error: ${errorMessage}`);
   }
 
+  return extractUserInfo(provider.userInfoMapping, data);
+}
+
+/**
+ * Fetch user info from provider's token metadata endpoint.
+ * Used by providers like HubSpot where the token exchange does not return user/hub_id.
+ */
+async function fetchTokenInfo(
+  provider: OAuthProviderConfig,
+  accessToken: string,
+): Promise<ExtractedUserInfo> {
+  const baseUrl = provider.endpoints?.tokenInfo;
+  if (!baseUrl) {
+    throw new Error(`No tokenInfo endpoint configured for ${provider.id}`);
+  }
+  const url = `${baseUrl.replace(/\/$/, "")}/${encodeURIComponent(accessToken)}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error(`[OAuth2] Token info fetch failed for ${provider.id}`, {
+      status: response.status,
+      error: errorText.substring(0, 500),
+    });
+    throw new Error(`Token info fetch failed: ${response.status}`);
+  }
+  const data = (await response.json()) as Record<string, unknown>;
   return extractUserInfo(provider.userInfoMapping, data);
 }
 
@@ -899,10 +926,6 @@ async function storeConnection(
     ? new Date(Date.now() + expiresInSeconds * 1000)
     : undefined;
 
-  if (pendingRevocation) {
-    await revokeConnectionsSecrets(pendingRevocation.connections, pendingRevocation.reason);
-  }
-
   let revokeFailed = false;
   let revokeFailure: unknown;
   let insertBlocked = false;
@@ -972,6 +995,10 @@ async function storeConnection(
 
       return result[0].id;
     });
+
+    if (pendingRevocation) {
+      await revokeConnectionsSecrets(pendingRevocation.connections, pendingRevocation.reason);
+    }
 
     return connectionId;
   } catch (error) {

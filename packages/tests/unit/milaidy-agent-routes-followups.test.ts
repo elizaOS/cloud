@@ -15,6 +15,7 @@ const mockRestore = mock();
 const mockEnqueueMiladyProvisionOnce = mock();
 const mockFindCharacterForWrite = mock();
 const mockCharacterDelete = mock();
+const mockPrepareManagedMiladyEnvironment = mock();
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -39,6 +40,22 @@ mock.module("@/lib/services/milaidy-sandbox", () => ({
     provision: mockProvision,
     restore: mockRestore,
   },
+}));
+
+mock.module("@/lib/services/milady-sandbox", () => ({
+  miladySandboxService: {
+    createAgent: mockCreateAgent,
+    getAgent: mockGetAgent,
+    getAgentForWrite: mockGetAgentForWrite,
+    shutdown: mockShutdown,
+    deleteAgent: mockDeleteAgent,
+    provision: mockProvision,
+    restore: mockRestore,
+  },
+}));
+
+mock.module("@/lib/services/milady-managed-launch", () => ({
+  prepareManagedMiladyEnvironment: mockPrepareManagedMiladyEnvironment,
 }));
 
 mock.module("@/lib/services/provisioning-jobs", () => ({
@@ -67,14 +84,14 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { POST as postV1MilaidyAgents } from "@/app/api/v1/milaidy/agents/route";
-import { POST as postProvisionRoute } from "@/app/api/v1/milaidy/agents/[agentId]/provision/route";
-import {
-  PATCH as patchMilaidyAgent,
-  DELETE as deleteMilaidyAgent,
-} from "@/app/api/v1/milaidy/agents/[agentId]/route";
-import { POST as postRestoreRoute } from "@/app/api/v1/milaidy/agents/[agentId]/restore/route";
 import { POST as postCompatAgents } from "@/app/api/compat/agents/route";
+import { POST as postProvisionRoute } from "@/app/api/v1/milaidy/agents/[agentId]/provision/route";
+import { POST as postRestoreRoute } from "@/app/api/v1/milaidy/agents/[agentId]/restore/route";
+import {
+  DELETE as deleteMilaidyAgent,
+  PATCH as patchMilaidyAgent,
+} from "@/app/api/v1/milaidy/agents/[agentId]/route";
+import { POST as postV1MilaidyAgents } from "@/app/api/v1/milaidy/agents/route";
 
 describe("milady agent route follow-ups", () => {
   beforeEach(() => {
@@ -93,6 +110,7 @@ describe("milady agent route follow-ups", () => {
     mockEnqueueMiladyProvisionOnce.mockReset();
     mockFindCharacterForWrite.mockReset();
     mockCharacterDelete.mockReset();
+    mockPrepareManagedMiladyEnvironment.mockReset();
 
     mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
       user: {
@@ -102,6 +120,9 @@ describe("milady agent route follow-ups", () => {
     });
 
     mockAuthenticateWaifuBridge.mockResolvedValue(null);
+    mockPrepareManagedMiladyEnvironment.mockImplementation(async ({ existingEnv }) => ({
+      environmentVars: existingEnv ?? {},
+    }));
   });
 
   test("POST /api/v1/milaidy/agents strips reserved __milady keys case-insensitively", async () => {
@@ -178,12 +199,9 @@ describe("milady agent route follow-ups", () => {
     );
 
     const response = await postProvisionRoute(
-      new NextRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
-        {
-          method: "POST",
-        },
-      ),
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/provision", {
+        method: "POST",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -216,12 +234,9 @@ describe("milady agent route follow-ups", () => {
     });
 
     const response = await postProvisionRoute(
-      new NextRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1/provision",
-        {
-          method: "POST",
-        },
-      ),
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/provision", {
+        method: "POST",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -230,8 +245,7 @@ describe("milady agent route follow-ups", () => {
       success: true,
       created: false,
       alreadyInProgress: true,
-      message:
-        "Provisioning is already in progress. Poll the existing job for status.",
+      message: "Provisioning is already in progress. Poll the existing job for status.",
       data: {
         jobId: "job-existing",
         agentId: "agent-1",
@@ -248,13 +262,9 @@ describe("milady agent route follow-ups", () => {
 
   test("PATCH /api/v1/milaidy/agents/[agentId] rejects invalid lifecycle payloads", async () => {
     const response = await patchMilaidyAgent(
-      jsonRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1",
-        "PATCH",
-        {
-          action: "restart",
-        },
-      ),
+      jsonRequest("https://example.com/api/v1/milaidy/agents/agent-1", "PATCH", {
+        action: "restart",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -265,19 +275,19 @@ describe("milady agent route follow-ups", () => {
   });
 
   test("PATCH /api/v1/milaidy/agents/[agentId] maps active provisioning shutdown conflicts to 409", async () => {
+    mockGetAgentForWrite.mockResolvedValue({
+      id: "agent-1",
+      status: "running",
+    });
     mockShutdown.mockResolvedValue({
       success: false,
       error: "Agent provisioning is in progress",
     });
 
     const response = await patchMilaidyAgent(
-      jsonRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1",
-        "PATCH",
-        {
-          action: "shutdown",
-        },
-      ),
+      jsonRequest("https://example.com/api/v1/milaidy/agents/agent-1", "PATCH", {
+        action: "shutdown",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -321,13 +331,9 @@ describe("milady agent route follow-ups", () => {
     });
 
     const response = await postRestoreRoute(
-      jsonRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1/restore",
-        "POST",
-        {
-          backupId: "11111111-1111-4111-8111-111111111111",
-        },
-      ),
+      jsonRequest("https://example.com/api/v1/milaidy/agents/agent-1/restore", "POST", {
+        backupId: "11111111-1111-4111-8111-111111111111",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 

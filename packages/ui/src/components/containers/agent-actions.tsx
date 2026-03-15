@@ -4,19 +4,12 @@
  */
 "use client";
 
-import { useState } from "react";
+import { BrandButton, BrandCard } from "@elizaos/ui";
+import { Camera, ExternalLink, Loader2, Pause, Play, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
-import {
-  Play,
-  Pause,
-  Square,
-  Camera,
-  Trash2,
-  Loader2,
-  ExternalLink,
-} from "lucide-react";
-import { BrandCard, BrandButton } from "@elizaos/ui";
+import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
 
 interface MiladyAgentActionsProps {
@@ -25,11 +18,7 @@ interface MiladyAgentActionsProps {
   webUiUrl: string | null;
 }
 
-export function MiladyAgentActions({
-  agentId,
-  status,
-  webUiUrl,
-}: MiladyAgentActionsProps) {
+export function MiladyAgentActions({ agentId, status, webUiUrl }: MiladyAgentActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -43,23 +32,21 @@ export function MiladyAgentActions({
   const effectiveStatus = poller.isActive(agentId) ? "provisioning" : status;
 
   const isRunning = effectiveStatus === "running";
-  const isStopped = ["stopped", "error", "pending", "disconnected"].includes(
-    effectiveStatus,
-  );
+  const isStopped = ["stopped", "error", "pending", "disconnected"].includes(effectiveStatus);
   const isBusy = effectiveStatus === "provisioning";
 
   async function doAction(action: string, method = "POST") {
     setLoading(action);
     try {
-      let url = `/api/v1/milaidy/agents/${agentId}`;
+      let url = `/api/v1/milady/agents/${agentId}`;
       let body: string | undefined;
 
       if (action === "resume") {
-        url = `/api/v1/milaidy/agents/${agentId}/resume`;
+        url = `/api/v1/milady/agents/${agentId}/resume`;
       } else if (action === "provision") {
-        url = `/api/v1/milaidy/agents/${agentId}/provision`;
+        url = `/api/v1/milady/agents/${agentId}/provision`;
       } else if (action === "snapshot") {
-        url = `/api/v1/milaidy/agents/${agentId}/snapshot`;
+        url = `/api/v1/milady/agents/${agentId}/snapshot`;
       } else if (action === "delete") {
         method = "DELETE";
       } else if (action === "shutdown" || action === "suspend") {
@@ -85,9 +72,7 @@ export function MiladyAgentActions({
       }
 
       if (!res.ok) {
-        throw new Error(
-          (data as { error?: string }).error ?? `HTTP ${res.status}`,
-        );
+        throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
       }
 
       if (action === "delete") {
@@ -142,11 +127,13 @@ export function MiladyAgentActions({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex flex-wrap gap-3">
             {isRunning && webUiUrl && (
-              <BrandButton asChild variant="primary" size="sm">
-                <a href={webUiUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Open Web UI
-                </a>
+              <BrandButton
+                variant="primary"
+                size="sm"
+                onClick={() => void openWebUIWithPairing(agentId)}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open Web UI
               </BrandButton>
             )}
 
@@ -226,9 +213,7 @@ export function MiladyAgentActions({
                   disabled={!!loading}
                   className="text-red-400 border-red-500/50 hover:bg-red-500/20"
                 >
-                  {loading === "delete" ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : null}
+                  {loading === "delete" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                   Yes, delete
                 </BrandButton>
                 <BrandButton
@@ -251,8 +236,7 @@ export function MiladyAgentActions({
               style={{ fontFamily: "var(--font-roboto-mono)" }}
             >
               <Loader2 className="h-4 w-4 animate-spin" />
-              Agent is provisioning. This page will refresh when the job
-              finishes.
+              Agent is provisioning. This page will refresh when the job finishes.
             </p>
             {trackedJob && (
               <p

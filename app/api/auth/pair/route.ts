@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPairingTokenService } from "@/lib/services/pairing-token";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
+import { getPairingTokenService } from "@/lib/services/pairing-token";
 
 export const dynamic = "force-dynamic";
 
@@ -21,46 +21,33 @@ export async function POST(request: NextRequest) {
     const token = body?.token;
 
     if (!token) {
-      return NextResponse.json(
-        { error: "Pairing code required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Pairing code required" }, { status: 400 });
     }
 
-    // The Origin header lets us bind redemption to the expected subdomain.
     const origin = request.headers.get("origin") ?? null;
+    if (!origin) {
+      return NextResponse.json({ error: "Origin header required" }, { status: 400 });
+    }
 
     const tokenService = getPairingTokenService();
-    const pairingToken = tokenService.validateToken(token, origin);
+    const pairingToken = await tokenService.validateToken(token, origin);
 
     if (!pairingToken) {
-      return NextResponse.json(
-        { error: "Invalid or expired pairing code" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Invalid or expired pairing code" }, { status: 401 });
     }
 
     // Look up the sandbox to get container details
-    const sandbox = await miladySandboxesRepository.findById(
-      pairingToken.agentId,
-    );
+    const sandbox = await miladySandboxesRepository.findById(pairingToken.agentId);
 
     if (!sandbox) {
-      return NextResponse.json(
-        { error: "Agent not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
     // Return the container's explicit API token so pair.html can
     // bootstrap the web UI session.  Never expose JWT_SECRET or
     // generic API_KEY (which could be an OpenAI key etc.).
     const envVars = (sandbox.environment_vars ?? {}) as Record<string, string>;
-    const apiKey =
-      envVars.MILADY_API_TOKEN ||
-      envVars.SERVER_API_KEY ||
-      envVars.AGENT_API_KEY ||
-      null;
+    const apiKey = envVars.MILADY_API_TOKEN || null;
 
     // If no API key configured, still allow pairing — the web UI may
     // work without auth or use a different mechanism.
@@ -70,18 +57,12 @@ export async function POST(request: NextRequest) {
       agentName: sandbox.agent_name ?? "Agent",
     });
 
-    response.headers.set(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate",
-    );
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
 
     return response;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[auth/pair] error:", msg);
-    return NextResponse.json(
-      { error: "Pairing failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Pairing failed" }, { status: 500 });
   }
 }

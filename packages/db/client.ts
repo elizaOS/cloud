@@ -66,11 +66,6 @@ type Database = NodePgDatabase<typeof schema> | NeonDatabase<typeof schema>;
 type DatabaseRegion = "na" | "eu" | "apac";
 type DatabaseRole = "read" | "write";
 
-interface DatabaseConnections {
-  write: Database;
-  read: Database;
-}
-
 // ============================================================================
 // Region Detection
 // ============================================================================

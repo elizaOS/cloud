@@ -3,8 +3,21 @@ import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 
 export const dynamic = "force-dynamic";
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function getInternalToken(request: NextRequest): string | null {
+  const direct = request.headers.get("x-internal-token");
+  if (direct) {
+    return direct.trim();
+  }
+
+  const authorization = request.headers.get("authorization");
+  if (authorization && authorization.toLowerCase().startsWith("bearer ")) {
+    return authorization.slice(7).trim();
+  }
+
+  return null;
+}
 
 /**
  * GET /api/agents/[id]/headscale-ip
@@ -13,50 +26,33 @@ const UUID_RE =
  * Returns { headscale_ip, web_ui_port, status } so nginx can
  * proxy_pass to the correct container.
  *
- * Access is restricted to loopback callers (nginx on the same host).
+ * Access is restricted with a shared internal token injected by the
+ * trusted reverse proxy. Do not expose this endpoint publicly.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: agentId } = await params;
 
-  // --- Loopback guard ---------------------------------------------------
-  const xff = request.headers.get("x-forwarded-for");
-  const realIp = request.headers.get("x-real-ip");
-  const callerIp = xff?.split(",")[0]?.trim() || realIp || "";
+  const expectedToken = process.env.HEADSCALE_INTERNAL_TOKEN?.trim();
+  if (!expectedToken) {
+    console.error("[headscale-ip] HEADSCALE_INTERNAL_TOKEN is not configured");
+    return NextResponse.json({ error: "internal auth not configured" }, { status: 503 });
+  }
 
-  // Empty callerIp means no IP headers were set — treat as unknown,
-  // not loopback.  This prevents accidental bypass when headers are absent.
-  const isLoopback =
-    callerIp !== "" &&
-    (callerIp === "127.0.0.1" ||
-      callerIp === "::1" ||
-      callerIp === "::ffff:127.0.0.1");
-
-  if (!isLoopback) {
-    console.warn(
-      `[headscale-ip] blocked non-local lookup for ${agentId} from ${callerIp || "(no IP)"}`,
-    );
+  if (getInternalToken(request) !== expectedToken) {
+    console.warn(`[headscale-ip] blocked unauthorized lookup for ${agentId}`);
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   // --- Validate UUID format -----------------------------------------------
   if (!UUID_RE.test(agentId)) {
-    return NextResponse.json(
-      { error: "invalid agent ID format" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "invalid agent ID format" }, { status: 400 });
   }
 
   try {
     const sandbox = await miladySandboxesRepository.findById(agentId);
 
     if (!sandbox) {
-      return NextResponse.json(
-        { error: "agent not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "agent not found" }, { status: 404 });
     }
 
     // Determine the IP to route to.
@@ -74,18 +70,12 @@ export async function GET(
     }
 
     if (!ip) {
-      return NextResponse.json(
-        { error: "agent has no routable IP" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "agent has no routable IP" }, { status: 503 });
     }
 
     const webUiPort = sandbox.web_ui_port ?? 0;
     if (!webUiPort) {
-      return NextResponse.json(
-        { error: "agent has no web UI port" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "agent has no web UI port" }, { status: 503 });
     }
 
     return NextResponse.json({
@@ -96,9 +86,6 @@ export async function GET(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[headscale-ip] lookup error:", msg);
-    return NextResponse.json(
-      { error: "lookup failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "lookup failed" }, { status: 500 });
   }
 }

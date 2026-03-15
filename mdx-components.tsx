@@ -1,5 +1,5 @@
-import { useMDXComponents as getDocsMDXComponents } from "nextra-theme-docs";
 import Tweet from "@elizaos/cloud-ui/components/landing/Tweet";
+import { useMDXComponents as getDocsMDXComponents } from "nextra-theme-docs";
 
 const docsComponents = getDocsMDXComponents();
 

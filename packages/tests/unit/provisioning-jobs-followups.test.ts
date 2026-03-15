@@ -32,6 +32,10 @@ mock.module("@/lib/services/milaidy-sandbox", () => ({
   miladySandboxService: mockMiladySandboxService,
 }));
 
+mock.module("@/lib/services/milady-sandbox", () => ({
+  miladySandboxService: mockMiladySandboxService,
+}));
+
 mock.module("@/lib/security/outbound-url", () => ({
   assertSafeOutboundUrl: mockAssertSafeOutboundUrl,
 }));
@@ -57,10 +61,7 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import {
-  JOB_TYPES,
-  ProvisioningJobService,
-} from "@/lib/services/provisioning-jobs";
+import { JOB_TYPES, ProvisioningJobService } from "@/lib/services/provisioning-jobs";
 
 describe("ProvisioningJobService follow-ups", () => {
   beforeEach(() => {
@@ -109,9 +110,7 @@ describe("ProvisioningJobService follow-ups", () => {
                     {
                       id: "job-existing",
                       status: "pending",
-                      estimated_completion_at: new Date(
-                        "2026-03-01T12:01:30.000Z",
-                      ),
+                      estimated_completion_at: new Date("2026-03-01T12:01:30.000Z"),
                     },
                   ]),
                 })),

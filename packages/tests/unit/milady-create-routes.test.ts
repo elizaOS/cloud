@@ -7,6 +7,7 @@ const mockRequireServiceKey = mock();
 const mockAuthenticateWaifuBridge = mock();
 const mockCreateAgent = mock();
 const mockFindByIdInOrganizationForWrite = mock();
+const mockPrepareManagedMiladyEnvironment = mock();
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -29,6 +30,18 @@ mock.module("@/lib/services/milaidy-sandbox", () => ({
   },
 }));
 
+mock.module("@/lib/services/milady-sandbox", () => ({
+  miladySandboxService: {
+    createAgent: mockCreateAgent,
+    provision: mock(),
+    listAgents: mock(),
+  },
+}));
+
+mock.module("@/lib/services/milady-managed-launch", () => ({
+  prepareManagedMiladyEnvironment: mockPrepareManagedMiladyEnvironment,
+}));
+
 mock.module("@/db/repositories/characters", () => ({
   userCharactersRepository: {
     findByIdInOrganizationForWrite: mockFindByIdInOrganizationForWrite,
@@ -45,8 +58,8 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { POST as postV1MiladyAgent } from "@/app/api/v1/milaidy/agents/route";
 import { POST as postCompatAgent } from "@/app/api/compat/agents/route";
+import { POST as postV1MiladyAgent } from "@/app/api/v1/milady/agents/route";
 
 describe("Milady create routes reserved config stripping", () => {
   const savedAutoProvision = process.env.WAIFU_AUTO_PROVISION;
@@ -59,6 +72,7 @@ describe("Milady create routes reserved config stripping", () => {
     mockAuthenticateWaifuBridge.mockReset();
     mockCreateAgent.mockReset();
     mockFindByIdInOrganizationForWrite.mockReset();
+    mockPrepareManagedMiladyEnvironment.mockReset();
 
     mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
       user: {
@@ -76,6 +90,9 @@ describe("Milady create routes reserved config stripping", () => {
       status: "pending",
       created_at: new Date("2026-03-13T09:00:00.000Z"),
     });
+    mockPrepareManagedMiladyEnvironment.mockImplementation(async ({ existingEnv }) => ({
+      environmentVars: existingEnv ?? {},
+    }));
   });
 
   afterEach(() => {
@@ -88,7 +105,7 @@ describe("Milady create routes reserved config stripping", () => {
 
   test("v1 route strips reserved __milady keys case-insensitively", async () => {
     const response = await postV1MiladyAgent(
-      jsonRequest("https://example.com/api/v1/milaidy/agents", "POST", {
+      jsonRequest("https://example.com/api/v1/milady/agents", "POST", {
         agentName: "Test Agent",
         agentConfig: {
           safe: true,

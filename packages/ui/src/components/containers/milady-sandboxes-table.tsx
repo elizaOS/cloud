@@ -5,33 +5,6 @@
  */
 "use client";
 
-import { useState, useMemo } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@elizaos/ui";
-import { Badge } from "@elizaos/ui";
-import { Input } from "@elizaos/ui";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@elizaos/ui";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@elizaos/ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,24 +14,45 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  Badge,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@elizaos/ui";
 import {
-  Server,
-  Cloud,
-  Trash2,
-  ExternalLink,
-  FileText,
-  Search,
   ArrowUpDown,
   Boxes,
-  Play,
-  Pause,
+  Cloud,
+  ExternalLink,
+  FileText,
   Loader2,
+  Pause,
+  Play,
+  Search,
+  Server,
+  Trash2,
 } from "lucide-react";
-import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
 import { getClientSafeMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
-import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
+import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
 
 // ----------------------------------------------------------------
 // Types
@@ -165,15 +159,11 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortField, setSortField] = useState<"name" | "status" | "created">(
-    "created",
-  );
+  const [sortField, setSortField] = useState<"name" | "status" | "created">("created");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const handleSort = (field: typeof sortField) => {
-    setSortDir((prev) =>
-      sortField === field && prev === "asc" ? "desc" : "asc",
-    );
+    setSortDir((prev) => (sortField === field && prev === "asc" ? "desc" : "asc"));
     setSortField(field);
   };
 
@@ -187,8 +177,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
         (sb.container_name ?? "").toLowerCase().includes(q) ||
         (sb.node_id ?? "").toLowerCase().includes(q) ||
         (sb.headscale_ip ?? "").toLowerCase().includes(q);
-      const matchStatus =
-        statusFilter === "all" || displayStatus === statusFilter;
+      const matchStatus = statusFilter === "all" || displayStatus === statusFilter;
       return matchSearch && matchStatus;
     });
 
@@ -201,27 +190,19 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       } else if (sortField === "status") {
         cmp = aStatus.localeCompare(bStatus);
       } else {
-        cmp =
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [
-    sandboxes,
-    searchQuery,
-    statusFilter,
-    sortField,
-    sortDir,
-    poller.isActive,
-  ]);
+  }, [sandboxes, searchQuery, statusFilter, sortField, sortDir, poller.isActive]);
 
   // ── Actions ──────────────────────────────────────────────────────
 
   async function handleProvision(id: string) {
     setActionInProgress(id);
     try {
-      const res = await fetch(`/api/v1/milaidy/agents/${id}/provision`, {
+      const res = await fetch(`/api/v1/milady/agents/${id}/provision`, {
         method: "POST",
       });
       const data = await res.json().catch(() => ({}));
@@ -236,9 +217,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       }
 
       if (!res.ok) {
-        throw new Error(
-          (data as { error?: string }).error ?? "Provision failed",
-        );
+        throw new Error((data as { error?: string }).error ?? "Provision failed");
       }
 
       if (res.status === 202) {
@@ -267,7 +246,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
   async function handleSuspend(id: string) {
     setActionInProgress(id);
     try {
-      const res = await fetch(`/api/v1/milaidy/agents/${id}`, {
+      const res = await fetch(`/api/v1/milady/agents/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "suspend" }),
@@ -285,7 +264,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
   async function handleDelete(id: string) {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/v1/milaidy/agents/${id}`, {
+      const res = await fetch(`/api/v1/milady/agents/${id}`, {
         method: "DELETE",
       });
       const data = await res.json().catch(() => ({}));
@@ -295,8 +274,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       toast.success("Agent deleted");
       router.refresh();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to delete agent";
+      const message = err instanceof Error ? err.message : "Failed to delete agent";
       toast.error(message);
     } finally {
       setIsDeleting(false);
@@ -385,12 +363,8 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="text-xs font-medium text-neutral-400">
-                  Runtime
-                </TableHead>
-                <TableHead className="text-xs font-medium text-neutral-400">
-                  Web UI
-                </TableHead>
+                <TableHead className="text-xs font-medium text-neutral-400">Runtime</TableHead>
+                <TableHead className="text-xs font-medium text-neutral-400">Web UI</TableHead>
                 <TableHead>
                   <button
                     onClick={() => handleSort("created")}
@@ -421,14 +395,11 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                   const connectUrl = getConnectUrl(sb);
                   const trackedJob = poller.getStatus(sb.id);
                   const isProvisioning = poller.isActive(sb.id);
-                  const displayStatus = isProvisioning
-                    ? "provisioning"
-                    : sb.status;
+                  const displayStatus = isProvisioning ? "provisioning" : sb.status;
                   const busy = actionInProgress === sb.id || isProvisioning;
                   const canStart =
-                    ["stopped", "error", "pending", "disconnected"].includes(
-                      displayStatus,
-                    ) && !busy;
+                    ["stopped", "error", "pending", "disconnected"].includes(displayStatus) &&
+                    !busy;
                   const canStop = displayStatus === "running" && !busy;
 
                   return (
@@ -538,13 +509,9 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                               Open Web UI
                             </button>
                           ) : displayStatus === "running" ? (
-                            <span className="text-neutral-500">
-                              Web UI unavailable
-                            </span>
+                            <span className="text-neutral-500">Web UI unavailable</span>
                           ) : (
-                            <span className="text-neutral-600">
-                              Start agent to open
-                            </span>
+                            <span className="text-neutral-600">Start agent to open</span>
                           )}
                         </div>
                       </TableCell>
@@ -552,9 +519,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                       {/* Created */}
                       <TableCell>
                         <div className="text-sm">
-                          <div className="text-white">
-                            {formatRelative(sb.created_at)}
-                          </div>
+                          <div className="text-white">{formatRelative(sb.created_at)}</div>
                           {sb.last_heartbeat_at && (
                             <div className="text-xs text-neutral-500">
                               Heartbeat {formatRelative(sb.last_heartbeat_at)}
@@ -569,9 +534,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
                           {/* Details */}
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Link
-                                href={`/dashboard/containers/agents/${sb.id}`}
-                              >
+                              <Link href={`/dashboard/containers/agents/${sb.id}`}>
                                 <button className="p-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                                   <FileText className="h-4 w-4" />
                                 </button>
@@ -662,15 +625,10 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
       </div>
 
       {/* Delete confirmation */}
-      <AlertDialog
-        open={deleteId !== null}
-        onOpenChange={() => setDeleteId(null)}
-      >
+      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="bg-neutral-900 border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">
-              Delete Agent
-            </AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Delete Agent</AlertDialogTitle>
             <AlertDialogDescription className="text-neutral-400">
               {deleteTargetBusy
                 ? "This agent is still provisioning. Wait for the job to finish before deleting it."
@@ -682,9 +640,7 @@ export function MiladySandboxesTable({ sandboxes }: MiladySandboxesTableProps) {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() =>
-                deleteId && !deleteTargetBusy && handleDelete(deleteId)
-              }
+              onClick={() => deleteId && !deleteTargetBusy && handleDelete(deleteId)}
               disabled={isDeleting || deleteTargetBusy}
               className="bg-red-500 hover:bg-red-600 text-white disabled:opacity-50"
             >
