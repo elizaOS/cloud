@@ -25,18 +25,7 @@ export class AppAnalyticsService {
     responseTimeMs?: number;
     metadata?: Record<string, unknown>;
   }): Promise<void> {
-    const {
-      appId,
-      userId,
-      requestType,
-      success,
-      inputTokens = 0,
-      outputTokens = 0,
-      cost = "0.00",
-      creditsUsed = "0.00",
-      responseTimeMs,
-      metadata,
-    } = params;
+    const { appId, userId, requestType, success, creditsUsed = "0.00", metadata } = params;
 
     // Track app usage
     await appsRepository.incrementUsage(appId, creditsUsed);

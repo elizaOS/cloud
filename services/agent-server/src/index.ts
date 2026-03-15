@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
-import { createRoutes } from "./routes";
 import { AgentManager } from "./agent-manager";
 import { getRedis } from "./redis";
+import { createRoutes } from "./routes";
 
 // Map DATABASE_URL → POSTGRES_URL for @elizaos/plugin-sql
 if (process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
@@ -43,9 +43,7 @@ if (agentId && characterRef) {
   );
 }
 
-new Elysia()
-  .use(createRoutes(manager, process.env.AGENT_SERVER_SHARED_SECRET!))
-  .listen(PORT);
+new Elysia().use(createRoutes(manager, process.env.AGENT_SERVER_SHARED_SECRET!)).listen(PORT);
 
 console.log(
   `agent-server ${process.env.SERVER_NAME} listening on :${PORT} (tier=${process.env.TIER}, capacity=${process.env.CAPACITY})`,

@@ -9,7 +9,13 @@
 
 "use client";
 
-import { Badge, Button, ChartContainer, ChartTooltip, ChartTooltipContent } from "@elizaos/cloud-ui";
+import {
+  Badge,
+  Button,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@elizaos/cloud-ui";
 import { format } from "date-fns";
 import { useCallback, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";

@@ -16,6 +16,7 @@ const mockRequireServiceKey = mock();
 const mockAuthenticateWaifuBridge = mock();
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockGetAgent = mock();
+const mockGetAgentForWrite = mock();
 const mockListAgents = mock();
 const mockCreateAgent = mock();
 const mockShutdown = mock();
@@ -46,6 +47,7 @@ mock.module("@/lib/auth", () => ({
 mock.module("@/lib/services/milady-sandbox", () => ({
   miladySandboxService: {
     getAgent: mockGetAgent,
+    getAgentForWrite: mockGetAgentForWrite,
     listAgents: mockListAgents,
     createAgent: mockCreateAgent,
     deleteAgent: mockDeleteAgent,
@@ -101,6 +103,7 @@ function resetAll() {
   mockAuthenticateWaifuBridge.mockReset();
   mockRequireAuthOrApiKeyWithOrg.mockReset();
   mockGetAgent.mockReset();
+  mockGetAgentForWrite.mockReset();
   mockListAgents.mockReset();
   mockCreateAgent.mockReset();
   mockShutdown.mockReset();
@@ -222,6 +225,7 @@ describe("POST /agents/[id]/resume — org-scoped pre-check", () => {
 
   test("returns 404 when agent doesn't exist for this org", async () => {
     mockGetAgent.mockResolvedValue(null);
+    mockGetAgentForWrite.mockResolvedValue(null);
 
     const res = await resumeAgent(
       new NextRequest("https://example.com/api/compat/agents/a1/resume", {
@@ -240,7 +244,7 @@ describe("POST /agents/[id]/resume — org-scoped pre-check", () => {
   });
 
   test("proceeds to provision when agent exists", async () => {
-    mockGetAgent.mockResolvedValue({
+    mockGetAgentForWrite.mockResolvedValue({
       id: "a1",
       organization_id: "org-1",
       status: "stopped",
@@ -258,7 +262,7 @@ describe("POST /agents/[id]/resume — org-scoped pre-check", () => {
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.data.status).toBe("completed");
-    expect(mockGetAgent).toHaveBeenCalledWith("a1", "org-1");
+    expect(mockGetAgentForWrite).toHaveBeenCalledWith("a1", "org-1");
     expect(mockProvision).toHaveBeenCalledWith("a1", "org-1");
   });
 });

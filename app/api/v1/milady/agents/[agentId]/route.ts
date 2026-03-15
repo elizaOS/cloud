@@ -9,7 +9,7 @@ import { logger } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 
 const patchAgentSchema = z.object({
-  action: z.enum(["shutdown"]),
+  action: z.enum(["shutdown", "suspend"]),
 });
 
 /**
@@ -104,7 +104,27 @@ export async function PATCH(
     );
   }
 
-  if (parsed.data.action === "shutdown") {
+  if (parsed.data.action === "shutdown" || parsed.data.action === "suspend") {
+    const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
+    if (!agent) {
+      return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
+    }
+
+    if (agent.status === "stopped") {
+      return NextResponse.json({
+        success: true,
+        data: {
+          agentId,
+          action: parsed.data.action,
+          message:
+            parsed.data.action === "shutdown"
+              ? "Agent is already stopped"
+              : "Agent is already suspended",
+          previousStatus: agent.status,
+        },
+      });
+    }
+
     const result = await miladySandboxService.shutdown(agentId, user.organization_id);
     if (!result.success) {
       const status =
@@ -114,17 +134,31 @@ export async function PATCH(
             ? 409
             : 400;
       return NextResponse.json(
-        { success: false, error: result.error ?? "Shutdown failed" },
+        {
+          success: false,
+          error: result.error ?? `${parsed.data.action} failed`,
+        },
         { status },
       );
     }
 
-    logger.info("[milady-api] Agent shutdown complete", {
+    logger.info(`[milady-api] Agent ${parsed.data.action} complete`, {
       agentId,
       orgId: user.organization_id,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      data: {
+        agentId,
+        action: parsed.data.action,
+        message:
+          parsed.data.action === "shutdown"
+            ? "Agent shutdown complete"
+            : "Agent suspended with snapshot. Use resume or provision to restart.",
+        previousStatus: agent.status,
+      },
+    });
   }
 
   return NextResponse.json({ success: false, error: "Unsupported action" }, { status: 400 });

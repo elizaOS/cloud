@@ -5,7 +5,7 @@
  * Real: all handler logic, helpers, mappers, error formatting.
  */
 
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
 
 // ── Mock fetch ──────────────────────────────────────────────────────────────
@@ -1991,6 +1991,7 @@ describe("Google MCP Tools", () => {
       expect(deleteResult.success).toBe(true);
       expect(deleteResult.deleted).toBe(true);
       expect(deleteResult.eventId).toBe("flow-evt-1");
+      expect(requestCount).toBe(2);
     });
   });
 });

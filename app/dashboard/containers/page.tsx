@@ -1,17 +1,20 @@
-import { Suspense } from "react";
+import {
+  BrandCard,
+  ContainersEmptyState,
+  ContainersSkeleton,
+  DashboardStatCard,
+} from "@elizaos/ui";
+import { Activity, AlertCircle, Box, Server, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { requireAuthWithOrg } from "@/lib/auth";
+import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 import { listContainers } from "@/lib/services/containers";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
-import { ContainersTable } from "@/packages/ui/src/components/containers/containers-table";
-import { ContainersSkeleton } from "@elizaos/ui";
-import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/milady-sandboxes-table";
-import { Server, Activity, TrendingUp, AlertCircle, Box } from "lucide-react";
 import { ContainersPageWrapper } from "@/packages/ui/src/components/containers/containers-page-wrapper";
-import { ContainersEmptyState } from "@elizaos/ui";
+import { ContainersTable } from "@/packages/ui/src/components/containers/containers-table";
 import { DeployFromCLI } from "@/packages/ui/src/components/containers/deploy-from-cli";
-import { BrandCard, DashboardStatCard } from "@elizaos/ui";
-import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
+import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/milady-sandboxes-table";
 
 export const metadata: Metadata = {
   title: "Containers",

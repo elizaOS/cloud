@@ -120,7 +120,7 @@ export async function validatePageLoad(
  * Quick smoke test for a page: loads without 500, returns 200.
  */
 export async function smokeTestPage(page: Page, path: string): Promise<void> {
-  const { response, consoleErrors, networkErrors } = await validatePageLoad(page, path);
+  const { response } = await validatePageLoad(page, path);
 
   // Page should return 200 or 304
   expect([200, 304], `Page ${path} returned ${response?.status()}`).toContain(

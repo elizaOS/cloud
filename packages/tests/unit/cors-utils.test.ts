@@ -15,19 +15,19 @@ describe("getCorsHeaders", () => {
   describe("allowed origins", () => {
     it("reflects allowed origin in Access-Control-Allow-Origin", () => {
       // The ALLOWED_ORIGINS list includes process.env.NEXT_PUBLIC_APP_URL
-      // and the eliza.gg domains. In test env, NEXT_PUBLIC_APP_URL may not be set,
+      // and the Milady production domains. In test env, NEXT_PUBLIC_APP_URL may not be set,
       // so we test with the hardcoded allowed origins.
-      const headers = getCorsHeaders("https://eliza.gg");
-      expect(headers["Access-Control-Allow-Origin"]).toBe("https://eliza.gg");
+      const headers = getCorsHeaders("https://milady.ai");
+      expect(headers["Access-Control-Allow-Origin"]).toBe("https://milady.ai");
     });
 
     it("reflects www subdomain as allowed origin", () => {
-      const headers = getCorsHeaders("https://www.eliza.gg");
-      expect(headers["Access-Control-Allow-Origin"]).toBe("https://www.eliza.gg");
+      const headers = getCorsHeaders("https://www.milady.ai");
+      expect(headers["Access-Control-Allow-Origin"]).toBe("https://www.milady.ai");
     });
 
     it("sets Access-Control-Allow-Credentials for allowed origins", () => {
-      const headers = getCorsHeaders("https://eliza.gg");
+      const headers = getCorsHeaders("https://cloud.milady.ai");
       expect(headers["Access-Control-Allow-Credentials"]).toBe("true");
     });
   });
@@ -64,7 +64,7 @@ describe("getCorsHeaders", () => {
 
   describe("common headers", () => {
     it("always includes Access-Control-Allow-Methods", () => {
-      const headers1 = getCorsHeaders("https://eliza.gg");
+      const headers1 = getCorsHeaders("https://milady.ai");
       const headers2 = getCorsHeaders("https://evil.com");
       const headers3 = getCorsHeaders(null);
 

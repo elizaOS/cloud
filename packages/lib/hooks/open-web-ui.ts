@@ -26,17 +26,12 @@ export async function openWebUIWithPairing(agentId: string): Promise<void> {
   }
 
   try {
-    const res = await fetch(
-      `/api/v1/milaidy/agents/${agentId}/pairing-token`,
-      { method: "POST" },
-    );
+    const res = await fetch(`/api/v1/milady/agents/${agentId}/pairing-token`, { method: "POST" });
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({ error: "Unknown error" }));
       popup.close();
-      toast.error(
-        data.error || `Failed to generate pairing token (HTTP ${res.status})`,
-      );
+      toast.error(data.error || `Failed to generate pairing token (HTTP ${res.status})`);
       return;
     }
 
@@ -53,8 +48,6 @@ export async function openWebUIWithPairing(agentId: string): Promise<void> {
     }
   } catch (err) {
     popup.close();
-    toast.error(
-      `Failed to connect: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    toast.error(`Failed to connect: ${err instanceof Error ? err.message : String(err)}`);
   }
 }

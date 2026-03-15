@@ -1,6 +1,13 @@
 "use client";
 
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@elizaos/cloud-ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@elizaos/cloud-ui";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";

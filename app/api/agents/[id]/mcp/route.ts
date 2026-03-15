@@ -375,7 +375,6 @@ async function handleToolCall(
           agentId: character.id,
           agentName: character.name,
           ownerId: character.user_id,
-          ownerOrgId: character.organization_id,
           earnings: actualCreatorMarkup,
           consumerOrgId: authResult.user.organization_id,
           model,

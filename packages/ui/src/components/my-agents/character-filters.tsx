@@ -15,7 +15,14 @@
 
 "use client";
 
-import { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@elizaos/cloud-ui";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@elizaos/cloud-ui";
 import { LayoutGrid, List, Search } from "lucide-react";
 import type { SortOption, ViewMode } from "./my-agents-client";
 

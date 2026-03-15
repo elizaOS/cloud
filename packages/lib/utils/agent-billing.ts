@@ -74,7 +74,7 @@ export const ESTIMATED_COSTS = {
  * This is a non-locking check - actual deduction happens post-execution.
  */
 export async function preCheckBilling(context: BillingContext): Promise<PreBillResult> {
-  const { agentId, organizationId, estimatedCost, description } = context;
+  const { agentId, organizationId, estimatedCost } = context;
 
   // If agent has a budget, check that first
   if (agentId) {

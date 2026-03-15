@@ -31,12 +31,7 @@ export async function setServerState(name: string, phase: string, url: string) {
 
 export async function setAgentServer(agentId: string, serverName: string) {
   const redis = getClient();
-  await redis.set(
-    `agent:${agentId}:server`,
-    serverName,
-    "EX",
-    REDIS_STATE_TTL_SECONDS,
-  );
+  await redis.set(`agent:${agentId}:server`, serverName, "EX", REDIS_STATE_TTL_SECONDS);
 }
 
 export async function removeAgentServer(agentId: string) {

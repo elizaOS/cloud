@@ -6,52 +6,24 @@
 
 import type { McpServer } from "mcp-handler";
 import { z } from "zod3";
+import {
+  createHubSpotAssociation,
+  createHubSpotObject,
+  DEFAULT_COMPANY_PROPERTIES,
+  DEFAULT_CONTACT_PROPERTIES,
+  DEFAULT_DEAL_PROPERTIES,
+  getHubSpotObject,
+  getHubSpotStatus,
+  listHubSpotObjects,
+  listHubSpotOwners,
+  mapHubSpotOwner,
+  mapHubSpotRecord,
+  searchHubSpotObjects,
+  updateHubSpotObject,
+} from "@/lib/utils/hubspot-mcp-shared";
 import { logger } from "@/lib/utils/logger";
-import { oauthService } from "@/lib/services/oauth";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
-
-const HUBSPOT_API_BASE = "https://api.hubapi.com";
-
-async function getHubSpotToken(): Promise<string> {
-  const { user } = getAuthContext();
-  try {
-    const result = await oauthService.getValidTokenByPlatform({
-      organizationId: user.organization_id,
-      platform: "hubspot",
-    });
-    return result.accessToken;
-  } catch (error) {
-    logger.warn("[HubSpotMCP] Failed to get token", {
-      organizationId: user.organization_id,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw new Error("HubSpot account not connected. Connect in Settings > Connections.");
-  }
-}
-
-async function hubspotFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
-  const token = await getHubSpotToken();
-  const url = endpoint.startsWith("http") ? endpoint : `${HUBSPOT_API_BASE}${endpoint}`;
-
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok && response.status !== 204) {
-    const error = await response.json().catch(() => {
-      logger.warn("[HubSpot] Failed to parse error response", { status: response.status });
-      return { message: `HTTP ${response.status}` };
-    });
-    throw new Error(error.message || `HubSpot API error: ${response.status}`);
-  }
-  return response;
-}
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 function errMsg(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -69,25 +41,7 @@ export function registerHubSpotTools(server: McpServer): void {
     async () => {
       try {
         const { user } = getAuthContext();
-        const connections = await oauthService.listConnections({
-          organizationId: user.organization_id,
-          platform: "hubspot",
-        });
-
-        const active = connections.find((c) => c.status === "active");
-        if (!active) {
-          return jsonResponse({
-            connected: false,
-            message: "HubSpot not connected. Connect in Settings > Connections.",
-          });
-        }
-
-        return jsonResponse({
-          connected: true,
-          email: active.email,
-          scopes: active.scopes,
-          linkedAt: active.linkedAt,
-        });
+        return jsonResponse(await getHubSpotStatus(user.organization_id));
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to check status"));
       }
@@ -118,26 +72,19 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ limit = 20, after, properties }) => {
       try {
-        const props = properties || ["firstname", "lastname", "email", "phone", "company"];
-        const params = new URLSearchParams({
-          limit: String(limit),
-          properties: props.join(","),
+        const { user } = getAuthContext();
+        const props = properties || DEFAULT_CONTACT_PROPERTIES;
+        const data = await listHubSpotObjects(user.organization_id, "contacts", {
+          limit,
+          after,
+          properties: props,
         });
-        if (after) params.set("after", after);
-
-        const response = await hubspotFetch(`/crm/v3/objects/contacts?${params}`);
-        const data = await response.json();
 
         return jsonResponse({
           success: true,
-          contacts: data.results?.map((c: any) => ({
-            id: c.id,
-            ...c.properties,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
-          })),
+          contacts: data.results.map((contact) => mapHubSpotRecord(contact)),
           paging: data.paging,
-          count: data.results?.length || 0,
+          count: data.count,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list contacts"));
@@ -156,28 +103,17 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ contactId, properties }) => {
       try {
-        const props = properties || [
-          "firstname",
-          "lastname",
-          "email",
-          "phone",
-          "company",
-          "jobtitle",
-          "lifecyclestage",
-        ];
-        const params = new URLSearchParams({ properties: props.join(",") });
-
-        const response = await hubspotFetch(`/crm/v3/objects/contacts/${contactId}?${params}`);
-        const contact = await response.json();
+        const { user } = getAuthContext();
+        const contact = await getHubSpotObject(
+          user.organization_id,
+          "contacts",
+          contactId,
+          properties || DEFAULT_CONTACT_PROPERTIES,
+        );
 
         return jsonResponse({
           success: true,
-          contact: {
-            id: contact.id,
-            ...contact.properties,
-            createdAt: contact.createdAt,
-            updatedAt: contact.updatedAt,
-          },
+          contact: mapHubSpotRecord(contact),
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get contact"));
@@ -219,12 +155,8 @@ export function registerHubSpotTools(server: McpServer): void {
         if (jobtitle) properties.jobtitle = jobtitle;
         if (lifecyclestage) properties.lifecyclestage = lifecyclestage;
 
-        const response = await hubspotFetch("/crm/v3/objects/contacts", {
-          method: "POST",
-          body: JSON.stringify({ properties }),
-        });
-
-        const contact = await response.json();
+        const { user } = getAuthContext();
+        const contact = await createHubSpotObject(user.organization_id, "contacts", properties);
         logger.info("[HubSpotMCP] Contact created", {
           contactId: contact.id,
           email,
@@ -233,10 +165,7 @@ export function registerHubSpotTools(server: McpServer): void {
         return jsonResponse({
           success: true,
           contactId: contact.id,
-          contact: {
-            id: contact.id,
-            ...contact.properties,
-          },
+          contact: mapHubSpotRecord(contact, false),
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create contact"));
@@ -255,21 +184,18 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ contactId, properties }) => {
       try {
-        const response = await hubspotFetch(`/crm/v3/objects/contacts/${contactId}`, {
-          method: "PATCH",
-          body: JSON.stringify({ properties }),
-        });
-
-        const contact = await response.json();
+        const { user } = getAuthContext();
+        const contact = await updateHubSpotObject(
+          user.organization_id,
+          "contacts",
+          contactId,
+          properties,
+        );
         logger.info("[HubSpotMCP] Contact updated", { contactId });
 
         return jsonResponse({
           success: true,
-          contact: {
-            id: contact.id,
-            ...contact.properties,
-            updatedAt: contact.updatedAt,
-          },
+          contact: mapHubSpotRecord(contact),
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update contact"));
@@ -288,25 +214,18 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ query, limit = 20 }) => {
       try {
-        const response = await hubspotFetch("/crm/v3/objects/contacts/search", {
-          method: "POST",
-          body: JSON.stringify({
-            query,
-            limit,
-            properties: ["firstname", "lastname", "email", "phone", "company"],
-          }),
+        const { user } = getAuthContext();
+        const data = await searchHubSpotObjects(user.organization_id, "contacts", {
+          query,
+          limit,
+          properties: DEFAULT_CONTACT_PROPERTIES,
         });
-
-        const data = await response.json();
 
         return jsonResponse({
           success: true,
-          contacts: data.results?.map((c: any) => ({
-            id: c.id,
-            ...c.properties,
-          })),
+          contacts: data.results.map((contact) => mapHubSpotRecord(contact, false)),
           paging: data.paging,
-          count: data.total || data.results?.length || 0,
+          count: data.total ?? data.count,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to search contacts"));
@@ -328,32 +247,18 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ limit = 20, after, properties }) => {
       try {
-        const props = properties || [
-          "name",
-          "domain",
-          "industry",
-          "numberofemployees",
-          "annualrevenue",
-        ];
-        const params = new URLSearchParams({
-          limit: String(limit),
-          properties: props.join(","),
+        const { user } = getAuthContext();
+        const data = await listHubSpotObjects(user.organization_id, "companies", {
+          limit,
+          after,
+          properties: properties || DEFAULT_COMPANY_PROPERTIES,
         });
-        if (after) params.set("after", after);
-
-        const response = await hubspotFetch(`/crm/v3/objects/companies?${params}`);
-        const data = await response.json();
 
         return jsonResponse({
           success: true,
-          companies: data.results?.map((c: any) => ({
-            id: c.id,
-            ...c.properties,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
-          })),
+          companies: data.results.map((company) => mapHubSpotRecord(company)),
           paging: data.paging,
-          count: data.results?.length || 0,
+          count: data.count,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list companies"));
@@ -383,12 +288,8 @@ export function registerHubSpotTools(server: McpServer): void {
         if (annualrevenue) properties.annualrevenue = annualrevenue;
         if (description) properties.description = description;
 
-        const response = await hubspotFetch("/crm/v3/objects/companies", {
-          method: "POST",
-          body: JSON.stringify({ properties }),
-        });
-
-        const company = await response.json();
+        const { user } = getAuthContext();
+        const company = await createHubSpotObject(user.organization_id, "companies", properties);
         logger.info("[HubSpotMCP] Company created", {
           companyId: company.id,
           name,
@@ -397,10 +298,7 @@ export function registerHubSpotTools(server: McpServer): void {
         return jsonResponse({
           success: true,
           companyId: company.id,
-          company: {
-            id: company.id,
-            ...company.properties,
-          },
+          company: mapHubSpotRecord(company, false),
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create company"));
@@ -419,25 +317,18 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ query, limit = 20 }) => {
       try {
-        const response = await hubspotFetch("/crm/v3/objects/companies/search", {
-          method: "POST",
-          body: JSON.stringify({
-            query,
-            limit,
-            properties: ["name", "domain", "industry"],
-          }),
+        const { user } = getAuthContext();
+        const data = await searchHubSpotObjects(user.organization_id, "companies", {
+          query,
+          limit,
+          properties: DEFAULT_COMPANY_PROPERTIES,
         });
-
-        const data = await response.json();
 
         return jsonResponse({
           success: true,
-          companies: data.results?.map((c: any) => ({
-            id: c.id,
-            ...c.properties,
-          })),
+          companies: data.results.map((company) => mapHubSpotRecord(company, false)),
           paging: data.paging,
-          count: data.total || data.results?.length || 0,
+          count: data.total ?? data.count,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to search companies"));
@@ -459,33 +350,18 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ limit = 20, after, properties }) => {
       try {
-        const props = properties || [
-          "dealname",
-          "amount",
-          "dealstage",
-          "pipeline",
-          "closedate",
-          "hubspot_owner_id",
-        ];
-        const params = new URLSearchParams({
-          limit: String(limit),
-          properties: props.join(","),
+        const { user } = getAuthContext();
+        const data = await listHubSpotObjects(user.organization_id, "deals", {
+          limit,
+          after,
+          properties: properties || DEFAULT_DEAL_PROPERTIES,
         });
-        if (after) params.set("after", after);
-
-        const response = await hubspotFetch(`/crm/v3/objects/deals?${params}`);
-        const data = await response.json();
 
         return jsonResponse({
           success: true,
-          deals: data.results?.map((d: any) => ({
-            id: d.id,
-            ...d.properties,
-            createdAt: d.createdAt,
-            updatedAt: d.updatedAt,
-          })),
+          deals: data.results.map((deal) => mapHubSpotRecord(deal)),
           paging: data.paging,
-          count: data.results?.length || 0,
+          count: data.count,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list deals"));
@@ -515,21 +391,14 @@ export function registerHubSpotTools(server: McpServer): void {
         if (closedate) properties.closedate = closedate;
         if (hubspot_owner_id) properties.hubspot_owner_id = hubspot_owner_id;
 
-        const response = await hubspotFetch("/crm/v3/objects/deals", {
-          method: "POST",
-          body: JSON.stringify({ properties }),
-        });
-
-        const deal = await response.json();
+        const { user } = getAuthContext();
+        const deal = await createHubSpotObject(user.organization_id, "deals", properties);
         logger.info("[HubSpotMCP] Deal created", { dealId: deal.id, dealname });
 
         return jsonResponse({
           success: true,
           dealId: deal.id,
-          deal: {
-            id: deal.id,
-            ...deal.properties,
-          },
+          deal: mapHubSpotRecord(deal, false),
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create deal"));
@@ -548,21 +417,13 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ dealId, properties }) => {
       try {
-        const response = await hubspotFetch(`/crm/v3/objects/deals/${dealId}`, {
-          method: "PATCH",
-          body: JSON.stringify({ properties }),
-        });
-
-        const deal = await response.json();
+        const { user } = getAuthContext();
+        const deal = await updateHubSpotObject(user.organization_id, "deals", dealId, properties);
         logger.info("[HubSpotMCP] Deal updated", { dealId });
 
         return jsonResponse({
           success: true,
-          deal: {
-            id: deal.id,
-            ...deal.properties,
-            updatedAt: deal.updatedAt,
-          },
+          deal: mapHubSpotRecord(deal),
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update deal"));
@@ -581,25 +442,18 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ query, limit = 20 }) => {
       try {
-        const response = await hubspotFetch("/crm/v3/objects/deals/search", {
-          method: "POST",
-          body: JSON.stringify({
-            query,
-            limit,
-            properties: ["dealname", "amount", "dealstage", "closedate"],
-          }),
+        const { user } = getAuthContext();
+        const data = await searchHubSpotObjects(user.organization_id, "deals", {
+          query,
+          limit,
+          properties: DEFAULT_DEAL_PROPERTIES,
         });
-
-        const data = await response.json();
 
         return jsonResponse({
           success: true,
-          deals: data.results?.map((d: any) => ({
-            id: d.id,
-            ...d.properties,
-          })),
+          deals: data.results.map((deal) => mapHubSpotRecord(deal, false)),
           paging: data.paging,
-          count: data.total || data.results?.length || 0,
+          count: data.total ?? data.count,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to search deals"));
@@ -620,23 +474,16 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ limit = 100, email }) => {
       try {
-        const params = new URLSearchParams({ limit: String(limit) });
-        if (email) params.set("email", email);
-
-        const response = await hubspotFetch(`/crm/v3/owners?${params}`);
-        const data = await response.json();
+        const { user } = getAuthContext();
+        const data = await listHubSpotOwners(user.organization_id, {
+          limit,
+          email,
+        });
 
         return jsonResponse({
           success: true,
-          owners: data.results?.map((o: any) => ({
-            id: o.id,
-            email: o.email,
-            firstName: o.firstName,
-            lastName: o.lastName,
-            userId: o.userId,
-            teams: o.teams,
-          })),
-          count: data.results?.length || 0,
+          owners: data.results.map((owner) => mapHubSpotOwner(owner)),
+          count: data.count,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list owners"));
@@ -659,21 +506,13 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ fromObjectType, fromObjectId, toObjectType, toObjectId }) => {
       try {
-        // Default association type IDs
-        const associationTypeMap: Record<string, Record<string, number>> = {
-          contacts: { companies: 1, deals: 3 },
-          companies: { contacts: 2, deals: 5 },
-          deals: { contacts: 4, companies: 6 },
-        };
-
-        const associationType = associationTypeMap[fromObjectType]?.[toObjectType];
-        if (!associationType) {
-          throw new Error(`Invalid association: ${fromObjectType} -> ${toObjectType}`);
-        }
-
-        await hubspotFetch(
-          `/crm/v3/objects/${fromObjectType}/${fromObjectId}/associations/${toObjectType}/${toObjectId}/${associationType}`,
-          { method: "PUT" },
+        const { user } = getAuthContext();
+        await createHubSpotAssociation(
+          user.organization_id,
+          fromObjectType,
+          fromObjectId,
+          toObjectType,
+          toObjectId,
         );
 
         logger.info("[HubSpotMCP] Association created", {

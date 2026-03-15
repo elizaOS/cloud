@@ -45,8 +45,6 @@ const checkoutRequestSchema = z
     message: "Either creditPackId or amount must be provided",
   });
 
-type CheckoutRequest = z.infer<typeof checkoutRequestSchema>;
-
 /**
  * POST /api/stripe/create-checkout-session
  * Creates a Stripe Checkout session for credit pack purchase or custom amount top-up.

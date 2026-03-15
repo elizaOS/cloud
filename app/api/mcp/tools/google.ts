@@ -1,19 +1,19 @@
 // @ts-nocheck — MCP tool types cause exponential type inference
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
-import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
 import {
-  googleFetchWithToken,
   errMsg,
-  sanitizeHeaderValue,
   extractBody,
-  mapGmailMessage,
+  googleFetchWithToken,
   mapCalendarEvent,
   mapContact,
+  mapGmailMessage,
+  sanitizeHeaderValue,
 } from "@/lib/utils/google-mcp-shared";
+import { logger } from "@/lib/utils/logger";
+import { getAuthContext } from "../lib/context";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getGoogleToken(): Promise<string> {
   const { user } = getAuthContext();

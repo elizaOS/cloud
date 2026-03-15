@@ -10,21 +10,14 @@ function getAuthToken(headers: HeaderMap): string | null {
   }
 
   const authorization = headers.authorization ?? headers.Authorization;
-  if (
-    authorization &&
-    authorization.toLowerCase().startsWith("bearer ")
-  ) {
+  if (authorization && authorization.toLowerCase().startsWith("bearer ")) {
     return authorization.slice(7).trim();
   }
 
   return null;
 }
 
-function requireInternalAuth(
-  headers: HeaderMap,
-  set: { status?: number },
-  sharedSecret: string,
-) {
+function requireInternalAuth(headers: HeaderMap, set: { status?: number }, sharedSecret: string) {
   if (!sharedSecret) {
     set.status = 503;
     return { error: "Server auth not configured" };
@@ -51,11 +44,7 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
     })
 
     .get("/status", ({ headers, set }) => {
-      const denial = requireInternalAuth(
-        headers as HeaderMap,
-        set,
-        sharedSecret,
-      );
+      const denial = requireInternalAuth(headers as HeaderMap, set, sharedSecret);
       if (denial) {
         return denial;
       }
@@ -63,11 +52,7 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
     })
 
     .post("/agents", async ({ body, headers, set }) => {
-      const denial = requireInternalAuth(
-        headers as HeaderMap,
-        set,
-        sharedSecret,
-      );
+      const denial = requireInternalAuth(headers as HeaderMap, set, sharedSecret);
       if (denial) {
         return denial;
       }
@@ -91,11 +76,7 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
     })
 
     .post("/agents/:id/stop", async ({ params, headers, set }) => {
-      const denial = requireInternalAuth(
-        headers as HeaderMap,
-        set,
-        sharedSecret,
-      );
+      const denial = requireInternalAuth(headers as HeaderMap, set, sharedSecret);
       if (denial) {
         return denial;
       }
@@ -110,11 +91,7 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
     })
 
     .delete("/agents/:id", async ({ params, headers, set }) => {
-      const denial = requireInternalAuth(
-        headers as HeaderMap,
-        set,
-        sharedSecret,
-      );
+      const denial = requireInternalAuth(headers as HeaderMap, set, sharedSecret);
       if (denial) {
         return denial;
       }
@@ -129,11 +106,7 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
     })
 
     .post("/agents/:id/message", async ({ params, body, headers, set }) => {
-      const denial = requireInternalAuth(
-        headers as HeaderMap,
-        set,
-        sharedSecret,
-      );
+      const denial = requireInternalAuth(headers as HeaderMap, set, sharedSecret);
       if (denial) {
         return denial;
       }
@@ -147,21 +120,13 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
         return { response };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        set.status =
-          message === "Agent not found" ||
-          message === "Agent not running"
-            ? 404
-            : 500;
+        set.status = message === "Agent not found" || message === "Agent not running" ? 404 : 500;
         return { error: message };
       }
     })
 
     .post("/drain", async ({ headers, set }) => {
-      const denial = requireInternalAuth(
-        headers as HeaderMap,
-        set,
-        sharedSecret,
-      );
+      const denial = requireInternalAuth(headers as HeaderMap, set, sharedSecret);
       if (denial) {
         return denial;
       }

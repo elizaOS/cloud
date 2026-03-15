@@ -7,21 +7,21 @@
  */
 
 import type { NextRequest } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { oauthService } from "@/lib/services/oauth";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { oauthService } from "@/lib/services/oauth";
 import {
-  googleFetchWithToken,
+  applyTimeZone,
   errMsg,
-  sanitizeHeaderValue,
   extractBody,
-  mapGmailMessage,
+  getCalendarTimeZone,
+  googleFetchWithToken,
   mapCalendarEvent,
   mapContact,
-  applyTimeZone,
-  getCalendarTimeZone,
+  mapGmailMessage,
+  sanitizeHeaderValue,
 } from "@/lib/utils/google-mcp-shared";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 

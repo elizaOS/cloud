@@ -124,14 +124,8 @@ export class DockerSSHClient {
         client = undefined;
       }
       // Evict if fingerprint requirements changed
-      if (
-        client &&
-        hostKeyFingerprint &&
-        client.pinnedFingerprint !== hostKeyFingerprint
-      ) {
-        logger.info(
-          `[docker-ssh] Evicting pooled connection for ${poolKey} — fingerprint changed`,
-        );
+      if (client && hostKeyFingerprint && client.pinnedFingerprint !== hostKeyFingerprint) {
+        logger.info(`[docker-ssh] Evicting pooled connection for ${poolKey} — fingerprint changed`);
         client.disconnect().catch(() => {});
         DockerSSHClient.pool.delete(poolKey);
         client = undefined;
@@ -176,9 +170,7 @@ export class DockerSSHClient {
     this.privateKeyPath = config.privateKeyPath ?? DEFAULT_SSH_KEY_PATH;
     this.hostKeyFingerprint = config.hostKeyFingerprint;
 
-    this.privateKey =
-      config.privateKey ??
-      DockerSSHClient.resolvePrivateKey(this.privateKeyPath);
+    this.privateKey = config.privateKey ?? DockerSSHClient.resolvePrivateKey(this.privateKeyPath);
   }
 
   // ---- Private key resolution ------------------------------------------
@@ -281,10 +273,7 @@ export class DockerSSHClient {
         privateKey: this.privateKey,
         readyTimeout: CONNECTION_TIMEOUT_MS,
         hostVerifier: (key: Buffer) => {
-          const fingerprint = crypto
-            .createHash("sha256")
-            .update(key)
-            .digest("base64");
+          const fingerprint = crypto.createHash("sha256").update(key).digest("base64");
           if (!this.hostKeyFingerprint) {
             // No fingerprint configured — TOFU: accept and log at warn for operator visibility
             logger.warn(
@@ -369,10 +358,7 @@ export class DockerSSHClient {
 
         stream.stderr.on("data", (data: Buffer) => {
           const text = data.toString();
-          output +=
-            output && !output.endsWith("\n")
-              ? `\n[stderr] ${text}`
-              : `[stderr] ${text}`;
+          output += output && !output.endsWith("\n") ? `\n[stderr] ${text}` : `[stderr] ${text}`;
         });
 
         stream.on("close", (code: number) => {

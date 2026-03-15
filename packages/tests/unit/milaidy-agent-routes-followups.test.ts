@@ -15,6 +15,7 @@ const mockRestore = mock();
 const mockEnqueueMiladyProvisionOnce = mock();
 const mockFindCharacterForWrite = mock();
 const mockCharacterDelete = mock();
+const mockPrepareManagedMiladyEnvironment = mock();
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -39,6 +40,22 @@ mock.module("@/lib/services/milaidy-sandbox", () => ({
     provision: mockProvision,
     restore: mockRestore,
   },
+}));
+
+mock.module("@/lib/services/milady-sandbox", () => ({
+  miladySandboxService: {
+    createAgent: mockCreateAgent,
+    getAgent: mockGetAgent,
+    getAgentForWrite: mockGetAgentForWrite,
+    shutdown: mockShutdown,
+    deleteAgent: mockDeleteAgent,
+    provision: mockProvision,
+    restore: mockRestore,
+  },
+}));
+
+mock.module("@/lib/services/milady-managed-launch", () => ({
+  prepareManagedMiladyEnvironment: mockPrepareManagedMiladyEnvironment,
 }));
 
 mock.module("@/lib/services/provisioning-jobs", () => ({
@@ -67,14 +84,14 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { POST as postV1MilaidyAgents } from "@/app/api/v1/milaidy/agents/route";
-import { POST as postProvisionRoute } from "@/app/api/v1/milaidy/agents/[agentId]/provision/route";
-import {
-  PATCH as patchMilaidyAgent,
-  DELETE as deleteMilaidyAgent,
-} from "@/app/api/v1/milaidy/agents/[agentId]/route";
-import { POST as postRestoreRoute } from "@/app/api/v1/milaidy/agents/[agentId]/restore/route";
 import { POST as postCompatAgents } from "@/app/api/compat/agents/route";
+import { POST as postProvisionRoute } from "@/app/api/v1/milaidy/agents/[agentId]/provision/route";
+import { POST as postRestoreRoute } from "@/app/api/v1/milaidy/agents/[agentId]/restore/route";
+import {
+  DELETE as deleteMilaidyAgent,
+  PATCH as patchMilaidyAgent,
+} from "@/app/api/v1/milaidy/agents/[agentId]/route";
+import { POST as postV1MilaidyAgents } from "@/app/api/v1/milaidy/agents/route";
 
 describe("milady agent route follow-ups", () => {
   beforeEach(() => {
@@ -93,6 +110,7 @@ describe("milady agent route follow-ups", () => {
     mockEnqueueMiladyProvisionOnce.mockReset();
     mockFindCharacterForWrite.mockReset();
     mockCharacterDelete.mockReset();
+    mockPrepareManagedMiladyEnvironment.mockReset();
 
     mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
       user: {
@@ -102,6 +120,9 @@ describe("milady agent route follow-ups", () => {
     });
 
     mockAuthenticateWaifuBridge.mockResolvedValue(null);
+    mockPrepareManagedMiladyEnvironment.mockImplementation(async ({ existingEnv }) => ({
+      environmentVars: existingEnv ?? {},
+    }));
   });
 
   test("POST /api/v1/milaidy/agents strips reserved __milady keys case-insensitively", async () => {

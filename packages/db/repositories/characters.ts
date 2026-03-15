@@ -1,15 +1,15 @@
-import { eq, desc, and, or, sql, SQL, inArray } from "drizzle-orm";
-import { dbRead, dbWrite } from "../helpers";
-import {
-  userCharacters,
-  type UserCharacter,
-  type NewUserCharacter,
-} from "../schemas/user-characters";
-import { elizaRoomCharactersTable } from "../schemas/eliza-room-characters";
+import { and, desc, eq, inArray, or, SQL, sql } from "drizzle-orm";
 import type { SearchFilters, SortOptions } from "@/lib/types/my-agents";
 import { normalizeTokenAddress } from "@/lib/utils/token-address";
+import { dbRead, dbWrite } from "../helpers";
+import { elizaRoomCharactersTable } from "../schemas/eliza-room-characters";
+import {
+  type NewUserCharacter,
+  type UserCharacter,
+  userCharacters,
+} from "../schemas/user-characters";
 
-export type { UserCharacter, NewUserCharacter };
+export type { NewUserCharacter, UserCharacter };
 
 /**
  * Escapes special LIKE pattern characters to prevent pattern injection.
@@ -79,10 +79,7 @@ export class UserCharactersRepository {
       .where(eq(elizaRoomCharactersTable.user_id, userId));
 
     conditions.push(
-      or(
-        eq(userCharacters.user_id, userId),
-        inArray(userCharacters.id, interactedCharacterIds),
-      )!,
+      or(eq(userCharacters.user_id, userId), inArray(userCharacters.id, interactedCharacterIds))!,
     );
 
     return conditions;
@@ -97,12 +94,7 @@ export class UserCharactersRepository {
   ): SQL[] {
     const conditions: SQL[] = [];
 
-    conditions.push(
-      or(
-        eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true),
-      )!,
-    );
+    conditions.push(or(eq(userCharacters.is_template, true), eq(userCharacters.is_public, true))!);
 
     if (filters.search) {
       conditions.push(
@@ -156,10 +148,7 @@ export class UserCharactersRepository {
     organizationId: string,
   ): Promise<UserCharacter | undefined> {
     return await dbRead.query.userCharacters.findFirst({
-      where: and(
-        eq(userCharacters.id, id),
-        eq(userCharacters.organization_id, organizationId),
-      ),
+      where: and(eq(userCharacters.id, id), eq(userCharacters.organization_id, organizationId)),
     });
   }
 
@@ -172,10 +161,7 @@ export class UserCharactersRepository {
     organizationId: string,
   ): Promise<UserCharacter | undefined> {
     return await dbWrite.query.userCharacters.findFirst({
-      where: and(
-        eq(userCharacters.id, id),
-        eq(userCharacters.organization_id, organizationId),
-      ),
+      where: and(eq(userCharacters.id, id), eq(userCharacters.organization_id, organizationId)),
     });
   }
 
@@ -187,19 +173,13 @@ export class UserCharactersRepository {
       return [];
     }
 
-    return await dbRead
-      .select()
-      .from(userCharacters)
-      .where(inArray(userCharacters.id, ids));
+    return await dbRead.select().from(userCharacters).where(inArray(userCharacters.id, ids));
   }
 
   /**
    * Finds characters by ID within an organization.
    */
-  async findByIdsInOrganization(
-    ids: string[],
-    organizationId: string,
-  ): Promise<UserCharacter[]> {
+  async findByIdsInOrganization(ids: string[], organizationId: string): Promise<UserCharacter[]> {
     if (ids.length === 0) {
       return [];
     }
@@ -208,10 +188,7 @@ export class UserCharactersRepository {
       .select()
       .from(userCharacters)
       .where(
-        and(
-          inArray(userCharacters.id, ids),
-          eq(userCharacters.organization_id, organizationId),
-        ),
+        and(inArray(userCharacters.id, ids), eq(userCharacters.organization_id, organizationId)),
       );
   }
 
@@ -267,16 +244,12 @@ export class UserCharactersRepository {
     organizationId?: string;
     limit?: number;
   }): Promise<UserCharacter[]> {
-    const conditions: SQL[] = [
-      sql`${userCharacters.token_address} IS NOT NULL`,
-    ];
+    const conditions: SQL[] = [sql`${userCharacters.token_address} IS NOT NULL`];
     if (options?.chain) {
       conditions.push(eq(userCharacters.token_chain, options.chain));
     }
     if (options?.organizationId) {
-      conditions.push(
-        eq(userCharacters.organization_id, options.organizationId),
-      );
+      conditions.push(eq(userCharacters.organization_id, options.organizationId));
     }
     return await dbRead
       .select()
@@ -311,9 +284,7 @@ export class UserCharactersRepository {
    * Gets all existing usernames (for bulk uniqueness check).
    */
   async getAllUsernames(): Promise<Set<string>> {
-    const result = await dbRead
-      .select({ username: userCharacters.username })
-      .from(userCharacters);
+    const result = await dbRead.select({ username: userCharacters.username }).from(userCharacters);
 
     const usernames = new Set<string>();
     for (const row of result) {
@@ -381,10 +352,7 @@ export class UserCharactersRepository {
    */
   async listPublic(): Promise<UserCharacter[]> {
     return await dbRead.query.userCharacters.findMany({
-      where: and(
-        eq(userCharacters.is_public, true),
-        eq(userCharacters.source, "cloud"),
-      ),
+      where: and(eq(userCharacters.is_public, true), eq(userCharacters.source, "cloud")),
       orderBy: desc(userCharacters.created_at),
     });
   }
@@ -394,10 +362,7 @@ export class UserCharactersRepository {
    */
   async listTemplates(): Promise<UserCharacter[]> {
     return await dbRead.query.userCharacters.findMany({
-      where: and(
-        eq(userCharacters.is_template, true),
-        eq(userCharacters.source, "cloud"),
-      ),
+      where: and(eq(userCharacters.is_template, true), eq(userCharacters.source, "cloud")),
       orderBy: desc(userCharacters.created_at),
     });
   }
@@ -406,20 +371,14 @@ export class UserCharactersRepository {
    * Creates a new character.
    */
   async create(data: NewUserCharacter): Promise<UserCharacter> {
-    const [character] = await dbWrite
-      .insert(userCharacters)
-      .values(data)
-      .returning();
+    const [character] = await dbWrite.insert(userCharacters).values(data).returning();
     return character;
   }
 
   /**
    * Updates an existing character.
    */
-  async update(
-    id: string,
-    data: Partial<NewUserCharacter>,
-  ): Promise<UserCharacter | undefined> {
+  async update(id: string, data: Partial<NewUserCharacter>): Promise<UserCharacter | undefined> {
     const [updated] = await dbWrite
       .update(userCharacters)
       .set({
@@ -451,17 +410,11 @@ export class UserCharactersRepository {
           ? userCharacters.popularity_score
           : desc(userCharacters.popularity_score);
       case "newest":
-        return direction === "asc"
-          ? userCharacters.created_at
-          : desc(userCharacters.created_at);
+        return direction === "asc" ? userCharacters.created_at : desc(userCharacters.created_at);
       case "name":
-        return direction === "asc"
-          ? userCharacters.name
-          : desc(userCharacters.name);
+        return direction === "asc" ? userCharacters.name : desc(userCharacters.name);
       case "updated":
-        return direction === "asc"
-          ? userCharacters.updated_at
-          : desc(userCharacters.updated_at);
+        return direction === "asc" ? userCharacters.updated_at : desc(userCharacters.updated_at);
       default:
         return desc(userCharacters.popularity_score);
     }
@@ -495,11 +448,7 @@ export class UserCharactersRepository {
   /**
    * Counts characters matching the search filters.
    */
-  async count(
-    filters: SearchFilters,
-    userId: string,
-    _organizationId: string,
-  ): Promise<number> {
+  async count(filters: SearchFilters, userId: string, _organizationId: string): Promise<number> {
     const conditions = this.buildSearchConditions(filters, userId);
 
     const result = await dbRead
@@ -553,10 +502,7 @@ export class UserCharactersRepository {
    */
   async getFeatured(limit: number = 10): Promise<UserCharacter[]> {
     return await dbRead.query.userCharacters.findMany({
-      where: and(
-        eq(userCharacters.featured, true),
-        eq(userCharacters.source, "cloud"),
-      ),
+      where: and(eq(userCharacters.featured, true), eq(userCharacters.source, "cloud")),
       orderBy: desc(userCharacters.popularity_score),
       limit,
     });
@@ -570,10 +516,7 @@ export class UserCharactersRepository {
   async getPopular(limit: number = 20): Promise<UserCharacter[]> {
     return await dbRead.query.userCharacters.findMany({
       where: and(
-        or(
-          eq(userCharacters.is_template, true),
-          eq(userCharacters.is_public, true),
-        ),
+        or(eq(userCharacters.is_template, true), eq(userCharacters.is_public, true)),
         eq(userCharacters.source, "cloud"),
       ),
       orderBy: desc(userCharacters.popularity_score),
@@ -605,9 +548,7 @@ export class UserCharactersRepository {
   /**
    * Counts public characters matching the filters.
    */
-  async countPublic(
-    filters: Omit<SearchFilters, "myCharacters" | "deployed">,
-  ): Promise<number> {
+  async countPublic(filters: Omit<SearchFilters, "myCharacters" | "deployed">): Promise<number> {
     const conditions = this.buildPublicSearchConditions(filters);
 
     const result = await dbRead

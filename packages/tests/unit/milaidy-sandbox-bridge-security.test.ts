@@ -97,9 +97,7 @@ describe("MiladySandboxService bridge SSRF guards", () => {
   });
 
   test("validates bridge_url before forwarding JSON-RPC bridge calls", async () => {
-    mockAssertSafeOutboundUrl.mockResolvedValue(
-      new URL("https://bridge.example.com/bridge"),
-    );
+    mockAssertSafeOutboundUrl.mockResolvedValue(new URL("https://bridge.example.com/bridge"));
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -120,9 +118,7 @@ describe("MiladySandboxService bridge SSRF guards", () => {
       method: "status.get",
     });
 
-    expect(mockAssertSafeOutboundUrl).toHaveBeenCalledWith(
-      "https://bridge.example.com/bridge",
-    );
+    expect(mockAssertSafeOutboundUrl).toHaveBeenCalledWith("https://bridge.example.com/bridge");
     expect(fetchMock).toHaveBeenCalledWith(
       "https://bridge.example.com/bridge",
       expect.objectContaining({ method: "POST" }),
@@ -360,9 +356,7 @@ describe("MiladySandboxService bridge SSRF guards", () => {
       method: "status.get",
     });
 
-    expect(mockAssertSafeOutboundUrl).toHaveBeenCalledWith(
-      "http://100.64.0.10:31337/bridge",
-    );
+    expect(mockAssertSafeOutboundUrl).toHaveBeenCalledWith("http://100.64.0.10:31337/bridge");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       jsonrpc: "2.0",

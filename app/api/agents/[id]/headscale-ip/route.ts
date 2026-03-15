@@ -3,8 +3,7 @@ import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 
 export const dynamic = "force-dynamic";
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function getInternalToken(request: NextRequest): string | null {
   const direct = request.headers.get("x-internal-token");
@@ -13,10 +12,7 @@ function getInternalToken(request: NextRequest): string | null {
   }
 
   const authorization = request.headers.get("authorization");
-  if (
-    authorization &&
-    authorization.toLowerCase().startsWith("bearer ")
-  ) {
+  if (authorization && authorization.toLowerCase().startsWith("bearer ")) {
     return authorization.slice(7).trim();
   }
 
@@ -33,21 +29,13 @@ function getInternalToken(request: NextRequest): string | null {
  * Access is restricted with a shared internal token injected by the
  * trusted reverse proxy. Do not expose this endpoint publicly.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: agentId } = await params;
 
   const expectedToken = process.env.HEADSCALE_INTERNAL_TOKEN?.trim();
   if (!expectedToken) {
-    console.error(
-      "[headscale-ip] HEADSCALE_INTERNAL_TOKEN is not configured",
-    );
-    return NextResponse.json(
-      { error: "internal auth not configured" },
-      { status: 503 },
-    );
+    console.error("[headscale-ip] HEADSCALE_INTERNAL_TOKEN is not configured");
+    return NextResponse.json({ error: "internal auth not configured" }, { status: 503 });
   }
 
   if (getInternalToken(request) !== expectedToken) {
@@ -57,20 +45,14 @@ export async function GET(
 
   // --- Validate UUID format -----------------------------------------------
   if (!UUID_RE.test(agentId)) {
-    return NextResponse.json(
-      { error: "invalid agent ID format" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "invalid agent ID format" }, { status: 400 });
   }
 
   try {
     const sandbox = await miladySandboxesRepository.findById(agentId);
 
     if (!sandbox) {
-      return NextResponse.json(
-        { error: "agent not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "agent not found" }, { status: 404 });
     }
 
     // Determine the IP to route to.
@@ -88,18 +70,12 @@ export async function GET(
     }
 
     if (!ip) {
-      return NextResponse.json(
-        { error: "agent has no routable IP" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "agent has no routable IP" }, { status: 503 });
     }
 
     const webUiPort = sandbox.web_ui_port ?? 0;
     if (!webUiPort) {
-      return NextResponse.json(
-        { error: "agent has no web UI port" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "agent has no web UI port" }, { status: 503 });
     }
 
     return NextResponse.json({
@@ -110,9 +86,6 @@ export async function GET(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[headscale-ip] lookup error:", msg);
-    return NextResponse.json(
-      { error: "lookup failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "lookup failed" }, { status: 500 });
   }
 }

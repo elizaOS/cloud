@@ -7,10 +7,22 @@
  */
 
 import type { NextRequest } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { oauthService } from "@/lib/services/oauth";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import {
+  createHubSpotAssociation,
+  createHubSpotObject,
+  DEFAULT_COMPANY_PROPERTIES,
+  DEFAULT_CONTACT_PROPERTIES,
+  DEFAULT_DEAL_PROPERTIES,
+  getHubSpotObject,
+  getHubSpotStatus,
+  listHubSpotObjects,
+  listHubSpotOwners,
+  searchHubSpotObjects,
+  updateHubSpotObject,
+} from "@/lib/utils/hubspot-mcp-shared";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -37,40 +49,6 @@ async function getHubSpotMcpHandler() {
   const { createMcpHandler } = await import("mcp-handler");
   const { z } = await import("zod3");
 
-  async function getHubSpotToken(organizationId: string): Promise<string> {
-    const result = await oauthService.getValidTokenByPlatform({
-      organizationId,
-      platform: "hubspot",
-    });
-    return result.accessToken;
-  }
-
-  async function hubspotFetch(
-    orgId: string,
-    url: string,
-    options: RequestInit = {},
-  ): Promise<Response> {
-    const token = await getHubSpotToken(orgId);
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-    if (!response.ok && response.status !== 204) {
-      const error = await response.json().catch(() => {
-        logger.warn("[HubSpot] Failed to parse error response", {
-          status: response.status,
-        });
-        return {};
-      });
-      throw new Error(error.message || `HubSpot API error: ${response.status}`);
-    }
-    return response;
-  }
-
   function getOrgId(): string {
     const ctx = authContextStorage.getStore();
     if (!ctx) throw new Error("Not authenticated");
@@ -94,23 +72,11 @@ async function getHubSpotMcpHandler() {
       server.tool("hubspot_status", "Check HubSpot OAuth connection status", {}, async () => {
         try {
           const orgId = getOrgId();
-          const connections = await oauthService.listConnections({
-            organizationId: orgId,
-            platform: "hubspot",
-          });
-          const active = connections.find((c) => c.status === "active");
-          if (!active) {
-            const expired = connections.find((c) => c.status === "expired");
-            if (expired) {
-              return jsonResult({
-                connected: false,
-                status: "expired",
-                message: "HubSpot connection expired. Please reconnect in Settings > Connections.",
-              });
-            }
+          const status = await getHubSpotStatus(orgId);
+          if (status.connected === false && !status.message) {
             return jsonResult({ connected: false });
           }
-          return jsonResult({ connected: true, scopes: active.scopes });
+          return jsonResult(status);
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
@@ -127,21 +93,16 @@ async function getHubSpotMcpHandler() {
         async ({ limit = 20, after }) => {
           try {
             const orgId = getOrgId();
-            const params = new URLSearchParams({
-              limit: String(limit),
-              properties: "firstname,lastname,email,phone,company",
+            const data = await listHubSpotObjects(orgId, "contacts", {
+              limit,
+              after,
+              properties: DEFAULT_CONTACT_PROPERTIES,
             });
-            if (after) params.set("after", after);
-            const res = await hubspotFetch(
-              orgId,
-              `https://api.hubapi.com/crm/v3/objects/contacts?${params}`,
-            );
-            const data = await res.json();
             return jsonResult({
               success: true,
-              contacts: data.results || [],
+              contacts: data.results,
               paging: data.paging,
-              count: data.results?.length || 0,
+              count: data.count,
             });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -158,11 +119,12 @@ async function getHubSpotMcpHandler() {
         async ({ contactId }) => {
           try {
             const orgId = getOrgId();
-            const res = await hubspotFetch(
+            const contact = await getHubSpotObject(
               orgId,
-              `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}?properties=firstname,lastname,email,phone,company`,
+              "contacts",
+              contactId,
+              DEFAULT_CONTACT_PROPERTIES,
             );
-            const contact = await res.json();
             return jsonResult({ success: true, contact });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -188,15 +150,7 @@ async function getHubSpotMcpHandler() {
             if (lastname) properties.lastname = lastname;
             if (phone) properties.phone = phone;
             if (company) properties.company = company;
-            const res = await hubspotFetch(
-              orgId,
-              "https://api.hubapi.com/crm/v3/objects/contacts",
-              {
-                method: "POST",
-                body: JSON.stringify({ properties }),
-              },
-            );
-            const contact = await res.json();
+            const contact = await createHubSpotObject(orgId, "contacts", properties);
             logger.info("[HubSpotMCP] Contact created", {
               contactId: contact.id,
             });
@@ -217,15 +171,7 @@ async function getHubSpotMcpHandler() {
         async ({ contactId, properties }) => {
           try {
             const orgId = getOrgId();
-            const res = await hubspotFetch(
-              orgId,
-              `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
-              {
-                method: "PATCH",
-                body: JSON.stringify({ properties }),
-              },
-            );
-            const contact = await res.json();
+            const contact = await updateHubSpotObject(orgId, "contacts", contactId, properties);
             logger.info("[HubSpotMCP] Contact updated", { contactId });
             return jsonResult({ success: true, contact });
           } catch (e) {
@@ -244,24 +190,16 @@ async function getHubSpotMcpHandler() {
         async ({ query, limit = 20 }) => {
           try {
             const orgId = getOrgId();
-            const res = await hubspotFetch(
-              orgId,
-              "https://api.hubapi.com/crm/v3/objects/contacts/search",
-              {
-                method: "POST",
-                body: JSON.stringify({
-                  query,
-                  limit,
-                  properties: ["firstname", "lastname", "email", "phone", "company"],
-                }),
-              },
-            );
-            const data = await res.json();
+            const data = await searchHubSpotObjects(orgId, "contacts", {
+              query,
+              limit,
+              properties: DEFAULT_CONTACT_PROPERTIES,
+            });
             return jsonResult({
               success: true,
-              contacts: data.results || [],
+              contacts: data.results,
               paging: data.paging,
-              count: data.total || 0,
+              count: data.total ?? data.count,
             });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -280,21 +218,16 @@ async function getHubSpotMcpHandler() {
         async ({ limit = 20, after }) => {
           try {
             const orgId = getOrgId();
-            const params = new URLSearchParams({
-              limit: String(limit),
-              properties: "name,domain,industry,phone",
+            const data = await listHubSpotObjects(orgId, "companies", {
+              limit,
+              after,
+              properties: DEFAULT_COMPANY_PROPERTIES,
             });
-            if (after) params.set("after", after);
-            const res = await hubspotFetch(
-              orgId,
-              `https://api.hubapi.com/crm/v3/objects/companies?${params}`,
-            );
-            const data = await res.json();
             return jsonResult({
               success: true,
-              companies: data.results || [],
+              companies: data.results,
               paging: data.paging,
-              count: data.results?.length || 0,
+              count: data.count,
             });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -318,15 +251,7 @@ async function getHubSpotMcpHandler() {
             if (domain) properties.domain = domain;
             if (industry) properties.industry = industry;
             if (phone) properties.phone = phone;
-            const res = await hubspotFetch(
-              orgId,
-              "https://api.hubapi.com/crm/v3/objects/companies",
-              {
-                method: "POST",
-                body: JSON.stringify({ properties }),
-              },
-            );
-            const company = await res.json();
+            const company = await createHubSpotObject(orgId, "companies", properties);
             logger.info("[HubSpotMCP] Company created", {
               companyId: company.id,
             });
@@ -347,24 +272,16 @@ async function getHubSpotMcpHandler() {
         async ({ query, limit = 20 }) => {
           try {
             const orgId = getOrgId();
-            const res = await hubspotFetch(
-              orgId,
-              "https://api.hubapi.com/crm/v3/objects/companies/search",
-              {
-                method: "POST",
-                body: JSON.stringify({
-                  query,
-                  limit,
-                  properties: ["name", "domain", "industry", "phone"],
-                }),
-              },
-            );
-            const data = await res.json();
+            const data = await searchHubSpotObjects(orgId, "companies", {
+              query,
+              limit,
+              properties: DEFAULT_COMPANY_PROPERTIES,
+            });
             return jsonResult({
               success: true,
-              companies: data.results || [],
+              companies: data.results,
               paging: data.paging,
-              count: data.total || 0,
+              count: data.total ?? data.count,
             });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -383,21 +300,16 @@ async function getHubSpotMcpHandler() {
         async ({ limit = 20, after }) => {
           try {
             const orgId = getOrgId();
-            const params = new URLSearchParams({
-              limit: String(limit),
-              properties: "dealname,amount,dealstage,closedate",
+            const data = await listHubSpotObjects(orgId, "deals", {
+              limit,
+              after,
+              properties: DEFAULT_DEAL_PROPERTIES,
             });
-            if (after) params.set("after", after);
-            const res = await hubspotFetch(
-              orgId,
-              `https://api.hubapi.com/crm/v3/objects/deals?${params}`,
-            );
-            const data = await res.json();
             return jsonResult({
               success: true,
-              deals: data.results || [],
+              deals: data.results,
               paging: data.paging,
-              count: data.results?.length || 0,
+              count: data.count,
             });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -421,11 +333,7 @@ async function getHubSpotMcpHandler() {
             if (amount !== undefined) properties.amount = amount;
             if (dealstage) properties.dealstage = dealstage;
             if (closedate) properties.closedate = closedate;
-            const res = await hubspotFetch(orgId, "https://api.hubapi.com/crm/v3/objects/deals", {
-              method: "POST",
-              body: JSON.stringify({ properties }),
-            });
-            const deal = await res.json();
+            const deal = await createHubSpotObject(orgId, "deals", properties);
             logger.info("[HubSpotMCP] Deal created", { dealId: deal.id });
             return jsonResult({ success: true, deal });
           } catch (e) {
@@ -444,24 +352,16 @@ async function getHubSpotMcpHandler() {
         async ({ query, limit = 20 }) => {
           try {
             const orgId = getOrgId();
-            const res = await hubspotFetch(
-              orgId,
-              "https://api.hubapi.com/crm/v3/objects/deals/search",
-              {
-                method: "POST",
-                body: JSON.stringify({
-                  query,
-                  limit,
-                  properties: ["dealname", "amount", "dealstage", "closedate"],
-                }),
-              },
-            );
-            const data = await res.json();
+            const data = await searchHubSpotObjects(orgId, "deals", {
+              query,
+              limit,
+              properties: DEFAULT_DEAL_PROPERTIES,
+            });
             return jsonResult({
               success: true,
-              deals: data.results || [],
+              deals: data.results,
               paging: data.paging,
-              count: data.total || 0,
+              count: data.total ?? data.count,
             });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -479,15 +379,40 @@ async function getHubSpotMcpHandler() {
         async ({ limit = 100 }) => {
           try {
             const orgId = getOrgId();
-            const res = await hubspotFetch(
-              orgId,
-              `https://api.hubapi.com/crm/v3/owners?limit=${limit}`,
-            );
-            const data = await res.json();
+            const data = await listHubSpotOwners(orgId, { limit });
             return jsonResult({
               success: true,
-              owners: data.results || [],
-              count: data.results?.length || 0,
+              owners: data.results,
+              count: data.count,
+            });
+          } catch (e) {
+            return errorResult(e instanceof Error ? e.message : "Failed");
+          }
+        },
+      );
+
+      server.tool(
+        "hubspot_associate",
+        "Associate two HubSpot objects (e.g., link contact to company)",
+        {
+          fromObjectType: z.enum(["contacts", "companies", "deals"]).describe("Source object type"),
+          fromObjectId: z.string().describe("Source object ID"),
+          toObjectType: z.enum(["contacts", "companies", "deals"]).describe("Target object type"),
+          toObjectId: z.string().describe("Target object ID"),
+        },
+        async ({ fromObjectType, fromObjectId, toObjectType, toObjectId }) => {
+          try {
+            const orgId = getOrgId();
+            await createHubSpotAssociation(
+              orgId,
+              fromObjectType,
+              fromObjectId,
+              toObjectType,
+              toObjectId,
+            );
+            return jsonResult({
+              success: true,
+              message: `Associated ${fromObjectType}/${fromObjectId} with ${toObjectType}/${toObjectId}`,
             });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");

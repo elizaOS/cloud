@@ -14,9 +14,9 @@ import { resolve } from "path";
 config({ path: resolve(process.cwd(), ".env") });
 config({ path: resolve(process.cwd(), ".env.local"), override: true });
 
+import { and, eq } from "drizzle-orm";
 import { dbWrite } from "@/db/client";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
-import { eq, and } from "drizzle-orm";
 
 async function main() {
   const orgId = process.argv[2]?.trim();

@@ -49,10 +49,9 @@ describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
     mockFindByIdAndOrg.mockResolvedValue(null);
 
     const response = await POST(
-      new NextRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1/pairing-token",
-        { method: "POST" },
-      ),
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/pairing-token", {
+        method: "POST",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 
@@ -68,16 +67,13 @@ describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
       id: "agent-1",
       status: "running",
     });
-    mockGetMiladyAgentPublicWebUiUrl.mockReturnValue(
-      "https://agent-1.waifu.fun",
-    );
+    mockGetMiladyAgentPublicWebUiUrl.mockReturnValue("https://agent-1.waifu.fun");
     mockGenerateToken.mockResolvedValue("pair-token");
 
     const response = await POST(
-      new NextRequest(
-        "https://example.com/api/v1/milaidy/agents/agent-1/pairing-token",
-        { method: "POST" },
-      ),
+      new NextRequest("https://example.com/api/v1/milaidy/agents/agent-1/pairing-token", {
+        method: "POST",
+      }),
       routeParams({ agentId: "agent-1" }),
     );
 

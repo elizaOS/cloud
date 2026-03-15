@@ -1,4 +1,4 @@
-import { K8s, Log, kind } from "pepr";
+import { K8s, kind, Log } from "pepr";
 import { ServerCRD } from "./source/server.crd";
 
 export function RegisterCRD() {

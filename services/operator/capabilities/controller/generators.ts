@@ -1,5 +1,5 @@
-import { kind, K8s } from "pepr";
 import { GenericKind, RegisterKind } from "kubernetes-fluent-client";
+import { K8s, kind } from "pepr";
 import { Server } from "../crd/generated/server-v1alpha1";
 
 const MANAGED_BY = "server-operator";

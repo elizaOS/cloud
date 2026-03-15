@@ -7,33 +7,32 @@
  * - Admin-only infrastructure details, SSH access, and Docker logs
  */
 
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import Link from "next/link";
+import { Badge, BrandCard } from "@elizaos/ui";
 import {
-  ArrowLeft,
-  Server,
-  Cloud,
-  Network,
-  Terminal,
-  Clock,
-  AlertCircle,
-  ExternalLink,
-  Database,
-  Cpu,
   Activity,
+  AlertCircle,
+  ArrowLeft,
+  Clock,
+  Cloud,
+  Cpu,
+  Database,
+  ExternalLink,
+  Network,
+  Server,
+  Terminal,
 } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { adminService } from "@/lib/services/admin";
-import { BrandCard, BrandButton } from "@elizaos/ui";
-import { Badge } from "@elizaos/ui";
-import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { MiladyAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
+import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
 import { MiladyBackupsPanel } from "@/packages/ui/src/components/containers/milady-backups-panel";
 import { MiladyConnectButton } from "@/packages/ui/src/components/containers/milady-connect-button";
 import { MiladyLogsViewer } from "@/packages/ui/src/components/containers/milady-logs-viewer";
-import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 
 export const dynamic = "force-dynamic";
 

@@ -18,6 +18,7 @@ export interface ConnectionAdapter {
   ownsConnection(connectionId: string): Promise<boolean>;
 }
 
+import { OAUTH_PROVIDERS } from "../provider-registry";
 import { blooioAdapter } from "./blooio-adapter";
 import {
   createGenericAdapter,
@@ -79,5 +80,11 @@ export function getAdapter(platform: string): ConnectionAdapter | null {
 
 /** Get all registered adapters (static + cached dynamic). */
 export function getAllAdapters(): ConnectionAdapter[] {
+  for (const provider of Object.values(OAUTH_PROVIDERS)) {
+    if (provider.storage === "platform_credentials" && provider.useGenericRoutes) {
+      void getAdapter(provider.id);
+    }
+  }
+
   return [...Object.values(staticAdapters), ...Object.values(dynamicAdapters)];
 }

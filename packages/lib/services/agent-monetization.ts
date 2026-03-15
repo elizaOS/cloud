@@ -52,7 +52,6 @@ interface RecordEarningsParams {
   agentId: string;
   agentName: string;
   ownerId: string;
-  ownerOrgId: string;
   earnings: number;
   consumerOrgId?: string;
   model?: string;
@@ -64,21 +63,12 @@ interface AgentUsageParams {
   agentId: string;
   agentName: string;
   ownerId: string;
-  ownerOrgId: string;
   monetizationEnabled: boolean;
   markupPercentage: number;
   model: string;
   messages: Array<{ role: string; content: string }>;
   consumerOrgId: string;
   protocol: "http" | "a2a" | "mcp";
-}
-
-interface AgentUsageResult {
-  baseCost: number;
-  creatorMarkup: number;
-  totalCost: number;
-  canProceed: boolean;
-  error?: string;
 }
 
 // ============================================================================
@@ -169,17 +159,8 @@ class AgentMonetizationService {
   async recordCreatorEarnings(
     params: RecordEarningsParams,
   ): Promise<{ success: boolean; error?: string }> {
-    const {
-      agentId,
-      agentName,
-      ownerId,
-      ownerOrgId,
-      earnings,
-      consumerOrgId,
-      model,
-      tokens,
-      protocol,
-    } = params;
+    const { agentId, agentName, ownerId, earnings, consumerOrgId, model, tokens, protocol } =
+      params;
 
     if (earnings <= 0) {
       return { success: true }; // No earnings to record
@@ -257,7 +238,6 @@ class AgentMonetizationService {
       agentId,
       agentName,
       ownerId,
-      ownerOrgId,
       monetizationEnabled,
       markupPercentage,
       model,
@@ -283,7 +263,6 @@ class AgentMonetizationService {
         agentId,
         agentName,
         ownerId,
-        ownerOrgId,
         earnings: actualCreatorMarkup,
         consumerOrgId,
         model,

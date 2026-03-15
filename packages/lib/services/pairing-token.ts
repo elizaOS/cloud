@@ -41,10 +41,7 @@ class PairingTokenService {
     return token;
   }
 
-  async validateToken(
-    token: string,
-    expectedOrigin?: string | null,
-  ): Promise<PairingToken | null> {
+  async validateToken(token: string, expectedOrigin?: string | null): Promise<PairingToken | null> {
     if (!expectedOrigin) {
       return null;
     }
