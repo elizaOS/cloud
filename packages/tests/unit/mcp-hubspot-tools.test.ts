@@ -45,16 +45,20 @@ function resetMockFetch() {
 
 // Mock OAuth service
 const mockOAuthService = {
-  getValidTokenByPlatform: mock(async ({ organizationId, platform }: { organizationId: string; platform: string }) => {
-    if (platform !== "hubspot") {
-      throw new Error(`Unknown platform: ${platform}`);
-    }
-    // By default, throw "not connected" - tests can override
-    throw new Error("No active connection found for hubspot");
-  }),
-  listConnections: mock(async ({ organizationId, platform }: { organizationId: string; platform?: string }) => {
-    return [];
-  }),
+  getValidTokenByPlatform: mock(
+    async ({ organizationId, platform }: { organizationId: string; platform: string }) => {
+      if (platform !== "hubspot") {
+        throw new Error(`Unknown platform: ${platform}`);
+      }
+      // By default, throw "not connected" - tests can override
+      throw new Error("No active connection found for hubspot");
+    },
+  ),
+  listConnections: mock(
+    async ({ organizationId, platform }: { organizationId: string; platform?: string }) => {
+      return [];
+    },
+  ),
   isPlatformConnected: mock(async (organizationId: string, platform: string) => {
     return false;
   }),
@@ -532,10 +536,13 @@ describe("HubSpot MCP Tools", () => {
         accessToken: "mock-hubspot-token",
       }));
 
-      mockFetchResponses.set("api.hubapi.com/crm/v3/objects/contacts/101/associations/companies/301/1", {
-        status: 200,
-        body: {},
-      });
+      mockFetchResponses.set(
+        "api.hubapi.com/crm/v3/objects/contacts/101/associations/companies/301/1",
+        {
+          status: 200,
+          body: {},
+        },
+      );
 
       let handler: any;
       const mockServer = {

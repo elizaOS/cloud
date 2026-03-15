@@ -128,11 +128,12 @@ async function sendTelegramMessage(
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     const hasLongUrl = URL_PATTERN.test(chunk);
+    const hasUrlWithUnderscores = /https?:\/\/\S*_\S*/.test(chunk);
     const ok = await sendWithMarkdownFallback({
       chat_id: chatId,
       text: cleanUrlMarkdown(chunk),
       reply_to_message_id: i === 0 ? replyToMessageId : undefined,
-      ...(hasLongUrl ? {} : { parse_mode: "Markdown" }),
+      ...(!hasLongUrl && !hasUrlWithUnderscores ? { parse_mode: "Markdown" } : {}),
     });
     if (!ok) return false;
   }

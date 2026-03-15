@@ -25,20 +25,13 @@ async function getHubSpotToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error(
-      "HubSpot account not connected. Connect in Settings > Connections."
-    );
+    throw new Error("HubSpot account not connected. Connect in Settings > Connections.");
   }
 }
 
-async function hubspotFetch(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<Response> {
+async function hubspotFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const token = await getHubSpotToken();
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${HUBSPOT_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${HUBSPOT_API_BASE}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,
@@ -84,8 +77,7 @@ export function registerHubSpotTools(server: McpServer): void {
         if (!active) {
           return jsonResponse({
             connected: false,
-            message:
-              "HubSpot not connected. Connect in Settings > Connections.",
+            message: "HubSpot not connected. Connect in Settings > Connections.",
           });
         }
 
@@ -98,7 +90,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to check status"));
       }
-    }
+    },
   );
 
   // ==================== CONTACTS ====================
@@ -120,29 +112,19 @@ export function registerHubSpotTools(server: McpServer): void {
         properties: z
           .array(z.string())
           .optional()
-          .describe(
-            "Properties to include (default: firstname, lastname, email)"
-          ),
+          .describe("Properties to include (default: firstname, lastname, email)"),
       },
     },
     async ({ limit = 20, after, properties }) => {
       try {
-        const props = properties || [
-          "firstname",
-          "lastname",
-          "email",
-          "phone",
-          "company",
-        ];
+        const props = properties || ["firstname", "lastname", "email", "phone", "company"];
         const params = new URLSearchParams({
           limit: String(limit),
           properties: props.join(","),
         });
         if (after) params.set("after", after);
 
-        const response = await hubspotFetch(
-          `/crm/v3/objects/contacts?${params}`
-        );
+        const response = await hubspotFetch(`/crm/v3/objects/contacts?${params}`);
         const data = await response.json();
 
         return jsonResponse({
@@ -159,7 +141,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list contacts"));
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -168,10 +150,7 @@ export function registerHubSpotTools(server: McpServer): void {
       description: "Get a specific contact by ID",
       inputSchema: {
         contactId: z.string().describe("Contact ID"),
-        properties: z
-          .array(z.string())
-          .optional()
-          .describe("Properties to include"),
+        properties: z.array(z.string()).optional().describe("Properties to include"),
       },
     },
     async ({ contactId, properties }) => {
@@ -187,9 +166,7 @@ export function registerHubSpotTools(server: McpServer): void {
         ];
         const params = new URLSearchParams({ properties: props.join(",") });
 
-        const response = await hubspotFetch(
-          `/crm/v3/objects/contacts/${contactId}?${params}`
-        );
+        const response = await hubspotFetch(`/crm/v3/objects/contacts/${contactId}?${params}`);
         const contact = await response.json();
 
         return jsonResponse({
@@ -204,7 +181,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get contact"));
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -231,15 +208,7 @@ export function registerHubSpotTools(server: McpServer): void {
           .optional(),
       },
     },
-    async ({
-      email,
-      firstname,
-      lastname,
-      phone,
-      company,
-      jobtitle,
-      lifecyclestage,
-    }) => {
+    async ({ email, firstname, lastname, phone, company, jobtitle, lifecyclestage }) => {
       try {
         const properties: Record<string, string> = { email };
         if (firstname) properties.firstname = firstname;
@@ -271,7 +240,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create contact"));
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -280,20 +249,15 @@ export function registerHubSpotTools(server: McpServer): void {
       description: "Update an existing contact",
       inputSchema: {
         contactId: z.string().describe("Contact ID"),
-        properties: z
-          .record(z.string())
-          .describe("Properties to update (key-value pairs)"),
+        properties: z.record(z.string()).describe("Properties to update (key-value pairs)"),
       },
     },
     async ({ contactId, properties }) => {
       try {
-        const response = await hubspotFetch(
-          `/crm/v3/objects/contacts/${contactId}`,
-          {
-            method: "PATCH",
-            body: JSON.stringify({ properties }),
-          }
-        );
+        const response = await hubspotFetch(`/crm/v3/objects/contacts/${contactId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ properties }),
+        });
 
         const contact = await response.json();
         logger.info("[HubSpotMCP] Contact updated", { contactId });
@@ -309,7 +273,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update contact"));
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -317,9 +281,7 @@ export function registerHubSpotTools(server: McpServer): void {
     {
       description: "Search for contacts",
       inputSchema: {
-        query: z
-          .string()
-          .describe("Search query (searches email, firstname, lastname)"),
+        query: z.string().describe("Search query (searches email, firstname, lastname)"),
         limit: z.number().int().min(1).max(100).optional().default(20),
       },
     },
@@ -348,7 +310,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to search contacts"));
       }
-    }
+    },
   );
 
   // ==================== COMPANIES ====================
@@ -378,9 +340,7 @@ export function registerHubSpotTools(server: McpServer): void {
         });
         if (after) params.set("after", after);
 
-        const response = await hubspotFetch(
-          `/crm/v3/objects/companies?${params}`
-        );
+        const response = await hubspotFetch(`/crm/v3/objects/companies?${params}`);
         const data = await response.json();
 
         return jsonResponse({
@@ -397,7 +357,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list companies"));
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -408,23 +368,12 @@ export function registerHubSpotTools(server: McpServer): void {
         name: z.string().describe("Company name (required)"),
         domain: z.string().optional().describe("Company website domain"),
         industry: z.string().optional().describe("Industry"),
-        numberofemployees: z
-          .number()
-          .int()
-          .optional()
-          .describe("Number of employees"),
+        numberofemployees: z.number().int().optional().describe("Number of employees"),
         annualrevenue: z.number().optional().describe("Annual revenue"),
         description: z.string().optional().describe("Company description"),
       },
     },
-    async ({
-      name,
-      domain,
-      industry,
-      numberofemployees,
-      annualrevenue,
-      description,
-    }) => {
+    async ({ name, domain, industry, numberofemployees, annualrevenue, description }) => {
       try {
         const properties: Record<string, string | number> = { name };
         if (domain) properties.domain = domain;
@@ -455,7 +404,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create company"));
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -469,17 +418,14 @@ export function registerHubSpotTools(server: McpServer): void {
     },
     async ({ query, limit = 20 }) => {
       try {
-        const response = await hubspotFetch(
-          "/crm/v3/objects/companies/search",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              query,
-              limit,
-              properties: ["name", "domain", "industry"],
-            }),
-          }
-        );
+        const response = await hubspotFetch("/crm/v3/objects/companies/search", {
+          method: "POST",
+          body: JSON.stringify({
+            query,
+            limit,
+            properties: ["name", "domain", "industry"],
+          }),
+        });
 
         const data = await response.json();
 
@@ -495,7 +441,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to search companies"));
       }
-    }
+    },
   );
 
   // ==================== DEALS ====================
@@ -543,7 +489,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list deals"));
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -554,25 +500,12 @@ export function registerHubSpotTools(server: McpServer): void {
         dealname: z.string().describe("Deal name (required)"),
         amount: z.number().optional().describe("Deal amount"),
         dealstage: z.string().optional().describe("Deal stage ID"),
-        pipeline: z
-          .string()
-          .optional()
-          .describe("Pipeline ID (default: default)"),
-        closedate: z
-          .string()
-          .optional()
-          .describe("Expected close date (ISO 8601)"),
+        pipeline: z.string().optional().describe("Pipeline ID (default: default)"),
+        closedate: z.string().optional().describe("Expected close date (ISO 8601)"),
         hubspot_owner_id: z.string().optional().describe("Owner ID"),
       },
     },
-    async ({
-      dealname,
-      amount,
-      dealstage,
-      pipeline,
-      closedate,
-      hubspot_owner_id,
-    }) => {
+    async ({ dealname, amount, dealstage, pipeline, closedate, hubspot_owner_id }) => {
       try {
         const properties: Record<string, string | number> = { dealname };
         if (amount !== undefined) properties.amount = amount;
@@ -600,7 +533,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create deal"));
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -609,9 +542,7 @@ export function registerHubSpotTools(server: McpServer): void {
       description: "Update an existing deal",
       inputSchema: {
         dealId: z.string().describe("Deal ID"),
-        properties: z
-          .record(z.union([z.string(), z.number()]))
-          .describe("Properties to update"),
+        properties: z.record(z.union([z.string(), z.number()])).describe("Properties to update"),
       },
     },
     async ({ dealId, properties }) => {
@@ -635,7 +566,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update deal"));
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -672,7 +603,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to search deals"));
       }
-    }
+    },
   );
 
   // ==================== OWNERS ====================
@@ -709,7 +640,7 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list owners"));
       }
-    }
+    },
   );
 
   // ==================== ASSOCIATIONS ====================
@@ -717,16 +648,11 @@ export function registerHubSpotTools(server: McpServer): void {
   server.registerTool(
     "hubspot_associate",
     {
-      description:
-        "Associate two HubSpot objects (e.g., link contact to company)",
+      description: "Associate two HubSpot objects (e.g., link contact to company)",
       inputSchema: {
-        fromObjectType: z
-          .enum(["contacts", "companies", "deals"])
-          .describe("Source object type"),
+        fromObjectType: z.enum(["contacts", "companies", "deals"]).describe("Source object type"),
         fromObjectId: z.string().describe("Source object ID"),
-        toObjectType: z
-          .enum(["contacts", "companies", "deals"])
-          .describe("Target object type"),
+        toObjectType: z.enum(["contacts", "companies", "deals"]).describe("Target object type"),
         toObjectId: z.string().describe("Target object ID"),
       },
     },
@@ -739,17 +665,14 @@ export function registerHubSpotTools(server: McpServer): void {
           deals: { contacts: 4, companies: 6 },
         };
 
-        const associationType =
-          associationTypeMap[fromObjectType]?.[toObjectType];
+        const associationType = associationTypeMap[fromObjectType]?.[toObjectType];
         if (!associationType) {
-          throw new Error(
-            `Invalid association: ${fromObjectType} -> ${toObjectType}`
-          );
+          throw new Error(`Invalid association: ${fromObjectType} -> ${toObjectType}`);
         }
 
         await hubspotFetch(
           `/crm/v3/objects/${fromObjectType}/${fromObjectId}/associations/${toObjectType}/${toObjectId}/${associationType}`,
-          { method: "PUT" }
+          { method: "PUT" },
         );
 
         logger.info("[HubSpotMCP] Association created", {
@@ -766,6 +689,6 @@ export function registerHubSpotTools(server: McpServer): void {
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create association"));
       }
-    }
+    },
   );
 }

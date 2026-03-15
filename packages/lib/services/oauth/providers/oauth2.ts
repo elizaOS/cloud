@@ -421,7 +421,7 @@ async function fetchUserInfo(
  */
 async function fetchTokenInfo(
   provider: OAuthProviderConfig,
-  accessToken: string
+  accessToken: string,
 ): Promise<ExtractedUserInfo> {
   const baseUrl = provider.endpoints?.tokenInfo;
   if (!baseUrl) {
@@ -997,10 +997,7 @@ async function storeConnection(
     });
 
     if (pendingRevocation) {
-      await revokeConnectionsSecrets(
-        pendingRevocation.connections,
-        pendingRevocation.reason,
-      );
+      await revokeConnectionsSecrets(pendingRevocation.connections, pendingRevocation.reason);
     }
 
     return connectionId;

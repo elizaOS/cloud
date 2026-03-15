@@ -501,11 +501,8 @@ export class RuntimeFactory {
     // Include MCP-relevant OAuth platforms so runtime is recreated when user connects
     // e.g. HubSpot; otherwise a cached runtime created with only Google never gets HubSpot tools
     const connectedMcp = this.getConnectedPlatforms(context);
-    const mcpPlatforms = Object.keys(MCP_SERVER_CONFIGS).filter((p) =>
-      connectedMcp.has(p)
-    );
-    const mcpSuffix =
-      mcpPlatforms.length > 0 ? `:mcp=${mcpPlatforms.sort().join(",")}` : "";
+    const mcpPlatforms = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connectedMcp.has(p));
+    const mcpSuffix = mcpPlatforms.length > 0 ? `:mcp=${mcpPlatforms.sort().join(",")}` : "";
     // Include organizationId to prevent cross-org API key pollution
     const cacheKey = `${agentId}:${context.organizationId}${webSearchSuffix}${mcpSuffix}`;
 

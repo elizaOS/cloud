@@ -22,7 +22,10 @@ async function main() {
   const orgId = process.argv[2]?.trim();
 
   const condition = orgId
-    ? and(eq(platformCredentials.platform, "hubspot"), eq(platformCredentials.organization_id, orgId))
+    ? and(
+        eq(platformCredentials.platform, "hubspot"),
+        eq(platformCredentials.organization_id, orgId),
+      )
     : eq(platformCredentials.platform, "hubspot");
 
   const deleted = await dbWrite

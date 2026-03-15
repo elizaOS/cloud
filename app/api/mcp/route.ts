@@ -207,7 +207,7 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
       {
         status: isAuthError ? 401 : 500,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   }
 }

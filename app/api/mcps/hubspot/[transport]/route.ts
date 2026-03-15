@@ -47,7 +47,7 @@ async function getHubSpotMcpHandler() {
   async function hubspotFetch(
     orgId: string,
     url: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<Response> {
     const token = await getHubSpotToken(orgId);
     const response = await fetch(url, {
@@ -82,9 +82,7 @@ async function getHubSpotMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
@@ -92,36 +90,30 @@ async function getHubSpotMcpHandler() {
   mcpHandler = createMcpHandler(
     (server) => {
       // ==================== CONNECTION STATUS ====================
-      server.tool(
-        "hubspot_status",
-        "Check HubSpot OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              platform: "hubspot",
-            });
-            const active = connections.find((c) => c.status === "active");
-            if (!active) {
-              const expired = connections.find((c) => c.status === "expired");
-              if (expired) {
-                return jsonResult({
-                  connected: false,
-                  status: "expired",
-                  message:
-                    "HubSpot connection expired. Please reconnect in Settings > Connections.",
-                });
-              }
-              return jsonResult({ connected: false });
+      server.tool("hubspot_status", "Check HubSpot OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            platform: "hubspot",
+          });
+          const active = connections.find((c) => c.status === "active");
+          if (!active) {
+            const expired = connections.find((c) => c.status === "expired");
+            if (expired) {
+              return jsonResult({
+                connected: false,
+                status: "expired",
+                message: "HubSpot connection expired. Please reconnect in Settings > Connections.",
+              });
             }
-            return jsonResult({ connected: true, scopes: active.scopes });
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
+            return jsonResult({ connected: false });
           }
+          return jsonResult({ connected: true, scopes: active.scopes });
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
         }
-      );
+      });
 
       // ==================== CONTACTS ====================
       server.tool(
@@ -141,7 +133,7 @@ async function getHubSpotMcpHandler() {
             if (after) params.set("after", after);
             const res = await hubspotFetch(
               orgId,
-              `https://api.hubapi.com/crm/v3/objects/contacts?${params}`
+              `https://api.hubapi.com/crm/v3/objects/contacts?${params}`,
             );
             const data = await res.json();
             return jsonResult({
@@ -153,7 +145,7 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       server.tool(
@@ -167,14 +159,14 @@ async function getHubSpotMcpHandler() {
             const orgId = getOrgId();
             const res = await hubspotFetch(
               orgId,
-              `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}?properties=firstname,lastname,email,phone,company`
+              `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}?properties=firstname,lastname,email,phone,company`,
             );
             const contact = await res.json();
             return jsonResult({ success: true, contact });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       server.tool(
@@ -201,7 +193,7 @@ async function getHubSpotMcpHandler() {
               {
                 method: "POST",
                 body: JSON.stringify({ properties }),
-              }
+              },
             );
             const contact = await res.json();
             logger.info("[HubSpotMCP] Contact created", {
@@ -211,7 +203,7 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       server.tool(
@@ -230,7 +222,7 @@ async function getHubSpotMcpHandler() {
               {
                 method: "PATCH",
                 body: JSON.stringify({ properties }),
-              }
+              },
             );
             const contact = await res.json();
             logger.info("[HubSpotMCP] Contact updated", { contactId });
@@ -238,7 +230,7 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       server.tool(
@@ -259,15 +251,9 @@ async function getHubSpotMcpHandler() {
                 body: JSON.stringify({
                   query,
                   limit,
-                  properties: [
-                    "firstname",
-                    "lastname",
-                    "email",
-                    "phone",
-                    "company",
-                  ],
+                  properties: ["firstname", "lastname", "email", "phone", "company"],
                 }),
-              }
+              },
             );
             const data = await res.json();
             return jsonResult({
@@ -279,7 +265,7 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       // ==================== COMPANIES ====================
@@ -300,7 +286,7 @@ async function getHubSpotMcpHandler() {
             if (after) params.set("after", after);
             const res = await hubspotFetch(
               orgId,
-              `https://api.hubapi.com/crm/v3/objects/companies?${params}`
+              `https://api.hubapi.com/crm/v3/objects/companies?${params}`,
             );
             const data = await res.json();
             return jsonResult({
@@ -312,7 +298,7 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       server.tool(
@@ -337,7 +323,7 @@ async function getHubSpotMcpHandler() {
               {
                 method: "POST",
                 body: JSON.stringify({ properties }),
-              }
+              },
             );
             const company = await res.json();
             logger.info("[HubSpotMCP] Company created", {
@@ -347,7 +333,7 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       server.tool(
@@ -370,7 +356,7 @@ async function getHubSpotMcpHandler() {
                   limit,
                   properties: ["name", "domain", "industry", "phone"],
                 }),
-              }
+              },
             );
             const data = await res.json();
             return jsonResult({
@@ -382,7 +368,7 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       // ==================== DEALS ====================
@@ -403,7 +389,7 @@ async function getHubSpotMcpHandler() {
             if (after) params.set("after", after);
             const res = await hubspotFetch(
               orgId,
-              `https://api.hubapi.com/crm/v3/objects/deals?${params}`
+              `https://api.hubapi.com/crm/v3/objects/deals?${params}`,
             );
             const data = await res.json();
             return jsonResult({
@@ -415,7 +401,7 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       server.tool(
@@ -425,10 +411,7 @@ async function getHubSpotMcpHandler() {
           dealname: z.string().describe("Deal name"),
           amount: z.number().optional().describe("Deal amount"),
           dealstage: z.string().optional().describe("Deal stage"),
-          closedate: z
-            .string()
-            .optional()
-            .describe("Expected close date (ISO 8601)"),
+          closedate: z.string().optional().describe("Expected close date (ISO 8601)"),
         },
         async ({ dealname, amount, dealstage, closedate }) => {
           try {
@@ -437,21 +420,17 @@ async function getHubSpotMcpHandler() {
             if (amount !== undefined) properties.amount = amount;
             if (dealstage) properties.dealstage = dealstage;
             if (closedate) properties.closedate = closedate;
-            const res = await hubspotFetch(
-              orgId,
-              "https://api.hubapi.com/crm/v3/objects/deals",
-              {
-                method: "POST",
-                body: JSON.stringify({ properties }),
-              }
-            );
+            const res = await hubspotFetch(orgId, "https://api.hubapi.com/crm/v3/objects/deals", {
+              method: "POST",
+              body: JSON.stringify({ properties }),
+            });
             const deal = await res.json();
             logger.info("[HubSpotMCP] Deal created", { dealId: deal.id });
             return jsonResult({ success: true, deal });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       server.tool(
@@ -474,7 +453,7 @@ async function getHubSpotMcpHandler() {
                   limit,
                   properties: ["dealname", "amount", "dealstage", "closedate"],
                 }),
-              }
+              },
             );
             const data = await res.json();
             return jsonResult({
@@ -486,7 +465,7 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
 
       // ==================== OWNERS ====================
@@ -501,7 +480,7 @@ async function getHubSpotMcpHandler() {
             const orgId = getOrgId();
             const res = await hubspotFetch(
               orgId,
-              `https://api.hubapi.com/crm/v3/owners?limit=${limit}`
+              `https://api.hubapi.com/crm/v3/owners?limit=${limit}`,
             );
             const data = await res.json();
             return jsonResult({
@@ -512,11 +491,11 @@ async function getHubSpotMcpHandler() {
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
-        }
+        },
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/hubspot", maxDuration: 60 }
+    { basePath: "/api/mcps/hubspot", maxDuration: 60 },
   );
 
   return mcpHandler;
@@ -526,9 +505,7 @@ async function handleRequest(req: NextRequest): Promise<Response> {
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
     const handler = await getHubSpotMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request)
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {
@@ -560,7 +537,7 @@ async function handleRequest(req: NextRequest): Promise<Response> {
       {
         status: isAuth ? 401 : 500,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   }
 }

@@ -163,7 +163,7 @@ export const oauthConnectAction: ActionWithParams = {
       };
     }
 
-    const text = `Here's your ${platformName} authorization link:\n\n${result.authUrl}\n\nTap the link above to authorize. When you're done, come back here and say "done" — I'll confirm the connection right away.`;
+    const text = `Connect ${platformName} here:\n${result.authUrl}\n\nWhen you've finished authorizing, say "done" and I'll verify the connection.`;
 
     if (callback) await callback({ text, actions: [actionName] });
 
@@ -176,7 +176,7 @@ export const oauthConnectAction: ActionWithParams = {
       {
         name: "{{name2}}",
         content: {
-          text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          text: "Connect Google here:\nhttps://accounts.google.com/...",
           actions: ["OAUTH_CONNECT"],
         },
       },
@@ -186,7 +186,7 @@ export const oauthConnectAction: ActionWithParams = {
       {
         name: "{{name2}}",
         content: {
-          text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          text: "Connect Google here:\nhttps://accounts.google.com/...",
           actions: ["OAUTH_CONNECT"],
         },
       },
@@ -196,7 +196,7 @@ export const oauthConnectAction: ActionWithParams = {
       {
         name: "{{name2}}",
         content: {
-          text: "Here's your HubSpot authorization link:\n\nhttps://app.hubspot.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          text: "Connect HubSpot here:\nhttps://app.hubspot.com/oauth/...",
           actions: ["OAUTH_CONNECT"],
         },
       },
@@ -206,7 +206,7 @@ export const oauthConnectAction: ActionWithParams = {
       {
         name: "{{name2}}",
         content: {
-          text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          text: "Connect Twitter here:\nhttps://api.twitter.com/oauth/...",
           actions: ["OAUTH_CONNECT"],
         },
       },
@@ -216,7 +216,7 @@ export const oauthConnectAction: ActionWithParams = {
       {
         name: "{{name2}}",
         content: {
-          text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".",
+          text: "Connect Twitter here:\nhttps://api.twitter.com/oauth/...",
           actions: ["OAUTH_CONNECT"],
         },
       },
