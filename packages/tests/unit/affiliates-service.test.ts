@@ -20,6 +20,15 @@ mock.module("@/db/repositories/affiliates", () => ({
   },
 }));
 
+mock.module("@/lib/cache/client", () => ({
+  cache: {
+    get: mock(async () => null),
+    set: mock(async () => {}),
+    del: mock(async () => {}),
+    delPattern: mock(async () => {}),
+  },
+}));
+
 mock.module("@/lib/utils/logger", () => ({
   logger: {
     info: mock(),

@@ -7,24 +7,13 @@
  * - Admin-only infrastructure details, SSH access, and Docker logs
  */
 
-import { Badge, BrandCard } from "@elizaos/cloud-ui";
-import {
-  Activity,
-  AlertCircle,
-  ArrowLeft,
-  Clock,
-  Cloud,
-  Cpu,
-  Database,
-  ExternalLink,
-  Network,
-  Server,
-  Terminal,
-} from "lucide-react";
+import { Badge } from "@elizaos/cloud-ui";
+import { AlertCircle, ArrowLeft, Cloud, ExternalLink, Server, Terminal } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthWithOrg } from "@/lib/auth";
+import { statusBadgeColor, statusDotColor } from "@/lib/constants/sandbox-status";
 import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { adminService } from "@/lib/services/admin";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
@@ -48,17 +37,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  running: "bg-green-500",
-  provisioning: "bg-blue-500",
-  pending: "bg-yellow-500",
-  stopped: "bg-gray-500",
-  disconnected: "bg-orange-500",
-  error: "bg-red-500",
-};
+function formatDate(date: Date | string | null): string {
+  if (!date) return "—";
+  const d = new Date(date);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
 
-function getStatusColor(status: string) {
-  return STATUS_COLORS[status] ?? "bg-gray-500";
+function formatTime(date: Date | string | null): string {
+  if (!date) return "";
+  return new Date(date).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatRelativeShort(date: Date | string | null): string {
+  if (!date) return "Never";
+  const d = new Date(date);
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  return formatDate(date);
 }
 
 export default async function MiladyAgentDetailPage({ params }: PageProps) {
@@ -66,7 +65,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   const { id } = await params;
 
   // Milady sandboxes table may not exist in all environments — redirect gracefully
-  let agent;
+  let agent: Awaited<ReturnType<typeof miladySandboxService.getAgent>>;
   try {
     agent = await miladySandboxService.getAgent(id, user.organization_id);
   } catch {
@@ -81,335 +80,185 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
 
   const isDockerBacked = !!agent.node_id;
   const webUiUrl = getPreferredMiladyAgentWebUiUrl(agent);
-
   const sshCommand = agent.headscale_ip ? `ssh root@${agent.headscale_ip}` : null;
 
+  const badgeColor = statusBadgeColor(agent.status);
+  const dotColor = statusDotColor(agent.status);
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* ── Back nav ── */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+      <div className="flex items-center justify-between">
         <Link
           href="/dashboard/containers"
-          className="group flex items-center gap-2 text-sm text-white/70 hover:text-white transition-all duration-200"
-          style={{ fontFamily: "var(--font-roboto-mono)" }}
+          className="group flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors"
         >
-          <div className="flex items-center justify-center w-8 h-8 rounded-none border border-white/10 bg-black/40 group-hover:bg-white/5 group-hover:border-[#FF5800]/50 transition-all duration-200">
-            <ArrowLeft className="h-4 w-4" />
+          <div className="flex items-center justify-center w-7 h-7 border border-white/10 bg-black/40 group-hover:border-[#FF5800]/40 transition-colors">
+            <ArrowLeft className="h-3.5 w-3.5" />
           </div>
-          <span className="font-medium">Back to Containers</span>
+          <span>Containers</span>
         </Link>
 
         {webUiUrl && agent.status === "running" && <MiladyConnectButton agentId={agent.id} />}
       </div>
 
-      {/* ── Header card ── */}
-      <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="sm">
-        <div className="relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-14 h-14 rounded-none border border-[#FF5800]/30 bg-[#FF5800]/10">
-              {isDockerBacked ? (
-                <Server className="h-7 w-7 text-[#FF5800]" />
-              ) : (
-                <Cloud className="h-7 w-7 text-[#FF5800]" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h1
-                  className="text-3xl font-normal tracking-tight text-white truncate"
-                  style={{ fontFamily: "var(--font-roboto-mono)" }}
-                >
-                  {agent.agent_name ?? "Unnamed Agent"}
-                </h1>
-                {isDockerBacked ? (
-                  <Badge
-                    variant="outline"
-                    className="border-blue-500/40 text-blue-400 bg-blue-500/10 text-xs flex items-center gap-1"
-                  >
-                    <Server className="h-3 w-3" />
-                    Docker
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className="border-purple-500/40 text-purple-400 bg-purple-500/10 text-xs flex items-center gap-1"
-                  >
-                    <Cloud className="h-3 w-3" />
-                    Sandbox
-                  </Badge>
-                )}
-              </div>
-              <p
-                className="text-sm text-white/50 font-mono"
+      {/* ── Agent header ── */}
+      <div className="space-y-4">
+        <div className="flex items-start gap-4">
+          <div className="flex items-center justify-center w-12 h-12 border border-[#FF5800]/25 bg-[#FF5800]/10 shrink-0">
+            {isDockerBacked ? (
+              <Server className="h-6 w-6 text-[#FF5800]" />
+            ) : (
+              <Cloud className="h-6 w-6 text-[#FF5800]" />
+            )}
+          </div>
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1
+                className="text-2xl font-semibold text-white truncate"
                 style={{ fontFamily: "var(--font-roboto-mono)" }}
               >
-                {agent.id}
-              </p>
-            </div>
-          </div>
-        </div>
-      </BrandCard>
-
-      {/* ── Stats grid ── */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Status */}
-        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 rounded-none bg-blue-500/10 border border-blue-500/20">
-                <Activity className="h-5 w-5 text-blue-500" />
-              </div>
-              <Badge className={`${getStatusColor(agent.status)} text-white rounded-none`}>
+                {agent.agent_name ?? "Unnamed Agent"}
+              </h1>
+              <Badge variant="outline" className={`${badgeColor} text-xs font-medium px-2 py-0.5`}>
+                <span className={`inline-block size-1.5 rounded-full mr-1.5 ${dotColor}`} />
                 {agent.status}
               </Badge>
             </div>
-            <p
-              className="text-sm font-medium text-white/60 uppercase tracking-wider"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Status
-            </p>
-            <p
-              className="text-2xl font-medium mt-1 capitalize text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              {agent.status}
-            </p>
-          </div>
-        </BrandCard>
-
-        {/* Database */}
-        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 rounded-none bg-purple-500/10 border border-purple-500/20">
-                <Database className="h-5 w-5 text-purple-500" />
-              </div>
-              <Badge
-                className={`${agent.database_status === "ready" ? "bg-green-500" : agent.database_status === "provisioning" ? "bg-yellow-500" : "bg-gray-500"} text-white rounded-none text-xs`}
-              >
-                {agent.database_status}
-              </Badge>
+            <div className="flex items-center gap-3 text-xs text-white/35">
+              <span className="font-mono tabular-nums">{agent.id}</span>
+              <span className="inline-flex items-center gap-1">
+                {isDockerBacked ? <Server className="h-3 w-3" /> : <Cloud className="h-3 w-3" />}
+                {isDockerBacked ? "Docker" : "Sandbox"}
+              </span>
             </div>
-            <p
-              className="text-sm font-medium text-white/60 uppercase tracking-wider"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Database
-            </p>
-            <p
-              className="text-lg font-medium mt-1 text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              {agent.database_status === "ready"
-                ? "Connected"
-                : agent.database_status === "provisioning"
-                  ? "Setting up"
-                  : agent.database_status === "none"
-                    ? "Not configured"
-                    : "Error"}
-            </p>
           </div>
-        </BrandCard>
+        </div>
+      </div>
 
-        {/* Created */}
-        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 rounded-none bg-amber-500/10 border border-amber-500/20">
-                <Clock className="h-5 w-5 text-amber-500" />
-              </div>
-            </div>
-            <p
-              className="text-sm font-medium text-white/60 uppercase tracking-wider"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Created
+      {/* ── Key info strip ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 border border-white/10">
+        <div className="bg-black/60 p-4 space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Status</p>
+          <p
+            className="text-lg font-medium text-white capitalize tabular-nums"
+            style={{ fontFamily: "var(--font-roboto-mono)" }}
+          >
+            {agent.status}
+          </p>
+        </div>
+        <div className="bg-black/60 p-4 space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Database</p>
+          <p
+            className="text-lg font-medium text-white tabular-nums"
+            style={{ fontFamily: "var(--font-roboto-mono)" }}
+          >
+            {agent.database_status === "ready"
+              ? "Connected"
+              : agent.database_status === "provisioning"
+                ? "Setting up"
+                : agent.database_status === "none"
+                  ? "None"
+                  : "Error"}
+          </p>
+        </div>
+        <div className="bg-black/60 p-4 space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Created</p>
+          <p
+            className="text-lg font-medium text-white tabular-nums"
+            style={{ fontFamily: "var(--font-roboto-mono)" }}
+          >
+            {formatDate(agent.created_at)}
+          </p>
+          <p className="text-[10px] text-white/30 tabular-nums">{formatTime(agent.created_at)}</p>
+        </div>
+        <div className="bg-black/60 p-4 space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Last Heartbeat</p>
+          <p
+            className="text-lg font-medium text-white tabular-nums"
+            style={{ fontFamily: "var(--font-roboto-mono)" }}
+          >
+            {formatRelativeShort(agent.last_heartbeat_at)}
+          </p>
+          {agent.last_heartbeat_at && (
+            <p className="text-[10px] text-white/30 tabular-nums">
+              {formatDate(agent.last_heartbeat_at)}
             </p>
-            <p
-              className="text-lg font-medium mt-1 text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              {new Date(agent.created_at).toLocaleDateString()}
-            </p>
-            <p className="text-xs text-white/50 mt-1">
-              {new Date(agent.created_at).toLocaleTimeString()}
-            </p>
-          </div>
-        </BrandCard>
-
-        {/* Last Heartbeat */}
-        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 rounded-none bg-emerald-500/10 border border-emerald-500/20">
-                <Cpu className="h-5 w-5 text-emerald-500" />
-              </div>
-            </div>
-            <p
-              className="text-sm font-medium text-white/60 uppercase tracking-wider"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Last Heartbeat
-            </p>
-            <p
-              className="text-lg font-medium mt-1 text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              {agent.last_heartbeat_at
-                ? new Date(agent.last_heartbeat_at).toLocaleTimeString()
-                : "Never"}
-            </p>
-            {agent.last_heartbeat_at && (
-              <p className="text-xs text-white/50 mt-1">
-                {new Date(agent.last_heartbeat_at).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-        </BrandCard>
+          )}
+        </div>
       </div>
 
       {/* ── Error message ── */}
       {agent.error_message && (
-        <div className="p-4 bg-red-950/30 border border-red-500/30 rounded-none">
-          <div className="flex items-start gap-3">
-            <div className="p-1 bg-red-500/10 rounded-none border border-red-500/20">
-              <AlertCircle className="h-5 w-5 text-red-500" />
-            </div>
-            <div className="flex-1">
-              <p
-                className="font-medium text-red-400 mb-1"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                Error ({agent.error_count} occurrence
-                {agent.error_count !== 1 ? "s" : ""})
-              </p>
-              <p className="text-sm text-red-400/80">{agent.error_message}</p>
-            </div>
+        <div className="flex items-start gap-3 p-4 bg-red-950/20 border border-red-500/20">
+          <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-sm font-medium text-red-400">
+              Error ({agent.error_count} occurrence{agent.error_count !== 1 ? "s" : ""})
+            </p>
+            <p className="text-sm text-red-400/70">{agent.error_message}</p>
           </div>
         </div>
       )}
 
-      {/* ── Docker infrastructure ── */}
+      {/* ── Docker infrastructure (admin) ── */}
       {isAdmin && isDockerBacked && (
-        <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-center gap-2 pb-4 border-b border-white/10">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
-              <h2
-                className="text-xl font-normal text-white"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                Docker Infrastructure
-              </h2>
-            </div>
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-block size-2 bg-[#FF5800]" />
+            <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
+              Infrastructure
+            </p>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Node */}
-              <InfoBlock
-                icon={<Server className="h-5 w-5 text-blue-400" />}
-                label="Node"
-                value={agent.node_id ?? "—"}
-                mono
-              />
-
-              {/* Container Name */}
-              <InfoBlock
-                icon={<Terminal className="h-5 w-5 text-white/60" />}
-                label="Container Name"
-                value={agent.container_name ?? "—"}
-                mono
-              />
-
-              {/* Docker Image */}
-              <InfoBlock
-                icon={<Cpu className="h-5 w-5 text-purple-400" />}
-                label="Docker Image"
-                value={agent.docker_image ?? "—"}
-                mono
-              />
-
-              {/* VPN IP */}
-              {agent.headscale_ip && (
-                <InfoBlock
-                  icon={<Network className="h-5 w-5 text-green-400" />}
-                  label="VPN IP (Headscale)"
-                  value={agent.headscale_ip}
-                  mono
-                  highlight="green"
-                />
-              )}
-
-              {/* Bridge Port */}
-              {agent.bridge_port && (
-                <InfoBlock
-                  icon={<Activity className="h-5 w-5 text-yellow-400" />}
-                  label="Bridge Port"
-                  value={String(agent.bridge_port)}
-                  mono
-                />
-              )}
-
-              {/* Web UI Port */}
-              {agent.web_ui_port && (
-                <InfoBlock
-                  icon={<ExternalLink className="h-5 w-5 text-[#FF5800]" />}
-                  label="Web UI Port"
-                  value={String(agent.web_ui_port)}
-                  mono
-                />
-              )}
-            </div>
-
-            {/* Connect URL */}
-            {webUiUrl && (
-              <div className="flex items-start gap-3 pt-2 border-t border-white/10">
-                <p
-                  className="text-sm font-medium text-white/60 min-w-[140px] uppercase tracking-wider pt-1"
-                  style={{ fontFamily: "var(--font-roboto-mono)" }}
-                >
-                  Web UI URL
-                </p>
-                <span
-                  className="text-sm text-white/50 flex items-center gap-1 break-all"
-                  style={{ fontFamily: "var(--font-roboto-mono)" }}
-                >
-                  {webUiUrl}
-                </span>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 border border-white/10">
+            <InfoCell label="Node" value={agent.node_id ?? "—"} mono />
+            <InfoCell label="Container" value={agent.container_name ?? "—"} mono />
+            <InfoCell label="Docker Image" value={agent.docker_image ?? "—"} mono />
+            {agent.headscale_ip && (
+              <InfoCell label="VPN IP" value={agent.headscale_ip} mono accent="emerald" />
+            )}
+            {agent.bridge_port && (
+              <InfoCell label="Bridge Port" value={String(agent.bridge_port)} mono />
+            )}
+            {agent.web_ui_port && (
+              <InfoCell label="Web UI Port" value={String(agent.web_ui_port)} mono />
             )}
           </div>
-        </BrandCard>
+
+          {webUiUrl && (
+            <div className="border border-white/10 bg-black/40 px-4 py-3 flex items-center gap-3 text-sm">
+              <span className="text-[11px] uppercase tracking-widest text-white/35 shrink-0">
+                Web UI
+              </span>
+              <span className="text-white/50 font-mono text-xs break-all">{webUiUrl}</span>
+            </div>
+          )}
+        </section>
       )}
 
-      {/* ── SSH connection info ── */}
+      {/* ── SSH access (admin) ── */}
       {isAdmin && sshCommand && (
-        <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
-          <div className="relative z-10 space-y-4">
-            <div className="flex items-center gap-2 pb-4 border-b border-white/10">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
-              <h2
-                className="text-xl font-normal text-white"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                SSH Access
-              </h2>
-            </div>
-            <p className="text-sm text-white/60">
-              Connect to this container via the Headscale VPN:
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-block size-2 bg-[#FF5800]" />
+            <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
+              SSH Access
             </p>
-            <div className="flex items-center gap-3 p-4 rounded-none border border-white/10 bg-black/60">
-              <Terminal className="h-4 w-4 text-green-400 shrink-0" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 px-4 py-3 border border-white/10 bg-black/60">
+              <Terminal className="h-4 w-4 text-emerald-400 shrink-0" />
               <code
-                className="text-sm text-green-400 font-mono flex-1"
+                className="text-sm text-emerald-400 font-mono flex-1"
                 style={{ fontFamily: "var(--font-roboto-mono)" }}
               >
                 {sshCommand}
               </code>
             </div>
             {agent.bridge_port && (
-              <div className="flex items-center gap-3 p-4 rounded-none border border-white/10 bg-black/60">
+              <div className="flex items-center gap-3 px-4 py-3 border border-white/10 bg-black/60">
                 <Terminal className="h-4 w-4 text-blue-400 shrink-0" />
                 <code
                   className="text-sm text-blue-400 font-mono flex-1"
@@ -420,42 +269,34 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
               </div>
             )}
           </div>
-        </BrandCard>
+        </section>
       )}
 
-      {/* ── Vercel sandbox info ── */}
+      {/* ── Vercel sandbox info (admin) ── */}
       {isAdmin && !isDockerBacked && agent.bridge_url && (
-        <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
-          <div className="relative z-10 space-y-4">
-            <div className="flex items-center gap-2 pb-4 border-b border-white/10">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#FF5800]" />
-              <h2
-                className="text-xl font-normal text-white"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                Sandbox Connection
-              </h2>
-            </div>
-            <div className="flex items-start gap-3">
-              <p
-                className="text-sm font-medium text-white/60 min-w-[140px] uppercase tracking-wider"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                Bridge URL
-              </p>
-              <a
-                href={agent.bridge_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-[#FF5800] hover:text-[#FF5800]/80 flex items-center gap-1 transition-colors"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                {agent.bridge_url}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-block size-2 bg-[#FF5800]" />
+            <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
+              Sandbox Connection
+            </p>
           </div>
-        </BrandCard>
+
+          <div className="border border-white/10 bg-black/40 px-4 py-3 flex items-start gap-3">
+            <span className="text-[11px] uppercase tracking-widest text-white/35 shrink-0 pt-0.5">
+              Bridge URL
+            </span>
+            <a
+              href={agent.bridge_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-[#FF5800] hover:text-[#FF5800]/70 flex items-center gap-1 transition-colors font-mono break-all"
+            >
+              {agent.bridge_url}
+              <ExternalLink className="h-3 w-3 shrink-0" />
+            </a>
+          </div>
+        </section>
       )}
 
       {/* ── Actions card ── */}
@@ -492,45 +333,35 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
 // Sub-components
 // ----------------------------------------------------------------
 
-function InfoBlock({
-  icon,
+function InfoCell({
   label,
   value,
   mono = false,
-  highlight,
+  accent,
 }: {
-  icon: React.ReactNode;
   label: string;
   value: string;
   mono?: boolean;
-  highlight?: "green" | "blue" | "orange";
+  accent?: "emerald" | "blue" | "orange";
 }) {
   const valueColor =
-    highlight === "green"
-      ? "text-green-400"
-      : highlight === "blue"
+    accent === "emerald"
+      ? "text-emerald-400"
+      : accent === "blue"
         ? "text-blue-400"
-        : highlight === "orange"
+        : accent === "orange"
           ? "text-orange-400"
-          : "text-white";
+          : "text-white/80";
 
   return (
-    <div className="flex items-start gap-3 p-4 rounded-none border border-white/10 bg-black/20">
-      <div className="mt-0.5 shrink-0">{icon}</div>
-      <div className="min-w-0">
-        <p
-          className="text-sm text-white/60 uppercase tracking-wider mb-1"
-          style={{ fontFamily: "var(--font-roboto-mono)" }}
-        >
-          {label}
-        </p>
-        <p
-          className={`text-sm font-medium ${valueColor} break-all ${mono ? "font-mono" : ""}`}
-          style={mono ? { fontFamily: "var(--font-roboto-mono)" } : undefined}
-        >
-          {value}
-        </p>
-      </div>
+    <div className="bg-black/60 p-4 space-y-1 min-w-0">
+      <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">{label}</p>
+      <p
+        className={`text-sm font-medium ${valueColor} break-all ${mono ? "font-mono" : ""}`}
+        style={mono ? { fontFamily: "var(--font-roboto-mono)" } : undefined}
+      >
+        {value}
+      </p>
     </div>
   );
 }

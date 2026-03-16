@@ -1,20 +1,12 @@
-import {
-  BrandCard,
-  ContainersEmptyState,
-  ContainersSkeleton,
-  DashboardStatCard,
-} from "@elizaos/cloud-ui";
-import { Activity, AlertCircle, Box, Server, TrendingUp } from "lucide-react";
+import { ContainersEmptyState, ContainersSkeleton, DashboardStatCard } from "@elizaos/cloud-ui";
+import { Activity, AlertCircle, Server, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 import { listContainers } from "@/lib/services/containers";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { ContainersPageWrapper } from "@/packages/ui/src/components/containers/containers-page-wrapper";
 import { ContainersTable } from "@/packages/ui/src/components/containers/containers-table";
 import { DeployFromCLI } from "@/packages/ui/src/components/containers/deploy-from-cli";
-import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/milady-sandboxes-table";
 
 export const metadata: Metadata = {
   title: "Containers",
@@ -32,21 +24,6 @@ export default async function ContainersPage() {
   const user = await requireAuthWithOrg();
   const containers = await listContainers(user.organization_id);
 
-  // Milady sandboxes table may not exist in all environments — degrade gracefully
-  let sandboxes: Awaited<ReturnType<typeof miladySandboxService.listAgents>> = [];
-  try {
-    sandboxes = await miladySandboxService.listAgents(user.organization_id);
-  } catch {
-    // Table likely missing — show empty list
-  }
-
-  // Read base domain once rather than per-sandbox in the map
-  const baseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
-  const miladySandboxes = sandboxes.map((sandbox) => ({
-    ...sandbox,
-    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, { baseDomain }),
-  }));
-
   const stats = {
     total: containers.length,
     running: containers.filter((c) => c.status === "running").length,
@@ -59,7 +36,7 @@ export default async function ContainersPage() {
 
   return (
     <ContainersPageWrapper>
-      <div className="mx-auto w-full max-w-[1400px] space-y-6">
+      <div className="mx-auto w-full max-w-[1400px] space-y-8">
         {/* Stats Grid - only show when containers exist */}
         {containers.length > 0 && (
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
@@ -73,19 +50,19 @@ export default async function ContainersPage() {
               label="Running"
               value={stats.running}
               accent="emerald"
-              icon={<Activity className="h-5 w-5 text-green-500" />}
+              icon={<Activity className="h-5 w-5 text-emerald-400" />}
             />
             <DashboardStatCard
               label="Building"
               value={stats.building}
               accent="amber"
-              icon={<TrendingUp className="h-5 w-5 text-yellow-500" />}
+              icon={<TrendingUp className="h-5 w-5 text-amber-400" />}
             />
             <DashboardStatCard
               label="Issues"
               value={stats.failed}
               accent="red"
-              icon={<AlertCircle className="h-5 w-5 text-red-500" />}
+              icon={<AlertCircle className="h-5 w-5 text-red-400" />}
             />
           </div>
         )}
@@ -94,29 +71,13 @@ export default async function ContainersPage() {
         {containers.length === 0 ? (
           <ContainersEmptyState />
         ) : (
-          <>
-            {/* Deploy from CLI helper */}
+          <div className="space-y-4">
             <DeployFromCLI />
-
-            {/* Table */}
-            <BrandCard corners={false} className="p-4 md:p-6">
-              <Suspense fallback={<ContainersSkeleton />}>
-                <ContainersTable containers={containers} />
-              </Suspense>
-            </BrandCard>
-          </>
-        )}
-
-        {/* Milady Sandboxes (Docker-provisioned agents) */}
-        <BrandCard corners={false} className="p-4 md:p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Box className="h-5 w-5 text-[#FF5800]" />
-            <h2 className="text-lg font-semibold">Milady Sandboxes</h2>
+            <Suspense fallback={<ContainersSkeleton />}>
+              <ContainersTable containers={containers} />
+            </Suspense>
           </div>
-          <Suspense fallback={<ContainersSkeleton />}>
-            <MiladySandboxesTable sandboxes={miladySandboxes} />
-          </Suspense>
-        </BrandCard>
+        )}
       </div>
     </ContainersPageWrapper>
   );

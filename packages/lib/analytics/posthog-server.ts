@@ -7,7 +7,7 @@
 
 import { PostHog } from "posthog-node";
 import { logger } from "@/lib/utils/logger";
-import type { EventProperties, PostHogEvent } from "./posthog";
+import type { AdHocEventProperties, EventProperties, PostHogEvent } from "./posthog";
 
 let posthogClient: PostHog | null = null;
 
@@ -47,6 +47,29 @@ export function trackServerEvent(
     });
   } catch (error) {
     logger.error("[PostHog] Failed to track event", { error });
+  }
+}
+
+export function trackCustomServerEvent(
+  distinctId: string,
+  event: string,
+  properties?: AdHocEventProperties,
+): void {
+  const client = getPostHogClient();
+  if (!client) return;
+
+  try {
+    client.capture({
+      distinctId,
+      event,
+      properties: {
+        ...properties,
+        $lib: "posthog-node",
+        source: "server",
+      },
+    });
+  } catch (error) {
+    logger.error("[PostHog] Failed to track ad-hoc event", { error });
   }
 }
 

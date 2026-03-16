@@ -552,9 +552,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                     <HelpCircle className="w-4 h-4 text-white/60 cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="text-xs">
-                      Select which Eliza Cloud features this app can access
-                    </p>
+                    <p className="text-xs">Select which Eliza Cloud features this app can access</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

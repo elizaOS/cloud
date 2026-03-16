@@ -5,13 +5,7 @@
  * Supports key rotation by allowing multiple active keys identified by "kid".
  */
 
-import {
-  exportJWK,
-  importPKCS8,
-  importSPKI,
-  type CryptoKey as JoseCryptoKey,
-  type JWK,
-} from "jose";
+import { exportJWK, importPKCS8, importSPKI, type KeyLike as JoseCryptoKey, type JWK } from "jose";
 
 /**
  * Environment variables for JWT signing keys.
@@ -84,7 +78,7 @@ export async function getPublicKey(): Promise<JoseCryptoKey> {
   }
 
   const pem = decodePemKey(JWT_SIGNING_PUBLIC_KEY, "PUBLIC");
-  cachedPublicKey = await importSPKI(pem, ALGORITHM);
+  cachedPublicKey = await importSPKI(pem, ALGORITHM, { extractable: true });
   return cachedPublicKey;
 }
 

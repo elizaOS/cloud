@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { requireAdmin } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 
@@ -26,35 +27,43 @@ const HEADSCALE_USER = process.env.HEADSCALE_USER || "milady";
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const { role } = await requireAdmin(request);
-  if (role !== "super_admin") {
-    return NextResponse.json(
-      { success: false, error: "Super admin access required" },
-      { status: 403 },
-    );
-  }
-
-  if (!HEADSCALE_API_KEY) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Headscale not configured: HEADSCALE_API_KEY environment variable is missing",
-      },
-      { status: 503 },
-    );
-  }
-
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${HEADSCALE_API_KEY}`,
-    Accept: "application/json",
-  };
-
   try {
-    // Fetch VPN nodes (machines) from headscale
-    const nodesResponse = await fetch(`${HEADSCALE_API_URL}/api/v1/machine`, {
+    const { role } = await requireAdmin(request);
+    if (role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "Super admin access required" },
+        { status: 403 },
+      );
+    }
+
+    if (!HEADSCALE_API_KEY) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Headscale not configured: HEADSCALE_API_KEY environment variable is missing",
+        },
+        { status: 503 },
+      );
+    }
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${HEADSCALE_API_KEY}`,
+      Accept: "application/json",
+    };
+
+    // Fetch VPN nodes from headscale — try /api/v1/node first (v0.23+), fall back to /api/v1/machine (legacy)
+    let nodesResponse = await fetch(`${HEADSCALE_API_URL}/api/v1/node`, {
       headers,
       signal: AbortSignal.timeout(10_000),
     });
+
+    // Fall back to legacy /api/v1/machine endpoint for older headscale versions
+    if (!nodesResponse.ok && nodesResponse.status === 404) {
+      nodesResponse = await fetch(`${HEADSCALE_API_URL}/api/v1/machine`, {
+        headers,
+        signal: AbortSignal.timeout(10_000),
+      });
+    }
 
     if (!nodesResponse.ok) {
       const errText = await nodesResponse.text().catch(() => "");
@@ -72,6 +81,20 @@ export async function GET(request: NextRequest) {
     }
 
     const nodesData = (await nodesResponse.json()) as {
+      nodes?: Array<{
+        id: string;
+        machineKey?: string;
+        nodeKey?: string;
+        name: string;
+        givenName: string;
+        user: { id: string; name: string };
+        ipAddresses: string[];
+        online: boolean;
+        lastSeen: string;
+        expiry: string;
+        createdAt: string;
+        forcedTags?: string[];
+      }>;
       machines?: Array<{
         id: string;
         machineKey: string;
@@ -88,7 +111,8 @@ export async function GET(request: NextRequest) {
       }>;
     };
 
-    const machines = nodesData.machines || [];
+    // Support both v0.23+ (nodes) and legacy (machines) response shapes
+    const machines = nodesData.nodes || nodesData.machines || [];
 
     // Optionally filter to the configured user
     const filteredMachines = HEADSCALE_USER
@@ -128,6 +152,16 @@ export async function GET(request: NextRequest) {
     logger.error("[Admin Headscale] Failed to fetch status", {
       error: error instanceof Error ? error.message : String(error),
     });
+
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 },
+      );
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
 
     // Distinguish network errors from other failures
     if (error instanceof TypeError && error.message.includes("fetch")) {

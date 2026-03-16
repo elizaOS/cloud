@@ -4,6 +4,7 @@
 
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import type {
   AutoTopUpDisabledEmailData,
   AutoTopUpSuccessEmailData,
@@ -21,7 +22,10 @@ import type {
  * @returns Template content as string.
  */
 function loadTemplate(filename: string): string {
-  const templatePath = path.join(process.cwd(), "lib", "email", "templates", filename);
+  // Use path relative to this file (utils/ → ../templates/) for reliable resolution
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const templatePath = path.resolve(__dirname, "..", "templates", filename);
   return fs.readFileSync(templatePath, "utf-8");
 }
 

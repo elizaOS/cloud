@@ -66,7 +66,7 @@ class ElizaAppSessionService {
     const token = await new SignJWT(payload)
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt(now)
-      .setExpirationTime(expiresAt)
+      .setExpirationTime(Math.floor(expiresAt.getTime() / 1000))
       .setIssuer(JWT_ISSUER)
       .setAudience(JWT_AUDIENCE)
       .setSubject(userId)
@@ -83,23 +83,25 @@ class ElizaAppSessionService {
 
   async validateSession(token: string): Promise<ValidatedSession | null> {
     try {
-      const { payload } = await jwtVerify<ElizaAppSessionPayload>(token, this.getSecretKey(), {
+      const { payload } = await jwtVerify(token, this.getSecretKey(), {
         issuer: JWT_ISSUER,
         audience: JWT_AUDIENCE,
       });
 
-      if (!payload.userId || !payload.organizationId) {
+      const sessionPayload = payload as unknown as ElizaAppSessionPayload;
+
+      if (!sessionPayload.userId || !sessionPayload.organizationId) {
         logger.warn("[ElizaAppSession] Token missing required fields");
         return null;
       }
 
       return {
-        userId: payload.userId,
-        organizationId: payload.organizationId,
-        telegramId: payload.telegramId,
-        discordId: payload.discordId,
-        whatsappId: payload.whatsappId,
-        phoneNumber: payload.phoneNumber,
+        userId: sessionPayload.userId,
+        organizationId: sessionPayload.organizationId,
+        telegramId: sessionPayload.telegramId,
+        discordId: sessionPayload.discordId,
+        whatsappId: sessionPayload.whatsappId,
+        phoneNumber: sessionPayload.phoneNumber,
       };
     } catch (error) {
       logger.debug("[ElizaAppSession] Token validation failed", { error });

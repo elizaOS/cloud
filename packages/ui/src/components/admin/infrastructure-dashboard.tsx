@@ -80,7 +80,7 @@ interface DockerNode {
 
 interface DockerContainer {
   id: string;
-  sandboxId: string;
+  sandboxId: string | null;
   organizationId: string | null;
   userId: string | null;
   agentName: string | null;
@@ -114,7 +114,7 @@ interface VpnNode {
 }
 
 interface HeadscaleData {
-  serverUrl: string;
+  serverConfigured?: boolean;
   user: string;
   vpnNodes: VpnNode[];
   summary: { total: number; online: number; offline: number };
@@ -290,7 +290,7 @@ export function InfrastructureDashboard() {
       const res = await fetch("/api/v1/admin/docker-nodes");
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setNodes(json.data.nodes);
+      setNodes(json.data?.nodes ?? []);
     } catch (err) {
       toast.error(`Failed to load nodes: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -307,7 +307,19 @@ export function InfrastructureDashboard() {
       const res = await fetch(`/api/v1/admin/docker-containers?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setContainers(json.data.containers);
+      // Sanitize: ensure all values are primitives (Drizzle can return Date objects)
+      const raw: DockerContainer[] = json.data?.containers ?? [];
+      setContainers(
+        raw.map((c) => ({
+          ...c,
+          sandboxId: c.sandboxId != null ? String(c.sandboxId) : null,
+          createdAt: c.createdAt != null ? String(c.createdAt) : new Date().toISOString(),
+          updatedAt: c.updatedAt != null ? String(c.updatedAt) : new Date().toISOString(),
+          lastHeartbeatAt: c.lastHeartbeatAt != null ? String(c.lastHeartbeatAt) : null,
+          errorMessage: c.errorMessage != null ? String(c.errorMessage) : null,
+          errorCount: typeof c.errorCount === "number" ? c.errorCount : 0,
+        })),
+      );
     } catch (err) {
       toast.error(`Failed to load containers: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -879,7 +891,7 @@ export function InfrastructureDashboard() {
                         <TableCell className="text-sm">
                           {c.agentName ?? (
                             <span className="text-muted-foreground text-xs">
-                              {c.sandboxId.slice(0, 8)}…
+                              {(c.sandboxId ?? c.id ?? "unknown").slice(0, 8)}…
                             </span>
                           )}
                         </TableCell>
@@ -966,7 +978,7 @@ export function InfrastructureDashboard() {
                         Headscale server online
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {headscale.serverUrl} · User: {headscale.user} · Queried{" "}
+                        Connected · User: {headscale.user} · Queried{" "}
                         {formatRelativeTime(headscale.queriedAt)}
                       </p>
                     </div>

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import {
   stripReservedMiladyConfigKeys,
   withReusedMiladyCharacterOwnership,
 } from "@/lib/services/milady-agent-config";
+import { checkMiladyCreditGate } from "@/lib/services/milady-billing-gate";
 import { prepareManagedMiladyEnvironment } from "@/lib/services/milady-managed-launch";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
@@ -80,6 +82,25 @@ export async function POST(request: NextRequest) {
         details: parsed.error.issues,
       },
       { status: 400 },
+    );
+  }
+
+  // ── Credit gate: require minimum deposit before creating an agent ──
+  const creditCheck = await checkMiladyCreditGate(user.organization_id);
+  if (!creditCheck.allowed) {
+    logger.warn("[milady-api] Agent creation blocked: insufficient credits", {
+      orgId: user.organization_id,
+      balance: creditCheck.balance,
+      required: MILADY_PRICING.MINIMUM_DEPOSIT,
+    });
+    return NextResponse.json(
+      {
+        success: false,
+        error: creditCheck.error,
+        requiredBalance: MILADY_PRICING.MINIMUM_DEPOSIT,
+        currentBalance: creditCheck.balance,
+      },
+      { status: 402 },
     );
   }
 

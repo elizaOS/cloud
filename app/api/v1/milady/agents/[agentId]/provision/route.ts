@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
+import { checkMiladyCreditGate } from "@/lib/services/milady-billing-gate";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { logger } from "@/lib/utils/logger";
@@ -80,6 +82,26 @@ export async function POST(
         healthUrl: existing.health_url,
       },
     });
+  }
+
+  // ── Credit gate: require minimum deposit before provisioning ──────
+  const creditCheck = await checkMiladyCreditGate(user.organization_id);
+  if (!creditCheck.allowed) {
+    logger.warn("[milady-api] Provision blocked: insufficient credits", {
+      agentId,
+      orgId: user.organization_id,
+      balance: creditCheck.balance,
+      required: MILADY_PRICING.MINIMUM_DEPOSIT,
+    });
+    return NextResponse.json(
+      {
+        success: false,
+        error: creditCheck.error,
+        requiredBalance: MILADY_PRICING.MINIMUM_DEPOSIT,
+        currentBalance: creditCheck.balance,
+      },
+      { status: 402 },
+    );
   }
 
   // ── Sync fallback (legacy) ────────────────────────────────────────
