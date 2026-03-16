@@ -9,7 +9,7 @@ import {
   exportJWK,
   importPKCS8,
   importSPKI,
-  type CryptoKey as JoseCryptoKey,
+  type KeyLike as JoseCryptoKey,
   type JWK,
 } from "jose";
 
