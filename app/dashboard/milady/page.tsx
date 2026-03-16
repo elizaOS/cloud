@@ -16,7 +16,14 @@ export const dynamic = "force-dynamic";
 
 export default async function MiladyDashboardPage() {
   const user = await requireAuthWithOrg();
-  const sandboxes = await miladySandboxService.listAgents(user.organization_id);
+
+  // Milady sandboxes table may not exist in all environments — degrade gracefully
+  let sandboxes: Awaited<ReturnType<typeof miladySandboxService.listAgents>> = [];
+  try {
+    sandboxes = await miladySandboxService.listAgents(user.organization_id);
+  } catch {
+    // Table likely missing — show empty list
+  }
 
   // Compute canonical Web UI URLs server-side so the client table can link them
   const baseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;

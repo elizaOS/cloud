@@ -296,7 +296,9 @@ export function CreateMiladySandboxDialog({
     // Delay reset so the closing animation finishes
     setTimeout(resetForm, 300);
     // Single refresh path: notify parent (which handles its own data fetch)
-    void onCreated?.();
+    onCreated?.()?.catch(() => {
+      // Best-effort refresh — parent will retry on next poll cycle
+    });
   }
 
   async function handleCreate() {
