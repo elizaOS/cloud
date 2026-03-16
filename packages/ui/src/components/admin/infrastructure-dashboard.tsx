@@ -308,7 +308,19 @@ export function InfrastructureDashboard() {
       const res = await fetch(`/api/v1/admin/docker-containers?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setContainers(json.data?.containers ?? []);
+      // Sanitize: ensure all values are primitives (Drizzle can return Date objects)
+      const raw: DockerContainer[] = json.data?.containers ?? [];
+      setContainers(
+        raw.map((c) => ({
+          ...c,
+          sandboxId: c.sandboxId != null ? String(c.sandboxId) : null,
+          createdAt: c.createdAt != null ? String(c.createdAt) : new Date().toISOString(),
+          updatedAt: c.updatedAt != null ? String(c.updatedAt) : new Date().toISOString(),
+          lastHeartbeatAt: c.lastHeartbeatAt != null ? String(c.lastHeartbeatAt) : null,
+          errorMessage: c.errorMessage != null ? String(c.errorMessage) : null,
+          errorCount: typeof c.errorCount === "number" ? c.errorCount : 0,
+        })),
+      );
     } catch (err) {
       toast.error(`Failed to load containers: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
