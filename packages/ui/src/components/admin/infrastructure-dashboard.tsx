@@ -80,7 +80,7 @@ interface DockerNode {
 
 interface DockerContainer {
   id: string;
-  sandboxId: string;
+  sandboxId: string | null;
   organizationId: string | null;
   userId: string | null;
   agentName: string | null;
