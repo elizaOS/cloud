@@ -18,6 +18,43 @@ const _NODE_INSPECTION_TIMEOUT_MS = 25_000;
 const _MAX_CONCURRENT_SSH_SESSIONS = 5;
 const _SNAPSHOT_CACHE_TTL_MS = 30_000;
 
+/** Simple concurrency limiter — runs at most `limit` tasks in parallel. */
+async function pLimit<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
+  const results: T[] = new Array(tasks.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < tasks.length) {
+      const i = nextIndex++;
+      results[i] = await tasks[i]();
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+/** Wraps a promise with a timeout — rejects with an error if the deadline expires. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+/** Simple in-memory cache for the infrastructure snapshot. */
+let snapshotCache: { data: AdminInfrastructureSnapshot; expiresAt: number } | null = null;
+
 type IncidentSeverity = "critical" | "warning" | "info";
 type IncidentScope = "cluster" | "node" | "container";
 
@@ -504,6 +541,10 @@ function buildNodeAlerts(params: {
 }
 
 export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastructureSnapshot> {
+  if (snapshotCache && Date.now() < snapshotCache.expiresAt) {
+    return snapshotCache.data;
+  }
+
   const refreshedAt = new Date().toISOString();
 
   const [nodes, sandboxRows] = await Promise.all([
@@ -548,10 +589,33 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
     sandboxesByNode.set(row.nodeId, existing);
   }
 
-  const inspectedNodes = await Promise.all(
-    nodes.map(async (node) => {
+  const inspectedNodes = await pLimit(
+    nodes.map((node) => async () => {
       const dbContainers = sandboxesByNode.get(node.node_id) ?? [];
-      const runtime = await inspectNodeRuntime(node);
+      const runtime = await withTimeout(
+        inspectNodeRuntime(node),
+        NODE_INSPECTION_TIMEOUT_MS,
+        `inspectNodeRuntime(${node.node_id})`,
+      ).catch((error): NodeRuntimeSnapshot => {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.warn("[admin-infrastructure] Node inspection timed out", {
+          nodeId: node.node_id,
+          error: message,
+        });
+        return {
+          reachable: false,
+          checkedAt: new Date().toISOString(),
+          sshLatencyMs: null,
+          dockerVersion: null,
+          diskUsedPercent: null,
+          memoryUsedPercent: null,
+          loadAverage: null,
+          actualContainerCount: 0,
+          runningContainerCount: 0,
+          containers: [],
+          error: message,
+        };
+      });
       const runtimeByName = new Map(
         runtime.containers.map((container) => [container.name, container]),
       );
@@ -646,6 +710,7 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
         updatedAt: toIso(node.updated_at) ?? refreshedAt,
       } satisfies AdminInfrastructureNode;
     }),
+    MAX_CONCURRENT_SSH_SESSIONS,
   );
 
   const unassignedContainers: AdminInfrastructureContainer[] = unassignedSandboxRows.map(
@@ -870,7 +935,7 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
     });
   }
 
-  return {
+  const snapshot: AdminInfrastructureSnapshot = {
     refreshedAt,
     summary,
     incidents: incidents.sort(sortIncidents),
@@ -888,4 +953,7 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
       );
     }),
   };
+
+  snapshotCache = { data: snapshot, expiresAt: Date.now() + SNAPSHOT_CACHE_TTL_MS };
+  return snapshot;
 }

@@ -18,7 +18,6 @@ import {
   Switch,
 } from "@elizaos/cloud-ui";
 import { Check, ExternalLink, Loader2, Plus, RotateCcw, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AGENT_FLAVORS, getDefaultFlavor, getFlavorById } from "@/lib/constants/agent-flavors";
@@ -239,7 +238,6 @@ export function CreateMiladySandboxDialog({
   onProvisionQueued,
   onCreated,
 }: CreateMiladySandboxDialogProps) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [agentName, setAgentName] = useState("");
   const [flavorId, setFlavorId] = useState(getDefaultFlavor().id);
@@ -275,13 +273,12 @@ export function CreateMiladySandboxDialog({
     return () => clearInterval(id);
   }, [provisionStartTime]);
 
-  // When provisioning completes, refresh the table data
+  // When provisioning completes, notify via toast (refresh happens in handleClose)
   useEffect(() => {
     if (isProvisioningPhase && pollResult.status === "running") {
-      router.refresh();
       toast.success("Agent is up and running!");
     }
-  }, [isProvisioningPhase, pollResult.status, router]);
+  }, [isProvisioningPhase, pollResult.status]);
 
   function resetForm() {
     setAgentName("");
@@ -298,9 +295,8 @@ export function CreateMiladySandboxDialog({
     setOpen(false);
     // Delay reset so the closing animation finishes
     setTimeout(resetForm, 300);
-    // Notify parent to refresh its data (client-side)
+    // Single refresh path: notify parent (which handles its own data fetch)
     void onCreated?.();
-    router.refresh();
   }
 
   async function handleCreate() {

@@ -19,6 +19,7 @@ export interface SandboxStatusResult {
 
 const TERMINAL_STATES = new Set<SandboxStatus>(["running", "stopped", "error"]);
 const ACTIVE_STATES = new Set<SandboxStatus>(["pending", "provisioning"]);
+const MAX_CONSECUTIVE_ERRORS = 5;
 
 /**
  * Polls a single agent's status while it's in a non-terminal state.
@@ -42,6 +43,7 @@ export function useSandboxStatusPoll(
   const cancelledRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statusRef = useRef<SandboxStatus>("pending");
+  const consecutiveErrorsRef = useRef(0);
 
   const cleanup = useCallback(() => {
     cancelledRef.current = true;
@@ -58,6 +60,7 @@ export function useSandboxStatusPoll(
     }
 
     cancelledRef.current = false;
+    consecutiveErrorsRef.current = 0;
 
     const poll = async () => {
       if (cancelledRef.current) return;
@@ -73,13 +76,24 @@ export function useSandboxStatusPoll(
         if (cancelledRef.current) return;
 
         if (!res.ok) {
+          consecutiveErrorsRef.current++;
           setResult((prev) => ({
             ...prev,
             isLoading: false,
             error: `HTTP ${res.status}`,
           }));
+          // Stop polling on persistent client errors (4xx) or too many consecutive failures
+          if (
+            (res.status >= 400 && res.status < 500) ||
+            consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS
+          ) {
+            cleanup();
+          }
           return;
         }
+
+        // Reset error counter on success
+        consecutiveErrorsRef.current = 0;
 
         const json = await res.json();
         const data = json?.data;
@@ -101,7 +115,11 @@ export function useSandboxStatusPoll(
         }
       } catch {
         if (!cancelledRef.current) {
+          consecutiveErrorsRef.current++;
           setResult((prev) => ({ ...prev, isLoading: false }));
+          if (consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS) {
+            cleanup();
+          }
         }
       }
     };
@@ -162,11 +180,16 @@ export function useSandboxListPoll(
     dataRefreshRef.current = onDataRefresh;
   }, [onDataRefresh]);
 
-  // Sync current sandbox statuses
+  // Initialize previousStatusesRef from props — only seed new IDs, preserve poll-derived statuses
   useEffect(() => {
     const statusMap = new Map<string, string>();
     for (const sb of sandboxes) {
-      statusMap.set(sb.id, sb.status);
+      // Only set if not already tracked (preserve poll-derived statuses)
+      if (!previousStatusesRef.current.has(sb.id)) {
+        statusMap.set(sb.id, sb.status);
+      } else {
+        statusMap.set(sb.id, previousStatusesRef.current.get(sb.id)!);
+      }
     }
     previousStatusesRef.current = statusMap;
   }, [sandboxes]);
@@ -217,6 +240,9 @@ export function useSandboxListPoll(
         // Silently retry on next interval
       }
     };
+
+    // Fire initial poll immediately (don't wait for first interval)
+    void poll();
 
     intervalRef.current = setInterval(() => void poll(), intervalMs);
 

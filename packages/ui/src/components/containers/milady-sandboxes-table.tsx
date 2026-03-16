@@ -255,8 +255,11 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
    */
   const mergeApiData = useCallback((apiAgents: SandboxListAgent[]) => {
     setLocalSandboxes((prev) => {
+      const apiIds = new Set(apiAgents.map((a) => a.id));
       const existingMap = new Map(prev.map((sb) => [sb.id, sb]));
-      return apiAgents.map((agent) => {
+
+      // Merge API agents with existing local state
+      const merged = apiAgents.map((agent) => {
         const existing = existingMap.get(agent.id);
         return {
           // Spread existing server-only fields first (infra details)
@@ -281,6 +284,10 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
           canonical_web_ui_url: existing?.canonical_web_ui_url ?? null,
         } as MiladySandboxRow;
       });
+
+      // Preserve local-only entries (optimistic additions not yet in API response)
+      const localOnly = prev.filter((sb) => !apiIds.has(sb.id));
+      return [...merged, ...localOnly];
     });
   }, []);
 
