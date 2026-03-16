@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { requireAdmin } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 
@@ -26,30 +27,30 @@ const HEADSCALE_USER = process.env.HEADSCALE_USER || "milady";
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const { role } = await requireAdmin(request);
-  if (role !== "super_admin") {
-    return NextResponse.json(
-      { success: false, error: "Super admin access required" },
-      { status: 403 },
-    );
-  }
-
-  if (!HEADSCALE_API_KEY) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Headscale not configured: HEADSCALE_API_KEY environment variable is missing",
-      },
-      { status: 503 },
-    );
-  }
-
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${HEADSCALE_API_KEY}`,
-    Accept: "application/json",
-  };
-
   try {
+    const { role } = await requireAdmin(request);
+    if (role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "Super admin access required" },
+        { status: 403 },
+      );
+    }
+
+    if (!HEADSCALE_API_KEY) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Headscale not configured: HEADSCALE_API_KEY environment variable is missing",
+        },
+        { status: 503 },
+      );
+    }
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${HEADSCALE_API_KEY}`,
+      Accept: "application/json",
+    };
+
     // Fetch VPN nodes from headscale — try /api/v1/node first (v0.23+), fall back to /api/v1/machine (legacy)
     let nodesResponse = await fetch(`${HEADSCALE_API_URL}/api/v1/node`, {
       headers,
@@ -137,7 +138,6 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         serverConfigured: true,
-        serverUrl: HEADSCALE_API_URL,
         user: HEADSCALE_USER,
         vpnNodes,
         summary: {
@@ -152,6 +152,16 @@ export async function GET(request: NextRequest) {
     logger.error("[Admin Headscale] Failed to fetch status", {
       error: error instanceof Error ? error.message : String(error),
     });
+
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 },
+      );
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
 
     // Distinguish network errors from other failures
     if (error instanceof TypeError && error.message.includes("fetch")) {

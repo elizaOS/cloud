@@ -115,7 +115,6 @@ interface VpnNode {
 
 interface HeadscaleData {
   serverConfigured?: boolean;
-  serverUrl?: string;
   user: string;
   vpnNodes: VpnNode[];
   summary: { total: number; online: number; offline: number };
@@ -979,7 +978,7 @@ export function InfrastructureDashboard() {
                         Headscale server online
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {headscale.serverUrl ?? "Connected"} · User: {headscale.user} · Queried{" "}
+                        Connected · User: {headscale.user} · Queried{" "}
                         {formatRelativeTime(headscale.queriedAt)}
                       </p>
                     </div>

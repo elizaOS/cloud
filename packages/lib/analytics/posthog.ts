@@ -402,6 +402,8 @@ export interface LoginCompletedProps {
   method: AuthMethod;
 }
 
+export type AdHocEventProperties = Record<string, unknown>;
+
 export type EventProperties =
   | SignupCompletedProps
   | LoginCompletedProps
@@ -446,9 +448,7 @@ export type EventProperties =
   | CheckoutAttemptedProps
   // Success/Invoice Events
   | PaymentSuccessViewedProps
-  | InvoiceViewedProps
-  // Escape hatch for ad-hoc properties
-  | Record<string, unknown>;
+  | InvoiceViewedProps;
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -485,6 +485,11 @@ export function initPostHog(): void {
 }
 
 export function trackEvent(event: PostHogEvent, properties?: EventProperties): void {
+  if (!isBrowser()) return;
+  posthog.capture(event, properties);
+}
+
+export function trackCustomEvent(event: string, properties?: AdHocEventProperties): void {
   if (!isBrowser()) return;
   posthog.capture(event, properties);
 }
