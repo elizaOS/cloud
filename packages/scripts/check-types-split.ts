@@ -69,7 +69,13 @@ async function createTempTsconfig(directory: string, baseTsconfig: object): Prom
       skipLibCheck: true,
       skipDefaultLibCheck: true,
     },
-    include: ["next-env.d.ts", "types/**/*.d.ts", `${directory}/**/*.ts`, `${directory}/**/*.tsx`],
+    include: [
+      "next-env.d.ts",
+      "types/**/*.d.ts",
+      "./packages/types/**/*.d.ts",
+      `${directory}/**/*.ts`,
+      `${directory}/**/*.tsx`,
+    ],
     // Keep the same excludes (include __tests__ so bun:test files are not type-checked with node types)
     exclude: [
       "node_modules",
@@ -78,6 +84,8 @@ async function createTempTsconfig(directory: string, baseTsconfig: object): Prom
       "scripts",
       "tests",
       "**/__tests__/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
       ".next",
       "out",
       "build",
