@@ -5,7 +5,7 @@ inputs:
   bun-version:
     description: Bun version to install (pinned to avoid GitHub API rate-limit flakes).
     required: false
-    default: "1.3.5"
+    default: "1.3.9"
   setup-db:
     description: Start postgres/redis and run migrations.
     required: false
