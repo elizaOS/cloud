@@ -50,11 +50,19 @@ export async function GET(request: NextRequest) {
   };
 
   try {
-    // Fetch VPN nodes (machines) from headscale
-    const nodesResponse = await fetch(`${HEADSCALE_API_URL}/api/v1/machine`, {
+    // Fetch VPN nodes from headscale — try /api/v1/node first (v0.23+), fall back to /api/v1/machine (legacy)
+    let nodesResponse = await fetch(`${HEADSCALE_API_URL}/api/v1/node`, {
       headers,
       signal: AbortSignal.timeout(10_000),
     });
+
+    // Fall back to legacy /api/v1/machine endpoint for older headscale versions
+    if (!nodesResponse.ok && nodesResponse.status === 404) {
+      nodesResponse = await fetch(`${HEADSCALE_API_URL}/api/v1/machine`, {
+        headers,
+        signal: AbortSignal.timeout(10_000),
+      });
+    }
 
     if (!nodesResponse.ok) {
       const errText = await nodesResponse.text().catch(() => "");
@@ -72,6 +80,20 @@ export async function GET(request: NextRequest) {
     }
 
     const nodesData = (await nodesResponse.json()) as {
+      nodes?: Array<{
+        id: string;
+        machineKey?: string;
+        nodeKey?: string;
+        name: string;
+        givenName: string;
+        user: { id: string; name: string };
+        ipAddresses: string[];
+        online: boolean;
+        lastSeen: string;
+        expiry: string;
+        createdAt: string;
+        forcedTags?: string[];
+      }>;
       machines?: Array<{
         id: string;
         machineKey: string;
@@ -88,7 +110,8 @@ export async function GET(request: NextRequest) {
       }>;
     };
 
-    const machines = nodesData.machines || [];
+    // Support both v0.23+ (nodes) and legacy (machines) response shapes
+    const machines = nodesData.nodes || nodesData.machines || [];
 
     // Optionally filter to the configured user
     const filteredMachines = HEADSCALE_USER
@@ -114,6 +137,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         serverConfigured: true,
+        serverUrl: HEADSCALE_API_URL,
         user: HEADSCALE_USER,
         vpnNodes,
         summary: {

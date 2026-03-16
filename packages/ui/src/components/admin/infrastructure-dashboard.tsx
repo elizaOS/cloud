@@ -114,7 +114,8 @@ interface VpnNode {
 }
 
 interface HeadscaleData {
-  serverUrl: string;
+  serverConfigured?: boolean;
+  serverUrl?: string;
   user: string;
   vpnNodes: VpnNode[];
   summary: { total: number; online: number; offline: number };
@@ -290,7 +291,7 @@ export function InfrastructureDashboard() {
       const res = await fetch("/api/v1/admin/docker-nodes");
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setNodes(json.data.nodes);
+      setNodes(json.data?.nodes ?? []);
     } catch (err) {
       toast.error(`Failed to load nodes: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -307,7 +308,7 @@ export function InfrastructureDashboard() {
       const res = await fetch(`/api/v1/admin/docker-containers?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setContainers(json.data.containers);
+      setContainers(json.data?.containers ?? []);
     } catch (err) {
       toast.error(`Failed to load containers: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -879,7 +880,7 @@ export function InfrastructureDashboard() {
                         <TableCell className="text-sm">
                           {c.agentName ?? (
                             <span className="text-muted-foreground text-xs">
-                              {c.sandboxId.slice(0, 8)}…
+                              {(c.sandboxId ?? c.id ?? "unknown").slice(0, 8)}…
                             </span>
                           )}
                         </TableCell>
@@ -966,7 +967,7 @@ export function InfrastructureDashboard() {
                         Headscale server online
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {headscale.serverUrl} · User: {headscale.user} · Queried{" "}
+                        {headscale.serverUrl ?? "Connected"} · User: {headscale.user} · Queried{" "}
                         {formatRelativeTime(headscale.queriedAt)}
                       </p>
                     </div>
