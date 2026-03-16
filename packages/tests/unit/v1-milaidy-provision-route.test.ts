@@ -9,6 +9,7 @@ const mockGetAgentForWrite = mock();
 const mockProvision = mock();
 const mockEnqueueMiladyProvisionOnce = mock();
 const mockLoggerError = mock();
+const mockCheckMiladyCreditGate = mock();
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -38,6 +39,14 @@ mock.module("@/lib/services/provisioning-jobs", () => ({
   },
 }));
 
+mock.module("@/lib/services/milady-billing-gate", () => ({
+  checkMiladyCreditGate: mockCheckMiladyCreditGate,
+}));
+
+mock.module("@/lib/constants/milady-pricing", () => ({
+  MILADY_PRICING: { MINIMUM_DEPOSIT: 5 },
+}));
+
 mock.module("@/lib/utils/logger", () => ({
   logger: {
     info: mock(),
@@ -57,7 +66,9 @@ describe("POST /api/v1/milaidy/agents/[agentId]/provision", () => {
     mockProvision.mockReset();
     mockEnqueueMiladyProvisionOnce.mockReset();
     mockLoggerError.mockReset();
+    mockCheckMiladyCreditGate.mockReset();
 
+    mockCheckMiladyCreditGate.mockResolvedValue({ allowed: true, balance: 100 });
     mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
       user: {
         id: "user-1",

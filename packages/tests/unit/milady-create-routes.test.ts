@@ -8,6 +8,7 @@ const mockAuthenticateWaifuBridge = mock();
 const mockCreateAgent = mock();
 const mockFindByIdInOrganizationForWrite = mock();
 const mockPrepareManagedMiladyEnvironment = mock();
+const mockCheckMiladyCreditGate = mock();
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -49,6 +50,14 @@ mock.module("@/db/repositories/characters", () => ({
   },
 }));
 
+mock.module("@/lib/services/milady-billing-gate", () => ({
+  checkMiladyCreditGate: mockCheckMiladyCreditGate,
+}));
+
+mock.module("@/lib/constants/milady-pricing", () => ({
+  MILADY_PRICING: { MINIMUM_DEPOSIT: 5 },
+}));
+
 mock.module("@/lib/utils/logger", () => ({
   logger: {
     info: mock(),
@@ -73,7 +82,9 @@ describe("Milady create routes reserved config stripping", () => {
     mockCreateAgent.mockReset();
     mockFindByIdInOrganizationForWrite.mockReset();
     mockPrepareManagedMiladyEnvironment.mockReset();
+    mockCheckMiladyCreditGate.mockReset();
 
+    mockCheckMiladyCreditGate.mockResolvedValue({ allowed: true, balance: 100 });
     mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
       user: {
         id: "user-1",

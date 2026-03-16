@@ -16,6 +16,7 @@ const mockEnqueueMiladyProvisionOnce = mock();
 const mockFindCharacterForWrite = mock();
 const mockCharacterDelete = mock();
 const mockPrepareManagedMiladyEnvironment = mock();
+const mockCheckMiladyCreditGate = mock();
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -75,6 +76,14 @@ mock.module("@/lib/security/outbound-url", () => ({
   assertSafeOutboundUrl: mock(async (url: string) => new URL(url)),
 }));
 
+mock.module("@/lib/services/milady-billing-gate", () => ({
+  checkMiladyCreditGate: mockCheckMiladyCreditGate,
+}));
+
+mock.module("@/lib/constants/milady-pricing", () => ({
+  MILADY_PRICING: { MINIMUM_DEPOSIT: 5 },
+}));
+
 mock.module("@/lib/utils/logger", () => ({
   logger: {
     info: mock(),
@@ -111,7 +120,9 @@ describe("milady agent route follow-ups", () => {
     mockFindCharacterForWrite.mockReset();
     mockCharacterDelete.mockReset();
     mockPrepareManagedMiladyEnvironment.mockReset();
+    mockCheckMiladyCreditGate.mockReset();
 
+    mockCheckMiladyCreditGate.mockResolvedValue({ allowed: true, balance: 100 });
     mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
       user: {
         id: "user-1",
