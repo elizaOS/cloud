@@ -34,8 +34,22 @@ mock.module("@/db/repositories", () => ({
   },
 }));
 
+// Include all public exports so the mock doesn't break other modules that
+// import PricingNotFoundError (e.g. proxy/engine loaded by proxy-engine tests).
+class _MockPricingNotFoundError extends Error {
+  constructor(
+    public readonly serviceId: string,
+    public readonly method: string,
+  ) {
+    super(`Pricing not found for service ${serviceId}, method ${method}`);
+    this.name = "PricingNotFoundError";
+  }
+}
+
 mock.module("@/lib/services/proxy/pricing", () => ({
   invalidateServicePricingCache: mockInvalidateCache,
+  PricingNotFoundError: _MockPricingNotFoundError,
+  getServiceMethodCost: mock(async () => 1.0),
 }));
 
 mock.module("@/lib/utils/logger", () => ({
