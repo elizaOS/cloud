@@ -14,6 +14,9 @@ const NODE_RESOURCE_WARNING_PCT = 85;
 const NODE_RESOURCE_CRITICAL_PCT = 95;
 const SSH_CONNECT_TIMEOUT_MS = 10_000;
 const SSH_COMMAND_TIMEOUT_MS = 15_000;
+const _NODE_INSPECTION_TIMEOUT_MS = 25_000;
+const _MAX_CONCURRENT_SSH_SESSIONS = 5;
+const _SNAPSHOT_CACHE_TTL_MS = 30_000;
 
 type IncidentSeverity = "critical" | "warning" | "info";
 type IncidentScope = "cluster" | "node" | "container";
@@ -25,8 +28,7 @@ export type ContainerLiveHealthStatus =
   | "stale"
   | "missing"
   | "failed"
-  | "stopped"
-  | "unknown";
+  | "stopped";
 
 export interface ContainerHealthAssessment {
   status: ContainerLiveHealthStatus;
@@ -202,10 +204,19 @@ function parseRuntimeContainers(output: string): RuntimeContainerRecord[] {
 }
 
 function parseDockerHealth(status: string): RuntimeContainerRecord["health"] {
-  const normalized = status.toLowerCase();
-  if (normalized.includes("unhealthy")) return "unhealthy";
-  if (normalized.includes("healthy")) return "healthy";
-  if (normalized.includes("health: starting") || normalized.includes("starting")) return "starting";
+  // Strip the common "health: " prefix from Docker status strings
+  const normalized = status
+    .toLowerCase()
+    .replace(/^.*health:\s*/, "")
+    .trim();
+  if (normalized === "unhealthy" || normalized.startsWith("unhealthy")) return "unhealthy";
+  if (normalized === "healthy" || normalized.startsWith("healthy")) return "healthy";
+  if (normalized === "starting" || normalized.startsWith("starting")) return "starting";
+  // Fallback: check the full string for keywords (handles non-standard formats)
+  const full = status.toLowerCase();
+  if (full.includes("unhealthy")) return "unhealthy";
+  if (full.includes("healthy")) return "healthy";
+  if (full.includes("starting")) return "starting";
   return null;
 }
 
@@ -218,8 +229,8 @@ function getHeartbeatAgeMinutes(lastHeartbeatAt: string | null): number | null {
 
 function buildResourceAlert(label: string, percent: number | null): string | null {
   if (percent === null) return null;
-  if (percent >= NODE_RESOURCE_CRITICAL_PCT) return `${label} ${percent}% used`;
-  if (percent >= NODE_RESOURCE_WARNING_PCT) return `${label} ${percent}% used`;
+  if (percent >= NODE_RESOURCE_CRITICAL_PCT) return `${label} critical: ${percent}% used`;
+  if (percent >= NODE_RESOURCE_WARNING_PCT) return `${label} warning: ${percent}% used`;
   return null;
 }
 
