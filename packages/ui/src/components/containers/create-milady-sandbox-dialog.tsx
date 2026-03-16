@@ -295,10 +295,12 @@ export function CreateMiladySandboxDialog({
     setOpen(false);
     // Delay reset so the closing animation finishes
     setTimeout(resetForm, 300);
-    // Single refresh path: notify parent (which handles its own data fetch)
-    onCreated?.()?.catch(() => {
-      // Best-effort refresh — parent will retry on next poll cycle
-    });
+    // Only notify parent when an agent was actually created (skip premature dismissals)
+    if (createdAgentId) {
+      onCreated?.()?.catch(() => {
+        // Best-effort refresh — parent will retry on next poll cycle
+      });
+    }
   }
 
   async function handleCreate() {

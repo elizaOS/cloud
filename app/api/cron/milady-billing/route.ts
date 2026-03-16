@@ -11,8 +11,8 @@
  * Protected by CRON_SECRET.
  */
 
-import { timingSafeEqual } from "crypto";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { createHmac, timingSafeEqual } from "crypto";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { dbRead, dbWrite } from "@/db/client";
 import { usersRepository } from "@/db/repositories";
@@ -53,12 +53,11 @@ function verifyCronSecret(request: NextRequest): boolean {
   }
 
   const providedSecret = authHeader?.replace("Bearer ", "") || "";
-  const providedBuffer = Buffer.from(providedSecret, "utf8");
-  const secretBuffer = Buffer.from(cronSecret, "utf8");
-
-  return (
-    providedBuffer.length === secretBuffer.length && timingSafeEqual(providedBuffer, secretBuffer)
-  );
+  // Use HMAC comparison to avoid leaking secret length via timing side-channel
+  const hmacKey = Buffer.from("milady-billing-cron");
+  const a = createHmac("sha256", hmacKey).update(providedSecret).digest();
+  const b = createHmac("sha256", hmacKey).update(cronSecret).digest();
+  return timingSafeEqual(a, b);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -229,21 +228,23 @@ async function processSandboxBilling(
   }
 
   // ── Sufficient credits — bill the hour ──────────────────────────
-  const newBalance = currentBalance - hourlyCost;
   const billingDescription =
     sandbox.status === "running"
       ? `Milady agent hosting (running): ${agentName}`
       : `Milady agent storage (idle): ${agentName}`;
 
   const billingResult = await dbWrite.transaction(async (tx) => {
-    // Deduct credits
-    await tx
+    // Atomic credit deduction — avoids TOCTOU race with concurrent credit additions
+    const [updatedOrg] = await tx
       .update(organizations)
       .set({
-        credit_balance: String(newBalance),
+        credit_balance: sql`${organizations.credit_balance} - ${String(hourlyCost)}`,
         updated_at: now,
       })
-      .where(eq(organizations.id, organizationId));
+      .where(eq(organizations.id, organizationId))
+      .returning({ credit_balance: organizations.credit_balance });
+
+    const newBalance = updatedOrg ? Number(updatedOrg.credit_balance) : currentBalance - hourlyCost;
 
     // Create credit transaction
     const [creditTx] = await tx
@@ -265,7 +266,7 @@ async function processSandboxBilling(
       })
       .returning();
 
-    // Update sandbox billing fields
+    // Update sandbox billing fields — use SQL increment for total_billed to avoid races
     await tx
       .update(miladySandboxes)
       .set({
@@ -273,7 +274,7 @@ async function processSandboxBilling(
         billing_status: "active" as MiladyBillingStatus,
         shutdown_warning_sent_at: null,
         scheduled_shutdown_at: null,
-        total_billed: String(Number(sandbox.total_billed) + hourlyCost),
+        total_billed: sql`${miladySandboxes.total_billed} + ${String(hourlyCost)}`,
         updated_at: now,
       })
       .where(eq(miladySandboxes.id, sandboxId));

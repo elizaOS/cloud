@@ -13,6 +13,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthWithOrg } from "@/lib/auth";
+import { statusBadgeColor, statusDotColor } from "@/lib/constants/sandbox-status";
 import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { adminService } from "@/lib/services/admin";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
@@ -35,24 +36,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     robots: { index: false, follow: false },
   };
 }
-
-const STATUS_BADGE_COLORS: Record<string, string> = {
-  running: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
-  provisioning: "bg-blue-500/15 text-blue-400 border-blue-500/25",
-  pending: "bg-amber-500/15 text-amber-400 border-amber-500/25",
-  stopped: "bg-white/5 text-white/40 border-white/10",
-  disconnected: "bg-orange-500/15 text-orange-400 border-orange-500/25",
-  error: "bg-red-500/15 text-red-400 border-red-500/25",
-};
-
-const STATUS_DOT_COLORS: Record<string, string> = {
-  running: "bg-emerald-400",
-  provisioning: "bg-blue-400",
-  pending: "bg-amber-400",
-  stopped: "bg-white/30",
-  disconnected: "bg-orange-400",
-  error: "bg-red-400",
-};
 
 function formatDate(date: Date | string | null): string {
   if (!date) return "—";
@@ -99,9 +82,8 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   const webUiUrl = getPreferredMiladyAgentWebUiUrl(agent);
   const sshCommand = agent.headscale_ip ? `ssh root@${agent.headscale_ip}` : null;
 
-  const statusBadgeColor =
-    STATUS_BADGE_COLORS[agent.status] ?? "bg-white/5 text-white/40 border-white/10";
-  const statusDotColor = STATUS_DOT_COLORS[agent.status] ?? "bg-white/30";
+  const badgeColor = statusBadgeColor(agent.status);
+  const dotColor = statusDotColor(agent.status);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -138,11 +120,8 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
               >
                 {agent.agent_name ?? "Unnamed Agent"}
               </h1>
-              <Badge
-                variant="outline"
-                className={`${statusBadgeColor} text-xs font-medium px-2 py-0.5`}
-              >
-                <span className={`inline-block size-1.5 rounded-full mr-1.5 ${statusDotColor}`} />
+              <Badge variant="outline" className={`${badgeColor} text-xs font-medium px-2 py-0.5`}>
+                <span className={`inline-block size-1.5 rounded-full mr-1.5 ${dotColor}`} />
                 {agent.status}
               </Badge>
             </div>
