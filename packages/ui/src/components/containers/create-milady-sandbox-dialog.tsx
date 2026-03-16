@@ -19,12 +19,11 @@ import {
 } from "@elizaos/cloud-ui";
 import { Check, ExternalLink, Loader2, Plus, RotateCcw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AGENT_FLAVORS, getDefaultFlavor, getFlavorById } from "@/lib/constants/agent-flavors";
-import { useSandboxStatusPoll, type SandboxStatus } from "@/lib/hooks/use-sandbox-status-poll";
-import { getClientSafeMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
+import { type SandboxStatus, useSandboxStatusPoll } from "@/lib/hooks/use-sandbox-status-poll";
 
 // ----------------------------------------------------------------
 // Provisioning Steps
@@ -51,11 +50,7 @@ function getActiveStepIndex(status: SandboxStatus): number {
 
 type StepState = "complete" | "active" | "pending" | "error";
 
-function getStepState(
-  stepIndex: number,
-  activeIndex: number,
-  hasError: boolean,
-): StepState {
+function getStepState(stepIndex: number, activeIndex: number, hasError: boolean): StepState {
   if (hasError && stepIndex === activeIndex) return "error";
   if (stepIndex < activeIndex) return "complete";
   if (stepIndex === activeIndex) return "active";
@@ -67,31 +62,34 @@ function getStepState(
 // ----------------------------------------------------------------
 
 function StepIndicator({ state }: { state: StepState }) {
+  const base = "flex h-6 w-6 shrink-0 items-center justify-center";
+
   switch (state) {
     case "complete":
       return (
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-green-400 ring-1 ring-green-500/40">
-          <Check className="h-3.5 w-3.5" />
+        <div className={`${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/30`}>
+          <Check className="h-3 w-3" />
         </div>
       );
     case "active":
       return (
-        <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FF5800]/20 ring-1 ring-[#FF5800]/40">
-          <Loader2 className="h-3.5 w-3.5 text-[#FF5800] animate-spin" />
-          <span className="absolute inset-0 rounded-full animate-ping bg-[#FF5800]/10" />
+        <div className={`${base} bg-[#FF5800]/15 border border-[#FF5800]/30 relative`}>
+          <Loader2 className="h-3 w-3 text-[#FF5800] animate-spin" />
         </div>
       );
     case "error":
       return (
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-500/20 text-red-400 ring-1 ring-red-500/40 animate-[shake_0.3s_ease-in-out]">
-          <X className="h-3.5 w-3.5" />
+        <div
+          className={`${base} bg-red-500/15 text-red-400 border border-red-500/30 animate-[shake_0.3s_ease-in-out]`}
+        >
+          <X className="h-3 w-3" />
         </div>
       );
     case "pending":
     default:
       return (
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
-          <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
+        <div className={`${base} bg-white/[0.03] border border-white/10`}>
+          <span className="h-1 w-1 bg-white/20" />
         </div>
       );
   }
@@ -124,19 +122,19 @@ function ProvisioningProgress({
     <div className="space-y-5 py-1">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-white/70">
           {isComplete
-            ? "Your agent is ready!"
+            ? "Your agent is ready"
             : hasError
               ? "Something went wrong"
-              : "Setting up your agent..."}
+              : "Setting up your agent…"}
         </p>
         {!isComplete && !hasError && (
-          <span className="text-xs tabular-nums text-neutral-500">
+          <span className="text-[11px] tabular-nums text-white/30">
             {elapsedSec < 60
               ? `${elapsedSec}s`
               : `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s`}
-            {" · usually ~90s"}
+            {" · ~90s"}
           </span>
         )}
       </div>
@@ -148,34 +146,34 @@ function ProvisioningProgress({
           const isLast = i === PROVISIONING_STEPS.length - 1;
           return (
             <div key={step.label} className="flex items-start gap-3 relative">
-              {/* Vertical connector line */}
+              {/* Vertical connector */}
               {!isLast && (
                 <div
-                  className="absolute left-[13px] top-7 w-px"
-                  style={{ height: "calc(100% - 4px)" }}
+                  className="absolute left-[11px] top-6 w-px"
+                  style={{ height: "calc(100% - 2px)" }}
                 >
                   <div
                     className={`h-full w-full transition-colors duration-500 ${
                       state === "complete"
-                        ? "bg-green-500/40"
+                        ? "bg-emerald-500/30"
                         : state === "error"
-                          ? "bg-red-500/30"
-                          : "bg-white/8"
+                          ? "bg-red-500/20"
+                          : "bg-white/5"
                     }`}
                   />
                 </div>
               )}
               <StepIndicator state={state} />
-              <div className="pb-5 pt-1">
+              <div className="pb-4 pt-0.5">
                 <p
                   className={`text-sm transition-colors duration-300 ${
                     state === "complete"
-                      ? "text-green-400"
+                      ? "text-emerald-400/80"
                       : state === "active"
                         ? "text-white"
                         : state === "error"
                           ? "text-red-400"
-                          : "text-neutral-600"
+                          : "text-white/25"
                   }`}
                 >
                   {step.label}
@@ -186,11 +184,12 @@ function ProvisioningProgress({
         })}
       </div>
 
-      {/* Error message */}
+      {/* Error detail */}
       {hasError && error && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2.5 space-y-2">
+        <div className="border border-red-500/20 bg-red-500/5 px-3 py-2.5 space-y-2">
           <p className="text-sm text-red-400">{error}</p>
           <button
+            type="button"
             onClick={onRetry}
             className="inline-flex items-center gap-1.5 text-xs text-red-300 hover:text-white transition-colors"
           >
@@ -200,14 +199,11 @@ function ProvisioningProgress({
         </div>
       )}
 
-      {/* Actions */}
+      {/* Footer actions */}
       <div className="flex gap-2 pt-1">
         {isComplete ? (
           <>
-            <BrandButton
-              size="sm"
-              onClick={() => openWebUIWithPairing(agentId)}
-            >
+            <BrandButton size="sm" onClick={() => openWebUIWithPairing(agentId)}>
               <ExternalLink className="h-3.5 w-3.5" />
               Open Web UI
             </BrandButton>
@@ -217,7 +213,7 @@ function ProvisioningProgress({
           </>
         ) : (
           <BrandButton variant="outline" size="sm" onClick={onClose}>
-            {hasError ? "Close" : "Close — provisioning continues in background"}
+            {hasError ? "Close" : "Close — continues in background"}
           </BrandButton>
         )}
       </div>
@@ -232,6 +228,8 @@ function ProvisioningProgress({
 interface CreateMiladySandboxDialogProps {
   trigger?: ReactNode;
   onProvisionQueued?: (agentId: string, jobId: string) => void;
+  /** Called after a sandbox is successfully created so the parent can refresh. */
+  onCreated?: () => void | Promise<void>;
 }
 
 type CreatePhase = "form" | "creating" | "provisioning";
@@ -239,6 +237,7 @@ type CreatePhase = "form" | "creating" | "provisioning";
 export function CreateMiladySandboxDialog({
   trigger,
   onProvisionQueued,
+  onCreated,
 }: CreateMiladySandboxDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -259,10 +258,10 @@ export function CreateMiladySandboxDialog({
   const resolvedDockerImage = isCustom ? customImage.trim() : selectedFlavor?.dockerImage;
 
   // Poll the agent status while in provisioning phase
-  const pollResult = useSandboxStatusPoll(
-    isProvisioningPhase ? createdAgentId : null,
-    { intervalMs: 5_000, enabled: isProvisioningPhase },
-  );
+  const pollResult = useSandboxStatusPoll(isProvisioningPhase ? createdAgentId : null, {
+    intervalMs: 5_000,
+    enabled: isProvisioningPhase,
+  });
 
   // Elapsed time counter
   useEffect(() => {
@@ -299,6 +298,8 @@ export function CreateMiladySandboxDialog({
     setOpen(false);
     // Delay reset so the closing animation finishes
     setTimeout(resetForm, 300);
+    // Notify parent to refresh its data (client-side)
+    void onCreated?.();
     router.refresh();
   }
 
@@ -391,7 +392,7 @@ export function CreateMiladySandboxDialog({
         if (jobId) {
           onProvisionQueued?.(createdAgentId, jobId);
         }
-        toast.info("Retrying provisioning...");
+        toast.info("Retrying provisioning…");
       } else if (!res.ok) {
         toast.error((data as { error?: string }).error ?? "Retry failed");
       }
@@ -422,11 +423,11 @@ export function CreateMiladySandboxDialog({
         <DialogContent className="sm:max-w-md bg-neutral-900 border-white/10">
           <DialogHeader>
             <DialogTitle className="text-white">
-              {isProvisioningPhase ? "Launching Agent" : "Create Milady Sandbox"}
+              {isProvisioningPhase ? "Launching Agent" : "Create Sandbox"}
             </DialogTitle>
             {!isProvisioningPhase && (
-              <DialogDescription className="text-neutral-400">
-                Create a new agent sandbox and optionally start provisioning right away.
+              <DialogDescription className="text-white/50">
+                Create an agent sandbox and optionally start provisioning right away.
               </DialogDescription>
             )}
           </DialogHeader>
@@ -443,8 +444,9 @@ export function CreateMiladySandboxDialog({
           ) : (
             <>
               <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label htmlFor="milady-agent-name" className="text-neutral-300">
+                {/* Agent name */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="milady-agent-name" className="text-white/60 text-xs">
                     Agent Name
                   </Label>
                   <Input
@@ -453,7 +455,7 @@ export function CreateMiladySandboxDialog({
                     value={agentName}
                     onChange={(e) => setAgentName(e.target.value)}
                     disabled={busy}
-                    className="bg-black/40 border-white/10 text-white placeholder:text-neutral-600"
+                    className="bg-black/40 border-white/10 text-white placeholder:text-white/25 focus-visible:ring-[#FF5800]/50"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -466,8 +468,8 @@ export function CreateMiladySandboxDialog({
                 </div>
 
                 {/* Flavor selector */}
-                <div className="space-y-2">
-                  <Label htmlFor="milady-flavor" className="text-neutral-300">
+                <div className="space-y-1.5">
+                  <Label htmlFor="milady-flavor" className="text-white/60 text-xs">
                     Agent Flavor
                   </Label>
                   <Select value={flavorId} onValueChange={setFlavorId} disabled={busy}>
@@ -477,7 +479,7 @@ export function CreateMiladySandboxDialog({
                     >
                       <SelectValue placeholder="Select flavor" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-lg border-white/10 bg-neutral-900">
+                    <SelectContent className="border-white/10 bg-neutral-900">
                       {AGENT_FLAVORS.map((flavor) => (
                         <SelectItem key={flavor.id} value={flavor.id}>
                           <div className="flex flex-col">
@@ -488,14 +490,14 @@ export function CreateMiladySandboxDialog({
                     </SelectContent>
                   </Select>
                   {selectedFlavor && (
-                    <p className="text-xs text-neutral-500">{selectedFlavor.description}</p>
+                    <p className="text-[11px] text-white/35">{selectedFlavor.description}</p>
                   )}
                 </div>
 
                 {/* Custom image input */}
                 {isCustom && (
-                  <div className="space-y-2">
-                    <Label htmlFor="milady-custom-image" className="text-neutral-300">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="milady-custom-image" className="text-white/60 text-xs">
                       Docker Image
                     </Label>
                     <Input
@@ -504,19 +506,20 @@ export function CreateMiladySandboxDialog({
                       value={customImage}
                       onChange={(e) => setCustomImage(e.target.value)}
                       disabled={busy}
-                      className="bg-black/40 border-white/10 text-white placeholder:text-neutral-600"
+                      className="bg-black/40 border-white/10 text-white placeholder:text-white/25"
                       maxLength={256}
                     />
                   </div>
                 )}
 
-                <div className="flex items-center justify-between gap-4 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
-                  <div>
-                    <Label htmlFor="milady-auto-start" className="text-sm text-neutral-300">
-                      Start immediately after creation
+                {/* Auto-start toggle */}
+                <div className="flex items-center justify-between gap-4 border border-white/10 bg-black/20 px-3 py-2.5">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="milady-auto-start" className="text-sm text-white/70">
+                      Start immediately
                     </Label>
-                    <p className="text-xs text-neutral-500">
-                      Queue provisioning as soon as the sandbox record is created.
+                    <p className="text-[11px] text-white/35">
+                      Queue provisioning as soon as the record is created.
                     </p>
                   </div>
                   <Switch
@@ -527,10 +530,11 @@ export function CreateMiladySandboxDialog({
                   />
                 </div>
 
+                {/* Inline error */}
                 {error && (
-                  <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                  <div className="border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
                     {error}
-                  </p>
+                  </div>
                 )}
               </div>
 
@@ -543,11 +547,7 @@ export function CreateMiladySandboxDialog({
                   disabled={!agentName.trim() || busy || (isCustom && !customImage.trim())}
                 >
                   {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {busy
-                    ? "Creating..."
-                    : autoStart
-                      ? "Create & Start"
-                      : "Create Sandbox"}
+                  {busy ? "Creating…" : autoStart ? "Create & Start" : "Create Sandbox"}
                 </BrandButton>
               </DialogFooter>
             </>

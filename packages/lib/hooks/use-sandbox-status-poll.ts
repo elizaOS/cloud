@@ -118,26 +118,49 @@ export function useSandboxStatusPoll(
   return result;
 }
 
+/** Raw agent shape returned by the list endpoint (camelCase). */
+export interface SandboxListAgent {
+  id: string;
+  status: string;
+  agentName?: string;
+  agent_name?: string;
+  databaseStatus?: string;
+  errorMessage?: string;
+  lastHeartbeatAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
 /**
  * Polls the agent list endpoint while any sandbox is in an active state.
- * Returns true when any sandbox transitions to 'running'.
+ * Fires `onTransitionToRunning` on status transitions and pushes the full
+ * agent list via `onDataRefresh` so the parent can update local state without
+ * a full page reload.
  */
 export function useSandboxListPoll(
   sandboxes: Array<{ id: string; status: string }>,
   options: {
     intervalMs?: number;
     onTransitionToRunning?: (agentId: string, agentName?: string) => void;
+    /** Called on every successful poll with the full agent list from the API. */
+    onDataRefresh?: (agents: SandboxListAgent[]) => void;
   } = {},
 ) {
-  const { intervalMs = 10_000, onTransitionToRunning } = options;
+  const { intervalMs = 10_000, onTransitionToRunning, onDataRefresh } = options;
   const [isPolling, setIsPolling] = useState(false);
   const previousStatusesRef = useRef<Map<string, string>>(new Map());
   const callbackRef = useRef(onTransitionToRunning);
+  const dataRefreshRef = useRef(onDataRefresh);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     callbackRef.current = onTransitionToRunning;
   }, [onTransitionToRunning]);
+
+  useEffect(() => {
+    dataRefreshRef.current = onDataRefresh;
+  }, [onDataRefresh]);
 
   // Sync current sandbox statuses
   useEffect(() => {
@@ -148,9 +171,7 @@ export function useSandboxListPoll(
     previousStatusesRef.current = statusMap;
   }, [sandboxes]);
 
-  const hasActiveAgents = sandboxes.some((sb) =>
-    ACTIVE_STATES.has(sb.status as SandboxStatus),
-  );
+  const hasActiveAgents = sandboxes.some((sb) => ACTIVE_STATES.has(sb.status as SandboxStatus));
 
   useEffect(() => {
     if (!hasActiveAgents) {
@@ -173,8 +194,10 @@ export function useSandboxListPoll(
         if (cancelled || !res.ok) return;
 
         const json = await res.json();
-        const agents: Array<{ id: string; status: string; agentName?: string; agent_name?: string }> =
-          json?.data ?? [];
+        const agents: SandboxListAgent[] = json?.data ?? [];
+
+        // Push full list to parent for local state merge
+        dataRefreshRef.current?.(agents);
 
         for (const agent of agents) {
           const prevStatus = previousStatusesRef.current.get(agent.id);
