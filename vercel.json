@@ -7,6 +7,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/api/cron/milady-billing",
+      "schedule": "0 * * * *"
+    },
+    {
       "path": "/api/cron/social-automation",
       "schedule": "*/5 * * * *"
     },

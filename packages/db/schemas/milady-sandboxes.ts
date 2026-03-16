@@ -1,5 +1,15 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { bigint, index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 import { userCharacters } from "./user-characters";
 import { users } from "./users";
@@ -11,6 +21,13 @@ export type MiladySandboxStatus =
   | "stopped"
   | "disconnected"
   | "error";
+
+export type MiladyBillingStatus =
+  | "active"
+  | "warning"
+  | "suspended"
+  | "shutdown_pending"
+  | "exempt";
 
 export const miladySandboxes = pgTable(
   "milady_sandboxes",
@@ -55,6 +72,13 @@ export const miladySandboxes = pgTable(
     web_ui_port: integer("web_ui_port"),
     headscale_ip: text("headscale_ip"),
     docker_image: text("docker_image"),
+    // Billing tracking fields (mirrors containers table pattern)
+    billing_status: text("billing_status").$type<MiladyBillingStatus>().notNull().default("active"),
+    last_billed_at: timestamp("last_billed_at", { withTimezone: true }),
+    hourly_rate: numeric("hourly_rate", { precision: 10, scale: 4 }).default("0.0200"),
+    total_billed: numeric("total_billed", { precision: 10, scale: 2 }).default("0.00").notNull(),
+    shutdown_warning_sent_at: timestamp("shutdown_warning_sent_at", { withTimezone: true }),
+    scheduled_shutdown_at: timestamp("scheduled_shutdown_at", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -64,6 +88,7 @@ export const miladySandboxes = pgTable(
     status_idx: index("milady_sandboxes_status_idx").on(table.status),
     character_idx: index("milady_sandboxes_character_idx").on(table.character_id),
     sandbox_id_idx: index("milady_sandboxes_sandbox_id_idx").on(table.sandbox_id),
+    billing_status_idx: index("milady_sandboxes_billing_status_idx").on(table.billing_status),
   }),
 );
 

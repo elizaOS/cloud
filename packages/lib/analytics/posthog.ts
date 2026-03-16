@@ -36,6 +36,10 @@ export type PostHogEvent =
   | "container_shutdown_insufficient_credits"
   | "container_shutdown_warning_sent"
   | "container_daily_billed"
+  // Milady Agent Billing
+  | "milady_agent_shutdown_insufficient_credits"
+  | "milady_agent_shutdown_warning_sent"
+  | "milady_agent_hourly_billed"
   // Billing & Credits (Legacy - maintained for backwards compatibility)
   // Use these for basic credit tracking without payment method details
   | "credits_purchased" // Simple credit purchase event (use checkout_completed for detailed tracking)
@@ -156,6 +160,31 @@ export interface ContainerShutdownWarningSentProps {
 export interface ContainerDailyBilledProps {
   container_id: string;
   container_name: string;
+  organization_id: string;
+  amount: number;
+  new_balance: number;
+}
+
+// Milady Agent Billing
+export interface MiladyAgentShutdownInsufficientCreditsProps {
+  sandbox_id: string;
+  agent_name: string;
+  organization_id: string;
+  balance_at_shutdown: number;
+}
+
+export interface MiladyAgentShutdownWarningSentProps {
+  sandbox_id: string;
+  agent_name: string;
+  organization_id: string;
+  hourly_cost: number;
+  current_balance: number;
+  scheduled_shutdown: string;
+}
+
+export interface MiladyAgentHourlyBilledProps {
+  sandbox_id: string;
+  agent_name: string;
   organization_id: string;
   amount: number;
   new_balance: number;
@@ -386,6 +415,10 @@ export type EventProperties =
   | ContainerShutdownInsufficientCreditsProps
   | ContainerShutdownWarningSentProps
   | ContainerDailyBilledProps
+  // Milady Agent Billing
+  | MiladyAgentShutdownInsufficientCreditsProps
+  | MiladyAgentShutdownWarningSentProps
+  | MiladyAgentHourlyBilledProps
   | PageViewedProps
   | BillingPageViewedProps
   | CreditsPurchaseStartedProps
@@ -413,7 +446,9 @@ export type EventProperties =
   | CheckoutAttemptedProps
   // Success/Invoice Events
   | PaymentSuccessViewedProps
-  | InvoiceViewedProps;
+  | InvoiceViewedProps
+  // Escape hatch for ad-hoc properties
+  | Record<string, unknown>;
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
