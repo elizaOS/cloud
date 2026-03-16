@@ -21,7 +21,8 @@ import type {
  * @returns Template content as string.
  */
 function loadTemplate(filename: string): string {
-  const templatePath = path.join(process.cwd(), "lib", "email", "templates", filename);
+  // Use path relative to this file (utils/ → ../templates/) for reliable resolution
+  const templatePath = path.resolve(import.meta.dir, "..", "templates", filename);
   return fs.readFileSync(templatePath, "utf-8");
 }
 
