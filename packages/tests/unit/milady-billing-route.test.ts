@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 const TEST_SECRET = "milady-cron-secret";
@@ -9,6 +9,8 @@ const txInsertResultsQueue: unknown[][] = [];
 const writeUpdateResultsQueue: unknown[][] = [];
 const txUpdateSetCalls: Array<Record<string, unknown>> = [];
 const writeUpdateSetCalls: Array<Record<string, unknown>> = [];
+let previousCronSecret: string | undefined;
+let previousAppUrl: string | undefined;
 
 function createReadBuilder(result: unknown[]) {
   return {
@@ -140,6 +142,9 @@ function enqueueBaseReadState({
 
 describe("Milady billing cron", () => {
   beforeEach(() => {
+    previousCronSecret = process.env.CRON_SECRET;
+    previousAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+
     readResultsQueue.length = 0;
     txUpdateResultsQueue.length = 0;
     txInsertResultsQueue.length = 0;
@@ -173,6 +178,20 @@ describe("Milady billing cron", () => {
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
     mockLogger.error.mockClear();
+  });
+
+  afterEach(() => {
+    if (previousCronSecret === undefined) {
+      delete process.env.CRON_SECRET;
+    } else {
+      process.env.CRON_SECRET = previousCronSecret;
+    }
+
+    if (previousAppUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = previousAppUrl;
+    }
   });
 
   test("skips a sandbox cleanly when another run already billed it", async () => {
