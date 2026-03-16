@@ -2,7 +2,7 @@
  * Pricing constants for Milady Cloud hosted agents (Docker-based).
  *
  * These agents run on dedicated Hetzner servers, not AWS ECS.
- * Pricing is hourly-based, billed via a daily cron.
+ * Pricing is hourly-based and billed by an hourly cron.
  *
  * Running agents:  $0.02/hour  (~$14.40/month)
  * Idle/stopped:    $0.0025/hour (~$1.80/month — snapshot storage)
@@ -32,8 +32,6 @@ export const MILADY_PRICING = {
   MINIMUM_DEPOSIT: 5.0,
   /** Warn user when balance drops below this. */
   LOW_CREDIT_WARNING: 2.0,
-  /** Suspend agents when balance drops below this. */
-  SUSPEND_THRESHOLD: 0.5,
   /** Hours between warning and forced shutdown. */
   GRACE_PERIOD_HOURS: 48,
 } as const;

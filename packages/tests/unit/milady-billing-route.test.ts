@@ -319,4 +319,39 @@ describe("Milady billing cron", () => {
       }),
     );
   });
+
+  test("marks a billed sandbox as warning when the remaining balance is low", async () => {
+    enqueueBaseReadState({
+      sandbox: {
+        id: "sandbox-1",
+        agent_name: "Warn Me",
+        organization_id: "org-1",
+        user_id: "user-1",
+        status: "running",
+        billing_status: "active",
+        last_billed_at: null,
+        total_billed: "1.00",
+        shutdown_warning_sent_at: null,
+        scheduled_shutdown_at: null,
+      },
+      orgBalance: "2.0100",
+    });
+
+    txUpdateResultsQueue.push([{ id: "sandbox-1" }], [{ credit_balance: "1.9900" }], []);
+    txInsertResultsQueue.push([{ id: "credit-tx-1" }]);
+
+    const { GET } = await importRoute();
+    const response = await GET(createRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.sandboxesBilled).toBe(1);
+    expect(txUpdateSetCalls).toContainEqual(
+      expect.objectContaining({
+        billing_status: "warning",
+        hourly_rate: "0.02",
+      }),
+    );
+  });
 });

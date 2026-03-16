@@ -228,7 +228,7 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
           ...(existing ?? {}),
           // Then overlay API data (converting camelCase → snake_case)
           id: agent.id,
-          agent_name: agent.agentName ?? agent.agent_name ?? existing?.agent_name ?? null,
+          agent_name: agent.agentName ?? existing?.agent_name ?? null,
           status: agent.status ?? existing?.status ?? "pending",
           error_message: agent.errorMessage ?? existing?.error_message ?? null,
           last_heartbeat_at: agent.lastHeartbeatAt ?? existing?.last_heartbeat_at ?? null,

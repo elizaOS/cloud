@@ -52,7 +52,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
-/** Simple in-memory cache for the infrastructure snapshot. */
+/**
+ * Best-effort in-process cache for repeated admin polling on the same warm instance.
+ * Serverless cold starts will begin with an empty cache.
+ */
 let snapshotCache: { data: AdminInfrastructureSnapshot; expiresAt: number } | null = null;
 
 type IncidentSeverity = "critical" | "warning" | "info";

@@ -344,12 +344,15 @@ async function processSandboxBilling(
         })
         .returning();
 
+      const nextBillingStatus: MiladyBillingStatus =
+        newBalance < MILADY_PRICING.LOW_CREDIT_WARNING ? "warning" : "active";
+
       // Update sandbox billing fields — use SQL increment for total_billed to avoid races
       await tx
         .update(miladySandboxes)
         .set({
           last_billed_at: now,
-          billing_status: "active" as MiladyBillingStatus,
+          billing_status: nextBillingStatus,
           shutdown_warning_sent_at: null,
           scheduled_shutdown_at: null,
           hourly_rate: String(hourlyCost),
