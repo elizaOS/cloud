@@ -2,6 +2,8 @@
  * User menu dropdown component displaying authentication state and user actions.
  * Shows user avatar, credit balance, and navigation options (settings, API keys, logout).
  * Handles logout and chat data clearing.
+ *
+ * Wrapped in an error boundary to prevent crashes from propagating to the page.
  */
 
 "use client";
@@ -31,7 +33,7 @@ import {
   UserCircle,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
 import { useCredits } from "@/lib/providers/CreditsProvider";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { FeedbackModal } from "./feedback-modal";
@@ -43,7 +45,241 @@ interface UserProfile {
   email: string | null;
 }
 
-export default function UserMenu() {
+// ---------------------------------------------------------------------------
+// Error Boundary – catches render errors so the whole page doesn't crash
+// ---------------------------------------------------------------------------
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class UserMenuErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[UserMenu] Render error caught by boundary:", error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        this.props.fallback ?? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="opacity-60"
+            onClick={() => this.setState({ hasError: false })}
+          >
+            <UserCircle className="h-5 w-5" />
+          </Button>
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Safe helper to extract user wallet from Privy user object
+// ---------------------------------------------------------------------------
+function safeGetUserWallet(user: ReturnType<typeof usePrivy>["user"]): string | null {
+  try {
+    if (!user) return null;
+
+    // Direct wallet property
+    if (user.wallet?.address && typeof user.wallet.address === "string") {
+      return user.wallet.address;
+    }
+
+    // Check linked accounts for wallet
+    const accounts = user.linkedAccounts;
+    if (Array.isArray(accounts)) {
+      for (const account of accounts) {
+        if (
+          account &&
+          account.type === "wallet" &&
+          "address" in account &&
+          typeof (account as { address: unknown }).address === "string"
+        ) {
+          return (account as { address: string }).address;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[UserMenu] Error reading wallet:", e);
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Safe helper to extract user email from Privy user object
+// ---------------------------------------------------------------------------
+function safeGetUserEmail(user: ReturnType<typeof usePrivy>["user"]): string | null {
+  try {
+    if (!user) return null;
+
+    // Direct email property
+    if (user.email?.address && typeof user.email.address === "string") {
+      return user.email.address;
+    }
+
+    // Check linked accounts
+    const accounts = user.linkedAccounts;
+    if (Array.isArray(accounts)) {
+      for (const account of accounts) {
+        if (!account) continue;
+        if (account.type === "email" && "address" in account) {
+          const addr = (account as { address: unknown }).address;
+          if (typeof addr === "string") return addr;
+        }
+        if ("email" in account) {
+          const email = (account as { email: unknown }).email;
+          if (typeof email === "string") return email;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[UserMenu] Error reading email:", e);
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Safe helper to extract user display name from Privy user object
+// ---------------------------------------------------------------------------
+function safeGetUserName(user: ReturnType<typeof usePrivy>["user"]): string {
+  try {
+    if (!user) return "User";
+
+    // Try Google name
+    if (user.google?.name && typeof user.google.name === "string") {
+      return user.google.name;
+    }
+
+    // Try GitHub username
+    if (user.github?.username && typeof user.github.username === "string") {
+      return user.github.username;
+    }
+
+    // Try Twitter username
+    if (user.twitter?.username && typeof user.twitter.username === "string") {
+      return user.twitter.username;
+    }
+
+    // Try Discord username
+    if (user.discord?.username && typeof user.discord.username === "string") {
+      return user.discord.username;
+    }
+
+    // Try linked accounts
+    const accounts = user.linkedAccounts;
+    if (Array.isArray(accounts)) {
+      for (const account of accounts) {
+        if (!account) continue;
+        if ("name" in account && typeof (account as { name: unknown }).name === "string") {
+          return (account as { name: string }).name;
+        }
+        if (
+          "username" in account &&
+          typeof (account as { username: unknown }).username === "string"
+        ) {
+          return (account as { username: string }).username;
+        }
+      }
+    }
+
+    // Fall back to email prefix
+    const email = safeGetUserEmail(user);
+    if (email) {
+      return email.split("@")[0] || "User";
+    }
+
+    // Fall back to truncated wallet
+    const wallet = safeGetUserWallet(user);
+    if (wallet && wallet.length >= 10) {
+      return `${wallet.substring(0, 6)}...${wallet.substring(wallet.length - 4)}`;
+    }
+  } catch (e) {
+    console.warn("[UserMenu] Error reading name:", e);
+  }
+  return "User";
+}
+
+// ---------------------------------------------------------------------------
+// Safe helper to get user identifier (wallet or email)
+// ---------------------------------------------------------------------------
+function safeGetUserIdentifier(user: ReturnType<typeof usePrivy>["user"]): string {
+  try {
+    const wallet = safeGetUserWallet(user);
+    if (wallet && wallet.length >= 14) {
+      return `${wallet.substring(0, 8)}...${wallet.substring(wallet.length - 6)}`;
+    }
+    const email = safeGetUserEmail(user);
+    if (email) return email;
+  } catch (e) {
+    console.warn("[UserMenu] Error reading identifier:", e);
+  }
+  return "Connected";
+}
+
+// ---------------------------------------------------------------------------
+// Safe helper to get user initials for avatar fallback
+// ---------------------------------------------------------------------------
+function safeGetInitials(
+  profile: UserProfile | null,
+  user: ReturnType<typeof usePrivy>["user"],
+): string {
+  try {
+    const name = profile?.name || safeGetUserName(user);
+    if (name && name !== "User" && name.trim().length > 0) {
+      const parts = name.trim().split(/\s+/).filter(Boolean);
+      if (parts.length > 0 && parts[0].length > 0) {
+        return parts
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+      }
+    }
+    const email = profile?.email || safeGetUserEmail(user);
+    if (email && email.length >= 2) {
+      return email.slice(0, 2).toUpperCase();
+    }
+  } catch (e) {
+    console.warn("[UserMenu] Error computing initials:", e);
+  }
+  return "U";
+}
+
+// ---------------------------------------------------------------------------
+// Safe credit balance formatter
+// ---------------------------------------------------------------------------
+function formatCreditBalance(balance: number | null): string {
+  try {
+    if (balance === null || balance === undefined) return "0.00";
+    const num = Number(balance);
+    if (Number.isNaN(num) || !Number.isFinite(num)) return "0.00";
+    return num.toFixed(2);
+  } catch {
+    return "0.00";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main component (inner)
+// ---------------------------------------------------------------------------
+function UserMenuInner() {
   const { ready, authenticated, user } = usePrivy();
   const pathname = usePathname();
   const { logout } = useLogout();
@@ -68,15 +304,15 @@ export default function UserMenu() {
           const data = await response.json();
           if (data.success && data.data) {
             setUserProfile({
-              id: data.data.id,
-              name: data.data.name,
-              avatar: data.data.avatar,
-              email: data.data.email,
+              id: data.data.id ?? "",
+              name: data.data.name ?? null,
+              avatar: data.data.avatar ?? null,
+              email: data.data.email ?? null,
             });
           }
         }
       } catch (error) {
-        console.error("Failed to fetch user profile:", error);
+        console.error("[UserMenu] Failed to fetch user profile:", error);
       }
     };
 
@@ -126,116 +362,29 @@ export default function UserMenu() {
 
   // Handle sign out
   const onSignOut = async () => {
-    // Clear chat data (rooms, entityId, localStorage)
-    clearChatData();
+    try {
+      // Clear chat data (rooms, entityId, localStorage)
+      clearChatData();
 
-    // Call Privy's logout to clear authentication state
-    await logout();
+      // Call Privy's logout to clear authentication state
+      await logout();
 
-    // Use router.replace to avoid browser history pollution
-    // This prevents back button issues after re-login
-    router.replace("/");
+      // Use router.replace to avoid browser history pollution
+      // This prevents back button issues after re-login
+      router.replace("/");
+    } catch (error) {
+      console.error("[UserMenu] Error during sign out:", error);
+      // Still try to redirect even if logout partially fails
+      router.replace("/");
+    }
   };
 
-  // Get user details
-  const getUserWallet = () => {
-    // Check linked accounts for wallet
-    if (user?.linkedAccounts) {
-      for (const account of user.linkedAccounts) {
-        // Type guard: check if account is a wallet
-        if (
-          account.type === "wallet" &&
-          "address" in account &&
-          typeof account.address === "string"
-        ) {
-          return account.address;
-        }
-      }
-    }
-    return null;
-  };
-
-  const getUserEmail = () => {
-    if (user?.email?.address) {
-      return user.email.address;
-    }
-    // Check linked accounts for email
-    if (user?.linkedAccounts) {
-      for (const account of user.linkedAccounts) {
-        // Type guard: check if account has email property
-        if ("address" in account && account.type === "email") {
-          return account.address;
-        }
-        if ("email" in account && typeof account.email === "string") {
-          return account.email;
-        }
-      }
-    }
-    return null;
-  };
-
-  const getUserName = () => {
-    // Try to get name from various sources
-    if (user?.google?.name) {
-      return user.google.name;
-    }
-    if (user?.github?.username) {
-      return user.github.username;
-    }
-    if (user?.linkedAccounts) {
-      for (const account of user.linkedAccounts) {
-        // Type guard: check if account has name property
-        if ("name" in account && typeof account.name === "string") {
-          return account.name;
-        }
-        // Type guard: check if account has username property
-        if ("username" in account && typeof account.username === "string") {
-          return account.username;
-        }
-      }
-    }
-    // Fall back to email or wallet
-    const email = getUserEmail();
-    if (email) {
-      return email.split("@")[0];
-    }
-    const wallet = getUserWallet();
-    if (wallet) {
-      return `${wallet.substring(0, 6)}...${wallet.substring(wallet.length - 4)}`;
-    }
-    return "User";
-  };
-
-  const getUserIdentifier = () => {
-    // Show wallet (preferred) or email
-    const wallet = getUserWallet();
-    if (wallet) {
-      return `${wallet.substring(0, 8)}...${wallet.substring(wallet.length - 6)}`;
-    }
-    const email = getUserEmail();
-    if (email) {
-      return email;
-    }
-    return "No identifier";
-  };
-
-  // Get user initials for fallback
-  const getInitials = () => {
-    const name = userProfile?.name || getUserName();
-    if (name && name !== "User") {
-      return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    const email = userProfile?.email || getUserEmail();
-    if (email) {
-      return email.slice(0, 2).toUpperCase();
-    }
-    return "U";
-  };
+  // Pre-compute all display values safely (outside JSX to keep render clean)
+  const displayName = safeGetUserName(user);
+  const displayIdentifier = safeGetUserIdentifier(user);
+  const initials = safeGetInitials(userProfile, user);
+  const feedbackName = userProfile?.name || displayName;
+  const feedbackEmail = userProfile?.email || safeGetUserEmail(user) || "";
 
   // Signed in state
   return (
@@ -255,7 +404,7 @@ export default function UserMenu() {
                 />
               )}
               <AvatarFallback className="rounded-none bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5 font-semibold text-white">
-                {getInitials()}
+                {initials}
               </AvatarFallback>
             </Avatar>
           </Button>
@@ -263,8 +412,8 @@ export default function UserMenu() {
         <DropdownMenuContent className="w-56" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{getUserName()}</p>
-              <p className="text-xs leading-none text-muted-foreground">{getUserIdentifier()}</p>
+              <p className="text-sm font-medium leading-none">{displayName}</p>
+              <p className="text-xs leading-none text-muted-foreground">{displayIdentifier}</p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -282,7 +431,7 @@ export default function UserMenu() {
               >
                 <Coins className="h-3.5 w-3.5 select-none" />
                 <span className="font-semibold select-none">
-                  ${creditBalance !== null ? Number(creditBalance).toFixed(2) : "0.00"}
+                  ${formatCreditBalance(creditBalance)}
                 </span>
                 <span className="text-xs opacity-80 select-none">balance</span>
               </Badge>
@@ -326,9 +475,20 @@ export default function UserMenu() {
       <FeedbackModal
         open={feedbackOpen}
         onOpenChange={setFeedbackOpen}
-        defaultName={userProfile?.name || getUserName()}
-        defaultEmail={userProfile?.email || getUserEmail() || ""}
+        defaultName={feedbackName}
+        defaultEmail={feedbackEmail}
       />
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Exported component – wrapped in error boundary
+// ---------------------------------------------------------------------------
+export default function UserMenu() {
+  return (
+    <UserMenuErrorBoundary>
+      <UserMenuInner />
+    </UserMenuErrorBoundary>
   );
 }
