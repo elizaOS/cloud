@@ -14,9 +14,9 @@ const NODE_RESOURCE_WARNING_PCT = 85;
 const NODE_RESOURCE_CRITICAL_PCT = 95;
 const SSH_CONNECT_TIMEOUT_MS = 10_000;
 const SSH_COMMAND_TIMEOUT_MS = 15_000;
-const _NODE_INSPECTION_TIMEOUT_MS = 25_000;
-const _MAX_CONCURRENT_SSH_SESSIONS = 5;
-const _SNAPSHOT_CACHE_TTL_MS = 30_000;
+const NODE_INSPECTION_TIMEOUT_MS = 25_000;
+const MAX_CONCURRENT_SSH_SESSIONS = 5;
+const SNAPSHOT_CACHE_TTL_MS = 30_000;
 
 /** Simple concurrency limiter — runs at most `limit` tasks in parallel. */
 async function pLimit<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
