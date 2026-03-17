@@ -3,7 +3,7 @@
 > **Status**: Planning — ready for implementation  
 > **Date**: 2026-03-16  
 > **Author**: Sol (automated analysis)  
-> **Repos**: `milady-ai/milady` (develop), `elizaOS/cloud` (eliza-cloud-v2)
+> **Repos**: `milady-ai/milady` (develop), `elizaOS/cloud` (cloud)
 
 ---
 
@@ -946,7 +946,7 @@ User              milady CLI          Eliza Cloud
 | `src/config/types.milady.ts` | `CloudConfig` type |
 | `src/config/config.ts` | `loadMiladyConfig()`, `saveMiladyConfig()` |
 
-### Eliza Cloud (`elizaOS/cloud` / eliza-cloud-v2)
+### Eliza Cloud (`elizaOS/cloud` / cloud)
 
 | Path | Purpose |
 |------|---------|

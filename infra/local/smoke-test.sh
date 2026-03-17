@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Smoke tests for eliza-cloud-v2 local environment.
+# Smoke tests for cloud local environment.
 # Prereq: ./setup.sh must have been run successfully.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
