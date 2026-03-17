@@ -18,7 +18,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.repository_owner" = "assertion.repository_owner"
   }
 
-  attribute_condition = "assertion.repository_owner == '${var.github_org}'"
+  attribute_condition = "assertion.repository in [${join(", ", [for r in var.github_repos : "'${r}'"])}]"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
@@ -32,10 +32,12 @@ resource "google_service_account" "github_actions" {
   description  = "Service account for GitHub Actions CI/CD deployments"
 }
 
+# One binding per repo for fine-grained access
 resource "google_service_account_iam_member" "workload_identity_user" {
+  for_each           = toset(var.github_repos)
   service_account_id = google_service_account.github_actions.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository_owner/${var.github_org}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${each.value}"
 }
 
 resource "google_project_iam_member" "container_developer" {

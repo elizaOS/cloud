@@ -67,6 +67,12 @@ variable "github_org" {
   default     = "elizaOS"
 }
 
+variable "github_repos" {
+  description = "GitHub repos allowed to deploy via WIF (e.g. [\"elizaOS/cloud\"])"
+  type        = list(string)
+  default     = ["elizaOS/cloud"]
+}
+
 # K8s
 variable "namespaces" {
   description = "List of Kubernetes namespaces to create"

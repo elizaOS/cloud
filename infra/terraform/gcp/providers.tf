@@ -6,15 +6,15 @@ provider "google" {
 data "google_client_config" "default" {}
 
 provider "kubernetes" {
-  host                   = "https://${module.gke.cluster_endpoint}"
+  host                   = try("https://${module.gke.cluster_endpoint}", null)
   token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(module.gke.cluster_ca_certificate)
+  cluster_ca_certificate = try(base64decode(module.gke.cluster_ca_certificate), null)
 }
 
 provider "helm" {
   kubernetes {
-    host                   = "https://${module.gke.cluster_endpoint}"
+    host                   = try("https://${module.gke.cluster_endpoint}", null)
     token                  = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(module.gke.cluster_ca_certificate)
+    cluster_ca_certificate = try(base64decode(module.gke.cluster_ca_certificate), null)
   }
 }
