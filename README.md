@@ -1,4 +1,4 @@
-# Eliza Cloud V2
+# Eliza Cloud
 
 A comprehensive AI agent development platform built with Next.js 15, featuring multi-model AI generation (text, image, video), full elizaOS runtime integration, enterprise authentication, credit-based billing, and production-ready cloud infrastructure.
 
