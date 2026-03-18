@@ -64,14 +64,3 @@ module "iam" {
 
   depends_on = [google_project_service.apis]
 }
-
-# Kubernetes resources (namespaces, RBAC)
-module "k8s_resources" {
-  source = "./modules/k8s-resources"
-
-  environment                    = var.environment
-  namespaces                     = var.namespaces
-  deployer_service_account_email = module.iam.service_account_email
-
-  depends_on = [module.gke]
-}

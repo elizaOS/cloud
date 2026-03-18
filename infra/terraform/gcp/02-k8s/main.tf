@@ -1,3 +1,7 @@
+locals {
+  deployer_service_account_email = data.terraform_remote_state.foundation.outputs.service_account_email
+}
+
 # Namespaces
 resource "kubernetes_namespace" "namespaces" {
   for_each = toset(var.namespaces)
@@ -14,7 +18,7 @@ resource "kubernetes_namespace" "namespaces" {
 }
 
 # =============================================================================
-# RBAC for CI/CD (GKE uses IAM natively — no aws-auth ConfigMap needed)
+# RBAC for CI/CD
 # Images are pulled from Artifact Registry natively — no pull secrets needed.
 # =============================================================================
 
@@ -57,7 +61,7 @@ resource "kubernetes_cluster_role_binding" "cluster_reader" {
 
   subject {
     kind = "User"
-    name = var.deployer_service_account_email
+    name = local.deployer_service_account_email
   }
 }
 
@@ -150,6 +154,6 @@ resource "kubernetes_role_binding" "namespace_deployer" {
 
   subject {
     kind = "User"
-    name = var.deployer_service_account_email
+    name = local.deployer_service_account_email
   }
 }

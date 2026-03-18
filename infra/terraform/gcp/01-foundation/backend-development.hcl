@@ -1,2 +1,2 @@
 bucket = "eliza-cloud-terraform-state"
-prefix = "gcp/development"
+prefix = "gcp/foundation/development"

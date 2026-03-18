@@ -1,4 +1,4 @@
-# Cluster outputs
+# Cluster
 output "cluster_name" {
   description = "GKE cluster name"
   value       = module.gke.cluster_name
@@ -16,18 +16,23 @@ output "cluster_ca_certificate" {
   sensitive   = true
 }
 
+output "cluster_location" {
+  description = "GKE cluster location (region)"
+  value       = module.gke.cluster_location
+}
+
 output "kubeconfig_command" {
   description = "gcloud command to configure kubectl"
   value       = "gcloud container clusters get-credentials ${module.gke.cluster_name} --region ${var.region} --project ${var.project_id}"
 }
 
-# Network outputs
+# Network
 output "vpc_name" {
   description = "VPC network name"
   value       = module.network.vpc_name
 }
 
-# IAM outputs (for GitHub Actions workflow configuration)
+# IAM
 output "workload_identity_provider" {
   description = "Workload Identity Provider resource name (use in GitHub Actions 'google-github-actions/auth')"
   value       = module.iam.workload_identity_provider
@@ -38,8 +43,13 @@ output "service_account_email" {
   value       = module.iam.service_account_email
 }
 
-# K8s outputs
-output "namespaces" {
-  description = "Created Kubernetes namespaces"
-  value       = module.k8s_resources.namespace_names
+# Passthrough for 02-k8s layer
+output "project_id" {
+  description = "GCP project ID"
+  value       = var.project_id
+}
+
+output "region" {
+  description = "GCP region"
+  value       = var.region
 }

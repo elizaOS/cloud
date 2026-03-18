@@ -73,13 +73,6 @@ variable "github_repos" {
   default     = ["elizaOS/cloud"]
 }
 
-# K8s
-variable "namespaces" {
-  description = "List of Kubernetes namespaces to create"
-  type        = list(string)
-  default     = ["soulmate", "gateways"]
-}
-
 variable "deletion_protection" {
   description = "Enable cluster deletion protection (true for production)"
   type        = bool

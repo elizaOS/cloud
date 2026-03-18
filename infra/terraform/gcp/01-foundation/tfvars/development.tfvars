@@ -14,4 +14,3 @@ master_authorized_cidrs = [
 
 github_org   = "elizaOS"
 github_repos = ["elizaOS/cloud"]
-namespaces   = ["9437543e-c21f-42a4-9dd9-6e697d0d75eb", "gateways"]
