@@ -59,7 +59,6 @@ module "iam" {
   source = "./modules/iam"
 
   project_id   = var.project_id
-  github_org   = var.github_org
   github_repos = var.github_repos
 
   depends_on = [google_project_service.apis]

@@ -61,12 +61,6 @@ variable "master_authorized_cidrs" {
 }
 
 # GitHub
-variable "github_org" {
-  description = "GitHub organization for Workload Identity Federation"
-  type        = string
-  default     = "elizaOS"
-}
-
 variable "github_repos" {
   description = "GitHub repos allowed to deploy via WIF (e.g. [\"elizaOS/cloud\"])"
   type        = list(string)
