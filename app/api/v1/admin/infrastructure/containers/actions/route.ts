@@ -17,8 +17,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
+import { requireAdmin } from "@/lib/auth";
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
 import { logger } from "@/lib/utils/logger";
 
@@ -64,10 +64,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { action, nodeId, containerName, lines = 200, since } = body;
@@ -88,10 +85,7 @@ export async function POST(request: NextRequest) {
 
   // Validate containerName (prevent injection)
   if (!/^[a-zA-Z0-9_.-]+$/.test(containerName)) {
-    return NextResponse.json(
-      { success: false, error: "Invalid container name" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid container name" }, { status: 400 });
   }
 
   const node = await dockerNodesRepository.findByNodeId(nodeId);
@@ -114,7 +108,16 @@ export async function POST(request: NextRequest) {
       case "logs": {
         const tailLines = Math.min(Math.max(lines, 1), 5000);
         let cmd = `docker logs --tail ${tailLines}`;
-        if (since) cmd += ` --since ${shellQuote(since)}`;
+        if (since) {
+          // Validate since format: duration (e.g. "1h", "30m") or ISO timestamp
+          if (!/^(\d+[smhd]|[\d]{4}-\d{2}-\d{2}T[\d:.Z+-]+)$/.test(since)) {
+            return NextResponse.json(
+              { success: false, error: "Invalid since format" },
+              { status: 400 },
+            );
+          }
+          cmd += ` --since ${shellQuote(since)}`;
+        }
         cmd += ` ${shellQuote(containerName)} 2>&1`;
 
         const logs = await ssh.exec(cmd, SSH_LOGS_TIMEOUT_MS);
@@ -257,9 +260,9 @@ export async function POST(request: NextRequest) {
         );
         const image = imageOutput.trim();
 
-        if (!image) {
+        if (!image || !/^[a-zA-Z0-9_./:@-]+$/.test(image)) {
           return NextResponse.json(
-            { success: false, error: "Could not determine container image" },
+            { success: false, error: "Could not determine a valid container image" },
             { status: 400 },
           );
         }
@@ -305,8 +308,9 @@ export async function POST(request: NextRequest) {
       containerName,
       error: message,
     });
+    // Don't expose internal SSH error details (hostnames, IPs, key fingerprints) to client
     return NextResponse.json(
-      { success: false, error: `Action failed: ${message}` },
+      { success: false, error: "Action failed. Check server logs for details." },
       { status: 500 },
     );
   } finally {

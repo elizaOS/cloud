@@ -20,12 +20,7 @@ export default function DashboardError({
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 text-white">
       <div className="flex items-center justify-center w-16 h-16 border border-red-500/25 bg-red-500/10">
-        <svg
-          className="h-8 w-8 text-red-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+        <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
