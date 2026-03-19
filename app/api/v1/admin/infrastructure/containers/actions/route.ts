@@ -7,7 +7,7 @@
  * Works with any container on any registered node, not just DB-tracked ones.
  *
  * Body:
- *   - action: "logs" | "restart" | "stop" | "start" | "inspect" | "pull-recreate"
+ *   - action: "logs" | "restart" | "stop" | "start" | "inspect" | "pull-image"
  *   - nodeId: string (docker_nodes.node_id)
  *   - containerName: string
  *   - lines?: number (for logs, default 200)
@@ -24,12 +24,12 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
-const SSH_ACTION_TIMEOUT_MS = 30_000;
-const SSH_LOGS_TIMEOUT_MS = 30_000;
+/** Default SSH timeout for actions (restart/stop/start) and log fetching */
+const SSH_DEFAULT_TIMEOUT_MS = 30_000;
 const SSH_INSPECT_TIMEOUT_MS = 15_000;
 const SSH_PULL_TIMEOUT_MS = 120_000;
 
-type ContainerAction = "logs" | "restart" | "stop" | "start" | "inspect" | "pull-recreate";
+type ContainerAction = "logs" | "restart" | "stop" | "start" | "inspect" | "pull-image";
 
 const VALID_ACTIONS = new Set<ContainerAction>([
   "logs",
@@ -37,7 +37,7 @@ const VALID_ACTIONS = new Set<ContainerAction>([
   "stop",
   "start",
   "inspect",
-  "pull-recreate",
+  "pull-image",
 ]);
 
 function shellQuote(s: string): string {
@@ -83,6 +83,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validate nodeId (prevent enumeration with arbitrary strings)
+  if (!/^[a-zA-Z0-9_.-]+$/.test(nodeId)) {
+    return NextResponse.json({ success: false, error: "Invalid node ID" }, { status: 400 });
+  }
+
   // Validate containerName (prevent injection)
   if (!/^[a-zA-Z0-9_.-]+$/.test(containerName)) {
     return NextResponse.json({ success: false, error: "Invalid container name" }, { status: 400 });
@@ -110,7 +115,11 @@ export async function POST(request: NextRequest) {
         let cmd = `docker logs --tail ${tailLines}`;
         if (since) {
           // Validate since format: duration (e.g. "1h", "30m") or ISO timestamp
-          if (!/^(\d+[smhd]|[\d]{4}-\d{2}-\d{2}T[\d:.Z+-]+)$/.test(since)) {
+          if (
+            !/^(\d+[smhd]|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2}))$/.test(
+              since,
+            )
+          ) {
             return NextResponse.json(
               { success: false, error: "Invalid since format" },
               { status: 400 },
@@ -120,7 +129,7 @@ export async function POST(request: NextRequest) {
         }
         cmd += ` ${shellQuote(containerName)} 2>&1`;
 
-        const logs = await ssh.exec(cmd, SSH_LOGS_TIMEOUT_MS);
+        const logs = await ssh.exec(cmd, SSH_DEFAULT_TIMEOUT_MS);
         return NextResponse.json({
           success: true,
           data: {
@@ -137,7 +146,7 @@ export async function POST(request: NextRequest) {
       case "restart": {
         const output = await ssh.exec(
           `docker restart ${shellQuote(containerName)} 2>&1`,
-          SSH_ACTION_TIMEOUT_MS,
+          SSH_DEFAULT_TIMEOUT_MS,
         );
         logger.info("[Admin Infrastructure] Container restarted", {
           nodeId,
@@ -159,7 +168,7 @@ export async function POST(request: NextRequest) {
       case "stop": {
         const output = await ssh.exec(
           `docker stop ${shellQuote(containerName)} 2>&1`,
-          SSH_ACTION_TIMEOUT_MS,
+          SSH_DEFAULT_TIMEOUT_MS,
         );
         logger.info("[Admin Infrastructure] Container stopped", {
           nodeId,
@@ -181,7 +190,7 @@ export async function POST(request: NextRequest) {
       case "start": {
         const output = await ssh.exec(
           `docker start ${shellQuote(containerName)} 2>&1`,
-          SSH_ACTION_TIMEOUT_MS,
+          SSH_DEFAULT_TIMEOUT_MS,
         );
         logger.info("[Admin Infrastructure] Container started", {
           nodeId,
@@ -252,7 +261,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      case "pull-recreate": {
+      case "pull-image": {
         // Get current container's image first
         const imageOutput = await ssh.exec(
           `docker inspect --format '{{.Config.Image}}' ${shellQuote(containerName)} 2>&1`,
@@ -283,12 +292,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           data: {
-            action: "pull-recreate",
+            action: "pull-image",
             nodeId,
             containerName,
             image,
             pullOutput: pullOutput.trim(),
-            note: "Image pulled. Container recreation requires docker-compose or manual recreation.",
+            note: "Image pulled successfully. Restart the container to use the new image.",
             performedAt: new Date().toISOString(),
           },
         });

@@ -71,6 +71,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
@@ -239,7 +240,6 @@ interface InfraSummary {
   failedContainers: number;
   missingContainers: number;
   staleContainers: number;
-  [key: string]: unknown;
 }
 
 interface InfraSnapshot {
@@ -479,6 +479,78 @@ function ContainerStatusBadge({ status }: { status: string }) {
 type SortField = "containerName" | "agentName" | "nodeId" | "status" | "liveHealth" | "createdAt";
 type SortDirection = "asc" | "desc";
 
+/** Minimal type for docker inspect data to avoid `as any` casts throughout */
+interface DockerInspectData {
+  Config?: {
+    Image?: string;
+    Env?: string[];
+  };
+  Image?: string;
+  State?: {
+    Status?: string;
+    StartedAt?: string;
+  };
+  RestartCount?: number;
+  Platform?: string;
+  Driver?: string;
+  NetworkSettings?: {
+    Ports?: Record<string, Array<{ HostIp?: string; HostPort?: string }> | null>;
+  };
+  [key: string]: unknown;
+}
+
+/** Sortable table header — extracted to module scope to avoid re-creating on every render */
+function SortableHeader({
+  field,
+  label,
+  sortField,
+  sortDirection,
+  toggleSort,
+}: {
+  field: SortField;
+  label: string;
+  sortField: SortField;
+  sortDirection: SortDirection;
+  toggleSort: (field: SortField) => void;
+}) {
+  const isActive = sortField === field;
+  return (
+    <TableHead
+      className="cursor-pointer select-none hover:text-foreground"
+      onClick={() => toggleSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {isActive ? (
+          sortDirection === "asc" ? (
+            <ArrowUp className="h-3 w-3" />
+          ) : (
+            <ArrowDown className="h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </div>
+    </TableHead>
+  );
+}
+
+/**
+ * Mask sensitive environment variables in a docker inspect payload.
+ * Returns a deep copy with Config.Env values redacted.
+ */
+function maskInspectForDisplay(data: DockerInspectData): DockerInspectData {
+  const copy = JSON.parse(JSON.stringify(data)) as DockerInspectData;
+  if (copy.Config?.Env) {
+    copy.Config.Env = copy.Config.Env.map((env: string) => {
+      const [key] = env.split("=");
+      const isSensitive = /key|secret|password|token|api/i.test(key ?? "");
+      return isSensitive ? `${key}=****` : env;
+    });
+  }
+  return copy;
+}
+
 // ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
@@ -551,7 +623,7 @@ export function InfrastructureDashboard() {
   // ---- Container details dialog ----
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsTarget, setDetailsTarget] = useState<ContainerRow | null>(null);
-  const [detailsData, setDetailsData] = useState<Record<string, unknown> | null>(null);
+  const [detailsData, setDetailsData] = useState<DockerInspectData | null>(null);
   const [detailsResources, setDetailsResources] = useState<Record<string, string> | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
@@ -565,6 +637,17 @@ export function InfrastructureDashboard() {
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
+
+  // ---- Post-action refresh timer (cleaned up on unmount) ----
+  const actionRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (actionRefreshTimerRef.current !== null) {
+        clearTimeout(actionRefreshTimerRef.current);
+      }
+    };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Data fetchers
@@ -824,7 +907,7 @@ export function InfrastructureDashboard() {
   // ---------------------------------------------------------------------------
 
   const performContainerAction = useCallback(
-    async (row: ContainerRow, action: "restart" | "stop" | "start" | "pull-recreate") => {
+    async (row: ContainerRow, action: "restart" | "stop" | "start" | "pull-image") => {
       if (row.nodeId === "unassigned") {
         toast.error("Cannot perform actions on unassigned containers");
         return;
@@ -844,8 +927,15 @@ export function InfrastructureDashboard() {
         const json = await res.json();
         if (!json.success) throw new Error(json.error);
         toast.success(`${action} successful: ${row.containerName}`);
-        // Refresh infrastructure snapshot
-        setTimeout(() => loadInfraSnapshot(), 2000);
+        // Refresh infrastructure snapshot after a short delay to let Docker settle.
+        // Timer is tracked in a ref so it can be cleared if the component unmounts.
+        if (actionRefreshTimerRef.current !== null) {
+          clearTimeout(actionRefreshTimerRef.current);
+        }
+        actionRefreshTimerRef.current = setTimeout(() => {
+          actionRefreshTimerRef.current = null;
+          loadInfraSnapshot();
+        }, 2000);
       } catch (err) {
         toast.error(`${action} failed: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
@@ -1093,33 +1183,6 @@ export function InfrastructureDashboard() {
   }, [loadNodes, loadInfraSnapshot, loadHeadscale]);
 
   // ---------------------------------------------------------------------------
-  // Sort header component
-  // ---------------------------------------------------------------------------
-
-  function SortableHeader({ field, label }: { field: SortField; label: string }) {
-    const isActive = sortField === field;
-    return (
-      <TableHead
-        className="cursor-pointer select-none hover:text-foreground"
-        onClick={() => toggleSort(field)}
-      >
-        <div className="flex items-center gap-1">
-          {label}
-          {isActive ? (
-            sortDirection === "asc" ? (
-              <ArrowUp className="h-3 w-3" />
-            ) : (
-              <ArrowDown className="h-3 w-3" />
-            )
-          ) : (
-            <ArrowUpDown className="h-3 w-3 opacity-30" />
-          )}
-        </div>
-      </TableHead>
-    );
-  }
-
-  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -1314,6 +1377,11 @@ export function InfrastructureDashboard() {
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0" />
                   )}
                 </div>
+                {!incidentsExpanded && hasMore && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    +{infraSnapshot.incidents.length - COLLAPSED_LIMIT} more — click to expand
+                  </p>
+                )}
                 {incidentsExpanded && (
                   <div className="space-y-1 mt-2">
                     {visibleIncidents.map((incident, i) => (
@@ -1336,11 +1404,6 @@ export function InfrastructureDashboard() {
                         </span>
                       </div>
                     ))}
-                    {hasMore && !incidentsExpanded && (
-                      <p className="text-xs text-muted-foreground pl-2">
-                        +{infraSnapshot.incidents.length - COLLAPSED_LIMIT} more
-                      </p>
-                    )}
                   </div>
                 )}
               </div>
@@ -1650,10 +1713,34 @@ export function InfrastructureDashboard() {
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="w-8" />
-                                <SortableHeader field="containerName" label="Container" />
-                                <SortableHeader field="agentName" label="Agent" />
-                                <SortableHeader field="status" label="Status" />
-                                <SortableHeader field="liveHealth" label="Health" />
+                                <SortableHeader
+                                  field="containerName"
+                                  label="Container"
+                                  sortField={sortField}
+                                  sortDirection={sortDirection}
+                                  toggleSort={toggleSort}
+                                />
+                                <SortableHeader
+                                  field="agentName"
+                                  label="Agent"
+                                  sortField={sortField}
+                                  sortDirection={sortDirection}
+                                  toggleSort={toggleSort}
+                                />
+                                <SortableHeader
+                                  field="status"
+                                  label="Status"
+                                  sortField={sortField}
+                                  sortDirection={sortDirection}
+                                  toggleSort={toggleSort}
+                                />
+                                <SortableHeader
+                                  field="liveHealth"
+                                  label="Health"
+                                  sortField={sortField}
+                                  sortDirection={sortDirection}
+                                  toggleSort={toggleSort}
+                                />
                                 <TableHead>Runtime</TableHead>
                                 <TableHead>Heartbeat</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
@@ -1959,14 +2046,14 @@ export function InfrastructureDashboard() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() =>
-                                                  performContainerAction(row, "pull-recreate")
+                                                  performContainerAction(row, "pull-image")
                                                 }
                                                 disabled={
-                                                  actionLoading[`${row.key}-pull-recreate`] ||
+                                                  actionLoading[`${row.key}-pull-image`] ||
                                                   row.nodeId === "unassigned"
                                                 }
                                               >
-                                                {actionLoading[`${row.key}-pull-recreate`] ? (
+                                                {actionLoading[`${row.key}-pull-image`] ? (
                                                   <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                                 ) : (
                                                   <RefreshCw className="mr-1 h-3 w-3" />
@@ -2475,91 +2562,84 @@ export function InfrastructureDashboard() {
                     <div>
                       <span className="text-muted-foreground">Image:</span>
                       <p className="font-mono">
-                        {String(
-                          (detailsData as any)?.Config?.Image ?? (detailsData as any)?.Image ?? "—",
-                        )}
+                        {String(detailsData.Config?.Image ?? detailsData.Image ?? "—")}
                       </p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">State:</span>
-                      <p>{String((detailsData as any)?.State?.Status ?? "—")}</p>
+                      <p>{String(detailsData.State?.Status ?? "—")}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Started:</span>
                       <p>
-                        {(detailsData as any)?.State?.StartedAt
-                          ? new Date((detailsData as any).State.StartedAt).toLocaleString()
+                        {detailsData.State?.StartedAt
+                          ? new Date(detailsData.State.StartedAt).toLocaleString()
                           : "—"}
                       </p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Restart Count:</span>
-                      <p>{String((detailsData as any)?.RestartCount ?? "—")}</p>
+                      <p>{String(detailsData.RestartCount ?? "—")}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Platform:</span>
-                      <p>{String((detailsData as any)?.Platform ?? "—")}</p>
+                      <p>{String(detailsData.Platform ?? "—")}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Driver:</span>
-                      <p>{String((detailsData as any)?.Driver ?? "—")}</p>
+                      <p>{String(detailsData.Driver ?? "—")}</p>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Environment Variables */}
-              {detailsData && (detailsData as any)?.Config?.Env && (
+              {detailsData?.Config?.Env && (
                 <div>
                   <h4 className="text-sm font-semibold mb-2">Environment Variables</h4>
                   <div className="max-h-[200px] overflow-auto rounded-md bg-muted/60 p-3">
                     <pre className="text-xs font-mono whitespace-pre-wrap">
-                      {((detailsData as any).Config.Env as string[])
-                        .map((env: string) => {
-                          // Mask sensitive values
-                          const [key] = env.split("=");
-                          const isSensitive = /key|secret|password|token|api/i.test(key ?? "");
-                          if (isSensitive) {
-                            return `${key}=****`;
-                          }
-                          return env;
-                        })
-                        .join("\n")}
+                      {detailsData.Config.Env.map((env: string) => {
+                        const [key] = env.split("=");
+                        const isSensitive = /key|secret|password|token|api/i.test(key ?? "");
+                        return isSensitive ? `${key}=****` : env;
+                      }).join("\n")}
                     </pre>
                   </div>
                 </div>
               )}
 
               {/* Port mappings */}
-              {detailsData && (detailsData as any)?.NetworkSettings?.Ports && (
+              {detailsData?.NetworkSettings?.Ports && (
                 <div>
                   <h4 className="text-sm font-semibold mb-2">Port Mappings</h4>
                   <div className="text-xs font-mono space-y-1">
-                    {Object.entries((detailsData as any).NetworkSettings.Ports).map(
-                      ([port, bindings]) => (
-                        <div key={port}>
-                          <span className="text-muted-foreground">{port}</span>
-                          {" → "}
-                          {Array.isArray(bindings) && bindings.length > 0
-                            ? bindings
-                                .map((b: any) => `${b.HostIp || "0.0.0.0"}:${b.HostPort}`)
-                                .join(", ")
-                            : "not mapped"}
-                        </div>
-                      ),
-                    )}
+                    {Object.entries(detailsData.NetworkSettings.Ports).map(([port, bindings]) => (
+                      <div key={port}>
+                        <span className="text-muted-foreground">{port}</span>
+                        {" → "}
+                        {Array.isArray(bindings) && bindings.length > 0
+                          ? bindings
+                              .map(
+                                (b: { HostIp?: string; HostPort?: string }) =>
+                                  `${b.HostIp || "0.0.0.0"}:${b.HostPort}`,
+                              )
+                              .join(", ")
+                          : "not mapped"}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* Raw JSON (collapsed) */}
+              {/* Raw JSON (collapsed) — env vars masked to prevent leaking secrets */}
               <details className="text-xs">
                 <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
                   Raw Docker Inspect JSON
                 </summary>
                 <div className="mt-2 max-h-[300px] overflow-auto rounded-md bg-muted/60 p-3">
                   <pre className="font-mono whitespace-pre-wrap">
-                    {JSON.stringify(detailsData, null, 2)}
+                    {detailsData && JSON.stringify(maskInspectForDisplay(detailsData), null, 2)}
                   </pre>
                 </div>
               </details>

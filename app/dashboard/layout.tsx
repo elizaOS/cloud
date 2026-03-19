@@ -16,6 +16,16 @@ import { OnboardingProvider } from "@/packages/ui/src/components/onboarding/onbo
  * - /dashboard/build - AI agent builder
  */
 const FREE_MODE_PATHS = ["/dashboard/chat", "/dashboard/build"];
+/**
+ * Grace period (ms) for transient Privy token refresh gaps.
+ *
+ * During this window the dashboard stays mounted even though `authenticated`
+ * is momentarily false. API calls will still fail correctly (auth middleware
+ * rejects expired tokens), so no data is exposed — only the previously-
+ * rendered UI remains visible. 5 seconds covers observed Privy refresh
+ * latency with margin. If a user genuinely logs out, the redirect fires
+ * once this timer expires.
+ */
 const AUTH_LOSS_GRACE_MS = 5000;
 
 /**
@@ -44,6 +54,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const authLossTimerRef = useRef<number | null>(null);
   const [authGraceActive, setAuthGraceActive] = useState(false);
 
+  // Deliberately mutated during render — idempotent (only ever set to true) and
+  // safe under Strict Mode double-render. This ref tracks whether the user was
+  // ever authenticated so we can apply the grace period on transient auth loss.
   if (authenticated) {
     hasBeenAuthenticated.current = true;
   }
@@ -167,6 +180,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Header - keep authenticated UI stable during short auth refresh windows */}
             <Header
               onToggleSidebar={handleToggleSidebar}
+              // During the auth grace window shouldAllowProtectedContent is true
+              // even though `authenticated` is false, so the header shows as
+              // authenticated. This is intentional for UX stability — prevents
+              // the header from flickering to anonymous during Privy refreshes.
               isAnonymous={!shouldAllowProtectedContent}
               authGraceActive={authGraceActive && !authenticated}
             />

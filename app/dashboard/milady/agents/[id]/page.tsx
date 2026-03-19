@@ -64,12 +64,19 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   const user = await requireAuthWithOrg();
   const { id } = await params;
 
-  // Milady sandboxes table may not exist in all environments — redirect gracefully
+  // Milady sandboxes table may not exist in all environments — redirect gracefully.
+  // Only catch "not found" style errors; let unexpected failures (DB down, schema
+  // mismatch) propagate so they're visible in error tracking.
   let agent: Awaited<ReturnType<typeof miladySandboxService.getAgent>>;
   try {
     agent = await miladySandboxService.getAgent(id, user.organization_id);
-  } catch {
-    redirect("/dashboard/milady");
+  } catch (err) {
+    // Relation/table missing or row not found → redirect; anything else → rethrow
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("does not exist") || msg.includes("not found") || msg.includes("relation")) {
+      redirect("/dashboard/milady");
+    }
+    throw err;
   }
   if (!agent) {
     redirect("/dashboard/milady");
