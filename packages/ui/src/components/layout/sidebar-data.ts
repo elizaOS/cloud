@@ -34,6 +34,7 @@ export interface SidebarItem {
   adminOnly?: boolean; // Only show for admin users
   superAdminOnly?: boolean; // Only show for super_admin role
   comingSoon?: boolean; // Show as disabled with "soon" tag
+  hardNavigate?: boolean; // Temporary full-page navigation fallback for unstable routes
 }
 
 export interface SidebarSection {
@@ -81,6 +82,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/milady",
         icon: Boxes,
         freeAllowed: false,
+        hardNavigate: true,
       },
     ],
   },

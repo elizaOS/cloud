@@ -45,7 +45,6 @@ import {
   Server,
   Trash2,
 } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
@@ -584,12 +583,12 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                       {/* Agent name + type */}
                       <TableCell>
                         <div className="space-y-1">
-                          <Link
-                            href={`/dashboard/containers/agents/${sb.id}`}
+                          <a
+                            href={`/dashboard/milady/agents/${sb.id}`}
                             className="font-medium text-white hover:text-[#FF5800] transition-colors"
                           >
                             {sb.agent_name ?? "Unnamed Agent"}
-                          </Link>
+                          </a>
                           <div className="flex items-center gap-2">
                             <span className="inline-flex items-center gap-1 text-[10px] text-white/35">
                               {isDocker ? (
@@ -664,14 +663,12 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                         <div className="flex justify-end gap-0.5">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Link href={`/dashboard/containers/agents/${sb.id}`}>
-                                <button
-                                  type="button"
-                                  className="p-2 text-white/30 hover:text-white hover:bg-white/5 transition-colors"
-                                >
-                                  <FileText className="h-4 w-4" />
-                                </button>
-                              </Link>
+                              <a
+                                href={`/dashboard/milady/agents/${sb.id}`}
+                                className="p-2 text-white/30 hover:text-white hover:bg-white/5 transition-colors"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </a>
                             </TooltipTrigger>
                             <TooltipContent className="bg-neutral-900 border-white/10">
                               View details
@@ -780,12 +777,12 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                   {/* Header: name + status */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
-                      <Link
-                        href={`/dashboard/containers/agents/${sb.id}`}
+                      <a
+                        href={`/dashboard/milady/agents/${sb.id}`}
                         className="font-medium text-white hover:text-[#FF5800] transition-colors block truncate"
                       >
                         {sb.agent_name ?? "Unnamed Agent"}
-                      </Link>
+                      </a>
                       <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1 text-[10px] text-white/35">
                           {isDocker ? (
@@ -820,13 +817,13 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
 
                   {/* Actions */}
                   <div className="flex items-center gap-1 border-t border-white/5 pt-3">
-                    <Link
-                      href={`/dashboard/containers/agents/${sb.id}`}
+                    <a
+                      href={`/dashboard/milady/agents/${sb.id}`}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-white/50 hover:text-white hover:bg-white/5 transition-colors border border-white/10"
                     >
                       <FileText className="h-3.5 w-3.5" />
                       Details
-                    </Link>
+                    </a>
 
                     {connectUrl && displayStatus === "running" && (
                       <button

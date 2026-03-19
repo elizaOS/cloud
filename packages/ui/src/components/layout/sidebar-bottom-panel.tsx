@@ -11,7 +11,7 @@
 import { CornerBrackets } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { LogIn, Settings, UserPlus } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 interface SidebarBottomPanelProps {
@@ -21,7 +21,6 @@ interface SidebarBottomPanelProps {
 
 export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBottomPanelProps) {
   const { ready, authenticated, user } = usePrivy();
-  const router = useRouter();
   const pathname = usePathname();
 
   // If not authenticated, show sign up/login CTA
@@ -31,26 +30,28 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
       return null;
     }
 
+    const loginHref = `/login?returnTo=${encodeURIComponent(
+      pathname + (typeof window !== "undefined" ? window.location.search : ""),
+    )}`;
+
     // Collapsed view - just show login icon
     // Preserve current page with returnTo parameter (including query params like characterId)
     if (isCollapsed) {
-      const currentUrl = pathname + (typeof window !== "undefined" ? window.location.search : "");
       return (
         <div className={cn("flex justify-center py-3", className)}>
-          <button
-            onClick={() => router.push(`/login?returnTo=${encodeURIComponent(currentUrl)}`)}
+          <a
+            href={loginHref}
             className="border border-white/10 bg-white/5 p-2 transition-colors hover:border-white/20 hover:bg-white/10"
             title="Sign Up / Log In"
           >
             <UserPlus className="h-5 w-5 text-white/60" />
-          </button>
+          </a>
         </div>
       );
     }
 
     // Anonymous user CTA panel
     // Include query params (like characterId) to return to exact chat after login
-    const fullUrl = pathname + (typeof window !== "undefined" ? window.location.search : "");
     return (
       <div className={cn("relative border-t border-white/10", className)}>
         <CornerBrackets size="sm" className="opacity-20" />
@@ -59,21 +60,21 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
           <div className="flex flex-col gap-2">
             <p className="text-[10px] text-white/40 mb-1">Sign up for full access</p>
 
-            <button
-              onClick={() => router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`)}
+            <a
+              href={loginHref}
               className="flex w-full items-center justify-center gap-1.5 bg-[#FF5800] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-[#FF5800]/90"
             >
               <UserPlus className="h-3.5 w-3.5" />
               <span>Sign Up</span>
-            </button>
+            </a>
 
-            <button
-              onClick={() => router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`)}
+            <a
+              href={loginHref}
               className="flex w-full items-center justify-center gap-1.5 border border-white/15 px-3 py-2 text-xs text-white/70 transition-colors hover:bg-white/5 hover:text-white"
             >
               <LogIn className="h-3.5 w-3.5" />
               <span>Log In</span>
-            </button>
+            </a>
 
             <div className="mt-1 space-y-1 text-[10px] text-white/30">
               <div className="flex items-center gap-1.5">
@@ -95,13 +96,13 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
   if (isCollapsed) {
     return (
       <div className={cn("flex justify-center py-3", className)}>
-        <button
-          onClick={() => router.push("/dashboard/settings")}
+        <a
+          href="/dashboard/settings"
           className="border border-white/10 bg-white/5 p-2 transition-colors hover:border-white/20 hover:bg-white/10"
           title="Settings"
         >
           <Settings className="h-5 w-5 text-white/60" />
-        </button>
+        </a>
       </div>
     );
   }

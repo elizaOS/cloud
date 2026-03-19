@@ -124,16 +124,10 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
         };
 
         const reloadIfNeeded = () => {
-          const currentPath = window.location.pathname;
-          if (
-            currentPath.startsWith("/chat/") ||
-            currentPath.includes("/my-agents") ||
-            currentPath.includes("/dashboard")
-          ) {
-            setTimeout(() => {
-              window.location.reload();
-            }, 500);
-          }
+          // Instead of a hard reload (which breaks client-side navigation),
+          // dispatch an event that components can listen to for soft refresh.
+          // Hard reloads were causing client-side routing to break.
+          window.dispatchEvent(new CustomEvent("anon-migration-complete"));
         };
 
         // Small delay to ensure Privy auth cookies are set

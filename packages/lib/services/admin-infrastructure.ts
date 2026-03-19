@@ -398,10 +398,14 @@ export function classifyContainerHealth(params: {
   }
 
   if (heartbeatAgeMinutes >= HEARTBEAT_STALE_MINUTES) {
+    // If the container is running and Docker health check says healthy,
+    // downgrade severity — the heartbeat mechanism may be broken but the
+    // container itself is functional.
+    const runtimeHealthy = runtime?.state === "running" && runtime?.health === "healthy";
     return {
       status: "stale",
-      severity: "critical",
-      reason: `Heartbeat is ${heartbeatAgeMinutes}m old`,
+      severity: runtimeHealthy ? "warning" : "critical",
+      reason: `Heartbeat is ${heartbeatAgeMinutes}m old${runtimeHealthy ? " (container is running and Docker-healthy)" : ""}`,
     };
   }
 
@@ -685,8 +689,12 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
           container.liveHealth !== "stopped",
       ).length;
 
+      // Use actual sandbox record count rather than the potentially-stale
+      // allocated_count column stored in docker_nodes.
+      const actualAllocatedCount = dbContainers.length;
+
       const allocationDrift = runtime.reachable
-        ? runtime.actualContainerCount - node.allocated_count
+        ? runtime.actualContainerCount - actualAllocatedCount
         : 0;
 
       return {
@@ -696,8 +704,8 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
         sshPort: node.ssh_port,
         sshUser: node.ssh_user,
         capacity: node.capacity,
-        allocatedCount: node.allocated_count,
-        availableSlots: Math.max(0, node.capacity - node.allocated_count),
+        allocatedCount: actualAllocatedCount,
+        availableSlots: Math.max(0, node.capacity - actualAllocatedCount),
         enabled: node.enabled,
         status: node.status,
         lastHealthCheck: toIso(node.last_health_check),
