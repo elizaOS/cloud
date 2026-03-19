@@ -64,7 +64,9 @@ describe("classifyContainerHealth", () => {
     });
 
     expect(result.status).toBe("stale");
-    expect(result.severity).toBe("critical");
+    // Severity is downgraded to warning when Docker reports the container as
+    // running + healthy (heartbeat mechanism may be broken but container is up)
+    expect(result.severity).toBe("warning");
     expect(result.reason).toContain("Heartbeat");
   });
 
