@@ -190,6 +190,16 @@ const nextConfig: NextConfig = {
     "isomorphic-dompurify",
     // ssh2 ships non-ECMAScript assets that Turbopack cannot place into ESM chunks
     "ssh2",
+    // @vercel/sandbox has native deps (jsonlines) that break local webpack builds
+    "@vercel/sandbox",
+    // Redis sub-packages have optional native deps that break local webpack
+    "redis",
+    "@redis/client",
+    "@redis/graph",
+    "@redis/json",
+    "@redis/search",
+    "@redis/time-series",
+    "@redis/bloom",
     // NOTE: pino and thread-stream are NOT external - they get bundled with
     // the thread-stream alias to our synchronous stub, preventing dynamic
     // worker module loading (pino-28069d5257187539) that fails in serverless
