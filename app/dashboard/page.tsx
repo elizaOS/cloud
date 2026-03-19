@@ -40,7 +40,7 @@ export default async function DashboardPage() {
       error instanceof Error &&
       (error.message.includes("Unauthorized") || error.message.includes("Forbidden"))
     ) {
-      redirect("/login");
+      redirect(`/login?returnTo=${encodeURIComponent("/dashboard")}`);
     }
     throw error;
   }

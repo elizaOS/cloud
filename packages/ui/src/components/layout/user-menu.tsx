@@ -75,14 +75,14 @@ class UserMenuErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryS
     if (this.state.hasError) {
       return (
         this.props.fallback ?? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="opacity-60"
-            onClick={() => this.setState({ hasError: false })}
+          // Fallback: direct link to account page in case dropdown fails
+          <a
+            href="/dashboard/account"
+            className="flex items-center justify-center h-8 w-8 md:h-10 md:w-10 border border-white/10 bg-white/5 hover:border-orange-500/50 hover:bg-white/10 transition-colors opacity-80"
+            title="Account Settings"
           >
-            <UserCircle className="h-5 w-5" />
-          </Button>
+            <UserCircle className="h-5 w-5 text-white" />
+          </a>
         )
       );
     }
@@ -276,10 +276,16 @@ function formatCreditBalance(balance: number | null): string {
   }
 }
 
+type PrivyUser = ReturnType<typeof usePrivy>["user"];
+
+interface UserMenuProps {
+  preserveWhileUnauthed?: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Main component (inner)
 // ---------------------------------------------------------------------------
-function UserMenuInner() {
+function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
   const { ready, authenticated, user } = usePrivy();
   const pathname = usePathname();
   const { logout } = useLogout();
@@ -290,6 +296,22 @@ function UserMenuInner() {
   // User profile state for avatar
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [lastAuthenticatedUser, setLastAuthenticatedUser] = useState<PrivyUser | null>(null);
+
+  useEffect(() => {
+    if (authenticated && user) {
+      setLastAuthenticatedUser(user);
+      return;
+    }
+
+    if (!preserveWhileUnauthed) {
+      setLastAuthenticatedUser(null);
+      setUserProfile(null);
+    }
+  }, [authenticated, user, preserveWhileUnauthed]);
+
+  const effectiveUser =
+    authenticated && user ? user : preserveWhileUnauthed ? lastAuthenticatedUser : null;
 
   // Fetch user profile from API to get avatar
   useEffect(() => {
@@ -318,20 +340,22 @@ function UserMenuInner() {
 
     fetchProfile();
 
-    // Listen for avatar updates (when user saves a new avatar in settings)
-    const handleAvatarUpdate = () => {
-      fetchProfile();
+    // Listen for avatar updates and post-migration refreshes.
+    const handleProfileRefresh = () => {
+      void fetchProfile();
     };
-    window.addEventListener("user-avatar-updated", handleAvatarUpdate);
+    window.addEventListener("user-avatar-updated", handleProfileRefresh);
+    window.addEventListener("anon-migration-complete", handleProfileRefresh);
 
     return () => {
       mounted = false;
-      window.removeEventListener("user-avatar-updated", handleAvatarUpdate);
+      window.removeEventListener("user-avatar-updated", handleProfileRefresh);
+      window.removeEventListener("anon-migration-complete", handleProfileRefresh);
     };
   }, [authenticated]);
 
   // Loading state
-  if (!ready) {
+  if (!ready && !effectiveUser) {
     return (
       <div className="flex items-center gap-2">
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -339,23 +363,27 @@ function UserMenuInner() {
     );
   }
 
-  // Handle login - redirect to custom login page with returnTo parameter
-  // Include query params (like characterId) to return to exact page after login
-  const handleLogin = () => {
+  // Build login URL with returnTo parameter to return to current page after login
+  const loginUrl = (() => {
     const fullUrl = pathname + (typeof window !== "undefined" ? window.location.search : "");
-    router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`);
-  };
+    return `/login?returnTo=${encodeURIComponent(fullUrl)}`;
+  })();
 
-  // Signed out state
-  if (!authenticated || !user) {
+  // Signed out state — use plain <a> tags to avoid dependency on client-side router
+  // which can break when RSC navigation has issues
+  if (!effectiveUser) {
     return (
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={handleLogin} disabled={!ready}>
-          Log in
-        </Button>
-        <Button size="sm" onClick={handleLogin} disabled={!ready}>
-          Sign Up
-        </Button>
+        <a href={loginUrl}>
+          <Button variant="ghost" size="sm" disabled={!ready}>
+            Log in
+          </Button>
+        </a>
+        <a href={loginUrl}>
+          <Button size="sm" disabled={!ready}>
+            Sign Up
+          </Button>
+        </a>
       </div>
     );
   }
@@ -380,11 +408,11 @@ function UserMenuInner() {
   };
 
   // Pre-compute all display values safely (outside JSX to keep render clean)
-  const displayName = safeGetUserName(user);
-  const displayIdentifier = safeGetUserIdentifier(user);
-  const initials = safeGetInitials(userProfile, user);
+  const displayName = safeGetUserName(effectiveUser);
+  const displayIdentifier = safeGetUserIdentifier(effectiveUser);
+  const initials = safeGetInitials(userProfile, effectiveUser);
   const feedbackName = userProfile?.name || displayName;
-  const feedbackEmail = userProfile?.email || safeGetUserEmail(user) || "";
+  const feedbackEmail = userProfile?.email || safeGetUserEmail(effectiveUser) || "";
 
   // Signed in state
   return (
@@ -409,7 +437,9 @@ function UserMenuInner() {
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="end" forceMount>
+        {/* Keep the menu lazily mounted. Eager mounting (`forceMount`) can trip the
+            error boundary during transient auth/provider churn even while the menu is closed. */}
+        <DropdownMenuContent className="w-56" align="end">
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">{displayName}</p>
@@ -424,39 +454,50 @@ function UserMenuInner() {
                 <span className="text-xs text-muted-foreground">Loading...</span>
               </div>
             ) : (
-              <Badge
-                variant="secondary"
-                className="gap-1.5 px-3 py-1.5 w-full justify-center cursor-pointer hover:bg-white/10"
-                onClick={() => router.push("/dashboard/settings?tab=billing")}
-              >
-                <Coins className="h-3.5 w-3.5 select-none" />
-                <span className="font-semibold select-none">
-                  ${formatCreditBalance(creditBalance)}
-                </span>
-                <span className="text-xs opacity-80 select-none">balance</span>
-              </Badge>
+              <a href="/dashboard/settings?tab=billing" className="block">
+                <Badge
+                  variant="secondary"
+                  className="gap-1.5 px-3 py-1.5 w-full justify-center cursor-pointer hover:bg-white/10"
+                >
+                  <Coins className="h-3.5 w-3.5 select-none" />
+                  <span className="font-semibold select-none">
+                    ${formatCreditBalance(creditBalance)}
+                  </span>
+                  <span className="text-xs opacity-80 select-none">balance</span>
+                </Badge>
+              </a>
             )}
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => router.push("/dashboard/account")}>
-            <UserCircle className="mr-2 h-4 w-4" />
-            <span>Account</span>
+          <DropdownMenuItem asChild>
+            <a href="/dashboard/account">
+              <UserCircle className="mr-2 h-4 w-4" />
+              <span>Account</span>
+            </a>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
-            <SettingsIcon className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+          <DropdownMenuItem asChild>
+            <a href="/dashboard/settings">
+              <SettingsIcon className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </a>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/dashboard/settings?tab=billing")}>
-            <Coins className="mr-2 h-4 w-4" />
-            <span>Billing</span>
+          <DropdownMenuItem asChild>
+            <a href="/dashboard/settings?tab=billing">
+              <Coins className="mr-2 h-4 w-4" />
+              <span>Billing</span>
+            </a>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/dashboard/api-keys")}>
-            <Key className="mr-2 h-4 w-4" />
-            <span>API Keys</span>
+          <DropdownMenuItem asChild>
+            <a href="/dashboard/api-keys">
+              <Key className="mr-2 h-4 w-4" />
+              <span>API Keys</span>
+            </a>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/docs")}>
-            <BookOpen className="mr-2 h-4 w-4" />
-            <span>Docs</span>
+          <DropdownMenuItem asChild>
+            <a href="/docs">
+              <BookOpen className="mr-2 h-4 w-4" />
+              <span>Docs</span>
+            </a>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setFeedbackOpen(true)}>
             <MessageSquare className="mr-2 h-4 w-4" />
@@ -485,10 +526,10 @@ function UserMenuInner() {
 // ---------------------------------------------------------------------------
 // Exported component – wrapped in error boundary
 // ---------------------------------------------------------------------------
-export default function UserMenu() {
+export default function UserMenu({ preserveWhileUnauthed = false }: UserMenuProps) {
   return (
     <UserMenuErrorBoundary>
-      <UserMenuInner />
+      <UserMenuInner preserveWhileUnauthed={preserveWhileUnauthed} />
     </UserMenuErrorBoundary>
   );
 }

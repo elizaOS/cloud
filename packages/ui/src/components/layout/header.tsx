@@ -12,27 +12,32 @@
 
 import { BrandButton, usePageHeader } from "@elizaos/cloud-ui";
 import { LogIn, Menu } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
-import { memo, useCallback, useState } from "react";
+import { usePathname } from "next/navigation";
+import { memo, useState } from "react";
 import UserMenu from "./user-menu";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
   children?: React.ReactNode;
   isAnonymous?: boolean;
+  authGraceActive?: boolean;
 }
 
-function HeaderComponent({ onToggleSidebar, children, isAnonymous = false }: HeaderProps) {
+function HeaderComponent({
+  onToggleSidebar,
+  children,
+  isAnonymous = false,
+  authGraceActive = false,
+}: HeaderProps) {
   const { pageInfo } = usePageHeader();
-  const router = useRouter();
   const pathname = usePathname();
   const [_showQuickCreate, _setShowQuickCreate] = useState(false);
 
-  // Redirect to login page with returnTo to preserve current location (including query params like characterId)
-  const handleLogin = useCallback(() => {
+  // Build login URL with returnTo to preserve current location (including query params like characterId)
+  const loginUrl = (() => {
     const fullUrl = pathname + (typeof window !== "undefined" ? window.location.search : "");
-    router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`);
-  }, [router, pathname]);
+    return `/login?returnTo=${encodeURIComponent(fullUrl)}`;
+  })();
 
   return (
     <header className="flex h-14 items-center justify-between border border-white/10 bg-black/70 px-3 md:h-16 md:px-6">
@@ -65,18 +70,16 @@ function HeaderComponent({ onToggleSidebar, children, isAnonymous = false }: Hea
 
         {/* Show signup button for anonymous users, otherwise user menu */}
         {isAnonymous ? (
-          <BrandButton
-            variant="primary"
-            onClick={handleLogin}
-            className="gap-2 h-8 px-3 md:h-10 md:px-4"
-          >
-            <LogIn className="h-4 w-4" />
-            <span className="hidden md:inline">Sign Up Free</span>
-            <span className="md:hidden">Sign Up</span>
-          </BrandButton>
+          <a href={loginUrl}>
+            <BrandButton variant="primary" className="gap-2 h-8 px-3 md:h-10 md:px-4">
+              <LogIn className="h-4 w-4" />
+              <span className="hidden md:inline">Sign Up Free</span>
+              <span className="md:hidden">Sign Up</span>
+            </BrandButton>
+          </a>
         ) : (
           <div className="flex flex-row items-center gap-3 md:gap-4">
-            <UserMenu />
+            <UserMenu preserveWhileUnauthed={authGraceActive} />
           </div>
         )}
       </div>

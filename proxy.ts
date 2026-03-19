@@ -79,6 +79,7 @@ interface CachedAuth {
   valid: boolean;
   userId?: string;
   expiration?: number;
+  reason?: "expired" | "invalid";
   cachedAt: number;
 }
 
@@ -143,11 +144,83 @@ function isJwtExpiredError(error: unknown): boolean {
   return e.code === "ERR_JWT_EXPIRED" || (e.claim === "exp" && e.reason === "check_failed");
 }
 
+function isInvalidOrMalformedJwtError(error: unknown): boolean {
+  if (!error || typeof error !== "object" || isJwtExpiredError(error)) return false;
+
+  const e = error as { code?: unknown; name?: unknown; message?: unknown };
+  const code = typeof e.code === "string" ? e.code : "";
+  const name = typeof e.name === "string" ? e.name : "";
+  const message = typeof e.message === "string" ? e.message : "";
+
+  return (
+    code === "ERR_JWS_INVALID" ||
+    code === "ERR_JWT_INVALID" ||
+    code === "ERR_JWT_MALFORMED" ||
+    code === "ERR_JWS_SIGNATURE_VERIFICATION_FAILED" ||
+    name === "JWSInvalid" ||
+    name === "JWTInvalid" ||
+    name === "JWTMalformed" ||
+    name === "JWSSignatureVerificationFailed" ||
+    message.includes("Invalid Compact JWS") ||
+    message.includes("JWSInvalid") ||
+    message.includes("JWTInvalid") ||
+    message.includes("JWTMalformed") ||
+    message.includes("JWSSignatureVerificationFailed") ||
+    message.toLowerCase().includes("invalid jwt")
+  );
+}
+
+function isObviouslyMalformedToken(token: string): boolean {
+  const normalized = token.trim();
+  if (normalized.length === 0 || /\s/.test(normalized)) {
+    return true;
+  }
+
+  const segments = normalized.split(".");
+  return segments.length !== 3 || segments.some((segment) => segment.length === 0);
+}
+
+function buildLoginRedirectUrl(request: NextRequest): URL {
+  const url = request.nextUrl.clone();
+  const returnTo = `${url.pathname}${url.search}`;
+
+  url.pathname = "/login";
+  url.search = "";
+  url.searchParams.set("returnTo", returnTo || "/dashboard");
+
+  return url;
+}
+
+function handleTokenFailure(
+  request: NextRequest,
+  pathname: string,
+  startTime: number,
+  reason: "expired" | "invalid",
+  options?: { clearCookies?: boolean },
+): Response {
+  if (pathname.startsWith("/api/")) {
+    const errorMessage = reason === "expired" ? "Token expired" : "Invalid authentication token";
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 401,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Proxy-Time": `${Date.now() - startTime}ms`,
+      },
+    });
+  }
+
+  return middlewareRedirect(buildLoginRedirectUrl(request), {
+    deleteCookies: options?.clearCookies ? ["privy-token", "privy-id-token"] : undefined,
+    headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
+  });
+}
+
 const publicPaths = [
   "/",
   "/marketplace",
   "/payment/success",
   "/dashboard/chat",
+  "/dashboard/build",
   "/chat",
   "/api/health",
   "/api/eliza",
@@ -162,6 +235,7 @@ const publicPaths = [
   "/api/auth/siwe", // SIWE nonce + verify (EIP-4361)
   "/api/set-anonymous-session",
   "/api/anonymous-session",
+  "/api/auth/create-anonymous-session",
   "/api/affiliate",
   "/api/v1/generate-image",
   "/api/v1/generate-video",
@@ -276,20 +350,37 @@ export async function proxy(request: NextRequest) {
     }
 
     const token = bearerToken || authToken?.value;
+    const usingCookieToken = !bearerToken && token === authToken?.value;
 
     if (!token) {
       if (pathname.startsWith("/api/")) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Proxy-Time": `${Date.now() - startTime}ms`,
+          },
         });
       }
-      const url = request.nextUrl.clone();
-      url.pathname = "/";
-      return middlewareRedirect(url);
+      return middlewareRedirect(buildLoginRedirectUrl(request), {
+        headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
+      });
+    }
+
+    if (isObviouslyMalformedToken(token)) {
+      await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
+      return handleTokenFailure(request, pathname, startTime, "invalid", {
+        clearCookies: usingCookieToken,
+      });
     }
 
     const cachedAuth = await getCachedAuth(token);
+    if (cachedAuth && !cachedAuth.valid) {
+      return handleTokenFailure(request, pathname, startTime, cachedAuth.reason ?? "invalid", {
+        clearCookies: usingCookieToken,
+      });
+    }
+
     if (cachedAuth?.valid && cachedAuth.userId) {
       if (cachedAuth.expiration) {
         const now = Math.floor(Date.now() / 1000);
@@ -326,33 +417,27 @@ export async function proxy(request: NextRequest) {
       user = await privyClient.verifyAuthToken(token);
     } catch (error) {
       if (isJwtExpiredError(error)) {
-        await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
-        if (pathname.startsWith("/api/")) {
-          return new Response(JSON.stringify({ error: "Token expired" }), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-        const url = request.nextUrl.clone();
-        url.pathname = "/";
-        return middlewareRedirect(url, {
-          deleteCookies: ["privy-token", "privy-id-token"],
+        await setCachedAuth(token, { valid: false, reason: "expired", cachedAt: Date.now() });
+        return handleTokenFailure(request, pathname, startTime, "expired", {
+          clearCookies: usingCookieToken,
         });
       }
+
+      if (isInvalidOrMalformedJwtError(error)) {
+        await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
+        return handleTokenFailure(request, pathname, startTime, "invalid", {
+          clearCookies: usingCookieToken,
+        });
+      }
+
       throw error;
     }
 
     if (!user) {
-      await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
-      if (pathname.startsWith("/api/")) {
-        return new Response(JSON.stringify({ error: "Invalid authentication token" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-      const url = request.nextUrl.clone();
-      url.pathname = "/";
-      return middlewareRedirect(url);
+      await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
+      return handleTokenFailure(request, pathname, startTime, "invalid", {
+        clearCookies: usingCookieToken,
+      });
     }
 
     await setCachedAuth(token, {

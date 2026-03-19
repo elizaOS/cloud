@@ -30,7 +30,6 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -304,15 +303,12 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
       >
         {/* Header with Logo and Collapse Toggle */}
         <div className="relative flex h-14 mb-2 shrink-0 grow-0 items-center justify-between px-3">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 hover:opacity-80 relative z-10"
-          >
+          <a href="/dashboard" className="flex items-center gap-2 hover:opacity-80 relative z-10">
             <ElizaCloudLockup
               logoClassName={isMobile ? "h-4" : "h-5"}
               textClassName="text-[9px] md:text-[10px]"
             />
-          </Link>
+          </a>
           {/* Mobile Close Button */}
           {isMobile && onToggle && (
             <button
@@ -365,11 +361,13 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
                 sideOffset={8}
               >
                 <DropdownMenuItem
-                  onClick={() => router.push(`/dashboard/build?characterId=${selectedCharacterId}`)}
+                  asChild
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer transition-colors"
                 >
-                  <Wrench className="h-4 w-4" />
-                  Edit Agent
+                  <a href={`/dashboard/build?characterId=${selectedCharacterId}`}>
+                    <Wrench className="h-4 w-4" />
+                    Edit Agent
+                  </a>
                 </DropdownMenuItem>
                 {isPublic !== null && (
                   <div className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 transition-colors">

@@ -54,8 +54,41 @@ import {
   WifiOff,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+
+// Error boundary for tab content
+class TabErrorBoundary extends Component<
+  { fallback: string; children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error(`[TabErrorBoundary] ${this.props.fallback}:`, error, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="rounded-md border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950">
+          <p className="text-sm font-medium text-red-800 dark:text-red-200">
+            {this.props.fallback}: {this.state.error.message}
+          </p>
+          <button
+            type="button"
+            className="mt-2 text-xs text-red-600 underline dark:text-red-400"
+            onClick={() => this.setState({ error: null })}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -804,6 +837,7 @@ export function InfrastructureDashboard() {
         {/* CONTAINERS TAB                                                      */}
         {/* ------------------------------------------------------------------ */}
         <TabsContent value="containers" className="space-y-4">
+          <TabErrorBoundary fallback="Containers tab crashed">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -940,6 +974,7 @@ export function InfrastructureDashboard() {
               )}
             </CardContent>
           </Card>
+          </TabErrorBoundary>
         </TabsContent>
 
         {/* ------------------------------------------------------------------ */}

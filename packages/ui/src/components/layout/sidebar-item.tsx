@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
 import { Lock } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { SidebarItem } from "./sidebar-data";
 
@@ -23,7 +23,6 @@ interface SidebarNavigationItemProps {
 
 export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavigationItemProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { authenticated } = usePrivy();
   // Use exact match for dashboard and admin root; startsWith for other routes
   const isActive =
@@ -72,11 +71,14 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
   // If item is locked, show as button with login prompt
   // Use returnTo to redirect back to the locked item after login
   if (isLocked) {
+    const loginHref = `/login?returnTo=${encodeURIComponent(item.href)}`;
     const lockedButton = (
-      <button
+      <a
+        href={loginHref}
         onClick={(e) => {
+          // Use plain navigation — client-side router.push can hang when RSC has issues
           e.preventDefault();
-          router.push(`/login?returnTo=${encodeURIComponent(item.href)}`);
+          window.location.href = loginHref;
         }}
         className={cn(
           "relative flex w-full items-center border border-transparent transition-all duration-200",
@@ -99,7 +101,7 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
             <Lock className="h-3 w-3 text-white/40 shrink-0" />
           </>
         )}
-      </button>
+      </a>
     );
 
     if (isCollapsed) {
@@ -116,26 +118,25 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
     return lockedButton;
   }
 
-  // Regular accessible link
-  const linkElement = (
-    <Link
-      href={item.href}
-      className={cn(
-        "relative flex items-center border transition-all duration-200",
-        "hover:border-white/10 hover:bg-white/[0.04] hover:text-white",
-        isActive
-          ? "border-[#FF5800]/25 bg-[#FF5800]/10 text-white"
-          : "border-transparent text-white/60",
-        isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
-      )}
-      style={{
-        fontFamily: "var(--font-roboto-mono)",
-        fontWeight: 400,
-        fontSize: "14px",
-        lineHeight: "18px",
-        letterSpacing: "-0.003em",
-      }}
-    >
+  const linkClasses = cn(
+    "relative flex items-center border transition-all duration-200",
+    "hover:border-white/10 hover:bg-white/[0.04] hover:text-white",
+    isActive
+      ? "border-[#FF5800]/25 bg-[#FF5800]/10 text-white"
+      : "border-transparent text-white/60",
+    isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
+  );
+
+  const linkStyles = {
+    fontFamily: "var(--font-roboto-mono)",
+    fontWeight: 400,
+    fontSize: "14px",
+    lineHeight: "18px",
+    letterSpacing: "-0.003em",
+  } as const;
+
+  const linkContents = (
+    <>
       <Icon className="h-4 w-4 shrink-0 transition-colors" />
       {!isCollapsed && (
         <>
@@ -159,6 +160,20 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
           )}
         </>
       )}
+    </>
+  );
+
+  // Temporary escape hatch for routes still seeing auth/RSC navigation instability.
+  // For dashboard routes, prefer a full document navigation so client-side RSC transitions
+  // can't strand the UI behind the loading bar.
+  const shouldHardNavigate = item.hardNavigate || item.href.startsWith("/dashboard");
+  const linkElement = shouldHardNavigate ? (
+    <a href={item.href} className={linkClasses} style={linkStyles}>
+      {linkContents}
+    </a>
+  ) : (
+    <Link href={item.href} className={linkClasses} style={linkStyles}>
+      {linkContents}
     </Link>
   );
 

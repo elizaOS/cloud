@@ -77,7 +77,7 @@ export function MiladyAgentActions({ agentId, status, webUiUrl }: MiladyAgentAct
 
       if (action === "delete") {
         toast.success("Agent deleted");
-        router.push("/dashboard/containers");
+        router.push("/dashboard/milady");
         return;
       }
 
