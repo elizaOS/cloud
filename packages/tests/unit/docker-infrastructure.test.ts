@@ -148,6 +148,10 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(() => validateAgentId("agent;rm -rf /")).toThrow(/Invalid agent ID/);
     });
 
+    test("throws for trailing newline", () => {
+      expect(() => validateAgentId("agent_1\n")).toThrow(/Invalid agent ID/);
+    });
+
     test("throws for dots", () => {
       expect(() => validateAgentId("agent.1")).toThrow(/Invalid agent ID/);
     });
@@ -228,6 +232,10 @@ describe("Docker Infrastructure - Pure Functions", () => {
     test("rejects punctuation", () => {
       expect(() => validateEnvKey("JWT-SECRET")).toThrow(/Invalid environment variable key/);
     });
+
+    test("rejects trailing newlines", () => {
+      expect(() => validateEnvKey("JWT_SECRET\n")).toThrow(/Invalid environment variable key/);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -284,6 +292,10 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(() => validateContainerName("bad;name")).toThrow(/Invalid container name/);
     });
 
+    test("validateContainerName rejects trailing newlines", () => {
+      expect(() => validateContainerName("milady-agent\n")).toThrow(/Invalid container name/);
+    });
+
     test("validateContainerName rejects names longer than 128 characters", () => {
       const containerName = `m${"a".repeat(128)}`;
       expect(containerName).toHaveLength(129);
@@ -300,6 +312,10 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("validateVolumePath rejects trailing slashes", () => {
       expect(() => validateVolumePath("/data/agents/")).toThrow(/path must be normalized/);
+    });
+
+    test("validateVolumePath rejects trailing newlines", () => {
+      expect(() => validateVolumePath("/data/agents/agent_1\n")).toThrow(/Invalid volume path/);
     });
 
     test("validateVolumePath rejects non-absolute paths", () => {

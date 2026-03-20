@@ -47,13 +47,22 @@ export function shellQuote(value: string): string {
 // Validation
 // ---------------------------------------------------------------------------
 
+function hasControlChars(value: string): boolean {
+  return /[\x00-\x1f\x7f]/.test(value);
+}
+
 /**
  * Validate an agent ID before using it in Docker-derived names and shell commands.
  * Must fit within Docker's 128-char container name limit after the `milady-`
  * prefix is applied.
  */
 export function validateAgentId(agentId: string): void {
-  if (!new RegExp(`^[a-zA-Z0-9_-]{1,${MAX_AGENT_ID_LENGTH}}$`).test(agentId)) {
+  if (
+    agentId.length === 0 ||
+    agentId.length > MAX_AGENT_ID_LENGTH ||
+    hasControlChars(agentId) ||
+    !/^[a-zA-Z0-9_-]+$/.test(agentId)
+  ) {
     throw new Error(
       `Invalid agent ID "${agentId}": must be 1-${MAX_AGENT_ID_LENGTH} chars, alphanumeric / hyphens / underscores only.`,
     );
@@ -71,9 +80,9 @@ export function validateAgentName(name: string): void {
   }
 }
 
-/** Env keys must be uppercase shell-safe identifiers. */
+/** Env keys must be uppercase shell-safe identifiers; lowercase keys are intentionally rejected. */
 export function validateEnvKey(key: string): void {
-  if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) {
+  if (hasControlChars(key) || !/^[A-Z_][A-Z0-9_]*$/.test(key)) {
     throw new Error(
       `Invalid environment variable key "${key}": must match ^[A-Z_][A-Z0-9_]*$.`,
     );
@@ -86,7 +95,7 @@ export function validateEnvKey(key: string): void {
  * shell command. Callers should pass a key so production errors are debuggable.
  */
 export function validateEnvValue(key: string, value: string): void {
-  if (/[\x00-\x1f\x7f]/.test(value)) {
+  if (hasControlChars(value)) {
     throw new Error(
       `Invalid environment variable value for key "${key}": contains control characters (newlines and PEM-encoded values are not supported).`,
     );
@@ -95,14 +104,18 @@ export function validateEnvValue(key: string, value: string): void {
 
 /** Docker container names must be simple shell-safe identifiers. */
 export function validateContainerName(containerName: string): void {
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(containerName)) {
-    throw new Error(`Invalid container name "${containerName}".`);
+  if (hasControlChars(containerName) || !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(containerName)) {
+    throw new Error(
+      `Invalid container name "${containerName}": must match ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$.`,
+    );
   }
 }
 
 /** Docker host volume paths must be absolute, normalized, and shell-safe. */
 export function validateVolumePath(volumePath: string): void {
-  if (!/^\/[A-Za-z0-9._/\-]+$/.test(volumePath)) {
+  // First allow only absolute shell-safe path characters, then separately enforce
+  // normalized-form rules like no traversal, repeated separators, or trailing slash.
+  if (hasControlChars(volumePath) || !/^\/[A-Za-z0-9._/\-]+$/.test(volumePath)) {
     throw new Error(`Invalid volume path "${volumePath}".`);
   }
   if (
