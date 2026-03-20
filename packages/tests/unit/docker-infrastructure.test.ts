@@ -13,6 +13,10 @@ import {
   shellQuote,
   validateAgentId,
   validateAgentName,
+  validateContainerName,
+  validateEnvKey,
+  validateEnvValue,
+  validateVolumePath,
 } from "@/lib/services/docker-sandbox-utils";
 
 // ---------------------------------------------------------------------------
@@ -202,6 +206,72 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("throws for control characters (tab)", () => {
       expect(() => validateAgentName("agent\tname")).toThrow(/control characters/);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("validateEnvKey", () => {
+    test("accepts uppercase underscore keys", () => {
+      expect(() => validateEnvKey("JWT_SECRET")).not.toThrow();
+      expect(() => validateEnvKey("A1_B2")).not.toThrow();
+    });
+
+    test("rejects lowercase keys", () => {
+      expect(() => validateEnvKey("jwt_secret")).toThrow(/Invalid environment variable key/);
+    });
+
+    test("rejects keys starting with a digit", () => {
+      expect(() => validateEnvKey("1SECRET")).toThrow(/Invalid environment variable key/);
+    });
+
+    test("rejects punctuation", () => {
+      expect(() => validateEnvKey("JWT-SECRET")).toThrow(/Invalid environment variable key/);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("validateEnvValue", () => {
+    test("accepts printable values", () => {
+      expect(() => validateEnvValue("hello-world_123")).not.toThrow();
+    });
+
+    test("rejects null bytes", () => {
+      expect(() => validateEnvValue("abc\x00def")).toThrow(/control characters/);
+    });
+
+    test("rejects newlines", () => {
+      expect(() => validateEnvValue("abc\ndef")).toThrow(/control characters/);
+    });
+
+    test("rejects tabs", () => {
+      expect(() => validateEnvValue("abc\tdef")).toThrow(/control characters/);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("container name and volume path validation", () => {
+    test("getContainerName returns a valid deterministic name", () => {
+      expect(getContainerName("agent_1")).toBe("milady-agent_1");
+    });
+
+    test("validateContainerName accepts docker-safe names", () => {
+      expect(() => validateContainerName("milady-agent_1.test-2")).not.toThrow();
+    });
+
+    test("validateContainerName rejects shell metacharacters", () => {
+      expect(() => validateContainerName("bad;name")).toThrow(/Invalid container name/);
+    });
+
+    test("getVolumePath returns a normalized absolute path", () => {
+      expect(getVolumePath("agent_1")).toBe("/data/agents/agent_1");
+    });
+
+    test("validateVolumePath rejects traversal", () => {
+      expect(() => validateVolumePath("/data/agents/../escape")).toThrow(/Invalid volume path/);
+    });
+
+    test("validateVolumePath rejects non-absolute paths", () => {
+      expect(() => validateVolumePath("data/agents/agent_1")).toThrow(/Invalid volume path/);
     });
   });
 

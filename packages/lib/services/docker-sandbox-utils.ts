@@ -66,6 +66,45 @@ export function validateAgentName(name: string): void {
   }
 }
 
+/** Env keys must be uppercase shell-safe identifiers. */
+export function validateEnvKey(key: string): void {
+  if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) {
+    throw new Error(
+      `Invalid environment variable key "${key}": must match ^[A-Z_][A-Z0-9_]*$.`,
+    );
+  }
+}
+
+/** Env values may not contain null bytes or other control characters. */
+export function validateEnvValue(value: string): void {
+  if (/[\x00-\x1f\x7f]/.test(value)) {
+    throw new Error(`Invalid environment variable value: contains control characters.`);
+  }
+}
+
+/** Docker container names must be simple shell-safe identifiers. */
+export function validateContainerName(containerName: string): void {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(containerName)) {
+    throw new Error(`Invalid container name "${containerName}".`);
+  }
+}
+
+/** Docker host volume paths must be absolute, normalized, and shell-safe. */
+export function validateVolumePath(volumePath: string): void {
+  if (!/^\/[A-Za-z0-9._/-]+$/.test(volumePath)) {
+    throw new Error(`Invalid volume path "${volumePath}".`);
+  }
+  if (
+    volumePath.includes("//") ||
+    volumePath.includes("/./") ||
+    volumePath.includes("/../") ||
+    volumePath.endsWith("/.") ||
+    volumePath.endsWith("/..")
+  ) {
+    throw new Error(`Invalid volume path "${volumePath}": path must be normalized.`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Port Allocation
 // ---------------------------------------------------------------------------
@@ -107,13 +146,18 @@ export function allocatePort(min: number, max: number, excluded: Set<number>): n
  * patterns and can collide on the same node).
  */
 export function getContainerName(agentId: string): string {
-  return `milady-${agentId}`;
+  validateAgentId(agentId);
+  const containerName = `milady-${agentId}`;
+  validateContainerName(containerName);
+  return containerName;
 }
 
 /** Volume path on the Docker host for persistent agent data. */
 export function getVolumePath(agentId: string): string {
   validateAgentId(agentId);
-  return `/data/agents/${agentId}`;
+  const volumePath = `/data/agents/${agentId}`;
+  validateVolumePath(volumePath);
+  return volumePath;
 }
 
 // ---------------------------------------------------------------------------

@@ -24,6 +24,10 @@ import {
   shellQuote,
   validateAgentId,
   validateAgentName,
+  validateContainerName,
+  validateEnvKey,
+  validateEnvValue,
+  validateVolumePath,
   WEBUI_PORT_MAX,
   WEBUI_PORT_MIN,
 } from "./docker-sandbox-utils";
@@ -257,6 +261,8 @@ export class DockerSandboxProvider implements SandboxProvider {
     const webUiPort = allocatePort(WEBUI_PORT_MIN, WEBUI_PORT_MAX, usedPorts);
     const containerName = getContainerName(agentId);
     const volumePath = getVolumePath(agentId);
+    validateContainerName(containerName);
+    validateVolumePath(volumePath);
 
     // 4. Optionally prepare Headscale VPN
     const headscaleEnabled = !!process.env.HEADSCALE_API_KEY;
@@ -303,18 +309,11 @@ export class DockerSandboxProvider implements SandboxProvider {
       MILADY_ALLOWED_ORIGINS: `https://${agentId}.${getAgentBaseDomain()}`,
     };
 
-    // Validate env var keys to prevent shell command injection via malformed keys
-    for (const key of Object.keys(allEnv)) {
-      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
-        throw new Error(`[docker-sandbox] Invalid environment variable key: "${key}"`);
-      }
+    // Validate env keys/values before they are interpolated into remote shell commands.
+    for (const [key, value] of Object.entries(allEnv)) {
+      validateEnvKey(key);
+      validateEnvValue(value);
     }
-
-    // Note: Values do not need control-character validation. The shellQuote() function
-    // wraps each "key=value" pair in single quotes and escapes embedded single quotes as '"'"',
-    // which makes all values (including those with newlines, tabs, or other control chars)
-    // safe inside the shell command. Single-quoted strings in bash preserve all characters
-    // literally except single quotes (which shellQuote already handles).
 
     const envFlags = Object.entries(allEnv)
       .map(([key, value]) => `-e ${shellQuote(`${key}=${value}`)}`)
