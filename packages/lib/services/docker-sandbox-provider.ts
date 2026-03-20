@@ -261,8 +261,6 @@ export class DockerSandboxProvider implements SandboxProvider {
     const webUiPort = allocatePort(WEBUI_PORT_MIN, WEBUI_PORT_MAX, usedPorts);
     const containerName = getContainerName(agentId);
     const volumePath = getVolumePath(agentId);
-    validateContainerName(containerName);
-    validateVolumePath(volumePath);
 
     // 4. Optionally prepare Headscale VPN
     const headscaleEnabled = !!process.env.HEADSCALE_API_KEY;
@@ -310,9 +308,11 @@ export class DockerSandboxProvider implements SandboxProvider {
     };
 
     // Validate env keys/values before they are interpolated into remote shell commands.
+    // Internal env vars must also remain UPPER_SNAKE_CASE so validation stays
+    // consistent across caller-supplied and provider-generated values.
     for (const [key, value] of Object.entries(allEnv)) {
       validateEnvKey(key);
-      validateEnvValue(value);
+      validateEnvValue(key, value);
     }
 
     const envFlags = Object.entries(allEnv)

@@ -232,19 +232,34 @@ describe("Docker Infrastructure - Pure Functions", () => {
   // -------------------------------------------------------------------------
   describe("validateEnvValue", () => {
     test("accepts printable values", () => {
-      expect(() => validateEnvValue("hello-world_123")).not.toThrow();
+      expect(() => validateEnvValue("JWT_SECRET", "hello-world_123")).not.toThrow();
     });
 
-    test("rejects null bytes", () => {
-      expect(() => validateEnvValue("abc\x00def")).toThrow(/control characters/);
+    test("accepts UUIDs, URLs, and base64-like tokens", () => {
+      expect(() =>
+        validateEnvValue(
+          "MIXED_VALUE",
+          "550e8400-e29b-41d4-a716-446655440000 https://example.com/a?b=c token+/=",
+        ),
+      ).not.toThrow();
     });
 
-    test("rejects newlines", () => {
-      expect(() => validateEnvValue("abc\ndef")).toThrow(/control characters/);
+    test("rejects null bytes and includes the key name", () => {
+      expect(() => validateEnvValue("JWT_SECRET", "abc\x00def")).toThrow(
+        /JWT_SECRET.*control characters/,
+      );
+    });
+
+    test("rejects newlines and explains PEM-style values are unsupported", () => {
+      expect(() => validateEnvValue("TLS_CERT", "abc\ndef")).toThrow(
+        /TLS_CERT.*newlines and PEM-encoded values are not supported/,
+      );
     });
 
     test("rejects tabs", () => {
-      expect(() => validateEnvValue("abc\tdef")).toThrow(/control characters/);
+      expect(() => validateEnvValue("JWT_SECRET", "abc\tdef")).toThrow(
+        /control characters/,
+      );
     });
   });
 
@@ -258,8 +273,20 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(() => validateContainerName("milady-agent_1.test-2")).not.toThrow();
     });
 
+    test("validateContainerName accepts the 128-character boundary", () => {
+      const containerName = `m${"a".repeat(127)}`;
+      expect(containerName).toHaveLength(128);
+      expect(() => validateContainerName(containerName)).not.toThrow();
+    });
+
     test("validateContainerName rejects shell metacharacters", () => {
       expect(() => validateContainerName("bad;name")).toThrow(/Invalid container name/);
+    });
+
+    test("validateContainerName rejects names longer than 128 characters", () => {
+      const containerName = `m${"a".repeat(128)}`;
+      expect(containerName).toHaveLength(129);
+      expect(() => validateContainerName(containerName)).toThrow(/Invalid container name/);
     });
 
     test("getVolumePath returns a normalized absolute path", () => {
@@ -268,6 +295,10 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("validateVolumePath rejects traversal", () => {
       expect(() => validateVolumePath("/data/agents/../escape")).toThrow(/Invalid volume path/);
+    });
+
+    test("validateVolumePath rejects trailing slashes", () => {
+      expect(() => validateVolumePath("/data/agents/")).toThrow(/path must be normalized/);
     });
 
     test("validateVolumePath rejects non-absolute paths", () => {

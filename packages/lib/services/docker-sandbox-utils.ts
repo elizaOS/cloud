@@ -75,10 +75,16 @@ export function validateEnvKey(key: string): void {
   }
 }
 
-/** Env values may not contain null bytes or other control characters. */
-export function validateEnvValue(value: string): void {
+/**
+ * Env values are shell-safe once single-quoted, but we still reject control
+ * characters so multi-line payloads and invisible bytes cannot reach the remote
+ * shell command. Callers should pass a key so production errors are debuggable.
+ */
+export function validateEnvValue(key: string, value: string): void {
   if (/[\x00-\x1f\x7f]/.test(value)) {
-    throw new Error(`Invalid environment variable value: contains control characters.`);
+    throw new Error(
+      `Invalid environment variable value for key "${key}": contains control characters (newlines and PEM-encoded values are not supported).`,
+    );
   }
 }
 
@@ -91,7 +97,7 @@ export function validateContainerName(containerName: string): void {
 
 /** Docker host volume paths must be absolute, normalized, and shell-safe. */
 export function validateVolumePath(volumePath: string): void {
-  if (!/^\/[A-Za-z0-9._/-]+$/.test(volumePath)) {
+  if (!/^\/[A-Za-z0-9._/\-]+$/.test(volumePath)) {
     throw new Error(`Invalid volume path "${volumePath}".`);
   }
   if (
@@ -99,7 +105,8 @@ export function validateVolumePath(volumePath: string): void {
     volumePath.includes("/./") ||
     volumePath.includes("/../") ||
     volumePath.endsWith("/.") ||
-    volumePath.endsWith("/..")
+    volumePath.endsWith("/..") ||
+    (volumePath.length > 1 && volumePath.endsWith("/"))
   ) {
     throw new Error(`Invalid volume path "${volumePath}": path must be normalized.`);
   }
