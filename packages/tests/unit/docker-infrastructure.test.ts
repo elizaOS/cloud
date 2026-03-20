@@ -9,6 +9,7 @@ import {
   allocatePort,
   getContainerName,
   getVolumePath,
+  MAX_AGENT_ID_LENGTH,
   parseDockerNodes,
   shellQuote,
   validateAgentId,
@@ -129,8 +130,8 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(() => validateAgentId("a")).not.toThrow();
     });
 
-    test("accepts exactly 128 characters", () => {
-      const id = "a".repeat(128);
+    test("accepts exactly the Docker-safe maximum length", () => {
+      const id = "a".repeat(MAX_AGENT_ID_LENGTH);
       expect(() => validateAgentId(id)).not.toThrow();
     });
 
@@ -138,8 +139,8 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(() => validateAgentId("")).toThrow(/Invalid agent ID/);
     });
 
-    test("throws for 129 characters (too long)", () => {
-      const id = "a".repeat(129);
+    test("throws when the agentId would exceed the Docker container name limit", () => {
+      const id = "a".repeat(MAX_AGENT_ID_LENGTH + 1);
       expect(() => validateAgentId(id)).toThrow(/Invalid agent ID/);
     });
 
@@ -371,6 +372,11 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("works with a short agentId", () => {
       expect(getContainerName("x")).toBe("milady-x");
+    });
+
+    test("rejects an agentId that would exceed the Docker container name limit", () => {
+      const longId = "a".repeat(MAX_AGENT_ID_LENGTH + 1);
+      expect(() => getContainerName(longId)).toThrow(/Invalid agent ID/);
     });
   });
 

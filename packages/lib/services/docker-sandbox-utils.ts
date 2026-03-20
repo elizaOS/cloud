@@ -26,6 +26,10 @@ export const BRIDGE_PORT_MIN = 18790;
 export const BRIDGE_PORT_MAX = 19790;
 export const WEBUI_PORT_MIN = 20000;
 export const WEBUI_PORT_MAX = 25000;
+export const DOCKER_CONTAINER_NAME_MAX_LENGTH = 128;
+export const MILADY_CONTAINER_NAME_PREFIX = "milady-";
+export const MAX_AGENT_ID_LENGTH =
+  DOCKER_CONTAINER_NAME_MAX_LENGTH - MILADY_CONTAINER_NAME_PREFIX.length;
 
 // ---------------------------------------------------------------------------
 // Shell Quoting
@@ -44,13 +48,14 @@ export function shellQuote(value: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Validate an agent ID before using it in shell commands.
- * Must be a UUID (hex + hyphens) or alphanumeric with hyphens/underscores.
+ * Validate an agent ID before using it in Docker-derived names and shell commands.
+ * Must fit within Docker's 128-char container name limit after the `milady-`
+ * prefix is applied.
  */
 export function validateAgentId(agentId: string): void {
-  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(agentId)) {
+  if (!new RegExp(`^[a-zA-Z0-9_-]{1,${MAX_AGENT_ID_LENGTH}}$`).test(agentId)) {
     throw new Error(
-      `Invalid agent ID "${agentId}": must be 1-128 chars, alphanumeric / hyphens / underscores only.`,
+      `Invalid agent ID "${agentId}": must be 1-${MAX_AGENT_ID_LENGTH} chars, alphanumeric / hyphens / underscores only.`,
     );
   }
 }
@@ -154,7 +159,8 @@ export function allocatePort(min: number, max: number, excluded: Set<number>): n
  */
 export function getContainerName(agentId: string): string {
   validateAgentId(agentId);
-  const containerName = `milady-${agentId}`;
+  const containerName = `${MILADY_CONTAINER_NAME_PREFIX}${agentId}`;
+  // Keep this derived-output validation as a guardrail if the naming template changes.
   validateContainerName(containerName);
   return containerName;
 }
