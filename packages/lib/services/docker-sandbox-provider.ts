@@ -74,7 +74,13 @@ interface ContainerMeta {
 
 const DOCKER_IMAGE = process.env.MILADY_DOCKER_IMAGE || "milady/agent:v2.0.0-steward-2";
 const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
-const STEWARD_API_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
+// URL for host-side Steward API calls (registration, token minting).
+// The orchestrator (or SSH-executed scripts on the Docker host) can reach Steward via localhost.
+const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
+
+// URL injected into container env vars. Containers on the bridge network (milady-isolated)
+// cannot reach the host via localhost — use host.docker.internal instead.
+const STEWARD_CONTAINER_URL = process.env.STEWARD_CONTAINER_URL || "http://host.docker.internal:3200";
 const DEFAULT_MILADY_PORT = process.env.MILADY_CONTAINER_PORT || "2138";
 const DEFAULT_AGENT_PORT = process.env.MILADY_AGENT_PORT || "2139";
 const DEFAULT_BRIDGE_PORT = process.env.MILADY_BRIDGE_INTERNAL_PORT || "31337";
@@ -173,7 +179,7 @@ import sys
 import urllib.error
 import urllib.request
 
-base_url = ${JSON.stringify(STEWARD_API_URL)}
+base_url = ${JSON.stringify(STEWARD_HOST_URL)}
 agent_id = ${JSON.stringify(agentId)}
 agent_name = ${JSON.stringify(agentName)}
 
@@ -376,7 +382,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       ...vpnEnvVars,
       AGENT_NAME: agentName,
       MILADY_CLOUD_PROVISIONED: "1",
-      STEWARD_API_URL,
+      STEWARD_API_URL: STEWARD_CONTAINER_URL,
       STEWARD_AGENT_ID: agentId,
       // steward-enabled image runs two processes:
       //   milady.mjs (UI)   on MILADY_PORT (default 2138)
