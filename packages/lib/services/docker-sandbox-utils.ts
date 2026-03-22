@@ -113,9 +113,14 @@ export function validateContainerName(containerName: string): void {
 
 /** Docker host volume paths must be absolute, normalized, and shell-safe. */
 export function validateVolumePath(volumePath: string): void {
-  // First allow only absolute shell-safe path characters, then separately enforce
-  // normalized-form rules like no traversal, repeated separators, or trailing slash.
-  if (hasControlChars(volumePath) || !/^\/[A-Za-z0-9._/\-]+$/.test(volumePath)) {
+  // First allow only absolute shell-safe path characters, reject the root path,
+  // then separately enforce normalized-form rules like no traversal, repeated
+  // separators, or trailing slash.
+  if (
+    hasControlChars(volumePath) ||
+    volumePath === "/" ||
+    !/^\/[A-Za-z0-9._/\-]+$/.test(volumePath)
+  ) {
     throw new Error(`Invalid volume path "${volumePath}".`);
   }
   if (

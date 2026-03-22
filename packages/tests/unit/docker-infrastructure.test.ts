@@ -221,6 +221,10 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(() => validateEnvKey("A1_B2")).not.toThrow();
     });
 
+    test("rejects empty keys", () => {
+      expect(() => validateEnvKey("")).toThrow(/Invalid environment variable key/);
+    });
+
     test("rejects lowercase keys", () => {
       expect(() => validateEnvKey("jwt_secret")).toThrow(/Invalid environment variable key/);
     });
@@ -320,6 +324,10 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("validateVolumePath rejects non-absolute paths", () => {
       expect(() => validateVolumePath("data/agents/agent_1")).toThrow(/Invalid volume path/);
+    });
+
+    test("validateVolumePath rejects the root path", () => {
+      expect(() => validateVolumePath("/")).toThrow(/Invalid volume path/);
     });
   });
 
