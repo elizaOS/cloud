@@ -68,7 +68,12 @@ interface ContainerMeta {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DOCKER_IMAGE = process.env.MILADY_DOCKER_IMAGE || "milady/agent:cloud-full-ui";
+const DOCKER_IMAGE = process.env.MILADY_DOCKER_IMAGE || "milady/agent:v2.0.0-steward-2";
+const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
+const STEWARD_API_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
+const DEFAULT_MILADY_PORT = process.env.MILADY_CONTAINER_PORT || "2138";
+const DEFAULT_AGENT_PORT = process.env.MILADY_AGENT_PORT || "2139";
+const DEFAULT_BRIDGE_PORT = process.env.MILADY_BRIDGE_INTERNAL_PORT || "31337";
 
 /** Default SSH port when not specified by DB node record. */
 const DEFAULT_SSH_PORT = 22;
@@ -114,6 +119,90 @@ async function getUsedPorts(nodeId: string): Promise<Set<number>> {
     );
   }
   return used;
+}
+
+function getDockerHealthCmd(port: string): string {
+  return `sh -lc 'wget -qO- "http://127.0.0.1:${port}/health" >/dev/null 2>&1 || curl -fsS "http://127.0.0.1:${port}/health" >/dev/null 2>&1'`;
+}
+
+function extractStewardToken(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error("[docker-sandbox] Steward token endpoint returned an empty response");
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    const nested =
+      parsed.data && typeof parsed.data === "object"
+        ? (parsed.data as Record<string, unknown>)
+        : undefined;
+
+    const candidate =
+      parsed.token ??
+      parsed.agentToken ??
+      parsed.accessToken ??
+      parsed.value ??
+      nested?.token ??
+      nested?.agentToken ??
+      nested?.accessToken ??
+      nested?.value;
+
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  } catch {
+    // Some Steward builds may return the token as plain text.
+  }
+
+  return trimmed;
+}
+
+async function registerAgentWithSteward(
+  ssh: DockerSSHClient,
+  agentId: string,
+  agentName: string,
+): Promise<string> {
+  const script = `python3 - <<'PY'
+import json
+import sys
+import urllib.error
+import urllib.request
+
+base_url = ${JSON.stringify(STEWARD_API_URL)}
+agent_id = ${JSON.stringify(agentId)}
+agent_name = ${JSON.stringify(agentName)}
+
+
+def post(path, payload):
+    req = urllib.request.Request(
+        f"{base_url}{path}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return response.status, response.read().decode("utf-8")
+    except urllib.error.HTTPError as error:
+        return error.code, error.read().decode("utf-8")
+
+
+status, body = post("/agents", {"id": agent_id, "name": agent_name})
+if status not in (200, 201, 202, 409):
+    print(body, file=sys.stderr)
+    raise SystemExit(f"Steward agent registration failed with status {status}")
+
+status, body = post(f"/agents/{agent_id}/token", {"name": "milady-cloud"})
+if status not in (200, 201):
+    print(body, file=sys.stderr)
+    raise SystemExit(f"Steward token mint failed with status {status}")
+
+print(body)
+PY`;
+
+  const rawToken = await ssh.exec(script, DOCKER_CMD_TIMEOUT_MS);
+  return extractStewardToken(rawToken);
 }
 
 // ---------------------------------------------------------------------------
@@ -277,19 +366,22 @@ export class DockerSandboxProvider implements SandboxProvider {
       }
     }
 
-    // 5. Build environment flags (spread to avoid mutating caller's environmentVars)
-    const allEnv: Record<string, string> = {
+    // 5. Build the base environment (spread to avoid mutating caller's environmentVars)
+    const baseEnv: Record<string, string> = {
       ...environmentVars,
       ...vpnEnvVars,
       AGENT_NAME: agentName,
-      // cloud-full-ui image runs two processes:
+      MILADY_CLOUD_PROVISIONED: "1",
+      STEWARD_API_URL,
+      STEWARD_AGENT_ID: agentId,
+      // steward-enabled image runs two processes:
       //   milady.mjs (UI)   on MILADY_PORT (default 2138)
       //   cloud-agent       on PORT        (default 2139)
       // Do NOT set PORT=2138 here — it would collide with MILADY_PORT
       // and the API service would steal the UI port.
-      MILADY_PORT: "2138",
-      PORT: "2139",
-      BRIDGE_PORT: "31337",
+      MILADY_PORT: DEFAULT_MILADY_PORT,
+      PORT: DEFAULT_AGENT_PORT,
+      BRIDGE_PORT: DEFAULT_BRIDGE_PORT,
       // Eliza server requires JWT_SECRET in production mode.
       // Generate a unique per-container secret if the caller didn't provide one.
       JWT_SECRET: environmentVars.JWT_SECRET || crypto.randomUUID(),
@@ -303,39 +395,9 @@ export class DockerSandboxProvider implements SandboxProvider {
       MILADY_ALLOWED_ORIGINS: `https://${agentId}.${getAgentBaseDomain()}`,
     };
 
-    // Validate env var keys to prevent shell command injection via malformed keys
-    for (const key of Object.keys(allEnv)) {
-      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
-        throw new Error(`[docker-sandbox] Invalid environment variable key: "${key}"`);
-      }
-    }
-
-    // Note: Values do not need control-character validation. The shellQuote() function
-    // wraps each "key=value" pair in single quotes and escapes embedded single quotes as '"'"',
-    // which makes all values (including those with newlines, tabs, or other control chars)
-    // safe inside the shell command. Single-quoted strings in bash preserve all characters
-    // literally except single quotes (which shellQuote already handles).
-
-    const envFlags = Object.entries(allEnv)
-      .map(([key, value]) => `-e ${shellQuote(`${key}=${value}`)}`)
-      .join(" ");
-
-    // 6. Build docker run command
-    // Only add NET_ADMIN and /dev/net/tun when headscale is actually enabled
-    const dockerRunCmd = [
-      "docker run -d",
-      `--name ${shellQuote(containerName)}`,
-      "--restart unless-stopped",
-      ...(headscaleEnabled ? ["--cap-add=NET_ADMIN", "--device /dev/net/tun"] : []),
-      `-v ${shellQuote(volumePath)}:/app/data`,
-      `-p ${bridgePort}:31337`,
-      `-p ${webUiPort}:2138`,
-      envFlags,
-      shellQuote(resolvedImage),
-    ].join(" ");
-
-    // 7. SSH to node, ensure volume dir, pull image, run container
-    // Pass hostKeyFingerprint so pooled clients pin the key when available
+    // 6. SSH to node, ensure volume dir, pull image, register in Steward,
+    // then create/start the container. Pass hostKeyFingerprint so pooled
+    // clients pin the key when available.
     const ssh = DockerSSHClient.getClient(hostname, sshPort, hostKeyFingerprint, sshUser);
 
     try {
@@ -353,13 +415,60 @@ export class DockerSandboxProvider implements SandboxProvider {
         );
       }
 
-      // Run container
-      const output = await ssh.exec(dockerRunCmd, DOCKER_CMD_TIMEOUT_MS);
-      const containerId = output.trim().slice(0, 12);
+      logger.info(`[docker-sandbox] Registering ${agentId} with Steward on ${nodeId}`);
+      const stewardAgentToken = await registerAgentWithSteward(ssh, agentId, agentName);
+
+      const allEnv: Record<string, string> = {
+        ...baseEnv,
+        STEWARD_AGENT_TOKEN: stewardAgentToken,
+      };
+
+      // Validate env var keys to prevent shell command injection via malformed keys
+      for (const key of Object.keys(allEnv)) {
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+          throw new Error(`[docker-sandbox] Invalid environment variable key: "${key}"`);
+        }
+      }
+
+      // Note: Values do not need control-character validation. The shellQuote() function
+      // wraps each "key=value" pair in single quotes and escapes embedded single quotes as '"'"'',
+      // which makes all values (including those with newlines, tabs, or other control chars)
+      // safe inside the shell command. Single-quoted strings in bash preserve all characters
+      // literally except single quotes (which shellQuote already handles).
+      const envFlags = Object.entries(allEnv)
+        .map(([key, value]) => `-e ${shellQuote(`${key}=${value}`)}`)
+        .join(" ");
+
+      const dockerCreateCmd = [
+        "docker create",
+        `--name ${shellQuote(containerName)}`,
+        "--restart unless-stopped",
+        `--network ${shellQuote(DOCKER_NETWORK)}`,
+        `--health-cmd ${shellQuote(getDockerHealthCmd(allEnv.MILADY_PORT || DEFAULT_MILADY_PORT))}`,
+        "--health-interval 10s",
+        "--health-timeout 5s",
+        "--health-start-period 15s",
+        "--health-retries 6",
+        ...(headscaleEnabled ? ["--cap-add=NET_ADMIN", "--device /dev/net/tun"] : []),
+        `-v ${shellQuote(volumePath)}:/app/data`,
+        `-p ${bridgePort}:${DEFAULT_BRIDGE_PORT}`,
+        `-p ${webUiPort}:${allEnv.MILADY_PORT || DEFAULT_MILADY_PORT}`,
+        envFlags,
+        shellQuote(resolvedImage),
+      ].join(" ");
+
+      const containerId = (await ssh.exec(dockerCreateCmd, DOCKER_CMD_TIMEOUT_MS))
+        .trim()
+        .slice(0, 12);
+      await ssh.exec(`docker start ${shellQuote(containerName)}`, DOCKER_CMD_TIMEOUT_MS);
       logger.info(
         `[docker-sandbox] Container created on ${nodeId}: ${containerId} (${containerName})`,
       );
     } catch (err) {
+      await ssh
+        .exec(`docker rm -f ${shellQuote(containerName)}`, DOCKER_CMD_TIMEOUT_MS)
+        .catch(() => {});
+
       // Rollback allocated_count on failure
       if (dbNode) {
         await dockerNodesRepository.decrementAllocated(nodeId).catch(() => {});

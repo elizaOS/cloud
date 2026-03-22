@@ -65,7 +65,7 @@ export const miladySandboxes = pgTable(
       .$type<Record<string, string>>()
       .notNull()
       .default({}),
-    // Docker infrastructure columns (added by 0046_docker_nodes migration)
+    // Docker infrastructure columns (added by 0047_docker_nodes migration)
     node_id: text("node_id"),
     container_name: text("container_name"),
     bridge_port: integer("bridge_port"),

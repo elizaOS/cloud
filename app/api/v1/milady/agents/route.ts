@@ -21,48 +21,76 @@ const createAgentSchema = z.object({
   environmentVars: z.record(z.string(), z.string()).optional(),
 });
 
+function isAuthenticationError(message: string): boolean {
+  return (
+    message.includes("Unauthorized") ||
+    message.includes("Authentication required") ||
+    message.includes("Forbidden") ||
+    message.includes("Invalid or expired API key") ||
+    message.includes("API key is inactive") ||
+    message.includes("API key has expired") ||
+    message.includes("Invalid or expired token")
+  );
+}
+
+function getErrorMessage(error: unknown, fallbackMessage: string): string {
+  return error instanceof Error ? error.message : fallbackMessage;
+}
+
 /**
  * GET /api/v1/milady/agents
  * List all Milady cloud agents for the authenticated user's organization.
  */
 export async function GET(request: NextRequest) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const agents = await miladySandboxService.listAgents(user.organization_id);
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const agents = await miladySandboxService.listAgents(user.organization_id);
 
-  const characterIds = Array.from(
-    new Set(agents.map((a) => a.character_id).filter((id): id is string => id != null)),
-  );
-  const characters =
-    characterIds.length > 0
-      ? await userCharactersRepository.findByIdsInOrganization(characterIds, user.organization_id)
-      : [];
-  const charMap = new Map(characters.map((c) => [c.id, c]));
+    const characterIds = Array.from(
+      new Set(agents.map((a) => a.character_id).filter((id): id is string => id != null)),
+    );
+    const characters =
+      characterIds.length > 0
+        ? await userCharactersRepository.findByIdsInOrganization(characterIds, user.organization_id)
+        : [];
+    const charMap = new Map(characters.map((c) => [c.id, c]));
 
-  return NextResponse.json({
-    success: true,
-    data: agents.map((a) => {
-      const char = a.character_id ? charMap.get(a.character_id) : undefined;
-      // Fallback: extract from agent_config JSONB if character record not linked
-      const cfg = a.agent_config as Record<string, unknown> | null;
-      return {
-        id: a.id,
-        agentName: a.agent_name,
-        status: a.status,
-        databaseStatus: a.database_status,
-        lastBackupAt: a.last_backup_at,
-        lastHeartbeatAt: a.last_heartbeat_at,
-        errorMessage: a.error_message,
-        createdAt: a.created_at,
-        updatedAt: a.updated_at,
-        // Canonical token linkage
-        token_address:
-          char?.token_address ?? (cfg?.tokenContractAddress as string | undefined) ?? null,
-        token_chain: char?.token_chain ?? (cfg?.chain as string | undefined) ?? null,
-        token_name: char?.token_name ?? (cfg?.tokenName as string | undefined) ?? null,
-        token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string | undefined) ?? null,
-      };
-    }),
-  });
+    return NextResponse.json({
+      success: true,
+      data: agents.map((a) => {
+        const char = a.character_id ? charMap.get(a.character_id) : undefined;
+        // Fallback: extract from agent_config JSONB if character record not linked
+        const cfg = a.agent_config as Record<string, unknown> | null;
+        return {
+          id: a.id,
+          agentName: a.agent_name,
+          status: a.status,
+          databaseStatus: a.database_status,
+          lastBackupAt: a.last_backup_at,
+          lastHeartbeatAt: a.last_heartbeat_at,
+          errorMessage: a.error_message,
+          createdAt: a.created_at,
+          updatedAt: a.updated_at,
+          // Canonical token linkage
+          token_address:
+            char?.token_address ?? (cfg?.tokenContractAddress as string | undefined) ?? null,
+          token_chain: char?.token_chain ?? (cfg?.chain as string | undefined) ?? null,
+          token_name: char?.token_name ?? (cfg?.tokenName as string | undefined) ?? null,
+          token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string | undefined) ?? null,
+        };
+      }),
+    });
+  } catch (error) {
+    logger.error("[milady-api] Error listing agents", error);
+
+    const errorMessage = getErrorMessage(error, "Failed to list agents");
+    const authError = isAuthenticationError(errorMessage);
+
+    return NextResponse.json(
+      { success: false, error: authError ? "Unauthorized" : errorMessage },
+      { status: authError ? 401 : 500 },
+    );
+  }
 }
 
 /**
@@ -70,92 +98,104 @@ export async function GET(request: NextRequest) {
  * Create a new Milady cloud agent.
  */
 export async function POST(request: NextRequest) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const body = await request.json();
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const body = await request.json();
 
-  const parsed = createAgentSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Invalid request data",
-        details: parsed.error.issues,
-      },
-      { status: 400 },
-    );
-  }
-
-  // ── Credit gate: require minimum deposit before creating an agent ──
-  const creditCheck = await checkMiladyCreditGate(user.organization_id);
-  if (!creditCheck.allowed) {
-    logger.warn("[milady-api] Agent creation blocked: insufficient credits", {
-      orgId: user.organization_id,
-      balance: creditCheck.balance,
-      required: MILADY_PRICING.MINIMUM_DEPOSIT,
-    });
-    return NextResponse.json(
-      {
-        success: false,
-        error: creditCheck.error,
-        requiredBalance: MILADY_PRICING.MINIMUM_DEPOSIT,
-        currentBalance: creditCheck.balance,
-      },
-      { status: 402 },
-    );
-  }
-
-  if (parsed.data.characterId) {
-    const character = await userCharactersRepository.findByIdInOrganizationForWrite(
-      parsed.data.characterId,
-      user.organization_id,
-    );
-
-    if (!character) {
+    const parsed = createAgentSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
         {
           success: false,
-          error: "Character not found",
+          error: "Invalid request data",
+          details: parsed.error.issues,
         },
-        { status: 404 },
+        { status: 400 },
       );
     }
-  }
 
-  // Strip reserved __milady* keys from user-supplied agentConfig to prevent
-  // callers from spoofing internal lifecycle flags.
-  const sanitizedConfig = stripReservedMiladyConfigKeys(parsed.data.agentConfig);
-  const managedEnvironment = await prepareManagedMiladyEnvironment({
-    existingEnv: parsed.data.environmentVars,
-    organizationId: user.organization_id,
-    userId: user.id,
-  });
+    // ── Credit gate: require minimum deposit before creating an agent ──
+    const creditCheck = await checkMiladyCreditGate(user.organization_id);
+    if (!creditCheck.allowed) {
+      logger.warn("[milady-api] Agent creation blocked: insufficient credits", {
+        orgId: user.organization_id,
+        balance: creditCheck.balance,
+        required: MILADY_PRICING.MINIMUM_DEPOSIT,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: creditCheck.error,
+          requiredBalance: MILADY_PRICING.MINIMUM_DEPOSIT,
+          currentBalance: creditCheck.balance,
+        },
+        { status: 402 },
+      );
+    }
 
-  const agent = await miladySandboxService.createAgent({
-    organizationId: user.organization_id,
-    userId: user.id,
-    agentName: parsed.data.agentName,
-    characterId: parsed.data.characterId,
-    agentConfig: parsed.data.characterId
-      ? withReusedMiladyCharacterOwnership(sanitizedConfig)
-      : sanitizedConfig,
-    environmentVars: managedEnvironment.environmentVars,
-  });
+    if (parsed.data.characterId) {
+      const character = await userCharactersRepository.findByIdInOrganizationForWrite(
+        parsed.data.characterId,
+        user.organization_id,
+      );
 
-  logger.info("[milady-api] Agent created", {
-    agentId: agent.id,
-    orgId: user.organization_id,
-  });
+      if (!character) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Character not found",
+          },
+          { status: 404 },
+        );
+      }
+    }
 
-  return NextResponse.json(
-    {
-      success: true,
-      data: {
-        id: agent.id,
-        agentName: agent.agent_name,
-        status: agent.status,
-        createdAt: agent.created_at,
+    // Strip reserved __milady* keys from user-supplied agentConfig to prevent
+    // callers from spoofing internal lifecycle flags.
+    const sanitizedConfig = stripReservedMiladyConfigKeys(parsed.data.agentConfig);
+    const managedEnvironment = await prepareManagedMiladyEnvironment({
+      existingEnv: parsed.data.environmentVars,
+      organizationId: user.organization_id,
+      userId: user.id,
+    });
+
+    const agent = await miladySandboxService.createAgent({
+      organizationId: user.organization_id,
+      userId: user.id,
+      agentName: parsed.data.agentName,
+      characterId: parsed.data.characterId,
+      agentConfig: parsed.data.characterId
+        ? withReusedMiladyCharacterOwnership(sanitizedConfig)
+        : sanitizedConfig,
+      environmentVars: managedEnvironment.environmentVars,
+    });
+
+    logger.info("[milady-api] Agent created", {
+      agentId: agent.id,
+      orgId: user.organization_id,
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          id: agent.id,
+          agentName: agent.agent_name,
+          status: agent.status,
+          createdAt: agent.created_at,
+        },
       },
-    },
-    { status: 201 },
-  );
+      { status: 201 },
+    );
+  } catch (error) {
+    logger.error("[milady-api] Error creating agent", error);
+
+    const errorMessage = getErrorMessage(error, "Failed to create agent");
+    const authError = isAuthenticationError(errorMessage);
+
+    return NextResponse.json(
+      { success: false, error: authError ? "Unauthorized" : errorMessage },
+      { status: authError ? 401 : 500 },
+    );
+  }
 }
