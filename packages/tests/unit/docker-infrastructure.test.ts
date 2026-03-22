@@ -270,9 +270,7 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("rejects tabs", () => {
-      expect(() => validateEnvValue("JWT_SECRET", "abc\tdef")).toThrow(
-        /control characters/,
-      );
+      expect(() => validateEnvValue("JWT_SECRET", "abc\tdef")).toThrow(/control characters/);
     });
   });
 

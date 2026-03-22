@@ -20,9 +20,7 @@ function hashToken(token: string): string {
 // Domain aliases — waifu.fun and milady.ai resolve to the same containers.
 // The dashboard rewrites URLs from one to the other, so the Origin header
 // sent by pair.html may use either domain.
-const DOMAIN_ALIASES: [string, string][] = [
-  [".waifu.fun", ".milady.ai"],
-];
+const DOMAIN_ALIASES: [string, string][] = [[".waifu.fun", ".milady.ai"]];
 
 class PairingTokenService {
   /**

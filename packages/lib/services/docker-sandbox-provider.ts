@@ -24,10 +24,8 @@ import {
   shellQuote,
   validateAgentId,
   validateAgentName,
-  validateContainerName,
   validateEnvKey,
   validateEnvValue,
-  validateVolumePath,
   WEBUI_PORT_MAX,
   WEBUI_PORT_MIN,
 } from "./docker-sandbox-utils";
@@ -80,7 +78,8 @@ const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 
 // URL injected into container env vars. Containers on the bridge network (milady-isolated)
 // cannot reach the host via localhost — use host.docker.internal instead.
-const STEWARD_CONTAINER_URL = process.env.STEWARD_CONTAINER_URL || "http://host.docker.internal:3200";
+const STEWARD_CONTAINER_URL =
+  process.env.STEWARD_CONTAINER_URL || "http://host.docker.internal:3200";
 const DEFAULT_MILADY_PORT = process.env.MILADY_CONTAINER_PORT || "2138";
 const DEFAULT_AGENT_PORT = process.env.MILADY_AGENT_PORT || "2139";
 const DEFAULT_BRIDGE_PORT = process.env.MILADY_BRIDGE_INTERNAL_PORT || "31337";

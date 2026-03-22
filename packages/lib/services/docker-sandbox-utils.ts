@@ -83,9 +83,7 @@ export function validateAgentName(name: string): void {
 /** Env keys must be uppercase shell-safe identifiers; lowercase keys are intentionally rejected. */
 export function validateEnvKey(key: string): void {
   if (hasControlChars(key) || !/^[A-Z_][A-Z0-9_]*$/.test(key)) {
-    throw new Error(
-      `Invalid environment variable key "${key}": must match ^[A-Z_][A-Z0-9_]*$.`,
-    );
+    throw new Error(`Invalid environment variable key "${key}": must match ^[A-Z_][A-Z0-9_]*$.`);
   }
 }
 
@@ -119,7 +117,7 @@ export function validateVolumePath(volumePath: string): void {
   if (
     hasControlChars(volumePath) ||
     volumePath === "/" ||
-    !/^\/[A-Za-z0-9._/\-]+$/.test(volumePath)
+    !/^\/[A-Za-z0-9._/-]+$/.test(volumePath)
   ) {
     throw new Error(`Invalid volume path "${volumePath}".`);
   }
