@@ -1,0 +1,156 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'packages/backend/**'
+      - 'packages/shared/**'
+      - 'packages/db/**'
+      - 'package.json'
+      - 'bun.lock'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: deploy-backend-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BUN_VERSION: "1.3.9"
+
+jobs:
+  determine-env:
+    name: Determine Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      branch: ${{ steps.env.outputs.branch }}
+    steps:
+      - name: Set environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "branch=${{ github.event.inputs.environment == 'production' && 'main' || 'dev' }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "branch=main" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "branch=dev" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    name: Deploy to milady VPS
+    runs-on: ubuntu-latest
+    needs: determine-env
+    environment: ${{ needs.determine-env.outputs.environment }}
+    timeout-minutes: 15
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 89.167.63.246
+          username: deploy
+          key: ${{ secrets.MILADY_VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            echo "=== Deploying eliza-cloud backend ==="
+            
+            cd /opt/eliza-cloud
+            
+            # Fetch and checkout
+            git fetch origin
+            git checkout ${{ needs.determine-env.outputs.branch }}
+            git pull origin ${{ needs.determine-env.outputs.branch }}
+            
+            # Install and build
+            bun install --frozen-lockfile
+            bun run build
+            
+            # Restart services
+            sudo systemctl restart eliza-cloud-backend
+            sudo systemctl restart milady-discovery
+            sudo systemctl restart milady-provisioning-worker
+            
+            echo "=== Deploy complete ==="
+
+      - name: Health Check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 89.167.63.246
+          username: deploy
+          key: ${{ secrets.MILADY_VPS_SSH_KEY }}
+          script: |
+            sleep 10
+            echo "Checking backend health..."
+            curl -sf http://localhost:3000/health || exit 1
+            echo "Checking discovery health..."
+            curl -sf http://localhost:3456/health || exit 1
+            echo "All health checks passed!"
+
+      - name: Notify Discord (Success)
+        if: success()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "🚀 Backend Deployed"
+          description: |
+            Environment: ${{ needs.determine-env.outputs.environment }}
+            Branch: ${{ needs.determine-env.outputs.branch }}
+            Commit: ${{ github.sha }}
+          color: 0x00ff00
+
+      - name: Notify Discord (Failure)
+        if: failure()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "❌ Backend Deploy Failed"
+          description: |
+            Environment: ${{ needs.determine-env.outputs.environment }}
+            Branch: ${{ needs.determine-env.outputs.branch }}
+            Commit: ${{ github.sha }}
+          color: 0xff0000
+
+  migrate-db:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: [determine-env, deploy]
+    if: needs.determine-env.outputs.environment == 'production'
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: bun run db:migrate
+
+      - name: Notify Discord
+        if: success()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "🗄️ Database Migrated"
+          description: "Production database migrations applied"
+          color: 0x00ff00
