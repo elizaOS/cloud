@@ -68,7 +68,28 @@ mock.module("@/lib/utils/logger", () => ({
 }));
 
 import { POST as postCompatAgent } from "@/app/api/compat/agents/route";
-import { POST as postV1MiladyAgent } from "@/app/api/v1/milady/agents/route";
+import {
+  GET as getV1MiladyAgents,
+  POST as postV1MiladyAgent,
+} from "@/app/api/v1/milady/agents/route";
+
+describe("Milady v1 agents auth error handling", () => {
+  beforeEach(() => {
+    mockRequireAuthOrApiKeyWithOrg.mockReset();
+  });
+
+  test("GET returns 401 instead of 500 for invalid API keys", async () => {
+    mockRequireAuthOrApiKeyWithOrg.mockRejectedValue(new Error("Invalid or expired API key"));
+
+    const response = await getV1MiladyAgents(
+      jsonRequest("https://example.com/api/v1/milady/agents", "GET"),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body).toEqual({ success: false, error: "Unauthorized" });
+  });
+});
 
 describe("Milady create routes reserved config stripping", () => {
   const savedAutoProvision = process.env.WAIFU_AUTO_PROVISION;

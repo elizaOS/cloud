@@ -17,7 +17,37 @@ function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+// Domain aliases — waifu.fun and milady.ai resolve to the same containers.
+// The dashboard rewrites URLs from one to the other, so the Origin header
+// sent by pair.html may use either domain.
+const DOMAIN_ALIASES: [string, string][] = [
+  [".waifu.fun", ".milady.ai"],
+];
+
 class PairingTokenService {
+  /**
+   * Given an origin like https://uuid.waifu.fun, return https://uuid.milady.ai
+   * (and vice versa). Returns null if no alias applies.
+   */
+  private getAlternateDomainOrigin(origin: string): string | null {
+    for (const [a, b] of DOMAIN_ALIASES) {
+      try {
+        const url = new URL(origin);
+        if (url.hostname.endsWith(a)) {
+          url.hostname = url.hostname.replace(new RegExp(`${a.replace(".", "\\.")}$`), b);
+          return url.origin;
+        }
+        if (url.hostname.endsWith(b)) {
+          url.hostname = url.hostname.replace(new RegExp(`${b.replace(".", "\\.")}$`), a);
+          return url.origin;
+        }
+      } catch {
+        // Invalid URL — skip
+      }
+    }
+    return null;
+  }
+
   async generateToken(
     userId: string,
     orgId: string,
@@ -53,10 +83,24 @@ class PairingTokenService {
       return null;
     }
 
-    const row = await miladyPairingTokensRepository.consumeValidToken(
+    // Try the exact origin first
+    let row = await miladyPairingTokensRepository.consumeValidToken(
       hashToken(token),
       normalizedOrigin,
     );
+
+    // If no match, try the alternate domain. The dashboard may rewrite
+    // waifu.fun → milady.ai (or vice versa) which changes the Origin header
+    // but both domains resolve to the same agent container.
+    if (!row) {
+      const alternateOrigin = this.getAlternateDomainOrigin(normalizedOrigin);
+      if (alternateOrigin) {
+        row = await miladyPairingTokensRepository.consumeValidToken(
+          hashToken(token),
+          alternateOrigin,
+        );
+      }
+    }
 
     if (!row) {
       return null;
