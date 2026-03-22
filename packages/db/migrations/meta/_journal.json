@@ -300,7 +300,7 @@
       "idx": 42,
       "version": "7",
       "when": 1772775400000,
-      "tag": "0043_seed_chain_data_pricing",
+      "tag": "0044_seed_chain_data_pricing",
       "breakpoints": true
     },
     {
@@ -314,63 +314,63 @@
       "idx": 44,
       "version": "7",
       "when": 1772873400000,
-      "tag": "0044_add_whatsapp_identity_columns",
+      "tag": "0045_add_whatsapp_identity_columns",
       "breakpoints": true
     },
     {
       "idx": 45,
       "version": "7",
       "when": 1772969400000,
-      "tag": "0045_add_redeemable_earnings_breakdown_columns",
+      "tag": "0046_add_redeemable_earnings_breakdown_columns",
       "breakpoints": true
     },
     {
       "idx": 46,
       "version": "7",
       "when": 1773060000000,
-      "tag": "0046_docker_nodes",
+      "tag": "0047_docker_nodes",
       "breakpoints": true
     },
     {
       "idx": 47,
       "version": "7",
       "when": 1773061000000,
-      "tag": "0047_add_token_agent_linkage",
+      "tag": "0048_add_token_agent_linkage",
       "breakpoints": true
     },
     {
       "idx": 48,
       "version": "7",
       "when": 1773199471391,
-      "tag": "0048_elite_rumiko_fujikawa",
+      "tag": "0049_elite_rumiko_fujikawa",
       "breakpoints": true
     },
     {
       "idx": 49,
       "version": "7",
       "when": 1773269349581,
-      "tag": "0049_repair_existing_user_identity_privy_claims",
+      "tag": "0050_repair_existing_user_identity_privy_claims",
       "breakpoints": true
     },
     {
       "idx": 50,
       "version": "7",
       "when": 1773269349582,
-      "tag": "0050_backfill_user_identities_from_users",
+      "tag": "0051_backfill_user_identities_from_users",
       "breakpoints": true
     },
     {
       "idx": 51,
       "version": "7",
       "when": 1773570000000,
-      "tag": "0051_add_milady_pairing_tokens",
+      "tag": "0052_add_milady_pairing_tokens",
       "breakpoints": true
     },
     {
       "idx": 52,
       "version": "7",
       "when": 1773868800000,
-      "tag": "0052_add_milady_billing_columns",
+      "tag": "0053_add_milady_billing_columns",
       "breakpoints": true
     }
   ]

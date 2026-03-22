@@ -470,6 +470,10 @@ export class DockerSandboxProvider implements SandboxProvider {
         `[docker-sandbox] Container created on ${nodeId}: ${containerId} (${containerName})`,
       );
     } catch (err) {
+      logger.warn(
+        `[docker-sandbox] Steward agent ${agentId} may already be registered even though container startup failed. Manual Steward cleanup may be needed.`,
+      );
+
       await ssh
         .exec(`docker rm -f ${shellQuote(containerName)}`, DOCKER_CMD_TIMEOUT_MS)
         .catch(() => {});

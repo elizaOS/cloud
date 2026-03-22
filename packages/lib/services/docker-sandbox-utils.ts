@@ -80,10 +80,12 @@ export function validateAgentName(name: string): void {
   }
 }
 
-/** Env keys must be uppercase shell-safe identifiers; lowercase keys are intentionally rejected. */
+/** Env keys must be shell-safe identifiers; allow lowercase for caller-supplied env vars. */
 export function validateEnvKey(key: string): void {
-  if (hasControlChars(key) || !/^[A-Z_][A-Z0-9_]*$/.test(key)) {
-    throw new Error(`Invalid environment variable key "${key}": must match ^[A-Z_][A-Z0-9_]*$.`);
+  if (hasControlChars(key) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+    throw new Error(
+      `Invalid environment variable key "${key}": must match ^[A-Za-z_][A-Za-z0-9_]*$.`,
+    );
   }
 }
 
