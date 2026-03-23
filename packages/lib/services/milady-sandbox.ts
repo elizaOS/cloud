@@ -507,7 +507,15 @@ export class MiladySandboxService {
     }
 
     const [first, second] = hostname.split(".").map((part) => Number.parseInt(part, 10));
-    return first === 100 && second >= 64 && second <= 127;
+    // CGNAT (100.64.0.0/10)
+    if (first === 100 && second >= 64 && second <= 127) return true;
+    // RFC1918: 10.0.0.0/8
+    if (first === 10) return true;
+    // RFC1918: 172.16.0.0/12
+    if (first === 172 && second >= 16 && second <= 31) return true;
+    // RFC1918: 192.168.0.0/16
+    if (first === 192 && second === 168) return true;
+    return false;
   }
 
   private matchesTrustedDockerBridge(
@@ -633,6 +641,11 @@ export class MiladySandboxService {
       ? await miladySandboxesRepository.getBackupById(backupId)
       : await miladySandboxesRepository.getLatestBackup(rec.id);
     if (!backup) return { success: false, error: "No backup found" };
+
+    // Verify backup belongs to this sandbox to prevent cross-agent restore
+    if (backup.sandbox_record_id !== rec.id) {
+      return { success: false, error: "Backup does not belong to this agent" };
+    }
 
     if (rec.status !== "running" && backupId) {
       const latestBackup = await miladySandboxesRepository.getLatestBackup(rec.id);

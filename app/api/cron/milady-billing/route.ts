@@ -578,8 +578,14 @@ async function handleMiladyBilling(request: NextRequest): Promise<NextResponse> 
           org.credit_balance = String(result.newBalance);
         } else if (result.action === "warning_sent") {
           warningsSent++;
+          // Refresh in-memory balance after warning (balance may have changed)
+          const freshBalance = await getOrgBalance(org.id);
+          if (freshBalance !== null) org.credit_balance = String(freshBalance);
         } else if (result.action === "shutdown") {
           sandboxesShutdown++;
+          // Refresh in-memory balance after shutdown action
+          const freshBalance = await getOrgBalance(org.id);
+          if (freshBalance !== null) org.credit_balance = String(freshBalance);
         } else if (result.action === "error") {
           errors++;
         }

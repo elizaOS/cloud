@@ -21,7 +21,7 @@ import { jobs } from "@/db/schemas/jobs";
 import { miladySandboxes } from "@/db/schemas/milady-sandboxes";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { miladyProvisionAdvisoryLockSql } from "@/lib/services/milady-provision-lock";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
 
 // ---------------------------------------------------------------------------

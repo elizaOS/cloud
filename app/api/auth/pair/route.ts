@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { getPairingTokenService } from "@/lib/services/pairing-token";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
  * endpoint directly at /api/auth/pair (when nginx is configured to
  * fall through to port 3334).
  */
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     const body = await request.json().catch(() => null);
     const token = body?.token;
@@ -36,8 +37,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid or expired pairing code" }, { status: 401 });
     }
 
-    // Look up the sandbox to get container details
-    const sandbox = await miladySandboxesRepository.findById(pairingToken.agentId);
+    // Look up the sandbox scoped to the org to prevent cross-org access
+    const sandbox = await miladySandboxesRepository.findByIdAndOrg(pairingToken.agentId, pairingToken.orgId);
 
     if (!sandbox) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
@@ -66,3 +67,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Pairing failed" }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(handler, RateLimitPresets.STRICT);

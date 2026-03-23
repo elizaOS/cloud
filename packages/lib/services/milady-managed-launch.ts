@@ -110,8 +110,10 @@ function buildManagedAllowedOrigins(): string[] {
   if (appOrigin) origins.add(appOrigin);
   if (cloudOrigin) origins.add(cloudOrigin);
 
-  for (const origin of DEV_MILADY_APP_ORIGINS) {
-    origins.add(origin);
+  if (process.env.NODE_ENV !== "production") {
+    for (const origin of DEV_MILADY_APP_ORIGINS) {
+      origins.add(origin);
+    }
   }
 
   const extraOrigins = process.env.MILADY_MANAGED_ALLOWED_ORIGINS;
@@ -412,6 +414,10 @@ export async function launchManagedMiladyAgent(params: {
         "[milady-managed-launch] Cache unavailable; falling back to direct launch params",
       );
     }
+    // SECURITY NOTE: Passing the API token as a query parameter is a risk —
+    // it may be logged by proxies, browsers, and analytics. This fallback
+    // should only fire when Redis is unavailable. In production, ensure Redis
+    // is always available or replace this with a short-lived code exchange.
     appUrl.searchParams.set("apiBase", connection.apiBase);
     appUrl.searchParams.set("token", connection.token);
   }

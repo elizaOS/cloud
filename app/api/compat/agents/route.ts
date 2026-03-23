@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { envelope, toCompatAgent, toCompatCreateResult } from "@/lib/api/compat-envelope";
 import { stripReservedMiladyConfigKeys } from "@/lib/services/milady-agent-config";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../_lib/auth";
 import { handleCompatCorsOptions, withCompatCors } from "../_lib/cors";

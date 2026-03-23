@@ -16,7 +16,7 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { statusBadgeColor, statusDotColor } from "@/lib/constants/sandbox-status";
 import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { adminService } from "@/lib/services/admin";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { MiladyAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
 import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
 import { MiladyBackupsPanel } from "@/packages/ui/src/components/containers/milady-backups-panel";
