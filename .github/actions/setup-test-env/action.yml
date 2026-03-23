@@ -22,6 +22,10 @@ runs:
       shell: bash
       run: bun install --frozen-lockfile
 
+    - name: Validate migration journal
+      shell: bash
+      run: bun run db:check-migrations
+
     - name: Start postgres and redis
       if: inputs.setup-db == 'true'
       shell: bash

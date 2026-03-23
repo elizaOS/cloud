@@ -36,6 +36,7 @@
     "db:local:logs": "docker-compose logs -f postgres",
     "db:local:seed": "tsx packages/scripts/seed-local-dev.ts",
     "db:audit": "bun run packages/scripts/audit-migrations.ts",
+    "db:check-migrations": "bun run packages/scripts/check-migration-journal.ts",
     "db:repair-journal": "bun run packages/scripts/repair-drizzle-journal.ts",
     "seed:credit-packs": "tsx packages/scripts/seed-credit-packs.ts",
     "stripe:webhook": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
