@@ -371,7 +371,7 @@ describe("milady agent route follow-ups", () => {
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
       success: false,
-      error: "Failed to delete sandbox",
+      error: "Failed to delete agent",
     });
   });
 });

@@ -59,7 +59,10 @@ export async function POST(
       logger.error("[milady-api] Suspend failed", { agentId, error: result.error });
     }
     return NextResponse.json(
-      { success: false, error: status === 500 ? "Suspend failed" : (result.error ?? "Suspend failed") },
+      {
+        success: false,
+        error: status === 500 ? "Suspend failed" : (result.error ?? "Suspend failed"),
+      },
       { status },
     );
   }
