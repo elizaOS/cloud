@@ -409,17 +409,13 @@ export async function launchManagedMiladyAgent(params: {
   }
 
   if (!launchSessionId) {
-    if (!cache.isAvailable()) {
-      logger.warn(
-        "[milady-managed-launch] Cache unavailable; falling back to direct launch params",
-      );
-    }
-    // SECURITY NOTE: Passing the API token as a query parameter is a risk —
-    // it may be logged by proxies, browsers, and analytics. This fallback
-    // should only fire when Redis is unavailable. In production, ensure Redis
-    // is always available or replace this with a short-lived code exchange.
-    appUrl.searchParams.set("apiBase", connection.apiBase);
-    appUrl.searchParams.set("token", connection.token);
+    logger.error(
+      "[milady-managed-launch] Cache unavailable; cannot launch safely without leaking token",
+    );
+    throw new ManagedMiladyLaunchError(
+      "Managed launch is unavailable because the session cache is unreachable.",
+      503,
+    );
   }
 
   return {

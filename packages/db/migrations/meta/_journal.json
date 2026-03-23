@@ -342,35 +342,63 @@
       "idx": 48,
       "version": "7",
       "when": 1773199471391,
-      "tag": "0048_elite_rumiko_fujikawa",
+      "tag": "0048_00_elite_rumiko_fujikawa_drops",
       "breakpoints": true
     },
     {
       "idx": 49,
+      "version": "7",
+      "when": 1773199471392,
+      "tag": "0048_01_elite_rumiko_fujikawa_creates",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1773199471393,
+      "tag": "0048_02_elite_rumiko_fujikawa_alters",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1773199471394,
+      "tag": "0048_03_elite_rumiko_fujikawa_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
       "version": "7",
       "when": 1773269349581,
       "tag": "0049_repair_existing_user_identity_privy_claims",
       "breakpoints": true
     },
     {
-      "idx": 50,
+      "idx": 53,
       "version": "7",
       "when": 1773269349582,
       "tag": "0050_backfill_user_identities_from_users",
       "breakpoints": true
     },
     {
-      "idx": 51,
+      "idx": 54,
       "version": "7",
       "when": 1773570000000,
       "tag": "0051_add_milady_pairing_tokens",
       "breakpoints": true
     },
     {
-      "idx": 52,
+      "idx": 55,
       "version": "7",
       "when": 1773868800000,
       "tag": "0052_add_milady_billing_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1774283015906,
+      "tag": "0056_add_billing_status_check",
       "breakpoints": true
     }
   ]

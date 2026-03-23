@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { jsonRequest } from "./api/route-test-helpers";
 
 const mockValidateToken = mock();
-const mockFindById = mock();
+const mockFindByIdAndOrg = mock();
 
 mock.module("@/lib/services/pairing-token", () => ({
   getPairingTokenService: () => ({
@@ -12,7 +12,7 @@ mock.module("@/lib/services/pairing-token", () => ({
 
 mock.module("@/db/repositories/milady-sandboxes", () => ({
   miladySandboxesRepository: {
-    findById: mockFindById,
+    findByIdAndOrg: mockFindByIdAndOrg,
   },
 }));
 
@@ -21,7 +21,7 @@ import { POST } from "@/app/api/auth/pair/route";
 describe("POST /api/auth/pair", () => {
   beforeEach(() => {
     mockValidateToken.mockReset();
-    mockFindById.mockReset();
+    mockFindByIdAndOrg.mockReset();
   });
 
   test("requires a pairing code", async () => {
@@ -70,8 +70,9 @@ describe("POST /api/auth/pair", () => {
   test("returns only the explicit Milady API token", async () => {
     mockValidateToken.mockResolvedValue({
       agentId: "agent-1",
+      orgId: "org-1",
     });
-    mockFindById.mockResolvedValue({
+    mockFindByIdAndOrg.mockResolvedValue({
       agent_name: "Milady Agent",
       environment_vars: {
         MILADY_API_TOKEN: "milady-token",
@@ -102,8 +103,9 @@ describe("POST /api/auth/pair", () => {
   test("does not fall back to generic secrets when no Milady API token exists", async () => {
     mockValidateToken.mockResolvedValue({
       agentId: "agent-1",
+      orgId: "org-1",
     });
-    mockFindById.mockResolvedValue({
+    mockFindByIdAndOrg.mockResolvedValue({
       agent_name: "Milady Agent",
       environment_vars: {
         JWT_SECRET: "jwt-secret",
