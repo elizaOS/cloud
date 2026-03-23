@@ -75,7 +75,7 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import { MiladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { MiladySandboxService } from "@/lib/services/milady-sandbox";
 
 describe("MiladySandboxService follow-ups", () => {
   const provider = {

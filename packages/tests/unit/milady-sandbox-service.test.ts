@@ -72,7 +72,7 @@ vi.mock("@/lib/services/sandbox-provider", () => ({
   createSandboxProvider: vi.fn(),
 }));
 
-import { MiladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { MiladySandboxService } from "@/lib/services/milady-sandbox";
 
 describe("MiladySandboxService lifecycle guards", () => {
   beforeEach(() => {
