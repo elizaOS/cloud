@@ -32,11 +32,11 @@ class PairingTokenService {
       try {
         const url = new URL(origin);
         if (url.hostname.endsWith(a)) {
-          url.hostname = url.hostname.replace(new RegExp(`${a.replace(".", "\\.")}$`), b);
+          url.hostname = url.hostname.replace(new RegExp(`${a.replaceAll(".", "\\.")}$`), b);
           return url.origin;
         }
         if (url.hostname.endsWith(b)) {
-          url.hostname = url.hostname.replace(new RegExp(`${b.replace(".", "\\.")}$`), a);
+          url.hostname = url.hostname.replace(new RegExp(`${b.replaceAll(".", "\\.")}$`), a);
           return url.origin;
         }
       } catch {

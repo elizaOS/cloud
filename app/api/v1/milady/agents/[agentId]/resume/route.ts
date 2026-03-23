@@ -86,7 +86,7 @@ export async function POST(
             ? 409
             : 500;
       return NextResponse.json(
-        { success: false, error: result.error ?? "Resume failed" },
+        { success: false, error: status === 500 ? "Resume failed" : (result.error ?? "Resume failed") },
         { status },
       );
     }

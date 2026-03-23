@@ -53,7 +53,10 @@ export async function POST(
             ? 409
             : 500;
 
-    return NextResponse.json({ success: false, error: result.error }, { status });
+    return NextResponse.json(
+      { success: false, error: status === 500 ? "Restore failed" : result.error },
+      { status },
+    );
   }
 
   return NextResponse.json({

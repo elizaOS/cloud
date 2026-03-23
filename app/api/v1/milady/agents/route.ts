@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     const authError = isAuthenticationError(errorMessage);
 
     return NextResponse.json(
-      { success: false, error: authError ? "Unauthorized" : errorMessage },
+      { success: false, error: authError ? "Unauthorized" : "Failed to list agents" },
       { status: authError ? 401 : 500 },
     );
   }
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     const authError = isAuthenticationError(errorMessage);
 
     return NextResponse.json(
-      { success: false, error: authError ? "Unauthorized" : errorMessage },
+      { success: false, error: authError ? "Unauthorized" : "Failed to create agent" },
       { status: authError ? 401 : 500 },
     );
   }

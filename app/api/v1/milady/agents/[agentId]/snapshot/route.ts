@@ -18,9 +18,10 @@ export async function POST(
   const result = await miladySandboxService.snapshot(agentId, user.organization_id, "manual");
 
   if (!result.success) {
+    const status = result.error === "Sandbox is not running" ? 409 : 500;
     return NextResponse.json(
-      { success: false, error: result.error },
-      { status: result.error === "Sandbox is not running" ? 409 : 500 },
+      { success: false, error: status === 500 ? "Snapshot failed" : result.error },
+      { status },
     );
   }
 

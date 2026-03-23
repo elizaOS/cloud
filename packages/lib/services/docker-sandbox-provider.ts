@@ -136,6 +136,9 @@ async function getUsedPorts(nodeId: string): Promise<Set<number>> {
 }
 
 function getDockerHealthCmd(port: string): string {
+  if (!/^\d+$/.test(port)) {
+    throw new Error(`[docker-sandbox] Invalid port "${port}": must be a numeric string.`);
+  }
   return `sh -lc 'wget -qO- "http://127.0.0.1:${port}/health" >/dev/null 2>&1 || curl -fsS "http://127.0.0.1:${port}/health" >/dev/null 2>&1'`;
 }
 
@@ -167,6 +170,24 @@ function extractStewardToken(raw: string): string {
     }
   } catch {
     // Some Steward builds may return the token as plain text.
+  }
+
+  // Sanity check: reject responses that look like HTML error pages or are
+  // unreasonably long (e.g. a full HTML document instead of a token).
+  if (trimmed.length > 512) {
+    throw new Error(
+      "[docker-sandbox] Steward token response exceeds 512 chars — likely not a valid token",
+    );
+  }
+  if (trimmed.includes("<") || trimmed.includes(">")) {
+    throw new Error(
+      "[docker-sandbox] Steward token response contains HTML markers — likely an error page",
+    );
+  }
+  if (/\s/.test(trimmed)) {
+    throw new Error(
+      "[docker-sandbox] Steward token response contains whitespace — likely not a valid token",
+    );
   }
 
   return trimmed;

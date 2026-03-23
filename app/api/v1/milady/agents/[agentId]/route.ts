@@ -183,7 +183,10 @@ export async function DELETE(
         : deleted.error === "Agent provisioning is in progress"
           ? 409
           : 500;
-    return NextResponse.json({ success: false, error: deleted.error }, { status });
+    return NextResponse.json(
+      { success: false, error: status === 500 ? "Failed to delete agent" : deleted.error },
+      { status },
+    );
   }
 
   const characterId = deleted.deletedSandbox.character_id;

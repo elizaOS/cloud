@@ -4,10 +4,9 @@ on:
   push:
     branches: [dev, main]
     paths:
-      - 'packages/backend/**'
-      - 'packages/shared/**'
-      - 'packages/db/**'
       - 'packages/lib/**'
+      - 'packages/db/**'
+      - 'packages/scripts/**'
       - 'packages/services/**'
       - 'app/api/**'
       - 'package.json'

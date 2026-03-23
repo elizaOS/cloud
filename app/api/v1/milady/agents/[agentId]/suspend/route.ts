@@ -55,8 +55,11 @@ export async function POST(
         : result.error === "Agent provisioning is in progress"
           ? 409
           : 500;
+    if (status === 500) {
+      logger.error("[milady-api] Suspend failed", { agentId, error: result.error });
+    }
     return NextResponse.json(
-      { success: false, error: result.error ?? "Suspend failed" },
+      { success: false, error: status === 500 ? "Suspend failed" : (result.error ?? "Suspend failed") },
       { status },
     );
   }
