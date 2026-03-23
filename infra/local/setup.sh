@@ -128,6 +128,18 @@ helm upgrade --install pg-local cnpg/cluster \
   --wait --timeout 180s
 pass "CNPG PostgreSQL cluster deployed"
 
+# Wait for CNPG operator to fully provision the cluster (creates secrets, pooler, etc.)
+info "Waiting for CNPG cluster to be ready..."
+for i in $(seq 1 60); do
+  if kubectl get secret pg-local-cluster-app -n eliza-agents > /dev/null 2>&1; then
+    break
+  fi
+  [ "$i" -eq 60 ] && fail "CNPG cluster secret pg-local-cluster-app not created after 120s"
+  sleep 2
+done
+kubectl wait --for=condition=Ready cluster/pg-local-cluster -n eliza-agents --timeout=120s 2>/dev/null || true
+pass "CNPG cluster ready (secret pg-local-cluster-app exists)"
+
 # 12d. Install Redis (Bitnami Helm)
 info "Installing Redis..."
 helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
@@ -149,7 +161,7 @@ pass "redis-rest proxy deployed"
 info "Creating eliza-agent-secrets Secret..."
 
 # Extract CNPG-generated DATABASE_URL from the cluster secret
-CNPG_DB_URI=$(kubectl get secret pg-local-app -n eliza-agents -o jsonpath='{.data.uri}' | base64 -d)
+CNPG_DB_URI=$(kubectl get secret pg-local-cluster-app -n eliza-agents -o jsonpath='{.data.uri}' | base64 -d)
 info "  CNPG DATABASE_URL: $CNPG_DB_URI"
 
 ENV_FILE="$SCRIPT_DIR/.env.agents"
@@ -339,7 +351,7 @@ CNPG_READY=$(kubectl get pods -n cnpg-system --no-headers 2>/dev/null | grep -c 
 [ "$CNPG_READY" -ge 1 ] && pass "CNPG operator running ($CNPG_READY)" || fail "CNPG operator not ready"
 
 # Check CNPG cluster
-kubectl get cluster pg-local -n eliza-agents > /dev/null 2>&1 && pass "CNPG cluster: pg-local" || fail "CNPG cluster pg-local missing"
+kubectl get cluster pg-local-cluster -n eliza-agents > /dev/null 2>&1 && pass "CNPG cluster: pg-local-cluster" || fail "CNPG cluster pg-local-cluster missing"
 
 # Check Redis (Bitnami in-cluster)
 REDIS_READY=$(kubectl get pods -n eliza-infra -l app.kubernetes.io/name=redis --no-headers 2>/dev/null | grep -c "Running" || true)
@@ -361,7 +373,7 @@ OPERATOR_READY=$(kubectl get pods -n pepr-system --no-headers 2>/dev/null | grep
 
 # Check CNPG PostgreSQL connectivity via pooler
 info "Testing CNPG PostgreSQL connectivity from cluster..."
-CNPG_TEST_URI=$(kubectl get secret pg-local-app -n eliza-agents -o jsonpath='{.data.uri}' | base64 -d)
+CNPG_TEST_URI=$(kubectl get secret pg-local-cluster-app -n eliza-agents -o jsonpath='{.data.uri}' | base64 -d)
 kubectl run pg-test --rm -i --restart=Never -n eliza-agents \
   --image=postgres:17-alpine --quiet -- \
   psql "$CNPG_TEST_URI" \
@@ -382,7 +394,7 @@ echo -e "${GREEN}=== All checks passed ===${NC}"
 echo ""
 echo "Cluster:      kind-${CLUSTER_NAME}"
 echo "Registry:     localhost:${REGISTRY_PORT}"
-echo "PostgreSQL:   CNPG pg-local in eliza-agents (secret: pg-local-app)"
+echo "PostgreSQL:   CNPG pg-local-cluster in eliza-agents (secret: pg-local-cluster-app)"
 echo "Redis:        Bitnami in-cluster (alias: redis.eliza-infra.svc:6379)"
 echo "Redis REST:   redis-rest.eliza-infra.svc:8079 (token: local_dev_token)"
 echo "Eliza Cloud:  eliza-cloud.eliza-infra.svc:3000 (run Next.js on host)"

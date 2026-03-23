@@ -398,11 +398,11 @@ resource "kubernetes_deployment" "redis_rest" {
 
           resources {
             requests = {
-              memory = "32Mi"
-              cpu    = "25m"
+              memory = "64Mi"
+              cpu    = "50m"
             }
             limits = {
-              memory = "64Mi"
+              memory = "128Mi"
             }
           }
         }

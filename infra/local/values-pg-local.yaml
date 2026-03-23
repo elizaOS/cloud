@@ -11,7 +11,7 @@ cluster:
   initdb:
     database: app
     owner: app
-    postInitSQL:
+    postInitApplicationSQL:
       - "CREATE EXTENSION IF NOT EXISTS vector;"
       - "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
   monitoring:

@@ -51,14 +51,18 @@ spec:
         - script:
             timeout: 30s
             content: |
-              # Set a key via native redis first
-              kubectl run cs-redis-seed-$RANDOM --rm -i --restart=Never -n eliza-infra \
-                --image=redis:7-alpine --quiet -- \
-                redis-cli -h redis SET chainsaw:rest-test "rest-ok" EX 30 2>/dev/null
+              # Set a key via redis-rest HTTP proxy (Upstash REST API format)
+              SET_RESULT=$(kubectl run cs-redis-rest-set-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=curlimages/curl:latest --quiet -- \
+                curl -s -H "Authorization: Bearer local_dev_token" -H "Content-Type: application/json" \
+                -d '["SET","chainsaw:rest-test","rest-ok","EX","30"]' \
+                "http://redis-rest.eliza-infra.svc:8079" 2>/dev/null)
+              echo "$SET_RESULT" | grep -q "OK" || { echo "FAIL: redis-rest SET returned: $SET_RESULT"; exit 1; }
 
               # Read it via redis-rest HTTP proxy
-              RESULT=$(kubectl run cs-redis-rest-$RANDOM --rm -i --restart=Never -n eliza-infra \
+              GET_RESULT=$(kubectl run cs-redis-rest-get-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=curlimages/curl:latest --quiet -- \
-                curl -s -H "Authorization: Bearer local_dev_token" \
-                "http://redis-rest.eliza-infra.svc:8079/GET/chainsaw:rest-test" 2>/dev/null)
-              echo "$RESULT" | grep -q "rest-ok" || { echo "FAIL: redis-rest GET returned: $RESULT"; exit 1; }
+                curl -s -H "Authorization: Bearer local_dev_token" -H "Content-Type: application/json" \
+                -d '["GET","chainsaw:rest-test"]' \
+                "http://redis-rest.eliza-infra.svc:8079" 2>/dev/null)
+              echo "$GET_RESULT" | grep -q "rest-ok" || { echo "FAIL: redis-rest GET returned: $GET_RESULT"; exit 1; }
