@@ -7,6 +7,9 @@ on:
       - 'packages/backend/**'
       - 'packages/shared/**'
       - 'packages/db/**'
+      - 'packages/lib/**'
+      - 'packages/services/**'
+      - 'app/api/**'
       - 'package.json'
       - 'bun.lock'
   workflow_dispatch:
@@ -75,13 +78,13 @@ jobs:
             git pull origin ${{ needs.determine-env.outputs.branch }}
             
             # Install and build
+            export NEXT_DIST_DIR=.next-build
+            export PORT=3334
             bun install --frozen-lockfile
             bun run build
             
-            # Restart services
-            sudo systemctl restart eliza-cloud-backend
-            sudo systemctl restart milady-discovery
-            sudo systemctl restart milady-provisioning-worker
+            # Restart the Next.js service
+            sudo systemctl restart eliza-cloud
             
             echo "=== Deploy complete ==="
 
@@ -93,11 +96,9 @@ jobs:
           key: ${{ secrets.MILADY_VPS_SSH_KEY }}
           script: |
             sleep 10
-            echo "Checking backend health..."
-            curl -sf http://localhost:3000/health || exit 1
-            echo "Checking discovery health..."
-            curl -sf http://localhost:3456/health || exit 1
-            echo "All health checks passed!"
+            echo "Checking eliza-cloud health..."
+            curl -sf http://localhost:3334/api/health || exit 1
+            echo "Health check passed!"
 
       - name: Notify Discord (Success)
         if: success()
