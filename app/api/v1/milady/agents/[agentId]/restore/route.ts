@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Restore may trigger re-provision
+
+const CORS_METHODS = "POST, OPTIONS";
+
+export function OPTIONS() {
+  return handleCorsOptions(CORS_METHODS);
+}
 
 const restoreSchema = z.object({
   backupId: z.string().uuid().optional(),
@@ -21,50 +29,60 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ agentId: string }> },
 ) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const { agentId } = await params;
-  const body = await request.json();
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { agentId } = await params;
+    const body = await request.json();
 
-  const parsed = restoreSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Invalid request",
-        details: parsed.error.issues,
-      },
-      { status: 400 },
+    const parsed = restoreSchema.safeParse(body);
+    if (!parsed.success) {
+      return applyCorsHeaders(
+        NextResponse.json(
+          {
+            success: false,
+            error: "Invalid request",
+            details: parsed.error.issues,
+          },
+          { status: 400 },
+        ),
+        CORS_METHODS,
+      );
+    }
+
+    const result = await miladySandboxService.restore(
+      agentId,
+      user.organization_id,
+      parsed.data.backupId,
     );
-  }
 
-  const result = await miladySandboxService.restore(
-    agentId,
-    user.organization_id,
-    parsed.data.backupId,
-  );
-
-  if (!result.success) {
-    const status =
-      result.error === "Agent not found"
-        ? 404
-        : result.error === "No backup found"
+    if (!result.success) {
+      const status =
+        result.error === "Agent not found"
           ? 404
-          : result.error === "Stopped agents can only restore the latest backup"
-            ? 409
-            : 500;
+          : result.error === "No backup found"
+            ? 404
+            : result.error === "Stopped agents can only restore the latest backup"
+              ? 409
+              : 500;
 
-    return NextResponse.json(
-      { success: false, error: status === 500 ? "Restore failed" : result.error },
-      { status },
+      return applyCorsHeaders(
+        NextResponse.json({ success: false, error: result.error }, { status }),
+        CORS_METHODS,
+      );
+    }
+
+    return applyCorsHeaders(
+      NextResponse.json({
+        success: true,
+        data: {
+          restoredFromBackupId: result.backup!.id,
+          snapshotType: result.backup!.snapshot_type,
+          createdAt: result.backup!.created_at,
+        },
+      }),
+      CORS_METHODS,
     );
+  } catch (error) {
+    return applyCorsHeaders(errorToResponse(error), CORS_METHODS);
   }
-
-  return NextResponse.json({
-    success: true,
-    data: {
-      restoredFromBackupId: result.backup!.id,
-      snapshotType: result.backup!.snapshot_type,
-      createdAt: result.backup!.created_at,
-    },
-  });
 }

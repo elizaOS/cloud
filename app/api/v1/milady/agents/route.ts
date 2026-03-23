@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { userCharactersRepository } from "@/db/repositories/characters";
+import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import {
@@ -10,9 +11,16 @@ import {
 import { checkMiladyCreditGate } from "@/lib/services/milady-billing-gate";
 import { prepareManagedMiladyEnvironment } from "@/lib/services/milady-managed-launch";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
+
+const CORS_METHODS = "GET, POST, OPTIONS";
+
+export function OPTIONS() {
+  return handleCorsOptions(CORS_METHODS);
+}
 
 const createAgentSchema = z.object({
   agentName: z.string().min(1).max(100),
@@ -20,22 +28,6 @@ const createAgentSchema = z.object({
   agentConfig: z.record(z.string(), z.unknown()).optional(),
   environmentVars: z.record(z.string(), z.string()).optional(),
 });
-
-function isAuthenticationError(message: string): boolean {
-  return (
-    message.includes("Unauthorized") ||
-    message.includes("Authentication required") ||
-    message.includes("Forbidden") ||
-    message.includes("Invalid or expired API key") ||
-    message.includes("API key is inactive") ||
-    message.includes("API key has expired") ||
-    message.includes("Invalid or expired token")
-  );
-}
-
-function getErrorMessage(error: unknown, fallbackMessage: string): string {
-  return error instanceof Error ? error.message : fallbackMessage;
-}
 
 /**
  * GET /api/v1/milady/agents
@@ -55,41 +47,37 @@ export async function GET(request: NextRequest) {
         : [];
     const charMap = new Map(characters.map((c) => [c.id, c]));
 
-    return NextResponse.json({
-      success: true,
-      data: agents.map((a) => {
-        const char = a.character_id ? charMap.get(a.character_id) : undefined;
-        // Fallback: extract from agent_config JSONB if character record not linked
-        const cfg = a.agent_config as Record<string, unknown> | null;
-        return {
-          id: a.id,
-          agentName: a.agent_name,
-          status: a.status,
-          databaseStatus: a.database_status,
-          lastBackupAt: a.last_backup_at,
-          lastHeartbeatAt: a.last_heartbeat_at,
-          errorMessage: a.error_message,
-          createdAt: a.created_at,
-          updatedAt: a.updated_at,
-          // Canonical token linkage
-          token_address:
-            char?.token_address ?? (cfg?.tokenContractAddress as string | undefined) ?? null,
-          token_chain: char?.token_chain ?? (cfg?.chain as string | undefined) ?? null,
-          token_name: char?.token_name ?? (cfg?.tokenName as string | undefined) ?? null,
-          token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string | undefined) ?? null,
-        };
+    return applyCorsHeaders(
+      NextResponse.json({
+        success: true,
+        data: agents.map((a) => {
+          const char = a.character_id ? charMap.get(a.character_id) : undefined;
+          // Fallback: extract from agent_config JSONB if character record not linked
+          const cfg = a.agent_config as Record<string, unknown> | null;
+          return {
+            id: a.id,
+            agentName: a.agent_name,
+            status: a.status,
+            databaseStatus: a.database_status,
+            lastBackupAt: a.last_backup_at,
+            lastHeartbeatAt: a.last_heartbeat_at,
+            errorMessage: a.error_message,
+            createdAt: a.created_at,
+            updatedAt: a.updated_at,
+            // Canonical token linkage
+            token_address:
+              char?.token_address ?? (cfg?.tokenContractAddress as string | undefined) ?? null,
+            token_chain: char?.token_chain ?? (cfg?.chain as string | undefined) ?? null,
+            token_name: char?.token_name ?? (cfg?.tokenName as string | undefined) ?? null,
+            token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string | undefined) ?? null,
+          };
+        }),
       }),
-    });
-  } catch (error) {
-    logger.error("[milady-api] Error listing agents", error);
-
-    const errorMessage = getErrorMessage(error, "Failed to list agents");
-    const authError = isAuthenticationError(errorMessage);
-
-    return NextResponse.json(
-      { success: false, error: authError ? "Unauthorized" : "Failed to list agents" },
-      { status: authError ? 401 : 500 },
+      CORS_METHODS,
     );
+  } catch (error) {
+    logger.error("[milady-api] GET /agents error", { error });
+    return applyCorsHeaders(errorToResponse(error), CORS_METHODS);
   }
 }
 
@@ -104,13 +92,16 @@ export async function POST(request: NextRequest) {
 
     const parsed = createAgentSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid request data",
-          details: parsed.error.issues,
-        },
-        { status: 400 },
+      return applyCorsHeaders(
+        NextResponse.json(
+          {
+            success: false,
+            error: "Invalid request data",
+            details: parsed.error.issues,
+          },
+          { status: 400 },
+        ),
+        CORS_METHODS,
       );
     }
 
@@ -122,14 +113,17 @@ export async function POST(request: NextRequest) {
         balance: creditCheck.balance,
         required: MILADY_PRICING.MINIMUM_DEPOSIT,
       });
-      return NextResponse.json(
-        {
-          success: false,
-          error: creditCheck.error,
-          requiredBalance: MILADY_PRICING.MINIMUM_DEPOSIT,
-          currentBalance: creditCheck.balance,
-        },
-        { status: 402 },
+      return applyCorsHeaders(
+        NextResponse.json(
+          {
+            success: false,
+            error: creditCheck.error,
+            requiredBalance: MILADY_PRICING.MINIMUM_DEPOSIT,
+            currentBalance: creditCheck.balance,
+          },
+          { status: 402 },
+        ),
+        CORS_METHODS,
       );
     }
 
@@ -140,12 +134,15 @@ export async function POST(request: NextRequest) {
       );
 
       if (!character) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Character not found",
-          },
-          { status: 404 },
+        return applyCorsHeaders(
+          NextResponse.json(
+            {
+              success: false,
+              error: "Character not found",
+            },
+            { status: 404 },
+          ),
+          CORS_METHODS,
         );
       }
     }
@@ -175,27 +172,23 @@ export async function POST(request: NextRequest) {
       orgId: user.organization_id,
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          id: agent.id,
-          agentName: agent.agent_name,
-          status: agent.status,
-          createdAt: agent.created_at,
+    return applyCorsHeaders(
+      NextResponse.json(
+        {
+          success: true,
+          data: {
+            id: agent.id,
+            agentName: agent.agent_name,
+            status: agent.status,
+            createdAt: agent.created_at,
+          },
         },
-      },
-      { status: 201 },
+        { status: 201 },
+      ),
+      CORS_METHODS,
     );
   } catch (error) {
-    logger.error("[milady-api] Error creating agent", error);
-
-    const errorMessage = getErrorMessage(error, "Failed to create agent");
-    const authError = isAuthenticationError(errorMessage);
-
-    return NextResponse.json(
-      { success: false, error: authError ? "Unauthorized" : "Failed to create agent" },
-      { status: authError ? 401 : 500 },
-    );
+    logger.error("[milady-api] POST /agents error", { error });
+    return applyCorsHeaders(errorToResponse(error), CORS_METHODS);
   }
 }

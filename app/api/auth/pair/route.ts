@@ -38,7 +38,10 @@ async function handler(request: NextRequest) {
     }
 
     // Look up the sandbox scoped to the org to prevent cross-org access
-    const sandbox = await miladySandboxesRepository.findByIdAndOrg(pairingToken.agentId, pairingToken.orgId);
+    const sandbox = await miladySandboxesRepository.findByIdAndOrg(
+      pairingToken.agentId,
+      pairingToken.orgId,
+    );
 
     if (!sandbox) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });

@@ -235,7 +235,7 @@ export class MiladySandboxService {
   // Provision
 
   async provision(agentId: string, orgId: string): Promise<ProvisionResult> {
-    const rec = await miladySandboxesRepository.findByIdAndOrg(agentId, orgId);
+    let rec = await miladySandboxesRepository.findByIdAndOrg(agentId, orgId);
     if (!rec) return { success: false, error: "Agent not found" } as ProvisionResult;
 
     const lock = await miladySandboxesRepository.trySetProvisioning(rec.id);
@@ -267,6 +267,11 @@ export class MiladySandboxService {
         };
       }
       dbUri = db.connectionUri!;
+      // Neon provision updates DB but doesn't return the full record; re-fetch to avoid stale data
+      const refreshed = await miladySandboxesRepository.findByIdAndOrg(agentId, orgId);
+      if (refreshed) {
+        rec = refreshed;
+      }
     }
 
     // 2-5. Sandbox creation + DB persistence with retry for port collision
@@ -487,11 +492,9 @@ export class MiladySandboxService {
     const hasDockerNodeSignal = !!sandbox.node_id;
     // Older Docker-backed records may predate the node/headscale backfill but
     // still carry the provider-generated `sandbox_id`/container name.
-    const hasLegacyDockerSandboxId = this.isLegacyDockerSandboxId(sandbox.sandbox_id);
 
     return (
       hasMatchingHeadscaleIp ||
-      hasLegacyDockerSandboxId ||
       (hasDockerNodeSignal && hasMatchingBridgePort) ||
       (hasDockerNodeSignal && hasMatchingHeadscaleIp)
     );

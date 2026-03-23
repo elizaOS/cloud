@@ -295,47 +295,6 @@ describe("MiladySandboxService bridge SSRF guards", () => {
     });
   });
 
-  test("allows legacy private bridge URLs when only the docker sandbox_id remains", async () => {
-    mockFindRunningSandbox.mockResolvedValue({
-      id: "agent-1",
-      sandbox_id: "milady-11111111-2222-4333-8444-555555555555",
-      bridge_url: "http://100.64.0.10:31337",
-      node_id: null,
-      bridge_port: null,
-      headscale_ip: null,
-      status: "running",
-    });
-    fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          id: "req-legacy",
-          result: { ok: true },
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    );
-
-    const result = await service.bridge("agent-1", "org-1", {
-      jsonrpc: "2.0",
-      id: "req-legacy",
-      method: "status.get",
-    });
-
-    expect(mockAssertSafeOutboundUrl).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://100.64.0.10:31337/bridge",
-      expect.objectContaining({ method: "POST" }),
-    );
-    expect(result).toEqual({
-      jsonrpc: "2.0",
-      id: "req-legacy",
-      result: { ok: true },
-    });
-  });
 
   test("keeps rejecting private bridge URLs without enough docker-managed evidence", async () => {
     mockFindRunningSandbox.mockResolvedValue({

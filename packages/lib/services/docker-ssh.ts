@@ -89,6 +89,8 @@ export class DockerSSHClient {
 
   /** Idle timeout — pooled connections unused for this long are auto-closed. */
   private static readonly IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  /** Max number of concurrent SSH connections in pool to prevent unbounded growth. */
+  private static readonly MAX_POOL_SIZE = 50;
 
   /**
    * Get (or create) a pooled client for the given hostname.
@@ -132,12 +134,34 @@ export class DockerSSHClient {
       }
     }
     if (!client) {
+      if (DockerSSHClient.pool.size >= DockerSSHClient.MAX_POOL_SIZE) {
+        let oldestKey = "";
+        let oldestTime = Infinity;
+        for (const [k, v] of DockerSSHClient.pool.entries()) {
+          if (v.lastActivityMs < oldestTime) {
+            oldestTime = v.lastActivityMs;
+            oldestKey = k;
+          }
+        }
+        if (oldestKey) {
+          logger.warn(
+            `[docker-ssh] Pool max size (${DockerSSHClient.MAX_POOL_SIZE}) reached, evicting oldest connection: ${oldestKey}`,
+          );
+          DockerSSHClient.pool
+            .get(oldestKey)
+            ?.disconnect()
+            .catch(() => {});
+          DockerSSHClient.pool.delete(oldestKey);
+        }
+      }
+
       client = new DockerSSHClient({
         hostname,
         port: effectivePort,
         username: effectiveUser,
         hostKeyFingerprint,
       });
+      client.lastActivityMs = Date.now();
       DockerSSHClient.pool.set(poolKey, client);
     }
     return client;
