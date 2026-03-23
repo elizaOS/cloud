@@ -295,7 +295,6 @@ describe("MiladySandboxService bridge SSRF guards", () => {
     });
   });
 
-
   test("keeps rejecting private bridge URLs without enough docker-managed evidence", async () => {
     mockFindRunningSandbox.mockResolvedValue({
       id: "agent-1",

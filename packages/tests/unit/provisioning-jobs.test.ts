@@ -59,6 +59,10 @@ vi.mock("@/lib/services/milaidy-sandbox", () => ({
   miladySandboxService: mockMiladySandboxService,
 }));
 
+vi.mock("@/lib/services/milady-sandbox", () => ({
+  miladySandboxService: mockMiladySandboxService,
+}));
+
 vi.mock("@/lib/security/outbound-url", () => ({
   assertSafeOutboundUrl: mockAssertSafeOutboundUrl,
 }));

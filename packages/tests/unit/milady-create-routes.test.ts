@@ -72,6 +72,7 @@ import {
   GET as getV1MiladyAgents,
   POST as postV1MiladyAgent,
 } from "@/app/api/v1/milady/agents/route";
+import { AuthenticationError } from "@/lib/api/errors";
 
 describe("Milady v1 agents auth error handling", () => {
   beforeEach(() => {
@@ -79,7 +80,9 @@ describe("Milady v1 agents auth error handling", () => {
   });
 
   test("GET returns 401 instead of 500 for invalid API keys", async () => {
-    mockRequireAuthOrApiKeyWithOrg.mockRejectedValue(new Error("Invalid or expired API key"));
+    mockRequireAuthOrApiKeyWithOrg.mockRejectedValue(
+      new AuthenticationError("Invalid or expired API key"),
+    );
 
     const response = await getV1MiladyAgents(
       jsonRequest("https://example.com/api/v1/milady/agents", "GET"),
@@ -87,7 +90,11 @@ describe("Milady v1 agents auth error handling", () => {
     const body = await response.json();
 
     expect(response.status).toBe(401);
-    expect(body).toEqual({ success: false, error: "Unauthorized" });
+    expect(body).toEqual({
+      success: false,
+      error: "Invalid or expired API key",
+      code: "authentication_required",
+    });
   });
 });
 
