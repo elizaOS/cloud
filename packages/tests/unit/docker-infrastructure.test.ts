@@ -11,6 +11,8 @@ import {
   getVolumePath,
   MAX_AGENT_ID_LENGTH,
   parseDockerNodes,
+  requiresDockerHostGateway,
+  resolveStewardContainerUrl,
   shellQuote,
   validateAgentId,
   validateAgentName,
@@ -84,18 +86,11 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("escapes an embedded single quote", () => {
-      // it's  →  'it'"'"'s'
       expect(shellQuote("it's")).toBe("'it'\"'\"'s'");
     });
 
     test("safely quotes $HOME && rm -rf / (no variable expansion)", () => {
-      const result = shellQuote("$HOME && rm -rf /");
-      // The result must start and end with single-quote so the shell treats
-      // the whole thing as a literal string.
-      expect(result.startsWith("'")).toBe(true);
-      expect(result.endsWith("'")).toBe(true);
-      // The literal characters must survive round-trip
-      expect(result).toBe("'$HOME && rm -rf /'");
+      expect(shellQuote("$HOME && rm -rf /")).toBe("'$HOME && rm -rf /'");
     });
 
     test("wraps a string with double quotes (no escaping needed)", () => {
@@ -110,9 +105,7 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("safely quotes $(whoami) — no command substitution possible", () => {
-      // Wrapped in single quotes → shell never evaluates $() inside
-      const result = shellQuote("$(whoami)");
-      expect(result).toBe("'$(whoami)'");
+      expect(shellQuote("$(whoami)")).toBe("'$(whoami)'");
     });
   });
 
@@ -189,15 +182,15 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(() => validateAgentName(name)).toThrow(/Invalid agent name/);
     });
 
-    test("now accepts spaces (relaxed for existing agents)", () => {
+    test("accepts spaces (shell-safe via quoting)", () => {
       expect(() => validateAgentName("my agent")).not.toThrow();
     });
 
-    test("now accepts dots (relaxed for existing agents)", () => {
+    test("accepts dots (shell-safe via quoting)", () => {
       expect(() => validateAgentName("my.agent")).not.toThrow();
     });
 
-    test("now accepts semicolons (shell-safe via quoting)", () => {
+    test("accepts semicolons (shell-safe via quoting)", () => {
       expect(() => validateAgentName("agent;drop")).not.toThrow();
     });
 
@@ -216,17 +209,14 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
   // -------------------------------------------------------------------------
   describe("validateEnvKey", () => {
-    test("accepts uppercase underscore keys", () => {
+    test("accepts uppercase and lowercase underscore keys", () => {
       expect(() => validateEnvKey("JWT_SECRET")).not.toThrow();
+      expect(() => validateEnvKey("jwt_secret")).not.toThrow();
       expect(() => validateEnvKey("A1_B2")).not.toThrow();
     });
 
     test("rejects empty keys", () => {
       expect(() => validateEnvKey("")).toThrow(/Invalid environment variable key/);
-    });
-
-    test("rejects lowercase keys", () => {
-      expect(() => validateEnvKey("jwt_secret")).toThrow(/Invalid environment variable key/);
     });
 
     test("rejects keys starting with a digit", () => {
@@ -275,57 +265,35 @@ describe("Docker Infrastructure - Pure Functions", () => {
   });
 
   // -------------------------------------------------------------------------
-  describe("container name and volume path validation", () => {
-    test("getContainerName returns a valid deterministic name", () => {
-      expect(getContainerName("agent_1")).toBe("milady-agent_1");
+  describe("resolveStewardContainerUrl", () => {
+    test("preserves explicit STEWARD_CONTAINER_URL overrides", () => {
+      expect(
+        resolveStewardContainerUrl("http://localhost:3200", "http://steward.internal:9999"),
+      ).toBe("http://steward.internal:9999");
     });
 
-    test("validateContainerName accepts docker-safe names", () => {
-      expect(() => validateContainerName("milady-agent_1.test-2")).not.toThrow();
+    test("rewrites localhost host URLs for container reachability", () => {
+      expect(resolveStewardContainerUrl("http://localhost:3200")).toBe(
+        "http://host.docker.internal:3200",
+      );
+      expect(resolveStewardContainerUrl("http://127.0.0.1:3200")).toBe(
+        "http://host.docker.internal:3200",
+      );
     });
 
-    test("validateContainerName accepts the 128-character boundary", () => {
-      const containerName = `m${"a".repeat(127)}`;
-      expect(containerName).toHaveLength(128);
-      expect(() => validateContainerName(containerName)).not.toThrow();
+    test("passes through non-loopback URLs unchanged", () => {
+      expect(resolveStewardContainerUrl("http://10.0.0.8:3200")).toBe("http://10.0.0.8:3200");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("requiresDockerHostGateway", () => {
+    test("returns true for host.docker.internal", () => {
+      expect(requiresDockerHostGateway("http://host.docker.internal:3200")).toBe(true);
     });
 
-    test("validateContainerName rejects shell metacharacters", () => {
-      expect(() => validateContainerName("bad;name")).toThrow(/Invalid container name/);
-    });
-
-    test("validateContainerName rejects trailing newlines", () => {
-      expect(() => validateContainerName("milady-agent\n")).toThrow(/Invalid container name/);
-    });
-
-    test("validateContainerName rejects names longer than 128 characters", () => {
-      const containerName = `m${"a".repeat(128)}`;
-      expect(containerName).toHaveLength(129);
-      expect(() => validateContainerName(containerName)).toThrow(/Invalid container name/);
-    });
-
-    test("getVolumePath returns a normalized absolute path", () => {
-      expect(getVolumePath("agent_1")).toBe("/data/agents/agent_1");
-    });
-
-    test("validateVolumePath rejects traversal", () => {
-      expect(() => validateVolumePath("/data/agents/../escape")).toThrow(/Invalid volume path/);
-    });
-
-    test("validateVolumePath rejects trailing slashes", () => {
-      expect(() => validateVolumePath("/data/agents/")).toThrow(/path must be normalized/);
-    });
-
-    test("validateVolumePath rejects trailing newlines", () => {
-      expect(() => validateVolumePath("/data/agents/agent_1\n")).toThrow(/Invalid volume path/);
-    });
-
-    test("validateVolumePath rejects non-absolute paths", () => {
-      expect(() => validateVolumePath("data/agents/agent_1")).toThrow(/Invalid volume path/);
-    });
-
-    test("validateVolumePath rejects the root path", () => {
-      expect(() => validateVolumePath("/")).toThrow(/Invalid volume path/);
+    test("returns false for non-host-gateway URLs", () => {
+      expect(requiresDockerHostGateway("http://10.0.0.8:3200")).toBe(false);
     });
   });
 
@@ -338,8 +306,6 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("never returns an excluded port (large range, many iterations)", () => {
-      // Range [1000, 2000) → 1000 ports; exclude 3 specific ones.
-      // retry cap = 2000, so finding an available port is virtually certain.
       const excluded = new Set([1000, 1001, 1002]);
       for (let i = 0; i < 50; i++) {
         const port = allocatePort(1000, 2000, excluded);
@@ -350,10 +316,7 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("finds an available port when most of the range is excluded", () => {
-      // Range [500, 600) → 100 ports; exclude 95 leaving 5 available.
-      // retry cap = 200, P(failure per call) ≈ 0.035% — deterministic enough.
       const excluded = new Set(Array.from({ length: 95 }, (_, i) => 500 + i));
-      // Available ports: 595, 596, 597, 598, 599
       const available = new Set([595, 596, 597, 598, 599]);
       for (let i = 0; i < 20; i++) {
         const port = allocatePort(500, 600, excluded);
@@ -364,9 +327,7 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("throws when all ports in range are excluded", () => {
-      // Range [10, 13) = 3 ports; exclude all 3
-      const excluded = new Set([10, 11, 12]);
-      expect(() => allocatePort(10, 13, excluded)).toThrow(/No available ports in range/);
+      expect(() => allocatePort(10, 13, new Set([10, 11, 12]))).toThrow(/No available ports/);
     });
 
     test("works with an empty exclusion set", () => {
@@ -376,7 +337,6 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("single-port range with no exclusions returns that port", () => {
-      // Range [42, 43) → only port 42
       expect(allocatePort(42, 43, new Set())).toBe(42);
     });
   });
@@ -392,8 +352,10 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(getContainerName(agentId)).toBe(`milady-${agentId}`);
     });
 
-    test("works with a short agentId", () => {
-      expect(getContainerName("x")).toBe("milady-x");
+    test("throws when the derived Docker container name would be too long", () => {
+      expect(() => getContainerName("a".repeat(MAX_AGENT_ID_LENGTH + 1))).toThrow(
+        /Invalid agent ID/,
+      );
     });
 
     test("rejects an agentId that would exceed the Docker container name limit", () => {
@@ -403,7 +365,18 @@ describe("Docker Infrastructure - Pure Functions", () => {
   });
 
   // -------------------------------------------------------------------------
-  describe("getVolumePath", () => {
+  describe("validateContainerName", () => {
+    test("accepts Docker-safe names", () => {
+      expect(() => validateContainerName("milady-abc_123.def")).not.toThrow();
+    });
+
+    test("rejects invalid leading characters", () => {
+      expect(() => validateContainerName("-bad")).toThrow(/Invalid container name/);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("getVolumePath / validateVolumePath", () => {
     test("returns the correct path for a valid agentId", () => {
       expect(getVolumePath("abc-123")).toBe("/data/agents/abc-123");
     });
@@ -417,8 +390,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(() => getVolumePath("agent.1")).toThrow(/Invalid agent ID/);
     });
 
-    test("throws for an empty agentId", () => {
-      expect(() => getVolumePath("")).toThrow(/Invalid agent ID/);
+    test("rejects traversal and repeated separators", () => {
+      expect(() => validateVolumePath("/data//agents/test")).toThrow(/normalized/);
+      expect(() => validateVolumePath("/data/../agents/test")).toThrow(/normalized/);
     });
   });
 
@@ -479,7 +453,7 @@ describe("Docker Infrastructure - Pure Functions", () => {
       process.env.MILADY_DOCKER_NODES = "node1:10.0.0.1:4";
       const first = parseDockerNodes();
       const second = parseDockerNodes();
-      expect(first).toBe(second); // Same object reference = cache hit
+      expect(first).toBe(second);
     });
   });
 

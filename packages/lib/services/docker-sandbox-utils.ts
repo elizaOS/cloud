@@ -75,7 +75,7 @@ export function validateAgentName(name: string): void {
     throw new Error(`Invalid agent name: must be 1-64 characters.`);
   }
   // Block characters that could break shell commands even inside quotes
-  if (/[\x00-\x1f\x7f]/.test(name)) {
+  if (hasControlChars(name)) {
     throw new Error(`Invalid agent name "${name}": contains control characters.`);
   }
 }
@@ -132,6 +132,47 @@ export function validateVolumePath(volumePath: string): void {
     (volumePath.length > 1 && volumePath.endsWith("/"))
   ) {
     throw new Error(`Invalid volume path "${volumePath}": path must be normalized.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Steward / Docker host routing
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the URL injected into containers for talking back to Steward.
+ *
+ * - Explicit STEWARD_CONTAINER_URL wins.
+ * - Otherwise, when the host-side Steward URL points at localhost/loopback,
+ *   rewrite it to host.docker.internal for container reachability.
+ * - Non-loopback host URLs pass through unchanged.
+ */
+export function resolveStewardContainerUrl(
+  stewardHostUrl: string = process.env.STEWARD_API_URL || "http://localhost:3200",
+  stewardContainerUrl?: string,
+): string {
+  const override = stewardContainerUrl?.trim();
+  if (override) {
+    return override.replace(/\/$/, "");
+  }
+
+  try {
+    const url = new URL(stewardHostUrl);
+    if (["localhost", "127.0.0.1", "::1"].includes(url.hostname)) {
+      url.hostname = "host.docker.internal";
+    }
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return "http://host.docker.internal:3200";
+  }
+}
+
+/** Linux Docker needs an explicit host-gateway alias for host.docker.internal. */
+export function requiresDockerHostGateway(targetUrl: string): boolean {
+  try {
+    return new URL(targetUrl).hostname === "host.docker.internal";
+  } catch {
+    return false;
   }
 }
 

@@ -21,6 +21,8 @@ import {
   getContainerName,
   getVolumePath,
   parseDockerNodes,
+  requiresDockerHostGateway,
+  resolveStewardContainerUrl,
   shellQuote,
   validateAgentId,
   validateAgentName,
@@ -77,9 +79,12 @@ const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
 const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 
 // URL injected into container env vars. Containers on the bridge network (milady-isolated)
-// cannot reach the host via localhost — use host.docker.internal instead.
-const STEWARD_CONTAINER_URL =
-  process.env.STEWARD_CONTAINER_URL || "http://host.docker.internal:3200";
+// cannot reach the host via localhost. On Linux we pair host.docker.internal with an
+// explicit host-gateway alias in docker create so the same default works cross-platform.
+const STEWARD_CONTAINER_URL = resolveStewardContainerUrl(
+  STEWARD_HOST_URL,
+  process.env.STEWARD_CONTAINER_URL,
+);
 const DEFAULT_MILADY_PORT = process.env.MILADY_CONTAINER_PORT || "2138";
 const DEFAULT_AGENT_PORT = process.env.MILADY_AGENT_PORT || "2139";
 const DEFAULT_BRIDGE_PORT = process.env.MILADY_BRIDGE_INTERNAL_PORT || "31337";
@@ -381,6 +386,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       ...vpnEnvVars,
       AGENT_NAME: agentName,
       MILADY_CLOUD_PROVISIONED: "1",
+      ELIZA_CLOUD_PROVISIONED: "1",
       STEWARD_API_URL: STEWARD_CONTAINER_URL,
       STEWARD_AGENT_ID: agentId,
       // steward-enabled image runs two processes:
@@ -449,6 +455,9 @@ export class DockerSandboxProvider implements SandboxProvider {
         `--name ${shellQuote(containerName)}`,
         "--restart unless-stopped",
         `--network ${shellQuote(DOCKER_NETWORK)}`,
+        ...(requiresDockerHostGateway(STEWARD_CONTAINER_URL)
+          ? ["--add-host host.docker.internal:host-gateway"]
+          : []),
         `--health-cmd ${shellQuote(getDockerHealthCmd(allEnv.MILADY_PORT || DEFAULT_MILADY_PORT))}`,
         "--health-interval 10s",
         "--health-timeout 5s",
