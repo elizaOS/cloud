@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 
 export const dynamic = "force-dynamic";

@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 import { logger } from "@/lib/utils/logger";
-import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { handleCompatCorsOptions, withCompatCors } from "../../../_lib/cors";
 import { requireCompatAuth } from "../../../_lib/auth";

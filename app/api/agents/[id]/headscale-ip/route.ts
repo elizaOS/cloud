@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 
@@ -38,7 +39,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "internal auth not configured" }, { status: 503 });
   }
 
-  if (getInternalToken(request) !== expectedToken) {
+  const providedToken = getInternalToken(request) ?? "";
+  const tokensMatch =
+    providedToken.length === expectedToken.length &&
+    timingSafeEqual(Buffer.from(providedToken), Buffer.from(expectedToken));
+  if (!tokensMatch) {
     console.warn(`[headscale-ip] blocked unauthorized lookup for ${agentId}`);
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
