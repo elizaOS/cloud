@@ -228,12 +228,12 @@ pass "Agent-server image pushed to localhost:${REGISTRY_PORT}"
 
 # 16. Build & push gateway-discord image
 info "Building gateway-discord image..."
-cd "$CLOUD_V2_DIR/services/gateway-discord"
+cd "$CLOUD_V2_DIR/packages/services/gateway-discord"
 bun install --silent 2>/dev/null || npm install --silent 2>/dev/null
 cd "$SCRIPT_DIR"
 
 docker build -t "localhost:${REGISTRY_PORT}/gateway-discord:dev" \
-  "$CLOUD_V2_DIR/services/gateway-discord"
+  "$CLOUD_V2_DIR/packages/services/gateway-discord"
 docker push "localhost:${REGISTRY_PORT}/gateway-discord:dev"
 pass "Gateway-discord image pushed to localhost:${REGISTRY_PORT}"
 
@@ -273,12 +273,12 @@ pass "Gateway-discord deployed via Helm"
 
 # 19. Build & push gateway-webhook image
 info "Building gateway-webhook image..."
-cd "$CLOUD_V2_DIR/services/gateway-webhook"
+cd "$CLOUD_V2_DIR/packages/services/gateway-webhook"
 bun install --silent 2>/dev/null || npm install --silent 2>/dev/null
 cd "$SCRIPT_DIR"
 
 docker build -t "localhost:${REGISTRY_PORT}/gateway-webhook:dev" \
-  "$CLOUD_V2_DIR/services/gateway-webhook"
+  "$CLOUD_V2_DIR/packages/services/gateway-webhook"
 docker push "localhost:${REGISTRY_PORT}/gateway-webhook:dev"
 pass "Gateway-webhook image pushed to localhost:${REGISTRY_PORT}"
 
