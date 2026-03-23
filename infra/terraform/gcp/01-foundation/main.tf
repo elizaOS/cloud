@@ -63,3 +63,36 @@ module "iam" {
 
   depends_on = [google_project_service.apis]
 }
+
+# GCS bucket for CNPG PostgreSQL backups (Barman)
+resource "google_storage_bucket" "pg_backups" {
+  name     = "${var.project_id}-pg-backups"
+  project  = var.project_id
+  location = var.region
+
+  uniform_bucket_level_access = true
+  force_destroy               = var.environment != "production"
+
+  lifecycle_rule {
+    condition {
+      age = var.environment == "production" ? 90 : 30
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+
+# GCP service account for CNPG backup operations (Barman → GCS)
+resource "google_service_account" "cnpg_backup" {
+  project      = var.project_id
+  account_id   = "cnpg-backup"
+  display_name = "CNPG Backup"
+  description  = "Service account for CloudNativePG Barman backups to GCS"
+}
+
+resource "google_storage_bucket_iam_member" "cnpg_backup_writer" {
+  bucket = google_storage_bucket.pg_backups.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.cnpg_backup.email}"
+}

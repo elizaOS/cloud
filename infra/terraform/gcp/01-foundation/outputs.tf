@@ -43,6 +43,17 @@ output "service_account_email" {
   value       = module.iam.service_account_email
 }
 
+# CNPG PostgreSQL backups
+output "pg_backup_bucket_name" {
+  description = "GCS bucket name for CNPG Barman backups"
+  value       = google_storage_bucket.pg_backups.name
+}
+
+output "cnpg_backup_sa_email" {
+  description = "GCP service account email for CNPG backup operations"
+  value       = google_service_account.cnpg_backup.email
+}
+
 # Passthrough for 02-k8s layer
 output "project_id" {
   description = "GCP project ID"
