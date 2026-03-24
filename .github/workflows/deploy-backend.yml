@@ -140,6 +140,12 @@ jobs:
             sudo chown -R deploy:deploy /opt/eliza-cloud
             cd /opt/eliza-cloud
             git config --global --add safe.directory /opt/eliza-cloud
+
+            if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+              STASH_NAME="deploy-backend-auto-$(date -u +%Y%m%dT%H%M%SZ)"
+              git stash push --include-untracked --message "$STASH_NAME"
+              echo "Stashed local changes as $STASH_NAME"
+            fi
             
             # Fetch and checkout
             git fetch origin
