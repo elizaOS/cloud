@@ -78,6 +78,8 @@ const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
 // URL for host-side Steward API calls (registration, token minting).
 // The orchestrator (or SSH-executed scripts on the Docker host) can reach Steward via localhost.
 const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
+const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
+const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
 
 // URL injected into container env vars. Containers on the bridge network (milady-isolated)
 // cannot reach the host via localhost. On Linux we pair host.docker.internal with an
@@ -140,7 +142,9 @@ function getDockerHealthCmd(port: string): string {
   if (!/^\d+$/.test(port)) {
     throw new Error(`[docker-sandbox] Invalid port "${port}": must be a numeric string.`);
   }
-  return `sh -lc 'wget -qO- "http://127.0.0.1:${port}/health" >/dev/null 2>&1 || curl -fsS "http://127.0.0.1:${port}/health" >/dev/null 2>&1'`;
+  // /api/health returns 200 or 401 (auth required) — both mean the server is up.
+  // Use curl with -o /dev/null and check status code to accept either.
+  return `sh -lc 'STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${port}/api/health" 2>/dev/null); [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ]'`;
 }
 
 function extractStewardToken(raw: string): string {
@@ -199,15 +203,22 @@ import urllib.error
 import urllib.request
 
 base_url = ${JSON.stringify(STEWARD_HOST_URL)}
+api_key = ${JSON.stringify(STEWARD_TENANT_API_KEY)}
+tenant_id = ${JSON.stringify(STEWARD_TENANT_ID)}
 agent_id = ${JSON.stringify(agentId)}
 agent_name = ${JSON.stringify(agentName)}
 
 
 def post(path, payload):
+    headers = {"Content-Type": "application/json"}
+    if tenant_id:
+        headers["X-Steward-Tenant"] = tenant_id
+    if api_key:
+        headers["X-Steward-Key"] = api_key
     req = urllib.request.Request(
         f"{base_url}{path}",
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -218,9 +229,10 @@ def post(path, payload):
 
 
 status, body = post("/agents", {"id": agent_id, "name": agent_name})
-if status not in (200, 201, 202, 409):
+if status not in (200, 201, 202, 400, 409):
     print(body, file=sys.stderr)
     raise SystemExit(f"Steward agent registration failed with status {status}")
+# 400/409 = agent already exists, continue to token minting
 
 status, body = post(f"/agents/{agent_id}/token", {"name": "milady-cloud"})
 if status not in (200, 201):
@@ -316,7 +328,10 @@ export class DockerSandboxProvider implements SandboxProvider {
     const { agentId, agentName, environmentVars } = config;
 
     // Resolve Docker image: explicit config > env var > hardcoded default
-    const resolvedImage = config.dockerImage || DOCKER_IMAGE;
+    // DOCKER_IMAGE (from env) takes precedence over per-agent DB override.
+    // This prevents stale images from being sticky after the env is updated.
+    const resolvedImage =
+      DOCKER_IMAGE || config.dockerImage || "ghcr.io/milady-ai/agent:v2.0.0-steward-5";
 
     // 1. Input validation
     validateAgentName(agentName);
@@ -396,6 +411,8 @@ export class DockerSandboxProvider implements SandboxProvider {
     }
 
     // 5. Build the base environment (spread to avoid mutating caller's environmentVars)
+    const apiToken =
+      environmentVars.ELIZA_API_TOKEN || environmentVars.MILADY_API_TOKEN || crypto.randomUUID();
     const baseEnv: Record<string, string> = {
       ...environmentVars,
       ...vpnEnvVars,
@@ -415,12 +432,15 @@ export class DockerSandboxProvider implements SandboxProvider {
       // Eliza server requires JWT_SECRET in production mode.
       // Generate a unique per-container secret if the caller didn't provide one.
       JWT_SECRET: environmentVars.JWT_SECRET || crypto.randomUUID(),
-      // The milady server auto-generates a random MILADY_API_TOKEN when
-      // MILADY_API_BIND is non-loopback (0.0.0.0) and no token is set.
+      // The milady server auto-generates a random ELIZA_API_TOKEN when
+      // ELIZA_API_BIND is non-loopback (0.0.0.0) and no token is set.
       // Set it explicitly so our pairing endpoint can return it.
       // IMPORTANT: use a separate random value — do NOT reuse JWT_SECRET,
       // which is the container's auth signing key.
-      MILADY_API_TOKEN: environmentVars.MILADY_API_TOKEN || crypto.randomUUID(),
+      // Note: server reads ELIZA_API_TOKEN (MILADY_API_TOKEN is ignored
+      // due to a copy-paste bug in server.ts). Set both for compat.
+      MILADY_API_TOKEN: apiToken,
+      ELIZA_API_TOKEN: apiToken,
       // Allow the agent subdomain origin so the browser can call the API.
       MILADY_ALLOWED_ORIGINS: `https://${agentId}.${getAgentBaseDomain()}`,
     };
@@ -451,6 +471,8 @@ export class DockerSandboxProvider implements SandboxProvider {
       const allEnv: Record<string, string> = {
         ...baseEnv,
         STEWARD_AGENT_TOKEN: stewardAgentToken,
+        // Bind to 0.0.0.0 so the health endpoint is reachable from outside the container
+        ELIZA_API_BIND: "0.0.0.0",
       };
 
       // Validate env keys/values before they are interpolated into remote shell commands.
@@ -498,7 +520,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       // container failed to start, so we try to clean up the Steward record.
       try {
         await ssh.exec(
-          `curl -s -X DELETE ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
+          `curl -s -X DELETE -H ${shellQuote(`X-Steward-Tenant: ${STEWARD_TENANT_ID}`)} ${STEWARD_TENANT_API_KEY ? `-H ${shellQuote(`X-Steward-Key: ${STEWARD_TENANT_API_KEY}`)}` : ""} ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
           DOCKER_CMD_TIMEOUT_MS,
         );
         logger.info(`[docker-sandbox] Cleaned up Steward agent ${agentId} after container failure`);
@@ -582,7 +604,7 @@ export class DockerSandboxProvider implements SandboxProvider {
     return {
       sandboxId: containerName,
       bridgeUrl: `http://${targetHost}:${bridgePort}`,
-      healthUrl: `http://${targetHost}:${webUiPort}`,
+      healthUrl: `http://${targetHost}:${webUiPort}/api`,
       metadata: metadata as unknown as Record<string, unknown>,
     };
   }
@@ -663,8 +685,9 @@ export class DockerSandboxProvider implements SandboxProvider {
           signal: AbortSignal.timeout(HEALTH_CHECK_REQUEST_TIMEOUT_MS),
         });
 
-        if (response.ok) {
-          logger.info(`[docker-sandbox] Health check passed: ${url}`);
+        // 2xx = healthy, 401 = server is up but requires auth (also healthy)
+        if (response.ok || response.status === 401) {
+          logger.info(`[docker-sandbox] Health check passed (${response.status}): ${url}`);
           return true;
         }
 
