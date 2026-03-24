@@ -34,25 +34,13 @@ export class AgentManager {
     return `http://${process.env.SERVER_NAME}.${namespace}.svc:3000`;
   }
 
-  private async refreshRedisState(
-    status = this._draining ? "draining" : "running",
-  ) {
+  private async refreshRedisState(status = this._draining ? "draining" : "running") {
     const redis = getRedis();
     const multi = redis.multi();
     const serverName = process.env.SERVER_NAME!;
 
-    multi.set(
-      `server:${serverName}:status`,
-      status,
-      "EX",
-      REDIS_STATE_TTL_SECONDS,
-    );
-    multi.set(
-      `server:${serverName}:url`,
-      this.getServerUrl(),
-      "EX",
-      REDIS_STATE_TTL_SECONDS,
-    );
+    multi.set(`server:${serverName}:status`, status, "EX", REDIS_STATE_TTL_SECONDS);
+    multi.set(`server:${serverName}:url`, this.getServerUrl(), "EX", REDIS_STATE_TTL_SECONDS);
 
     for (const agentId of this.agents.keys()) {
       multi.set(`agent:${agentId}:server`, serverName);
@@ -72,10 +60,7 @@ export class AgentManager {
       });
     }, REDIS_REFRESH_INTERVAL_MS);
 
-    if (
-      typeof this.heartbeatTimer === "object" &&
-      "unref" in this.heartbeatTimer
-    ) {
+    if (typeof this.heartbeatTimer === "object" && "unref" in this.heartbeatTimer) {
       this.heartbeatTimer.unref();
     }
   }
