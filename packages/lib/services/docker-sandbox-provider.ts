@@ -328,7 +328,9 @@ export class DockerSandboxProvider implements SandboxProvider {
     const { agentId, agentName, environmentVars } = config;
 
     // Resolve Docker image: explicit config > env var > hardcoded default
-    const resolvedImage = config.dockerImage || DOCKER_IMAGE;
+    // DOCKER_IMAGE (from env) takes precedence over per-agent DB override.
+    // This prevents stale images from being sticky after the env is updated.
+    const resolvedImage = DOCKER_IMAGE || config.dockerImage || "ghcr.io/milady-ai/agent:v2.0.0-steward-5";
 
     // 1. Input validation
     validateAgentName(agentName);
