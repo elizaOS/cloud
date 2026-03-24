@@ -13,3 +13,4 @@ spec:
     skipDelete: false
   execution:
     failFast: false
+    parallel: 3

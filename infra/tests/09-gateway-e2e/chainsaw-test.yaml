@@ -7,13 +7,29 @@ spec:
     End-to-end routing: verify the full Redis lookup chain (agent→server→url)
     and forward a message through it, exactly as the gateway-webhook would.
   steps:
-    - name: Ensure shared-eliza Server CR exists
+    - name: Create srv-gw Server CR
       try:
         - apply:
-            file: ../06-direct-routing/server-cr.yaml
+            file: server-cr.yaml
       cleanup:
         - script:
-            content: kubectl delete server shared-eliza -n eliza-agents --ignore-not-found
+            content: kubectl delete server srv-gw -n eliza-agents --ignore-not-found
+
+    - name: Wake via KEDA
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              for attempt in 1 2 3; do
+                RESULT=$(kubectl run cs-wake-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                  --image=redis:7-alpine --quiet -- \
+                  redis-cli -h redis LPUSH "keda:srv-gw:activity" "wake" 2>&1)
+                echo "$RESULT" | grep -qE "^\(integer\)|^[0-9]" && exit 0
+                echo "KEDA wake attempt $attempt failed: $RESULT"
+                sleep 3
+              done
+              echo "FAIL: KEDA wake LPUSH failed after 3 attempts"
+              exit 1
 
     - name: Wait for agent-server pod ready
       try:
@@ -21,7 +37,7 @@ spec:
             timeout: 300s
             content: |
               for i in $(seq 1 60); do
-                POD=$(kubectl get pods -n eliza-agents -l "eliza.ai/server=shared-eliza" --no-headers 2>/dev/null || true)
+                POD=$(kubectl get pods -n eliza-agents -l "eliza.ai/server=srv-gw" --no-headers 2>/dev/null || true)
                 if echo "$POD" | grep -q "1/1.*Running"; then
                   echo "Agent-server pod ready"
                   exit 0
@@ -31,16 +47,11 @@ spec:
               echo "FAIL: agent-server pod not ready within 300s"
               exit 1
 
-    - name: Seed agent mapping and verify full Redis routing chain
+    - name: Verify full Redis routing chain
       try:
         - script:
             timeout: 60s
             content: |
-              # The agent-server registers agents by characterRef (e.g. "eliza"),
-              # while the Cloud uses UUIDs. Both must resolve to the same server.
-              # Here we use the characterRef "eliza" as the agentId — same as
-              # what the operator writes to Redis when the agent starts.
-
               AGENT_ID="eliza"
               echo "Agent ID (characterRef): $AGENT_ID"
 
@@ -50,25 +61,25 @@ spec:
                 redis-cli -h redis GET "agent:${AGENT_ID}:server" 2>/dev/null)
               echo "agent:${AGENT_ID}:server = $MAPPING"
 
-              if ! echo "$MAPPING" | grep -q "shared-eliza"; then
+              if ! echo "$MAPPING" | grep -q "srv-gw"; then
                 echo "Mapping missing — seeding it"
                 kubectl run cs-seed-$RANDOM --rm -i --restart=Never -n eliza-infra \
                   --image=redis:7-alpine --quiet -- \
-                  redis-cli -h redis SET "agent:${AGENT_ID}:server" "shared-eliza" 2>/dev/null
+                  redis-cli -h redis SET "agent:${AGENT_ID}:server" "srv-gw" 2>/dev/null
               fi
 
               # Verify server URL key
               URL=$(kubectl run cs-url-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
-                redis-cli -h redis GET "server:shared-eliza:url" 2>/dev/null)
-              echo "server:shared-eliza:url = $URL"
-              echo "$URL" | grep -q "shared-eliza.eliza-agents.svc" || { echo "FAIL: server URL not set"; exit 1; }
+                redis-cli -h redis GET "server:srv-gw:url" 2>/dev/null)
+              echo "server:srv-gw:url = $URL"
+              echo "$URL" | grep -q "srv-gw.eliza-agents.svc" || { echo "FAIL: server URL not set"; exit 1; }
 
               # Verify server status
               STATUS=$(kubectl run cs-status-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
-                redis-cli -h redis GET "server:shared-eliza:status" 2>/dev/null)
-              echo "server:shared-eliza:status = $STATUS"
+                redis-cli -h redis GET "server:srv-gw:status" 2>/dev/null)
+              echo "server:srv-gw:status = $STATUS"
               echo "$STATUS" | grep -qE "running|pending" || { echo "FAIL: server not running (status=$STATUS)"; exit 1; }
 
               echo "PASS: full Redis routing chain verified"
@@ -116,18 +127,13 @@ spec:
               echo "$RESPONSE" | grep -q '"response"' || { echo "FAIL: no response field"; exit 1; }
               echo "PASS: message forwarded through Redis-resolved route and agent responded"
 
-    - name: Verify KEDA activity was refreshed
+    - name: Verify KEDA activity
       try:
         - script:
             timeout: 15s
             content: |
-              # After a message, the gateway pushes KEDA activity
-              kubectl run cs-keda-$RANDOM --rm -i --restart=Never -n eliza-infra \
-                --image=redis:7-alpine --quiet -- \
-                redis-cli -h redis LPUSH "keda:shared-eliza:activity" "$(date +%s)" 2>/dev/null
-
               LEN=$(kubectl run cs-keda-len-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
-                redis-cli -h redis LLEN "keda:shared-eliza:activity" 2>/dev/null)
+                redis-cli -h redis LLEN "keda:srv-gw:activity" 2>/dev/null)
               [ "$LEN" -ge 1 ] || { echo "FAIL: KEDA activity list empty"; exit 1; }
               echo "PASS: KEDA activity key has $LEN entries"
