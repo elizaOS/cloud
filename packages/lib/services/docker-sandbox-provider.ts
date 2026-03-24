@@ -72,7 +72,7 @@ interface ContainerMeta {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DOCKER_IMAGE = process.env.MILADY_DOCKER_IMAGE || "milady/agent:v2.0.0-steward-2";
+const DOCKER_IMAGE = process.env.MILADY_DOCKER_IMAGE || "ghcr.io/milady-ai/agent:v2.0.0-steward-5";
 const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
 // URL for host-side Steward API calls (registration, token minting).
 // The orchestrator (or SSH-executed scripts on the Docker host) can reach Steward via localhost.
