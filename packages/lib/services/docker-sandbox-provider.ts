@@ -497,9 +497,7 @@ export class DockerSandboxProvider implements SandboxProvider {
           `curl -s -X DELETE ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
           DOCKER_CMD_TIMEOUT_MS,
         );
-        logger.info(
-          `[docker-sandbox] Cleaned up Steward agent ${agentId} after container failure`,
-        );
+        logger.info(`[docker-sandbox] Cleaned up Steward agent ${agentId} after container failure`);
       } catch (cleanupErr) {
         logger.warn(
           `[docker-sandbox] Failed to cleanup Steward agent ${agentId}: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,

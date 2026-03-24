@@ -102,10 +102,7 @@ async function handleGET(req: NextRequest) {
     logger.error("[Billing Settings API] Error getting settings:", error);
 
     if (isAuthenticationError(error)) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     return NextResponse.json(
@@ -181,10 +178,7 @@ async function handlePUT(req: NextRequest) {
     logger.error("[Billing Settings API] Error updating settings:", error);
 
     if (isAuthenticationError(error)) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     // Allow domain-specific validation messages through (e.g. "Cannot enable
