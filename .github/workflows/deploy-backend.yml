@@ -153,6 +153,8 @@ jobs:
             git pull origin ${{ needs.determine-env.outputs.branch }}
             
             # Install and build
+            export BUN_INSTALL="$HOME/.bun"
+            export PATH="$BUN_INSTALL/bin:$PATH"
             export NEXT_DIST_DIR=.next-build
             export PORT=3334
             for attempt in 1 2 3; do
