@@ -138,6 +138,7 @@ jobs:
             echo "=== Deploying eliza-cloud backend ==="
             
             cd /opt/eliza-cloud
+            git config --global --add safe.directory /opt/eliza-cloud
             
             # Fetch and checkout
             git fetch origin
