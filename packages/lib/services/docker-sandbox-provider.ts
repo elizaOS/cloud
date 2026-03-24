@@ -142,7 +142,9 @@ function getDockerHealthCmd(port: string): string {
   if (!/^\d+$/.test(port)) {
     throw new Error(`[docker-sandbox] Invalid port "${port}": must be a numeric string.`);
   }
-  return `sh -lc 'wget -qO- "http://127.0.0.1:${port}/health" >/dev/null 2>&1 || curl -fsS "http://127.0.0.1:${port}/health" >/dev/null 2>&1'`;
+  // /api/health returns 200 or 401 (auth required) — both mean the server is up.
+  // Use curl with -o /dev/null and check status code to accept either.
+  return `sh -lc 'STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${port}/api/health" 2>/dev/null); [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ]'`;
 }
 
 function extractStewardToken(raw: string): string {
@@ -461,6 +463,8 @@ export class DockerSandboxProvider implements SandboxProvider {
       const allEnv: Record<string, string> = {
         ...baseEnv,
         STEWARD_AGENT_TOKEN: stewardAgentToken,
+        // Bind to 0.0.0.0 so the health endpoint is reachable from outside the container
+        ELIZA_API_BIND: "0.0.0.0",
       };
 
       // Validate env keys/values before they are interpolated into remote shell commands.
@@ -592,7 +596,7 @@ export class DockerSandboxProvider implements SandboxProvider {
     return {
       sandboxId: containerName,
       bridgeUrl: `http://${targetHost}:${bridgePort}`,
-      healthUrl: `http://${targetHost}:${webUiPort}`,
+      healthUrl: `http://${targetHost}:${webUiPort}/api`,
       metadata: metadata as unknown as Record<string, unknown>,
     };
   }
@@ -673,8 +677,9 @@ export class DockerSandboxProvider implements SandboxProvider {
           signal: AbortSignal.timeout(HEALTH_CHECK_REQUEST_TIMEOUT_MS),
         });
 
-        if (response.ok) {
-          logger.info(`[docker-sandbox] Health check passed: ${url}`);
+        // 2xx = healthy, 401 = server is up but requires auth (also healthy)
+        if (response.ok || response.status === 401) {
+          logger.info(`[docker-sandbox] Health check passed (${response.status}): ${url}`);
           return true;
         }
 
