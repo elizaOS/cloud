@@ -100,11 +100,13 @@ spec:
         - script:
             timeout: 60s
             content: |
+              SECRET=$(kubectl get secret eliza-agent-secrets -n eliza-agents -o jsonpath='{.data.AGENT_SERVER_SHARED_SECRET}' | base64 -d)
               for i in $(seq 1 10); do
                 RESPONSE=$(kubectl run cs-msg-$RANDOM --rm -i --restart=Never -n eliza-agents \
                   --image=curlimages/curl:latest --quiet -- \
                   curl -s -X POST http://shared-eliza.eliza-agents.svc:3000/agents/eliza/message \
                     -H "Content-Type: application/json" \
+                    -H "X-Server-Token: $SECRET" \
                     -d '{"userId":"test-user","text":"hello"}' 2>/dev/null)
                 echo "Attempt $i — Response: $RESPONSE"
                 echo "$RESPONSE" | grep -q '"response"' && exit 0

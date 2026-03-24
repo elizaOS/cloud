@@ -58,6 +58,9 @@ spec:
         - script:
             timeout: 120s
             content: |
+              SECRET=$(kubectl get secret eliza-agent-secrets -n eliza-agents -o jsonpath='{.data.AGENT_SERVER_SHARED_SECRET}' | base64 -d)
+              AUTH="-H X-Server-Token:$SECRET"
+
               kubectl port-forward -n eliza-agents svc/srv-life 3010:3000 > /dev/null 2>&1 &
               PF=$!
               trap "kill $PF 2>/dev/null" EXIT
@@ -76,56 +79,56 @@ spec:
               curl -sf "$BASE/ready" | grep -q '"ready":true' || { echo "FAIL: GET /ready"; FAIL=1; }
 
               # Status
-              curl -sf "$BASE/status" | grep -q '"serverName":"srv-life"' || { echo "FAIL: status serverName"; FAIL=1; }
+              curl -sf $AUTH "$BASE/status" | grep -q '"serverName":"srv-life"' || { echo "FAIL: status serverName"; FAIL=1; }
 
               # Create agent
-              HTTP=$(curl -s -o /tmp/cs-resp -w "%{http_code}" -X POST "$BASE/agents" \
+              HTTP=$(curl -s -o /tmp/cs-resp -w "%{http_code}" -X POST $AUTH "$BASE/agents" \
                 -H "Content-Type: application/json" -d '{"agentId":"a1","characterRef":"Eliza"}')
               [ "$HTTP" = "201" ] || { echo "FAIL: POST /agents status=$HTTP"; FAIL=1; }
               grep -q '"status":"running"' /tmp/cs-resp || { echo "FAIL: POST /agents body"; FAIL=1; }
 
               # Status after create (a1 exists, count >= 1)
-              AGENTS_AFTER=$(curl -sf "$BASE/status" | grep -o '"agentCount":[0-9]*' | grep -o '[0-9]*')
+              AGENTS_AFTER=$(curl -sf $AUTH "$BASE/status" | grep -o '"agentCount":[0-9]*' | grep -o '[0-9]*')
               [ "$AGENTS_AFTER" -ge 1 ] || { echo "FAIL: agentCount=$AGENTS_AFTER after create"; FAIL=1; }
 
               # Message
-              curl -sf -X POST "$BASE/agents/a1/message" \
+              curl -sf -X POST $AUTH "$BASE/agents/a1/message" \
                 -H "Content-Type: application/json" -d '{"userId":"u1","text":"hello"}' \
                 | grep -q '"response"' || { echo "FAIL: POST /agents/a1/message"; FAIL=1; }
 
               # Stop
-              curl -sf -X POST "$BASE/agents/a1/stop" \
+              curl -sf -X POST $AUTH "$BASE/agents/a1/stop" \
                 | grep -q '"status":"stopped"' || { echo "FAIL: POST /agents/a1/stop"; FAIL=1; }
 
               # Message to stopped agent → 404
-              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents/a1/message" \
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents/a1/message" \
                 -H "Content-Type: application/json" -d '{"userId":"u","text":"t"}')
               [ "$HTTP" = "404" ] || { echo "FAIL: msg to stopped=$HTTP, expected 404"; FAIL=1; }
 
               # Delete
-              curl -sf -X DELETE "$BASE/agents/a1" \
+              curl -sf -X DELETE $AUTH "$BASE/agents/a1" \
                 | grep -q '"deleted":true' || { echo "FAIL: DELETE /agents/a1"; FAIL=1; }
 
               # Error: nonexistent agent → 404
-              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents/nonexistent/message" \
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents/nonexistent/message" \
                 -H "Content-Type: application/json" -d '{"userId":"u","text":"t"}')
               [ "$HTTP" = "404" ] || { echo "FAIL: nonexistent=$HTTP, expected 404"; FAIL=1; }
 
               # Error: stop deleted agent → 404
-              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents/a1/stop")
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents/a1/stop")
               [ "$HTTP" = "404" ] || { echo "FAIL: stop deleted=$HTTP, expected 404"; FAIL=1; }
 
               # Error: delete deleted agent → 404
-              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE/agents/a1")
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE $AUTH "$BASE/agents/a1")
               [ "$HTTP" = "404" ] || { echo "FAIL: delete deleted=$HTTP, expected 404"; FAIL=1; }
 
               # Error: empty body → 400
-              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents" \
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents" \
                 -H "Content-Type: application/json" -d '{}')
               [ "$HTTP" = "400" ] || { echo "FAIL: empty body=$HTTP, expected 400"; FAIL=1; }
 
               # Error: empty message body → 400
-              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents/a1/message" \
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents/a1/message" \
                 -H "Content-Type: application/json" -d '{}')
               [ "$HTTP" = "400" ] || { echo "FAIL: empty msg=$HTTP, expected 400"; FAIL=1; }
 

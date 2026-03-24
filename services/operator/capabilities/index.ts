@@ -14,7 +14,10 @@ export const ServerController = new Capability({
 
 const { When } = ServerController;
 
-When(Server).IsCreatedOrUpdated().InNamespace("eliza-agents").Validate(validator);
+When(Server)
+  .IsCreatedOrUpdated()
+  .InNamespace("eliza-agents")
+  .Validate(validator);
 
 When(Server)
   .IsCreatedOrUpdated()
@@ -49,10 +52,13 @@ When(a.Deployment)
     if (lastPhase.get(serverName) === phase) return;
     lastPhase.set(serverName, phase);
 
-    Log.info(`Server ${serverName}: phase → ${phase} (replicas=${replicas}, ready=${ready})`);
+    Log.info(
+      `Server ${serverName}: phase → ${phase} (replicas=${replicas}, ready=${ready})`,
+    );
 
     const url = `http://${serverName}.${ns}.svc:3000`;
     await setServerState(serverName, phase.toLowerCase(), url);
+
     await patchServerStatus(serverName, ns, {
       phase,
       replicas: ready,
@@ -70,7 +76,9 @@ When(a.Deployment)
     if (!serverName) return;
 
     try {
-      const server = await K8s(Server).InNamespace("eliza-agents").Get(serverName);
+      const server = await K8s(Server)
+        .InNamespace("eliza-agents")
+        .Get(serverName);
       // Skip if CR is being deleted (ownerReferences cascade is expected)
       if (server.metadata?.deletionTimestamp) return;
       Log.info(`Deployment ${serverName} deleted externally, re-reconciling`);
@@ -91,7 +99,9 @@ When(a.Service)
     if (!serverName) return;
 
     try {
-      const server = await K8s(Server).InNamespace("eliza-agents").Get(serverName);
+      const server = await K8s(Server)
+        .InNamespace("eliza-agents")
+        .Get(serverName);
       // Skip if CR is being deleted (ownerReferences cascade is expected)
       if (server.metadata?.deletionTimestamp) return;
       Log.info(`Service ${serverName} deleted externally, re-reconciling`);

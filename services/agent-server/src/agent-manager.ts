@@ -34,16 +34,28 @@ export class AgentManager {
     return `http://${process.env.SERVER_NAME}.${namespace}.svc:3000`;
   }
 
-  private async refreshRedisState(status = this._draining ? "draining" : "running") {
+  private async refreshRedisState(
+    status = this._draining ? "draining" : "running",
+  ) {
     const redis = getRedis();
     const multi = redis.multi();
     const serverName = process.env.SERVER_NAME!;
 
-    multi.set(`server:${serverName}:status`, status, "EX", REDIS_STATE_TTL_SECONDS);
-    multi.set(`server:${serverName}:url`, this.getServerUrl(), "EX", REDIS_STATE_TTL_SECONDS);
+    multi.set(
+      `server:${serverName}:status`,
+      status,
+      "EX",
+      REDIS_STATE_TTL_SECONDS,
+    );
+    multi.set(
+      `server:${serverName}:url`,
+      this.getServerUrl(),
+      "EX",
+      REDIS_STATE_TTL_SECONDS,
+    );
 
     for (const agentId of this.agents.keys()) {
-      multi.set(`agent:${agentId}:server`, serverName, "EX", REDIS_STATE_TTL_SECONDS);
+      multi.set(`agent:${agentId}:server`, serverName);
     }
 
     await multi.exec();
@@ -60,7 +72,10 @@ export class AgentManager {
       });
     }, REDIS_REFRESH_INTERVAL_MS);
 
-    if (typeof this.heartbeatTimer === "object" && "unref" in this.heartbeatTimer) {
+    if (
+      typeof this.heartbeatTimer === "object" &&
+      "unref" in this.heartbeatTimer
+    ) {
       this.heartbeatTimer.unref();
     }
   }
@@ -122,7 +137,7 @@ export class AgentManager {
 
     try {
       const character = createCharacter({
-        name: characterRef,
+        name: characterRef.toLowerCase(),
         secrets: {
           POSTGRES_URL: process.env.POSTGRES_URL || "",
           OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
@@ -237,10 +252,11 @@ export class AgentManager {
   async cleanupRedis() {
     this.stopHeartbeat();
     const redis = getRedis();
+    // Only clean server status/url — agent mappings are managed by the operator
+    // and must persist across scale-down so the gateway can still route messages
     const keys = [
       `server:${process.env.SERVER_NAME}:status`,
       `server:${process.env.SERVER_NAME}:url`,
-      ...Array.from(this.agents.keys()).map((id) => `agent:${id}:server`),
     ];
     if (keys.length > 0) await redis.del(...keys);
   }

@@ -21,9 +21,9 @@ info "Checking Docker..."
 docker info > /dev/null 2>&1 || fail "Docker is not running"
 pass "Docker is running"
 
-# 2. Start PostgreSQL via docker-compose (cloud app only — Redis is in-cluster)
-info "Starting PostgreSQL (docker compose)..."
-docker compose -f "$CLOUD_V2_DIR/docker-compose.yml" up -d postgres
+# 2. Start PostgreSQL + Redis via docker-compose (cloud app local services)
+info "Starting PostgreSQL + Redis (docker compose)..."
+docker compose -f "$CLOUD_V2_DIR/docker-compose.yml" up -d
 sleep 2
 
 docker compose -f "$CLOUD_V2_DIR/docker-compose.yml" ps --format '{{.Name}} {{.Status}}' | while read -r line; do
@@ -265,7 +265,7 @@ pass "Secret gateway-discord-secrets created from .env.gateway"
 # 18. Deploy gateway-discord via Helm chart
 info "Deploying gateway-discord via Helm..."
 helm upgrade --install gateway-discord \
-  "$CLOUD_V2_DIR/infra/charts/gateway-discord" \
+  "$CLOUD_V2_DIR/packages/infra/charts/gateway-discord" \
   --namespace eliza-infra \
   --values "$SCRIPT_DIR/values-gateway.yaml" \
   --wait --timeout 120s
@@ -305,7 +305,7 @@ ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID=
 ELIZA_APP_WHATSAPP_APP_SECRET=
 ELIZA_APP_WHATSAPP_VERIFY_TOKEN=
 ELIZA_APP_WHATSAPP_PHONE_NUMBER=
-ELIZA_APP_DEFAULT_AGENT_ID=b850bc30-45f8-0041-a00a-83df46d8555d
+ELIZA_APP_DEFAULT_AGENT_ID=f43a79df-d424-05a8-a56f-99967c2caaf6
 DEFAULTS
   info "  Edit $GW_WEBHOOK_ENV_FILE with your secrets, then re-run setup."
 fi

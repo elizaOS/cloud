@@ -5,7 +5,7 @@ RUN bun install
 
 FROM oven/bun:1.1-alpine AS runner
 WORKDIR /app
-RUN adduser -D -u 1001 appuser
+RUN adduser -D -u 1001 appuser && mkdir -p /app/cache && chown appuser /app/cache
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
