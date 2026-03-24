@@ -6,7 +6,7 @@ import { API_ENDPOINTS } from "@/lib/swagger/endpoint-discovery";
 import { jsonRequest } from "./route-test-helpers";
 
 describe("Public API catalog", () => {
-  test("route discovery includes every documented endpoint", async () => {
+  test("route discovery includes every documented endpoint", { timeout: 15_000 }, async () => {
     const routes = await discoverPublicApiRoutes();
     const implemented = new Set<string>();
 

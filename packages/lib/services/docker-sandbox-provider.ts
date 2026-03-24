@@ -18,6 +18,7 @@ import {
   allocatePort,
   BRIDGE_PORT_MAX,
   BRIDGE_PORT_MIN,
+  extractDockerCreateContainerId,
   getContainerName,
   getVolumePath,
   parseDockerNodes,
@@ -164,9 +165,9 @@ function extractStewardToken(raw: string): string {
 
   // Sanity check: reject responses that look like HTML error pages or are
   // unreasonably long (e.g. a full HTML document instead of a token).
-  if (trimmed.length > 512) {
+  if (trimmed.length > 2048) {
     throw new Error(
-      "[docker-sandbox] Steward token response exceeds 512 chars — likely not a valid token",
+      "[docker-sandbox] Steward token response exceeds 2048 chars — likely not a valid token",
     );
   }
   if (trimmed.includes("<") || trimmed.includes(">")) {
@@ -180,6 +181,9 @@ function extractStewardToken(raw: string): string {
     );
   }
 
+  logger.warn(
+    "[docker-sandbox] Steward token response was plain text instead of JSON; accepting legacy fallback",
+  );
   return trimmed;
 }
 
@@ -482,9 +486,9 @@ export class DockerSandboxProvider implements SandboxProvider {
         shellQuote(resolvedImage),
       ].join(" ");
 
-      const containerId = (await ssh.exec(dockerCreateCmd, DOCKER_CMD_TIMEOUT_MS))
-        .trim()
-        .slice(0, 12);
+      const containerId = extractDockerCreateContainerId(
+        await ssh.exec(dockerCreateCmd, DOCKER_CMD_TIMEOUT_MS),
+      );
       await ssh.exec(`docker start ${shellQuote(containerName)}`, DOCKER_CMD_TIMEOUT_MS);
       logger.info(
         `[docker-sandbox] Container created on ${nodeId}: ${containerId} (${containerName})`,

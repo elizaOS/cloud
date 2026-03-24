@@ -51,10 +51,56 @@ jobs:
             echo "branch=dev" >> $GITHUB_OUTPUT
           fi
 
+  migrate-db:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: determine-env
+    environment: ${{ needs.determine-env.outputs.environment }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: bun run db:migrate
+
+      - name: Notify Discord (Success)
+        if: success()
+        uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "🗄️ Database Migrated"
+          description: |
+            Environment: ${{ needs.determine-env.outputs.environment }}
+            Branch: ${{ needs.determine-env.outputs.branch }}
+            Commit: ${{ github.sha }}
+          color: 0x00ff00
+
+      - name: Notify Discord (Failure)
+        if: failure()
+        uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "❌ Database Migration Failed"
+          description: |
+            Environment: ${{ needs.determine-env.outputs.environment }}
+            Branch: ${{ needs.determine-env.outputs.branch }}
+            Commit: ${{ github.sha }}
+          color: 0xff0000
+
   deploy:
     name: Deploy to milady VPS
     runs-on: ubuntu-latest
-    needs: determine-env
+    needs: [determine-env, migrate-db]
     environment: ${{ needs.determine-env.outputs.environment }}
     timeout-minutes: 15
     steps:
@@ -99,7 +145,7 @@ jobs:
             curl -sf http://localhost:3334/api/health || exit 1
             echo "Health check passed!"
 
-      - name: Notify Discord (Success)
+      - name: Notify Discord
         if: success()
         uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
         with:
@@ -122,35 +168,3 @@ jobs:
             Branch: ${{ needs.determine-env.outputs.branch }}
             Commit: ${{ github.sha }}
           color: 0xff0000
-
-  migrate-db:
-    name: Run Database Migrations
-    runs-on: ubuntu-latest
-    needs: [determine-env, deploy]
-    if: needs.determine-env.outputs.environment == 'production'
-    environment: production
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Run migrations
-        env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-        run: bun run db:migrate
-
-      - name: Notify Discord
-        if: success()
-        uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
-        with:
-          webhook: ${{ secrets.DISCORD_WEBHOOK }}
-          title: "🗄️ Database Migrated"
-          description: "Production database migrations applied"
-          color: 0x00ff00

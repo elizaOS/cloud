@@ -64,20 +64,22 @@ async function walkRoutes(
 ) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
 
-  for (const ent of entries) {
-    if (ent.name.startsWith(".")) continue;
+  await Promise.all(
+    entries.map(async (ent) => {
+      if (ent.name.startsWith(".")) return;
 
-    const full = path.join(dir, ent.name);
-    if (ent.isDirectory()) {
-      await walkRoutes(full, [...relativeSegments, ent.name], out);
-      continue;
-    }
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) {
+        await walkRoutes(full, [...relativeSegments, ent.name], out);
+        return;
+      }
 
-    // Next route handler file
-    if (ent.isFile() && (ent.name === "route.ts" || ent.name === "route.js")) {
-      out.push({ filePath: full, segments: relativeSegments });
-    }
-  }
+      // Next route handler file
+      if (ent.isFile() && (ent.name === "route.ts" || ent.name === "route.js")) {
+        out.push({ filePath: full, segments: relativeSegments });
+      }
+    }),
+  );
 }
 
 function extractMethods(source: string): HttpMethod[] {
@@ -127,31 +129,35 @@ export async function discoverPublicApiRoutes(): Promise<DiscoveredApiRoute[]> {
     const discoveredFiles: Array<{ filePath: string; segments: string[] }> = [];
     await walkRoutes(path.join(apiRoot, root.dirName), [], discoveredFiles);
 
-    for (const file of discoveredFiles) {
-      const source = await fs.readFile(file.filePath, "utf8");
-      const methods = extractMethods(source);
+    routes.push(
+      ...(await Promise.all(
+        discoveredFiles.map(async (file) => {
+          const source = await fs.readFile(file.filePath, "utf8");
+          const methods = extractMethods(source);
 
-      const apiPath =
-        root.urlPrefix +
-        (file.segments.length
-          ? `/${file.segments.map(segmentToOpenApi).join("/")}`
-          : "");
+          const apiPath =
+            root.urlPrefix +
+            (file.segments.length
+              ? `/${file.segments.map(segmentToOpenApi).join("/")}`
+              : "");
 
-      // Attach metadata when present for that exact path+method pair.
-      // If multiple methods exist, we still keep one meta (best-effort) by
-      // preferring the first method match.
-      const firstMethod = methods[0];
-      const meta = firstMethod
-        ? metaIndex.get(`${firstMethod} ${apiPath}`)
-        : undefined;
+          // Attach metadata when present for that exact path+method pair.
+          // If multiple methods exist, we still keep one meta (best-effort) by
+          // preferring the first method match.
+          const firstMethod = methods[0];
+          const meta = firstMethod
+            ? metaIndex.get(`${firstMethod} ${apiPath}`)
+            : undefined;
 
-      routes.push({
-        path: apiPath,
-        methods,
-        filePath: file.filePath,
-        meta,
-      });
-    }
+          return {
+            path: apiPath,
+            methods,
+            filePath: file.filePath,
+            meta,
+          };
+        }),
+      )),
+    );
   }
 
   routes.sort((a, b) => {

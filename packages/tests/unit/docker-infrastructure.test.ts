@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   allocatePort,
+  extractDockerCreateContainerId,
   getContainerName,
   getVolumePath,
   MAX_AGENT_ID_LENGTH,
@@ -294,6 +295,31 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("returns false for non-host-gateway URLs", () => {
       expect(requiresDockerHostGateway("http://10.0.0.8:3200")).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("extractDockerCreateContainerId", () => {
+    test("accepts a plain container id", () => {
+      expect(
+        extractDockerCreateContainerId(
+          "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\n",
+        ),
+      ).toBe("1234567890ab");
+    });
+
+    test("uses the final stdout line when warnings precede the id", () => {
+      expect(
+        extractDockerCreateContainerId(
+          "DEPRECATED: something noisy\nabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd\n",
+        ),
+      ).toBe("abcdefabcdef");
+    });
+
+    test("rejects non-hex output", () => {
+      expect(() => extractDockerCreateContainerId("container created successfully")).toThrow(
+        /invalid container id/,
+      );
     });
   });
 

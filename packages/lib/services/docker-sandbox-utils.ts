@@ -163,6 +163,9 @@ export function resolveStewardContainerUrl(
     }
     return url.toString().replace(/\/$/, "");
   } catch {
+    logger.warn(
+      `[docker-sandbox] Invalid STEWARD host URL ${JSON.stringify(stewardHostUrl)}; falling back to http://host.docker.internal:3200`,
+    );
     return "http://host.docker.internal:3200";
   }
 }
@@ -174,6 +177,27 @@ export function requiresDockerHostGateway(targetUrl: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Docker prints the created container ID on the final stdout line.
+ * Validate that line so warnings or unexpected output do not get mistaken
+ * for a container ID.
+ */
+export function extractDockerCreateContainerId(output: string): string {
+  const lastLine = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .at(-1);
+
+  if (!lastLine || !/^[0-9a-f]{12,64}$/i.test(lastLine)) {
+    throw new Error(
+      `[docker-sandbox] docker create returned an invalid container id: ${JSON.stringify(lastLine ?? "")}`,
+    );
+  }
+
+  return lastLine.slice(0, 12);
 }
 
 // ---------------------------------------------------------------------------

@@ -17,8 +17,8 @@
  */
 
 import { exec } from "node:child_process";
-import { readdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
@@ -58,42 +58,49 @@ async function getDirectoriesToCheck(): Promise<string[]> {
 
 async function createTempTsconfig(directory: string, baseTsconfig: object): Promise<string> {
   const safeDirectoryName = directory.replace(/[\\/]/g, ".");
-  const tempPath = `tsconfig.${safeDirectoryName}.temp.json`;
+  const workspaceRoot = process.cwd();
+  const tempDir = join(workspaceRoot, "node_modules", ".cache", "check-types-split");
+  await mkdir(tempDir, { recursive: true });
+  const tempPath = join(
+    tempDir,
+    `eliza-cloud.tsconfig.${safeDirectoryName}.${process.pid}.${Date.now()}.json`,
+  );
 
   const tempConfig = {
     ...baseTsconfig,
     compilerOptions: {
       ...(baseTsconfig as { compilerOptions: object }).compilerOptions,
+      baseUrl: workspaceRoot,
       incremental: false,
       tsBuildInfoFile: undefined,
       skipLibCheck: true,
       skipDefaultLibCheck: true,
     },
     include: [
-      "next-env.d.ts",
-      "types/**/*.d.ts",
-      "./packages/types/**/*.d.ts",
-      `${directory}/**/*.ts`,
-      `${directory}/**/*.tsx`,
+      resolve(workspaceRoot, "next-env.d.ts"),
+      resolve(workspaceRoot, "types/**/*.d.ts"),
+      resolve(workspaceRoot, "packages/types/**/*.d.ts"),
+      resolve(workspaceRoot, `${directory}/**/*.ts`),
+      resolve(workspaceRoot, `${directory}/**/*.tsx`),
     ],
     // Keep the same excludes (include __tests__ so bun:test files are not type-checked with node types)
     exclude: [
-      "node_modules",
-      "ignore",
-      "e2e",
-      "scripts",
-      "tests",
-      "**/__tests__/**",
-      "**/*.test.ts",
-      "**/*.test.tsx",
-      ".next",
-      "out",
-      "build",
-      "dist",
-      ".turbo",
-      "coverage",
-      ".next/types",
-      ".next/dev/types",
+      resolve(workspaceRoot, "node_modules"),
+      resolve(workspaceRoot, "ignore"),
+      resolve(workspaceRoot, "e2e"),
+      resolve(workspaceRoot, "scripts"),
+      resolve(workspaceRoot, "tests"),
+      resolve(workspaceRoot, "**/__tests__/**"),
+      resolve(workspaceRoot, "**/*.test.ts"),
+      resolve(workspaceRoot, "**/*.test.tsx"),
+      resolve(workspaceRoot, ".next"),
+      resolve(workspaceRoot, "out"),
+      resolve(workspaceRoot, "build"),
+      resolve(workspaceRoot, "dist"),
+      resolve(workspaceRoot, ".turbo"),
+      resolve(workspaceRoot, "coverage"),
+      resolve(workspaceRoot, ".next/types"),
+      resolve(workspaceRoot, ".next/dev/types"),
     ],
   };
 

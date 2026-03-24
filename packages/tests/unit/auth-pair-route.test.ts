@@ -129,4 +129,27 @@ describe("POST /api/auth/pair", () => {
       agentName: "Milady Agent",
     });
   });
+
+  test("returns 404 when the token org does not own the agent", async () => {
+    mockValidateToken.mockResolvedValue({
+      agentId: "agent-1",
+      orgId: "org-2",
+    });
+    mockFindByIdAndOrg.mockResolvedValue(null);
+
+    const response = await POST(
+      jsonRequest(
+        "https://example.com/api/auth/pair",
+        "POST",
+        { token: "pairing-token" },
+        { Origin: "https://agent.example.com" },
+      ),
+    );
+
+    expect(mockFindByIdAndOrg).toHaveBeenCalledWith("agent-1", "org-2");
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: "Agent not found",
+    });
+  });
 });

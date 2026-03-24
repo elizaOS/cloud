@@ -33,6 +33,9 @@ interface Journal {
 
 const JOURNAL_PATH = path.join(process.cwd(), "packages/db/migrations/meta/_journal.json");
 
+// idx 43 intentionally maps back to 0043. The duplicate 0043 was introduced
+// later in the journal history, so repairing a stale journal can look like a
+// backwards rename even though the on-disk filenames are now sequential again.
 const TAG_RENAMES = new Map<number, string>([
   [42, "0044_seed_chain_data_pricing"],
   [43, "0043_add_missing_referral_context_columns"],
