@@ -150,20 +150,10 @@ function extractStewardToken(raw: string): string {
 
   try {
     const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-    const nested =
-      parsed.data && typeof parsed.data === "object"
-        ? (parsed.data as Record<string, unknown>)
-        : undefined;
 
-    const candidate =
-      parsed.token ??
-      parsed.agentToken ??
-      parsed.accessToken ??
-      parsed.value ??
-      nested?.token ??
-      nested?.agentToken ??
-      nested?.accessToken ??
-      nested?.value;
+    // Steward API returns { token: "..." }. Keep one fallback for agentToken
+    // in case an older Steward build uses that field name.
+    const candidate = parsed.token ?? parsed.agentToken;
 
     if (typeof candidate === "string" && candidate.trim()) {
       return candidate.trim();
