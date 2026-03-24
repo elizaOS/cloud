@@ -57,6 +57,8 @@ jobs:
     needs: determine-env
     environment: ${{ needs.determine-env.outputs.environment }}
     timeout-minutes: 10
+    env:
+      NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
@@ -81,18 +83,18 @@ jobs:
           exit 1
 
       - name: Skip migrations when database secret is unavailable
-        if: ${{ secrets.NEON_DATABASE_URL == '' }}
+        if: ${{ env.NEON_DATABASE_URL == '' }}
         run: |
           echo "NEON_DATABASE_URL is not configured for the ${{ needs.determine-env.outputs.environment }} environment; skipping database migrations." >> $GITHUB_STEP_SUMMARY
 
       - name: Run migrations
-        if: ${{ secrets.NEON_DATABASE_URL != '' }}
+        if: ${{ env.NEON_DATABASE_URL != '' }}
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DATABASE_URL: ${{ env.NEON_DATABASE_URL }}
         run: bun run db:migrate
 
       - name: Notify Discord (Success)
-        if: success() && secrets.NEON_DATABASE_URL != ''
+        if: success() && env.NEON_DATABASE_URL != ''
         uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
@@ -105,7 +107,7 @@ jobs:
           color: 0x00ff00
 
       - name: Notify Discord (Failure)
-        if: failure() && secrets.NEON_DATABASE_URL != ''
+        if: failure() && env.NEON_DATABASE_URL != ''
         uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
