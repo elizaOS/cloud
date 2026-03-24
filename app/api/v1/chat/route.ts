@@ -23,7 +23,7 @@ import { usageService } from "@/lib/services/usage";
 import type { ApiKey, UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 
-export const maxDuration = 60;
+export const maxDuration = 800;
 
 const VALID_MESSAGE_ROLES = ["user", "assistant", "system", "tool"] as const;
 type ValidRole = (typeof VALID_MESSAGE_ROLES)[number];
