@@ -160,7 +160,6 @@ jobs:
               export PATH="$BUN_INSTALL/bin:$PATH"
             fi
             export NEXT_DIST_DIR=.next-build
-            export PORT=3334
             for attempt in 1 2 3; do
               if bun install --frozen-lockfile; then
                 break
@@ -190,16 +189,19 @@ jobs:
           script: |
             echo "Checking eliza-cloud health..."
             for attempt in $(seq 1 18); do
-              if curl -sf http://localhost:3334/api/health > /dev/null; then
-                echo "Health check passed on attempt $attempt."
-                exit 0
-              fi
+              for url in http://localhost:3000/api/health http://localhost:3334/api/health; do
+                if curl -sf "$url" > /dev/null; then
+                  echo "Health check passed on attempt $attempt via $url."
+                  exit 0
+                fi
+              done
 
               echo "Health check attempt $attempt/18 failed; retrying in 5s..."
               sleep 5
             done
 
             echo "eliza-cloud failed health checks after 90s. Collecting diagnostics..."
+            sudo ss -ltnp | grep -E ':(3000|3334)\\s' || true
             sudo systemctl status eliza-cloud --no-pager || true
             sudo journalctl -u eliza-cloud -n 100 --no-pager || true
             exit 1
