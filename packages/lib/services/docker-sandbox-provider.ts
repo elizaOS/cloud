@@ -77,6 +77,7 @@ const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
 // URL for host-side Steward API calls (registration, token minting).
 // The orchestrator (or SSH-executed scripts on the Docker host) can reach Steward via localhost.
 const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
+const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
 
 // URL injected into container env vars. Containers on the bridge network (milady-isolated)
 // cannot reach the host via localhost. On Linux we pair host.docker.internal with an
@@ -195,15 +196,19 @@ import urllib.error
 import urllib.request
 
 base_url = ${JSON.stringify(STEWARD_HOST_URL)}
+api_key = ${JSON.stringify(STEWARD_TENANT_API_KEY)}
 agent_id = ${JSON.stringify(agentId)}
 agent_name = ${JSON.stringify(agentName)}
 
 
 def post(path, payload):
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["X-API-Key"] = api_key
     req = urllib.request.Request(
         f"{base_url}{path}",
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -494,7 +499,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       // container failed to start, so we try to clean up the Steward record.
       try {
         await ssh.exec(
-          `curl -s -X DELETE ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
+          `curl -s -X DELETE ${STEWARD_TENANT_API_KEY ? `-H ${shellQuote(`X-API-Key: ${STEWARD_TENANT_API_KEY}`)}` : ""} ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
           DOCKER_CMD_TIMEOUT_MS,
         );
         logger.info(`[docker-sandbox] Cleaned up Steward agent ${agentId} after container failure`);
