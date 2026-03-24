@@ -50,20 +50,21 @@ const UpdateSettingsSchema = z.object({
     .optional(),
 });
 
-function isAuthenticationError(message: string): boolean {
-  return (
-    message.includes("Unauthorized") ||
-    message.includes("Authentication required") ||
-    message.includes("Forbidden") ||
-    message.includes("Invalid or expired API key") ||
-    message.includes("API key is inactive") ||
-    message.includes("API key has expired") ||
-    message.includes("Invalid or expired token")
-  );
-}
-
-function getErrorMessage(error: unknown, fallbackMessage: string): string {
-  return error instanceof Error ? error.message : fallbackMessage;
+/**
+ * Detect authentication/authorization errors by status code rather than
+ * fragile string matching on error messages.
+ */
+function isAuthenticationError(error: unknown): boolean {
+  if (error != null && typeof error === "object") {
+    const status = (error as { status?: number }).status;
+    if (status === 401 || status === 403) return true;
+  }
+  // ApiError (from @/lib/api/errors) carries .status
+  if (error instanceof Error && "status" in error) {
+    const status = (error as Error & { status?: number }).status;
+    if (status === 401 || status === 403) return true;
+  }
+  return false;
 }
 
 /**
@@ -100,12 +101,16 @@ async function handleGET(req: NextRequest) {
   } catch (error) {
     logger.error("[Billing Settings API] Error getting settings:", error);
 
-    const errorMessage = getErrorMessage(error, "Failed to get billing settings");
-    const isAuthError = isAuthenticationError(errorMessage);
+    if (isAuthenticationError(error)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
 
     return NextResponse.json(
-      { success: false, error: isAuthError ? "Unauthorized" : errorMessage },
-      { status: isAuthError ? 401 : 500 },
+      { success: false, error: "Failed to get billing settings" },
+      { status: 500 },
     );
   }
 }
@@ -175,17 +180,24 @@ async function handlePUT(req: NextRequest) {
   } catch (error) {
     logger.error("[Billing Settings API] Error updating settings:", error);
 
-    const errorMessage = getErrorMessage(error, "Failed to update billing settings");
-    const isAuthError = isAuthenticationError(errorMessage);
+    if (isAuthenticationError(error)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
 
+    // Allow domain-specific validation messages through (e.g. "Cannot enable
+    // auto-top-up without a payment method") since they don't leak internals.
+    const message = error instanceof Error ? error.message : "";
     const isValidationError =
-      errorMessage.includes("Cannot enable") ||
-      errorMessage.includes("must be") ||
-      errorMessage.includes("cannot exceed");
+      message.includes("Cannot enable") ||
+      message.includes("must be") ||
+      message.includes("cannot exceed");
 
     return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status: isAuthError ? 401 : isValidationError ? 400 : 500 },
+      { success: false, error: isValidationError ? message : "Failed to update billing settings" },
+      { status: isValidationError ? 400 : 500 },
     );
   }
 }
