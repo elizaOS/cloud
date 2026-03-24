@@ -186,11 +186,23 @@ jobs:
           host: ${{ secrets.MILADY_VPS_HOST }}
           username: deploy
           key: ${{ secrets.MILADY_VPS_SSH_KEY }}
+          script_stop: true
           script: |
-            sleep 10
             echo "Checking eliza-cloud health..."
-            curl -sf http://localhost:3334/api/health || exit 1
-            echo "Health check passed!"
+            for attempt in $(seq 1 18); do
+              if curl -sf http://localhost:3334/api/health > /dev/null; then
+                echo "Health check passed on attempt $attempt."
+                exit 0
+              fi
+
+              echo "Health check attempt $attempt/18 failed; retrying in 5s..."
+              sleep 5
+            done
+
+            echo "eliza-cloud failed health checks after 90s. Collecting diagnostics..."
+            sudo systemctl status eliza-cloud --no-pager || true
+            sudo journalctl -u eliza-cloud -n 100 --no-pager || true
+            exit 1
 
       - name: Notify Discord
         if: success()
