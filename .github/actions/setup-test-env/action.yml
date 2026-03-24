@@ -20,7 +20,19 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: bun install --frozen-lockfile
+      run: |
+        for attempt in 1 2 3; do
+          if [ "$attempt" -eq 3 ]; then
+            bun install --frozen-lockfile --verbose && exit 0
+          else
+            bun install --frozen-lockfile && exit 0
+          fi
+
+          echo "bun install attempt $attempt failed; retrying in 10s..."
+          sleep 10
+        done
+
+        exit 1
 
     - name: Validate migration journal
       shell: bash

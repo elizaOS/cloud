@@ -155,6 +155,10 @@ jobs:
             # Install and build
             export BUN_INSTALL="$HOME/.bun"
             export PATH="$BUN_INSTALL/bin:$PATH"
+            if ! command -v bun >/dev/null 2>&1; then
+              curl -fsSL https://bun.sh/install | bash
+              export PATH="$BUN_INSTALL/bin:$PATH"
+            fi
             export NEXT_DIST_DIR=.next-build
             export PORT=3334
             for attempt in 1 2 3; do
