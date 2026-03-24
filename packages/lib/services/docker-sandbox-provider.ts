@@ -500,9 +500,21 @@ export class DockerSandboxProvider implements SandboxProvider {
         `[docker-sandbox] Container created on ${nodeId}: ${containerId} (${containerName})`,
       );
     } catch (err) {
-      logger.warn(
-        `[docker-sandbox] Steward agent ${agentId} may already be registered even though container startup failed. Manual Steward cleanup may be needed.`,
-      );
+      // Best-effort Steward deregistration — the agent was registered but the
+      // container failed to start, so we try to clean up the Steward record.
+      try {
+        await ssh.exec(
+          `curl -s -X DELETE ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
+          DOCKER_CMD_TIMEOUT_MS,
+        );
+        logger.info(
+          `[docker-sandbox] Cleaned up Steward agent ${agentId} after container failure`,
+        );
+      } catch (cleanupErr) {
+        logger.warn(
+          `[docker-sandbox] Failed to cleanup Steward agent ${agentId}: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
+        );
+      }
 
       await ssh
         .exec(`docker rm -f ${shellQuote(containerName)}`, DOCKER_CMD_TIMEOUT_MS)
