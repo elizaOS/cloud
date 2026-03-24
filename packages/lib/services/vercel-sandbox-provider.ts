@@ -102,8 +102,8 @@ export class VercelSandboxProvider implements SandboxProvider {
     }
   }
 
-  async checkHealth(healthUrl: string): Promise<boolean> {
-    const url = healthUrl.replace(/\/$/, "") + "/health";
+  async checkHealth(handle: SandboxHandle): Promise<boolean> {
+    const url = handle.healthUrl.replace(/\/$/, "") + "/health";
     const deadline = Date.now() + HEALTH_CHECK_TIMEOUT_MS;
 
     while (Date.now() < deadline) {
