@@ -411,6 +411,8 @@ export class DockerSandboxProvider implements SandboxProvider {
     }
 
     // 5. Build the base environment (spread to avoid mutating caller's environmentVars)
+    const apiToken =
+      environmentVars.ELIZA_API_TOKEN || environmentVars.MILADY_API_TOKEN || crypto.randomUUID();
     const baseEnv: Record<string, string> = {
       ...environmentVars,
       ...vpnEnvVars,
@@ -430,12 +432,15 @@ export class DockerSandboxProvider implements SandboxProvider {
       // Eliza server requires JWT_SECRET in production mode.
       // Generate a unique per-container secret if the caller didn't provide one.
       JWT_SECRET: environmentVars.JWT_SECRET || crypto.randomUUID(),
-      // The milady server auto-generates a random MILADY_API_TOKEN when
-      // MILADY_API_BIND is non-loopback (0.0.0.0) and no token is set.
+      // The milady server auto-generates a random ELIZA_API_TOKEN when
+      // ELIZA_API_BIND is non-loopback (0.0.0.0) and no token is set.
       // Set it explicitly so our pairing endpoint can return it.
       // IMPORTANT: use a separate random value — do NOT reuse JWT_SECRET,
       // which is the container's auth signing key.
-      MILADY_API_TOKEN: environmentVars.MILADY_API_TOKEN || crypto.randomUUID(),
+      // Note: server reads ELIZA_API_TOKEN (MILADY_API_TOKEN is ignored
+      // due to a copy-paste bug in server.ts). Set both for compat.
+      MILADY_API_TOKEN: apiToken,
+      ELIZA_API_TOKEN: apiToken,
       // Allow the agent subdomain origin so the browser can call the API.
       MILADY_ALLOWED_ORIGINS: `https://${agentId}.${getAgentBaseDomain()}`,
     };
