@@ -176,6 +176,11 @@ jobs:
           echo "| App | ${{ steps.filter.outputs.app }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Environment | ${{ steps.env.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
 
+          if [[ "${{ github.event_name }}" == "pull_request" && "${{ steps.filter.outputs.terraform }}" == "true" && "${{ steps.env.outputs.environment }}" == "gateway-prd" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> Terraform plan is skipped on PRs targeting \`main\` because the protected \`gateway-prd\` environment rejects PR refs." >> $GITHUB_STEP_SUMMARY
+          fi
+
   # =============================================================================
   # TERRAFORM - Infrastructure provisioning (runs if terraform files changed)
   # =============================================================================
@@ -183,9 +188,14 @@ jobs:
     name: Terraform (${{ needs.detect-changes.outputs.environment }})
     runs-on: ubuntu-latest
     needs: detect-changes
-    # Run if: terraform changed, OR manual dispatch with terraform action
+    # Run if: terraform changed, OR manual dispatch with terraform action.
+    # Protected production environments reject PR refs, so prod-targeted PR plans
+    # are skipped here instead of failing the whole workflow before any step runs.
     if: |
-      needs.detect-changes.outputs.terraform == 'true' ||
+      (
+        needs.detect-changes.outputs.terraform == 'true' &&
+        !(github.event_name == 'pull_request' && needs.detect-changes.outputs.environment == 'gateway-prd')
+      ) ||
       (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.action, 'terraform-'))
     environment: ${{ needs.detect-changes.outputs.environment }}
     permissions:

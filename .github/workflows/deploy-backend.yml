@@ -58,7 +58,7 @@ jobs:
     environment: ${{ needs.determine-env.outputs.environment }}
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -66,7 +66,19 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: |
+          for attempt in 1 2 3; do
+            if [ "$attempt" -eq 3 ]; then
+              bun install --frozen-lockfile --verbose && exit 0
+            else
+              bun install --frozen-lockfile && exit 0
+            fi
+
+            echo "bun install attempt $attempt failed; retrying in 10s..."
+            sleep 10
+          done
+
+          exit 1
 
       - name: Run migrations
         env:
@@ -78,6 +90,7 @@ jobs:
         uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          ack_no_webhook: true
           title: "🗄️ Database Migrated"
           description: |
             Environment: ${{ needs.determine-env.outputs.environment }}
@@ -90,6 +103,7 @@ jobs:
         uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          ack_no_webhook: true
           title: "❌ Database Migration Failed"
           description: |
             Environment: ${{ needs.determine-env.outputs.environment }}
@@ -125,7 +139,18 @@ jobs:
             # Install and build
             export NEXT_DIST_DIR=.next-build
             export PORT=3334
-            bun install --frozen-lockfile
+            for attempt in 1 2 3; do
+              if bun install --frozen-lockfile; then
+                break
+              fi
+
+              if [ "$attempt" -eq 3 ]; then
+                exit 1
+              fi
+
+              echo "bun install attempt $attempt failed; retrying in 10s..."
+              sleep 10
+            done
             bun run build
             
             # Restart the Next.js service
@@ -150,6 +175,7 @@ jobs:
         uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          ack_no_webhook: true
           title: "🚀 Backend Deployed"
           description: |
             Environment: ${{ needs.determine-env.outputs.environment }}
@@ -162,6 +188,7 @@ jobs:
         uses: sarisia/actions-status-discord@eb045afee445dc055c18d3d90bd0f244fd062708 # v1
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          ack_no_webhook: true
           title: "❌ Backend Deploy Failed"
           description: |
             Environment: ${{ needs.determine-env.outputs.environment }}
