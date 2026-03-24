@@ -296,9 +296,10 @@ resource "helm_release" "redis" {
 
   values = [yamlencode({
     architecture = var.redis_config.architecture
-    auth = {
-      enabled = var.redis_config.auth_enabled
-    }
+    auth = merge(
+      { enabled = var.redis_config.auth_enabled },
+      var.redis_config.auth_password != null ? { password = var.redis_config.auth_password } : {}
+    )
     master = {
       persistence = {
         size = var.redis_config.persistence_size
@@ -393,8 +394,8 @@ resource "kubernetes_deployment" "redis_rest" {
           }
 
           env {
-            name  = "SRH_CONNECTION_STRING"
-            value = "redis://redis-master.eliza-infra.svc:6379"
+            name = "SRH_CONNECTION_STRING"
+            value = var.redis_config.auth_enabled && var.redis_config.auth_password != null ? "redis://:${var.redis_config.auth_password}@redis-master.eliza-infra.svc:6379" : "redis://redis-master.eliza-infra.svc:6379"
           }
 
           resources {

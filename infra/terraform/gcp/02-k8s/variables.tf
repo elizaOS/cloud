@@ -20,6 +20,7 @@ variable "redis_config" {
     replicas            = optional(number, 1)
     persistence_size    = optional(string, "2Gi")
     auth_enabled        = optional(bool, true)
+    auth_password       = optional(string)
     redis_rest_replicas = optional(number, 2)
     redis_rest_token    = optional(string)
   })

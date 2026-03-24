@@ -6,6 +6,7 @@ redis_config = {
   replicas            = 2
   persistence_size    = "5Gi"
   auth_enabled        = true
+  auth_password       = "REPLACE_WITH_SECURE_PASSWORD"
   redis_rest_replicas = 2
   redis_rest_token    = "REPLACE_WITH_SECURE_TOKEN"
 }

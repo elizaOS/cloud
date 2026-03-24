@@ -29,9 +29,11 @@ export async function setServerState(name: string, phase: string, url: string) {
     .exec();
 }
 
+const AGENT_ROUTING_TTL_SECONDS = 30 * 24 * 3600;
+
 export async function setAgentServer(agentId: string, serverName: string) {
   const redis = getClient();
-  await redis.set(`agent:${agentId}:server`, serverName);
+  await redis.set(`agent:${agentId}:server`, serverName, "EX", AGENT_ROUTING_TTL_SECONDS);
 }
 
 export async function removeAgentServer(agentId: string) {

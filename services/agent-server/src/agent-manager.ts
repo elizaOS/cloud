@@ -22,6 +22,7 @@ const REDIS_STATE_TTL_SECONDS = Math.max(
   Number.parseInt(process.env.REDIS_STATE_TTL_SECONDS ?? "120", 10) || 120,
 );
 const REDIS_REFRESH_INTERVAL_MS = 30_000;
+const AGENT_ROUTING_TTL_SECONDS = 30 * 24 * 3600;
 
 export class AgentManager {
   private agents = new Map<string, AgentEntry>();
@@ -43,7 +44,7 @@ export class AgentManager {
     multi.set(`server:${serverName}:url`, this.getServerUrl(), "EX", REDIS_STATE_TTL_SECONDS);
 
     for (const agentId of this.agents.keys()) {
-      multi.set(`agent:${agentId}:server`, serverName);
+      multi.set(`agent:${agentId}:server`, serverName, "EX", AGENT_ROUTING_TTL_SECONDS);
     }
 
     await multi.exec();
