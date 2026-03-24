@@ -19,6 +19,7 @@ import type { OpenAIChatMessage, OpenAIChatRequest } from "@/lib/providers/types
 import { appCreditsService } from "@/lib/services/app-credits";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
+import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
 
@@ -59,6 +60,7 @@ export async function OPTIONS(request: NextRequest) {
 async function handlePOST(request: NextRequest, context?: RouteContext): Promise<Response> {
   const startTime = Date.now();
   const origin = request.headers.get("origin");
+  const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
 
   // Use shared CORS helper for consistent headers
   const withCors = (response: Response | NextResponse): Response => {
@@ -246,7 +248,10 @@ async function handlePOST(request: NextRequest, context?: RouteContext): Promise
     const providerInstance = getProviderForModel(model);
     let providerResponse: Response;
     try {
-      providerResponse = await providerInstance.chatCompletions(chatRequest);
+      providerResponse = await providerInstance.chatCompletions(chatRequest, {
+        signal: request.signal,
+        timeoutMs: routeTimeoutMs,
+      });
     } catch (providerError) {
       // Provider call failed - refund the reserved credits
       logger.error("[App Chat] Provider call failed, refunding credits", {

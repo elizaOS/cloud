@@ -21,7 +21,9 @@ import {
 import { generationsService } from "@/lib/services/generations";
 import { usageService } from "@/lib/services/usage";
 import type { ApiKey, UserWithOrganization } from "@/lib/types";
+import { createCreditReservationSettler } from "@/lib/utils/credit-reservation";
 import { logger } from "@/lib/utils/logger";
+import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
 
@@ -101,6 +103,8 @@ function getMessageText(msg: UIMessage | { content?: string }): string {
  * @returns Streaming text response or JSON error.
  */
 async function handlePOST(req: NextRequest) {
+  let settleReservation: ((actualCost: number) => Promise<void>) | null = null;
+
   try {
     let user: UserWithOrganization;
     let apiKey: ApiKey | undefined;
@@ -276,15 +280,23 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
+    settleReservation = createCreditReservationSettler(reservation);
+    const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
+
     const result = streamText({
       model: getLanguageModel(selectedModel),
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: await convertToModelMessages(messages),
+      abortSignal: req.signal,
+      timeout: routeTimeoutMs,
       onFinish: async ({ text, usage }) => {
-        if (!usage) return;
-
         try {
+          if (!usage) {
+            await settleReservation?.(0);
+            return;
+          }
+
           // Increment message count AFTER successful completion (for anonymous users)
           if (isAnonymous && anonymousSession) {
             await anonymousSessionsService.incrementMessageCount(anonymousSession.id);
@@ -309,8 +321,8 @@ async function handlePOST(req: NextRequest) {
               affiliateCode,
             },
             usage,
-            reservation,
           );
+          await settleReservation?.(billing.totalCost);
 
           const totalCostBilled = billing.totalCost;
           const inputCostBilled = billing.inputCost;
@@ -401,6 +413,7 @@ async function handlePOST(req: NextRequest) {
             outputCost: outputCostBilled,
           });
         } catch (error) {
+          await settleReservation?.(0);
           logger.error("chat-api", "Error persisting messages or deducting credits", {
             error: error instanceof Error ? error.message : "Unknown error",
           });
@@ -447,10 +460,18 @@ async function handlePOST(req: NextRequest) {
           }
         }
       },
+      onAbort: async () => {
+        await settleReservation?.(0);
+        logger.info("chat-api", "Aborted chat stream before completion", {
+          userId: user.id,
+          model: selectedModel,
+        });
+      },
     });
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
+    await settleReservation?.(0);
     logger.error("chat-api", "Error processing chat", {
       error: error instanceof Error ? error.message : "Unknown error",
     });

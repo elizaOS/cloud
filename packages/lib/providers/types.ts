@@ -52,6 +52,11 @@ export interface OpenAIChatRequest {
   };
 }
 
+export interface ProviderRequestOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
 /**
  * OpenAI-compatible chat completion response.
  */
@@ -139,7 +144,7 @@ export interface OpenAIModelsResponse {
  */
 export interface AIProvider {
   name: string;
-  chatCompletions(request: OpenAIChatRequest): Promise<Response>;
+  chatCompletions(request: OpenAIChatRequest, options?: ProviderRequestOptions): Promise<Response>;
   embeddings(request: OpenAIEmbeddingsRequest): Promise<Response>;
   listModels(): Promise<Response>;
   getModel(model: string): Promise<Response>;

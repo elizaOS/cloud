@@ -32,7 +32,9 @@ import { appCreditsService } from "@/lib/services/app-credits";
 import { appsService } from "@/lib/services/apps";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { type CreditReservation, creditsService } from "@/lib/services/credits";
+import { createCreditReservationSettler } from "@/lib/utils/credit-reservation";
 import { logger } from "@/lib/utils/logger";
+import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
 
@@ -162,6 +164,8 @@ function getMessageContent(msg: ChatMessage): string {
 
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
+  const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
+  let settleReservation: ((actualCost: number) => Promise<void>) | null = null;
 
   try {
     // 1. Authenticate
@@ -313,6 +317,8 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
+    settleReservation = createCreditReservationSettler(reservation);
+
     // 7. Convert messages for AI SDK
     const systemMessage = request.messages.find((m) => m.role === "system");
     const systemPrompt = systemMessage ? getMessageContent(systemMessage) : undefined;
@@ -335,10 +341,12 @@ async function handlePOST(req: NextRequest) {
         request,
         user,
         apiKey ? { id: apiKey.id } : null,
-        reservation,
         appCreditsInfo,
         affiliateCode,
         startTime,
+        req.signal,
+        routeTimeoutMs,
+        settleReservation,
       );
     } else {
       return handleNonStreamingRequest(
@@ -348,13 +356,16 @@ async function handlePOST(req: NextRequest) {
         request,
         user,
         apiKey ? { id: apiKey.id } : null,
-        reservation,
         appCreditsInfo,
         affiliateCode,
         startTime,
+        req.signal,
+        routeTimeoutMs,
+        settleReservation,
       );
     }
   } catch (error) {
+    await settleReservation?.(0);
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Chat Completions] Error", { error: errorMessage });
 
@@ -398,10 +409,12 @@ async function handleStreamingRequest(
   request: ChatRequest,
   user: { id: string; organization_id: string },
   apiKey: { id: string } | null,
-  reservation: CreditReservation,
   appCreditsInfo: { appId: string; estimatedBaseCost: number; app: unknown } | undefined,
   affiliateCode: string | null,
   startTime: number,
+  abortSignal: AbortSignal | undefined,
+  timeoutMs: number,
+  settleReservation: (actualCost: number) => Promise<void>,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -421,6 +434,8 @@ async function handleStreamingRequest(
     model: getLanguageModel(model),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
+    abortSignal,
+    timeout: timeoutMs,
     ...safeParams,
     ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
     onFinish: async ({ text, usage }) => {
@@ -435,8 +450,8 @@ async function handleStreamingRequest(
             affiliateCode,
           },
           usage,
-          reservation,
         );
+        await settleReservation(billing.totalCost);
 
         // Handle app credits reconciliation
         if (appCreditsInfo) {
@@ -469,10 +484,15 @@ async function handleStreamingRequest(
           totalCost: billing.totalCost,
         });
       } catch (error) {
+        await settleReservation(0);
         logger.error("[Chat Completions] onFinish error", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    },
+    onAbort: async () => {
+      await settleReservation(0);
+      logger.info("[Chat Completions] Stream aborted before completion", { model });
     },
   });
 
@@ -556,10 +576,12 @@ async function handleNonStreamingRequest(
   request: ChatRequest,
   user: { id: string; organization_id: string },
   apiKey: { id: string } | null,
-  reservation: CreditReservation,
   appCreditsInfo: { appId: string; estimatedBaseCost: number; app: unknown } | undefined,
   affiliateCode: string | null,
   startTime: number,
+  abortSignal: AbortSignal | undefined,
+  timeoutMs: number,
+  settleReservation: (actualCost: number) => Promise<void>,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -575,83 +597,90 @@ async function handleNonStreamingRequest(
       : undefined,
   });
 
-  const result = await generateText({
-    model: getLanguageModel(model),
-    system: systemPrompt,
-    messages: await convertToModelMessages(messages),
-    ...safeParamsNonStream,
-    ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
-  });
-
-  // Bill using actual usage from SDK response
-  const billing = await billUsage(
-    {
-      organizationId: user.organization_id,
-      userId: user.id,
-      apiKeyId: apiKey?.id,
-      model,
-      provider,
-      affiliateCode,
-    },
-    result.usage,
-    reservation,
-  );
-
-  // Handle app credits
-  if (appCreditsInfo) {
-    await appCreditsService.reconcileCredits({
-      appId: appCreditsInfo.appId,
-      userId: user.id,
-      estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
-      actualBaseCost: billing.totalCost,
-      description: `Chat: ${model}`,
-      metadata: { model, provider, streaming: false },
+  try {
+    const result = await generateText({
+      model: getLanguageModel(model),
+      system: systemPrompt,
+      messages: await convertToModelMessages(messages),
+      abortSignal,
+      timeout: timeoutMs,
+      ...safeParamsNonStream,
+      ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
     });
-  }
 
-  await recordUsageAnalytics(
-    {
-      organizationId: user.organization_id,
-      userId: user.id,
-      apiKeyId: apiKey?.id,
-      model,
-      provider,
-    },
-    billing,
-    { type: "chat", content: result.text },
-  );
-
-  logger.info("[Chat Completions] Non-streaming complete", {
-    durationMs: Date.now() - startTime,
-    inputTokens: billing.inputTokens,
-    outputTokens: billing.outputTokens,
-    totalCost: billing.totalCost,
-  });
-
-  // Return OpenAI-compatible response
-  return addCorsHeaders(
-    Response.json({
-      id: `chatcmpl-${Date.now()}`,
-      object: "chat.completion",
-      created: Math.floor(Date.now() / 1000),
-      model,
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: "assistant",
-            content: result.text,
-          },
-          finish_reason: "stop",
-        },
-      ],
-      usage: {
-        prompt_tokens: billing.inputTokens,
-        completion_tokens: billing.outputTokens,
-        total_tokens: billing.totalTokens,
+    // Bill using actual usage from SDK response
+    const billing = await billUsage(
+      {
+        organizationId: user.organization_id,
+        userId: user.id,
+        apiKeyId: apiKey?.id,
+        model,
+        provider,
+        affiliateCode,
       },
-    }),
-  );
+      result.usage,
+    );
+    await settleReservation(billing.totalCost);
+
+    // Handle app credits
+    if (appCreditsInfo) {
+      await appCreditsService.reconcileCredits({
+        appId: appCreditsInfo.appId,
+        userId: user.id,
+        estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+        actualBaseCost: billing.totalCost,
+        description: `Chat: ${model}`,
+        metadata: { model, provider, streaming: false },
+      });
+    }
+
+    await recordUsageAnalytics(
+      {
+        organizationId: user.organization_id,
+        userId: user.id,
+        apiKeyId: apiKey?.id,
+        model,
+        provider,
+      },
+      billing,
+      { type: "chat", content: result.text },
+    );
+
+    logger.info("[Chat Completions] Non-streaming complete", {
+      durationMs: Date.now() - startTime,
+      inputTokens: billing.inputTokens,
+      outputTokens: billing.outputTokens,
+      totalCost: billing.totalCost,
+    });
+
+    // Return OpenAI-compatible response
+    return addCorsHeaders(
+      Response.json({
+        id: `chatcmpl-${Date.now()}`,
+        object: "chat.completion",
+        created: Math.floor(Date.now() / 1000),
+        model,
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: "assistant",
+              content: result.text,
+            },
+            finish_reason: "stop",
+          },
+        ],
+        usage: {
+          prompt_tokens: billing.inputTokens,
+          completion_tokens: billing.outputTokens,
+          total_tokens: billing.totalTokens,
+        },
+      }),
+    );
+  } catch (error) {
+    await settleReservation(0);
+    throw error;
+  }
 }
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.RELAXED);

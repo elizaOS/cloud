@@ -35,6 +35,7 @@ import { generationsService } from "@/lib/services/generations";
 import { usageService } from "@/lib/services/usage";
 import type { UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
+import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
 
@@ -322,6 +323,8 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
  */
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
+  const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
+  let settleReservation: ((actualCost: number) => Promise<void>) | null = null;
 
   try {
     // 1. Authenticate - Support both authenticated and anonymous users
@@ -612,6 +615,26 @@ async function handlePOST(req: NextRequest) {
       }
     } // End of non-anonymous credit deduction block
 
+    let reservationSettled = false;
+    settleReservation = async (actualCost: number) => {
+      if (reservationSettled || !user.organization_id || !reservedAmount) return;
+
+      reservationSettled = true;
+
+      try {
+        await creditsService.reconcile({
+          organizationId: user.organization_id,
+          reservedAmount,
+          actualCost,
+          description: `Responses API: ${normalizedModel}`,
+          metadata: { user_id: user.id },
+        });
+      } catch (error) {
+        reservationSettled = false;
+        throw error;
+      }
+    };
+
     // Log for anonymous users
     if (isAnonymous) {
       logger.info("[Responses API] Anonymous chat completion request", {
@@ -648,7 +671,10 @@ async function handlePOST(req: NextRequest) {
             },
           },
         };
-    const providerResponse = await providerInstance.chatCompletions(requestWithProvider);
+    const providerResponse = await providerInstance.chatCompletions(requestWithProvider, {
+      signal: req.signal,
+      timeoutMs: routeTimeoutMs,
+    });
 
     // 7. Handle streaming vs non-streaming
     if (isStreaming) {
@@ -661,6 +687,7 @@ async function handlePOST(req: NextRequest) {
         startTime,
         request.messages,
         reservedAmount,
+        settleReservation,
       );
     } else {
       return handleNonStreamingResponse(
@@ -671,9 +698,11 @@ async function handlePOST(req: NextRequest) {
         provider,
         startTime,
         reservedAmount,
+        settleReservation,
       );
     }
   } catch (error) {
+    await settleReservation?.(0);
     logger.error("[Responses API] Error:", error);
 
     // Check if it's an authentication error
@@ -732,6 +761,7 @@ async function handleNonStreamingResponse(
   provider: string,
   startTime: number,
   reservedAmount?: number,
+  settleReservation?: (actualCost: number) => Promise<void>,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -741,7 +771,10 @@ async function handleNonStreamingResponse(
   const content = data.choices[0]?.message?.content || "";
 
   // Reconcile credits: refund difference if actual < reserved
-  if (usage && user.organization_id && reservedAmount) {
+  if (!usage) {
+    await settleReservation?.(0);
+    logger.warn("[Responses API] Non-streaming response missing usage data", { model });
+  } else if (user.organization_id && reservedAmount) {
     const organizationId = user.organization_id;
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
@@ -750,13 +783,7 @@ async function handleNonStreamingResponse(
       usage.completion_tokens,
     );
 
-    await creditsService.reconcile({
-      organizationId,
-      reservedAmount,
-      actualCost: totalCost,
-      description: `Responses API: ${model}`,
-      metadata: { user_id: user.id },
-    });
+    await settleReservation?.(totalCost);
 
     // Background analytics (usage records, generation records)
     (async () => {
@@ -829,6 +856,7 @@ function handleStreamingResponse(
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
   reservedAmount?: number,
+  settleReservation?: (actualCost: number) => Promise<void>,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -1068,14 +1096,7 @@ function handleStreamingResponse(
 
         // Reconcile credits: refund difference if actual < reserved
         if (user.organization_id && reservedAmount) {
-          await creditsService.reconcile({
-            organizationId: user.organization_id,
-            reservedAmount,
-            actualCost: totalCost,
-            description: `Responses API: ${model}`,
-            metadata: { user_id: user.id },
-          });
-
+          await settleReservation?.(totalCost);
           const usageRecord = await usageService.create({
             organization_id: user.organization_id,
             user_id: user.id,
@@ -1130,6 +1151,7 @@ function handleStreamingResponse(
         }
       }
     } catch (error) {
+      await settleReservation?.(0);
       logger.error("[Responses API] Streaming error:", error);
       writer.abort();
     }

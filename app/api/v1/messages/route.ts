@@ -41,7 +41,9 @@ import { appCreditsService } from "@/lib/services/app-credits";
 import { appsService } from "@/lib/services/apps";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { type CreditReservation, creditsService } from "@/lib/services/credits";
+import { createCreditReservationSettler } from "@/lib/utils/credit-reservation";
 import { logger } from "@/lib/utils/logger";
+import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
 
@@ -440,6 +442,8 @@ function anthropicError(type: string, message: string, status: number): Response
 
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
+  const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
+  let settleReservation: ((actualCost: number) => Promise<void>) | null = null;
 
   let user: { id: string; organization_id: string };
   let apiKey: { id: string } | null;
@@ -574,6 +578,8 @@ async function handlePOST(req: NextRequest) {
     }
   }
 
+  settleReservation = createCreditReservationSettler(reservation);
+
   const messages = anthropicMessagesToModelMessages(request.messages);
   const tools = convertTools(request.tools);
   const toolChoice = mapToolChoice(request.tool_choice);
@@ -593,7 +599,6 @@ async function handlePOST(req: NextRequest) {
         request,
         user,
         apiKey,
-        reservation,
         appCreditsInfo,
         affiliateCode,
         startTime,
@@ -601,6 +606,9 @@ async function handlePOST(req: NextRequest) {
         safeParams,
         tools,
         toolChoice,
+        req.signal,
+        routeTimeoutMs,
+        settleReservation,
       );
     }
 
@@ -611,15 +619,18 @@ async function handlePOST(req: NextRequest) {
       request,
       user,
       apiKey,
-      reservation,
       appCreditsInfo,
       affiliateCode,
       startTime,
       safeParams,
       tools,
       toolChoice,
+      req.signal,
+      routeTimeoutMs,
+      settleReservation,
     );
   } catch (error) {
+    await settleReservation?.(0);
     const message = error instanceof Error ? error.message : String(error);
     logger.error("[Messages API] Error", { error: message });
     return anthropicError("api_error", message, 500);
@@ -633,111 +644,120 @@ async function handleNonStream(
   request: AnthropicMessagesRequest,
   user: { id: string; organization_id: string },
   apiKey: { id: string } | null,
-  reservation: CreditReservation,
   appCreditsInfo: AppCreditsInfo | undefined,
   affiliateCode: string | null,
   startTime: number,
   safeParams: ReturnType<typeof getSafeModelParams>,
   tools: ReturnType<typeof convertTools>,
   toolChoice: "auto" | "none" | "required" | { type: "tool"; toolName: string } | undefined,
+  abortSignal: AbortSignal | undefined,
+  timeoutMs: number,
+  settleReservation: (actualCost: number) => Promise<void>,
 ) {
   const provider = getProviderFromModel(model);
 
-  const result = await generateText({
-    model: gateway.languageModel(model),
-    system: systemPrompt,
-    messages,
-    maxOutputTokens: request.max_tokens,
-    ...safeParams,
-    ...(tools ? { tools } : {}),
-    ...(toolChoice ? { toolChoice } : {}),
-  });
-
-  const billing = await billUsage(
-    {
-      organizationId: user.organization_id,
-      userId: user.id,
-      apiKeyId: apiKey?.id,
-      model,
-      provider,
-      affiliateCode,
-    },
-    result.usage,
-    reservation,
-  );
-
-  if (appCreditsInfo) {
-    await appCreditsService.reconcileCredits({
-      appId: appCreditsInfo.appId,
-      userId: user.id,
-      estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
-      actualBaseCost: billing.totalCost,
-      description: `Messages API: ${model}`,
-      metadata: { model, provider, streaming: false },
+  try {
+    const result = await generateText({
+      model: gateway.languageModel(model),
+      system: systemPrompt,
+      messages,
+      maxOutputTokens: request.max_tokens,
+      abortSignal,
+      timeout: timeoutMs,
+      ...safeParams,
+      ...(tools ? { tools } : {}),
+      ...(toolChoice ? { toolChoice } : {}),
     });
-  }
 
-  await recordUsageAnalytics(
-    {
-      organizationId: user.organization_id,
-      userId: user.id,
-      apiKeyId: apiKey?.id,
-      model,
-      provider,
-    },
-    billing,
-    { type: "chat", content: result.text },
-  );
+    const billing = await billUsage(
+      {
+        organizationId: user.organization_id,
+        userId: user.id,
+        apiKeyId: apiKey?.id,
+        model,
+        provider,
+        affiliateCode,
+      },
+      result.usage,
+    );
+    await settleReservation(billing.totalCost);
 
-  logger.info("[Messages API] Non-streaming complete", {
-    durationMs: Date.now() - startTime,
-    inputTokens: billing.inputTokens,
-    outputTokens: billing.outputTokens,
-  });
-
-  const responseContent: AnthropicResponseBlock[] = [];
-  if (result.text) {
-    responseContent.push({ type: "text", text: result.text });
-  }
-
-  if (result.toolCalls?.length) {
-    for (const toolCall of result.toolCalls) {
-      responseContent.push({
-        type: "tool_use",
-        id: toolCall.toolCallId,
-        name: toolCall.toolName,
-        input: toolCall.input as Record<string, unknown>,
+    if (appCreditsInfo) {
+      await appCreditsService.reconcileCredits({
+        appId: appCreditsInfo.appId,
+        userId: user.id,
+        estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+        actualBaseCost: billing.totalCost,
+        description: `Messages API: ${model}`,
+        metadata: { model, provider, streaming: false },
       });
     }
-  }
 
-  if (responseContent.length === 0) {
-    responseContent.push({ type: "text", text: "" });
-  }
-
-  const hasToolCalls = Boolean(result.toolCalls?.length);
-  const stopReason = mapFinishReason(result.finishReason, result.rawFinishReason, hasToolCalls);
-  const stopSequence = resolveStopSequence(
-    stopReason,
-    result.rawFinishReason,
-    request.stop_sequences,
-  );
-
-  return addCorsHeaders(
-    Response.json({
-      id: `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`,
-      type: "message",
-      role: "assistant",
-      content: responseContent,
-      model: request.model,
-      stop_reason: stopReason,
-      stop_sequence: stopSequence,
-      usage: {
-        input_tokens: billing.inputTokens,
-        output_tokens: billing.outputTokens,
+    await recordUsageAnalytics(
+      {
+        organizationId: user.organization_id,
+        userId: user.id,
+        apiKeyId: apiKey?.id,
+        model,
+        provider,
       },
-    }),
-  );
+      billing,
+      { type: "chat", content: result.text },
+    );
+
+    logger.info("[Messages API] Non-streaming complete", {
+      durationMs: Date.now() - startTime,
+      inputTokens: billing.inputTokens,
+      outputTokens: billing.outputTokens,
+    });
+
+    const responseContent: AnthropicResponseBlock[] = [];
+    if (result.text) {
+      responseContent.push({ type: "text", text: result.text });
+    }
+
+    if (result.toolCalls?.length) {
+      for (const toolCall of result.toolCalls) {
+        responseContent.push({
+          type: "tool_use",
+          id: toolCall.toolCallId,
+          name: toolCall.toolName,
+          input: toolCall.input as Record<string, unknown>,
+        });
+      }
+    }
+
+    if (responseContent.length === 0) {
+      responseContent.push({ type: "text", text: "" });
+    }
+
+    const hasToolCalls = Boolean(result.toolCalls?.length);
+    const stopReason = mapFinishReason(result.finishReason, result.rawFinishReason, hasToolCalls);
+    const stopSequence = resolveStopSequence(
+      stopReason,
+      result.rawFinishReason,
+      request.stop_sequences,
+    );
+
+    return addCorsHeaders(
+      Response.json({
+        id: `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`,
+        type: "message",
+        role: "assistant",
+        content: responseContent,
+        model: request.model,
+        stop_reason: stopReason,
+        stop_sequence: stopSequence,
+        usage: {
+          input_tokens: billing.inputTokens,
+          output_tokens: billing.outputTokens,
+        },
+      }),
+    );
+  } catch (error) {
+    await settleReservation(0);
+    throw error;
+  }
 }
 
 async function handleStream(
@@ -747,7 +767,6 @@ async function handleStream(
   request: AnthropicMessagesRequest,
   user: { id: string; organization_id: string },
   apiKey: { id: string } | null,
-  reservation: CreditReservation,
   appCreditsInfo: AppCreditsInfo | undefined,
   affiliateCode: string | null,
   startTime: number,
@@ -755,6 +774,9 @@ async function handleStream(
   safeParams: ReturnType<typeof getSafeModelParams>,
   tools: ReturnType<typeof convertTools>,
   toolChoice: "auto" | "none" | "required" | { type: "tool"; toolName: string } | undefined,
+  abortSignal: AbortSignal | undefined,
+  timeoutMs: number,
+  settleReservation: (actualCost: number) => Promise<void>,
 ) {
   const provider = getProviderFromModel(model);
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
@@ -764,6 +786,8 @@ async function handleStream(
     system: systemPrompt,
     messages,
     maxOutputTokens: request.max_tokens,
+    abortSignal,
+    timeout: timeoutMs,
     ...safeParams,
     ...(tools ? { tools } : {}),
     ...(toolChoice ? { toolChoice } : {}),
@@ -779,8 +803,8 @@ async function handleStream(
             affiliateCode,
           },
           totalUsage,
-          reservation,
         );
+        await settleReservation(billing.totalCost);
 
         if (appCreditsInfo) {
           await appCreditsService.reconcileCredits({
@@ -811,10 +835,18 @@ async function handleStream(
           outputTokens: billing.outputTokens,
         });
       } catch (error) {
+        await settleReservation(0);
         logger.error("[Messages API] onFinish billing error", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    },
+    onAbort: async () => {
+      await settleReservation(0);
+      logger.info("[Messages API] Stream aborted before completion", {
+        model,
+        estimatedInputTokens,
+      });
     },
   });
 

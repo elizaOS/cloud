@@ -5,7 +5,12 @@
  */
 
 import { logger } from "@/lib/utils/logger";
-import type { AIProvider, OpenAIChatRequest, OpenAIEmbeddingsRequest } from "./types";
+import type {
+  AIProvider,
+  OpenAIChatRequest,
+  OpenAIEmbeddingsRequest,
+  ProviderRequestOptions,
+} from "./types";
 
 /**
  * Gateway error response structure.
@@ -37,16 +42,22 @@ export class VercelGatewayProvider implements AIProvider {
   /**
    * Make a request to the gateway with timeout and better error handling
    */
-  private async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+  private async fetchWithTimeout(
+    url: string,
+    options: RequestInit,
+    timeoutMs: number = this.timeout,
+  ): Promise<Response> {
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    const signal =
+      options.signal && timeoutSignal
+        ? AbortSignal.any([options.signal, timeoutSignal])
+        : (options.signal ?? timeoutSignal);
 
     try {
       const response = await fetch(url, {
         ...options,
-        signal: controller.signal,
+        signal,
       });
-      clearTimeout(timeoutId);
 
       // Parse and propagate OpenAI-formatted errors
       if (!response.ok) {
@@ -80,13 +91,33 @@ export class VercelGatewayProvider implements AIProvider {
 
       return response;
     } catch (error) {
-      clearTimeout(timeoutId);
-
       if (error instanceof Error && error.name === "AbortError") {
+        if (timeoutSignal.aborted) {
+          throw {
+            status: 504,
+            error: {
+              message: `Gateway request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
+              type: "timeout_error",
+              code: "gateway_timeout",
+            },
+          };
+        }
+
+        if (options.signal?.aborted) {
+          throw {
+            status: 499,
+            error: {
+              message: "Gateway request aborted",
+              type: "abort_error",
+              code: "request_aborted",
+            },
+          };
+        }
+
         throw {
           status: 504,
           error: {
-            message: "Gateway request timeout after 60 seconds",
+            message: `Gateway request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
             type: "timeout_error",
             code: "gateway_timeout",
           },
@@ -98,21 +129,29 @@ export class VercelGatewayProvider implements AIProvider {
     }
   }
 
-  async chatCompletions(request: OpenAIChatRequest): Promise<Response> {
+  async chatCompletions(
+    request: OpenAIChatRequest,
+    options?: ProviderRequestOptions,
+  ): Promise<Response> {
     logger.debug("[Vercel Gateway] Forwarding chat completion request", {
       model: request.model,
       streaming: request.stream,
       messageCount: request.messages.length,
     });
 
-    return await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
+    return await this.fetchWithTimeout(
+      `${this.baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+        signal: options?.signal,
       },
-      body: JSON.stringify(request),
-    });
+      options?.timeoutMs,
+    );
   }
 
   async embeddings(request: OpenAIEmbeddingsRequest): Promise<Response> {

@@ -1,6 +1,11 @@
 import { GROQ_NATIVE_MODELS, getGroqApiModelId } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
-import type { AIProvider, OpenAIChatRequest, OpenAIEmbeddingsRequest } from "./types";
+import type {
+  AIProvider,
+  OpenAIChatRequest,
+  OpenAIEmbeddingsRequest,
+  ProviderRequestOptions,
+} from "./types";
 
 interface GroqError {
   error: {
@@ -23,16 +28,22 @@ export class GroqProvider implements AIProvider {
     this.apiKey = apiKey;
   }
 
-  private async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+  private async fetchWithTimeout(
+    url: string,
+    options: RequestInit,
+    timeoutMs: number = this.timeout,
+  ): Promise<Response> {
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    const signal =
+      options.signal && timeoutSignal
+        ? AbortSignal.any([options.signal, timeoutSignal])
+        : (options.signal ?? timeoutSignal);
 
     try {
       const response = await fetch(url, {
         ...options,
-        signal: controller.signal,
+        signal,
       });
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         let errorData: GroqError | null = null;
@@ -56,13 +67,33 @@ export class GroqProvider implements AIProvider {
 
       return response;
     } catch (error) {
-      clearTimeout(timeoutId);
-
       if (error instanceof Error && error.name === "AbortError") {
+        if (timeoutSignal.aborted) {
+          throw {
+            status: 504,
+            error: {
+              message: `Groq request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
+              type: "timeout_error",
+              code: "groq_timeout",
+            },
+          };
+        }
+
+        if (options.signal?.aborted) {
+          throw {
+            status: 499,
+            error: {
+              message: "Groq request aborted",
+              type: "abort_error",
+              code: "request_aborted",
+            },
+          };
+        }
+
         throw {
           status: 504,
           error: {
-            message: "Groq request timeout after 60 seconds",
+            message: `Groq request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
             type: "timeout_error",
             code: "groq_timeout",
           },
@@ -73,7 +104,10 @@ export class GroqProvider implements AIProvider {
     }
   }
 
-  async chatCompletions(request: OpenAIChatRequest): Promise<Response> {
+  async chatCompletions(
+    request: OpenAIChatRequest,
+    options?: ProviderRequestOptions,
+  ): Promise<Response> {
     const { providerOptions: _providerOptions, ...rest } = request;
     const groqRequest: OpenAIChatRequest = {
       ...rest,
@@ -87,14 +121,19 @@ export class GroqProvider implements AIProvider {
       messageCount: request.messages.length,
     });
 
-    return this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
+    return this.fetchWithTimeout(
+      `${this.baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(groqRequest),
+        signal: options?.signal,
       },
-      body: JSON.stringify(groqRequest),
-    });
+      options?.timeoutMs,
+    );
   }
 
   async embeddings(_request: OpenAIEmbeddingsRequest): Promise<Response> {
