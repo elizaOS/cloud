@@ -272,6 +272,7 @@ resource "google_service_account_iam_member" "cnpg_workload_identity" {
 # Redis (Bitnami Helm) + redis-rest proxy in eliza-infra
 # =============================================================================
 
+# Managed separately from the namespaces loop — do NOT add "eliza-infra" to var.namespaces
 resource "kubernetes_namespace" "eliza_infra" {
   metadata {
     name = "eliza-infra"
