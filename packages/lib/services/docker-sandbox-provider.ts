@@ -79,6 +79,7 @@ const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
 // The orchestrator (or SSH-executed scripts on the Docker host) can reach Steward via localhost.
 const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
+const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
 
 // URL injected into container env vars. Containers on the bridge network (milady-isolated)
 // cannot reach the host via localhost. On Linux we pair host.docker.internal with an
@@ -201,14 +202,17 @@ import urllib.request
 
 base_url = ${JSON.stringify(STEWARD_HOST_URL)}
 api_key = ${JSON.stringify(STEWARD_TENANT_API_KEY)}
+tenant_id = ${JSON.stringify(STEWARD_TENANT_ID)}
 agent_id = ${JSON.stringify(agentId)}
 agent_name = ${JSON.stringify(agentName)}
 
 
 def post(path, payload):
     headers = {"Content-Type": "application/json"}
+    if tenant_id:
+        headers["X-Steward-Tenant"] = tenant_id
     if api_key:
-        headers["X-API-Key"] = api_key
+        headers["X-Steward-Key"] = api_key
     req = urllib.request.Request(
         f"{base_url}{path}",
         data=json.dumps(payload).encode("utf-8"),
@@ -223,9 +227,10 @@ def post(path, payload):
 
 
 status, body = post("/agents", {"id": agent_id, "name": agent_name})
-if status not in (200, 201, 202, 409):
+if status not in (200, 201, 202, 400, 409):
     print(body, file=sys.stderr)
     raise SystemExit(f"Steward agent registration failed with status {status}")
+# 400/409 = agent already exists, continue to token minting
 
 status, body = post(f"/agents/{agent_id}/token", {"name": "milady-cloud"})
 if status not in (200, 201):
@@ -503,7 +508,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       // container failed to start, so we try to clean up the Steward record.
       try {
         await ssh.exec(
-          `curl -s -X DELETE ${STEWARD_TENANT_API_KEY ? `-H ${shellQuote(`X-API-Key: ${STEWARD_TENANT_API_KEY}`)}` : ""} ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
+          `curl -s -X DELETE -H ${shellQuote(`X-Steward-Tenant: ${STEWARD_TENANT_ID}`)} ${STEWARD_TENANT_API_KEY ? `-H ${shellQuote(`X-Steward-Key: ${STEWARD_TENANT_API_KEY}`)}` : ""} ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
           DOCKER_CMD_TIMEOUT_MS,
         );
         logger.info(`[docker-sandbox] Cleaned up Steward agent ${agentId} after container failure`);
