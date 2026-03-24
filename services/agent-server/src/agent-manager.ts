@@ -258,6 +258,6 @@ export class AgentManager {
       `server:${process.env.SERVER_NAME}:status`,
       `server:${process.env.SERVER_NAME}:url`,
     ];
-    if (keys.length > 0) await redis.del(...keys);
+    await redis.del(...keys);
   }
 }
