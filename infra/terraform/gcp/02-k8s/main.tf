@@ -287,9 +287,9 @@ resource "kubernetes_namespace" "eliza_infra" {
 resource "helm_release" "redis" {
   name       = "redis"
   namespace  = "eliza-infra"
-  repository = "https://charts.bitnami.com/bitnami"
+  repository = "oci://registry-1.docker.io/bitnamicharts"
   chart      = "redis"
-  version    = "20.11.0"
+  version    = "25.3.8"
   wait       = true
   timeout    = 180
 
@@ -307,8 +307,8 @@ resource "helm_release" "redis" {
         limits   = { memory = "256Mi" }
       }
     }
-    replica = var.redis_config.architecture == "replication" ? {
-      replicaCount = var.redis_config.replicas
+    replica = {
+      replicaCount = var.redis_config.architecture == "replication" ? var.redis_config.replicas : 0
       persistence = {
         size = var.redis_config.persistence_size
       }
@@ -316,7 +316,7 @@ resource "helm_release" "redis" {
         requests = { memory = "128Mi", cpu = "100m" }
         limits   = { memory = "256Mi" }
       }
-    } : {}
+    }
   })]
 
   depends_on = [kubernetes_namespace.eliza_infra]

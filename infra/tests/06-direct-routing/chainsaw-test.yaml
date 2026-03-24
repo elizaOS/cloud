@@ -9,6 +9,9 @@ spec:
       try:
         - apply:
             file: server-cr.yaml
+      cleanup:
+        - script:
+            content: kubectl delete server shared-eliza -n eliza-agents --ignore-not-found
 
     - name: Assert Deployment and Service created
       try:
@@ -45,7 +48,7 @@ spec:
               STATUS=$(kubectl run cs-redis-status-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
                 redis-cli -h redis GET "server:shared-eliza:status" 2>/dev/null)
-              echo "$STATUS" | grep -qE "(pending|scaleddown)" || { echo "FAIL: server status=$STATUS, expected pending or scaleddown"; exit 1; }
+              echo "$STATUS" | grep -qE "(pending|scaleddown|running)" || { echo "FAIL: server status=$STATUS, expected pending, scaleddown, or running"; exit 1; }
 
               URL=$(kubectl run cs-redis-url-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \

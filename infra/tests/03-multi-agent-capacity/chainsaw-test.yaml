@@ -9,6 +9,9 @@ spec:
       try:
         - apply:
             file: server-cr.yaml
+      cleanup:
+        - script:
+            content: kubectl delete server srv-cap -n eliza-agents --ignore-not-found
 
     - name: Wake via KEDA
       try:
