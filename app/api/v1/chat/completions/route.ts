@@ -34,7 +34,7 @@ import { contentModerationService } from "@/lib/services/content-moderation";
 import { type CreditReservation, creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
-export const maxDuration = 60;
+export const maxDuration = 800;
 
 // ============================================================================
 // Types

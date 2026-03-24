@@ -36,7 +36,7 @@ import { usageService } from "@/lib/services/usage";
 import type { UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 
-export const maxDuration = 60;
+export const maxDuration = 800;
 
 // AI SDK request format (different from OpenAI)
 interface AISdkRequest {

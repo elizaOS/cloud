@@ -43,7 +43,7 @@ import { contentModerationService } from "@/lib/services/content-moderation";
 import { type CreditReservation, creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 type AnthropicTextBlock = { type: "text"; text: string };
 
