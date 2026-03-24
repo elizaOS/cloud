@@ -137,6 +137,7 @@ jobs:
             set -e
             echo "=== Deploying eliza-cloud backend ==="
             
+            sudo chown -R deploy:deploy /opt/eliza-cloud
             cd /opt/eliza-cloud
             git config --global --add safe.directory /opt/eliza-cloud
             
