@@ -6,6 +6,7 @@ redis_config = {
   persistence_size    = "2Gi"
   auth_enabled        = true
   redis_rest_replicas = 1
+  redis_rest_token    = "dev-internal-token"
 }
 
 database_clusters = {

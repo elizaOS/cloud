@@ -21,7 +21,7 @@ variable "redis_config" {
     persistence_size    = optional(string, "2Gi")
     auth_enabled        = optional(bool, true)
     redis_rest_replicas = optional(number, 2)
-    redis_rest_token    = optional(string, "internal-token")
+    redis_rest_token    = optional(string)
   })
   default = {}
 }

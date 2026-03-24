@@ -208,7 +208,7 @@ resource "helm_release" "pg_cluster" {
       initdb = {
         database = "app"
         owner    = "app"
-        postInitSQL = [
+        postInitApplicationSQL = [
           "CREATE EXTENSION IF NOT EXISTS vector;",
           "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
         ]
@@ -403,6 +403,7 @@ resource "kubernetes_deployment" "redis_rest" {
             }
             limits = {
               memory = "128Mi"
+              cpu    = "100m"
             }
           }
         }

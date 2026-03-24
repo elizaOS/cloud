@@ -7,11 +7,13 @@ redis_config = {
   persistence_size    = "5Gi"
   auth_enabled        = true
   redis_rest_replicas = 2
+  redis_rest_token    = "REPLACE_WITH_SECURE_TOKEN"
 }
 
 database_clusters = {
   "9437543e-c21f-42a4-9dd9-6e697d0d75eb" = {
-    instances    = 2
-    storage_size = "20Gi"
+    instances        = 2
+    storage_size     = "20Gi"
+    pooler_instances = 2
   }
 }

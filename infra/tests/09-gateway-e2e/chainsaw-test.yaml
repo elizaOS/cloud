@@ -55,18 +55,12 @@ spec:
               AGENT_ID="eliza"
               echo "Agent ID (characterRef): $AGENT_ID"
 
-              # Ensure agent→server mapping exists
+              # Assert agent→server mapping was set by the operator (not seeded manually)
               MAPPING=$(kubectl run cs-map-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
                 redis-cli -h redis GET "agent:${AGENT_ID}:server" 2>/dev/null)
               echo "agent:${AGENT_ID}:server = $MAPPING"
-
-              if ! echo "$MAPPING" | grep -q "srv-gw"; then
-                echo "Mapping missing — seeding it"
-                kubectl run cs-seed-$RANDOM --rm -i --restart=Never -n eliza-infra \
-                  --image=redis:7-alpine --quiet -- \
-                  redis-cli -h redis SET "agent:${AGENT_ID}:server" "srv-gw" 2>/dev/null
-              fi
+              echo "$MAPPING" | grep -q "srv-gw" || { echo "FAIL: operator did not set agent mapping"; exit 1; }
 
               # Verify server URL key
               URL=$(kubectl run cs-url-$RANDOM --rm -i --restart=Never -n eliza-infra \
