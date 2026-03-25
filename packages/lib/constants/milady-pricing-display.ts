@@ -68,6 +68,6 @@ export function formatDuration(hours: number): string {
  */
 export function packSavingsPercent(priceCents: number, credits: number): number {
   const price = priceCents / 100;
-  if (price >= credits) return 0;
+  if (credits <= 0 || price >= credits) return 0;
   return Math.round(((credits - price) / credits) * 100);
 }

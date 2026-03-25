@@ -2,7 +2,7 @@
  * Milady Agent Billing Cron Job
  *
  * Hourly billing processor for Milady cloud agents (Docker-hosted).
- * - Charges organizations hourly for running agents ($0.02/hour)
+ * - Charges organizations hourly for running agents ($0.01/hour)
  * - Charges for idle/stopped agents with snapshots ($0.0025/hour)
  * - Sends 48-hour shutdown warnings when credits are insufficient
  * - Shuts down agents that have been in warning state for 48+ hours

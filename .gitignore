@@ -79,3 +79,4 @@ storybook-static
 .next-dev/
 DEV_TO_PROD_AUDIT.md
 TRIAGE_NOTES.md
+.env.preview
