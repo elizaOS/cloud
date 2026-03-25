@@ -51,6 +51,7 @@ import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
 import { type SandboxListAgent, useSandboxListPoll } from "@/lib/hooks/use-sandbox-status-poll";
 import { getClientSafeMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
+import { AgentCostBadge } from "./agent-cost-badge";
 import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
 
 // ----------------------------------------------------------------
@@ -583,12 +584,15 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                       {/* Agent name + type */}
                       <TableCell>
                         <div className="space-y-1">
-                          <a
-                            href={`/dashboard/milady/agents/${sb.id}`}
-                            className="font-medium text-white hover:text-[#FF5800] transition-colors"
-                          >
-                            {sb.agent_name ?? "Unnamed Agent"}
-                          </a>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <a
+                              href={`/dashboard/milady/agents/${sb.id}`}
+                              className="font-medium text-white hover:text-[#FF5800] transition-colors"
+                            >
+                              {sb.agent_name ?? "Unnamed Agent"}
+                            </a>
+                            <AgentCostBadge status={displayStatus} />
+                          </div>
                           <div className="flex items-center gap-2">
                             <span className="inline-flex items-center gap-1 text-[10px] text-white/35">
                               {isDocker ? (
@@ -783,6 +787,7 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                       >
                         {sb.agent_name ?? "Unnamed Agent"}
                       </a>
+                      <AgentCostBadge status={displayStatus} />
                       <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1 text-[10px] text-white/35">
                           {isDocker ? (

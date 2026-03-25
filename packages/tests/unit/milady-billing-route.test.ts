@@ -311,11 +311,11 @@ describe("Milady billing cron", () => {
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.sandboxesBilled).toBe(1);
-    expect(body.data.totalRevenue).toBe(0.02);
+    expect(body.data.totalRevenue).toBe(0.01);
     expect(txUpdateSetCalls).toContainEqual(
       expect.objectContaining({
         billing_status: "active",
-        hourly_rate: "0.02",
+        hourly_rate: "0.01",
       }),
     );
   });
@@ -350,7 +350,7 @@ describe("Milady billing cron", () => {
     expect(txUpdateSetCalls).toContainEqual(
       expect.objectContaining({
         billing_status: "warning",
-        hourly_rate: "0.02",
+        hourly_rate: "0.01",
       }),
     );
   });

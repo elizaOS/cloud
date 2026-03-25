@@ -13,6 +13,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthWithOrg } from "@/lib/auth";
+import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
+import { formatHourlyRate, formatMonthlyEstimate } from "@/lib/constants/milady-pricing-display";
 import { statusBadgeColor, statusDotColor } from "@/lib/constants/sandbox-status";
 import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { adminService } from "@/lib/services/admin";
@@ -144,7 +146,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       </div>
 
       {/* ── Key info strip ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 border border-white/10">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-px bg-white/5 border border-white/10">
         <div className="bg-black/60 p-4 space-y-1">
           <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Status</p>
           <p
@@ -168,6 +170,30 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
                   ? "None"
                   : "Error"}
           </p>
+        </div>
+        {/* Cost */}
+        <div className="bg-black/60 p-4 space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Cost</p>
+          <p
+            className="text-lg font-medium text-white tabular-nums"
+            style={{ fontFamily: "var(--font-roboto-mono)" }}
+          >
+            {agent.status === "running" || agent.status === "provisioning"
+              ? formatHourlyRate(MILADY_PRICING.RUNNING_HOURLY_RATE)
+              : agent.status === "stopped" || agent.status === "disconnected"
+                ? formatHourlyRate(MILADY_PRICING.IDLE_HOURLY_RATE)
+                : "—"}
+          </p>
+          {(agent.status === "running" ||
+            agent.status === "provisioning" ||
+            agent.status === "stopped" ||
+            agent.status === "disconnected") && (
+            <p className="text-[10px] text-white/30 tabular-nums">
+              {agent.status === "running" || agent.status === "provisioning"
+                ? formatMonthlyEstimate(MILADY_PRICING.RUNNING_HOURLY_RATE)
+                : formatMonthlyEstimate(MILADY_PRICING.IDLE_HOURLY_RATE)}
+            </p>
+          )}
         </div>
         <div className="bg-black/60 p-4 space-y-1">
           <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Created</p>
