@@ -32,7 +32,8 @@ export interface TaskStoreEntry {
 // ============================================================================
 
 const TASK_TTL_SECONDS = 3600; // 1 hour
-const TASK_KEY_PREFIX = "a2a:task:";
+const ENV_PREFIX = process.env.VERCEL_ENV || process.env.ENVIRONMENT || "local";
+const TASK_KEY_PREFIX = `${ENV_PREFIX}:a2a:task:`;
 const TASK_ORG_INDEX_PREFIX = "a2a:org:";
 
 // ============================================================================

@@ -7,6 +7,9 @@
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+/** Environment prefix — prevents cross-env event queue collisions. */
+const ENV_PREFIX = process.env.VERCEL_ENV || process.env.ENVIRONMENT || "local";
+
 /**
  * Credit update event structure.
  */
@@ -95,7 +98,7 @@ class RedisCreditEventEmitter {
       return;
     }
 
-    const channel = `credits:${event.organizationId}:queue`;
+    const channel = `${ENV_PREFIX}:credits:${event.organizationId}:queue`;
     const message = JSON.stringify({
       ...event,
       timestamp: event.timestamp.toISOString(),
@@ -118,7 +121,7 @@ class RedisCreditEventEmitter {
       };
     }
 
-    const channel = `credits:${organizationId}`;
+    const channel = `${ENV_PREFIX}:credits:${organizationId}`;
 
     const subscriptionRedis = new Redis({
       url: process.env.KV_REST_API_URL!,

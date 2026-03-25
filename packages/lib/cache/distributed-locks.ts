@@ -8,6 +8,9 @@ import { Redis } from "@upstash/redis";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "@/lib/utils/logger";
 
+/** Environment prefix — prevents lock key collisions when dev/prod share the same Redis instance. */
+const ENV_PREFIX = process.env.VERCEL_ENV || process.env.ENVIRONMENT || "local";
+
 /**
  * Lock object with release and extend methods.
  */
@@ -119,7 +122,7 @@ export class DistributedLockService {
     }
 
     const lockId = uuidv4();
-    const key = `agent:room:${roomId}:lock`;
+    const key = `${ENV_PREFIX}:agent:room:${roomId}:lock`;
 
     // Try to acquire lock using SET NX (set if not exists) with expiry
     const acquired = await this.redis.set(key, lockId, {
@@ -158,7 +161,7 @@ export class DistributedLockService {
       return true;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `${ENV_PREFIX}:agent:room:${roomId}:lock`;
 
     // Only release if we own the lock (check lockId matches)
     const currentLockId = await this.redis.get(key);
@@ -187,7 +190,7 @@ export class DistributedLockService {
       return true;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `${ENV_PREFIX}:agent:room:${roomId}:lock`;
 
     // Verify ownership
     const currentLockId = await this.redis.get(key);
@@ -228,7 +231,7 @@ export class DistributedLockService {
       return false;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `${ENV_PREFIX}:agent:room:${roomId}:lock`;
 
     const lockId = await this.redis.get(key);
     return lockId !== null;
@@ -244,7 +247,7 @@ export class DistributedLockService {
       return null;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `${ENV_PREFIX}:agent:room:${roomId}:lock`;
 
     const lockId = await this.redis.get<string>(key);
     if (!lockId) {
@@ -265,7 +268,7 @@ export class DistributedLockService {
       return true;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `${ENV_PREFIX}:agent:room:${roomId}:lock`;
 
     await this.redis.del(key);
     logger.info(`[Distributed Locks] Force released lock for ${roomId}`);

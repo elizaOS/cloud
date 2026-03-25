@@ -7,6 +7,17 @@ import { createClient } from "redis";
 import { logger } from "@/lib/utils/logger";
 
 /**
+ * Environment prefix for Redis cache keys.
+ *
+ * Prevents cross-environment cache contamination when multiple Vercel deployments
+ * (e.g. dev / preview / production) share the same Upstash Redis instance.
+ *
+ * Uses VERCEL_ENV ("production" | "preview" | "development") when deployed on Vercel,
+ * falls back to ENVIRONMENT, then "local" for non-Vercel environments.
+ */
+const ENV_PREFIX = process.env.VERCEL_ENV || process.env.ENVIRONMENT || "local";
+
+/**
  * Cached value wrapper with metadata for stale-while-revalidate.
  */
 interface CachedValue<T> {
@@ -155,6 +166,15 @@ export class CacheClient {
   private nativeRedisConnectPromise: Promise<void> | null = null;
   private nativeRedisReady = false;
 
+  /**
+   * Prepends the environment prefix to a cache key or pattern.
+   * Ensures keys from different environments (production / preview / local) never collide
+   * when they share the same Redis instance.
+   */
+  private pk(key: string): string {
+    return `${ENV_PREFIX}:${key}`;
+  }
+
   private isPlaceholderCredential(value: string | undefined): boolean {
     if (!value) return false;
 
@@ -294,9 +314,10 @@ export class CacheClient {
     const redis = await this.getRedisClient();
     if (!redis) return null;
 
+    const prefixedKey = this.pk(key);
     try {
       const start = Date.now();
-      const value = await redis.get(key);
+      const value = await redis.get(prefixedKey);
       const duration = Date.now() - start;
 
       if (value === null || value === undefined) {
@@ -358,7 +379,7 @@ export class CacheClient {
 
     try {
       const start = Date.now();
-      const value = await redis.get(key);
+      const value = await redis.get(this.pk(key));
       const duration = Date.now() - start;
 
       if (value === null || value === undefined) {
@@ -469,7 +490,7 @@ export class CacheClient {
 
     try {
       const start = Date.now();
-      await redis.setex(key, ttlSeconds, serialized);
+      await redis.setex(this.pk(key), ttlSeconds, serialized);
 
       this.resetFailures();
       this.logMetric(key, "set", Date.now() - start);
@@ -504,7 +525,7 @@ export class CacheClient {
     const serialized = typeof value === "string" ? value : JSON.stringify(value);
 
     const start = Date.now();
-    const result = await redis.set(key, serialized, { nx: true, px: ttlMs });
+    const result = await redis.set(this.pk(key), serialized, { nx: true, px: ttlMs });
     this.resetFailures();
     this.logMetric(key, "setIfNotExists", Date.now() - start);
     return result === "OK";
@@ -522,7 +543,7 @@ export class CacheClient {
     if (!redis) return 1;
 
     try {
-      const result = await redis.incr(key);
+      const result = await redis.incr(this.pk(key));
       this.resetFailures();
       return result;
     } catch (error) {
@@ -546,7 +567,7 @@ export class CacheClient {
     if (!redis) return;
 
     try {
-      await redis.expire(key, ttlSeconds);
+      await redis.expire(this.pk(key), ttlSeconds);
       this.resetFailures();
     } catch (error) {
       this.recordFailure();
@@ -570,7 +591,7 @@ export class CacheClient {
 
     try {
       // Use GETDEL for atomic get-and-delete (Redis ≥6.2)
-      const value = await redis.getdel(key);
+      const value = await redis.getdel(this.pk(key));
       if (value === null || value === undefined) return null;
 
       // Check for corrupted cache values
@@ -614,7 +635,7 @@ export class CacheClient {
 
     try {
       const start = Date.now();
-      await redis.del(key);
+      await redis.del(this.pk(key));
 
       logger.debug(`[Cache] DEL: ${key}`);
       this.resetFailures();
@@ -661,7 +682,7 @@ export class CacheClient {
 
       // Use SCAN instead of KEYS to avoid blocking Redis
       const result: [string | number, string[]] = await redis.scan(cursor, {
-        match: pattern,
+        match: this.pk(pattern),
         count: batchSize,
       });
 
@@ -711,7 +732,7 @@ export class CacheClient {
 
     try {
       const start = Date.now();
-      const values = await redis.mget(...keys);
+      const values = await redis.mget(...keys.map((k) => this.pk(k)));
 
       // Parse each JSON string value
       const parsed = await Promise.all(

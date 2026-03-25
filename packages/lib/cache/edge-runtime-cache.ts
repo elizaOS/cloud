@@ -10,6 +10,9 @@
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+/** Environment prefix — prevents key collisions when dev/prod share the same Redis instance. */
+const ENV_PREFIX = process.env.VERCEL_ENV || process.env.ENVIRONMENT || "local";
+
 // Initialize Redis client (works in both Edge and Node.js)
 const getRedis = (): Redis | null => {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
@@ -22,7 +25,7 @@ const getRedis = (): Redis | null => {
   return new Redis({ url, token });
 };
 
-const EDGE_CACHE_PREFIX = "edge:runtime:";
+const EDGE_CACHE_PREFIX = `${ENV_PREFIX}:edge:runtime:`;
 
 export interface RuntimeWarmState {
   /** Whether the runtime is initialized and warm */
