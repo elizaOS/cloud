@@ -75,7 +75,7 @@ export const miladySandboxes = pgTable(
     // Billing tracking fields (mirrors containers table pattern)
     billing_status: text("billing_status").$type<MiladyBillingStatus>().notNull().default("active"),
     last_billed_at: timestamp("last_billed_at", { withTimezone: true }),
-    hourly_rate: numeric("hourly_rate", { precision: 10, scale: 4 }).default("0.0200"),
+    hourly_rate: numeric("hourly_rate", { precision: 10, scale: 4 }).default("0.0100"),
     total_billed: numeric("total_billed", { precision: 10, scale: 2 }).default("0.00").notNull(),
     shutdown_warning_sent_at: timestamp("shutdown_warning_sent_at", { withTimezone: true }),
     scheduled_shutdown_at: timestamp("scheduled_shutdown_at", { withTimezone: true }),
