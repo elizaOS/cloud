@@ -16,7 +16,9 @@
 "use client";
 
 import { BrandButton, BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Clock, Sparkles } from "lucide-react";
+import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
+import { packSavingsPercent } from "@/lib/constants/milady-pricing-display";
 import { cn } from "@/lib/utils";
 
 interface CreditPackCardProps {
@@ -43,6 +45,11 @@ export function CreditPackCard({
   const price = (priceCents / 100).toFixed(2);
   const creditsValue = Number(credits);
   const pricePerCredit = (priceCents / creditsValue / 100).toFixed(3);
+  const savingsPercent = packSavingsPercent(priceCents, creditsValue);
+
+  // How many months of 1 running agent this pack covers
+  const agentMonths =
+    Math.round((creditsValue / (MILADY_PRICING.RUNNING_HOURLY_RATE * 24 * 30)) * 10) / 10;
 
   return (
     <BrandCard
@@ -69,13 +76,28 @@ export function CreditPackCard({
         </div>
 
         <div>
-          <div className="text-4xl font-bold text-white">${price}</div>
+          <div className="flex items-baseline gap-2">
+            <div className="text-4xl font-bold text-white">${price}</div>
+            {savingsPercent > 0 && (
+              <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5">
+                Save {savingsPercent}%
+              </span>
+            )}
+          </div>
           <div className="text-sm text-white/50">${pricePerCredit} per credit</div>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-white/60">
-          <Check className="h-4 w-4 text-[#FF5800]" />
-          <span>Never expires</span>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm text-white/60">
+            <Check className="h-4 w-4 text-[#FF5800]" />
+            <span>Never expires</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-white/60">
+            <Clock className="h-4 w-4 text-[#FF5800]/70" />
+            <span>
+              ~{agentMonths} {agentMonths === 1 ? "month" : "months"} of 1 agent
+            </span>
+          </div>
         </div>
 
         <div className="pt-4 border-t border-white/10">

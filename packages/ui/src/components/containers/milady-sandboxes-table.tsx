@@ -51,6 +51,7 @@ import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
 import { type SandboxListAgent, useSandboxListPoll } from "@/lib/hooks/use-sandbox-status-poll";
 import { getClientSafeMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
+import { AgentCostBadge } from "./agent-cost-badge";
 import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
 
 // ----------------------------------------------------------------
@@ -615,15 +616,18 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                         />
                       </TableCell>
 
-                      {/* Runtime */}
+                      {/* Runtime + Cost */}
                       <TableCell>
-                        <span className="text-xs text-white/50">
-                          {isDocker
-                            ? "Managed runtime"
-                            : sb.sandbox_id
-                              ? "Cloud sandbox"
-                              : "Not provisioned"}
-                        </span>
+                        <div className="space-y-1">
+                          <span className="text-xs text-white/50">
+                            {isDocker
+                              ? "Managed runtime"
+                              : sb.sandbox_id
+                                ? "Cloud sandbox"
+                                : "Not provisioned"}
+                          </span>
+                          <AgentCostBadge status={displayStatus} />
+                        </div>
                       </TableCell>
 
                       {/* Web UI */}

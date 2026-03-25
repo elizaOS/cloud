@@ -5,6 +5,7 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { MiladyPageWrapper } from "@/packages/ui/src/components/containers/milady-page-wrapper";
+import { MiladyPricingBanner } from "@/packages/ui/src/components/containers/milady-pricing-banner";
 import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/milady-sandboxes-table";
 
 export const metadata: Metadata = {
@@ -32,6 +33,11 @@ export default async function MiladyDashboardPage() {
     canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, { baseDomain }),
   }));
 
+  // Count agents by status for pricing banner
+  const runningCount = sandboxes.filter((s) => s.status === "running").length;
+  const idleCount = sandboxes.filter((s) => s.status === "stopped").length;
+  const creditBalance = Number(user.organization?.credit_balance ?? 0);
+
   return (
     <MiladyPageWrapper>
       <div className="mx-auto w-full max-w-[1400px] space-y-6">
@@ -47,6 +53,12 @@ export default async function MiladyDashboardPage() {
             Launch an existing agent into the web app or create a new managed instance.
           </p>
         </div>
+
+        <MiladyPricingBanner
+          runningCount={runningCount}
+          idleCount={idleCount}
+          creditBalance={creditBalance}
+        />
 
         <Suspense fallback={<ContainersSkeleton />}>
           <MiladySandboxesTable sandboxes={sandboxesWithUrls} />

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { BillingPageWrapper } from "@/packages/ui/src/components/billing/billing-page-wrapper";
 
 export const metadata: Metadata = {
@@ -27,11 +28,26 @@ export default async function BillingPage({
   const creditPacks = await creditsService.listActiveCreditPacks();
   const params = await searchParams;
 
+  // Fetch agent counts for runway estimation (best-effort)
+  let runningAgents = 0;
+  let idleAgents = 0;
+  try {
+    if (user.organization_id) {
+      const agents = await miladySandboxService.listAgents(user.organization_id);
+      runningAgents = agents.filter((a) => a.status === "running").length;
+      idleAgents = agents.filter((a) => a.status === "stopped").length;
+    }
+  } catch {
+    // Table may not exist — degrade gracefully
+  }
+
   return (
     <BillingPageWrapper
       creditPacks={creditPacks}
       currentCredits={Number(user.organization?.credit_balance)}
       canceled={params.canceled}
+      runningAgents={runningAgents}
+      idleAgents={idleAgents}
     />
   );
 }
