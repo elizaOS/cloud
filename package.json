@@ -205,6 +205,7 @@
     "redis": "^4.7.1",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
+    "sandwich-stream": "^2.0.2",
     "sonner": "^2.0.7",
     "ssh2": "^1.17.0",
     "streamdown": "^1.6.11",

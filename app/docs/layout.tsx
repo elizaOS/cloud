@@ -359,7 +359,10 @@ export default async function DocsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pageMap = await getPageMap("/docs");
+  // `contentDirBasePath` already mounts the docs content at `/docs`, so the
+  // page map needs to be loaded from the content root rather than a nested
+  // `/docs` segment.
+  const pageMap = await getPageMap();
 
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning className="dark">

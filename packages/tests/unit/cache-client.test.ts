@@ -88,6 +88,7 @@ describe("CacheClient native Redis support", () => {
   test("prefers native REDIS_URL over placeholder Upstash REST vars", async () => {
     const { CacheClient } = await import("@/lib/cache/client");
     const client = new CacheClient();
+    const expectedKey = "local:cache:test:key";
 
     expect(client.isAvailable()).toBe(true);
 
@@ -98,7 +99,8 @@ describe("CacheClient native Redis support", () => {
       url: "redis://localhost:6379",
     });
     expect(mockConnect).toHaveBeenCalledTimes(1);
-    expect(mockSetEx).toHaveBeenCalledWith("cache:test:key", 60, '{"ok":true}');
+    expect(mockSetEx).toHaveBeenCalledWith(expectedKey, 60, '{"ok":true}');
+    expect(mockGet).toHaveBeenCalledWith(expectedKey);
     expect(value).toEqual({ ok: true });
     expect(mockUpstashRedis).not.toHaveBeenCalled();
   });

@@ -63,6 +63,7 @@ const sfPro = localFont({
 const baseUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+const shouldEnableVercelAnalytics = process.env.VERCEL === "1";
 
 export const metadata: Metadata = {
   title: {
@@ -176,7 +177,7 @@ export default function RootLayout({
             </CreditsProvider>
           </PostHogProvider>
         </PrivyProvider>
-        <Analytics />
+        {shouldEnableVercelAnalytics ? <Analytics /> : null}
       </body>
     </html>
   );

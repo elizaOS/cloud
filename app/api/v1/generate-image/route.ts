@@ -146,6 +146,7 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
  */
 async function handlePOST(req: NextRequest) {
   let generationId: string | undefined;
+  let imageServiceUnavailable = false;
 
   try {
     // Authenticate - supports both authenticated and anonymous users
@@ -167,6 +168,13 @@ async function handlePOST(req: NextRequest) {
       return Response.json(
         { error: "Prompt is required and must be a non-empty string" },
         { status: 400 },
+      );
+    }
+
+    if (process.env.NODE_ENV !== "test" && isAnonymous && !process.env.AI_GATEWAY_API_KEY) {
+      return Response.json(
+        { error: "Image generation service is not configured" },
+        { status: 503 },
       );
     }
 
@@ -398,10 +406,18 @@ async function handlePOST(req: NextRequest) {
           }
         }
       } catch (streamError) {
-        logger.error(
-          "[Generate Image] streamText error:",
-          streamError instanceof Error ? streamError.message : String(streamError),
-        );
+        const errorMessage =
+          streamError instanceof Error ? streamError.message : String(streamError);
+
+        if (
+          errorMessage.includes("Unauthenticated") ||
+          errorMessage.includes("AI_GATEWAY_API_KEY") ||
+          errorMessage.includes("unauthenticated-ai-gateway")
+        ) {
+          imageServiceUnavailable = true;
+        }
+
+        logger.error("[Generate Image] streamText error:", errorMessage);
         return null;
       }
 
@@ -453,6 +469,13 @@ async function handlePOST(req: NextRequest) {
             completed_at: new Date(),
           });
         }
+      }
+
+      if (imageServiceUnavailable) {
+        return Response.json(
+          { error: "Image generation service is not configured" },
+          { status: 503 },
+        );
       }
 
       return Response.json({ error: "No images were generated" }, { status: 500 });
