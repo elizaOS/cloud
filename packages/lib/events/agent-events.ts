@@ -8,6 +8,9 @@ import type { Memory, UUID } from "@elizaos/core";
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+/** Environment prefix — prevents cross-env agent event queue collisions. */
+const ENV_PREFIX = process.env.VERCEL_ENV || process.env.ENVIRONMENT || "local";
+
 /**
  * Agent event structure.
  */
@@ -142,7 +145,7 @@ class AgentEventEmitter {
   private async publishEvent(roomId: string, event: AgentEvent): Promise<void> {
     if (!this.redis) return;
 
-    const channel = `agent:events:${roomId}:queue`;
+    const channel = `${ENV_PREFIX}:agent:events:${roomId}:queue`;
     const message = JSON.stringify({
       ...event,
       timestamp: event.timestamp.toISOString(),

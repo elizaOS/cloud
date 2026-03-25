@@ -15,6 +15,9 @@
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+/** Environment prefix — prevents rate-limit key collisions when dev/prod share the same Redis instance. */
+const ENV_PREFIX = process.env.VERCEL_ENV || process.env.ENVIRONMENT || "local";
+
 let redis: Redis | null = null;
 
 function getRedisClient(): Redis | null {
@@ -80,7 +83,7 @@ export async function checkRateLimitRedis(
 
   const now = Date.now();
   const windowStart = now - windowMs;
-  const cacheKey = `ratelimit:${key}`;
+  const cacheKey = `${ENV_PREFIX}:ratelimit:${key}`;
 
   try {
     const pipeline = client.pipeline();
@@ -144,7 +147,7 @@ export async function clearRateLimit(key: string): Promise<void> {
   if (!client) return;
 
   try {
-    await client.del(`ratelimit:${key}`);
+    await client.del(`${ENV_PREFIX}:ratelimit:${key}`);
     logger.info(`[Rate Limit Redis] Cleared rate limit for key=${key}`);
   } catch (error) {
     logger.error(`[Rate Limit Redis] Error clearing rate limit:`, error);
@@ -179,7 +182,7 @@ export async function getRateLimitStatus(
 
   const now = Date.now();
   const windowStart = now - windowMs;
-  const cacheKey = `ratelimit:${key}`;
+  const cacheKey = `${ENV_PREFIX}:ratelimit:${key}`;
 
   try {
     await client.zremrangebyscore(cacheKey, 0, windowStart);
