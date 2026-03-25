@@ -14,10 +14,10 @@ interface AgentCostBadgeProps {
 }
 
 export function AgentCostBadge({ status }: AgentCostBadgeProps) {
-  const isRunning = status === "running";
-  const isIdle = status === "stopped";
+  const isRunning = status === "running" || status === "provisioning";
+  const isIdle = status === "stopped" || status === "disconnected";
 
-  // Only show cost for running or idle/stopped agents
+  // Only show cost for active or idle agents
   if (!isRunning && !isIdle) return null;
 
   const rate = isRunning ? MILADY_PRICING.RUNNING_HOURLY_RATE : MILADY_PRICING.IDLE_HOURLY_RATE;
@@ -33,7 +33,7 @@ export function AgentCostBadge({ status }: AgentCostBadgeProps) {
         </span>
       </TooltipTrigger>
       <TooltipContent className="bg-neutral-900 border-white/10 text-xs">
-        <p className="font-medium text-white mb-0.5">{isRunning ? "Running" : "Idle"} agent</p>
+        <p className="font-medium text-white mb-0.5">{isRunning ? "Active" : "Idle"} agent</p>
         <p className="text-white/60">
           {formatHourlyRate(rate)} · {formatMonthlyEstimate(rate)}
         </p>

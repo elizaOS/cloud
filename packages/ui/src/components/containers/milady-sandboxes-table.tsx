@@ -584,12 +584,15 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                       {/* Agent name + type */}
                       <TableCell>
                         <div className="space-y-1">
-                          <a
-                            href={`/dashboard/milady/agents/${sb.id}`}
-                            className="font-medium text-white hover:text-[#FF5800] transition-colors"
-                          >
-                            {sb.agent_name ?? "Unnamed Agent"}
-                          </a>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <a
+                              href={`/dashboard/milady/agents/${sb.id}`}
+                              className="font-medium text-white hover:text-[#FF5800] transition-colors"
+                            >
+                              {sb.agent_name ?? "Unnamed Agent"}
+                            </a>
+                            <AgentCostBadge status={displayStatus} />
+                          </div>
                           <div className="flex items-center gap-2">
                             <span className="inline-flex items-center gap-1 text-[10px] text-white/35">
                               {isDocker ? (
@@ -616,18 +619,15 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                         />
                       </TableCell>
 
-                      {/* Runtime + Cost */}
+                      {/* Runtime */}
                       <TableCell>
-                        <div className="space-y-1">
-                          <span className="text-xs text-white/50">
-                            {isDocker
-                              ? "Managed runtime"
-                              : sb.sandbox_id
-                                ? "Cloud sandbox"
-                                : "Not provisioned"}
-                          </span>
-                          <AgentCostBadge status={displayStatus} />
-                        </div>
+                        <span className="text-xs text-white/50">
+                          {isDocker
+                            ? "Managed runtime"
+                            : sb.sandbox_id
+                              ? "Cloud sandbox"
+                              : "Not provisioned"}
+                        </span>
                       </TableCell>
 
                       {/* Web UI */}
@@ -787,6 +787,7 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                       >
                         {sb.agent_name ?? "Unnamed Agent"}
                       </a>
+                      <AgentCostBadge status={displayStatus} />
                       <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1 text-[10px] text-white/35">
                           {isDocker ? (

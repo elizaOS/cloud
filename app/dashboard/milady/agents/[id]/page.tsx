@@ -178,15 +178,18 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
             className="text-lg font-medium text-white tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
           >
-            {agent.status === "running"
+            {agent.status === "running" || agent.status === "provisioning"
               ? formatHourlyRate(MILADY_PRICING.RUNNING_HOURLY_RATE)
-              : agent.status === "stopped"
+              : agent.status === "stopped" || agent.status === "disconnected"
                 ? formatHourlyRate(MILADY_PRICING.IDLE_HOURLY_RATE)
                 : "—"}
           </p>
-          {(agent.status === "running" || agent.status === "stopped") && (
+          {(agent.status === "running" ||
+            agent.status === "provisioning" ||
+            agent.status === "stopped" ||
+            agent.status === "disconnected") && (
             <p className="text-[10px] text-white/30 tabular-nums">
-              {agent.status === "running"
+              {agent.status === "running" || agent.status === "provisioning"
                 ? formatMonthlyEstimate(MILADY_PRICING.RUNNING_HOURLY_RATE)
                 : formatMonthlyEstimate(MILADY_PRICING.IDLE_HOURLY_RATE)}
             </p>

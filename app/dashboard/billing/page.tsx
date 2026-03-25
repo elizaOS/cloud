@@ -35,7 +35,9 @@ export default async function BillingPage({
     if (user.organization_id) {
       const agents = await miladySandboxService.listAgents(user.organization_id);
       runningAgents = agents.filter((a) => a.status === "running").length;
-      idleAgents = agents.filter((a) => a.status === "stopped").length;
+      idleAgents = agents.filter(
+        (a) => a.status === "stopped" || a.status === "disconnected",
+      ).length;
     }
   } catch {
     // Table may not exist — degrade gracefully

@@ -35,7 +35,9 @@ export default async function MiladyDashboardPage() {
 
   // Count agents by status for pricing banner
   const runningCount = sandboxes.filter((s) => s.status === "running").length;
-  const idleCount = sandboxes.filter((s) => s.status === "stopped").length;
+  const idleCount = sandboxes.filter(
+    (s) => s.status === "stopped" || s.status === "disconnected",
+  ).length;
   const creditBalance = Number(user.organization?.credit_balance ?? 0);
 
   return (
