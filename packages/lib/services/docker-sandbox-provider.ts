@@ -459,6 +459,10 @@ export class DockerSandboxProvider implements SandboxProvider {
         STEWARD_AGENT_TOKEN: stewardAgentToken,
         // Bind to 0.0.0.0 so Docker port mapping works (container otherwise
         // listens on 127.0.0.1 which is unreachable via -p host:container).
+        // Set BOTH MILADY_API_BIND and ELIZA_API_BIND — the image default for
+        // MILADY_API_BIND is 127.0.0.1 (loopback-only) which would make the
+        // bridge port unreachable from outside the container.
+        MILADY_API_BIND: "0.0.0.0",
         ELIZA_API_BIND: "0.0.0.0",
         // Clear API tokens so the web UI is accessible without auth.
         // The compiled runtime reads MILADY_API_TOKEN first via `??` — setting
@@ -495,7 +499,12 @@ export class DockerSandboxProvider implements SandboxProvider {
         "--health-retries 6",
         ...(headscaleEnabled ? ["--cap-add=NET_ADMIN", "--device /dev/net/tun"] : []),
         `-v ${shellQuote(volumePath)}:/app/data`,
-        `-p ${bridgePort}:${DEFAULT_BRIDGE_PORT}`,
+        // Both bridge and webUi ports map to the same internal port (MILADY_PORT/2138).
+        // The milady agent starts a single server on MILADY_PORT that serves both
+        // the API (used by bridge_url) and the Web UI dashboard (used by health_url).
+        // Port 31337 (DEFAULT_BRIDGE_PORT) was the old mapping but nothing ever
+        // listened there — the agent only reads MILADY_PORT for its listen port.
+        `-p ${bridgePort}:${allEnv.MILADY_PORT || DEFAULT_MILADY_PORT}`,
         `-p ${webUiPort}:${allEnv.MILADY_PORT || DEFAULT_MILADY_PORT}`,
         envFlags,
         shellQuote(resolvedImage),
