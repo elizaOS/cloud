@@ -166,6 +166,36 @@ resource "kubernetes_role_binding" "namespace_deployer" {
 }
 
 # =============================================================================
+# KEDA — Event-driven autoscaler
+# =============================================================================
+
+resource "helm_release" "keda" {
+  name             = "keda"
+  namespace        = "keda"
+  create_namespace = true
+  repository       = "https://kedacore.github.io/charts"
+  chart            = "keda"
+  version          = "2.16.1"
+  wait             = true
+  timeout          = 180
+}
+
+# =============================================================================
+# Pepr Operator — ElizaOS Server CRD controller
+# =============================================================================
+
+resource "helm_release" "eliza_operator" {
+  name             = "eliza-operator"
+  namespace        = "pepr-system"
+  create_namespace = true
+  chart            = "${path.module}/../../../../services/operator/dist/eliza-operator-chart"
+  wait             = true
+  timeout          = 180
+
+  depends_on = [helm_release.keda]
+}
+
+# =============================================================================
 # CloudNativePG — Operator + per-namespace clusters
 # =============================================================================
 
