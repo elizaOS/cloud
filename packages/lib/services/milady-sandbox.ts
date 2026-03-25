@@ -26,6 +26,7 @@ import {
 } from "@/lib/services/milady-agent-config";
 import { logger } from "@/lib/utils/logger";
 import type { DockerSandboxMetadata } from "./docker-sandbox-provider";
+import { prepareManagedMiladyEnvironment } from "./managed-milady-env";
 import { miladyProvisionAdvisoryLockSql } from "./milady-provision-lock";
 import { getNeonClient, NeonClientError } from "./neon-client";
 import { JOB_TYPES } from "./provisioning-jobs";
@@ -271,6 +272,26 @@ export class MiladySandboxService {
       const refreshed = await miladySandboxesRepository.findByIdAndOrg(agentId, orgId);
       if (refreshed) {
         rec = refreshed;
+      }
+    }
+
+    const managedEnvironment = await prepareManagedMiladyEnvironment({
+      existingEnv: (rec.environment_vars as Record<string, string>) ?? {},
+      organizationId: rec.organization_id,
+      userId: rec.user_id,
+    });
+
+    if (managedEnvironment.changed) {
+      const updatedEnvRecord = await miladySandboxesRepository.update(rec.id, {
+        environment_vars: managedEnvironment.environmentVars,
+      });
+      if (updatedEnvRecord) {
+        rec = updatedEnvRecord;
+      } else {
+        rec = {
+          ...rec,
+          environment_vars: managedEnvironment.environmentVars,
+        };
       }
     }
 

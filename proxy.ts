@@ -247,6 +247,7 @@ const publicPaths = [
   "/api/v1/models",
   "/api/v1/credits/topup",
   "/api/v1/topup", // x402 payment-gated topup (auth via payment proof, not session)
+  "/api/stripe/credit-packs", // Public catalog of purchasable credit packs
   "/api/stripe/webhook",
   "/api/crypto/webhook",
   "/api/privy/webhook",

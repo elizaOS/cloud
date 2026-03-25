@@ -153,9 +153,15 @@ function extractStewardToken(raw: string): string {
   try {
     const parsed = JSON.parse(trimmed) as Record<string, unknown>;
 
-    // Steward API returns { token: "..." }. Keep one fallback for agentToken
-    // in case an older Steward build uses that field name.
-    const candidate = parsed.token ?? parsed.agentToken;
+    // Steward API may return { token: "..." } or { data: { token: "..." } }.
+    // Keep one fallback for agentToken in case an older Steward build uses
+    // that field name.
+    const candidate =
+      parsed.token ??
+      parsed.agentToken ??
+      (typeof parsed.data === "object" && parsed.data !== null
+        ? (parsed.data as Record<string, unknown>).token
+        : undefined);
 
     if (typeof candidate === "string" && candidate.trim()) {
       return candidate.trim();
@@ -460,10 +466,12 @@ export class DockerSandboxProvider implements SandboxProvider {
         // Bind to 0.0.0.0 so Docker port mapping works (container otherwise
         // listens on 127.0.0.1 which is unreachable via -p host:container).
         ELIZA_API_BIND: "0.0.0.0",
-        // Clear API tokens so the web UI is accessible without auth.
-        // The compiled runtime reads MILADY_API_TOKEN first via `??` — setting
-        // it to "" prevents fallthrough to the auto-generated ELIZA_API_TOKEN.
-        // TODO: Wire up pairing flow to pass token to browser, then re-enable.
+        // Prevent the server from auto-generating an API token when bound to
+        // 0.0.0.0. Without this, the compat server locks all routes behind auth.
+        MILADY_DISABLE_AUTO_API_TOKEN: "1",
+        ELIZA_DISABLE_AUTO_API_TOKEN: "1",
+        // Clear compat API tokens that leak in from managed launch environment.
+        // A non-empty token triggers auth on all routes, blocking the web UI.
         MILADY_API_TOKEN: "",
         ELIZA_API_TOKEN: "",
       };
