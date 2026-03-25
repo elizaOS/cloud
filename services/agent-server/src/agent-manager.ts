@@ -22,6 +22,7 @@ const REDIS_STATE_TTL_SECONDS = Math.max(
   Number.parseInt(process.env.REDIS_STATE_TTL_SECONDS ?? "120", 10) || 120,
 );
 const REDIS_REFRESH_INTERVAL_MS = 30_000;
+const AGENT_ROUTING_TTL_SECONDS = 30 * 24 * 3600;
 
 export class AgentManager {
   private agents = new Map<string, AgentEntry>();
@@ -43,7 +44,7 @@ export class AgentManager {
     multi.set(`server:${serverName}:url`, this.getServerUrl(), "EX", REDIS_STATE_TTL_SECONDS);
 
     for (const agentId of this.agents.keys()) {
-      multi.set(`agent:${agentId}:server`, serverName, "EX", REDIS_STATE_TTL_SECONDS);
+      multi.set(`agent:${agentId}:server`, serverName, "EX", AGENT_ROUTING_TTL_SECONDS);
     }
 
     await multi.exec();
@@ -122,7 +123,7 @@ export class AgentManager {
 
     try {
       const character = createCharacter({
-        name: characterRef,
+        name: characterRef.toLowerCase(),
         secrets: {
           POSTGRES_URL: process.env.POSTGRES_URL || "",
           OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
@@ -237,11 +238,12 @@ export class AgentManager {
   async cleanupRedis() {
     this.stopHeartbeat();
     const redis = getRedis();
+    // Only clean server status/url — agent mappings are managed by the operator
+    // and must persist across scale-down so the gateway can still route messages
     const keys = [
       `server:${process.env.SERVER_NAME}:status`,
       `server:${process.env.SERVER_NAME}:url`,
-      ...Array.from(this.agents.keys()).map((id) => `agent:${id}:server`),
     ];
-    if (keys.length > 0) await redis.del(...keys);
+    await redis.del(...keys);
   }
 }

@@ -8,6 +8,7 @@ LOCAL_PORT="${LOCAL_PORT:-3002}"
 NAMESPACE="eliza-infra"
 SERVICE="gateway-webhook"
 PROJECT="${PROJECT:-eliza-app}"
+KUBE_CONTEXT="kind-eliza-local"
 
 # ── Load env ─────────────────────────────────────────────────────
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -50,7 +51,7 @@ for cmd in kubectl ngrok curl jq; do
 done
 
 # Check pod is running
-POD=$(kubectl get pods -n "$NAMESPACE" -l app="$SERVICE" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+POD=$(kubectl --context "$KUBE_CONTEXT" get pods -n "$NAMESPACE" -l app="$SERVICE" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 if [[ -z "$POD" ]]; then
   echo "ERROR: No $SERVICE pod found in $NAMESPACE"
   exit 1
@@ -59,7 +60,7 @@ echo "Found pod: $POD"
 
 # ── Port-forward ─────────────────────────────────────────────────
 echo "Port-forwarding $SERVICE:3000 → localhost:$LOCAL_PORT..."
-kubectl port-forward -n "$NAMESPACE" "svc/$SERVICE" "$LOCAL_PORT:3000" &
+kubectl --context "$KUBE_CONTEXT" port-forward -n "$NAMESPACE" "svc/$SERVICE" "$LOCAL_PORT:3000" &
 PIDS+=($!)
 sleep 2
 
@@ -125,4 +126,4 @@ echo "Ready. Ctrl+C to stop and cleanup."
 echo ""
 
 # Tail pod logs
-kubectl logs -n "$NAMESPACE" "$POD" -f 2>/dev/null || wait
+kubectl --context "$KUBE_CONTEXT" logs -n "$NAMESPACE" "$POD" -f 2>/dev/null || wait

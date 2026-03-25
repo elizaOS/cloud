@@ -9,6 +9,9 @@ spec:
       try:
         - apply:
             file: server-cr.yaml
+      cleanup:
+        - script:
+            content: kubectl delete server srv-cap -n eliza-agents --ignore-not-found
 
     - name: Wake via KEDA
       try:
@@ -47,6 +50,9 @@ spec:
         - script:
             timeout: 120s
             content: |
+              SECRET=$(kubectl get secret eliza-agent-secrets -n eliza-agents -o jsonpath='{.data.AGENT_SERVER_SHARED_SECRET}' | base64 -d)
+              AUTH="-H X-Server-Token:$SECRET"
+
               kubectl port-forward -n eliza-agents svc/srv-cap 3011:3000 > /dev/null 2>&1 &
               PF=$!
               trap "kill $PF 2>/dev/null" EXIT
@@ -62,7 +68,7 @@ spec:
               # Fill to capacity dynamically (capacity=3)
               CREATED_IDS=""
               for i in 1 2 3; do
-                HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents" \
+                HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents" \
                   -H "Content-Type: application/json" -d "{\"agentId\":\"cap-$i\",\"characterRef\":\"Eliza\"}")
                 if [ "$HTTP" = "201" ]; then
                   CREATED_IDS="$CREATED_IDS cap-$i"
@@ -75,49 +81,49 @@ spec:
               done
 
               # Verify at capacity (exactly 3)
-              COUNT=$(curl -sf "$BASE/status" | grep -o '"agentCount":[0-9]*' | grep -o '[0-9]*')
+              COUNT=$(curl -sf $AUTH "$BASE/status" | grep -o '"agentCount":[0-9]*' | grep -o '[0-9]*')
               [ "$COUNT" = "3" ] || { echo "FAIL: agentCount=$COUNT, expected 3"; FAIL=1; }
 
               # Over capacity → 503
-              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents" \
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents" \
                 -H "Content-Type: application/json" -d '{"agentId":"overflow","characterRef":"Eliza"}')
               [ "$HTTP" = "503" ] || { echo "FAIL: over capacity=$HTTP, expected 503"; FAIL=1; }
 
               # At capacity, even duplicate → 503 (capacity checked before duplicate)
               FIRST=$(echo $CREATED_IDS | awk '{print $1}')
-              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents" \
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents" \
                 -H "Content-Type: application/json" -d "{\"agentId\":\"$FIRST\",\"characterRef\":\"Eliza\"}")
               [ "$HTTP" = "503" ] || { echo "FAIL: dup at capacity=$HTTP, expected 503"; FAIL=1; }
 
               # Free a slot
-              curl -sf -X DELETE "$BASE/agents/$FIRST" | grep -q '"deleted":true' || { echo "FAIL: delete $FIRST"; FAIL=1; }
-              COUNT=$(curl -sf "$BASE/status" | grep -o '"agentCount":[0-9]*' | grep -o '[0-9]*')
+              curl -sf -X DELETE $AUTH "$BASE/agents/$FIRST" | grep -q '"deleted":true' || { echo "FAIL: delete $FIRST"; FAIL=1; }
+              COUNT=$(curl -sf $AUTH "$BASE/status" | grep -o '"agentCount":[0-9]*' | grep -o '[0-9]*')
               [ "$COUNT" = "2" ] || { echo "FAIL: agentCount=$COUNT after delete, expected 2"; FAIL=1; }
 
               # Below capacity, duplicate of existing agent → 409
               SECOND=$(echo $CREATED_IDS | awk '{print $2}')
               if [ -n "$SECOND" ]; then
-                HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents" \
+                HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents" \
                   -H "Content-Type: application/json" -d "{\"agentId\":\"$SECOND\",\"characterRef\":\"Eliza\"}")
                 [ "$HTTP" = "409" ] || { echo "FAIL: dup below capacity=$HTTP, expected 409"; FAIL=1; }
               fi
 
               # Can create new agent in freed slot
-              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/agents" \
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST $AUTH "$BASE/agents" \
                 -H "Content-Type: application/json" -d '{"agentId":"cap-new","characterRef":"Eliza"}')
               [ "$HTTP" = "201" ] || { echo "FAIL: create cap-new=$HTTP"; FAIL=1; }
 
               # Back at capacity
-              COUNT=$(curl -sf "$BASE/status" | grep -o '"agentCount":[0-9]*' | grep -o '[0-9]*')
+              COUNT=$(curl -sf $AUTH "$BASE/status" | grep -o '"agentCount":[0-9]*' | grep -o '[0-9]*')
               [ "$COUNT" = "3" ] || { echo "FAIL: agentCount=$COUNT after re-create, expected 3"; FAIL=1; }
 
               # Agents respond independently
               if [ -n "$SECOND" ]; then
-                curl -sf -X POST "$BASE/agents/$SECOND/message" \
+                curl -sf -X POST $AUTH "$BASE/agents/$SECOND/message" \
                   -H "Content-Type: application/json" -d '{"userId":"u","text":"hi"}' \
                   | grep -q '"response"' || { echo "FAIL: $SECOND message"; FAIL=1; }
               fi
-              curl -sf -X POST "$BASE/agents/cap-new/message" \
+              curl -sf -X POST $AUTH "$BASE/agents/cap-new/message" \
                 -H "Content-Type: application/json" -d '{"userId":"u","text":"hi"}' \
                 | grep -q '"response"' || { echo "FAIL: cap-new message"; FAIL=1; }
 

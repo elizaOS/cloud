@@ -35,9 +35,9 @@ export async function reconciler(instance: Server) {
     await setServerState(name, "pending", url);
 
     const agents = instance.spec.agents ?? [];
-    const currentAgentIds = agents.map((a) => a.agentId);
+    const currentAgentIds = agents.map((a) => a.agentId.toLowerCase());
     for (const agent of agents) {
-      await setAgentServer(agent.agentId, name);
+      await setAgentServer(agent.agentId.toLowerCase(), name);
     }
 
     const previousAgentIds = getPreviousAgentIds(instance);
@@ -86,7 +86,7 @@ export async function finalizer(instance: Server) {
 
   Log.info(`Finalizing Server ${name}: cleaning up Redis`);
 
-  const agentIds = instance.spec?.agents?.map((a) => a.agentId) ?? [];
+  const agentIds = instance.spec?.agents?.map((a) => a.agentId.toLowerCase()) ?? [];
   await cleanupServer(name, agentIds);
 
   Log.info(`Server ${name}: Redis cleanup complete`);

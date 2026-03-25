@@ -219,10 +219,18 @@ async function tryTarget(target: string, agentId: string, body: string): Promise
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const sharedSecret = process.env.AGENT_SERVER_SHARED_SECRET;
+  if (sharedSecret) {
+    headers["X-Server-Token"] = sharedSecret;
+  }
+
   try {
     const res = await fetch(`http://${target}/agents/${agentId}/message`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body,
       signal: controller.signal,
     });

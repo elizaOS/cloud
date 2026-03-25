@@ -21,15 +21,15 @@ info "Checking Docker..."
 docker info > /dev/null 2>&1 || fail "Docker is not running"
 pass "Docker is running"
 
-# 2. Start PostgreSQL + Redis + Redis REST proxy via docker-compose
-info "Starting PostgreSQL + Redis + Redis REST proxy (docker compose)..."
+# 2. Start PostgreSQL + Redis via docker-compose (cloud app local services)
+info "Starting PostgreSQL + Redis (docker compose)..."
 docker compose -f "$CLOUD_V2_DIR/docker-compose.yml" up -d
 sleep 2
 
 docker compose -f "$CLOUD_V2_DIR/docker-compose.yml" ps --format '{{.Name}} {{.Status}}' | while read -r line; do
   info "  $line"
 done
-pass "PostgreSQL + Redis + Redis REST proxy running"
+pass "PostgreSQL running (docker compose)"
 
 # 3. Create local registry (if not exists)
 info "Creating local registry..."
@@ -76,7 +76,7 @@ info "Creating namespaces..."
 kubectl apply -f "$SCRIPT_DIR/manifests/namespaces.yaml"
 pass "Namespaces created"
 
-# 10. Create ExternalName services (postgres, redis → host.docker.internal)
+# 10. Create ExternalName services (redis alias, eliza-cloud → host.docker.internal)
 info "Creating ExternalName services..."
 kubectl apply -f "$SCRIPT_DIR/manifests/external-services.yaml"
 pass "ExternalName services created"
@@ -95,23 +95,80 @@ pass "KEDA installed"
 
 # 12. Install metrics-server (required for KEDA CPU trigger)
 info "Installing metrics-server..."
-if kubectl get deployment metrics-server -n kube-system > /dev/null 2>&1; then
+helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/ 2>/dev/null || true
+helm repo update metrics-server > /dev/null 2>&1
+
+if helm status metrics-server -n kube-system > /dev/null 2>&1; then
   info "  metrics-server already installed"
 else
-  kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-  kubectl patch deployment metrics-server -n kube-system --type=json \
-    -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
-  kubectl rollout status deployment/metrics-server -n kube-system --timeout=60s
+  helm install metrics-server metrics-server/metrics-server \
+    --namespace kube-system \
+    --set args[0]=--kubelet-insecure-tls \
+    --wait --timeout 60s
 fi
 pass "metrics-server installed"
 
+# 12b. Install CloudNativePG operator (Helm)
+info "Installing CloudNativePG operator..."
+helm repo add cnpg https://cloudnative-pg.github.io/charts 2>/dev/null || true
+helm repo update cnpg > /dev/null 2>&1
+
+if helm status cnpg -n cnpg-system > /dev/null 2>&1; then
+  info "  CNPG operator already installed"
+else
+  helm install cnpg cnpg/cloudnative-pg --namespace cnpg-system --create-namespace --wait --timeout 120s
+fi
+pass "CloudNativePG operator installed"
+
+# 12c. Deploy local PostgreSQL cluster (CNPG Helm chart)
+info "Deploying local PostgreSQL cluster via CNPG..."
+helm upgrade --install pg-local cnpg/cluster \
+  --namespace eliza-agents \
+  --values "$SCRIPT_DIR/values-pg-local.yaml" \
+  --wait --timeout 180s
+pass "CNPG PostgreSQL cluster deployed"
+
+# Wait for CNPG operator to fully provision the cluster (creates secrets, pooler, etc.)
+info "Waiting for CNPG cluster to be ready..."
+for i in $(seq 1 60); do
+  if kubectl get secret pg-local-cluster-app -n eliza-agents > /dev/null 2>&1; then
+    break
+  fi
+  [ "$i" -eq 60 ] && fail "CNPG cluster secret pg-local-cluster-app not created after 120s"
+  sleep 2
+done
+kubectl wait --for=condition=Ready cluster/pg-local-cluster -n eliza-agents --timeout=120s 2>/dev/null || true
+pass "CNPG cluster ready (secret pg-local-cluster-app exists)"
+
+# 12d. Install Redis (Bitnami Helm)
+info "Installing Redis..."
+helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
+helm repo update bitnami > /dev/null 2>&1
+
+helm upgrade --install redis bitnami/redis \
+  --namespace eliza-infra \
+  --values "$SCRIPT_DIR/values-redis-local.yaml" \
+  --wait --timeout 120s
+pass "Redis installed (Bitnami Helm)"
+
+# 12e. Deploy redis-rest proxy (Upstash-compatible HTTP proxy for gateways)
+info "Deploying redis-rest proxy..."
+kubectl apply -f "$SCRIPT_DIR/manifests/redis-rest.yaml"
+kubectl rollout status deployment/redis-rest -n eliza-infra --timeout=60s
+pass "redis-rest proxy deployed"
+
 # 13. Create K8s Secret for agent-server env
 info "Creating eliza-agent-secrets Secret..."
+
+# Extract CNPG-generated DATABASE_URL from the cluster secret
+CNPG_DB_URI=$(kubectl get secret pg-local-cluster-app -n eliza-agents -o jsonpath='{.data.uri}' | base64 -d)
+info "  CNPG DATABASE_URL: $CNPG_DB_URI"
+
 ENV_FILE="$SCRIPT_DIR/.env.agents"
 if [ ! -f "$ENV_FILE" ]; then
   info "  No .env.agents found, creating with defaults..."
-  cat > "$ENV_FILE" <<'DEFAULTS'
-DATABASE_URL=postgresql://eliza_dev:local_dev_password@postgres.eliza-infra.svc:5432/eliza_dev
+  cat > "$ENV_FILE" <<DEFAULTS
+DATABASE_URL=${CNPG_DB_URI}
 REDIS_URL=redis://redis.eliza-infra.svc:6379
 ENABLE_DATA_ISOLATION=true
 ELIZA_SERVER_ID=agent-server-local
@@ -121,6 +178,12 @@ AGENT_SERVER_SHARED_SECRET=local-dev-agent-server-secret
 # ELIZAOS_CLOUD_BASE_URL=https://www.elizacloud.ai/api/v1
 DEFAULTS
   info "  Edit $ENV_FILE to add your API keys, then re-run setup."
+else
+  # Update DATABASE_URL in existing .env.agents to use CNPG
+  if grep -q "^DATABASE_URL=" "$ENV_FILE"; then
+    sed -i.bak "s|^DATABASE_URL=.*|DATABASE_URL=${CNPG_DB_URI}|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+    info "  Updated DATABASE_URL in existing .env.agents"
+  fi
 fi
 kubectl create secret generic eliza-agent-secrets \
   --namespace eliza-agents \
@@ -165,12 +228,12 @@ pass "Agent-server image pushed to localhost:${REGISTRY_PORT}"
 
 # 16. Build & push gateway-discord image
 info "Building gateway-discord image..."
-cd "$CLOUD_V2_DIR/services/gateway-discord"
+cd "$CLOUD_V2_DIR/packages/services/gateway-discord"
 bun install --silent 2>/dev/null || npm install --silent 2>/dev/null
 cd "$SCRIPT_DIR"
 
 docker build -t "localhost:${REGISTRY_PORT}/gateway-discord:dev" \
-  "$CLOUD_V2_DIR/services/gateway-discord"
+  "$CLOUD_V2_DIR/packages/services/gateway-discord"
 docker push "localhost:${REGISTRY_PORT}/gateway-discord:dev"
 pass "Gateway-discord image pushed to localhost:${REGISTRY_PORT}"
 
@@ -202,7 +265,7 @@ pass "Secret gateway-discord-secrets created from .env.gateway"
 # 18. Deploy gateway-discord via Helm chart
 info "Deploying gateway-discord via Helm..."
 helm upgrade --install gateway-discord \
-  "$CLOUD_V2_DIR/infra/charts/gateway-discord" \
+  "$CLOUD_V2_DIR/packages/infra/charts/gateway-discord" \
   --namespace eliza-infra \
   --values "$SCRIPT_DIR/values-gateway.yaml" \
   --wait --timeout 120s
@@ -210,12 +273,12 @@ pass "Gateway-discord deployed via Helm"
 
 # 19. Build & push gateway-webhook image
 info "Building gateway-webhook image..."
-cd "$CLOUD_V2_DIR/services/gateway-webhook"
+cd "$CLOUD_V2_DIR/packages/services/gateway-webhook"
 bun install --silent 2>/dev/null || npm install --silent 2>/dev/null
 cd "$SCRIPT_DIR"
 
 docker build -t "localhost:${REGISTRY_PORT}/gateway-webhook:dev" \
-  "$CLOUD_V2_DIR/services/gateway-webhook"
+  "$CLOUD_V2_DIR/packages/services/gateway-webhook"
 docker push "localhost:${REGISTRY_PORT}/gateway-webhook:dev"
 pass "Gateway-webhook image pushed to localhost:${REGISTRY_PORT}"
 
@@ -283,9 +346,23 @@ KEDA_READY=$(kubectl get pods -n keda --no-headers 2>/dev/null | grep -c "Runnin
 # Check KEDA CRDs
 kubectl get crd scaledobjects.keda.sh > /dev/null 2>&1 && pass "KEDA CRD: ScaledObject" || fail "KEDA CRD missing"
 
-# Check ExternalName services
-kubectl get svc postgres -n eliza-infra > /dev/null 2>&1 && pass "Service: postgres.eliza-infra" || fail "Service postgres missing"
-kubectl get svc redis -n eliza-infra > /dev/null 2>&1 && pass "Service: redis.eliza-infra" || fail "Service redis missing"
+# Check CNPG operator
+CNPG_READY=$(kubectl get pods -n cnpg-system --no-headers 2>/dev/null | grep -c "Running" || true)
+[ "$CNPG_READY" -ge 1 ] && pass "CNPG operator running ($CNPG_READY)" || fail "CNPG operator not ready"
+
+# Check CNPG cluster
+kubectl get cluster pg-local-cluster -n eliza-agents > /dev/null 2>&1 && pass "CNPG cluster: pg-local-cluster" || fail "CNPG cluster pg-local-cluster missing"
+
+# Check Redis (Bitnami in-cluster)
+REDIS_READY=$(kubectl get pods -n eliza-infra -l app.kubernetes.io/name=redis --no-headers 2>/dev/null | grep -c "Running" || true)
+[ "$REDIS_READY" -ge 1 ] && pass "Redis pods running ($REDIS_READY)" || fail "Redis pods not ready"
+
+# Check redis-rest proxy
+REDIS_REST_READY=$(kubectl get pods -n eliza-infra -l app=redis-rest --no-headers 2>/dev/null | grep -c "Running" || true)
+[ "$REDIS_REST_READY" -ge 1 ] && pass "redis-rest proxy running ($REDIS_REST_READY)" || fail "redis-rest proxy not ready"
+
+# Check services
+kubectl get svc redis -n eliza-infra > /dev/null 2>&1 && pass "Service: redis.eliza-infra (alias)" || fail "Service redis alias missing"
 kubectl get svc redis-rest -n eliza-infra > /dev/null 2>&1 && pass "Service: redis-rest.eliza-infra" || fail "Service redis-rest missing"
 kubectl get svc eliza-cloud -n eliza-infra > /dev/null 2>&1 && pass "Service: eliza-cloud.eliza-infra" || fail "Service eliza-cloud missing"
 
@@ -294,14 +371,15 @@ kubectl get crd servers.eliza.ai > /dev/null 2>&1 && pass "CRD: servers.eliza.ai
 OPERATOR_READY=$(kubectl get pods -n pepr-system --no-headers 2>/dev/null | grep -c "Running" || true)
 [ "$OPERATOR_READY" -ge 2 ] && pass "Operator pods running ($OPERATOR_READY)" || fail "Operator pods not ready"
 
-# Check PostgreSQL connectivity from inside the cluster
-info "Testing PostgreSQL connectivity from cluster..."
-kubectl run pg-test --rm -i --restart=Never -n eliza-infra \
+# Check CNPG PostgreSQL connectivity via pooler
+info "Testing CNPG PostgreSQL connectivity from cluster..."
+CNPG_TEST_URI=$(kubectl get secret pg-local-cluster-app -n eliza-agents -o jsonpath='{.data.uri}' | base64 -d)
+kubectl run pg-test --rm -i --restart=Never -n eliza-agents \
   --image=postgres:17-alpine --quiet -- \
-  psql "postgresql://eliza_dev:local_dev_password@postgres:5432/eliza_dev" \
+  psql "$CNPG_TEST_URI" \
   -t -c "SELECT 'pg-ok'" 2>/dev/null | grep -q "pg-ok" \
-  && pass "PostgreSQL reachable from cluster" \
-  || fail "PostgreSQL NOT reachable from cluster"
+  && pass "CNPG PostgreSQL reachable from cluster" \
+  || fail "CNPG PostgreSQL NOT reachable from cluster"
 
 # Check Redis connectivity from inside the cluster
 info "Testing Redis connectivity from cluster..."
@@ -316,8 +394,8 @@ echo -e "${GREEN}=== All checks passed ===${NC}"
 echo ""
 echo "Cluster:      kind-${CLUSTER_NAME}"
 echo "Registry:     localhost:${REGISTRY_PORT}"
-echo "PostgreSQL:   postgres.eliza-infra.svc:5432 (eliza_dev/local_dev_password)"
-echo "Redis:        redis.eliza-infra.svc:6379"
+echo "PostgreSQL:   CNPG pg-local-cluster in eliza-agents (secret: pg-local-cluster-app)"
+echo "Redis:        Bitnami in-cluster (alias: redis.eliza-infra.svc:6379)"
 echo "Redis REST:   redis-rest.eliza-infra.svc:8079 (token: local_dev_token)"
 echo "Eliza Cloud:  eliza-cloud.eliza-infra.svc:3000 (run Next.js on host)"
 echo "KEDA:         installed in namespace 'keda'"

@@ -53,6 +53,7 @@ When(a.Deployment)
 
     const url = `http://${serverName}.${ns}.svc:3000`;
     await setServerState(serverName, phase.toLowerCase(), url);
+
     await patchServerStatus(serverName, ns, {
       phase,
       replicas: ready,
