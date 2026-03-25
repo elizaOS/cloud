@@ -2,11 +2,7 @@ import Redis from "ioredis";
 import { Log } from "pepr";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://redis.eliza-infra.svc:6379";
-const REDIS_STATE_TTL_SECONDS = Math.max(
-  60,
-  Number.parseInt(process.env.REDIS_STATE_TTL_SECONDS ?? "300", 10) || 300,
-);
-
+const AGENT_ROUTING_TTL_SECONDS = 30 * 24 * 3600;
 let client: Redis | null = null;
 
 function getClient(): Redis {
@@ -24,12 +20,10 @@ export async function setServerState(name: string, phase: string, url: string) {
   const redis = getClient();
   await redis
     .multi()
-    .set(`server:${name}:status`, phase, "EX", REDIS_STATE_TTL_SECONDS)
-    .set(`server:${name}:url`, url, "EX", REDIS_STATE_TTL_SECONDS)
+    .set(`server:${name}:status`, phase, "EX", AGENT_ROUTING_TTL_SECONDS)
+    .set(`server:${name}:url`, url, "EX", AGENT_ROUTING_TTL_SECONDS)
     .exec();
 }
-
-const AGENT_ROUTING_TTL_SECONDS = 30 * 24 * 3600;
 
 export async function setAgentServer(agentId: string, serverName: string) {
   const redis = getClient();
