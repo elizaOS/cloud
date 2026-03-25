@@ -59,6 +59,11 @@ export async function POST(
       );
     }
 
+    const envVars = (sandbox.environment_vars ?? {}) as Record<string, string>;
+    const hasUiApiToken = Boolean(
+      envVars.MILADY_API_TOKEN?.trim() || envVars.ELIZA_API_TOKEN?.trim(),
+    );
+
     const tokenService = getPairingTokenService();
     const pairingToken = await tokenService.generateToken(
       user.id,
@@ -72,7 +77,7 @@ export async function POST(
         success: true,
         data: {
           token: pairingToken,
-          redirectUrl: `${webUiUrl}/pair?token=${pairingToken}`,
+          redirectUrl: hasUiApiToken ? `${webUiUrl}/pair?token=${pairingToken}` : webUiUrl,
           expiresIn: 60,
         },
       }),
