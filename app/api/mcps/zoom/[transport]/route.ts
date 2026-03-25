@@ -7,11 +7,11 @@
  */
 
 import type { NextRequest } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { oauthService } from "@/lib/services/oauth";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -24,7 +24,11 @@ interface McpHandlerResponse {
 }
 
 function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
-  return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
+  return (
+    typeof resp === "object" &&
+    resp !== null &&
+    typeof (resp as McpHandlerResponse).status === "number"
+  );
 }
 
 let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
@@ -76,7 +80,10 @@ async function getZoomMcpHandler() {
   }
 
   function errorResult(msg: string) {
-    return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      isError: true,
+    };
   }
 
   mcpHandler = createMcpHandler(
@@ -85,7 +92,10 @@ async function getZoomMcpHandler() {
       server.tool("zoom_status", "Check Zoom OAuth connection status", {}, async () => {
         try {
           const orgId = getOrgId();
-          const connections = await oauthService.listConnections({ organizationId: orgId, platform: "zoom" });
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            platform: "zoom",
+          });
           const active = connections.find((c) => c.status === "active");
           if (!active) return jsonResult({ connected: false });
           return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
@@ -126,11 +136,22 @@ async function getZoomMcpHandler() {
         "zoom_list_meetings",
         "List meetings for the current Zoom user. Returns upcoming, past, or all meetings depending on type parameter.",
         {
-          type: z.enum(["scheduled", "live", "upcoming", "upcoming_meetings", "previous_meetings"]).optional()
-            .describe("Meeting type filter. Default: 'scheduled'. Use 'upcoming' for future meetings, 'previous_meetings' for past ones."),
-          page_size: z.number().int().min(1).max(300).optional()
+          type: z
+            .enum(["scheduled", "live", "upcoming", "upcoming_meetings", "previous_meetings"])
+            .optional()
+            .describe(
+              "Meeting type filter. Default: 'scheduled'. Use 'upcoming' for future meetings, 'previous_meetings' for past ones.",
+            ),
+          page_size: z
+            .number()
+            .int()
+            .min(1)
+            .max(300)
+            .optional()
             .describe("Number of meetings per page (default 30, max 300)"),
-          next_page_token: z.string().optional()
+          next_page_token: z
+            .string()
+            .optional()
             .describe("Pagination token from a previous response"),
         },
         async ({ type = "scheduled", page_size = 30, next_page_token }) => {
@@ -208,26 +229,39 @@ async function getZoomMcpHandler() {
         "Create a new Zoom meeting. Returns the meeting details including join URL and password.",
         {
           topic: z.string().describe("Meeting topic/title"),
-          type: z.number().int().min(1).max(8).optional()
-            .describe("Meeting type: 1=instant, 2=scheduled (default), 3=recurring no fixed time, 8=recurring fixed time"),
-          start_time: z.string().optional()
-            .describe("Meeting start time in ISO 8601 format (e.g. 2024-01-15T10:00:00Z). Required for scheduled meetings."),
-          duration: z.number().int().optional()
-            .describe("Meeting duration in minutes"),
-          timezone: z.string().optional()
-            .describe("Timezone (e.g. America/New_York, UTC)"),
-          agenda: z.string().optional()
-            .describe("Meeting description/agenda"),
-          password: z.string().optional()
-            .describe("Meeting password (max 10 chars)"),
-          settings: z.object({
-            host_video: z.boolean().optional().describe("Start with host video on"),
-            participant_video: z.boolean().optional().describe("Start with participant video on"),
-            join_before_host: z.boolean().optional().describe("Allow joining before host"),
-            mute_upon_entry: z.boolean().optional().describe("Mute participants on entry"),
-            waiting_room: z.boolean().optional().describe("Enable waiting room"),
-            auto_recording: z.enum(["local", "cloud", "none"]).optional().describe("Auto recording setting"),
-          }).optional().describe("Meeting settings"),
+          type: z
+            .number()
+            .int()
+            .min(1)
+            .max(8)
+            .optional()
+            .describe(
+              "Meeting type: 1=instant, 2=scheduled (default), 3=recurring no fixed time, 8=recurring fixed time",
+            ),
+          start_time: z
+            .string()
+            .optional()
+            .describe(
+              "Meeting start time in ISO 8601 format (e.g. 2024-01-15T10:00:00Z). Required for scheduled meetings.",
+            ),
+          duration: z.number().int().optional().describe("Meeting duration in minutes"),
+          timezone: z.string().optional().describe("Timezone (e.g. America/New_York, UTC)"),
+          agenda: z.string().optional().describe("Meeting description/agenda"),
+          password: z.string().optional().describe("Meeting password (max 10 chars)"),
+          settings: z
+            .object({
+              host_video: z.boolean().optional().describe("Start with host video on"),
+              participant_video: z.boolean().optional().describe("Start with participant video on"),
+              join_before_host: z.boolean().optional().describe("Allow joining before host"),
+              mute_upon_entry: z.boolean().optional().describe("Mute participants on entry"),
+              waiting_room: z.boolean().optional().describe("Enable waiting room"),
+              auto_recording: z
+                .enum(["local", "cloud", "none"])
+                .optional()
+                .describe("Auto recording setting"),
+            })
+            .optional()
+            .describe("Meeting settings"),
         },
         async ({ topic, type = 2, start_time, duration, timezone, agenda, password, settings }) => {
           try {
@@ -274,16 +308,28 @@ async function getZoomMcpHandler() {
           timezone: z.string().optional().describe("New timezone"),
           agenda: z.string().optional().describe("New agenda/description"),
           password: z.string().optional().describe("New password"),
-          settings: z.object({
-            host_video: z.boolean().optional(),
-            participant_video: z.boolean().optional(),
-            join_before_host: z.boolean().optional(),
-            mute_upon_entry: z.boolean().optional(),
-            waiting_room: z.boolean().optional(),
-            auto_recording: z.enum(["local", "cloud", "none"]).optional(),
-          }).optional().describe("Updated meeting settings"),
+          settings: z
+            .object({
+              host_video: z.boolean().optional(),
+              participant_video: z.boolean().optional(),
+              join_before_host: z.boolean().optional(),
+              mute_upon_entry: z.boolean().optional(),
+              waiting_room: z.boolean().optional(),
+              auto_recording: z.enum(["local", "cloud", "none"]).optional(),
+            })
+            .optional()
+            .describe("Updated meeting settings"),
         },
-        async ({ meetingId, topic, start_time, duration, timezone, agenda, password, settings }) => {
+        async ({
+          meetingId,
+          topic,
+          start_time,
+          duration,
+          timezone,
+          agenda,
+          password,
+          settings,
+        }) => {
           try {
             const orgId = getOrgId();
             const body: Record<string, unknown> = {};
@@ -350,26 +396,40 @@ async function handleRequest(
     const rateLimitKey = `mcp:ratelimit:zoom:${authResult.user.organization_id}`;
     const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
     if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), { status: 429, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const handler = await getZoomMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
-      return new Response(JSON.stringify({ error: "invalid_response" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "invalid_response" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    mcpResponse.headers?.forEach((v: string, k: string) => { headers[k] = v; });
+    mcpResponse.headers?.forEach((v: string, k: string) => {
+      headers[k] = v;
+    });
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     logger.error(`[ZoomMCP] ${msg}`);
     const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(JSON.stringify({ error: isAuth ? "authentication_required" : "internal_error", message: msg }), { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: isAuth ? "authentication_required" : "internal_error",
+        message: msg,
+      }),
+      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 }
 

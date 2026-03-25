@@ -10,16 +10,24 @@
  * Protected by CRON_SECRET.
  */
 
+import { eq, or, sql } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas";
+import { type AppConfig, appConfig } from "@/db/schemas/app-config";
+import type { App } from "@/db/schemas/apps";
+import { verifyCronSecret } from "@/lib/api/cron-auth";
 import { discordAppAutomationService } from "@/lib/services/discord-automation/app-automation";
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { twitterAppAutomationService } from "@/lib/services/twitter-automation/app-automation";
 import { logger } from "@/lib/utils/logger";
-import { sql, or } from "drizzle-orm";
-import type { App } from "@/db/schemas/apps";
+
+/** App combined with its config for automation processing */
+interface AppWithConfig {
+  app: App;
+  config: AppConfig;
+}
 
 // Constants for automation intervals
 const DEFAULT_INTERVAL_MIN = 120; // 2 hours minimum
@@ -28,8 +36,6 @@ const MAX_CONCURRENT_POSTS = 5; // Process up to 5 apps concurrently
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const CRON_SECRET = process.env.CRON_SECRET;
 
 interface AutomationConfig {
   enabled: boolean;
@@ -74,12 +80,10 @@ function isAnnouncementDue(
 ): boolean {
   if (!config.enabled) return false;
 
-  const autoEnabled =
-    type === "announcement" ? config.autoAnnounce : config.autoPost;
+  const autoEnabled = type === "announcement" ? config.autoAnnounce : config.autoPost;
   if (!autoEnabled) return false;
 
-  const lastTime =
-    type === "announcement" ? config.lastAnnouncementAt : config.lastPostAt;
+  const lastTime = type === "announcement" ? config.lastAnnouncementAt : config.lastPostAt;
   if (!lastTime) return true;
 
   const lastDate = new Date(lastTime);
@@ -102,38 +106,46 @@ function isAnnouncementDue(
 
   // Between min and max: use hash-based threshold to distribute posts
   // Each app gets a different position in the window based on its ID
-  const windowProgress =
-    (minutesSince - minInterval) / (maxInterval - minInterval);
+  const windowProgress = (minutesSince - minInterval) / (maxInterval - minInterval);
   const threshold = appId ? hashToFraction(appId + type) : 0.5;
   return windowProgress >= threshold;
 }
 
-async function getAppsWithAutomation(): Promise<App[]> {
-  return dbRead
+async function getAppsWithAutomation(): Promise<AppWithConfig[]> {
+  const configs = await dbRead
     .select()
-    .from(apps)
+    .from(appConfig)
     .where(
       or(
-        sql`${apps.discord_automation}->>'enabled' = 'true'`,
-        sql`${apps.telegram_automation}->>'enabled' = 'true'`,
-        sql`${apps.twitter_automation}->>'enabled' = 'true'`,
+        sql`${appConfig.discord_automation}->>'enabled' = 'true'`,
+        sql`${appConfig.telegram_automation}->>'enabled' = 'true'`,
+        sql`${appConfig.twitter_automation}->>'enabled' = 'true'`,
       ),
     );
+
+  const results: AppWithConfig[] = [];
+  for (const config of configs) {
+    const app = await dbRead.query.apps.findFirst({
+      where: eq(apps.id, config.app_id),
+    });
+    if (app) {
+      results.push({ app, config });
+    }
+  }
+  return results;
 }
 
-async function processDiscordAutomation(
-  app: App,
-): Promise<ProcessResult | null> {
-  const config = app.discord_automation as AutomationConfig | null;
-  if (!config?.enabled || !config.autoAnnounce) return null;
+async function processDiscordAutomation({
+  app,
+  config,
+}: AppWithConfig): Promise<ProcessResult | null> {
+  const automationConfig = config.discord_automation as AutomationConfig | null;
+  if (!automationConfig?.enabled || !automationConfig.autoAnnounce) return null;
 
-  const isDue = isAnnouncementDue(config, "announcement", app.id);
+  const isDue = isAnnouncementDue(automationConfig, "announcement", app.id);
   if (!isDue) return null;
 
-  const result = await discordAppAutomationService.postAnnouncement(
-    app.organization_id,
-    app.id,
-  );
+  const result = await discordAppAutomationService.postAnnouncement(app.organization_id, app.id);
 
   return {
     appId: app.id,
@@ -145,19 +157,17 @@ async function processDiscordAutomation(
   };
 }
 
-async function processTelegramAutomation(
-  app: App,
-): Promise<ProcessResult | null> {
-  const config = app.telegram_automation as AutomationConfig | null;
-  if (!config?.enabled || !config.autoAnnounce) return null;
+async function processTelegramAutomation({
+  app,
+  config,
+}: AppWithConfig): Promise<ProcessResult | null> {
+  const automationConfig = config.telegram_automation as AutomationConfig | null;
+  if (!automationConfig?.enabled || !automationConfig.autoAnnounce) return null;
 
-  const isDue = isAnnouncementDue(config, "announcement", app.id);
+  const isDue = isAnnouncementDue(automationConfig, "announcement", app.id);
   if (!isDue) return null;
 
-  const result = await telegramAppAutomationService.postAnnouncement(
-    app.organization_id,
-    app.id,
-  );
+  const result = await telegramAppAutomationService.postAnnouncement(app.organization_id, app.id);
 
   return {
     appId: app.id,
@@ -169,19 +179,17 @@ async function processTelegramAutomation(
   };
 }
 
-async function processTwitterAutomation(
-  app: App,
-): Promise<ProcessResult | null> {
-  const config = app.twitter_automation as AutomationConfig | null;
-  if (!config?.enabled || !config.autoPost) return null;
+async function processTwitterAutomation({
+  app,
+  config,
+}: AppWithConfig): Promise<ProcessResult | null> {
+  const automationConfig = config.twitter_automation as AutomationConfig | null;
+  if (!automationConfig?.enabled || !automationConfig.autoPost) return null;
 
-  const isDue = isAnnouncementDue(config, "post", app.id);
+  const isDue = isAnnouncementDue(automationConfig, "post", app.id);
   if (!isDue) return null;
 
-  const result = await twitterAppAutomationService.postAppTweet(
-    app.organization_id,
-    app.id,
-  );
+  const result = await twitterAppAutomationService.postAppTweet(app.organization_id, app.id);
 
   return {
     appId: app.id,
@@ -196,28 +204,28 @@ async function processTwitterAutomation(
 /**
  * Process a single app across all platforms
  */
-async function processApp(app: App): Promise<ProcessResult[]> {
+async function processApp(item: AppWithConfig): Promise<ProcessResult[]> {
   const results: ProcessResult[] = [];
 
   // Process all platforms for this app in parallel
   const [discordResult, telegramResult, twitterResult] = await Promise.all([
-    processDiscordAutomation(app).catch((error) => {
+    processDiscordAutomation(item).catch((error) => {
       logger.error("[SocialAutomation Cron] Discord error", {
-        appId: app.id,
+        appId: item.app.id,
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return null;
     }),
-    processTelegramAutomation(app).catch((error) => {
+    processTelegramAutomation(item).catch((error) => {
       logger.error("[SocialAutomation Cron] Telegram error", {
-        appId: app.id,
+        appId: item.app.id,
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return null;
     }),
-    processTwitterAutomation(app).catch((error) => {
+    processTwitterAutomation(item).catch((error) => {
       logger.error("[SocialAutomation Cron] Twitter error", {
-        appId: app.id,
+        appId: item.app.id,
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return null;
@@ -227,7 +235,7 @@ async function processApp(app: App): Promise<ProcessResult[]> {
   if (discordResult) {
     results.push(discordResult);
     logger.info("[SocialAutomation Cron] Discord post", {
-      appId: app.id,
+      appId: item.app.id,
       success: discordResult.success,
       error: discordResult.error,
     });
@@ -236,7 +244,7 @@ async function processApp(app: App): Promise<ProcessResult[]> {
   if (telegramResult) {
     results.push(telegramResult);
     logger.info("[SocialAutomation Cron] Telegram post", {
-      appId: app.id,
+      appId: item.app.id,
       success: telegramResult.success,
       error: telegramResult.error,
     });
@@ -245,7 +253,7 @@ async function processApp(app: App): Promise<ProcessResult[]> {
   if (twitterResult) {
     results.push(twitterResult);
     logger.info("[SocialAutomation Cron] Twitter post", {
-      appId: app.id,
+      appId: item.app.id,
       success: twitterResult.success,
       error: twitterResult.error,
     });
@@ -258,14 +266,14 @@ async function processApp(app: App): Promise<ProcessResult[]> {
  * Process apps in batches with concurrency limit
  */
 async function processAppsWithConcurrency(
-  apps: App[],
+  items: AppWithConfig[],
   concurrency: number,
 ): Promise<ProcessResult[]> {
   const results: ProcessResult[] = [];
 
   // Process in batches
-  for (let i = 0; i < apps.length; i += concurrency) {
-    const batch = apps.slice(i, i + concurrency);
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
     const batchResults = await Promise.all(batch.map(processApp));
     results.push(...batchResults.flat());
   }
@@ -274,10 +282,8 @@ async function processAppsWithConcurrency(
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const authHeader = request.headers.get("authorization");
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronSecret(request, "[SocialAutomation Cron]");
+  if (authError) return authError;
 
   const startTime = Date.now();
 
@@ -289,10 +295,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
 
   // Process apps in parallel with concurrency limit
-  const results = await processAppsWithConcurrency(
-    appsWithAutomation,
-    MAX_CONCURRENT_POSTS,
-  );
+  const results = await processAppsWithConcurrency(appsWithAutomation, MAX_CONCURRENT_POSTS);
 
   const duration = Date.now() - startTime;
   const successCount = results.filter((r) => r.success).length;
@@ -324,10 +327,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const authHeader = request.headers.get("authorization");
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronSecret(request, "[SocialAutomation Cron]");
+  if (authError) return authError;
 
   const appsWithAutomation = await getAppsWithAutomation();
 

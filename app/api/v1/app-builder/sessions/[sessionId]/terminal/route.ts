@@ -4,15 +4,31 @@
  * POST: Execute a command and stream the output
  */
 
+import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { sandboxService } from "@/lib/services/sandbox";
 import { logger } from "@/lib/utils/logger";
 
+// Sanitize cwd path to prevent command injection
+function sanitizeCwdPath(cwd: string): string | null {
+  if (!cwd) return null;
+  // Reject shell metacharacters
+  if (/[;&|$`"'\n\r]/.test(cwd)) return null;
+  // Strip leading ~/ and normalize
+  const stripped = cwd.replace(/^~\/?/, "");
+  // Reject path traversal
+  if (stripped.includes("..")) return null;
+  // Only allow safe characters
+  if (!/^[a-zA-Z0-9_\-./]+$/.test(stripped)) return null;
+  return stripped;
+}
+
 // Security: Blocked commands that could be dangerous
 const BLOCKED_COMMANDS = [
-  /rm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+)?[\/~]/, // rm with / or ~ targets
+  /rm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+)?[/~]/, // rm with / or ~ targets
   /rm\s+-[a-zA-Z]*f[a-zA-Z]*\s+-[a-zA-Z]*r/, // rm -fr or rm -rf variations
   /rm\s+-[a-zA-Z]*r[a-zA-Z]*\s+-[a-zA-Z]*f/, // rm -rf variations
   /rm\s+--no-preserve-root/, // bypass safety
@@ -57,22 +73,41 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
+  let user;
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { sessionId } = await params;
+    const authResult = await requireAuthOrApiKeyWithOrg(request);
+    user = authResult.user;
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 403 });
+    }
+    logger.error("[App Builder] Terminal POST auth error", { error });
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+  }
+  const { sessionId } = await params;
 
+  try {
     // Verify session ownership
     await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
-    // Get request body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+    }
+
     const { command, cwd } = body as { command: string; cwd?: string };
 
     if (!command || typeof command !== "string") {
-      return NextResponse.json(
-        { success: false, error: "Command is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: "Command is required" }, { status: 400 });
+    }
+
+    if (cwd !== undefined && typeof cwd !== "string") {
+      return NextResponse.json({ success: false, error: "cwd must be a string" }, { status: 400 });
     }
 
     // Validate command
@@ -84,21 +119,27 @@ export async function POST(
       );
     }
 
+    // Validate cwd if provided
+    let sanitizedCwd: string | null = null;
+    if (cwd && typeof cwd === "string") {
+      sanitizedCwd = sanitizeCwdPath(cwd);
+      if (!sanitizedCwd) {
+        return NextResponse.json(
+          { success: false, error: "Invalid working directory path" },
+          { status: 400 },
+        );
+      }
+    }
+
     // Get sandbox instance
     const session = await aiAppBuilder.getSession(sessionId, user.id);
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
     const sandbox = sandboxService.getSandboxInstance(session.sandboxId);
     if (!sandbox) {
-      return NextResponse.json(
-        { success: false, error: "Sandbox not available" },
-        { status: 503 },
-      );
+      return NextResponse.json({ success: false, error: "Sandbox not available" }, { status: 503 });
     }
 
     logger.info("Terminal command execution", {
@@ -115,8 +156,15 @@ export async function POST(
     if (cwd && cwd !== "~" && cwd !== "/app" && cwd !== ".") {
       // Handle relative paths from project root
       const targetDir = cwd.startsWith("/") ? cwd : cwd.replace(/^~\/?/, "");
-      if (targetDir && targetDir !== ".") {
-        fullCommand = `cd ${targetDir} 2>/dev/null && ${command}`;
+      // Sanitize: reject path traversal and shell metacharacters
+      if (
+        targetDir &&
+        targetDir !== "." &&
+        /^[a-zA-Z0-9_\-./]+$/.test(targetDir) &&
+        !targetDir.includes("..")
+      ) {
+        const safePath = targetDir.replace(/'/g, "'\\''");
+        fullCommand = `cd '${safePath}' && ${fullCommand}`;
       }
     }
 
@@ -136,15 +184,14 @@ export async function POST(
       exitCode,
     });
   } catch (error) {
-    logger.error("Terminal command failed", { error });
-    const message =
-      error instanceof Error ? error.message : "Command execution failed";
-    const status = message.includes("Unauthorized")
-      ? 403
-      : message.includes("not found")
-        ? 404
-        : 500;
-    return NextResponse.json({ success: false, error: message }, { status });
+    if (error instanceof Error && error.message.includes("Session not found")) {
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
+    }
+    if (error instanceof Error && error.message.includes("Access denied")) {
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+    }
+    logger.error("[App Builder] Terminal POST error", { error });
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -156,10 +203,23 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
+  let user;
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { sessionId } = await params;
+    const authResult = await requireAuthOrApiKeyWithOrg(request);
+    user = authResult.user;
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 403 });
+    }
+    logger.error("[App Builder] Terminal GET auth error", { error });
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+  }
+  const { sessionId } = await params;
 
+  try {
     await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
     const url = new URL(request.url);
@@ -167,10 +227,7 @@ export async function GET(
     const cwd = url.searchParams.get("cwd") || "/app";
 
     if (!command) {
-      return NextResponse.json(
-        { success: false, error: "Command is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: "Command is required" }, { status: 400 });
     }
 
     // Validate command
@@ -182,20 +239,33 @@ export async function GET(
       );
     }
 
+    const normalizedCwd = (() => {
+      if (!cwd) return null;
+      if (/[;&|$`]/.test(cwd)) return null;
+      const stripped = cwd.replace(/^~\/?/, "");
+      const normalized = path.posix.normalize(stripped);
+      if (normalized.includes("..")) return null;
+      if (!/^[a-zA-Z0-9_\-./]+$/.test(normalized)) return null;
+      const root = "/app";
+      const resolved = normalized.startsWith("/")
+        ? path.posix.normalize(normalized)
+        : path.posix.normalize(path.posix.join(root, normalized));
+      if (!resolved.startsWith(root)) return null;
+      return resolved;
+    })();
+
+    if (!normalizedCwd) {
+      return NextResponse.json({ success: false, error: "Invalid cwd" }, { status: 400 });
+    }
+
     const session = await aiAppBuilder.getSession(sessionId, user.id);
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
     const sandbox = sandboxService.getSandboxInstance(session.sandboxId);
     if (!sandbox) {
-      return NextResponse.json(
-        { success: false, error: "Sandbox not available" },
-        { status: 503 },
-      );
+      return NextResponse.json({ success: false, error: "Sandbox not available" }, { status: 503 });
     }
 
     // Create streaming response
@@ -205,13 +275,9 @@ export async function GET(
         try {
           // Handle cwd if specified
           let fullCommand = command;
-          if (cwd && cwd !== "~" && cwd !== "/app" && cwd !== ".") {
-            const targetDir = cwd.startsWith("/")
-              ? cwd
-              : cwd.replace(/^~\/?/, "");
-            if (targetDir && targetDir !== ".") {
-              fullCommand = `cd ${targetDir} 2>/dev/null && ${command}`;
-            }
+          if (normalizedCwd !== "/app" && normalizedCwd !== ".") {
+            const safePath = normalizedCwd.replace(/'/g, "'\\''");
+            fullCommand = `cd '${safePath}' && ${fullCommand}`;
           }
           const result = await sandbox.runCommand({
             cmd: "sh",
@@ -234,16 +300,12 @@ export async function GET(
 
             if (stdout) {
               controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ stream: "stdout", data: stdout })}\n\n`,
-                ),
+                encoder.encode(`data: ${JSON.stringify({ stream: "stdout", data: stdout })}\n\n`),
               );
             }
             if (stderr) {
               controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ stream: "stderr", data: stderr })}\n\n`,
-                ),
+                encoder.encode(`data: ${JSON.stringify({ stream: "stderr", data: stderr })}\n\n`),
               );
             }
           }
@@ -256,12 +318,9 @@ export async function GET(
           );
           controller.close();
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "Stream error";
+          const message = error instanceof Error ? error.message : "Stream error";
           controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: "error", error: message })}\n\n`,
-            ),
+            encoder.encode(`data: ${JSON.stringify({ type: "error", error: message })}\n\n`),
           );
           controller.close();
         }
@@ -276,11 +335,13 @@ export async function GET(
       },
     });
   } catch (error) {
-    logger.error("Terminal stream failed", { error });
-    const message = error instanceof Error ? error.message : "Stream failed";
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 },
-    );
+    if (error instanceof Error && error.message.includes("Session not found")) {
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
+    }
+    if (error instanceof Error && error.message.includes("Access denied")) {
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+    }
+    logger.error("[App Builder] Terminal GET error", { error });
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

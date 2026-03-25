@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { usageQuotasService } from "@/lib/services/usage-quotas";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/quotas/usage
@@ -15,9 +15,7 @@ async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    const usage = await usageQuotasService.getCurrentUsage(
-      user.organization_id,
-    );
+    const usage = await usageQuotasService.getCurrentUsage(user.organization_id);
 
     return NextResponse.json({
       success: true,
@@ -29,10 +27,7 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch quota usage",
+        error: error instanceof Error ? error.message : "Failed to fetch quota usage",
       },
       { status: 500 },
     );

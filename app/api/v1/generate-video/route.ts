@@ -1,26 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { fal } from "@fal-ai/client";
-import type { QueueStatus } from "@fal-ai/client";
+import { NextRequest, NextResponse } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { usageService } from "@/lib/services/usage";
-import { generationsService } from "@/lib/services/generations";
-import { discordService } from "@/lib/services/discord";
+import { isFalAiUrl, uploadFromUrl } from "@/lib/blob";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { VIDEO_GENERATION_COST, VIDEO_GENERATION_FALLBACK_COST } from "@/lib/pricing";
 import {
-  VIDEO_GENERATION_COST,
-  VIDEO_GENERATION_FALLBACK_COST,
-} from "@/lib/pricing";
-import { uploadFromUrl, isFalAiUrl } from "@/lib/blob";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import {
+  type CreditReservation,
   creditsService,
   InsufficientCreditsError,
-  type CreditReservation,
 } from "@/lib/services/credits";
-
-fal.config({
-  proxyUrl: "/api/fal/proxy",
-});
+import { discordService } from "@/lib/services/discord";
+import { generationsService } from "@/lib/services/generations";
+import { usageService } from "@/lib/services/usage";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 300;
 
@@ -51,9 +44,9 @@ const VALID_MODELS = [
  */
 async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
+  let reservation: CreditReservation | undefined;
   try {
-    const { user, apiKey, session_token } =
-      await requireAuthOrApiKeyWithOrg(request);
+    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
 
     if (!process.env.FAL_KEY) {
       logger.error("[VIDEO GENERATION] FAL_KEY is not configured");
@@ -84,7 +77,6 @@ async function handlePOST(request: NextRequest) {
     }
 
     // Reserve credits BEFORE generation
-    let reservation: CreditReservation;
     try {
       reservation = await creditsService.reserve({
         organizationId: user.organization_id!,
@@ -106,7 +98,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     const generation = await generationsService.create({
-      organization_id: user.organization_id!!,
+      organization_id: user.organization_id!,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
       type: "video",
@@ -144,17 +136,13 @@ async function handlePOST(request: NextRequest) {
     let blobFileSize: bigint | null = null;
 
     const fileExtension =
-      data.video.content_type?.split("/")[1] ||
-      data.video.file_name?.split(".").pop() ||
-      "mp4";
+      data.video.content_type?.split("/")[1] || data.video.file_name?.split(".").pop() || "mp4";
 
     try {
       // Always upload to our storage - videos come from Fal.ai
       if (!isFalAiUrl(data.video.url)) {
         // If for some reason it's not a Fal.ai URL, log a warning but still upload
-        console.warn(
-          `[VIDEO GENERATION] Unexpected non-Fal.ai URL: ${data.video.url}`,
-        );
+        console.warn(`[VIDEO GENERATION] Unexpected non-Fal.ai URL: ${data.video.url}`);
       }
 
       const uploadResult = await uploadFromUrl(data.video.url, {
@@ -167,10 +155,7 @@ async function handlePOST(request: NextRequest) {
       blobUrl = uploadResult.url;
       blobFileSize = BigInt(uploadResult.size);
     } catch (blobError) {
-      logger.error(
-        "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
-        blobError,
-      );
+      logger.error("[VIDEO GENERATION] Failed to upload to Vercel Blob:", blobError);
       // Reconcile with 0 cost (full refund) - video generated but storage failed
       await reservation.reconcile(0);
       return NextResponse.json(
@@ -187,7 +172,7 @@ async function handlePOST(request: NextRequest) {
     });
 
     const usageRecord = await usageService.create({
-      organization_id: user.organization_id!!,
+      organization_id: user.organization_id!,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
       type: "video",
@@ -243,13 +228,10 @@ async function handlePOST(request: NextRequest) {
           cost: VIDEO_GENERATION_COST,
         })
         .catch((err) => {
-          logger.warn(
-            "[VIDEO GENERATION] Failed to send Discord notification",
-            {
-              generationId,
-              error: err instanceof Error ? err.message : "Unknown error",
-            },
-          );
+          logger.warn("[VIDEO GENERATION] Failed to send Discord notification", {
+            generationId,
+            error: err instanceof Error ? err.message : "Unknown error",
+          });
         });
     }
 
@@ -274,13 +256,15 @@ async function handlePOST(request: NextRequest) {
   } catch (error) {
     logger.error("[VIDEO GENERATION] Error:", error);
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error occurred";
+    const status = getErrorStatusCode(error);
+    if (status !== 500) {
+      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
+    }
+
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
     // If reservation was made, reconcile with fallback cost (partial charge for attempt)
-    // @ts-expect-error - reservation may not be defined if error occurred before reservation
-    if (typeof reservation !== "undefined") {
-      // @ts-expect-error - reservation is defined at this point
+    if (reservation) {
       await reservation.reconcile(VIDEO_GENERATION_FALLBACK_COST);
       logger.info("[VIDEO GENERATION] Credits reconciled with fallback cost", {
         fallbackCost: VIDEO_GENERATION_FALLBACK_COST,
@@ -328,10 +312,7 @@ async function handlePOST(request: NextRequest) {
         });
       }
     } catch (authError) {
-      logger.error(
-        "[VIDEO GENERATION] Auth error during fallback logging:",
-        authError,
-      );
+      logger.error("[VIDEO GENERATION] Auth error during fallback logging:", authError);
     }
 
     return NextResponse.json(

@@ -10,10 +10,7 @@ import { conversationsService } from "@/lib/services/conversations";
  * @param data - Conversation data containing title and model.
  * @returns Success status with the created conversation.
  */
-export async function createConversationAction(data: {
-  title: string;
-  model: string;
-}) {
+export async function createConversationAction(data: { title: string; model: string }) {
   const user = await requireAuth();
 
   const conversation = await conversationsService.create({
@@ -35,10 +32,7 @@ export async function createConversationAction(data: {
  * @param title - The new title for the conversation.
  * @returns Success status with the updated conversation, or error if not found.
  */
-export async function updateConversationTitleAction(
-  conversationId: string,
-  title: string,
-) {
+export async function updateConversationTitleAction(conversationId: string, title: string) {
   await requireAuth();
 
   const conversation = await conversationsService.update(conversationId, {
@@ -90,8 +84,7 @@ export async function listUserConversationsAction() {
 export async function getConversationAction(conversationId: string) {
   await requireAuth();
 
-  const conversation =
-    await conversationsService.getWithMessages(conversationId);
+  const conversation = await conversationsService.getWithMessages(conversationId);
 
   if (!conversation) {
     return { success: false, error: "Conversation not found" };

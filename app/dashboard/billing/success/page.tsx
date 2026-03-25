@@ -1,20 +1,23 @@
-import type { Metadata } from "next";
-import { logger } from "@/lib/utils/logger";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
-import { CreditBalanceDisplay } from "@/components/billing/success-client";
-import { requireStripe } from "@/lib/stripe";
+} from "@elizaos/cloud-ui";
+import { ArrowRight, CheckCircle, XCircle } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
+import { requireStripe } from "@/lib/stripe";
+import { logger } from "@/lib/utils/logger";
+import { CreditBalanceDisplay } from "@/packages/ui/src/components/billing/success-client";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Purchase Successful",
@@ -43,7 +46,10 @@ interface BillingSuccessPageProps {
  * @param sessionId - The Stripe checkout session ID.
  * @returns An object indicating success, error, credits added, and whether it was already processed.
  */
-async function verifyAndProcessSession(sessionId: string): Promise<{
+async function verifyAndProcessSession(
+  sessionId: string,
+  viewer: Awaited<ReturnType<typeof requireAuthWithOrg>>,
+): Promise<{
   success: boolean;
   error?: string;
   credits?: number;
@@ -53,9 +59,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   const session = await requireStripe().checkout.sessions.retrieve(sessionId);
 
   if (session.payment_status !== "paid") {
-    console.warn(
-      `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`,
-    );
+    console.warn(`[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`);
     return {
       success: false,
       error: `Payment not completed. Status: ${session.payment_status}`,
@@ -69,10 +73,22 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   const purchaseType = session.metadata?.type || "checkout";
   const paymentIntentId = session.payment_intent as string;
 
-  if (!organizationId || !credits) {
+  if (organizationId !== viewer.organization_id || (userId && userId !== viewer.id)) {
+    return {
+      success: false,
+      error: "You do not have access to this checkout session.",
+    };
+  }
+
+  if (
+    !organizationId ||
+    !credits ||
+    (purchaseType !== "custom_amount" && purchaseType !== "credit_pack")
+  ) {
     console.warn("[BillingSuccess] Invalid metadata", {
       hasOrgId: !!organizationId,
       hasValidCredits: !!credits,
+      purchaseType,
     });
     return {
       success: false,
@@ -116,9 +132,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
   // Create invoice record
   try {
-    const existingInvoice = await invoicesService.getByStripeInvoiceId(
-      `cs_${sessionId}`,
-    );
+    const existingInvoice = await invoicesService.getByStripeInvoiceId(`cs_${sessionId}`);
 
     if (!existingInvoice) {
       const amountTotal = session.amount_total
@@ -149,57 +163,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     }
   } catch (invoiceError) {
     // Non-critical - credits were added successfully
-    logger.error(
-      "[BillingSuccess] Invoice creation error (non-critical):",
-      invoiceError,
-    );
-  }
-
-  await creditsService.addCredits({
-    organizationId,
-    amount: credits,
-    description: `Balance top-up - $${credits.toFixed(2)}`,
-    metadata: {
-      user_id: userId,
-      payment_intent_id: paymentIntentId,
-      session_id: sessionId,
-      type: purchaseType,
-      source: "success_page_fallback",
-    },
-    stripePaymentIntentId: paymentIntentId,
-  });
-
-  // Create invoice record
-  const existingInvoice = await invoicesService.getByStripeInvoiceId(
-    `cs_${sessionId}`,
-  );
-
-  if (!existingInvoice) {
-    const amountTotal = session.amount_total
-      ? (session.amount_total / 100).toString()
-      : credits.toString();
-
-    await invoicesService.create({
-      organization_id: organizationId,
-      stripe_invoice_id: `cs_${sessionId}`,
-      stripe_customer_id: session.customer as string,
-      stripe_payment_intent_id: paymentIntentId,
-      amount_due: amountTotal,
-      amount_paid: amountTotal,
-      currency: session.currency || "usd",
-      status: "paid",
-      invoice_type: purchaseType,
-      invoice_number: undefined,
-      invoice_pdf: undefined,
-      hosted_invoice_url: undefined,
-      credits_added: credits.toString(),
-      metadata: {
-        type: purchaseType,
-        session_id: sessionId,
-        source: "success_page_fallback",
-      },
-      paid_at: new Date(),
-    });
+    logger.error("[BillingSuccess] Invoice creation error (non-critical):", invoiceError);
   }
 
   return {
@@ -217,9 +181,8 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
  * @param searchParams - Search parameters, including `from` (redirect source) and `session_id` (Stripe session ID).
  * @returns The rendered billing success page with payment status and credit balance.
  */
-export default async function BillingSuccessPage({
-  searchParams,
-}: BillingSuccessPageProps) {
+export default async function BillingSuccessPage({ searchParams }: BillingSuccessPageProps) {
+  const viewer = await requireAuthWithOrg();
   const params = await searchParams;
   const fromSettings = params.from === "settings";
   const sessionId = params.session_id;
@@ -232,10 +195,10 @@ export default async function BillingSuccessPage({
         credits?: number;
         alreadyProcessed?: boolean;
       }
-    | undefined = undefined;
+    | undefined;
 
   if (sessionId) {
-    const result = await verifyAndProcessSession(sessionId);
+    const result = await verifyAndProcessSession(sessionId, viewer);
     verificationResult = result;
   }
 
@@ -256,8 +219,7 @@ export default async function BillingSuccessPage({
 
           <CardContent className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              If you believe this is an error, please contact support with your
-              session ID.
+              If you believe this is an error, please contact support with your session ID.
             </p>
             {sessionId && (
               <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
@@ -268,13 +230,7 @@ export default async function BillingSuccessPage({
 
           <CardFooter className="flex flex-col gap-2">
             <Button asChild variant="outline" className="w-full">
-              <Link
-                href={
-                  fromSettings
-                    ? "/dashboard/settings?tab=billing"
-                    : "/dashboard/billing"
-                }
-              >
+              <Link href={fromSettings ? "/dashboard/settings?tab=billing" : "/dashboard/billing"}>
                 Back to Billing
               </Link>
             </Button>
@@ -300,14 +256,10 @@ export default async function BillingSuccessPage({
         </CardHeader>
 
         <CardContent className="text-center space-y-4">
-          <CreditBalanceDisplay
-            sessionId={sessionId}
-            creditsAdded={verificationResult?.credits}
-          />
+          <CreditBalanceDisplay sessionId={sessionId} creditsAdded={verificationResult?.credits} />
 
           <p className="text-sm text-muted-foreground">
-            You can now use your credits for text generation, image creation,
-            and video rendering.
+            You can now use your credits for text generation, image creation, and video rendering.
           </p>
         </CardContent>
 
@@ -315,9 +267,7 @@ export default async function BillingSuccessPage({
           {fromSettings ? (
             <>
               <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/settings?tab=billing">
-                  Back to Billing Settings
-                </Link>
+                <Link href="/dashboard/settings?tab=billing">Back to Billing Settings</Link>
               </Button>
               <Button asChild className="w-full">
                 <Link href="/dashboard">

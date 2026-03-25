@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
-import { getPostBySlug, getAllSlugs, getPostsBySlugs } from "@/lib/blog";
-import { BlogPage } from "@/components/landing/blog-page";
-import BlogPost from "@/components/landing/BlogPost";
-import RelatedPosts from "@/components/landing/RelatedPosts";
-import Tweet from "@/components/landing/Tweet";
+import { getAllSlugs, getPostBySlug, getPostsBySlugs } from "@/lib/blog";
+import BlogPost from "@/packages/ui/src/components/landing/BlogPost";
+import { BlogPage } from "@/packages/ui/src/components/landing/blog-page";
+import RelatedPosts from "@/packages/ui/src/components/landing/RelatedPosts";
+import Tweet from "@/packages/ui/src/components/landing/Tweet";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -27,11 +27,8 @@ export async function generateMetadata({ params }: PageProps) {
   const ogImage = post.image || "/cloudlogo.png";
 
   // Use absolute URL for better Twitter compatibility
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
-  const absoluteImageUrl = ogImage.startsWith("http")
-    ? ogImage
-    : `${baseUrl}${ogImage}`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const absoluteImageUrl = ogImage.startsWith("http") ? ogImage : `${baseUrl}${ogImage}`;
 
   return {
     title: post.title,
@@ -70,9 +67,7 @@ export default async function BlogPostPage({ params }: PageProps) {
     notFound();
   }
 
-  const relatedPosts = post.relatedPosts
-    ? getPostsBySlugs(post.relatedPosts)
-    : [];
+  const relatedPosts = post.relatedPosts ? getPostsBySlugs(post.relatedPosts) : [];
 
   return (
     <BlogPage>

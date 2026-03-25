@@ -12,11 +12,11 @@
  */
 
 import type { NextRequest } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { oauthService } from "@/lib/services/oauth";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -27,7 +27,11 @@ interface McpHandlerResponse {
 }
 
 function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
-  return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
+  return (
+    typeof resp === "object" &&
+    resp !== null &&
+    typeof (resp as McpHandlerResponse).status === "number"
+  );
 }
 
 let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
@@ -59,7 +63,9 @@ async function getJiraMcpHandler() {
     }
     const resources = await response.json();
     if (!Array.isArray(resources) || resources.length === 0) {
-      throw new Error("No Jira sites found. Ensure your Atlassian account has access to a Jira Cloud site.");
+      throw new Error(
+        "No Jira sites found. Ensure your Atlassian account has access to a Jira Cloud site.",
+      );
     }
 
     const cloudId = resources[0].id;
@@ -67,12 +73,7 @@ async function getJiraMcpHandler() {
     return cloudId;
   }
 
-  async function jiraApi(
-    orgId: string,
-    method: string,
-    path: string,
-    body?: unknown,
-  ) {
+  async function jiraApi(orgId: string, method: string, path: string, body?: unknown) {
     const token = await getJiraToken(orgId);
     const cloudId = await getCloudId(token, orgId);
     const url = `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3${path}`;
@@ -107,11 +108,13 @@ async function getJiraMcpHandler() {
         responseHeaders: Object.fromEntries(response.headers.entries()),
       });
       let error: Record<string, unknown> = {};
-      try { error = JSON.parse(errorText); } catch {}
+      try {
+        error = JSON.parse(errorText);
+      } catch {}
       throw new Error(
         (error?.errorMessages as string[])?.join("; ") ||
-        (error?.message as string) ||
-        `Jira API error: ${response.status} - ${errorText.substring(0, 200)}`,
+          (error?.message as string) ||
+          `Jira API error: ${response.status} - ${errorText.substring(0, 200)}`,
       );
     }
 
@@ -149,7 +152,10 @@ async function getJiraMcpHandler() {
   }
 
   function errorResult(msg: string) {
-    return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      isError: true,
+    };
   }
 
   mcpHandler = createMcpHandler(
@@ -157,9 +163,16 @@ async function getJiraMcpHandler() {
       server.tool("jira_status", "Check Jira OAuth connection status", {}, async () => {
         try {
           const orgId = getOrgId();
-          const connections = await oauthService.listConnections({ organizationId: orgId, platform: "jira" });
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            platform: "jira",
+          });
           const active = connections.find((c) => c.status === "active");
-          return jsonResult(active ? { connected: true, email: active.email, scopes: active.scopes } : { connected: false });
+          return jsonResult(
+            active
+              ? { connected: true, email: active.email, scopes: active.scopes }
+              : { connected: false },
+          );
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
@@ -170,9 +183,20 @@ async function getJiraMcpHandler() {
         "Search Jira issues using JQL (Jira Query Language). Example JQL: 'project = KEY AND status = \"In Progress\" ORDER BY created DESC'",
         {
           jql: z.string().min(1).describe("JQL query string"),
-          maxResults: z.number().int().min(1).max(100).optional().describe("Max results (default 50)"),
+          maxResults: z
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .describe("Max results (default 50)"),
           startAt: z.number().int().min(0).optional().describe("Pagination offset"),
-          fields: z.array(z.string()).optional().describe("Fields to return (default: summary,status,assignee,priority,issuetype,created,updated)"),
+          fields: z
+            .array(z.string())
+            .optional()
+            .describe(
+              "Fields to return (default: summary,status,assignee,priority,issuetype,created,updated)",
+            ),
         },
         async ({ jql, maxResults, startAt, fields }) => {
           try {
@@ -181,7 +205,11 @@ async function getJiraMcpHandler() {
             if (maxResults) params.set("maxResults", String(maxResults));
             if (startAt) params.set("startAt", String(startAt));
             if (fields) params.set("fields", fields.join(","));
-            else params.set("fields", "summary,status,assignee,priority,issuetype,created,updated,project");
+            else
+              params.set(
+                "fields",
+                "summary,status,assignee,priority,issuetype,created,updated,project",
+              );
             const data = await jiraApi(orgId, "GET", `/search?${params.toString()}`);
             return jsonResult(data);
           } catch (e) {
@@ -215,14 +243,29 @@ async function getJiraMcpHandler() {
         {
           projectKey: z.string().min(1).describe("Project key (e.g., PROJ)"),
           summary: z.string().min(1).describe("Issue summary/title"),
-          issueType: z.string().optional().describe("Issue type (default: Task). Common: Bug, Story, Task, Epic"),
-          description: z.string().optional().describe("Issue description (plain text, converted to ADF)"),
+          issueType: z
+            .string()
+            .optional()
+            .describe("Issue type (default: Task). Common: Bug, Story, Task, Epic"),
+          description: z
+            .string()
+            .optional()
+            .describe("Issue description (plain text, converted to ADF)"),
           assigneeAccountId: z.string().optional().describe("Assignee account ID"),
           priority: z.string().optional().describe("Priority name (e.g., High, Medium, Low)"),
           labels: z.array(z.string()).optional().describe("Labels to add"),
           parentKey: z.string().optional().describe("Parent issue key for subtasks"),
         },
-        async ({ projectKey, summary, issueType, description, assigneeAccountId, priority, labels, parentKey }) => {
+        async ({
+          projectKey,
+          summary,
+          issueType,
+          description,
+          assigneeAccountId,
+          priority,
+          labels,
+          parentKey,
+        }) => {
           try {
             const orgId = getOrgId();
             const fields: Record<string, unknown> = {
@@ -249,7 +292,10 @@ async function getJiraMcpHandler() {
         {
           issueKey: z.string().min(1).describe("Issue key (e.g., PROJ-123)"),
           summary: z.string().optional().describe("New summary"),
-          description: z.string().optional().describe("New description (plain text, converted to ADF)"),
+          description: z
+            .string()
+            .optional()
+            .describe("New description (plain text, converted to ADF)"),
           assigneeAccountId: z.string().optional().describe("New assignee account ID"),
           priority: z.string().optional().describe("New priority name"),
           labels: z.array(z.string()).optional().describe("New labels (replaces existing)"),
@@ -472,26 +518,40 @@ async function handleRequest(
     const rateLimitKey = `mcp:ratelimit:jira:${authResult.user.organization_id}`;
     const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
     if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), { status: 429, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const handler = await getJiraMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
-      return new Response(JSON.stringify({ error: "invalid_response" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "invalid_response" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    mcpResponse.headers?.forEach((v: string, k: string) => { headers[k] = v; });
+    mcpResponse.headers?.forEach((v: string, k: string) => {
+      headers[k] = v;
+    });
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     logger.error(`[JiraMCP] ${msg}`);
     const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(JSON.stringify({ error: isAuth ? "authentication_required" : "internal_error", message: msg }), { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: isAuth ? "authentication_required" : "internal_error",
+        message: msg,
+      }),
+      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 }
 

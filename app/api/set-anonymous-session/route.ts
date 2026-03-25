@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
+import { dbWrite } from "@/db/client";
+import { anonymousSessions, users } from "@/db/schemas";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
-import { dbWrite } from "@/db/client";
-import { users, anonymousSessions } from "@/db/schemas";
-import { eq } from "drizzle-orm";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
@@ -39,16 +39,10 @@ export async function POST(request: NextRequest) {
 
     if (!sessionToken || typeof sessionToken !== "string") {
       logger.warn("[Set Session] Missing or invalid session token in request");
-      return NextResponse.json(
-        { error: "Session token is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Session token is required" }, { status: 400 });
     }
 
-    logger.info(
-      "[Set Session] Looking up session:",
-      sessionToken.substring(0, 8) + "...",
-    );
+    logger.info("[Set Session] Looking up session:", sessionToken.substring(0, 8) + "...");
 
     // Validate that the session exists
     const session = await anonymousSessionsService.getByToken(sessionToken);
@@ -84,10 +78,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       // User doesn't exist - create a real anonymous user and update the session
-      logger.info(
-        "[Set Session] User not found, creating anonymous user for session:",
-        session.id,
-      );
+      logger.info("[Set Session] User not found, creating anonymous user for session:", session.id);
 
       // Create anonymous user
       const [newUser] = await dbWrite

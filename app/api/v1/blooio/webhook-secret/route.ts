@@ -8,8 +8,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
-import { logger } from "@/lib/utils/logger";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -22,10 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { webhookSecret } = await request.json();
 
     if (!webhookSecret || typeof webhookSecret !== "string") {
-      return NextResponse.json(
-        { error: "Webhook secret is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Webhook secret is required" }, { status: 400 });
     }
 
     if (!webhookSecret.startsWith("whsec_")) {
@@ -42,10 +39,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     ]);
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "Please connect Blooio first" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Please connect Blooio first" }, { status: 400 });
     }
 
     await blooioAutomationService.storeCredentials(orgId, user.id, {
@@ -64,9 +58,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       orgId,
     });
-    return NextResponse.json(
-      { error: "Failed to save webhook secret" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to save webhook secret" }, { status: 500 });
   }
 }

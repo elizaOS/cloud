@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { CheckCircle, Loader2, MessageCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle, MessageCircle, Loader2 } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
 
 // Platform display names
 const platformNames: Record<string, string> = {
@@ -24,12 +24,15 @@ function AuthSuccessContent() {
   const searchParams = useSearchParams();
 
   // Get platform from URL params (e.g., ?platform=linear or ?google_connected=true)
-  const platform = searchParams.get("platform")
-    || Array.from(searchParams.keys()).find(k => k.endsWith("_connected"))?.replace("_connected", "")
-    || null;
+  const platform =
+    searchParams.get("platform") ||
+    Array.from(searchParams.keys())
+      .find((k) => k.endsWith("_connected"))
+      ?.replace("_connected", "") ||
+    null;
 
   const platformDisplay = platform
-    ? (platformNames[platform.toLowerCase()] || capitalize(platform))
+    ? platformNames[platform.toLowerCase()] || capitalize(platform)
     : null;
 
   useEffect(() => {
@@ -64,8 +67,7 @@ function AuthSuccessContent() {
             <p className="text-sm text-neutral-400">
               {platformDisplay
                 ? `Your ${platformDisplay} account has been connected successfully.`
-                : "Your account has been connected successfully."
-              }
+                : "Your account has been connected successfully."}
             </p>
           </div>
 
@@ -74,17 +76,13 @@ function AuthSuccessContent() {
               <MessageCircle className="h-5 w-5 text-neutral-400 flex-shrink-0" />
               <p className="text-sm text-neutral-300">
                 Return to your chat and say{" "}
-                <span className="text-white font-medium">&quot;done&quot;</span>{" "}
-                to verify the connection.
+                <span className="text-white font-medium">&quot;done&quot;</span> to verify the
+                connection.
               </p>
             </div>
           </div>
 
-          {canClose && (
-            <p className="text-xs text-neutral-600">
-              You can close this window.
-            </p>
-          )}
+          {canClose && <p className="text-xs text-neutral-600">You can close this window.</p>}
         </div>
       </div>
     </div>

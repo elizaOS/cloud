@@ -16,18 +16,18 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import {
+  ADMIN_CONTROLS,
+  ARBITRAGE_PROTECTION,
+  calculateEffectiveTokens,
+  SUPPLY_SHOCK_PROTECTION,
+} from "@/lib/config/redemption-security";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { ELIZA_TOKEN_ADDRESSES } from "@/lib/services/eliza-token-price";
 import { payoutStatusService } from "@/lib/services/payout-status";
 import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
 import { twapPriceOracle } from "@/lib/services/twap-price-oracle";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
-import {
-  ARBITRAGE_PROTECTION,
-  SUPPLY_SHOCK_PROTECTION,
-  ADMIN_CONTROLS,
-  calculateEffectiveTokens,
-} from "@/lib/config/redemption-security";
 
 /**
  * GET /api/v1/redemptions/quote
@@ -44,10 +44,7 @@ async function getQuoteHandler(request: NextRequest): Promise<Response> {
 
   // Validate network
   const validNetworks = ["ethereum", "base", "bnb", "solana"] as const;
-  if (
-    !networkParam ||
-    !validNetworks.includes(networkParam as (typeof validNetworks)[number])
-  ) {
+  if (!networkParam || !validNetworks.includes(networkParam as (typeof validNetworks)[number])) {
     return NextResponse.json(
       {
         success: false,
@@ -61,15 +58,11 @@ async function getQuoteHandler(request: NextRequest): Promise<Response> {
   const pointsAmount = pointsParam ? parseInt(pointsParam, 10) : 100;
 
   if (isNaN(pointsAmount) || pointsAmount < 1) {
-    return NextResponse.json(
-      { success: false, error: "Invalid pointsAmount" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid pointsAmount" }, { status: 400 });
   }
 
   // Check if payout system is configured and available for this network
-  const networkAvailability =
-    await payoutStatusService.isNetworkAvailable(network);
+  const networkAvailability = await payoutStatusService.isNetworkAvailable(network);
   if (!networkAvailability.available) {
     // Get available networks as alternatives
     const status = await payoutStatusService.getStatus();
@@ -100,11 +93,7 @@ async function getQuoteHandler(request: NextRequest): Promise<Response> {
   }
 
   // Get TWAP-based quote with all security checks
-  const quoteResult = await twapPriceOracle.getRedemptionQuote(
-    network,
-    pointsAmount,
-    user.id,
-  );
+  const quoteResult = await twapPriceOracle.getRedemptionQuote(network, pointsAmount, user.id);
 
   if (!quoteResult.success) {
     return NextResponse.json(
@@ -121,17 +110,13 @@ async function getQuoteHandler(request: NextRequest): Promise<Response> {
   const usdValue = quote.usdValue;
 
   // Calculate effective tokens (after safety spread)
-  const effectiveElizaAmount = calculateEffectiveTokens(
-    usdValue,
-    quote.twapPrice,
-  );
+  const effectiveElizaAmount = calculateEffectiveTokens(usdValue, quote.twapPrice);
 
   // Check token availability
-  const availability =
-    await secureTokenRedemptionService.checkTokenAvailability(
-      network,
-      effectiveElizaAmount,
-    );
+  const availability = await secureTokenRedemptionService.checkTokenAvailability(
+    network,
+    effectiveElizaAmount,
+  );
 
   logger.debug("[Redemption Quote] TWAP quote generated", {
     network,
@@ -180,8 +165,7 @@ async function getQuoteHandler(request: NextRequest): Promise<Response> {
       // Delays & requirements
       requiresDelay: quote.requiresDelay,
       delayUntil: quote.delayUntil?.toISOString(),
-      requiresAdminApproval:
-        usdValue >= ADMIN_CONTROLS.ADMIN_APPROVAL_THRESHOLD_USD,
+      requiresAdminApproval: usdValue >= ADMIN_CONTROLS.ADMIN_APPROVAL_THRESHOLD_USD,
 
       // Limits info
       limits: {
@@ -189,8 +173,7 @@ async function getQuoteHandler(request: NextRequest): Promise<Response> {
         maxRedemptionUsd: SUPPLY_SHOCK_PROTECTION.MAX_SINGLE_REDEMPTION_USD,
         userDailyLimitUsd: SUPPLY_SHOCK_PROTECTION.USER_DAILY_LIMIT_USD,
         userHourlyLimitUsd: SUPPLY_SHOCK_PROTECTION.USER_HOURLY_LIMIT_USD,
-        largeRedemptionThresholdUsd:
-          SUPPLY_SHOCK_PROTECTION.LARGE_REDEMPTION_THRESHOLD_USD,
+        largeRedemptionThresholdUsd: SUPPLY_SHOCK_PROTECTION.LARGE_REDEMPTION_THRESHOLD_USD,
         adminApprovalThresholdUsd: ADMIN_CONTROLS.ADMIN_APPROVAL_THRESHOLD_USD,
       },
     },
@@ -214,8 +197,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

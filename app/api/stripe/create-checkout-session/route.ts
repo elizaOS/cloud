@@ -1,13 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
+import type Stripe from "stripe";
+import { z } from "zod";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { requireStripe } from "@/lib/stripe";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { z } from "zod";
-import type Stripe from "stripe";
+import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
-import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
 const CUSTOM_AMOUNT_LIMITS = {
   MIN_AMOUNT: 1,
@@ -44,8 +44,6 @@ const checkoutRequestSchema = z
   .refine((data) => data.creditPackId || data.amount, {
     message: "Either creditPackId or amount must be provided",
   });
-
-type CheckoutRequest = z.infer<typeof checkoutRequestSchema>;
 
 /**
  * POST /api/stripe/create-checkout-session
@@ -91,19 +89,13 @@ async function handleCheckoutSession(req: NextRequest) {
     // Validate organization_id is present (guaranteed by requireAuthWithOrg)
     const organizationId = user.organization_id;
     if (!organizationId) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 400 });
     }
 
     if (creditPackId) {
       const creditPack = await creditsService.getCreditPackById(creditPackId);
       if (!creditPack || !creditPack.is_active) {
-        return NextResponse.json(
-          { error: "Invalid or inactive credit pack" },
-          { status: 404 },
-        );
+        return NextResponse.json({ error: "Invalid or inactive credit pack" }, { status: 404 });
       }
 
       lineItems = [
@@ -182,8 +174,7 @@ async function handleCheckoutSession(req: NextRequest) {
     // Secure URL construction - validate origin to prevent open redirect vulnerabilities
     const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
     const requestOrigin =
-      req.headers.get("origin") ||
-      req.headers.get("referer")?.split("/").slice(0, 3).join("/");
+      req.headers.get("origin") || req.headers.get("referer")?.split("/").slice(0, 3).join("/");
 
     // Only use request origin if it's in the allowed list
     let baseUrl: string;
@@ -193,9 +184,7 @@ async function handleCheckoutSession(req: NextRequest) {
       baseUrl = requestOrigin;
     } else {
       if (requestOrigin) {
-        logger.warn(
-          `[Stripe Checkout] Untrusted origin rejected: ${requestOrigin}`,
-        );
+        logger.warn(`[Stripe Checkout] Untrusted origin rejected: ${requestOrigin}`);
       }
       baseUrl = "http://localhost:3000";
     }
@@ -255,15 +244,9 @@ async function handleCheckoutSession(req: NextRequest) {
     logger.error("[Stripe Checkout] Error creating checkout session:", error);
 
     // Don't expose internal details - log them but return generic message
-    return NextResponse.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
   }
 }
 
 // Export rate-limited handler with standard preset
-export const POST = withRateLimit(
-  handleCheckoutSession,
-  RateLimitPresets.STRICT,
-);
+export const POST = withRateLimit(handleCheckoutSession, RateLimitPresets.STRICT);

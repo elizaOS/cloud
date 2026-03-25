@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
-import {
-  usePrivy,
-  useLoginWithEmail,
-  useLoginWithOAuth,
-} from "@privy-io/react-auth";
+import { BrandButton, BrandCard, CornerBrackets, Input } from "@elizaos/cloud-ui";
+import { useLoginWithEmail, useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
+import { ArrowLeft, Chrome, Github, Loader2, Mail, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
-import { Input } from "@/components/ui/input";
-import { Loader2, Mail, Wallet, Github, Chrome, ArrowLeft } from "lucide-react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import LandingHeader from "@/components/layout/landing-header";
+import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 // Discord SVG Icon Component
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -26,7 +21,7 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 );
 
 function LoginPageContent() {
-  const { ready, authenticated, login, user } = usePrivy();
+  const { ready, authenticated, login } = usePrivy();
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
   const router = useRouter();
@@ -74,8 +69,7 @@ function LoginPageContent() {
       // Get the return URL from search params, default to dashboard
       const returnTo = searchParams.get("returnTo");
       // Validate returnTo is a relative path (security: prevent open redirects)
-      const isValidReturnTo =
-        returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//");
+      const isValidReturnTo = returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//");
       const redirectUrl = isValidReturnTo ? returnTo : "/dashboard";
 
       // Small delay to ensure the sync message is visible
@@ -101,15 +95,7 @@ function LoginPageContent() {
         return () => clearTimeout(timeout);
       }
     }
-  }, [
-    ready,
-    authenticated,
-    router,
-    loadingButton,
-    user,
-    isProcessingOAuth,
-    searchParams,
-  ]);
+  }, [ready, authenticated, router, loadingButton, isProcessingOAuth, searchParams]);
 
   // Monitor email state to show code input
   useEffect(() => {
@@ -151,9 +137,7 @@ function LoginPageContent() {
     setLoadingButton(null);
   };
 
-  const handleOAuthLogin = async (
-    provider: "google" | "discord" | "github",
-  ) => {
+  const handleOAuthLogin = async (provider: "google" | "discord" | "github") => {
     setLoadingButton(provider);
     // Set session flag to detect OAuth callback when returning
     sessionStorage.setItem("oauth_login_pending", "true");
@@ -242,9 +226,7 @@ function LoginPageContent() {
                   {isProcessingOAuth ? "Completing sign in..." : "Loading..."}
                 </h3>
                 <p className="text-sm text-white/60">
-                  {isProcessingOAuth
-                    ? "Processing your authentication"
-                    : "Initializing..."}
+                  {isProcessingOAuth ? "Processing your authentication" : "Initializing..."}
                 </p>
               </div>
               <div className="flex gap-1">
@@ -291,12 +273,8 @@ function LoginPageContent() {
                 <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
               </div>
               <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">
-                  Signing you in
-                </h3>
-                <p className="text-sm text-white/60">
-                  Taking you to your dashboard...
-                </p>
+                <h3 className="text-lg font-semibold text-white">Signing you in</h3>
+                <p className="text-sm text-white/60">Taking you to your dashboard...</p>
               </div>
               <div className="flex gap-1">
                 <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
@@ -342,9 +320,7 @@ function LoginPageContent() {
                 {isSignupIntent ? "Sign Up" : "Welcome back"}
               </h1>
               <p className="text-base text-white/60">
-                {isSignupIntent
-                  ? "Create your elizaOS account"
-                  : "Sign in to your elizaOS account"}
+                {isSignupIntent ? "Create your elizaOS account" : "Sign in to your elizaOS account"}
               </p>
             </div>
             {/* Email/Code Login Section */}
@@ -415,9 +391,7 @@ function LoginPageContent() {
                     type="text"
                     placeholder="000000"
                     value={code}
-                    onChange={(e) =>
-                      setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                    }
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     disabled={loadingButton !== null}
                     className="h-11 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] text-center text-lg tracking-widest"
                     maxLength={6}
@@ -471,9 +445,7 @@ function LoginPageContent() {
                     <div className="w-full border-t border-white/10" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-black/60 px-2 text-white/50">
-                      Or continue with
-                    </span>
+                    <span className="bg-black/60 px-2 text-white/50">Or continue with</span>
                   </div>
                 </div>
 
@@ -528,9 +500,7 @@ function LoginPageContent() {
                     <div className="w-full border-t border-white/10" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-black/60 px-2 text-white/50">
-                      Or use wallet
-                    </span>
+                    <span className="bg-black/60 px-2 text-white/50">Or use wallet</span>
                   </div>
                 </div>
 

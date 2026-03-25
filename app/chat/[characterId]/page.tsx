@@ -1,14 +1,16 @@
-import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { charactersService } from "@/lib/services/characters";
-import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { notFound, redirect } from "next/navigation";
+import type { UserCharacter } from "@/db/schemas";
 import { getCurrentUser } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
-import { migrateAnonymousSession } from "@/lib/session";
-import { ChatInterface } from "@/components/chat/chat-interface";
-import { logger } from "@/lib/utils/logger";
 import { resolveCharacterTheme } from "@/lib/config/affiliate-themes";
-import type { UserCharacter } from "@/db/schemas";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { charactersService } from "@/lib/services/characters/characters";
+import { migrateAnonymousSession } from "@/lib/session";
+import { logger } from "@/lib/utils/logger";
+import { ChatInterface } from "@/packages/ui/src/components/chat/chat-interface";
+
+export const dynamic = "force-dynamic";
 
 interface ChatPageProps {
   params: Promise<{
@@ -28,9 +30,7 @@ interface ChatPageProps {
  * @param characterIdParam - The URL parameter (UUID or @username), already URL-decoded
  * @returns The character if found, or null
  */
-async function resolveCharacter(
-  characterIdParam: string,
-): Promise<UserCharacter | null> {
+async function resolveCharacter(characterIdParam: string): Promise<UserCharacter | null> {
   // Check if this is a username (starts with @)
   if (characterIdParam.startsWith("@")) {
     const username = characterIdParam.slice(1); // Remove @ prefix
@@ -38,9 +38,7 @@ async function resolveCharacter(
 
     const character = await charactersService.getByUsername(username);
     if (character) {
-      logger.debug(
-        `[Chat Page] Resolved @${username} to character ID: ${character.id}`,
-      );
+      logger.debug(`[Chat Page] Resolved @${username} to character ID: ${character.id}`);
     }
     return character || null;
   }
@@ -74,10 +72,7 @@ async function resolveCharacter(
  * @param searchParams - Query parameters for source, session token, and vibe.
  * @returns Chat interface component with appropriate user context.
  */
-export default async function ChatPage({
-  params,
-  searchParams,
-}: ChatPageProps) {
+export default async function ChatPage({ params, searchParams }: ChatPageProps) {
   const { characterId: characterIdParam } = await params;
   const { source, session: sessionId } = await searchParams;
 
@@ -110,21 +105,16 @@ export default async function ChatPage({
     const isPublic = character.is_public === true;
 
     // Check if this is a claimable affiliate character
-    const claimCheck = await charactersService.isClaimableAffiliateCharacter(
-      character.id,
-    );
+    const claimCheck = await charactersService.isClaimableAffiliateCharacter(character.id);
     const isClaimableAffiliate = claimCheck.claimable;
 
     // Allow access if: character is public, user is owner, or it's a claimable affiliate character
     if (!isPublic && !isOwner && !isClaimableAffiliate) {
-      logger.warn(
-        `[Chat Page] Access denied to private character: @${username}`,
-        {
-          userId: user?.id,
-          characterOwnerId: character.user_id,
-          isPublic: character.is_public,
-        },
-      );
+      logger.warn(`[Chat Page] Access denied to private character: @${username}`, {
+        userId: user?.id,
+        characterOwnerId: character.user_id,
+        isPublic: character.is_public,
+      });
 
       // Redirect with error
       if (user) {
@@ -137,9 +127,7 @@ export default async function ChatPage({
     }
 
     // Redirect to dashboard chat with the resolved character ID
-    logger.debug(
-      `[Chat Page] Redirecting @${username} to dashboard chat: ${character.id}`,
-    );
+    logger.debug(`[Chat Page] Redirecting @${username} to dashboard chat: ${character.id}`);
     redirect(`/dashboard/chat?characterId=${character.id}`);
   }
 
@@ -179,21 +167,17 @@ export default async function ChatPage({
   };
 
   // Check if this is a claimable affiliate character (anonymous users can still access)
-  const claimCheckResult =
-    await charactersService.isClaimableAffiliateCharacter(characterId);
+  const claimCheckResult = await charactersService.isClaimableAffiliateCharacter(characterId);
   claimCheck = claimCheckResult;
   isClaimableAffiliate = claimCheckResult.claimable;
 
   // Allow access if: character is public, user is owner, or it's a claimable affiliate character
   if (!isPublic && !isOwner && !isClaimableAffiliate) {
-    logger.warn(
-      `[Chat Page] Access denied to private character: ${characterId}`,
-      {
-        userId: user?.id,
-        characterOwnerId: character.user_id,
-        isPublic: character.is_public,
-      },
-    );
+    logger.warn(`[Chat Page] Access denied to private character: ${characterId}`, {
+      userId: user?.id,
+      characterOwnerId: character.user_id,
+      isPublic: character.is_public,
+    });
 
     // Redirect to dashboard with error message
     // For authenticated users: redirect to their dashboard chat
@@ -214,37 +198,27 @@ export default async function ChatPage({
   });
 
   // 4. DYNAMIC THEME RESOLUTION
-  const characterData = character.character_data as
-    | Record<string, unknown>
-    | undefined;
+  const characterData = character.character_data as Record<string, unknown> | undefined;
   const theme = resolveCharacterTheme(source, characterData);
 
-  logger.debug(
-    `[Chat Page] Resolved theme: ${theme.id} for character ${characterId}`,
-  );
+  logger.debug(`[Chat Page] Resolved theme: ${theme.id} for character ${characterId}`);
 
   // 5. DECISION TREE: Jump directly to chat
 
   // Case A: Anonymous or unauthenticated user - create session if needed and show chat
   if (!user) {
     // First check for URL-based session (for backward compatibility with affiliate links)
-    const anonSession = sessionId
-      ? await anonymousSessionsService.getByToken(sessionId)
-      : null;
+    const anonSession = sessionId ? await anonymousSessionsService.getByToken(sessionId) : null;
 
     // If URL session is valid, use it
     if (anonSession && anonSession.expires_at >= new Date()) {
-      const messagesRemaining =
-        anonSession.messages_limit - anonSession.message_count;
+      const messagesRemaining = anonSession.messages_limit - anonSession.message_count;
       const shouldShowSignupPrompt = anonSession.message_count >= 1; // Show after first message
 
-      logger.info(
-        `[Chat Page] Anonymous session from URL: ${sessionId} with theme ${theme.id}`,
-        {
-          messageCount: anonSession.message_count,
-          messagesRemaining,
-        },
-      );
+      logger.info(`[Chat Page] Anonymous session from URL: ${sessionId} with theme ${theme.id}`, {
+        messageCount: anonSession.message_count,
+        messagesRemaining,
+      });
 
       return (
         <ChatInterface
@@ -272,28 +246,20 @@ export default async function ChatPage({
       // No session exists - redirect to API route to create one
       // The API route will set the cookie and redirect back here
       const returnUrl = `/chat/${characterId}${source ? `?source=${source}` : ""}`;
-      logger.info(
-        `[Chat Page] No anonymous session found, redirecting to create one`,
-      );
-      redirect(
-        `/api/auth/create-anonymous-session?returnUrl=${encodeURIComponent(returnUrl)}`,
-      );
+      logger.info(`[Chat Page] No anonymous session found, redirecting to create one`);
+      redirect(`/api/auth/create-anonymous-session?returnUrl=${encodeURIComponent(returnUrl)}`);
     }
 
     const { user: anonUser, session: cookieSession } = existingSession;
 
-    const messagesRemaining =
-      cookieSession.messages_limit - cookieSession.message_count;
+    const messagesRemaining = cookieSession.messages_limit - cookieSession.message_count;
     const shouldShowSignupPrompt = cookieSession.message_count >= 1; // Show after first message
 
-    logger.info(
-      `[Chat Page] Anonymous session from cookie with theme ${theme.id}`,
-      {
-        userId: anonUser.id,
-        messageCount: cookieSession.message_count,
-        messagesRemaining,
-      },
-    );
+    logger.info(`[Chat Page] Anonymous session from cookie with theme ${theme.id}`, {
+      userId: anonUser.id,
+      messageCount: cookieSession.message_count,
+      messagesRemaining,
+    });
 
     return (
       <ChatInterface
@@ -334,13 +300,10 @@ export default async function ChatPage({
     const anonSession = await anonymousSessionsService.getByToken(sessionId);
 
     if (anonSession && !anonSession.converted_at) {
-      logger.info(
-        `[Chat Page] Found unconverted anonymous session, migrating...`,
-        {
-          sessionId: anonSession.id,
-          anonymousUserId: anonSession.user_id,
-        },
-      );
+      logger.info(`[Chat Page] Found unconverted anonymous session, migrating...`, {
+        sessionId: anonSession.id,
+        anonymousUserId: anonSession.user_id,
+      });
 
       await migrateAnonymousSession(anonSession.user_id, user.privy_user_id);
 
@@ -359,14 +322,11 @@ export default async function ChatPage({
   // automatically transfer ownership to the authenticated user
   // Note: We reuse the claimCheck/isClaimableAffiliate from line 137-139 to avoid duplicate database calls
   if (user.organization_id && isClaimableAffiliate) {
-    logger.info(
-      `[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`,
-      {
-        characterId,
-        userId: user.id,
-        previousOwnerId: claimCheck.ownerId,
-      },
-    );
+    logger.info(`[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`, {
+      characterId,
+      userId: user.id,
+      previousOwnerId: claimCheck.ownerId,
+    });
 
     const claimResult = await charactersService.claimAffiliateCharacter(
       characterId,
@@ -375,9 +335,7 @@ export default async function ChatPage({
     );
 
     if (claimResult.success) {
-      logger.info(
-        `[Chat Page] ✅ Successfully claimed affiliate character: ${characterId}`,
-      );
+      logger.info(`[Chat Page] ✅ Successfully claimed affiliate character: ${characterId}`);
       // Reload the character to get updated ownership
       const updatedCharacter = await charactersService.getById(characterId);
       if (updatedCharacter) {
@@ -395,9 +353,7 @@ export default async function ChatPage({
         );
       }
     } else {
-      logger.warn(
-        `[Chat Page] Failed to claim affiliate character: ${claimResult.message}`,
-      );
+      logger.warn(`[Chat Page] Failed to claim affiliate character: ${claimResult.message}`);
     }
   }
 
@@ -418,10 +374,7 @@ export default async function ChatPage({
 // Generate metadata for SEO with theme-aware branding
 // Only returns full metadata for public, claimable, or owner-viewed characters
 // Supports both /chat/{uuid} and /chat/@{username} URL patterns
-export async function generateMetadata({
-  params,
-  searchParams,
-}: ChatPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: ChatPageProps): Promise<Metadata> {
   const { characterId: characterIdParam } = await params;
   const { source } = await searchParams;
 
@@ -443,9 +396,7 @@ export async function generateMetadata({
 
   // Check access - show full metadata if: public, claimable, or owned by current user
   const isPublic = character.is_public === true;
-  const claimCheck = await charactersService.isClaimableAffiliateCharacter(
-    character.id,
-  );
+  const claimCheck = await charactersService.isClaimableAffiliateCharacter(character.id);
   const isClaimableAffiliate = claimCheck.claimable;
 
   // Check if current user is the owner (allows owners to see full metadata for their private chars)
@@ -464,14 +415,10 @@ export async function generateMetadata({
     };
   }
 
-  const characterData = character.character_data as
-    | Record<string, unknown>
-    | undefined;
+  const characterData = character.character_data as Record<string, unknown> | undefined;
   const theme = resolveCharacterTheme(source, characterData);
 
-  const bioText = Array.isArray(character.bio)
-    ? character.bio.join(" ")
-    : character.bio;
+  const bioText = Array.isArray(character.bio) ? character.bio.join(" ") : character.bio;
 
   // For public agents with usernames, use the username URL as canonical
   // This provides better SEO with human-readable URLs
@@ -480,7 +427,7 @@ export async function generateMetadata({
     : `/chat/${character.id}`;
 
   // Build the full canonical URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
   return {
     title: `Chat with ${character.name} | ${theme.branding.title}`,
@@ -502,8 +449,6 @@ export async function generateMetadata({
       images: character.avatar_url ? [character.avatar_url] : ["/og-image.png"],
     },
     // Only index public agents
-    robots: isPublic
-      ? { index: true, follow: true }
-      : { index: false, follow: false },
+    robots: isPublic ? { index: true, follow: true } : { index: false, follow: false },
   };
 }

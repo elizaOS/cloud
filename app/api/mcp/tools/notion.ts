@@ -4,12 +4,12 @@
  * Uses per-organization OAuth tokens via oauthService.
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getNotionToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -94,8 +94,8 @@ export function registerNotionTools(server: McpServer): void {
       description: "Search pages and data sources",
       inputSchema: {
         query: z.string().optional(),
-        filter: z.record(z.any()).optional(),
-        sort: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
+        sort: z.record(z.string(), z.any()).optional(),
         start_cursor: z.string().optional(),
         page_size: z.number().int().min(1).max(100).optional(),
       },
@@ -136,7 +136,7 @@ export function registerNotionTools(server: McpServer): void {
     {
       description: "Create page",
       inputSchema: {
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ body }) => {
@@ -155,12 +155,15 @@ export function registerNotionTools(server: McpServer): void {
       description: "Update page properties",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
       try {
-        const data = await notionFetch(`/v1/pages/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+        const data = await notionFetch(`/v1/pages/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update page"));
@@ -179,7 +182,10 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ id, archived }) => {
       try {
-        const data = await notionFetch(`/v1/pages/${id}`, { method: "PATCH", body: JSON.stringify({ archived }) });
+        const data = await notionFetch(`/v1/pages/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ archived }),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to archive page"));
@@ -235,12 +241,15 @@ export function registerNotionTools(server: McpServer): void {
       description: "Append blocks to a block",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
       try {
-        const data = await notionFetch(`/v1/blocks/${id}/children`, { method: "PATCH", body: JSON.stringify(body) });
+        const data = await notionFetch(`/v1/blocks/${id}/children`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to append blocks"));
@@ -254,12 +263,15 @@ export function registerNotionTools(server: McpServer): void {
       description: "Update block",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
       try {
-        const data = await notionFetch(`/v1/blocks/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+        const data = await notionFetch(`/v1/blocks/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update block"));
@@ -308,12 +320,15 @@ export function registerNotionTools(server: McpServer): void {
     {
       description: "Create database",
       inputSchema: {
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ body }) => {
       try {
-        const data = await notionFetch("/v1/databases", { method: "POST", body: JSON.stringify(body) });
+        const data = await notionFetch("/v1/databases", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create database"));
@@ -327,12 +342,15 @@ export function registerNotionTools(server: McpServer): void {
       description: "Update database",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
       try {
-        const data = await notionFetch(`/v1/databases/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+        const data = await notionFetch(`/v1/databases/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update database"));
@@ -364,7 +382,7 @@ export function registerNotionTools(server: McpServer): void {
       description: "Query data source",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()).optional(),
+        body: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ id, body }) => {
@@ -386,7 +404,7 @@ export function registerNotionTools(server: McpServer): void {
       description: "Update data source properties",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
@@ -471,12 +489,15 @@ export function registerNotionTools(server: McpServer): void {
     {
       description: "Create comment",
       inputSchema: {
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ body }) => {
       try {
-        const data = await notionFetch("/v1/comments", { method: "POST", body: JSON.stringify(body) });
+        const data = await notionFetch("/v1/comments", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create comment"));

@@ -5,14 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  discordConnectionsRepository,
-  userCharactersRepository,
-} from "@/db/repositories";
-import { DiscordConnectionMetadataSchema } from "@/db/schemas/discord-connections";
-import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { discordConnectionsRepository, userCharactersRepository } from "@/db/repositories";
+import { DiscordConnectionMetadataSchema } from "@/db/schemas/discord-connections";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -36,27 +33,18 @@ const UpdateConnectionSchema = z.object({
  * GET /api/v1/discord/connections/[id]
  * Get a single Discord connection by ID.
  */
-export async function GET(
-  request: NextRequest,
-  context: RouteContext,
-): Promise<NextResponse> {
+export async function GET(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await context.params;
 
   const connection = await discordConnectionsRepository.findById(id);
 
   if (!connection) {
-    return NextResponse.json(
-      { success: false, error: "Connection not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Connection not found" }, { status: 404 });
   }
 
   if (connection.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "Connection not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Connection not found" }, { status: 404 });
   }
 
   return NextResponse.json({
@@ -86,37 +74,25 @@ export async function GET(
  * PATCH /api/v1/discord/connections/[id]
  * Update a Discord connection (character, metadata, active status).
  */
-export async function PATCH(
-  request: NextRequest,
-  context: RouteContext,
-): Promise<NextResponse> {
+export async function PATCH(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await context.params;
 
   const connection = await discordConnectionsRepository.findById(id);
 
   if (!connection) {
-    return NextResponse.json(
-      { success: false, error: "Connection not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Connection not found" }, { status: 404 });
   }
 
   if (connection.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "Connection not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Connection not found" }, { status: 404 });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
   const validation = UpdateConnectionSchema.safeParse(body);
@@ -137,10 +113,7 @@ export async function PATCH(
   if (data.characterId) {
     const character = await userCharactersRepository.findById(data.characterId);
     if (!character) {
-      return NextResponse.json(
-        { success: false, error: "Character not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Character not found" }, { status: 404 });
     }
     if (character.organization_id !== user.organization_id) {
       return NextResponse.json(
@@ -220,27 +193,18 @@ export async function PATCH(
  * DELETE /api/v1/discord/connections/[id]
  * Delete a Discord connection.
  */
-export async function DELETE(
-  request: NextRequest,
-  context: RouteContext,
-): Promise<NextResponse> {
+export async function DELETE(request: NextRequest, context: RouteContext): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await context.params;
 
   const connection = await discordConnectionsRepository.findById(id);
 
   if (!connection) {
-    return NextResponse.json(
-      { success: false, error: "Connection not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Connection not found" }, { status: 404 });
   }
 
   if (connection.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "Connection not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Connection not found" }, { status: 404 });
   }
 
   const deleted = await discordConnectionsRepository.delete(id);

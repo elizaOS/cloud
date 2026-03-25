@@ -1,7 +1,8 @@
 import { openai } from "@ai-sdk/openai";
-import { logger } from "@/lib/utils/logger";
 import { streamText } from "ai";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuth } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -18,11 +19,13 @@ export async function POST(req: Request) {
   try {
     await requireAuth();
 
-    const body = await req.json();
-    const seed = body.seed || Date.now();
-
-    // Generate truly random seed for diversity
-    const randomSeed = `${seed}-${Math.random()}-${Math.random()}`;
+    const body = ((await req.json().catch(() => ({}))) ?? {}) as {
+      seed?: string | number;
+    };
+    const promptSeed =
+      typeof body.seed === "string" || typeof body.seed === "number"
+        ? String(body.seed)
+        : String(Date.now());
 
     const result = streamText({
       model: openai("gpt-4o"),
@@ -60,7 +63,7 @@ BAD prompts (too long, too fantasy):
 
 Return ONLY a JSON array of exactly 4 strings, nothing else. No markdown, no explanation.
 
-Random seed: ${randomSeed}`,
+Random seed: ${promptSeed}`,
         },
         {
           role: "user",
@@ -76,12 +79,14 @@ Random seed: ${randomSeed}`,
     return result.toTextStreamResponse();
   } catch (error) {
     logger.error("[Generate Prompts] Error:", error);
+    const status = getErrorStatusCode(error);
+    const errorMessage = status === 500 ? "Failed to generate prompts" : getSafeErrorMessage(error);
     return new Response(
       JSON.stringify({
-        error: "Failed to generate prompts",
+        error: errorMessage,
       }),
       {
-        status: 500,
+        status,
         headers: { "Content-Type": "application/json" },
       },
     );

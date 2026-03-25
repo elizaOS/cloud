@@ -1,12 +1,8 @@
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { logger } from "@/lib/utils/logger";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
-import { getProvider } from "@/lib/providers";
-import type { OpenAIModelsResponse } from "@/lib/providers/types";
 import type { NextRequest } from "next/server";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
+import { logger } from "@/lib/utils/logger";
 
 // This route uses cookies for auth, so it must be dynamic
 export const dynamic = "force-dynamic";
@@ -25,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Support both authenticated and anonymous users
     try {
       await requireAuthOrApiKey(request);
-    } catch (error) {
+    } catch (_error) {
       // Fallback to anonymous user
       const anonData = await getAnonymousUser();
       if (!anonData) {
@@ -34,16 +30,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const provider = getProvider();
-    const response = await provider.listModels();
-    const data: OpenAIModelsResponse = await response.json();
-
     // Return OpenAI-compatible format with cache headers
-    return Response.json(data, {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+    return Response.json(
+      {
+        object: "list",
+        data: await getCachedMergedModelCatalog(),
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+        },
+      },
+    );
   } catch (error) {
     logger.error("Error fetching models:", error);
     return Response.json(

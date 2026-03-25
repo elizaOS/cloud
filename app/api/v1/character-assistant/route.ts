@@ -1,9 +1,11 @@
-import { streamText, type UIMessage, convertToModelMessages } from "ai";
-import { logger } from "@/lib/utils/logger";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { NextResponse } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuth } from "@/lib/auth";
 import type { ElizaCharacter } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
-const createSystemPrompt = `You are an AI assistant helping users create character definitions for ElizaOS agents.
+const createSystemPrompt = `You are an AI assistant helping users create character definitions for elizaOS agents.
 
 Your goal is to help users craft detailed, engaging character personalities through conversation. 
 
@@ -44,7 +46,7 @@ Be creative, encouraging, and help users think deeply about their character's pe
 
 const editSystemPrompt = (
   character: ElizaCharacter,
-) => `You are an AI assistant helping users edit and refine an existing ElizaOS agent character.
+) => `You are an AI assistant helping users edit and refine an existing elizaOS agent character.
 
 You are currently editing the character **"${character.name}"**.
 
@@ -93,7 +95,7 @@ Always include a JSON block in your response showing the current character state
 
 /**
  * POST /api/v1/character-assistant
- * AI assistant for creating and editing ElizaOS character definitions.
+ * AI assistant for creating and editing elizaOS character definitions.
  * Uses GPT-4o to help users build character configurations progressively.
  *
  * @param request - Request body with messages array and optional character for editing.
@@ -114,10 +116,11 @@ export async function POST(request: Request) {
       isEditMode?: boolean;
     } = body;
 
-    const systemPrompt =
-      isEditMode && character
-        ? editSystemPrompt(character)
-        : createSystemPrompt;
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json({ error: "Messages array cannot be empty" }, { status: 400 });
+    }
+
+    const systemPrompt = isEditMode && character ? editSystemPrompt(character) : createSystemPrompt;
 
     const result = streamText({
       model: "gpt-4o-mini",
@@ -130,12 +133,15 @@ export async function POST(request: Request) {
     return result.toUIMessageStreamResponse();
   } catch (error) {
     logger.error("Character assistant error:", error);
+    const status = getErrorStatusCode(error);
+    const errorMessage =
+      status === 500 ? "Failed to process character assistant request" : getSafeErrorMessage(error);
     return new Response(
       JSON.stringify({
-        error: "Failed to process character assistant request",
+        error: errorMessage,
       }),
       {
-        status: 500,
+        status,
         headers: { "Content-Type": "application/json" },
       },
     );

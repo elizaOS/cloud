@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { generationsService } from "@/lib/services/generations";
 import { usageService } from "@/lib/services/usage";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/stats/account
@@ -24,10 +24,8 @@ async function handleGET(req: NextRequest) {
       usageService.getStatsByOrganization(organizationId, twentyFourHoursAgo),
     ]);
 
-    const imageCount =
-      generationStats.byType.find((t) => t.type === "image")?.count || 0;
-    const videoCount =
-      generationStats.byType.find((t) => t.type === "video")?.count || 0;
+    const imageCount = generationStats.byType.find((t) => t.type === "image")?.count || 0;
+    const videoCount = generationStats.byType.find((t) => t.type === "video")?.count || 0;
 
     return NextResponse.json({
       success: true,

@@ -20,10 +20,11 @@
  *   https://your-domain.com/api/cron/cleanup-anonymous-sessions
  */
 
+import { and, eq, lt } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { dbRead, dbWrite } from "@/db/client";
-import { users, anonymousSessions, conversations } from "@/db/schemas";
-import { and, eq, lt } from "drizzle-orm";
+import { anonymousSessions, conversations, users } from "@/db/schemas";
+import { userIdentities } from "@/db/schemas/user-identities";
 import { logger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
@@ -45,10 +46,7 @@ export async function GET(request: NextRequest) {
 
     if (!cronSecret) {
       logger.error("cleanup-cron", "CRON_SECRET not configured");
-      return NextResponse.json(
-        { error: "Cron not configured" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
     }
 
     const providedSecret = authHeader?.replace("Bearer ", "");
@@ -64,33 +62,25 @@ export async function GET(request: NextRequest) {
     let deletedSessions = 0;
     let deletedConversations = 0;
 
-    // Step 1: Find expired anonymous users
-    const expiredUsers = await dbRead
-      .select()
+    // Step 1: Find expired anonymous users (via identity table)
+    const expiredUserRows = await dbRead
+      .select({ id: users.id })
       .from(users)
-      .where(
-        and(
-          eq(users.is_anonymous, true),
-          lt(users.expires_at!, now), // expires_at < now
-        ),
-      );
+      .innerJoin(userIdentities, eq(users.id, userIdentities.user_id))
+      .where(and(eq(userIdentities.is_anonymous, true), lt(userIdentities.expires_at!, now)));
 
-    logger.info(
-      "cleanup-cron",
-      `Found ${expiredUsers.length} expired anonymous users`,
-    );
+    const expiredUsers = expiredUserRows;
+
+    logger.info("cleanup-cron", `Found ${expiredUsers.length} expired anonymous users`);
 
     // Step 2: Delete conversations for expired users (optional - decide if you want to keep them)
     if (expiredUsers.length > 0) {
       const userIds = expiredUsers.map((u) => u.id);
 
       // Count conversations to be deleted
-      const conversationsToDelete = await dbRead
-        .select()
-        .from(conversations)
-        .where(
-          eq(conversations.user_id, userIds[0]), // We'll delete one by one
-        );
+      const conversationsToDelete = await dbRead.select().from(conversations).where(
+        eq(conversations.user_id, userIds[0]), // We'll delete one by one
+      );
 
       deletedConversations = conversationsToDelete.length;
 
@@ -127,9 +117,7 @@ export async function GET(request: NextRequest) {
       })
       .from(users)
       .leftJoin(anonymousSessions, eq(anonymousSessions.user_id, users.id))
-      .where(
-        and(eq(users.is_anonymous, true), lt(users.created_at, sevenDaysAgo)),
-      );
+      .where(and(eq(userIdentities.is_anonymous, true), lt(users.created_at, sevenDaysAgo)));
 
     let deletedInactiveUsers = 0;
     for (const record of inactiveUsersWithSessions) {
@@ -139,10 +127,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    logger.info(
-      "cleanup-cron",
-      `Deleted ${deletedInactiveUsers} inactive anonymous users`,
-    );
+    logger.info("cleanup-cron", `Deleted ${deletedInactiveUsers} inactive anonymous users`);
 
     // Return summary
     return NextResponse.json({

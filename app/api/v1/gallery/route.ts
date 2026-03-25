@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
+import { z } from "zod";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { generationsService } from "@/lib/services/generations";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
+
+const galleryQuerySchema = z.object({
+  type: z.enum(["image", "video"]).optional(),
+  limit: z.coerce.number().int().min(1).max(1000).default(100),
+  offset: z.coerce.number().int().min(0).default(0),
+});
 
 /**
  * GET /api/v1/gallery
@@ -17,27 +25,39 @@ export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-    const searchParams = request.nextUrl.searchParams;
-    const type = searchParams.get("type") as "image" | "video" | null;
-    const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 1000);
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const parsedQuery = galleryQuerySchema.safeParse({
+      type: request.nextUrl.searchParams.get("type") || undefined,
+      limit: request.nextUrl.searchParams.get("limit") || undefined,
+      offset: request.nextUrl.searchParams.get("offset") || undefined,
+    });
+
+    if (!parsedQuery.success) {
+      return NextResponse.json(
+        { error: "Validation error", details: parsedQuery.error.issues },
+        { status: 400 },
+      );
+    }
+
+    const { type, limit, offset } = parsedQuery.data;
 
     // Fetch with database-level filtering for performance
+    const fetchLimit = Math.min(limit + 1, 1001);
     const allGenerations = await generationsService.listByOrganizationAndStatus(
       user.organization_id!,
       "completed",
       {
         userId: user.id,
-        type: type || undefined,
-        limit: limit,
-        offset: offset,
+        type,
+        limit: fetchLimit,
+        offset,
       },
     );
 
     // Filter out generations without storage_url
     const generations = allGenerations.filter((gen) => gen.storage_url);
+    const visibleGenerations = generations.slice(0, limit);
 
-    const items = generations.map((gen) => ({
+    const items = visibleGenerations.map((gen) => ({
       id: gen.id,
       type: gen.type,
       url: gen.storage_url,
@@ -61,25 +81,16 @@ export async function GET(request: NextRequest) {
         count: items.length,
         offset,
         limit,
-        hasMore: items.length === limit,
+        hasMore: generations.length > limit,
       },
       { status: 200 },
     );
   } catch (error) {
     logger.error("[GALLERY API] Error:", error);
+    const status = getErrorStatusCode(error);
     const errorMessage =
-      error instanceof Error ? error.message : "Failed to fetch gallery items";
+      status === 500 ? "Failed to fetch gallery items" : getSafeErrorMessage(error);
 
-    return NextResponse.json(
-      { error: errorMessage },
-      {
-        status:
-          error instanceof Error &&
-          (error.message.includes("API key") ||
-            error.message.includes("Forbidden"))
-            ? 401
-            : 500,
-      },
-    );
+    return NextResponse.json({ error: errorMessage }, { status });
   }
 }

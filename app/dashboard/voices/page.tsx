@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { voiceCloningService } from "@/lib/services/voice-cloning";
-import { VoicePageClient } from "@/components/voices/voice-page-client";
 import { organizationsService } from "@/lib/services/organizations";
-import type { Voice } from "@/components/voices/types";
+import { voiceCloningService } from "@/lib/services/voice-cloning";
+import type { Voice } from "@/packages/ui/src/components/voices/types";
+import { VoicePageClient } from "@/packages/ui/src/components/voices/voice-page-client";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Voice Studio",
-  description:
-    "Clone your voice and create custom AI voices for text-to-speech",
+  description: "Clone your voice and create custom AI voices for text-to-speech",
 };
 
 /**
@@ -39,9 +38,7 @@ export default async function VoicesPage() {
     totalAudioDurationSeconds: voice.totalAudioDurationSeconds,
     audioQualityScore: voice.audioQualityScore,
     usageCount: voice.usageCount,
-    lastUsedAt: voice.lastUsedAt
-      ? new Date(voice.lastUsedAt).toISOString()
-      : null,
+    lastUsedAt: voice.lastUsedAt ? new Date(voice.lastUsedAt).toISOString() : null,
     isActive: voice.isActive,
     isPublic: voice.isPublic,
     createdAt: new Date(voice.createdAt).toISOString(), // Convert to ISO string for consistent parsing

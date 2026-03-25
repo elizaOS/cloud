@@ -4,6 +4,44 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidVoiceId(voiceId: string) {
+  return uuidRegex.test(voiceId);
+}
+
+function createInvalidVoiceIdResponse(listEndpoint: string) {
+  return NextResponse.json(
+    {
+      error: "Invalid voice ID format",
+      message:
+        "Please use the internal voice ID (UUID format) from the voice listing endpoint, not the ElevenLabs voice ID.",
+      hint: `Call GET ${listEndpoint} to get your voice IDs`,
+    },
+    { status: 400 },
+  );
+}
+
+function getInvalidVoiceIdResponseIfNeeded(
+  voiceId: string,
+  logMessage: string,
+  listEndpoint: string,
+) {
+  if (isValidVoiceId(voiceId)) {
+    return null;
+  }
+
+  logger.warn(logMessage);
+  return createInvalidVoiceIdResponse(listEndpoint);
+}
+
+function isInvalidVoiceIdError(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error.message.includes("invalid input syntax for type uuid") || error.message.includes("uuid"))
+  );
+}
+
 /**
  * GET /api/elevenlabs/voices/[id]
  * Gets details for a specific voice by its internal UUID.
@@ -13,10 +51,7 @@ import { logger } from "@/lib/utils/logger";
  * @param context - Route context containing the voice ID parameter.
  * @returns Voice details including ElevenLabs voice ID and metadata.
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuthWithOrg();
     const params = await context.params;
@@ -24,28 +59,16 @@ export async function GET(
 
     logger.info(`[Voice API] Getting voice ${voiceId} for user ${user.id}`);
 
-    // Validate UUID format
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(voiceId)) {
-      logger.warn(
-        `[Voice API] Invalid voice ID format: ${voiceId}. Expected UUID format.`,
-      );
-      return NextResponse.json(
-        {
-          error: "Invalid voice ID format",
-          message:
-            "Please use the internal voice ID (UUID format) from the 'List User Voices' endpoint, not the ElevenLabs voice ID. Example: Get your voice list first, then use the 'id' field (not 'elevenlabsVoiceId').",
-          hint: "Call GET /api/elevenlabs/voices/user to get your voice IDs",
-        },
-        { status: 400 },
-      );
+    const invalidVoiceIdResponse = getInvalidVoiceIdResponseIfNeeded(
+      voiceId,
+      `[Voice API] Invalid voice ID format: ${voiceId}. Expected UUID format.`,
+      "/api/elevenlabs/voices/user",
+    );
+    if (invalidVoiceIdResponse) {
+      return invalidVoiceIdResponse;
     }
 
-    const voice = await voiceCloningService.getVoiceById(
-      voiceId,
-      user.organization_id!,
-    );
+    const voice = await voiceCloningService.getVoiceById(voiceId, user.organization_id!);
 
     if (!voice) {
       return NextResponse.json(
@@ -69,21 +92,8 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check for UUID format errors
-    if (
-      error instanceof Error &&
-      (error.message.includes("invalid input syntax for type uuid") ||
-        error.message.includes("uuid"))
-    ) {
-      return NextResponse.json(
-        {
-          error: "Invalid voice ID format",
-          message:
-            "The voice ID must be in UUID format. Use the 'id' field from 'List User Voices' response, not the 'elevenlabsVoiceId'.",
-          hint: "Call GET /api/elevenlabs/voices/user to get your voice IDs",
-        },
-        { status: 400 },
-      );
+    if (isInvalidVoiceIdError(error)) {
+      return createInvalidVoiceIdResponse("/api/elevenlabs/voices/user");
     }
 
     return NextResponse.json(
@@ -102,10 +112,7 @@ export async function GET(
  * @param context - Route context containing the voice ID parameter.
  * @returns Success confirmation.
  */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuthWithOrg();
     const params = await context.params;
@@ -113,22 +120,13 @@ export async function DELETE(
 
     logger.info(`[Voice API] Deleting voice ${voiceId} for user ${user.id}`);
 
-    // Validate UUID format
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(voiceId)) {
-      logger.warn(
-        `[Voice API] Invalid voice ID format for deletion: ${voiceId}`,
-      );
-      return NextResponse.json(
-        {
-          error: "Invalid voice ID format",
-          message:
-            "Please use the internal voice ID (UUID format) from the 'List User Voices' endpoint, not the ElevenLabs voice ID.",
-          hint: "Call GET /api/elevenlabs/voices/user to get your voice IDs",
-        },
-        { status: 400 },
-      );
+    const invalidVoiceIdResponse = getInvalidVoiceIdResponseIfNeeded(
+      voiceId,
+      `[Voice API] Invalid voice ID format for deletion: ${voiceId}`,
+      "/api/elevenlabs/voices/user",
+    );
+    if (invalidVoiceIdResponse) {
+      return invalidVoiceIdResponse;
     }
 
     await voiceCloningService.deleteVoice(voiceId, user.organization_id!);
@@ -156,20 +154,8 @@ export async function DELETE(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      // Check for UUID format errors
-      if (
-        error.message.includes("invalid input syntax for type uuid") ||
-        error.message.includes("uuid")
-      ) {
-        return NextResponse.json(
-          {
-            error: "Invalid voice ID format",
-            message:
-              "The voice ID must be in UUID format. Use the 'id' field from 'List User Voices' response, not the 'elevenlabsVoiceId'.",
-            hint: "Call GET /api/elevenlabs/voices/user to get your voice IDs",
-          },
-          { status: 400 },
-        );
+      if (isInvalidVoiceIdError(error)) {
+        return createInvalidVoiceIdResponse("/api/elevenlabs/voices/user");
       }
     }
 
@@ -195,10 +181,7 @@ export async function DELETE(
  * @param context - Route context containing the voice ID parameter.
  * @returns Updated voice details.
  */
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuthWithOrg();
     const params = await context.params;
@@ -207,18 +190,23 @@ export async function PATCH(
 
     logger.info(`[Voice API] Updating voice ${voiceId} for user ${user.id}`);
 
+    const invalidVoiceIdResponse = getInvalidVoiceIdResponseIfNeeded(
+      voiceId,
+      `[Voice API] Invalid voice ID format for update: ${voiceId}`,
+      "/api/elevenlabs/voices/user",
+    );
+    if (invalidVoiceIdResponse) {
+      return invalidVoiceIdResponse;
+    }
+
     const { name, description, settings, isActive } = body;
 
-    const updatedVoice = await voiceCloningService.updateVoice(
-      voiceId,
-      user.organization_id!,
-      {
-        name,
-        description,
-        settings,
-        isActive,
-      },
-    );
+    const updatedVoice = await voiceCloningService.updateVoice(voiceId, user.organization_id!, {
+      name,
+      description,
+      settings,
+      isActive,
+    });
 
     return NextResponse.json({
       success: true,
@@ -234,6 +222,10 @@ export async function PATCH(
 
       if (error.message.includes("Unauthorized")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      if (isInvalidVoiceIdError(error)) {
+        return createInvalidVoiceIdResponse("/api/elevenlabs/voices/user");
       }
     }
 

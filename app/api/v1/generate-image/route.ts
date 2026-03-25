@@ -1,26 +1,24 @@
-import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
-import { usageService } from "@/lib/services/usage";
-import { generationsService } from "@/lib/services/generations";
-import { discordService } from "@/lib/services/discord";
-import { appsService } from "@/lib/services/apps";
-import { IMAGE_GENERATION_COST } from "@/lib/pricing";
-import { uploadBase64Image } from "@/lib/blob";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { logger } from "@/lib/utils/logger";
-import {
-  creditsService,
-  InsufficientCreditsError,
-  type CreditReservation,
-} from "@/lib/services/credits";
+import { streamText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import { uploadBase64Image } from "@/lib/blob";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { IMAGE_GENERATION_COST } from "@/lib/pricing";
+import { billUsage } from "@/lib/services/ai-billing";
+import { appsService } from "@/lib/services/apps";
+import {
+  type CreditReservation,
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import { discordService } from "@/lib/services/discord";
+import { generationsService } from "@/lib/services/generations";
+import { usageService } from "@/lib/services/usage";
 import type { UserWithOrganization } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 180; // 3 minutes for image generation
 
@@ -54,8 +52,8 @@ const DEFAULT_IMAGE_MODEL = "google/gemini-2.5-flash-image";
  */
 const ALLOWED_IMAGE_MODELS = [
   "google/gemini-2.5-flash-image",
-  "google/gemini-2.5-flash-image-preview",
   "google/gemini-3-pro-image",
+  "google/gemini-3.1-flash-image-preview",
   "openai/gpt-5-nano",
   "bfl/flux-kontext-max",
 ];
@@ -152,7 +150,7 @@ async function handlePOST(req: NextRequest) {
   try {
     // Authenticate - supports both authenticated and anonymous users
     const authContext = await authenticateUser(req);
-    const { user, apiKey, session_token, isAnonymous } = authContext;
+    const { user, apiKey, isAnonymous } = authContext;
 
     const requestBody = await req.json();
     const {
@@ -163,6 +161,7 @@ async function handlePOST(req: NextRequest) {
       sourceImage,
       model: requestedModel,
     }: GenerateImageRequest = requestBody;
+    const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return Response.json(
@@ -172,8 +171,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Validate and select image model
-    const isModelAllowed =
-      requestedModel && ALLOWED_IMAGE_MODELS.includes(requestedModel);
+    const isModelAllowed = requestedModel && ALLOWED_IMAGE_MODELS.includes(requestedModel);
     const imageModel = isModelAllowed ? requestedModel : DEFAULT_IMAGE_MODEL;
     const imageProvider = getImageProvider(imageModel);
 
@@ -230,23 +228,17 @@ async function handlePOST(req: NextRequest) {
     if (stylePreset && stylePreset !== "none") {
       const styleDescriptions: Record<StylePreset, string> = {
         none: "",
-        photographic:
-          "in a photographic style with realistic lighting and details",
-        "digital-art":
-          "in a digital art style with vibrant colors and modern aesthetics",
-        "comic-book":
-          "in a comic book style with bold lines and dramatic shading",
-        "fantasy-art":
-          "in a fantasy art style with magical and ethereal elements",
-        "analog-film":
-          "in an analog film photography style with film grain and vintage tones",
+        photographic: "in a photographic style with realistic lighting and details",
+        "digital-art": "in a digital art style with vibrant colors and modern aesthetics",
+        "comic-book": "in a comic book style with bold lines and dramatic shading",
+        "fantasy-art": "in a fantasy art style with magical and ethereal elements",
+        "analog-film": "in an analog film photography style with film grain and vintage tones",
         "neon-punk": "in a neon punk cyberpunk style with glowing neon colors",
         isometric: "in an isometric perspective style with geometric precision",
         "low-poly": "in a low-poly 3D style with geometric facets",
         origami: "in an origami paper-folding style",
         "line-art": "in a clean line art style with minimal shading",
-        cinematic:
-          "in a cinematic style with dramatic lighting and composition",
+        cinematic: "in a cinematic style with dramatic lighting and composition",
         "3d-model": "as a high-quality 3D rendered model",
       };
 
@@ -408,9 +400,7 @@ async function handlePOST(req: NextRequest) {
       } catch (streamError) {
         logger.error(
           "[Generate Image] streamText error:",
-          streamError instanceof Error
-            ? streamError.message
-            : String(streamError),
+          streamError instanceof Error ? streamError.message : String(streamError),
         );
         return null;
       }
@@ -426,15 +416,11 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Generate multiple images in parallel
-    const imagePromises = Array.from({ length: numImages }, () =>
-      generateSingleImage(),
-    );
+    const imagePromises = Array.from({ length: numImages }, () => generateSingleImage());
     const results = await Promise.all(imagePromises);
 
     // Filter out any failed generations
-    const successfulResults = results.filter(
-      (r): r is NonNullable<typeof r> => r !== null,
-    );
+    const successfulResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
 
     if (successfulResults.length === 0) {
       // Reconcile with 0 cost (full refund)
@@ -469,19 +455,45 @@ async function handlePOST(req: NextRequest) {
         }
       }
 
-      return Response.json(
-        { error: "No images were generated" },
-        { status: 500 },
-      );
+      return Response.json({ error: "No images were generated" }, { status: 500 });
     }
 
     // Calculate actual cost based on successful images and reconcile
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
-    await reservation.reconcile(actualCost);
 
     // Only create usage record for authenticated users
     let usageRecordId: string | undefined;
+    let actualCostBilled = actualCost;
     if (!isAnonymous && user.organization_id) {
+      // Calculate final pricing utilizing AI billing helper
+      // This applies affiliate markups, calculates platform markups, and reconciles the reservation
+      const billing = await billUsage(
+        {
+          organizationId: user.organization_id,
+          userId: user.id,
+          apiKeyId: apiKey?.id,
+          model: imageModel,
+          provider: imageProvider,
+          affiliateCode,
+          description: `Image generation (${successfulResults.length}x): ${imageModel}`,
+        },
+        {
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          // We override the total cost through a hack since images are billed per unit not per token within `calculateCost`.
+          // We let `billUsage` do the affiliate markup math.
+        },
+        {
+          reservedAmount: actualCost, // we just pass a mock reservation to reconcile it via the wrapper logic
+          reconcile: async (cost: number) => {
+            // Reconcile actual calculated final cost against original estimated cost we already reserved
+            await reservation.reconcile(cost);
+          },
+        },
+      );
+      actualCostBilled = billing.totalCost;
+
       const usageRecord = await usageService.create({
         organization_id: user.organization_id,
         user_id: user.id,
@@ -491,7 +503,7 @@ async function handlePOST(req: NextRequest) {
         provider: imageProvider,
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: String(actualCost),
+        input_cost: String(actualCostBilled),
         output_cost: String(0),
         is_successful: true,
       });
@@ -511,7 +523,7 @@ async function handlePOST(req: NextRequest) {
           userAgent,
           userId: user.id,
           model: imageModel,
-          creditsUsed: String(actualCost),
+          creditsUsed: String(actualCostBilled),
           status: "success",
         });
       }
@@ -584,8 +596,8 @@ async function handlePOST(req: NextRequest) {
         // First record holds the total cost for the entire batch
         await generationsService.update(generationId, {
           status: "completed",
-          credits: String(actualCost),
-          cost: String(actualCost),
+          credits: String(actualCostBilled),
+          cost: String(actualCostBilled),
           content: uploadResults[0].imageBase64,
           storage_url: uploadResults[0].blobUrl,
           mime_type: uploadResults[0].mimeType,
@@ -633,8 +645,8 @@ async function handlePOST(req: NextRequest) {
         // Single image or multi-image without org (just update existing record)
         await generationsService.update(generationId, {
           status: "completed",
-          credits: String(actualCost),
-          cost: String(actualCost),
+          credits: String(actualCostBilled),
+          cost: String(actualCostBilled),
           content: uploadResults[0].imageBase64,
           storage_url: uploadResults[0].blobUrl,
           mime_type: uploadResults[0].mimeType,
@@ -686,12 +698,8 @@ async function handlePOST(req: NextRequest) {
       numImages: successfulResults.length,
     });
   } catch (error) {
-    logger.error(
-      "[Generate Image] Error:",
-      error instanceof Error ? error.message : String(error),
-    );
-    const errorMessage =
-      error instanceof Error ? error.message : "Image generation failed";
+    logger.error("[Generate Image] Error:", error instanceof Error ? error.message : String(error));
+    const errorMessage = error instanceof Error ? error.message : "Image generation failed";
 
     if (generationId) {
       try {
@@ -703,9 +711,7 @@ async function handlePOST(req: NextRequest) {
       } catch (updateError) {
         logger.error(
           "[Generate Image] Failed to update generation record:",
-          updateError instanceof Error
-            ? updateError.message
-            : String(updateError),
+          updateError instanceof Error ? updateError.message : String(updateError),
         );
       }
     }
@@ -713,10 +719,7 @@ async function handlePOST(req: NextRequest) {
     return Response.json(
       { error: errorMessage },
       {
-        status:
-          error instanceof Error && error.message.includes("API key")
-            ? 401
-            : 500,
+        status: error instanceof Error && error.message.includes("API key") ? 401 : 500,
       },
     );
   }

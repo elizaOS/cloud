@@ -1,16 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { headers, cookies } from "next/headers";
 import crypto from "crypto";
-import { syncUserFromPrivy, type SyncOptions } from "@/lib/privy-sync";
-import { migrateAnonymousSession } from "@/lib/session";
-import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
-import { logger } from "@/lib/utils/logger";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import {
-  trackServerEvent,
-  identifyServerUser,
-} from "@/lib/analytics/posthog-server";
+import { cookies, headers } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 import { getSignupMethod } from "@/lib/analytics/posthog";
+import { identifyServerUser, trackServerEvent } from "@/lib/analytics/posthog-server";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { type SyncOptions, syncUserFromPrivy } from "@/lib/privy-sync";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { referralsService } from "@/lib/services/referrals";
+import { migrateAnonymousSession } from "@/lib/session";
+import { logger } from "@/lib/utils/logger";
 
 // Verify webhook signature from Privy using their recommended method
 async function verifyWebhookSignature(
@@ -31,16 +29,10 @@ async function verifyWebhookSignature(
   const signedPayload = `v1:${timestamp}:${payload}`;
 
   // Calculate expected signature
-  const expectedSignature = crypto
-    .createHmac("sha256", secret)
-    .update(signedPayload)
-    .digest("hex");
+  const expectedSignature = crypto.createHmac("sha256", secret).update(signedPayload).digest("hex");
 
   // Compare signatures
-  return crypto.timingSafeEqual(
-    Buffer.from(providedSignature),
-    Buffer.from(expectedSignature),
-  );
+  return crypto.timingSafeEqual(Buffer.from(providedSignature), Buffer.from(expectedSignature));
 }
 
 /**
@@ -64,32 +56,19 @@ async function handlePrivyWebhook(request: NextRequest) {
     const signature = headersList.get("privy-webhook-signature");
 
     if (!signature) {
-      return NextResponse.json(
-        { error: "Missing webhook signature" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Missing webhook signature" }, { status: 401 });
     }
 
     // Verify webhook signature
     const webhookSecret = process.env.PRIVY_WEBHOOK_SECRET;
     if (!webhookSecret) {
       logger.error("PRIVY_WEBHOOK_SECRET not configured");
-      return NextResponse.json(
-        { error: "Webhook not configured" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
     }
 
-    const isValid = await verifyWebhookSignature(
-      body,
-      signature,
-      webhookSecret,
-    );
+    const isValid = await verifyWebhookSignature(body, signature, webhookSecret);
     if (!isValid) {
-      return NextResponse.json(
-        { error: "Invalid webhook signature" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
     }
 
     // Parse the webhook payload
@@ -98,8 +77,7 @@ async function handlePrivyWebhook(request: NextRequest) {
     // Extract IP address from headers (for abuse tracking)
     const forwardedFor = headersList.get("x-forwarded-for");
     const realIp = headersList.get("x-real-ip");
-    const ipAddress =
-      forwardedFor?.split(",")[0]?.trim() || realIp || undefined;
+    const ipAddress = forwardedFor?.split(",")[0]?.trim() || realIp || undefined;
     const userAgent = headersList.get("user-agent") || undefined;
 
     // Handle different webhook events
@@ -118,6 +96,20 @@ async function handlePrivyWebhook(request: NextRequest) {
         // Sync user on creation, linking new account, or authentication
         const user = await syncUserFromPrivy(payload.user, syncOptions);
 
+        if (payload.type === "user.linked_account") {
+          try {
+            await referralsService.checkAndQualifyReferral(user.id);
+          } catch (qualificationError) {
+            logger.error("[Privy Webhook] Failed to process referral qualification", {
+              userId: user.id,
+              error:
+                qualificationError instanceof Error
+                  ? qualificationError.message
+                  : String(qualificationError),
+            });
+          }
+        }
+
         // Track signup event for new users
         if (payload.type === "user.created") {
           const privyUser = payload.user;
@@ -125,14 +117,9 @@ async function handlePrivyWebhook(request: NextRequest) {
 
           // Identify user in PostHog using internal UUID for consistent tracking
           identifyServerUser(user.id, {
-            email:
-              privyUser.email?.address ||
-              privyUser.google?.email ||
-              privyUser.discord?.email,
+            email: privyUser.email?.address || privyUser.google?.email || privyUser.discord?.email,
             name:
-              privyUser.google?.name ||
-              privyUser.discord?.username ||
-              privyUser.github?.username,
+              privyUser.google?.name || privyUser.discord?.username || privyUser.github?.username,
             wallet_address: privyUser.wallet?.address,
             signup_method: signupMethod,
             created_at: new Date().toISOString(),
@@ -156,14 +143,12 @@ async function handlePrivyWebhook(request: NextRequest) {
         const anonSessionToken = cookieStore.get("eliza-anon-session")?.value;
 
         if (anonSessionToken) {
-          logger.info(
-            "[Privy Webhook] Anonymous session detected, initiating migration...",
-            { tokenPreview: anonSessionToken.slice(0, 8) + "..." },
-          );
+          logger.info("[Privy Webhook] Anonymous session detected, initiating migration...", {
+            tokenPreview: anonSessionToken.slice(0, 8) + "...",
+          });
 
           try {
-            const anonSession =
-              await anonymousSessionsService.getByToken(anonSessionToken);
+            const anonSession = await anonymousSessionsService.getByToken(anonSessionToken);
 
             if (anonSession) {
               const migrationResult = await migrateAnonymousSession(
@@ -179,9 +164,7 @@ async function handlePrivyWebhook(request: NextRequest) {
                 ...migrationResult.mergedData,
               });
             } else {
-              logger.debug(
-                "[Privy Webhook] Anonymous session token not found in DB",
-              );
+              logger.debug("[Privy Webhook] Anonymous session token not found in DB");
             }
           } catch (migrationError) {
             logger.error("[Privy Webhook] Migration failed:", migrationError);
@@ -208,10 +191,7 @@ async function handlePrivyWebhook(request: NextRequest) {
         break;
     }
 
-    return NextResponse.json(
-      { success: true, message: "Webhook processed" },
-      { status: 200 },
-    );
+    return NextResponse.json({ success: true, message: "Webhook processed" }, { status: 200 });
   } catch (error) {
     logger.error("Webhook processing error:", error);
 
@@ -228,7 +208,4 @@ async function handlePrivyWebhook(request: NextRequest) {
 }
 
 // Export rate-limited handler
-export const POST = withRateLimit(
-  handlePrivyWebhook,
-  RateLimitPresets.AGGRESSIVE,
-);
+export const POST = withRateLimit(handlePrivyWebhook, RateLimitPresets.AGGRESSIVE);

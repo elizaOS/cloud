@@ -1,13 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
-import { stringToUuid } from "@elizaos/core";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { userContextService } from "@/lib/eliza/user-context";
-import { RuntimeFactory, invalidateRuntime } from "@/lib/eliza/runtime-factory";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuthOrApiKey } from "@/lib/auth";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
+import { invalidateRuntime, RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -51,10 +50,7 @@ async function handleGET(req: NextRequest) {
 
     if (!knowledgeService) {
       const status = runtime.getServiceRegistrationStatus("knowledge");
-      logger.error(
-        "[Knowledge API] Knowledge service not available, status:",
-        status,
-      );
+      logger.error("[Knowledge API] Knowledge service not available, status:", status);
 
       return NextResponse.json(
         {
@@ -136,17 +132,11 @@ async function handlePOST(req: NextRequest) {
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {
-      return NextResponse.json(
-        { error: "Knowledge service not available" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "Knowledge service not available" }, { status: 503 });
     }
 
     if (!content) {
-      return NextResponse.json(
-        { error: "Content is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
     // For text content, check if it needs base64 encoding
@@ -155,10 +145,7 @@ async function handlePOST(req: NextRequest) {
 
     // If content looks like it might be binary or already base64, keep it as is
     // Otherwise, convert text to base64 for consistency
-    if (
-      finalContentType.startsWith("text/") ||
-      finalContentType === "application/json"
-    ) {
+    if (finalContentType.startsWith("text/") || finalContentType === "application/json") {
       // Text content - convert to base64
       processedContent = Buffer.from(content).toString("base64");
     }
@@ -188,9 +175,7 @@ async function handlePOST(req: NextRequest) {
     // 2. Properly loads the updated knowledge plugin state
     const agentIdStr = runtime.agentId as string;
     await invalidateRuntime(agentIdStr).catch((e) => {
-      logger.warn(
-        `[Knowledge API] Failed to invalidate runtime after upload: ${e}`,
-      );
+      logger.warn(`[Knowledge API] Failed to invalidate runtime after upload: ${e}`);
     });
     logger.info(
       `[Knowledge API] Invalidated runtime cache for agent ${agentIdStr} after knowledge upload`,

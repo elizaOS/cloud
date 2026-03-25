@@ -6,19 +6,16 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
 import { memoriesRepository } from "@/db/repositories/agents/memories";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 
 async function handleGET(req: NextRequest) {
-  const authResult = await requireAuthOrApiKey(req);
+  const _authResult = await requireAuthOrApiKey(req);
 
   const characterId = req.nextUrl.searchParams.get("characterId");
   if (!characterId) {
-    return NextResponse.json(
-      { error: "characterId is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "characterId is required" }, { status: 400 });
   }
 
   // Direct database query - no runtime needed

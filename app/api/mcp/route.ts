@@ -4,6 +4,7 @@ import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import { authContextStorage } from "./lib/context";
 
 export const maxDuration = 60;
+let mcpHandlerPromise: Promise<(req: Request) => Promise<unknown>> | null = null;
 
 /**
  * Response shape from mcp-handler's createMcpHandler().
@@ -25,77 +26,104 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
   );
 }
 
-// Lazy-loaded MCP handler to avoid triggering undici Response polyfill
-// at module evaluation time. The polyfill breaks NextResponse instanceof
-// checks in other routes. See: https://github.com/vercel/next.js/issues/58611
-let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
-
 export async function getMcpHandler() {
-  if (mcpHandler) return mcpHandler;
+  if (!mcpHandlerPromise) {
+    mcpHandlerPromise = (async () => {
+      const [{ createMcpHandler }, ...toolModules] = await Promise.all([
+        import("mcp-handler"),
+        import("./tools/credits"),
+        import("./tools/api-keys"),
+        import("./tools/generation"),
+        import("./tools/memory"),
+        import("./tools/conversations"),
+        import("./tools/agents"),
+        import("./tools/containers"),
+        import("./tools/mcps"),
+        import("./tools/rooms"),
+        import("./tools/user"),
+        import("./tools/knowledge"),
+        import("./tools/redemption"),
+        import("./tools/analytics"),
+        import("./tools/google"),
+        import("./tools/hubspot"),
+        import("./tools/linear"),
+        import("./tools/notion"),
+        import("./tools/github"),
+        import("./tools/asana"),
+        import("./tools/dropbox"),
+        import("./tools/salesforce"),
+        import("./tools/airtable"),
+        import("./tools/zoom"),
+        import("./tools/jira"),
+        import("./tools/linkedin"),
+        import("./tools/twitter"),
+      ]);
 
-  // Dynamic imports to delay polyfill until first MCP request
-  const { createMcpHandler } = await import("mcp-handler");
-  const {
-    registerCreditTools,
-    registerApiKeyTools,
-    registerGenerationTools,
-    registerMemoryTools,
-    registerConversationTools,
-    registerAgentTools,
-    registerContainerTools,
-    registerMcpTools,
-    registerRoomTools,
-    registerUserTools,
-    registerKnowledgeTools,
-    registerRedemptionTools,
-    registerAnalyticsTools,
-    registerGoogleTools,
-    registerLinearTools,
-    registerNotionTools,
-    registerGitHubTools,
-    registerAsanaTools,
-    registerDropboxTools,
-    registerSalesforceTools,
-    registerAirtableTools,
-    registerZoomTools,
-    registerJiraTools,
-    registerLinkedInTools,
-    registerTwitterTools,
-  } = await import("./tools");
+      const [
+        credits,
+        apiKeys,
+        generation,
+        memory,
+        conversations,
+        agents,
+        containers,
+        mcps,
+        rooms,
+        user,
+        knowledge,
+        redemption,
+        analytics,
+        google,
+        hubspot,
+        linear,
+        notion,
+        github,
+        asana,
+        dropbox,
+        salesforce,
+        airtable,
+        zoom,
+        jira,
+        linkedin,
+        twitter,
+      ] = toolModules;
 
-  mcpHandler = createMcpHandler(
-    (server) => {
-      registerCreditTools(server);
-      registerApiKeyTools(server);
-      registerGenerationTools(server);
-      registerMemoryTools(server);
-      registerConversationTools(server);
-      registerAgentTools(server);
-      registerContainerTools(server);
-      registerMcpTools(server);
-      registerRoomTools(server);
-      registerUserTools(server);
-      registerKnowledgeTools(server);
-      registerRedemptionTools(server);
-      registerAnalyticsTools(server);
-      registerGoogleTools(server);
-      registerLinearTools(server);
-      registerNotionTools(server);
-      registerGitHubTools(server);
-      registerAsanaTools(server);
-      registerDropboxTools(server);
-      registerSalesforceTools(server);
-      registerAirtableTools(server);
-      registerZoomTools(server);
-      registerJiraTools(server);
-      registerLinkedInTools(server);
-      registerTwitterTools(server);
-    },
-    {},
-    { basePath: "/api" },
-  );
+      return createMcpHandler(
+        (server) => {
+          credits.registerCreditTools(server);
+          apiKeys.registerApiKeyTools(server);
+          generation.registerGenerationTools(server);
+          memory.registerMemoryTools(server);
+          conversations.registerConversationTools(server);
+          agents.registerAgentTools(server);
+          containers.registerContainerTools(server);
+          mcps.registerMcpTools(server);
+          rooms.registerRoomTools(server);
+          user.registerUserTools(server);
+          knowledge.registerKnowledgeTools(server);
+          redemption.registerRedemptionTools(server);
+          analytics.registerAnalyticsTools(server);
+          google.registerGoogleTools(server);
+          hubspot.registerHubSpotTools(server);
+          linear.registerLinearTools(server);
+          notion.registerNotionTools(server);
+          github.registerGitHubTools(server);
+          asana.registerAsanaTools(server);
+          dropbox.registerDropboxTools(server);
+          salesforce.registerSalesforceTools(server);
+          airtable.registerAirtableTools(server);
+          zoom.registerZoomTools(server);
+          jira.registerJiraTools(server);
+          linkedin.registerLinkedInTools(server);
+          twitter.registerTwitterTools(server);
+        },
+        {},
+        { basePath: "/api" },
+      );
+    })();
+  }
 
-  return mcpHandler;
+  return await mcpHandlerPromise;
 }
 
 /**
@@ -151,10 +179,7 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
 
     const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    if (
-      mcpResponse.headers &&
-      typeof mcpResponse.headers.forEach === "function"
-    ) {
+    if (mcpResponse.headers && typeof mcpResponse.headers.forEach === "function") {
       mcpResponse.headers.forEach((value: string, key: string) => {
         headers[key] = value;
       });
@@ -165,8 +190,7 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
       headers,
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const isAuthError =
       errorMessage.includes("API key") ||
       errorMessage.includes("auth") ||

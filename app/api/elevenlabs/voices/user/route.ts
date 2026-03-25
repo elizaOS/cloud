@@ -1,8 +1,20 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
+
+const userVoicesQuerySchema = z.object({
+  includeInactive: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => value === "true"),
+  cloneType: z.enum(["instant", "professional"]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
 
 /**
  * GET /api/elevenlabs/voices/user
@@ -25,22 +37,24 @@ export async function GET(request: NextRequest) {
 
     // Parse query parameters with bounds validation
     const { searchParams } = new URL(request.url);
-    const includeInactive = searchParams.get("includeInactive") === "true";
-    const cloneType = searchParams.get("cloneType") as
-      | "instant"
-      | "professional"
-      | undefined;
-    const MAX_LIMIT = 100;
-    const rawLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
-    const rawOffset = Number.parseInt(searchParams.get("offset") || "0", 10);
-    const limit = Math.min(
-      Math.max(Number.isNaN(rawLimit) ? 50 : rawLimit, 1),
-      MAX_LIMIT,
-    );
-    const offset = Math.max(Number.isNaN(rawOffset) ? 0 : rawOffset, 0);
+    const parsedQuery = userVoicesQuerySchema.safeParse({
+      includeInactive: searchParams.get("includeInactive") || undefined,
+      cloneType: searchParams.get("cloneType") || undefined,
+      limit: searchParams.get("limit") || undefined,
+      offset: searchParams.get("offset") || undefined,
+    });
+
+    if (!parsedQuery.success) {
+      return NextResponse.json(
+        { error: "Validation error", details: parsedQuery.error.issues },
+        { status: 400 },
+      );
+    }
+
+    const { includeInactive, cloneType, limit, offset } = parsedQuery.data;
 
     logger.info(`[User Voices API] Fetching voices for user ${user.id}`, {
-      organizationId: user.organization_id!!,
+      organizationId: user.organization_id!,
       includeInactive,
       cloneType,
       limit,
@@ -49,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     // Get user's voices
     const allVoices = await voiceCloningService.getUserVoices({
-      organizationId: user.organization_id!!,
+      organizationId: user.organization_id!,
       includeInactive,
       cloneType,
     });
@@ -85,9 +99,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[User Voices API] Error:", error);
+    const status = getErrorStatusCode(error);
 
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (status !== 500) {
+      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
     }
 
     return NextResponse.json(

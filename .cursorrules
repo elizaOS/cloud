@@ -1,4 +1,4 @@
-# Cursor Rules for eliza-cloud-v2
+# Cursor Rules for cloud
 
 ## Package Management
 - Always use `bun` for package management operations (install, add, remove, run scripts)

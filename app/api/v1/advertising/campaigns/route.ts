@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  advertisingService,
-  type AdPlatform,
-} from "@/lib/services/advertising";
+import { type AdPlatform, advertisingService } from "@/lib/services/advertising";
 import { CreateCampaignSchema } from "@/lib/services/advertising/schemas";
 import { logger } from "@/lib/utils/logger";
 
@@ -22,15 +19,12 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get("status");
   const appId = searchParams.get("appId");
 
-  const campaigns = await advertisingService.listCampaigns(
-    user.organization_id!,
-    {
-      adAccountId: adAccountId || undefined,
-      platform: platform || undefined,
-      status: status || undefined,
-      appId: appId || undefined,
-    },
-  );
+  const campaigns = await advertisingService.listCampaigns(user.organization_id!, {
+    adAccountId: adAccountId || undefined,
+    platform: platform || undefined,
+    status: status || undefined,
+    appId: appId || undefined,
+  });
 
   return NextResponse.json({
     campaigns: campaigns.map((c) => ({
@@ -81,9 +75,7 @@ export async function POST(request: NextRequest) {
     budgetType: parsed.data.budgetType,
     budgetAmount: parsed.data.budgetAmount,
     budgetCurrency: parsed.data.budgetCurrency,
-    startDate: parsed.data.startDate
-      ? new Date(parsed.data.startDate)
-      : undefined,
+    startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : undefined,
     endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : undefined,
     targeting: parsed.data.targeting,
     appId: parsed.data.appId,

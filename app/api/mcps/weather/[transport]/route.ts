@@ -271,9 +271,7 @@ function getWindDirection(degrees: number): string {
   return directions[index];
 }
 
-function formatLocation(
-  result: NonNullable<GeocodingResult["results"]>[0],
-): string {
+function formatLocation(result: NonNullable<GeocodingResult["results"]>[0]): string {
   const parts = [result.name];
   if (result.admin1) parts.push(result.admin1);
   parts.push(result.country);
@@ -284,163 +282,105 @@ function formatLocation(
 // MCP Handler
 // ============================================================================
 
-const handler = createMcpHandler(
-  (server) => {
-    // ========================================================================
-    // Tool 1: Get Current Weather
-    // ========================================================================
-    server.tool(
-      "get_current_weather",
-      "Get real-time current weather conditions for any location worldwide. Data from Open-Meteo.",
-      {
-        city: z
-          .string()
-          .describe("City name (e.g., 'New York', 'London', 'Tokyo', 'Paris')"),
-        units: z
-          .enum(["fahrenheit", "celsius"])
-          .optional()
-          .default("fahrenheit")
-          .describe("Temperature units"),
-      },
-      async ({ city, units = "fahrenheit" }) => {
-        try {
-          // Geocode the city
-          const locations = await geocodeCity(city);
-          if (!locations || locations.length === 0) {
+function createHandler() {
+  return createMcpHandler(
+    (server) => {
+      // ========================================================================
+      // Tool 1: Get Current Weather
+      // ========================================================================
+      server.tool(
+        "get_current_weather",
+        "Get real-time current weather conditions for any location worldwide. Data from Open-Meteo.",
+        {
+          city: z.string().describe("City name (e.g., 'New York', 'London', 'Tokyo', 'Paris')"),
+          units: z
+            .enum(["fahrenheit", "celsius"])
+            .optional()
+            .default("fahrenheit")
+            .describe("Temperature units"),
+        },
+        async ({ city, units = "fahrenheit" }) => {
+          try {
+            // Geocode the city
+            const locations = await geocodeCity(city);
+            if (!locations || locations.length === 0) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: `City '${city}' not found`,
+                        suggestion: "Try a more specific location or check spelling",
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+
+            const location = locations[0];
+            const weather = await getCurrentWeather(location.latitude, location.longitude, units);
+            const { description, icon } = getWeatherDescription(weather.current.weather_code);
+
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: `City '${city}' not found`,
-                      suggestion:
-                        "Try a more specific location or check spelling",
+                      location: {
+                        name: formatLocation(location),
+                        coordinates: {
+                          lat: location.latitude,
+                          lon: location.longitude,
+                        },
+                        timezone: location.timezone,
+                      },
+                      current: {
+                        temperature: Math.round(weather.current.temperature_2m),
+                        feelsLike: Math.round(weather.current.apparent_temperature),
+                        humidity: weather.current.relative_humidity_2m,
+                        precipitation: weather.current.precipitation,
+                        cloudCover: weather.current.cloud_cover,
+                        pressure: Math.round(weather.current.surface_pressure),
+                        condition: description,
+                        icon,
+                        isDay: weather.current.is_day === 1,
+                      },
+                      wind: {
+                        speed: Math.round(weather.current.wind_speed_10m),
+                        gusts: Math.round(weather.current.wind_gusts_10m),
+                        direction: getWindDirection(weather.current.wind_direction_10m),
+                        degrees: weather.current.wind_direction_10m,
+                      },
+                      units: {
+                        temperature: units === "fahrenheit" ? "°F" : "°C",
+                        wind: units === "fahrenheit" ? "mph" : "km/h",
+                        precipitation: "mm",
+                        pressure: "hPa",
+                      },
+                      source: "Open-Meteo",
+                      timestamp: new Date().toISOString(),
                     },
                     null,
                     2,
                   ),
                 },
               ],
-              isError: true,
             };
-          }
-
-          const location = locations[0];
-          const weather = await getCurrentWeather(
-            location.latitude,
-            location.longitude,
-            units,
-          );
-          const { description, icon } = getWeatherDescription(
-            weather.current.weather_code,
-          );
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    location: {
-                      name: formatLocation(location),
-                      coordinates: {
-                        lat: location.latitude,
-                        lon: location.longitude,
-                      },
-                      timezone: location.timezone,
-                    },
-                    current: {
-                      temperature: Math.round(weather.current.temperature_2m),
-                      feelsLike: Math.round(
-                        weather.current.apparent_temperature,
-                      ),
-                      humidity: weather.current.relative_humidity_2m,
-                      precipitation: weather.current.precipitation,
-                      cloudCover: weather.current.cloud_cover,
-                      pressure: Math.round(weather.current.surface_pressure),
-                      condition: description,
-                      icon,
-                      isDay: weather.current.is_day === 1,
-                    },
-                    wind: {
-                      speed: Math.round(weather.current.wind_speed_10m),
-                      gusts: Math.round(weather.current.wind_gusts_10m),
-                      direction: getWindDirection(
-                        weather.current.wind_direction_10m,
-                      ),
-                      degrees: weather.current.wind_direction_10m,
-                    },
-                    units: {
-                      temperature: units === "fahrenheit" ? "°F" : "°C",
-                      wind: units === "fahrenheit" ? "mph" : "km/h",
-                      precipitation: "mm",
-                      pressure: "hPa",
-                    },
-                    source: "Open-Meteo",
-                    timestamp: new Date().toISOString(),
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to get weather",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    // ========================================================================
-    // Tool 2: Get Weather Forecast
-    // ========================================================================
-    server.tool(
-      "get_weather_forecast",
-      "Get multi-day weather forecast including highs, lows, precipitation, and UV index. Data from Open-Meteo.",
-      {
-        city: z.string().describe("City name"),
-        days: z
-          .number()
-          .int()
-          .min(1)
-          .max(16)
-          .optional()
-          .default(7)
-          .describe("Number of forecast days (1-16)"),
-        units: z
-          .enum(["fahrenheit", "celsius"])
-          .optional()
-          .default("fahrenheit")
-          .describe("Temperature units"),
-      },
-      async ({ city, days = 7, units = "fahrenheit" }) => {
-        try {
-          const locations = await geocodeCity(city);
-          if (!locations || locations.length === 0) {
+          } catch (error) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
-                    { error: `City '${city}' not found` },
+                    {
+                      error: error instanceof Error ? error.message : "Failed to get weather",
+                    },
                     null,
                     2,
                   ),
@@ -449,226 +389,213 @@ const handler = createMcpHandler(
               isError: true,
             };
           }
+        },
+      );
 
-          const location = locations[0];
-          const forecast = await getForecast(
-            location.latitude,
-            location.longitude,
-            days,
-            units,
-          );
+      // ========================================================================
+      // Tool 2: Get Weather Forecast
+      // ========================================================================
+      server.tool(
+        "get_weather_forecast",
+        "Get multi-day weather forecast including highs, lows, precipitation, and UV index. Data from Open-Meteo.",
+        {
+          city: z.string().describe("City name"),
+          days: z
+            .number()
+            .int()
+            .min(1)
+            .max(16)
+            .optional()
+            .default(7)
+            .describe("Number of forecast days (1-16)"),
+          units: z
+            .enum(["fahrenheit", "celsius"])
+            .optional()
+            .default("fahrenheit")
+            .describe("Temperature units"),
+        },
+        async ({ city, days = 7, units = "fahrenheit" }) => {
+          try {
+            const locations = await geocodeCity(city);
+            if (!locations || locations.length === 0) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify({ error: `City '${city}' not found` }, null, 2),
+                  },
+                ],
+                isError: true,
+              };
+            }
 
-          const dailyForecast = forecast.daily.time.map((date, i) => {
-            const { description, icon } = getWeatherDescription(
-              forecast.daily.weather_code[i],
-            );
+            const location = locations[0];
+            const forecast = await getForecast(location.latitude, location.longitude, days, units);
+
+            const dailyForecast = forecast.daily.time.map((date, i) => {
+              const { description, icon } = getWeatherDescription(forecast.daily.weather_code[i]);
+              return {
+                date,
+                dayName: new Date(date).toLocaleDateString("en-US", {
+                  weekday: "long",
+                }),
+                high: Math.round(forecast.daily.temperature_2m_max[i]),
+                low: Math.round(forecast.daily.temperature_2m_min[i]),
+                condition: description,
+                icon,
+                precipitation: {
+                  amount: forecast.daily.precipitation_sum[i],
+                  probability: forecast.daily.precipitation_probability_max[i],
+                },
+                wind: Math.round(forecast.daily.wind_speed_10m_max[i]),
+                uvIndex: forecast.daily.uv_index_max[i],
+                sunrise: forecast.daily.sunrise[i].split("T")[1],
+                sunset: forecast.daily.sunset[i].split("T")[1],
+              };
+            });
+
             return {
-              date,
-              dayName: new Date(date).toLocaleDateString("en-US", {
-                weekday: "long",
-              }),
-              high: Math.round(forecast.daily.temperature_2m_max[i]),
-              low: Math.round(forecast.daily.temperature_2m_min[i]),
-              condition: description,
-              icon,
-              precipitation: {
-                amount: forecast.daily.precipitation_sum[i],
-                probability: forecast.daily.precipitation_probability_max[i],
-              },
-              wind: Math.round(forecast.daily.wind_speed_10m_max[i]),
-              uvIndex: forecast.daily.uv_index_max[i],
-              sunrise: forecast.daily.sunrise[i].split("T")[1],
-              sunset: forecast.daily.sunset[i].split("T")[1],
-            };
-          });
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    location: {
-                      name: formatLocation(location),
-                      coordinates: {
-                        lat: location.latitude,
-                        lon: location.longitude,
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      location: {
+                        name: formatLocation(location),
+                        coordinates: {
+                          lat: location.latitude,
+                          lon: location.longitude,
+                        },
+                        timezone: location.timezone,
                       },
-                      timezone: location.timezone,
+                      forecast: dailyForecast,
+                      units: {
+                        temperature: units === "fahrenheit" ? "°F" : "°C",
+                        wind: units === "fahrenheit" ? "mph" : "km/h",
+                        precipitation: "mm",
+                      },
+                      source: "Open-Meteo",
+                      timestamp: new Date().toISOString(),
                     },
-                    forecast: dailyForecast,
-                    units: {
-                      temperature: units === "fahrenheit" ? "°F" : "°C",
-                      wind: units === "fahrenheit" ? "mph" : "km/h",
-                      precipitation: "mm",
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+          } catch (error) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: error instanceof Error ? error.message : "Failed to get forecast",
                     },
-                    source: "Open-Meteo",
-                    timestamp: new Date().toISOString(),
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to get forecast",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+        },
+      );
 
-    // ========================================================================
-    // Tool 3: Compare Weather
-    // ========================================================================
-    server.tool(
-      "compare_weather",
-      "Compare current weather conditions between multiple cities side by side.",
-      {
-        cities: z
-          .array(z.string())
-          .min(2)
-          .max(5)
-          .describe("List of cities to compare (2-5 cities)"),
-        units: z
-          .enum(["fahrenheit", "celsius"])
-          .optional()
-          .default("fahrenheit")
-          .describe("Temperature units"),
-      },
-      async ({ cities, units = "fahrenheit" }) => {
-        try {
-          const results = await Promise.all(
-            cities.map(async (city) => {
-              try {
-                const locations = await geocodeCity(city);
-                if (!locations || locations.length === 0) {
-                  return { city, error: "Not found" };
+      // ========================================================================
+      // Tool 3: Compare Weather
+      // ========================================================================
+      server.tool(
+        "compare_weather",
+        "Compare current weather conditions between multiple cities side by side.",
+        {
+          cities: z
+            .array(z.string())
+            .min(2)
+            .max(5)
+            .describe("List of cities to compare (2-5 cities)"),
+          units: z
+            .enum(["fahrenheit", "celsius"])
+            .optional()
+            .default("fahrenheit")
+            .describe("Temperature units"),
+        },
+        async ({ cities, units = "fahrenheit" }) => {
+          try {
+            const results = await Promise.all(
+              cities.map(async (city) => {
+                try {
+                  const locations = await geocodeCity(city);
+                  if (!locations || locations.length === 0) {
+                    return { city, error: "Not found" };
+                  }
+                  const location = locations[0];
+                  const weather = await getCurrentWeather(
+                    location.latitude,
+                    location.longitude,
+                    units,
+                  );
+                  const { description, icon } = getWeatherDescription(weather.current.weather_code);
+
+                  return {
+                    city: formatLocation(location),
+                    temperature: Math.round(weather.current.temperature_2m),
+                    feelsLike: Math.round(weather.current.apparent_temperature),
+                    humidity: weather.current.relative_humidity_2m,
+                    wind: Math.round(weather.current.wind_speed_10m),
+                    condition: description,
+                    icon,
+                  };
+                } catch {
+                  return { city, error: "Failed to fetch" };
                 }
-                const location = locations[0];
-                const weather = await getCurrentWeather(
-                  location.latitude,
-                  location.longitude,
-                  units,
-                );
-                const { description, icon } = getWeatherDescription(
-                  weather.current.weather_code,
-                );
+              }),
+            );
 
-                return {
-                  city: formatLocation(location),
-                  temperature: Math.round(weather.current.temperature_2m),
-                  feelsLike: Math.round(weather.current.apparent_temperature),
-                  humidity: weather.current.relative_humidity_2m,
-                  wind: Math.round(weather.current.wind_speed_10m),
-                  condition: description,
-                  icon,
-                };
-              } catch {
-                return { city, error: "Failed to fetch" };
-              }
-            }),
-          );
+            // Sort by temperature
+            interface ValidWeatherResult {
+              city: string;
+              temperature: number;
+              feelsLike: number;
+              humidity: number;
+              wind: number;
+              condition: string;
+              icon: string;
+            }
 
-          // Sort by temperature
-          interface ValidWeatherResult {
-            city: string;
-            temperature: number;
-            feelsLike: number;
-            humidity: number;
-            wind: number;
-            condition: string;
-            icon: string;
-          }
+            const validResults = results.filter((r): r is ValidWeatherResult => !("error" in r));
+            validResults.sort((a, b) => b.temperature - a.temperature);
 
-          const validResults = results.filter(
-            (r): r is ValidWeatherResult => !("error" in r),
-          );
-          validResults.sort((a, b) => b.temperature - a.temperature);
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    comparison: results,
-                    sortedByTemperature: validResults,
-                    units: {
-                      temperature: units === "fahrenheit" ? "°F" : "°C",
-                      wind: units === "fahrenheit" ? "mph" : "km/h",
-                    },
-                    source: "Open-Meteo",
-                    timestamp: new Date().toISOString(),
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to compare weather",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    // ========================================================================
-    // Tool 4: Search Location
-    // ========================================================================
-    server.tool(
-      "search_location",
-      "Search for a location to get coordinates and timezone information for weather queries.",
-      {
-        query: z.string().describe("Location search query"),
-      },
-      async ({ query }) => {
-        try {
-          const locations = await geocodeCity(query);
-
-          if (!locations || locations.length === 0) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: `No locations found for '${query}'`,
-                      suggestion:
-                        "Try a different spelling or more specific location",
+                      comparison: results,
+                      sortedByTemperature: validResults,
+                      units: {
+                        temperature: units === "fahrenheit" ? "°F" : "°C",
+                        wind: units === "fahrenheit" ? "mph" : "km/h",
+                      },
+                      source: "Open-Meteo",
+                      timestamp: new Date().toISOString(),
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+          } catch (error) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: error instanceof Error ? error.message : "Failed to compare weather",
                     },
                     null,
                     2,
@@ -678,69 +605,103 @@ const handler = createMcpHandler(
               isError: true,
             };
           }
+        },
+      );
 
-          const results = locations.map((loc) => ({
-            name: loc.name,
-            fullName: formatLocation(loc),
-            country: loc.country,
-            countryCode: loc.country_code,
-            state: loc.admin1 || null,
-            coordinates: { lat: loc.latitude, lon: loc.longitude },
-            timezone: loc.timezone,
-          }));
+      // ========================================================================
+      // Tool 4: Search Location
+      // ========================================================================
+      server.tool(
+        "search_location",
+        "Search for a location to get coordinates and timezone information for weather queries.",
+        {
+          query: z.string().describe("Location search query"),
+        },
+        async ({ query }) => {
+          try {
+            const locations = await geocodeCity(query);
 
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
+            if (!locations || locations.length === 0) {
+              return {
+                content: [
                   {
-                    query,
-                    results,
-                    count: results.length,
-                    tip: "Use the full location name for more accurate weather results",
-                    source: "Open-Meteo Geocoding",
-                    timestamp: new Date().toISOString(),
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: `No locations found for '${query}'`,
+                        suggestion: "Try a different spelling or more specific location",
+                      },
+                      null,
+                      2,
+                    ),
                   },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error ? error.message : "Search failed",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-  },
-  {
-    capabilities: {
-      tools: {},
+                ],
+                isError: true,
+              };
+            }
+
+            const results = locations.map((loc) => ({
+              name: loc.name,
+              fullName: formatLocation(loc),
+              country: loc.country,
+              countryCode: loc.country_code,
+              state: loc.admin1 || null,
+              coordinates: { lat: loc.latitude, lon: loc.longitude },
+              timezone: loc.timezone,
+            }));
+
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      query,
+                      results,
+                      count: results.length,
+                      tip: "Use the full location name for more accurate weather results",
+                      source: "Open-Meteo Geocoding",
+                      timestamp: new Date().toISOString(),
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+          } catch (error) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: error instanceof Error ? error.message : "Search failed",
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+        },
+      );
     },
-  },
-  {
-    redisUrl: process.env.REDIS_URL,
-    streamableHttpEndpoint: "/api/mcps/weather/streamable-http",
-    disableSse: true,
-    maxDuration: 30,
-  },
-);
+    {
+      capabilities: {
+        tools: {},
+      },
+    },
+    {
+      redisUrl: process.env.REDIS_URL,
+      streamableHttpEndpoint: "/api/mcps/weather/streamable-http",
+      disableSse: true,
+      maxDuration: 30,
+    },
+  );
+}
 
 /**
  * GET /api/mcps/weather/[transport]
@@ -755,24 +716,25 @@ const handler = createMcpHandler(
  * @param context - Route context containing the transport parameter.
  * @returns MCP handler response.
  */
-function withTransportValidation(
-  fn: (req: Request) => Promise<Response>,
-) {
-  return async (
-    req: Request,
-    { params }: { params: Promise<{ transport: string }> },
-  ): Promise<Response> => {
-    const { transport } = await params;
-    if (transport !== "streamable-http") {
-      return new Response(
-        JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
-        { status: 405, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    return fn(req);
-  };
+async function handleTransportRequest(
+  request: Request,
+  { params }: { params: Promise<{ transport: string }> },
+): Promise<Response> {
+  const { transport } = await params;
+
+  if (transport !== "streamable-http") {
+    return new Response(
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
+      { status: 405, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const handler = createHandler();
+  return await handler(request);
 }
 
-export const GET = withTransportValidation(handler);
-export const POST = withTransportValidation(handler);
-export const DELETE = withTransportValidation(handler);
+export const GET = handleTransportRequest;
+export const POST = handleTransportRequest;
+export const DELETE = handleTransportRequest;

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 /**
  * GET /api/mcp/info
- * Metadata endpoint for ElizaOS Platform MCP server.
+ * Metadata endpoint for MILADY CLOUD MCP server.
  * Returns information about available tools, pricing, and features.
  * This endpoint does not require authentication.
  *
@@ -10,10 +10,10 @@ import { NextResponse } from "next/server";
  */
 export async function GET() {
   return NextResponse.json({
-    name: "ElizaOS Platform MCP",
+    name: "MILADY CLOUD MCP",
     version: "1.0.0",
     description:
-      "Full access to ElizaOS platform features including credits management, AI generation, conversation management, agent operations, and more.",
+      "Full access to MILADY CLOUD features including credits management, AI generation, conversation management, agent operations, and more.",
     transport: ["streamable-http"],
     endpoint: "/api/mcp",
     authRequired: true,
@@ -143,8 +143,7 @@ export async function GET() {
     authentication: {
       type: "Bearer",
       header: "Authorization",
-      description:
-        "Requires API key in Authorization header: Bearer YOUR_API_KEY",
+      description: "Requires API key in Authorization header: Bearer YOUR_API_KEY",
     },
     status: "live",
   });

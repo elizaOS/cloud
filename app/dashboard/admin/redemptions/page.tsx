@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { adminService } from "@/lib/services/admin";
-import { AdminRedemptionsWrapper } from "@/components/admin/redemptions-wrapper";
+import { AdminRedemptionsWrapper } from "@/packages/ui/src/components/admin/redemptions-wrapper";
 
 export const metadata: Metadata = {
   title: "Admin: Redemption Management",

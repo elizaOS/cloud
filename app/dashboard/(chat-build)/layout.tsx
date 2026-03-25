@@ -6,10 +6,10 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
-import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
-import { ChatSidebar } from "@/components/layout/chat-sidebar";
+import { usePathname } from "next/navigation";
+import { useCallback, useState } from "react";
+import { ChatSidebar } from "@/packages/ui/src/components/layout/chat-sidebar";
 
 /**
  * Shared layout component for chat and build pages.
@@ -19,38 +19,21 @@ import { ChatSidebar } from "@/components/layout/chat-sidebar";
  * @param children - The page content to render.
  * @returns The rendered layout with sidebar and content area.
  */
-export default function ChatBuildLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ChatBuildLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
 
   // Hide sidebar on build pages (creator mode and edit mode)
   const isBuildPage = pathname?.startsWith("/dashboard/build");
 
-  // Memoize toggle callbacks to prevent child re-renders
   const handleToggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
 
-  const handleToggleCollapse = useCallback(() => {
-    setSidebarCollapsed((prev) => !prev);
-  }, []);
-
   return (
-    <div className="flex h-screen w-full bg-neutral-900 x  overflow-hidden">
+    <div className="dashboard-theme flex h-screen w-full overflow-hidden bg-neutral-950">
       {/* Chat Sidebar - hidden in build mode */}
-      {!isBuildPage && (
-        <ChatSidebar
-          isOpen={sidebarOpen}
-          onToggle={handleToggleSidebar}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={handleToggleCollapse}
-        />
-      )}
+      {!isBuildPage && <ChatSidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />}
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden relative">
@@ -58,7 +41,7 @@ export default function ChatBuildLayout({
         {!isBuildPage && (
           <button
             onClick={handleToggleSidebar}
-            className="md:hidden fixed top-4 left-4 z-30 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+            className="fixed left-4 top-4 z-30 border border-white/10 bg-white/5 p-2 transition-colors hover:border-white/20 hover:bg-white/10 md:hidden"
             aria-label="Toggle navigation"
           >
             <Menu className="h-5 w-5 text-white" />

@@ -1,23 +1,14 @@
+import { Badge, BrandButton, BrandCard } from "@elizaos/cloud-ui";
+import { AlertCircle, ArrowLeft, Clock, Cpu, ExternalLink, HardDrive, Server } from "lucide-react";
 import type { Metadata } from "next";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { getContainer } from "@/lib/services/containers";
-import { redirect } from "next/navigation";
-import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
-import { ContainerLogsViewer } from "@/components/containers/container-logs-viewer";
-import { ContainerMetrics } from "@/components/containers/container-metrics";
-import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
-import { Badge } from "@/components/ui/badge";
-import {
-  ExternalLink,
-  ArrowLeft,
-  Server,
-  Cpu,
-  HardDrive,
-  Clock,
-  AlertCircle,
-} from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { generateContainerMetadata } from "@/lib/seo";
+import { getContainer } from "@/lib/services/containers";
+import { ContainerDeploymentHistory } from "@/packages/ui/src/components/containers/container-deployment-history";
+import { ContainerLogsViewer } from "@/packages/ui/src/components/containers/container-logs-viewer";
+import { ContainerMetrics } from "@/packages/ui/src/components/containers/container-metrics";
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
@@ -32,9 +23,7 @@ interface PageProps {
  * @param params - Route parameters containing the container ID.
  * @returns Metadata object with title and description for the container details page.
  */
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const user = await requireAuthWithOrg();
   const { id } = await params;
   const container = await getContainer(id, user.organization_id);
@@ -46,12 +35,7 @@ export async function generateMetadata({
     };
   }
 
-  return generateContainerMetadata(
-    id,
-    container.name,
-    container.description,
-    null,
-  );
+  return generateContainerMetadata(id, container.name, container.description, null);
 }
 
 /**
@@ -106,11 +90,7 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
 
         {container.load_balancer_url && (
           <BrandButton asChild variant="primary" size="sm">
-            <a
-              href={container.load_balancer_url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href={container.load_balancer_url} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4" />
               Open Container
             </a>
@@ -139,9 +119,7 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
                 </h1>
               </div>
               {container.description && (
-                <p className="text-sm text-white/60 mt-1 line-clamp-2">
-                  {container.description}
-                </p>
+                <p className="text-sm text-white/60 mt-1 line-clamp-2">{container.description}</p>
               )}
             </div>
           </div>
@@ -150,18 +128,13 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
 
       {/* Container Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <BrandCard
-          className="relative shadow-md shadow-black/30"
-          corners={false}
-        >
+        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-blue-500/10 border border-blue-500/20">
                 <Server className="h-5 w-5 text-blue-500" />
               </div>
-              <Badge
-                className={`${getStatusColor(container.status)} text-white rounded-none`}
-              >
+              <Badge className={`${getStatusColor(container.status)} text-white rounded-none`}>
                 {container.status}
               </Badge>
             </div>
@@ -182,10 +155,7 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
           </div>
         </BrandCard>
 
-        <BrandCard
-          className="relative shadow-md shadow-black/30"
-          corners={false}
-        >
+        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-purple-500/10 border border-purple-500/20">
@@ -210,10 +180,7 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
           </div>
         </BrandCard>
 
-        <BrandCard
-          className="relative shadow-md shadow-black/30"
-          corners={false}
-        >
+        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-emerald-500/10 border border-emerald-500/20">
@@ -238,10 +205,7 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
           </div>
         </BrandCard>
 
-        <BrandCard
-          className="relative shadow-md shadow-black/30"
-          corners={false}
-        >
+        <BrandCard className="relative shadow-md shadow-black/30" corners={false}>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-none bg-amber-500/10 border border-amber-500/20">
@@ -359,9 +323,7 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
                   >
                     Deployment Error
                   </p>
-                  <p className="text-sm text-red-400/80">
-                    {container.error_message}
-                  </p>
+                  <p className="text-sm text-red-400/80">{container.error_message}</p>
                 </div>
               </div>
             </div>
@@ -408,23 +370,14 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
 
       {/* Container Metrics */}
       {container.status === "running" && container.ecs_service_arn && (
-        <ContainerMetrics
-          containerId={container.id}
-          containerName={container.name}
-        />
+        <ContainerMetrics containerId={container.id} containerName={container.name} />
       )}
 
       {/* Deployment History */}
-      <ContainerDeploymentHistory
-        containerId={container.id}
-        containerName={container.name}
-      />
+      <ContainerDeploymentHistory containerId={container.id} containerName={container.name} />
 
       {/* Container Logs */}
-      <ContainerLogsViewer
-        containerId={container.id}
-        containerName={container.name}
-      />
+      <ContainerLogsViewer containerId={container.id} containerName={container.name} />
     </div>
   );
 }

@@ -39,30 +39,34 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - "services/gateway-discord/**"
-      - "lib/services/gateway-discord/**"
-      - "lib/auth/jwks.ts"
-      - "lib/auth/jwt-internal.ts"
-      - "lib/auth/internal-api.ts"
+      - "packages/services/gateway-discord/**"
+      - "packages/services/gateway-discord/terraform/**"
+      - "packages/services/gateway-discord/chart/**"
+      - "packages/lib/services/gateway-discord/**"
+      - "packages/lib/auth/jwks.ts"
+      - "packages/lib/auth/jwt-internal.ts"
+      - "packages/lib/auth/internal-api.ts"
       - "app/api/v1/discord/**"
       - "app/api/internal/discord/**"
       - "app/api/internal/auth/**"
       - "app/api/.well-known/jwks.json/**"
-      - "tests/unit/discord-connections*"
+      - "packages/tests/unit/discord-connections*"
       - ".github/workflows/gateway-discord.yml"
   pull_request:
     branches: [main, dev]
     paths:
-      - "services/gateway-discord/**"
-      - "lib/services/gateway-discord/**"
-      - "lib/auth/jwks.ts"
-      - "lib/auth/jwt-internal.ts"
-      - "lib/auth/internal-api.ts"
+      - "packages/services/gateway-discord/**"
+      - "packages/services/gateway-discord/terraform/**"
+      - "packages/services/gateway-discord/chart/**"
+      - "packages/lib/services/gateway-discord/**"
+      - "packages/lib/auth/jwks.ts"
+      - "packages/lib/auth/jwt-internal.ts"
+      - "packages/lib/auth/internal-api.ts"
       - "app/api/v1/discord/**"
       - "app/api/internal/discord/**"
       - "app/api/internal/auth/**"
       - "app/api/.well-known/jwks.json/**"
-      - "tests/unit/discord-connections*"
+      - "packages/tests/unit/discord-connections*"
       - ".github/workflows/gateway-discord.yml"
   workflow_dispatch:
     inputs:
@@ -86,11 +90,11 @@ on:
         default: gateway-dev
 
 env:
-  BUN_VERSION: "1.2"
+  BUN_VERSION: "1.3.5"
   TF_VERSION: "1.7.0"
-  IMAGE_REPO: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
+  IMAGE_REPO: ghcr.io/elizaos/cloud/gateway-discord
   REGISTRY: ghcr.io
-  TF_WORKING_DIR: services/gateway-discord/terraform
+  TF_WORKING_DIR: packages/services/gateway-discord/terraform
 
 jobs:
   # =============================================================================
@@ -110,30 +114,30 @@ jobs:
       backend_config: ${{ steps.env.outputs.backend_config }}
       values_file: ${{ steps.env.outputs.values_file }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Detect changed paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           base: ${{ github.event.before }}
           filters: |
             terraform:
-              - 'services/gateway-discord/terraform/**'
+              - 'packages/services/gateway-discord/terraform/**'
             app:
-              - 'services/gateway-discord/src/**'
-              - 'services/gateway-discord/chart/**'
-              - 'services/gateway-discord/Dockerfile'
-              - 'services/gateway-discord/package.json'
-              - 'services/gateway-discord/tsconfig.json'
-              - 'lib/services/gateway-discord/**'
-              - 'lib/auth/jwks.ts'
-              - 'lib/auth/jwt-internal.ts'
-              - 'lib/auth/internal-api.ts'
+              - 'packages/services/gateway-discord/src/**'
+              - 'packages/services/gateway-discord/chart/**'
+              - 'packages/services/gateway-discord/Dockerfile'
+              - 'packages/services/gateway-discord/package.json'
+              - 'packages/services/gateway-discord/tsconfig.json'
+              - 'packages/lib/services/gateway-discord/**'
+              - 'packages/lib/auth/jwks.ts'
+              - 'packages/lib/auth/jwt-internal.ts'
+              - 'packages/lib/auth/internal-api.ts'
               - 'app/api/v1/discord/**'
               - 'app/api/internal/discord/**'
               - 'app/api/internal/auth/**'
-              - 'tests/unit/discord-connections*'
+              - 'packages/tests/unit/discord-connections*'
 
       - name: Determine target environment
         id: env
@@ -172,6 +176,11 @@ jobs:
           echo "| App | ${{ steps.filter.outputs.app }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Environment | ${{ steps.env.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
 
+          if [[ "${{ github.event_name }}" == "pull_request" && "${{ steps.filter.outputs.terraform }}" == "true" && "${{ steps.env.outputs.environment }}" == "gateway-prd" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> Terraform plan is skipped on PRs targeting \`main\` because the protected \`gateway-prd\` environment rejects PR refs." >> $GITHUB_STEP_SUMMARY
+          fi
+
   # =============================================================================
   # TERRAFORM - Infrastructure provisioning (runs if terraform files changed)
   # =============================================================================
@@ -179,9 +188,14 @@ jobs:
     name: Terraform (${{ needs.detect-changes.outputs.environment }})
     runs-on: ubuntu-latest
     needs: detect-changes
-    # Run if: terraform changed, OR manual dispatch with terraform action
+    # Run if: terraform changed, OR manual dispatch with terraform action.
+    # Protected production environments reject PR refs, so prod-targeted PR plans
+    # are skipped here instead of failing the whole workflow before any step runs.
     if: |
-      needs.detect-changes.outputs.terraform == 'true' ||
+      (
+        needs.detect-changes.outputs.terraform == 'true' &&
+        !(github.event_name == 'pull_request' && needs.detect-changes.outputs.environment == 'gateway-prd')
+      ) ||
       (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.action, 'terraform-'))
     environment: ${{ needs.detect-changes.outputs.environment }}
     permissions:
@@ -190,23 +204,23 @@ jobs:
       pull-requests: write
     defaults:
       run:
-        working-directory: services/gateway-discord/terraform
+        working-directory: packages/services/gateway-discord/terraform
     outputs:
       cluster_name: ${{ steps.outputs.outputs.cluster_name }}
       cluster_endpoint: ${{ steps.outputs.outputs.cluster_endpoint }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       # Run tfsec BEFORE AWS auth - it's static analysis and doesn't need credentials
       - name: Security Scan with tfsec
         id: tfsec
-        working-directory: services/gateway-discord/terraform
+        working-directory: packages/services/gateway-discord/terraform
         run: |
           # Install tfsec
           curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
@@ -221,7 +235,7 @@ jobs:
         if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: services/gateway-discord/terraform/tfsec-results.sarif
+          sarif_file: packages/services/gateway-discord/terraform/tfsec-results.sarif
         continue-on-error: true
 
       - name: Terraform Format Check
@@ -230,7 +244,7 @@ jobs:
         continue-on-error: true
 
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.TERRAFORM_AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
@@ -393,7 +407,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy')
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -403,20 +417,21 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install service dependencies
-        run: cd services/gateway-discord && bun install --frozen-lockfile
+        run: cd packages/services/gateway-discord && bun install --frozen-lockfile
 
       - name: Run service tests
-        run: bun test services/gateway-discord/tests/ --timeout 60000
+        working-directory: packages/services/gateway-discord
+        run: bun test tests/ --timeout 60000
         env:
           SKIP_SERVER_CHECK: "true"
 
       - name: Run lib tests
-        run: bun test lib/services/gateway-discord/__tests__/ --timeout 60000
+        run: bun test packages/lib/services/gateway-discord/__tests__/ --timeout 60000
         env:
           SKIP_SERVER_CHECK: "true"
 
       - name: Run Discord API unit tests
-        run: bun test tests/unit/discord-connections-api.test.ts --timeout 60000
+        run: bun test packages/tests/unit/discord-connections-api.test.ts --timeout 60000
         env:
           SKIP_SERVER_CHECK: "true"
 
@@ -438,13 +453,13 @@ jobs:
       image: ${{ steps.meta.outputs.tags }}
       digest: ${{ steps.build.outputs.digest }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -452,7 +467,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_REPO }}
           tags: |
@@ -462,9 +477,9 @@ jobs:
 
       - name: Build and push
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
-          context: services/gateway-discord
+          context: packages/services/gateway-discord
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -498,7 +513,7 @@ jobs:
       contents: read
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Verify image digest (if build ran)
         if: needs.build.result == 'success'
@@ -515,7 +530,7 @@ jobs:
           echo "Image digest verified: $DIGEST"
 
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.GATEWAY_AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -544,10 +559,10 @@ jobs:
           fi
 
           # Note: Namespace is created by Terraform (k8s-resources module)
-          helm upgrade --install gateway-discord ./services/gateway-discord/chart \
+          helm upgrade --install gateway-discord ./packages/services/gateway-discord/chart \
             --namespace gateway-discord \
-            -f ./services/gateway-discord/chart/values.yaml \
-            -f ./services/gateway-discord/chart/${{ needs.detect-changes.outputs.values_file }} \
+            -f ./packages/services/gateway-discord/chart/values.yaml \
+            -f ./packages/services/gateway-discord/chart/${{ needs.detect-changes.outputs.values_file }} \
             --set image.repository=${{ env.IMAGE_REPO }} \
             $DIGEST_ARG \
             --wait \

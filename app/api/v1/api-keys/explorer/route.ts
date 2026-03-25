@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
+import { logger } from "@/lib/utils/logger";
 
 const EXPLORER_KEY_NAME = "API Explorer Key";
 
@@ -20,9 +20,7 @@ export async function GET() {
     const user = await requireAuthWithOrg();
 
     // Check if user already has an explorer key
-    const existingKeys = await apiKeysService.listByOrganization(
-      user.organization_id,
-    );
+    const existingKeys = await apiKeysService.listByOrganization(user.organization_id);
 
     const explorerKey = existingKeys.find(
       (key) => key.name === EXPLORER_KEY_NAME && key.user_id === user.id,
@@ -94,9 +92,6 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(
-      { error: "Failed to get API key for explorer" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to get API key for explorer" }, { status: 500 });
   }
 }

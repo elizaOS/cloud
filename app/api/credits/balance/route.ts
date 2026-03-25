@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { organizationsService } from "@/lib/services/organizations";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -71,8 +71,7 @@ export async function GET(req: NextRequest) {
       },
     );
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to fetch balance";
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch balance";
 
     // Return 401 for authentication errors
     const isAuthError =
@@ -81,9 +80,7 @@ export async function GET(req: NextRequest) {
       errorMessage.includes("Forbidden");
 
     const status = isAuthError ? 401 : 500;
-    const body = isAuthError
-      ? { error: "Unauthorized" }
-      : { error: errorMessage };
+    const body = isAuthError ? { error: "Unauthorized" } : { error: errorMessage };
 
     if (!isAuthError) {
       logger.error("[Balance API] Error:", error);

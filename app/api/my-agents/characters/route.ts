@@ -16,15 +16,15 @@
  * 3. DASHBOARD INTEGRATIONS: External dashboards and monitoring tools need to
  *    display agent inventories without requiring Privy session cookies.
  *
- * 4. MULTI-TENANT PLATFORMS: Platforms built on elizaOS Cloud can manage agents
+ * 4. MULTI-TENANT PLATFORMS: Platforms built on ELIZA CLOUD can manage agents
  *    on behalf of their users via API keys.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { charactersService } from "@/lib/services/characters";
-import { logger } from "@/lib/utils/logger";
+import { charactersService } from "@/lib/services/characters/characters";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/my-agents";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -50,10 +50,7 @@ export async function GET(request: NextRequest) {
 
     // Pagination
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.min(
-      1000,
-      Math.max(1, parseInt(searchParams.get("limit") || "30", 10)),
-    );
+    const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get("limit") || "30", 10)));
 
     logger.debug("[My Agents API] Search request:", {
       userId: user.id,
@@ -74,10 +71,8 @@ export async function GET(request: NextRequest) {
       characters = characters.filter(
         (char) =>
           char.name.toLowerCase().includes(query) ||
-          (typeof char.bio === "string" &&
-            char.bio.toLowerCase().includes(query)) ||
-          (Array.isArray(char.bio) &&
-            char.bio.some((b) => b.toLowerCase().includes(query))),
+          (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
+          (Array.isArray(char.bio) && char.bio.some((b) => b.toLowerCase().includes(query))),
       );
     }
 
@@ -133,6 +128,11 @@ export async function GET(request: NextRequest) {
           updatedAt: char.updated_at,
           updated_at: char.updated_at,
           tags: char.tags,
+          // Token linkage (null when not linked)
+          token_address: char.token_address ?? null,
+          token_chain: char.token_chain ?? null,
+          token_name: char.token_name ?? null,
+          token_ticker: char.token_ticker ?? null,
         })),
         pagination: {
           page,
@@ -146,16 +146,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("[My Agents API] Error searching characters:", error);
 
-    const status =
-      error instanceof Error && error.message.includes("auth") ? 401 : 500;
+    const status = error instanceof Error && error.message.includes("auth") ? 401 : 500;
 
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to search characters",
+        error: error instanceof Error ? error.message : "Failed to search characters",
       },
       { status },
     );

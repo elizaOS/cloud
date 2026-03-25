@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { twitterAutomationService } from "@/lib/services/twitter-automation";
 import { cache } from "@/lib/cache/client";
+import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
+import { twitterAutomationService } from "@/lib/services/twitter-automation";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -17,9 +18,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const body = await request.json().catch(() => ({}));
-  const redirectUrl = body.redirectUrl || "/dashboard/settings?tab=connections";
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const defaultRedirectPath = "/dashboard/settings?tab=connections";
+  const safeRedirectTarget = resolveSafeRedirectTarget(
+    typeof body.redirectUrl === "string" ? body.redirectUrl : undefined,
+    baseUrl,
+    defaultRedirectPath,
+  );
+  const redirectUrl = `${safeRedirectTarget.pathname}${safeRedirectTarget.search}${safeRedirectTarget.hash}`;
   const callbackUrl = `${baseUrl}/api/v1/twitter/callback`;
 
   const authLink = await twitterAutomationService.generateAuthLink(callbackUrl);

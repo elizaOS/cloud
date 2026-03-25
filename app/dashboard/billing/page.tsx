@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
-import { BillingPageWrapper } from "@/components/billing/billing-page-wrapper";
+import { BillingPageWrapper } from "@/packages/ui/src/components/billing/billing-page-wrapper";
 
 export const metadata: Metadata = {
   title: "Billing",

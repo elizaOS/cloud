@@ -1,0 +1,107 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
+  TEST_DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
+  REDIS_URL: redis://localhost:6379
+  CACHE_ENABLED: "false"
+  NODE_OPTIONS: --max-old-space-size=4096
+
+jobs:
+  lint-and-types:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+      - name: Check migration journal
+        run: bun run db:check-migrations
+      - name: Run lint
+        run: bun run lint
+      - name: Run typecheck
+        run: bun run check-types
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+      - name: Run unit tests
+        run: bun run test
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Run integration tests
+        run: bun run test:integration
+
+  property-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Run property tests
+        run: bun run test:properties
+
+  runtime-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Run runtime tests
+        run: bun run test:runtime
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+      - name: Run build
+        run: bun run build
+
+  e2e-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [lint-and-types, build]
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Run API e2e tests
+        run: bun run test:e2e:api

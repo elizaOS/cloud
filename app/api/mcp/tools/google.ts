@@ -1,15 +1,19 @@
 // @ts-nocheck — MCP tool types cause exponential type inference
-/**
- * Google MCP Tools - Gmail, Calendar, Contacts
- * Uses per-organization OAuth tokens via oauthService.
- */
-
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import {
+  errMsg,
+  extractBody,
+  googleFetchWithToken,
+  mapCalendarEvent,
+  mapContact,
+  mapGmailMessage,
+  sanitizeHeaderValue,
+} from "@/lib/utils/google-mcp-shared";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getGoogleToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -30,52 +34,7 @@ async function getGoogleToken(): Promise<string> {
 
 async function googleFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = await getGoogleToken();
-  const response = await fetch(url, {
-    ...options,
-    headers: { Authorization: `Bearer ${token}`, ...options.headers },
-  });
-
-  if (!response.ok && response.status !== 204) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error?.message || `Google API error: ${response.status}`);
-  }
-  return response;
-}
-
-function errMsg(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-/** Sanitize email header values to prevent CRLF injection attacks. */
-function sanitizeHeaderValue(value: string): string {
-  return value.replace(/[\r\n]/g, "");
-}
-
-/** Recursively extract text body from Gmail payload (handles nested multipart). */
-function extractBody(payload: any): string {
-  if (payload?.body?.data) {
-    return Buffer.from(payload.body.data, "base64").toString("utf-8");
-  }
-
-  if (payload?.parts && Array.isArray(payload.parts)) {
-    // Prefer text/plain over text/html
-    for (const mimeType of ["text/plain", "text/html"]) {
-      for (const part of payload.parts) {
-        if (part.mimeType === mimeType && part.body?.data) {
-          return Buffer.from(part.body.data, "base64").toString("utf-8");
-        }
-        if (part.mimeType?.startsWith("multipart/")) {
-          const nested = extractBody(part);
-          if (nested) return nested;
-        }
-      }
-    }
-    for (const part of payload.parts) {
-      const nested = extractBody(part);
-      if (nested) return nested;
-    }
-  }
-  return "";
+  return googleFetchWithToken(token, url, options);
 }
 
 export function registerGoogleTools(server: McpServer): void {
@@ -96,12 +55,14 @@ export function registerGoogleTools(server: McpServer): void {
         const active = connections.find((c) => c.status === "active");
         if (!active) {
           return jsonResponse({
+            success: true,
             connected: false,
             message: "Google not connected. Connect in Settings > Connections.",
           });
         }
 
         return jsonResponse({
+          success: true,
           connected: true,
           email: active.email,
           scopes: active.scopes,
@@ -116,14 +77,14 @@ export function registerGoogleTools(server: McpServer): void {
   server.registerTool(
     "gmail_send",
     {
-      description: "Send email via Gmail",
+      description: "Send email via Gmail. Supports plain text and HTML, with CC/BCC.",
       inputSchema: {
-        to: z.string().describe("Recipient(s), comma-separated"),
-        subject: z.string().describe("Subject line"),
-        body: z.string().describe("Email body"),
-        isHtml: z.boolean().optional().default(false).describe("HTML format"),
-        cc: z.string().optional().describe("CC recipients"),
-        bcc: z.string().optional().describe("BCC recipients"),
+        to: z.string().min(1).describe("Recipient(s), comma-separated email addresses"),
+        subject: z.string().min(1).describe("Subject line"),
+        body: z.string().min(1).describe("Email body content"),
+        isHtml: z.boolean().optional().default(false).describe("Send as HTML format"),
+        cc: z.string().optional().describe("CC recipients, comma-separated"),
+        bcc: z.string().optional().describe("BCC recipients, comma-separated"),
       },
     },
     async ({ to, subject, body, isHtml = false, cc, bcc }) => {
@@ -169,29 +130,97 @@ export function registerGoogleTools(server: McpServer): void {
   server.registerTool(
     "gmail_list",
     {
-      description: "List emails from Gmail",
+      description:
+        "List and search emails from Gmail. Supports date filtering via 'after' and 'before' parameters (converts to Gmail query syntax automatically), pagination for fetching all results, and label filtering. For advanced queries, use the 'query' parameter with Gmail search operators like 'from:x@y.com', 'is:unread', 'has:attachment'.",
       inputSchema: {
-        query: z.string().optional().describe("Search query (e.g., 'is:unread', 'from:x@y.com')"),
-        maxResults: z.number().int().min(1).max(50).optional().default(10).describe("Max emails (default: 10)"),
-        labelIds: z.string().optional().describe("Label IDs, comma-separated"),
+        query: z
+          .string()
+          .optional()
+          .describe(
+            "Gmail search query (supports operators: from:user, to:user, subject:text, is:unread, is:starred, has:attachment, label:name, newer_than:7d, etc.)",
+          ),
+        maxResults: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .default(10)
+          .describe("Max emails per page (1-50, default 10)"),
+        labelIds: z
+          .string()
+          .optional()
+          .describe("Label IDs, comma-separated (e.g., 'INBOX', 'UNREAD', 'STARRED')"),
+        after: z
+          .string()
+          .optional()
+          .describe(
+            "Only emails after this date (ISO 8601, e.g. 2026-02-13T00:00:00Z). Automatically added to query.",
+          ),
+        before: z
+          .string()
+          .optional()
+          .describe(
+            "Only emails before this date (ISO 8601, e.g. 2026-02-20T00:00:00Z). Automatically added to query.",
+          ),
+        pageToken: z
+          .string()
+          .optional()
+          .describe(
+            "Token from a previous response's nextPageToken to fetch the next page of results",
+          ),
       },
     },
-    async ({ query, maxResults = 10, labelIds }) => {
+    async ({ query, maxResults = 10, labelIds, after, before, pageToken }) => {
       try {
+        let effectiveQuery = query || "";
+        if (after) {
+          const d = new Date(after);
+          if (Number.isNaN(d.getTime())) {
+            return errorResponse(
+              `Invalid 'after' date: "${after}". Use ISO 8601 format, e.g. 2026-02-13T00:00:00Z`,
+            );
+          }
+          effectiveQuery += ` after:${d.getUTCFullYear()}/${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+        }
+        if (before) {
+          const d = new Date(before);
+          if (Number.isNaN(d.getTime())) {
+            return errorResponse(
+              `Invalid 'before' date: "${before}". Use ISO 8601 format, e.g. 2026-02-20T00:00:00Z`,
+            );
+          }
+          effectiveQuery += ` before:${d.getUTCFullYear()}/${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+        }
+        effectiveQuery = effectiveQuery.trim();
+
         const params = new URLSearchParams({ maxResults: String(maxResults) });
-        if (query) params.set("q", query);
+        if (effectiveQuery) params.set("q", effectiveQuery);
+        if (pageToken) params.set("pageToken", pageToken);
         if (labelIds) {
-          // Gmail API expects repeated labelIds params, not comma-separated
-          labelIds.split(",").forEach((id) => params.append("labelIds", id.trim()));
+          for (const id of labelIds.split(",")) {
+            const trimmed = id.trim();
+            if (trimmed) params.append("labelIds", trimmed);
+          }
         }
 
         const listResponse = await googleFetch(
           `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`,
         );
-        const { messages = [] } = await listResponse.json();
+        const listData = await listResponse.json();
+        const messages = listData.messages || [];
+        const nextPageToken = listData.nextPageToken || null;
+        const resultSizeEstimate = listData.resultSizeEstimate || 0;
 
         if (messages.length === 0) {
-          return jsonResponse({ success: true, messages: [], count: 0 });
+          return jsonResponse({
+            success: true,
+            count: 0,
+            resultCount: 0,
+            messages: [],
+            nextPageToken: null,
+            resultSizeEstimate,
+          });
         }
 
         const messageIds = messages.slice(0, maxResults).map((m: { id: string }) => m.id);
@@ -199,7 +228,7 @@ export function registerGoogleTools(server: McpServer): void {
           messageIds.map(async (id: string) => {
             try {
               const res = await googleFetch(
-                `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
+                `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
               );
               return { ok: true, data: await res.json() };
             } catch {
@@ -212,24 +241,19 @@ export function registerGoogleTools(server: McpServer): void {
         const failCount = results.filter((r) => !r.ok).length;
 
         if (failCount > 0) {
-          logger.warn("[GoogleMCP] Some messages failed to fetch", { failed: failCount, total: messageIds.length });
+          logger.warn("[GoogleMCP] Some messages failed to fetch", {
+            failed: failCount,
+            total: messageIds.length,
+          });
         }
-
-        const formatted = successes.map((d: any) => ({
-          id: d.id,
-          threadId: d.threadId,
-          snippet: d.snippet,
-          labelIds: d.labelIds,
-          headers: Object.fromEntries(
-            d.payload?.headers?.map((h: { name: string; value: string }) => [h.name, h.value]) || [],
-          ),
-          internalDate: d.internalDate ? new Date(parseInt(d.internalDate)).toISOString() : undefined,
-        }));
 
         return jsonResponse({
           success: true,
-          messages: formatted,
-          count: formatted.length,
+          count: successes.length,
+          resultCount: successes.length,
+          messages: successes.map(mapGmailMessage),
+          nextPageToken,
+          resultSizeEstimate,
           ...(failCount > 0 && { failedToFetch: failCount }),
         });
       } catch (error) {
@@ -241,32 +265,52 @@ export function registerGoogleTools(server: McpServer): void {
   server.registerTool(
     "gmail_read",
     {
-      description: "Read email by ID",
+      description:
+        "Read a specific email by its message ID with full content including body text, headers, and labels.",
       inputSchema: {
-        messageId: z.string().describe("Gmail message ID"),
-        format: z.enum(["full", "metadata", "minimal"]).optional().default("full"),
+        messageId: z.string().min(1).describe("Gmail message ID"),
+        format: z
+          .enum(["full", "metadata", "minimal"])
+          .optional()
+          .default("full")
+          .describe("Response format: full (with body), metadata (headers only), or minimal"),
       },
     },
     async ({ messageId, format = "full" }) => {
       try {
         const response = await googleFetch(
-          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=${format}`,
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=${format}`,
         );
         const msg = await response.json();
 
+        if (!msg.payload) {
+          return jsonResponse({
+            id: msg.id,
+            threadId: msg.threadId,
+            labelIds: msg.labelIds,
+            snippet: msg.snippet,
+            headers: {},
+            body: "",
+            internalDate: msg.internalDate
+              ? new Date(Number.parseInt(msg.internalDate, 10)).toISOString()
+              : undefined,
+          });
+        }
+
         const headers = Object.fromEntries(
-          msg.payload?.headers?.map((h: { name: string; value: string }) => [h.name, h.value]) || [],
+          msg.payload.headers?.map((h: { name: string; value: string }) => [h.name, h.value]) || [],
         );
 
         return jsonResponse({
-          success: true,
           id: msg.id,
           threadId: msg.threadId,
           labelIds: msg.labelIds,
           snippet: msg.snippet,
           headers,
           body: extractBody(msg.payload),
-          internalDate: msg.internalDate ? new Date(parseInt(msg.internalDate)).toISOString() : undefined,
+          internalDate: msg.internalDate
+            ? new Date(Number.parseInt(msg.internalDate, 10)).toISOString()
+            : undefined,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to read email"));
@@ -277,49 +321,79 @@ export function registerGoogleTools(server: McpServer): void {
   server.registerTool(
     "calendar_list_events",
     {
-      description: "List upcoming calendar events",
+      description:
+        "List calendar events. Returns both past and future events when date filters are provided. Without any date filter, defaults to upcoming events only. Supports pagination for large result sets. Convert natural language dates (e.g., 'last week', 'next Monday') to ISO 8601 before calling.",
       inputSchema: {
-        maxResults: z.number().int().min(1).max(50).optional().default(10),
-        timeMin: z.string().optional().describe("Start filter (ISO 8601)"),
-        timeMax: z.string().optional().describe("End filter (ISO 8601)"),
-        calendarId: z.string().optional().default("primary"),
-        query: z.string().optional().describe("Search query"),
+        maxResults: z
+          .number()
+          .int()
+          .min(1)
+          .max(250)
+          .optional()
+          .default(10)
+          .describe("Max events per page (1-250, default 10)"),
+        timeMin: z
+          .string()
+          .optional()
+          .describe(
+            "Only events starting after this time (ISO 8601, e.g. 2026-02-13T00:00:00Z). Omit to default to now (upcoming events).",
+          ),
+        timeMax: z
+          .string()
+          .optional()
+          .describe("Only events starting before this time (ISO 8601, e.g. 2026-02-20T23:59:59Z)"),
+        calendarId: z
+          .string()
+          .optional()
+          .default("primary")
+          .describe("Calendar ID (default: 'primary')"),
+        query: z.string().optional().describe("Free-text search across event fields"),
+        pageToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextPageToken to fetch the next page"),
       },
     },
-    async ({ maxResults = 10, timeMin, timeMax, calendarId = "primary", query }) => {
+    async ({ maxResults = 10, timeMin, timeMax, calendarId = "primary", query, pageToken }) => {
       try {
+        if (timeMin && Number.isNaN(new Date(timeMin).getTime())) {
+          return errorResponse(
+            `Invalid 'timeMin' date: "${timeMin}". Use ISO 8601 format, e.g. 2026-02-13T00:00:00Z`,
+          );
+        }
+        if (timeMax && Number.isNaN(new Date(timeMax).getTime())) {
+          return errorResponse(
+            `Invalid 'timeMax' date: "${timeMax}". Use ISO 8601 format, e.g. 2026-02-20T23:59:59Z`,
+          );
+        }
+
         const params = new URLSearchParams({
           maxResults: String(maxResults),
-          timeMin: timeMin || new Date().toISOString(),
           singleEvents: "true",
           orderBy: "startTime",
         });
+        if (timeMin) {
+          params.set("timeMin", timeMin);
+        } else if (!timeMax) {
+          params.set("timeMin", new Date().toISOString());
+        }
         if (timeMax) params.set("timeMax", timeMax);
         if (query) params.set("q", query);
+        if (pageToken) params.set("pageToken", pageToken);
 
         const response = await googleFetch(
           `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
         );
-        const { items = [] } = await response.json();
+        const data = await response.json();
+        const items = data.items || [];
 
-        const events = items.map((e: any) => ({
-          id: e.id,
-          summary: e.summary,
-          description: e.description,
-          start: e.start?.dateTime || e.start?.date,
-          end: e.end?.dateTime || e.end?.date,
-          location: e.location,
-          status: e.status,
-          htmlLink: e.htmlLink,
-          attendees: e.attendees?.map((a: any) => ({
-            email: a.email,
-            displayName: a.displayName,
-            responseStatus: a.responseStatus,
-          })),
-          organizer: e.organizer,
-        }));
-
-        return jsonResponse({ success: true, events, count: events.length });
+        return jsonResponse({
+          success: true,
+          count: items.length,
+          resultCount: items.length,
+          events: items.map(mapCalendarEvent),
+          nextPageToken: data.nextPageToken || null,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list events"));
       }
@@ -329,19 +403,37 @@ export function registerGoogleTools(server: McpServer): void {
   server.registerTool(
     "calendar_create_event",
     {
-      description: "Create calendar event",
+      description:
+        "Create a new calendar event. Supports timed events, attendees, location, and notification preferences.",
       inputSchema: {
-        summary: z.string().describe("Event title"),
-        start: z.string().describe("Start time (ISO 8601)"),
-        end: z.string().describe("End time (ISO 8601)"),
-        description: z.string().optional(),
-        location: z.string().optional(),
-        attendees: z.array(z.string().email()).optional(),
-        calendarId: z.string().optional().default("primary"),
-        sendUpdates: z.enum(["all", "externalOnly", "none"]).optional().default("all"),
+        summary: z.string().min(1).describe("Event title"),
+        start: z.string().min(1).describe("Start time (ISO 8601, e.g. 2026-02-20T14:00:00Z)"),
+        end: z.string().min(1).describe("End time (ISO 8601, e.g. 2026-02-20T15:00:00Z)"),
+        description: z.string().optional().describe("Event description/notes"),
+        location: z.string().optional().describe("Event location"),
+        attendees: z.array(z.string().email()).optional().describe("Attendee email addresses"),
+        calendarId: z
+          .string()
+          .optional()
+          .default("primary")
+          .describe("Calendar ID (default: 'primary')"),
+        sendUpdates: z
+          .enum(["all", "externalOnly", "none"])
+          .optional()
+          .default("all")
+          .describe("Who to send email notifications to"),
       },
     },
-    async ({ summary, start, end, description, location, attendees, calendarId = "primary", sendUpdates = "all" }) => {
+    async ({
+      summary,
+      start,
+      end,
+      description,
+      location,
+      attendees,
+      calendarId = "primary",
+      sendUpdates = "all",
+    }) => {
       try {
         const event: Record<string, unknown> = {
           summary,
@@ -379,26 +471,43 @@ export function registerGoogleTools(server: McpServer): void {
   server.registerTool(
     "calendar_update_event",
     {
-      description: "Update calendar event",
+      description:
+        "Update an existing calendar event. Fetches the current event first, then applies your changes. Only provide fields you want to change.",
       inputSchema: {
-        eventId: z.string().describe("Event ID"),
-        summary: z.string().optional(),
-        start: z.string().optional().describe("ISO 8601"),
-        end: z.string().optional().describe("ISO 8601"),
-        description: z.string().optional(),
-        location: z.string().optional(),
-        calendarId: z.string().optional().default("primary"),
-        sendUpdates: z.enum(["all", "externalOnly", "none"]).optional().default("all"),
+        eventId: z.string().min(1).describe("Event ID to update"),
+        summary: z.string().optional().describe("New event title"),
+        start: z.string().optional().describe("New start time (ISO 8601)"),
+        end: z.string().optional().describe("New end time (ISO 8601)"),
+        description: z.string().optional().describe("New description"),
+        location: z.string().optional().describe("New location"),
+        calendarId: z
+          .string()
+          .optional()
+          .default("primary")
+          .describe("Calendar ID (default: 'primary')"),
+        sendUpdates: z
+          .enum(["all", "externalOnly", "none"])
+          .optional()
+          .default("all")
+          .describe("Who to send email notifications to"),
       },
     },
-    async ({ eventId, summary, start, end, description, location, calendarId = "primary", sendUpdates = "all" }) => {
+    async ({
+      eventId,
+      summary,
+      start,
+      end,
+      description,
+      location,
+      calendarId = "primary",
+      sendUpdates = "all",
+    }) => {
       try {
         const baseUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
 
-        const existing = await (await googleFetch(baseUrl)).json();
+        const existingResponse = await googleFetch(baseUrl);
+        const existing = await existingResponse.json();
 
-        // When updating start/end, remove 'date' property if setting 'dateTime'
-        // (Google Calendar uses 'date' for all-day events, 'dateTime' for timed events - can't have both)
         const updated = {
           ...existing,
           ...(summary && { summary }),
@@ -415,6 +524,8 @@ export function registerGoogleTools(server: McpServer): void {
         });
 
         const result = await response.json();
+        logger.info("[GoogleMCP] Event updated", { eventId: result.id });
+
         return jsonResponse({
           success: true,
           eventId: result.id,
@@ -430,11 +541,19 @@ export function registerGoogleTools(server: McpServer): void {
   server.registerTool(
     "calendar_delete_event",
     {
-      description: "Delete calendar event",
+      description: "Delete a calendar event. This action cannot be undone.",
       inputSchema: {
-        eventId: z.string().describe("Event ID"),
-        calendarId: z.string().optional().default("primary"),
-        sendUpdates: z.enum(["all", "externalOnly", "none"]).optional().default("all"),
+        eventId: z.string().min(1).describe("Event ID to delete"),
+        calendarId: z
+          .string()
+          .optional()
+          .default("primary")
+          .describe("Calendar ID (default: 'primary')"),
+        sendUpdates: z
+          .enum(["all", "externalOnly", "none"])
+          .optional()
+          .default("all")
+          .describe("Who to send cancellation notifications to"),
       },
     },
     async ({ eventId, calendarId = "primary", sendUpdates = "all" }) => {
@@ -444,8 +563,8 @@ export function registerGoogleTools(server: McpServer): void {
           { method: "DELETE" },
         );
 
-        logger.info("[GoogleMCP] Event deleted", { eventId });
-        return jsonResponse({ success: true });
+        logger.info("[GoogleMCP] Event deleted", { eventId, calendarId });
+        return jsonResponse({ success: true, deleted: true, eventId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete event"));
       }
@@ -455,13 +574,28 @@ export function registerGoogleTools(server: McpServer): void {
   server.registerTool(
     "contacts_list",
     {
-      description: "List Google contacts",
+      description:
+        "List or search Google contacts. When a query is provided, uses the Google Contacts search API. Otherwise lists connections. Supports pagination for large contact lists.",
       inputSchema: {
-        pageSize: z.number().int().min(1).max(100).optional().default(20),
-        query: z.string().optional().describe("Search query"),
+        pageSize: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .default(20)
+          .describe("Contacts per page (1-100, default 20)"),
+        query: z
+          .string()
+          .optional()
+          .describe("Search query to find contacts by name, email, phone, or organization"),
+        pageToken: z
+          .string()
+          .optional()
+          .describe("Token from a previous response's nextPageToken to fetch the next page"),
       },
     },
-    async ({ pageSize = 20, query }) => {
+    async ({ pageSize = 20, query, pageToken }) => {
       try {
         const params = new URLSearchParams({
           pageSize: String(pageSize),
@@ -473,24 +607,27 @@ export function registerGoogleTools(server: McpServer): void {
           url = "https://people.googleapis.com/v1/people:searchContacts";
           params.set("query", query);
           params.set("readMask", "names,emailAddresses,phoneNumbers,organizations");
+        } else if (pageToken) {
+          params.set("pageToken", pageToken);
         }
 
         const response = await googleFetch(`${url}?${params}`);
         const data = await response.json();
         const items = data.connections || data.results || [];
 
-        const contacts = items.map((person: any) => {
-          const p = person.person || person;
-          return {
-            resourceName: p.resourceName,
-            name: p.names?.[0]?.displayName,
-            email: p.emailAddresses?.[0]?.value,
-            phone: p.phoneNumbers?.[0]?.value,
-            organization: p.organizations?.[0]?.name,
-          };
-        });
+        const result: Record<string, unknown> = {
+          success: true,
+          count: items.length,
+          resultCount: items.length,
+          contacts: items.map(mapContact),
+          nextPageToken: data.nextPageToken || null,
+        };
+        if (query && pageToken) {
+          result.note =
+            "Google Contacts search does not support pagination. The pageToken was ignored. To see more results, increase pageSize (max 100).";
+        }
 
-        return jsonResponse({ success: true, contacts, count: contacts.length });
+        return jsonResponse(result);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list contacts"));
       }

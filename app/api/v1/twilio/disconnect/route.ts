@@ -7,9 +7,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { logger } from "@/lib/utils/logger";
-import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -18,10 +18,7 @@ async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
-    await twilioAutomationService.removeCredentials(
-      user.organization_id,
-      user.id,
-    );
+    await twilioAutomationService.removeCredentials(user.organization_id, user.id);
 
     await invalidateOAuthState(user.organization_id, "twilio", user.id);
 
@@ -39,10 +36,7 @@ async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       organizationId: user.organization_id,
     });
-    return NextResponse.json(
-      { error: "Failed to disconnect Twilio" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to disconnect Twilio" }, { status: 500 });
   }
 }
 

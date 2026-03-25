@@ -6,9 +6,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
 import { logger } from "@/lib/utils/logger";
-import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const maxDuration = 30;
 
@@ -16,10 +16,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
-    await telegramAutomationService.removeCredentials(
-      user.organization_id,
-      user.id,
-    );
+    await telegramAutomationService.removeCredentials(user.organization_id, user.id);
 
     await invalidateOAuthState(user.organization_id, "telegram", user.id);
 
@@ -33,9 +30,6 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json(
-      { error: "Failed to disconnect" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to disconnect" }, { status: 500 });
   }
 }

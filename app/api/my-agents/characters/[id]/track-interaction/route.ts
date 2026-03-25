@@ -9,10 +9,7 @@ export const dynamic = "force-dynamic";
  * Tracks an interaction with a character.
  * Note: This is a no-op after marketplace removal.
  */
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAuthWithOrg();
     const { id } = await params;
@@ -24,7 +21,7 @@ export async function POST(
       success: true,
       data: { message: "Interaction tracked" },
     });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { success: false, error: "Failed to track interaction" },
       { status: 500 },

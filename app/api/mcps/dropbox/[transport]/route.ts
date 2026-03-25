@@ -7,11 +7,11 @@
  */
 
 import type { NextRequest } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { oauthService } from "@/lib/services/oauth";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
@@ -22,7 +22,11 @@ interface McpHandlerResponse {
 }
 
 function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
-  return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
+  return (
+    typeof resp === "object" &&
+    resp !== null &&
+    typeof (resp as McpHandlerResponse).status === "number"
+  );
 }
 
 let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
@@ -34,7 +38,10 @@ async function getDropboxMcpHandler() {
   const { z } = await import("zod3");
 
   async function getDropboxToken(organizationId: string): Promise<string> {
-    const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "dropbox" });
+    const result = await oauthService.getValidTokenByPlatform({
+      organizationId,
+      platform: "dropbox",
+    });
     return result.accessToken;
   }
 
@@ -76,7 +83,10 @@ async function getDropboxMcpHandler() {
   }
 
   function errorResult(msg: string) {
-    return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      isError: true,
+    };
   }
 
   mcpHandler = createMcpHandler(
@@ -85,12 +95,19 @@ async function getDropboxMcpHandler() {
       server.tool("dropbox_status", "Check Dropbox OAuth connection status", {}, async () => {
         try {
           const orgId = getOrgId();
-          const connections = await oauthService.listConnections({ organizationId: orgId, platform: "dropbox" });
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            platform: "dropbox",
+          });
           const active = connections.find((c) => c.status === "active");
           if (!active) {
             const expired = connections.find((c) => c.status === "expired");
             if (expired) {
-              return jsonResult({ connected: false, status: "expired", message: "Dropbox connection expired. Please reconnect in Settings > Connections." });
+              return jsonResult({
+                connected: false,
+                status: "expired",
+                message: "Dropbox connection expired. Please reconnect in Settings > Connections.",
+              });
             }
             return jsonResult({ connected: false });
           }
@@ -224,8 +241,14 @@ async function getDropboxMcpHandler() {
         {
           path: z.string().min(1).describe("File path including name (e.g. /Documents/notes.txt)"),
           content: z.string().describe("Text content of the file"),
-          mode: z.enum(["add", "overwrite"]).optional().describe("'add' to avoid overwriting (default), 'overwrite' to replace existing"),
-          autorename: z.boolean().optional().describe("Auto-rename if file exists (only with mode=add)"),
+          mode: z
+            .enum(["add", "overwrite"])
+            .optional()
+            .describe("'add' to avoid overwriting (default), 'overwrite' to replace existing"),
+          autorename: z
+            .boolean()
+            .optional()
+            .describe("Auto-rename if file exists (only with mode=add)"),
         },
         async ({ path, content, mode, autorename }) => {
           try {
@@ -284,7 +307,8 @@ async function getDropboxMcpHandler() {
           try {
             const body: Record<string, unknown> = { from_path, to_path };
             if (autorename !== undefined) body.autorename = autorename;
-            if (allow_ownership_transfer !== undefined) body.allow_ownership_transfer = allow_ownership_transfer;
+            if (allow_ownership_transfer !== undefined)
+              body.allow_ownership_transfer = allow_ownership_transfer;
             const data = await dropboxRpc(getOrgId(), "/2/files/move_v2", body);
             return jsonResult(data);
           } catch (e) {
@@ -327,7 +351,11 @@ async function getDropboxMcpHandler() {
             if (requested_visibility) {
               body.settings = { requested_visibility };
             }
-            const data = await dropboxRpc(getOrgId(), "/2/sharing/create_shared_link_with_settings", body);
+            const data = await dropboxRpc(
+              getOrgId(),
+              "/2/sharing/create_shared_link_with_settings",
+              body,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -372,7 +400,11 @@ async function getDropboxMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { streamableHttpEndpoint: "/api/mcps/dropbox/streamable-http", disableSse: true, maxDuration: 60 },
+    {
+      streamableHttpEndpoint: "/api/mcps/dropbox/streamable-http",
+      disableSse: true,
+      maxDuration: 60,
+    },
   );
 
   return mcpHandler;
@@ -385,26 +417,40 @@ async function handleRequest(req: NextRequest): Promise<Response> {
     const rateLimitKey = `mcp:ratelimit:dropbox:${authResult.user.organization_id}`;
     const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
     if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), { status: 429, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const handler = await getDropboxMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
-      return new Response(JSON.stringify({ error: "invalid_response" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "invalid_response" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    mcpResponse.headers?.forEach((v: string, k: string) => { headers[k] = v; });
+    mcpResponse.headers?.forEach((v: string, k: string) => {
+      headers[k] = v;
+    });
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     logger.error(`[DropboxMCP] ${msg}`);
     const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(JSON.stringify({ error: isAuth ? "authentication_required" : "internal_error", message: msg }), { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        error: isAuth ? "authentication_required" : "internal_error",
+        message: msg,
+      }),
+      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 }
 

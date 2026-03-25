@@ -1,8 +1,11 @@
 // app/api/v1/models/[...model]/route.ts
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { logger } from "@/lib/utils/logger";
-import { getProvider } from "@/lib/providers";
+
 import type { NextRequest } from "next/server";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { getGroqCatalogModel, isGroqNativeModel } from "@/lib/models";
+import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
+import { getCachedGatewayModelById } from "@/lib/services/model-catalog";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +18,7 @@ export const dynamic = "force-dynamic";
  * @param context - Route context containing model segments as an array.
  * @returns Model details from the provider gateway.
  */
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ model: string[] }> },
-) {
+export async function GET(request: NextRequest, context: { params: Promise<{ model: string[] }> }) {
   try {
     await requireAuthOrApiKey(request);
 
@@ -41,6 +41,38 @@ export async function GET(
 
     // Join segments to support both "openai/gpt-4o-mini" and "openai%2Fgpt-4o-mini"
     const model = modelSegments.join("/");
+
+    if (isGroqNativeModel(model)) {
+      if (!hasGroqProviderConfigured()) {
+        return Response.json(
+          {
+            error: {
+              message: `Model '${model}' is not configured on this deployment`,
+              type: "invalid_request_error",
+              code: "model_not_configured",
+            },
+          },
+          { status: 503 },
+        );
+      }
+
+      const groqModel = getGroqCatalogModel(model);
+      if (groqModel) {
+        return Response.json(groqModel);
+      }
+    }
+
+    try {
+      const cachedModel = await getCachedGatewayModelById(model);
+      if (cachedModel) {
+        return Response.json(cachedModel);
+      }
+    } catch (error) {
+      logger.warn("Error reading cached model catalog, falling back to provider", {
+        model,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     const provider = getProvider();
     const response = await provider.getModel(model);

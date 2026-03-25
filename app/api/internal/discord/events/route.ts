@@ -8,11 +8,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withInternalAuth } from "@/lib/auth/internal-api";
 import { routeDiscordEvent } from "@/lib/services/gateway-discord/event-router";
-import { logger } from "@/lib/utils/logger";
 import {
-  DiscordEventPayloadSchema,
   type DiscordEventPayload,
+  DiscordEventPayloadSchema,
 } from "@/lib/services/gateway-discord/schemas";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,9 @@ export const dynamic = "force-dynamic";
  * Validate payload with Zod schema.
  * Fails hard if Zod is unavailable - no unsafe fallback validation.
  */
-function validatePayload(body: unknown): { success: true; data: DiscordEventPayload } | { success: false; error: string } {
+function validatePayload(
+  body: unknown,
+): { success: true; data: DiscordEventPayload } | { success: false; error: string } {
   const parsed = DiscordEventPayloadSchema.safeParse(body);
   if (parsed.success) {
     return { success: true, data: parsed.data };
@@ -79,7 +81,10 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
       stack: error instanceof Error ? error.stack : undefined,
     });
     return NextResponse.json(
-      { error: "Internal server error", message: error instanceof Error ? error.message : "Unknown error" },
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 },
     );
   }

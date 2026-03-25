@@ -12,17 +12,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { logger } from "@/lib/utils/logger";
+import type { Organization } from "@/db/schemas/organizations";
+import type { User } from "@/db/schemas/users";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import {
   discordAuthService,
-  elizaAppUserService,
   elizaAppSessionService,
+  elizaAppUserService,
   type ValidatedSession,
 } from "@/lib/services/eliza-app";
-import { normalizePhoneNumber, isValidE164 } from "@/lib/utils/phone-normalization";
-import type { User } from "@/db/schemas/users";
-import type { Organization } from "@/db/schemas/organizations";
+import { logger } from "@/lib/utils/logger";
+import { isValidE164, normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 
 /**
  * Optional E.164 phone number validation (after normalization)
@@ -36,8 +36,7 @@ const optionalPhoneSchema = z
     if (!isValidE164(normalized)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message:
-          "Invalid phone number format. Please use international format (e.g., +1234567890)",
+        message: "Invalid phone number format. Please use international format (e.g., +1234567890)",
       });
       return z.NEVER;
     }
@@ -45,7 +44,7 @@ const optionalPhoneSchema = z
   });
 
 /**
- * Request body schema: Discord OAuth2 code + redirect_uri + state (CSRF) + optional phone
+ * Request body schema: Discord OAuth2 code + redirect_uri + state (CSRF) + optional phone + optional signup code
  */
 const discordAuthSchema = z.object({
   // OAuth2 authorization code from Discord redirect
@@ -59,6 +58,11 @@ const discordAuthSchema = z.object({
     .regex(/^[0-9a-f]{64}$/, "Invalid state parameter format"),
   // Optional phone number for cross-platform linking
   phone_number: optionalPhoneSchema,
+  // Optional signup code for bonus credits (new users only; one per org)
+  signup_code: z
+    .string()
+    .optional()
+    .transform((s) => s?.trim() || undefined),
 });
 
 /**
@@ -117,13 +121,19 @@ async function handleDiscordAuth(
     );
   }
 
-  const { code, redirect_uri: redirectUri, state, phone_number: phoneNumber } =
-    parseResult.data;
+  const {
+    code,
+    redirect_uri: redirectUri,
+    state,
+    phone_number: phoneNumber,
+    signup_code: signupCode,
+  } = parseResult.data;
 
   logger.info("[ElizaApp DiscordAuth] Processing OAuth2 callback", {
     redirectUri,
     statePrefix: state.slice(0, 8) + "...",
     hasPhone: !!phoneNumber,
+    hasSignupCode: !!signupCode,
   });
 
   // Check for existing session (session-based linking: user already logged in via another platform)
@@ -154,10 +164,7 @@ async function handleDiscordAuth(
   }
 
   // Build avatar URL
-  const avatarUrl = discordAuthService.getAvatarUrl(
-    discordUser.id,
-    discordUser.avatar,
-  );
+  const avatarUrl = discordAuthService.getAvatarUrl(discordUser.id, discordUser.avatar);
 
   let user: User;
   let organization: Organization;
@@ -165,15 +172,12 @@ async function handleDiscordAuth(
 
   if (existingSession) {
     // ---- SESSION-BASED LINKING: Link Discord to existing user ----
-    const linkResult = await elizaAppUserService.linkDiscordToUser(
-      existingSession.userId,
-      {
-        discordId: discordUser.id,
-        username: discordUser.username,
-        globalName: discordUser.global_name,
-        avatarUrl,
-      },
-    );
+    const linkResult = await elizaAppUserService.linkDiscordToUser(existingSession.userId, {
+      discordId: discordUser.id,
+      username: discordUser.username,
+      globalName: discordUser.global_name,
+      avatarUrl,
+    });
 
     if (!linkResult.success) {
       return NextResponse.json(
@@ -214,7 +218,8 @@ async function handleDiscordAuth(
           globalName: discordUser.global_name,
           avatarUrl,
         },
-        phoneNumber, // Pass phone for cross-platform linking (step 2 in findOrCreate)
+        phoneNumber,
+        signupCode,
       );
     } catch (error) {
       if (error instanceof Error) {
@@ -239,13 +244,10 @@ async function handleDiscordAuth(
           );
         }
       }
-      logger.error(
-        "[ElizaApp DiscordAuth] Unexpected error during user creation",
-        {
-          error: error instanceof Error ? error.message : String(error),
-          discordId: discordUser.id,
-        },
-      );
+      logger.error("[ElizaApp DiscordAuth] Unexpected error during user creation", {
+        error: error instanceof Error ? error.message : String(error),
+        discordId: discordUser.id,
+      });
       return NextResponse.json(
         {
           success: false,
@@ -292,15 +294,12 @@ async function handleDiscordAuth(
   });
 
   // Create session (new session includes discord identity)
-  const session = await elizaAppSessionService.createSession(
-    user.id,
-    organization.id,
-    {
-      discordId: discordUser.id,
-      ...(user.phone_number && { phoneNumber: user.phone_number }),
-      ...(user.telegram_id && { telegramId: user.telegram_id }),
-    },
-  );
+  const session = await elizaAppSessionService.createSession(user.id, organization.id, {
+    discordId: discordUser.id,
+    ...(user.phone_number && { phoneNumber: user.phone_number }),
+    ...(user.telegram_id && { telegramId: user.telegram_id }),
+    ...(user.whatsapp_id && { whatsappId: user.whatsapp_id }),
+  });
 
   return NextResponse.json({
     success: true,

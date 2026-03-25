@@ -1,59 +1,53 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
 import {
-  Shield,
-  Users,
-  AlertTriangle,
-  Ban,
-  UserX,
-  RefreshCw,
-  Plus,
-  Trash2,
-  Eye,
-  ChevronRight,
-  Loader2,
-  Search,
-  Clock,
-  Activity,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
+  Badge,
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
+  DashboardStatCard,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import {
+  Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@elizaos/cloud-ui";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import {
+  AlertTriangle,
+  Ban,
+  Eye,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Shield,
+  Trash2,
+  Users,
+  UserX,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface AdminOverview {
@@ -123,9 +117,9 @@ export default function AdminPage() {
   // Dialog states
   const [addAdminOpen, setAddAdminOpen] = useState(false);
   const [newAdminWallet, setNewAdminWallet] = useState("");
-  const [newAdminRole, setNewAdminRole] = useState<
-    "super_admin" | "moderator" | "viewer"
-  >("moderator");
+  const [newAdminRole, setNewAdminRole] = useState<"super_admin" | "moderator" | "viewer">(
+    "moderator",
+  );
   const [actionLoading, setActionLoading] = useState(false);
 
   const [userDetailOpen, setUserDetailOpen] = useState(false);
@@ -200,9 +194,7 @@ export default function AdminPage() {
 
   // Load violations
   const loadViolations = useCallback(async () => {
-    const response = await fetch(
-      "/api/v1/admin/moderation?view=violations&limit=100",
-    );
+    const response = await fetch("/api/v1/admin/moderation?view=violations&limit=100");
     if (!response.ok) {
       const error = await response.json();
       toast.error(`Failed to load violations: ${error.error}`);
@@ -217,9 +209,7 @@ export default function AdminPage() {
     setSelectedUserId(userId);
     setUserDetailOpen(true);
 
-    const response = await fetch(
-      `/api/v1/admin/moderation?view=user-detail&userId=${userId}`,
-    );
+    const response = await fetch(`/api/v1/admin/moderation?view=user-detail&userId=${userId}`);
     if (!response.ok) {
       const error = await response.json();
       toast.error(`Failed to load user details: ${error.error}`);
@@ -236,10 +226,7 @@ export default function AdminPage() {
   }, [isAdmin, loadOverview]);
 
   // Action helpers
-  async function performAction(
-    action: string,
-    data: Record<string, string | undefined>,
-  ) {
+  async function performAction(action: string, data: Record<string, string | undefined>) {
     setActionLoading(true);
 
     const response = await fetch("/api/v1/admin/moderation", {
@@ -285,11 +272,7 @@ export default function AdminPage() {
           Please connect your wallet to access the admin panel.
         </p>
         <Button
-          onClick={() =>
-            router.push(
-              `/login?returnTo=${encodeURIComponent("/dashboard/admin")}`,
-            )
-          }
+          onClick={() => router.push(`/login?returnTo=${encodeURIComponent("/dashboard/admin")}`)}
         >
           Connect Wallet
         </Button>
@@ -303,9 +286,7 @@ export default function AdminPage() {
       <div className="flex h-full flex-col items-center justify-center gap-4">
         <Ban className="h-16 w-16 text-destructive" />
         <h1 className="text-2xl font-bold">Access Denied</h1>
-        <p className="text-muted-foreground">
-          You don&apos;t have admin privileges.
-        </p>
+        <p className="text-muted-foreground">You don&apos;t have admin privileges.</p>
         <p className="text-xs text-muted-foreground">
           Current wallet: {wallets[0]?.address?.slice(0, 10)}...
         </p>
@@ -319,9 +300,7 @@ export default function AdminPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Panel</h1>
-          <p className="text-muted-foreground">
-            Moderation and user management • {adminRole}
-          </p>
+          <p className="text-muted-foreground">Moderation and user management • {adminRole}</p>
         </div>
         <Button variant="outline" onClick={loadOverview}>
           <RefreshCw className="mr-2 h-4 w-4" />
@@ -332,50 +311,30 @@ export default function AdminPage() {
       {/* Stats */}
       {overview && (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Violations
-              </CardTitle>
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {overview.totalViolations}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Flagged Users
-              </CardTitle>
-              <UserX className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overview.flaggedUsers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Banned Users
-              </CardTitle>
-              <Ban className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overview.bannedUsers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Admins</CardTitle>
-              <Shield className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overview.adminCount}</div>
-            </CardContent>
-          </Card>
+          <DashboardStatCard
+            label="Total Violations"
+            value={overview.totalViolations}
+            icon={<AlertTriangle className="h-4 w-4 text-amber-500" />}
+            accent="amber"
+          />
+          <DashboardStatCard
+            label="Flagged Users"
+            value={overview.flaggedUsers}
+            icon={<UserX className="h-4 w-4 text-[#FF5800]" />}
+            accent="orange"
+          />
+          <DashboardStatCard
+            label="Banned Users"
+            value={overview.bannedUsers}
+            icon={<Ban className="h-4 w-4 text-red-500" />}
+            accent="red"
+          />
+          <DashboardStatCard
+            label="Admins"
+            value={overview.adminCount}
+            icon={<Shield className="h-4 w-4 text-blue-400" />}
+            accent="blue"
+          />
         </div>
       )}
 
@@ -423,27 +382,17 @@ export default function AdminPage() {
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(v.createdAt).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {v.userId.slice(0, 8)}...
-                      </TableCell>
+                      <TableCell className="text-xs">{v.userId.slice(0, 8)}...</TableCell>
                       <TableCell>
                         {v.categories.map((c) => (
-                          <Badge
-                            key={c}
-                            variant="destructive"
-                            className="mr-1 text-xs"
-                          >
+                          <Badge key={c} variant="destructive" className="mr-1 text-xs">
                             {c}
                           </Badge>
                         ))}
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={
-                            v.action === "flagged_for_ban"
-                              ? "destructive"
-                              : "secondary"
-                          }
+                          variant={v.action === "flagged_for_ban" ? "destructive" : "secondary"}
                         >
                           {v.action}
                         </Badge>
@@ -452,11 +401,7 @@ export default function AdminPage() {
                         {v.messageText}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => loadUserDetail(v.userId)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => loadUserDetail(v.userId)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -464,10 +409,7 @@ export default function AdminPage() {
                   ))}
                   {violations.length === 0 && (
                     <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="text-center text-muted-foreground"
-                      >
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
                         No violations found
                       </TableCell>
                     </TableRow>
@@ -488,9 +430,7 @@ export default function AdminPage() {
                   <UserX className="h-5 w-5 text-orange-500" />
                   Flagged Users
                 </CardTitle>
-                <CardDescription>
-                  Users with violations requiring review
-                </CardDescription>
+                <CardDescription>Users with violations requiring review</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -531,9 +471,7 @@ export default function AdminPage() {
                     </div>
                   ))}
                   {flaggedUsers.length === 0 && (
-                    <p className="text-center text-sm text-muted-foreground">
-                      No flagged users
-                    </p>
+                    <p className="text-center text-sm text-muted-foreground">No flagged users</p>
                   )}
                 </div>
               </CardContent>
@@ -546,9 +484,7 @@ export default function AdminPage() {
                   <Ban className="h-5 w-5 text-red-500" />
                   Banned Users
                 </CardTitle>
-                <CardDescription>
-                  Users currently banned from the platform
-                </CardDescription>
+                <CardDescription>Users currently banned from the platform</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -566,18 +502,14 @@ export default function AdminPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          performAction("unban", { userId: u.userId })
-                        }
+                        onClick={() => performAction("unban", { userId: u.userId })}
                       >
                         Unban
                       </Button>
                     </div>
                   ))}
                   {bannedUsers.length === 0 && (
-                    <p className="text-center text-sm text-muted-foreground">
-                      No banned users
-                    </p>
+                    <p className="text-center text-sm text-muted-foreground">No banned users</p>
                   )}
                 </div>
               </CardContent>
@@ -638,20 +570,19 @@ export default function AdminPage() {
                         {admin.notes || "-"}
                       </TableCell>
                       <TableCell>
-                        {adminRole === "super_admin" &&
-                          admin.id !== "anvil-default" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                performAction("revoke_admin", {
-                                  walletAddress: admin.walletAddress,
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
+                        {adminRole === "super_admin" && admin.id !== "anvil-default" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              performAction("revoke_admin", {
+                                walletAddress: admin.walletAddress,
+                              })
+                            }
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -667,9 +598,7 @@ export default function AdminPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Admin</DialogTitle>
-            <DialogDescription>
-              Grant admin privileges to a wallet address
-            </DialogDescription>
+            <DialogDescription>Grant admin privileges to a wallet address</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -714,9 +643,7 @@ export default function AdminPage() {
               }}
               disabled={actionLoading || !newAdminWallet}
             >
-              {actionLoading && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Add Admin
             </Button>
           </DialogFooter>
@@ -728,9 +655,7 @@ export default function AdminPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
-            <DialogDescription>
-              Detailed information and moderation actions
-            </DialogDescription>
+            <DialogDescription>Detailed information and moderation actions</DialogDescription>
           </DialogHeader>
           {userDetail ? (
             <div className="space-y-4">
@@ -748,9 +673,7 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Wallet:</span>{" "}
-                    <span>
-                      {userDetail.user?.wallet_address?.slice(0, 10)}...
-                    </span>
+                    <span>{userDetail.user?.wallet_address?.slice(0, 10)}...</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Generations:</span>{" "}
@@ -773,12 +696,8 @@ export default function AdminPage() {
                     >
                       {userDetail.moderationStatus.status}
                     </Badge>
-                    <span>
-                      Violations: {userDetail.moderationStatus.totalViolations}
-                    </span>
-                    <span>
-                      Risk Score: {userDetail.moderationStatus.riskScore}
-                    </span>
+                    <span>Violations: {userDetail.moderationStatus.totalViolations}</span>
+                    <span>Risk Score: {userDetail.moderationStatus.riskScore}</span>
                   </div>
                 </div>
               )}
@@ -793,18 +712,12 @@ export default function AdminPage() {
                     <div key={v.id} className="text-sm border-b pb-2">
                       <div className="flex gap-2">
                         {v.categories.map((c) => (
-                          <Badge
-                            key={c}
-                            variant="destructive"
-                            className="text-xs"
-                          >
+                          <Badge key={c} variant="destructive" className="text-xs">
                             {c}
                           </Badge>
                         ))}
                       </div>
-                      <p className="text-muted-foreground truncate">
-                        {v.messageText}
-                      </p>
+                      <p className="text-muted-foreground truncate">{v.messageText}</p>
                     </div>
                   ))}
                 </div>
@@ -814,18 +727,14 @@ export default function AdminPage() {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() =>
-                    performAction("mark_spammer", { userId: selectedUserId! })
-                  }
+                  onClick={() => performAction("mark_spammer", { userId: selectedUserId! })}
                   disabled={actionLoading}
                 >
                   Mark as Spammer
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() =>
-                    performAction("mark_scammer", { userId: selectedUserId! })
-                  }
+                  onClick={() => performAction("mark_scammer", { userId: selectedUserId! })}
                   disabled={actionLoading}
                 >
                   Mark as Scammer

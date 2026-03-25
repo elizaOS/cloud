@@ -5,10 +5,10 @@
  * Includes promotional asset upload and deletion.
  */
 
-import { requireAuthWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
 import { appsRepository } from "@/db/repositories/apps";
-import { uploadToBlob, deleteBlob, isValidBlobUrl } from "@/lib/blob";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { deleteBlob, isValidBlobUrl, uploadToBlob } from "@/lib/blob";
+import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 
 interface PromotionalAsset {
@@ -25,10 +25,7 @@ interface PromotionalAsset {
  * @param formData - Form data containing the image file.
  * @returns Success status with the uploaded asset info, or error details.
  */
-export async function uploadPromotionalAsset(
-  appId: string,
-  formData: FormData,
-) {
+export async function uploadPromotionalAsset(appId: string, formData: FormData) {
   try {
     const user = await requireAuthWithOrg();
     const file = formData.get("file") as File;
@@ -118,10 +115,7 @@ export async function deletePromotionalAsset(appId: string, assetUrl: string) {
     }
 
     // Atomically remove the asset (avoids race conditions)
-    const { removedAsset } = await appsRepository.removePromotionalAsset(
-      appId,
-      assetUrl,
-    );
+    const { removedAsset } = await appsRepository.removePromotionalAsset(appId, assetUrl);
 
     if (!removedAsset) {
       return { success: false, error: "Asset not found" };
@@ -138,10 +132,7 @@ export async function deletePromotionalAsset(appId: string, assetUrl: string) {
         });
       } catch (blobError) {
         // Log but don't fail - the database is already updated
-        logger.warn(
-          "[Apps Action] Failed to delete blob, continuing:",
-          blobError,
-        );
+        logger.warn("[Apps Action] Failed to delete blob, continuing:", blobError);
       }
     }
 

@@ -1,10 +1,10 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuth } from "@/lib/auth";
-import { invitesService } from "@/lib/services/invites";
-import { z } from "zod";
 import { revalidateTag } from "next/cache";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { requireAuth } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { invitesService } from "@/lib/services/invites";
+import { logger } from "@/lib/utils/logger";
 
 const acceptInviteSchema = z.object({
   token: z.string().min(1, "Token is required"),
@@ -24,10 +24,7 @@ async function handlePOST(request: NextRequest) {
     const body = await request.json();
     const validated = acceptInviteSchema.parse(body);
 
-    const acceptedInvite = await invitesService.acceptInvite(
-      validated.token,
-      user.id,
-    );
+    const acceptedInvite = await invitesService.acceptInvite(validated.token, user.id);
 
     revalidateTag("user-auth", {});
 
@@ -54,8 +51,7 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to accept invitation";
+    const errorMessage = error instanceof Error ? error.message : "Failed to accept invitation";
 
     return NextResponse.json(
       {
@@ -64,11 +60,9 @@ async function handlePOST(request: NextRequest) {
       },
       {
         status:
-          errorMessage.includes("sign in with") ||
-          errorMessage.includes("already a member")
+          errorMessage.includes("sign in with") || errorMessage.includes("already a member")
             ? 409
-            : errorMessage.includes("Invalid invite") ||
-                errorMessage.includes("expired")
+            : errorMessage.includes("Invalid invite") || errorMessage.includes("expired")
               ? 400
               : 500,
       },

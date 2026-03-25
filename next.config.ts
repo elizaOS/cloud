@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import nextra from "nextra";
 import path from "path";
+import { shouldBlockUnsafeWebhookSkip } from "./packages/lib/config/deployment-environment";
 
 // =============================================================================
 // CRITICAL SECURITY VALIDATION
@@ -9,15 +10,12 @@ import path from "path";
 // This environment variable bypasses webhook signature verification and must
 // NEVER be enabled in production environments.
 // =============================================================================
-if (
-  process.env.NODE_ENV === "production" &&
-  process.env.SKIP_WEBHOOK_VERIFICATION === "true"
-) {
+if (shouldBlockUnsafeWebhookSkip(process.env)) {
   throw new Error(
     "FATAL: SKIP_WEBHOOK_VERIFICATION cannot be enabled in production. " +
       "This is a critical security misconfiguration that would allow " +
       "unauthenticated webhook requests. Remove this environment variable " +
-      "from your production deployment."
+      "from your production deployment.",
   );
 }
 
@@ -27,6 +25,7 @@ const withNextra = nextra({
 });
 
 const nextConfig: NextConfig = {
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   images: {
     remotePatterns: [
       {
@@ -106,24 +105,43 @@ const nextConfig: NextConfig = {
     ],
   },
   turbopack: {
+    root: __dirname,
     // Resolve thread-stream to a synchronous stub to avoid dynamic module names
     // that pino/thread-stream creates at runtime (like pino-28069d5257187539)
     // which cannot be resolved in serverless environments
     // Note: turbopack requires relative paths from project root
     resolveAlias: {
-      "thread-stream": "./lib/stubs/thread-stream.ts",
-      "@walletconnect/logger": "./lib/stubs/walletconnect-logger.ts",
+      "thread-stream": "./packages/lib/stubs/thread-stream.ts",
+      "@walletconnect/logger": "./packages/lib/stubs/walletconnect-logger.ts",
     },
   },
   webpack: (config, { isServer }) => {
+    // react-syntax-highlighter (via @elizaos/cloud-ui) dynamically imports highlight.js
+    // languages, refractor grammars, and lowlight modules. Many are removed/renamed
+    // in newer versions or not installed (bun hoisting issue). Suppress these —
+    // they're client-side syntax highlighting features that don't affect server routes.
+    const webpack = require("webpack");
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        // Ignore missing highlight.js language files (c-like, htmlbars, sql_more removed in v11)
+        resourceRegExp: /^highlight\.js\/lib\/languages\/(c-like|htmlbars|sql_more)$/,
+      }),
+      new webpack.IgnorePlugin({
+        // Ignore refractor grammar imports — refractor isn't installed
+        resourceRegExp: /^refractor\b/,
+        contextRegExp: /react-syntax-highlighter/,
+      }),
+      new webpack.IgnorePlugin({
+        // Ignore lowlight imports — lowlight isn't installed
+        resourceRegExp: /^lowlight\b/,
+        contextRegExp: /react-syntax-highlighter/,
+      }),
+    );
     if (isServer) {
       // Resolve thread-stream to synchronous stub in production webpack builds
       // This prevents pino from creating dynamic worker modules like pino-28069d5257187539
-      const stubPath = path.join(__dirname, "lib/stubs/thread-stream.ts");
-      const loggerStubPath = path.join(
-        __dirname,
-        "lib/stubs/walletconnect-logger.ts",
-      );
+      const stubPath = path.join(__dirname, "packages/lib/stubs/thread-stream.ts");
+      const loggerStubPath = path.join(__dirname, "packages/lib/stubs/walletconnect-logger.ts");
       config.resolve.alias = {
         ...config.resolve.alias,
         "thread-stream": stubPath,
@@ -138,17 +156,13 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
-  transpilePackages: ["next-mdx-remote"],
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  // Note: eslint config is no longer supported in next.config.ts for Next.js 16+
-  // Use eslint.config.mjs instead
+  transpilePackages: ["next-mdx-remote", "@elizaos/cloud-ui"],
+  // Note: linting is handled by Biome (biome.json), not next.config.ts
   outputFileTracingRoot: undefined,
   outputFileTracingIncludes: {
-    "/api/v1/containers": ["./scripts/cloudformation/**/*"],
-    "/api/v1/containers/[id]": ["./scripts/cloudformation/**/*"],
-    "/api/v1/cron/deployment-monitor": ["./scripts/cloudformation/**/*"],
+    "/api/v1/containers": ["./packages/scripts/cloudformation/**/*"],
+    "/api/v1/containers/[id]": ["./packages/scripts/cloudformation/**/*"],
+    "/api/v1/cron/deployment-monitor": ["./packages/scripts/cloudformation/**/*"],
   },
   serverExternalPackages: [
     "pdfjs-dist",
@@ -162,6 +176,9 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
+    "@privy-io/server-auth",
+    "@solana/web3.js",
+    "@upstash/redis",
     // oxapay uses __dirname + fs.readFile for method info JSON
     "oxapay",
     // Prevent Response polyfill conflicts (Next.js #58611)
@@ -171,6 +188,18 @@ const nextConfig: NextConfig = {
     // jsdom ESM dependencies break when bundled - keep external for Node.js loading
     "jsdom",
     "isomorphic-dompurify",
+    // ssh2 ships non-ECMAScript assets that Turbopack cannot place into ESM chunks
+    "ssh2",
+    // @vercel/sandbox has native deps (jsonlines) that break local webpack builds
+    "@vercel/sandbox",
+    // Redis sub-packages have optional native deps that break local webpack
+    "redis",
+    "@redis/client",
+    "@redis/graph",
+    "@redis/json",
+    "@redis/search",
+    "@redis/time-series",
+    "@redis/bloom",
     // NOTE: pino and thread-stream are NOT external - they get bundled with
     // the thread-stream alias to our synchronous stub, preventing dynamic
     // worker module loading (pino-28069d5257187539) that fails in serverless
@@ -190,8 +219,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Access-Control-Allow-Headers",
-            value:
-              "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie",
+            value: "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie",
           },
           { key: "Access-Control-Max-Age", value: "86400" },
           { key: "X-Content-Type-Options", value: "nosniff" },
@@ -217,8 +245,8 @@ const nextConfig: NextConfig = {
               "form-action 'self'",
               // Allow iframes from any origin - sandbox apps need to embed
               "frame-ancestors *",
-              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://www.elizacloud.ai https://elizacloud.ai",
-              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://www.elizacloud.ai https://elizacloud.ai",
+              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://cloud.milady.ai",
+              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://cloud.milady.ai",
               ["connect-src *"].join(" "),
               "worker-src 'self' blob:",
               "manifest-src 'self'",

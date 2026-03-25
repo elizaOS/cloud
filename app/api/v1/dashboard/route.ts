@@ -7,12 +7,12 @@
 
 import { NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { generationsService } from "@/lib/services/generations";
-import { charactersService } from "@/lib/services/characters";
-import { listContainers } from "@/lib/services/containers";
-import { apiKeysService } from "@/lib/services/api-keys";
-import { characterDeploymentDiscoveryService } from "@/lib/services/deployments";
 import { roomsService } from "@/lib/services/agents/rooms";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { charactersService } from "@/lib/services/characters/characters";
+import { listContainers } from "@/lib/services/containers";
+import { characterDeploymentDiscoveryService } from "@/lib/services/deployments";
+import { generationsService } from "@/lib/services/generations";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 
@@ -29,32 +29,20 @@ export async function GET() {
   // PERFORMANCE: Parallelized all data fetches including 24h usage stats
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [
-    generationStats,
-    userCharacters,
-    containers,
-    apiKeys,
-    userRooms,
-    usageStats,
-  ] = await Promise.all([
-    generationsService.getStats(organizationId),
-    charactersService.listByUser(user.id),
-    listContainers(organizationId),
-    apiKeysService.listByOrganization(organizationId),
-    roomsService.getRoomsForEntity(user.id),
-    usageService.getStatsByOrganization(
-      organizationId,
-      twentyFourHoursAgo,
-      new Date(),
-    ),
-  ]);
+  const [generationStats, userCharacters, containers, apiKeys, userRooms, usageStats] =
+    await Promise.all([
+      generationsService.getStats(organizationId),
+      charactersService.listByUser(user.id),
+      listContainers(organizationId),
+      apiKeysService.listByOrganization(organizationId),
+      roomsService.getRoomsForEntity(user.id),
+      usageService.getStatsByOrganization(organizationId, twentyFourHoursAgo, new Date()),
+    ]);
 
   const chatRoomCount = userRooms.length;
   const totalGenerations = generationStats.totalGenerations;
-  const imageGenerations =
-    generationStats.byType.find((t) => t.type === "image")?.count || 0;
-  const videoGenerations =
-    generationStats.byType.find((t) => t.type === "video")?.count || 0;
+  const imageGenerations = generationStats.byType.find((t) => t.type === "image")?.count || 0;
+  const videoGenerations = generationStats.byType.find((t) => t.type === "video")?.count || 0;
   const apiCalls24h = usageStats.totalRequests;
 
   // Fetch agent stats in batch
@@ -72,9 +60,7 @@ export async function GET() {
   if (characterIds.length > 0) {
     try {
       const statsMap =
-        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
-          characterIds,
-        );
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(characterIds);
       statsMap.forEach((stats, id) => {
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,

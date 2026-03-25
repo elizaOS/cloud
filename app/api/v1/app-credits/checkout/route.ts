@@ -1,28 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { verifyAuthTokenCached } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
-import { dbRead } from "@/db/client";
-import { users } from "@/db/schemas/users";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import Stripe from "stripe";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import {
+  assertAllowedAbsoluteRedirectUrl,
+  getDefaultPlatformRedirectOrigins,
+} from "@/lib/security/redirect-validation";
+import { appsService } from "@/lib/services/apps";
+import { requireStripe } from "@/lib/stripe";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  // @ts-expect-error -- Pinned to production-tested version; see #287 for upgrade plan
-  apiVersion: "2024-11-20.acacia",
-});
-
-// CORS headers - reflect origin for credentialed requests
-function getCorsHeaders(origin: string | null) {
+// CORS headers - open CORS without credentials. Cross-origin callers must
+// authenticate explicitly with bearer/API-key headers instead of cookies.
+function getCorsHeaders() {
   return {
-    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
-    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -38,11 +34,10 @@ const CheckoutSchema = z.object({
  * OPTIONS /api/v1/app-credits/checkout
  * CORS preflight handler
  */
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get("origin");
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
-    headers: getCorsHeaders(origin),
+    headers: getCorsHeaders(),
   });
 }
 
@@ -62,47 +57,10 @@ export async function OPTIONS(request: NextRequest) {
  * - sessionId: Checkout session ID
  */
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders();
 
   try {
-    // Verify user authentication
-    const authHeader = request.headers.get("Authorization");
-
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { success: false, error: "Authentication required" },
-        { status: 401, headers: corsHeaders },
-      );
-    }
-
-    const token = authHeader.slice(7);
-    const verifiedClaims = await verifyAuthTokenCached(token);
-
-    if (!verifiedClaims) {
-      return NextResponse.json(
-        { success: false, error: "Invalid or expired token" },
-        { status: 401, headers: corsHeaders },
-      );
-    }
-
-    // Get user
-    const [user] = await dbRead
-      .select({
-        id: users.id,
-        email: users.email,
-        organization_id: users.organization_id,
-      })
-      .from(users)
-      .where(eq(users.privy_user_id, verifiedClaims.userId))
-      .limit(1);
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404, headers: corsHeaders },
-      );
-    }
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     // Parse and validate body
     const body = await request.json();
@@ -130,8 +88,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const allowedRedirectOrigins = [
+      ...getDefaultPlatformRedirectOrigins(),
+      app.app_url,
+      ...(app.allowed_origins ?? []),
+    ].filter((value): value is string => !!value);
+    const successUrl = assertAllowedAbsoluteRedirectUrl(
+      success_url,
+      allowedRedirectOrigins,
+      "success_url",
+    );
+    const cancelUrl = assertAllowedAbsoluteRedirectUrl(
+      cancel_url,
+      allowedRedirectOrigins,
+      "cancel_url",
+    );
+
+    successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
+
     // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
+    const session = await requireStripe().checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
         {
@@ -147,8 +123,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${success_url}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancel_url,
+      success_url: successUrl.toString(),
+      cancel_url: cancelUrl.toString(),
       customer_email: user.email || undefined,
       metadata: {
         type: "app_credit_purchase",
@@ -175,14 +151,45 @@ export async function POST(request: NextRequest) {
       { headers: corsHeaders },
     );
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to create checkout";
+    const isAuthError =
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("Authentication required") ||
+      errorMessage.includes("Invalid or expired token") ||
+      errorMessage.includes("Invalid or expired API key") ||
+      errorMessage.includes("Invalid wallet signature") ||
+      errorMessage.includes("Wallet authentication failed") ||
+      errorMessage.includes("Forbidden");
+    const isValidationError =
+      errorMessage.includes("Invalid success_url") || errorMessage.includes("Invalid cancel_url");
+
+    if (isAuthError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized",
+        },
+        { status: 401, headers: getCorsHeaders() },
+      );
+    }
+
+    if (isValidationError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage,
+        },
+        { status: 400, headers: getCorsHeaders() },
+      );
+    }
+
     logger.error("Failed to create checkout session:", error);
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to create checkout",
+        error: errorMessage,
       },
-      { status: 500, headers: getCorsHeaders(request.headers.get("origin")) },
+      { status: 500, headers: getCorsHeaders() },
     );
   }
 }

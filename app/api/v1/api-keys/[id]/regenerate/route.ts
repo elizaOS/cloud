@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuth } from "@/lib/auth";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * POST /api/v1/api-keys/[id]/regenerate
@@ -12,12 +13,9 @@ import { apiKeysService } from "@/lib/services/api-keys";
  * @param params - Route parameters containing the API key ID.
  * @returns New API key details including the plain key (only shown once).
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const { id } = await params;
 
     const existingKey = await apiKeysService.getById(id);
@@ -30,11 +28,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const {
-      key: newKey,
-      hash: newHash,
-      prefix: newPrefix,
-    } = apiKeysService.generateApiKey();
+    const { key: newKey, hash: newHash, prefix: newPrefix } = apiKeysService.generateApiKey();
 
     const updatedKey = await apiKeysService.update(id, {
       key: newKey,
@@ -44,10 +38,7 @@ export async function POST(
     });
 
     if (!updatedKey) {
-      return NextResponse.json(
-        { error: "Failed to regenerate API key" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Failed to regenerate API key" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -68,9 +59,12 @@ export async function POST(
     );
   } catch (error) {
     logger.error("Error regenerating API key:", error);
+    const status = getErrorStatusCode(error);
     return NextResponse.json(
-      { error: "Failed to regenerate API key" },
-      { status: 500 },
+      {
+        error: status === 500 ? "Failed to regenerate API key" : getSafeErrorMessage(error),
+      },
+      { status },
     );
   }
 }

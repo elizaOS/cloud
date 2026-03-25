@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { appsService } from "@/lib/services/apps";
 import { githubReposService } from "@/lib/services/github-repos";
 import { logger } from "@/lib/utils/logger";
-import { z } from "zod";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
-const CreateSessionSchema = z.object({
+const _CreateSessionSchema = z.object({
   appId: z.string().uuid().optional(),
   appName: z.string().min(1).max(100).optional(),
   appDescription: z.string().max(500).optional(),
@@ -102,8 +102,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to list sessions",
+        error: error instanceof Error ? error.message : "Failed to list sessions",
       },
       { status: 500 },
     );

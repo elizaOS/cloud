@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { cryptoPaymentsRepository } from "@/db/repositories/crypto-payments";
+import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -27,8 +27,7 @@ export async function GET(req: NextRequest) {
   try {
     logger.info("[Crypto Payments Cleanup] Starting expired payments cleanup");
 
-    const expiredPayments =
-      await cryptoPaymentsService.listExpiredPendingPayments();
+    const expiredPayments = await cryptoPaymentsService.listExpiredPendingPayments();
 
     if (expiredPayments.length === 0) {
       logger.info("[Crypto Payments Cleanup] No expired payments found");
@@ -54,13 +53,10 @@ export async function GET(req: NextRequest) {
         });
       } catch (error) {
         errors++;
-        logger.error(
-          "[Crypto Payments Cleanup] Failed to mark payment as expired",
-          {
-            paymentId: payment.id,
-            error,
-          },
-        );
+        logger.error("[Crypto Payments Cleanup] Failed to mark payment as expired", {
+          paymentId: payment.id,
+          error,
+        });
       }
     }
 

@@ -4,12 +4,12 @@
  * Uses per-organization OAuth tokens via oauthService.
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getGitHubToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -114,7 +114,9 @@ export function registerGitHubTools(server: McpServer): void {
     async ({ org, type, sort, direction, per_page, page }) => {
       try {
         const base = org ? `/orgs/${org}/repos` : "/user/repos";
-        const data = await githubFetch(`${base}${buildQuery({ type, sort, direction, per_page, page })}`);
+        const data = await githubFetch(
+          `${base}${buildQuery({ type, sort, direction, per_page, page })}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list repos"));
@@ -456,7 +458,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, comment_id }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/issues/comments/${comment_id}`, { method: "DELETE" });
+        const data = await githubFetch(`/repos/${owner}/${repo}/issues/comments/${comment_id}`, {
+          method: "DELETE",
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete issue comment"));
@@ -625,7 +629,7 @@ export function registerGitHubTools(server: McpServer): void {
         pull_number: z.number().int().min(1),
         body: z.string().optional(),
         event: z.string().optional(),
-        comments: z.array(z.record(z.any())).optional(),
+        comments: z.array(z.record(z.string(), z.any())).optional(),
       },
     },
     async ({ owner, repo, pull_number, body, event, comments }) => {
@@ -654,7 +658,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, per_page, page }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/labels${buildQuery({ per_page, page })}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/labels${buildQuery({ per_page, page })}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list labels"));
@@ -702,10 +708,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, name, new_name, color, description }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`, {
-          method: "PATCH",
-          body: JSON.stringify({ new_name, color, description }),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ new_name, color, description }),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update label"));
@@ -725,7 +734,10 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, name }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`, { method: "DELETE" });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`,
+          { method: "DELETE" },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete label"));
@@ -822,7 +834,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, milestone_number }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/milestones/${milestone_number}`, { method: "DELETE" });
+        const data = await githubFetch(`/repos/${owner}/${repo}/milestones/${milestone_number}`, {
+          method: "DELETE",
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete milestone"));
@@ -939,7 +953,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ org, team_slug, per_page, page }) => {
       try {
-        const data = await githubFetch(`/orgs/${org}/teams/${team_slug}/members${buildQuery({ per_page, page })}`);
+        const data = await githubFetch(
+          `/orgs/${org}/teams/${team_slug}/members${buildQuery({ per_page, page })}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list team members"));
@@ -960,7 +976,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, per_page, page }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/branches${buildQuery({ per_page, page })}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/branches${buildQuery({ per_page, page })}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list branches"));
@@ -980,7 +998,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, branch }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get branch"));
@@ -1069,7 +1089,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, path, ref }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/contents/${path}${buildQuery({ ref })}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/contents/${path}${buildQuery({ ref })}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get file"));
@@ -1088,8 +1110,8 @@ export function registerGitHubTools(server: McpServer): void {
         message: z.string().min(1),
         content: z.string().min(1),
         branch: z.string().optional(),
-        committer: z.record(z.any()).optional(),
-        author: z.record(z.any()).optional(),
+        committer: z.record(z.string(), z.any()).optional(),
+        author: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ owner, repo, path, message, content, branch, committer, author }) => {
@@ -1118,8 +1140,8 @@ export function registerGitHubTools(server: McpServer): void {
         content: z.string().min(1),
         sha: z.string().min(1),
         branch: z.string().optional(),
-        committer: z.record(z.any()).optional(),
-        author: z.record(z.any()).optional(),
+        committer: z.record(z.string(), z.any()).optional(),
+        author: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ owner, repo, path, message, content, sha, branch, committer, author }) => {
@@ -1127,7 +1149,14 @@ export function registerGitHubTools(server: McpServer): void {
         const encodedContent = Buffer.from(content).toString("base64");
         const data = await githubFetch(`/repos/${owner}/${repo}/contents/${path}`, {
           method: "PUT",
-          body: JSON.stringify({ message, content: encodedContent, sha, branch, committer, author }),
+          body: JSON.stringify({
+            message,
+            content: encodedContent,
+            sha,
+            branch,
+            committer,
+            author,
+          }),
         });
         return jsonResponse(data);
       } catch (error) {
@@ -1147,8 +1176,8 @@ export function registerGitHubTools(server: McpServer): void {
         message: z.string().min(1),
         sha: z.string().min(1),
         branch: z.string().optional(),
-        committer: z.record(z.any()).optional(),
-        author: z.record(z.any()).optional(),
+        committer: z.record(z.string(), z.any()).optional(),
+        author: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ owner, repo, path, message, sha, branch, committer, author }) => {

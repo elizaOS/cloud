@@ -8,10 +8,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
+import { organizationsRepository } from "@/db/repositories/organizations";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppSessionService, elizaAppUserService } from "@/lib/services/eliza-app";
-import { organizationsRepository } from "@/db/repositories/organizations";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Success response type
@@ -26,6 +26,8 @@ interface UserInfoResponse {
     discord_username: string | null;
     discord_global_name: string | null;
     discord_avatar_url: string | null;
+    whatsapp_id: string | null;
+    whatsapp_name: string | null;
     phone_number: string | null;
     name: string | null;
     avatar: string | null;
@@ -77,10 +79,7 @@ async function handleGetUser(
     logger.warn("[ElizaApp UserMe] User not found", {
       userId: session.userId,
     });
-    return NextResponse.json(
-      { error: "User not found", code: "USER_NOT_FOUND" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "User not found", code: "USER_NOT_FOUND" }, { status: 404 });
   }
 
   // Get organization details
@@ -106,6 +105,8 @@ async function handleGetUser(
       discord_username: user.discord_username,
       discord_global_name: user.discord_global_name,
       discord_avatar_url: user.discord_avatar_url,
+      whatsapp_id: user.whatsapp_id,
+      whatsapp_name: user.whatsapp_name,
       phone_number: user.phone_number,
       name: user.name,
       avatar: user.avatar,

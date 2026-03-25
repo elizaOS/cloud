@@ -1,18 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
-import {
-  usePrivy,
-  useLogin,
-  useLoginWithEmail,
-  useLoginWithOAuth,
-} from "@privy-io/react-auth";
+import { BrandButton, Input } from "@elizaos/cloud-ui";
+import { useLogin, useLoginWithEmail, useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
+import { ArrowLeft, Chrome, Github, Loader2, Mail, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BrandButton } from "@/components/brand";
-import { Input } from "@/components/ui/input";
-import { Loader2, Mail, Wallet, Github, Chrome, ArrowLeft } from "lucide-react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import LandingHeader from "@/components/layout/landing-header";
+import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 // Discord SVG Icon Component
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -26,8 +20,49 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const SIGNUP_ATTRIBUTION_STORAGE_KEYS = {
+  affiliate: "pending_affiliate_code",
+  referral: "pending_referral_code",
+} as const;
+const POST_LOGIN_SESSION_SYNC_DELAYS_MS = [250, 500, 1000, 1500, 2000] as const;
+
+function isLegacyAffiliateCode(code: string | null): boolean {
+  return !!code && /^AFF-[A-Z0-9]+$/i.test(code.trim());
+}
+
+function getPendingSignupAttribution(searchParams: {
+  get(name: string): string | null;
+  has(name: string): boolean;
+}) {
+  const hasOAuthState = searchParams.has("state") || searchParams.has("privy_oauth_state");
+  const affiliateCode = searchParams.get("affiliate");
+  const referralCode = searchParams.get("ref") || searchParams.get("referral_code");
+  const legacyCode = searchParams.get("code");
+
+  return {
+    affiliateCode:
+      affiliateCode ||
+      (!hasOAuthState && isLegacyAffiliateCode(legacyCode)
+        ? (legacyCode?.trim().toUpperCase() ?? null)
+        : null),
+    referralCode: referralCode ? referralCode.trim().toUpperCase() : null,
+  };
+}
+
+function getSafeReturnTo(searchParams: { get(name: string): string | null }): string {
+  const returnTo = searchParams.get("returnTo");
+  return returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+    ? returnTo
+    : "/dashboard/milady";
+}
+
+const delay = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 function LoginPageContent() {
-  const { ready, authenticated, user } = usePrivy();
+  const { ready, authenticated, getAccessToken } = usePrivy();
   const { login } = useLogin();
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
@@ -46,56 +81,176 @@ function LoginPageContent() {
     const hasOAuthParams =
       urlParams.has("privy_oauth_code") ||
       urlParams.has("privy_oauth_state") ||
-      urlParams.has("code") ||
-      urlParams.has("state");
+      (urlParams.has("code") && (urlParams.has("state") || urlParams.has("privy_oauth_state")));
     const sessionFlag = sessionStorage.getItem("oauth_login_pending");
     return hasOAuthParams || sessionFlag === "true";
   });
 
   // Check if this is a signup intent (from "Get Started" button)
   const isSignupIntent = searchParams.get("intent") === "signup";
+  const isAuthenticated = authenticated;
+  const isAuthReady = ready;
 
-  // Guard against multiple simultaneous login() calls (critical for macOS/Brave)
   const loginInProgressRef = useRef(false);
   const lastLoginAttemptRef = useRef<number>(0);
+  const postLoginProcessingRef = useRef(false);
+
+  useEffect(() => {
+    const { affiliateCode, referralCode } = getPendingSignupAttribution(searchParams);
+
+    if (affiliateCode) {
+      sessionStorage.setItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate, affiliateCode);
+    }
+
+    if (referralCode) {
+      sessionStorage.setItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral, referralCode);
+    }
+  }, [searchParams]);
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
-    if (ready && authenticated) {
-      // Clear OAuth session flag and guards
+    if (!isAuthReady || !isAuthenticated || postLoginProcessingRef.current) {
+      return;
+    }
+
+    postLoginProcessingRef.current = true;
+    let cancelled = false;
+    const redirectUrl = getSafeReturnTo(searchParams);
+
+    const waitForServerSession = async () => {
+      for (const waitMs of POST_LOGIN_SESSION_SYNC_DELAYS_MS) {
+        if (cancelled) {
+          return false;
+        }
+
+        if (waitMs > 0) {
+          await delay(waitMs);
+        }
+
+        await getAccessToken().catch(() => null);
+
+        if (cancelled) {
+          return false;
+        }
+
+        try {
+          const response = await fetch("/api/v1/user", {
+            cache: "no-store",
+            credentials: "include",
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+            },
+          });
+
+          if (response.ok || response.status === 403) {
+            return true;
+          }
+        } catch (error) {
+          if (cancelled) {
+            return false;
+          }
+          console.warn("Waiting for authenticated session to sync", error);
+        }
+      }
+
+      return false;
+    };
+
+    const applyStoredSignupAttribution = async () => {
+      const affiliateCode = sessionStorage.getItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate);
+      const referralCode = sessionStorage.getItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral);
+
+      const postAttribution = async (url: string, codeToApply: string, storageKey: string) => {
+        try {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const response = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code: codeToApply }),
+            });
+
+            if (
+              response.ok ||
+              response.status === 400 ||
+              response.status === 404 ||
+              response.status === 409
+            ) {
+              sessionStorage.removeItem(storageKey);
+              return;
+            }
+
+            if (response.status !== 401) {
+              sessionStorage.removeItem(storageKey);
+              return;
+            }
+
+            await delay(300 * (attempt + 1));
+          }
+        } catch (error) {
+          console.error("Failed to apply signup attribution", error);
+        }
+      };
+
+      if (affiliateCode) {
+        await postAttribution(
+          "/api/v1/affiliates/link",
+          affiliateCode,
+          SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate,
+        );
+      }
+
+      if (referralCode) {
+        await postAttribution(
+          "/api/v1/referrals/apply",
+          referralCode,
+          SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral,
+        );
+      }
+    };
+
+    void (async () => {
       sessionStorage.removeItem("oauth_login_pending");
       loginInProgressRef.current = false;
-      // Use setTimeout to avoid synchronous setState in effect
-      setTimeout(() => {
-        setLoadingButton(null);
-        setIsProcessingOAuth(false);
-        // Show syncing state before redirect
-        setIsSyncing(true);
-      }, 0);
+      setLoadingButton(null);
+      setIsProcessingOAuth(false);
+      setIsSyncing(true);
 
-      // Small delay to ensure the sync message is visible
-      const timer = setTimeout(() => {
-        router.push("/dashboard");
-      }, 100);
+      await waitForServerSession();
+      await applyStoredSignupAttribution();
+      await delay(100);
 
-      return () => clearTimeout(timer);
-    } else if (ready && !authenticated) {
-      // If we're ready but not authenticated, ensure guard is cleared
-      // (handles case where user closes modal without connecting)
-      if (loginInProgressRef.current && !loadingButton) {
-        loginInProgressRef.current = false;
+      if (!cancelled) {
+        router.replace(redirectUrl);
       }
-      // If OAuth processing timed out (ready but not authenticated after callback)
-      // clear the flag after a small delay to allow Privy to finish
-      if (isProcessingOAuth) {
-        const timeout = setTimeout(() => {
-          setIsProcessingOAuth(false);
-          sessionStorage.removeItem("oauth_login_pending");
-        }, 3000); // Give Privy 3 seconds to complete auth
-        return () => clearTimeout(timeout);
-      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken, isAuthenticated, isAuthReady, router, searchParams]);
+
+  useEffect(() => {
+    if (!isAuthReady || isAuthenticated) {
+      return;
     }
-  }, [ready, authenticated, router, loadingButton, user, isProcessingOAuth]);
+
+    // If we're ready but not authenticated, ensure guard is cleared
+    // (handles case where user closes modal without connecting)
+    if (loginInProgressRef.current && !loadingButton) {
+      loginInProgressRef.current = false;
+    }
+
+    // If OAuth processing timed out (ready but not authenticated after callback)
+    // clear the flag after a small delay to allow Privy to finish
+    if (isProcessingOAuth) {
+      const timeout = setTimeout(() => {
+        setIsProcessingOAuth(false);
+        sessionStorage.removeItem("oauth_login_pending");
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isAuthReady, isAuthenticated, isProcessingOAuth, loadingButton]);
 
   // Monitor email state to show code input
   useEffect(() => {
@@ -137,9 +292,7 @@ function LoginPageContent() {
     setLoadingButton(null);
   };
 
-  const handleOAuthLogin = async (
-    provider: "google" | "discord" | "github",
-  ) => {
+  const handleOAuthLogin = async (provider: "google" | "discord" | "github") => {
     setLoadingButton(provider);
     // Set session flag to detect OAuth callback when returning
     sessionStorage.setItem("oauth_login_pending", "true");
@@ -192,7 +345,7 @@ function LoginPageContent() {
   };
 
   // Show loading state while checking authentication or processing OAuth callback
-  if (!ready || isProcessingOAuth) {
+  if (!isAuthReady || isProcessingOAuth) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
         {/* Header */}
@@ -235,9 +388,7 @@ function LoginPageContent() {
                   {isProcessingOAuth ? "Completing sign in..." : "Loading..."}
                 </h3>
                 <p className="text-sm text-neutral-500">
-                  {isProcessingOAuth
-                    ? "Processing your authentication"
-                    : "Initializing..."}
+                  {isProcessingOAuth ? "Processing your authentication" : "Initializing..."}
                 </p>
               </div>
               <div className="flex gap-1.5">
@@ -253,7 +404,7 @@ function LoginPageContent() {
   }
 
   // Don't render login page if already authenticated (redirecting)
-  if (authenticated || isSyncing) {
+  if (isAuthenticated || isSyncing) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
         {/* Header */}
@@ -292,12 +443,8 @@ function LoginPageContent() {
                 <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
               </div>
               <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">
-                  Signing you in
-                </h3>
-                <p className="text-sm text-neutral-500">
-                  Taking you to your dashboard...
-                </p>
+                <h3 className="text-lg font-semibold text-white">Signing you in</h3>
+                <p className="text-sm text-neutral-500">Taking you to your dashboard...</p>
               </div>
               <div className="flex gap-1.5">
                 <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
@@ -351,8 +498,8 @@ function LoginPageContent() {
               </h1>
               <p className="text-sm text-neutral-500">
                 {isSignupIntent
-                  ? "Sign up to get started with elizaOS"
-                  : "Sign in to your elizaOS account"}
+                  ? "Sign up to get started with Eliza Cloud"
+                  : "Sign in to your Eliza Cloud account"}
               </p>
             </div>
             {/* Email/Code Login Section */}
@@ -407,9 +554,7 @@ function LoginPageContent() {
                     type="text"
                     placeholder="000000"
                     value={code}
-                    onChange={(e) =>
-                      setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                    }
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     disabled={loadingButton !== null}
                     className="h-12 rounded-xl border-white/10 bg-black/40 text-white placeholder:text-neutral-600 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] text-center text-xl tracking-[0.3em] font-mono"
                     maxLength={6}
@@ -462,9 +607,7 @@ function LoginPageContent() {
                     <div className="w-full border-t border-white/10" />
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="bg-neutral-900 px-3 text-neutral-500">
-                      or
-                    </span>
+                    <span className="bg-neutral-900 px-3 text-neutral-500">or</span>
                   </div>
                 </div>
 
@@ -480,9 +623,7 @@ function LoginPageContent() {
                     ) : (
                       <>
                         <Chrome className="h-4 w-4 text-white" />
-                        <span className="text-sm text-white">
-                          Continue with Google
-                        </span>
+                        <span className="text-sm text-white">Continue with Google</span>
                       </>
                     )}
                   </button>

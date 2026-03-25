@@ -1,18 +1,16 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { voiceCloningService } from "@/lib/services/voice-cloning";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { VOICE_CLONE_INSTANT_COST, VOICE_CLONE_PROFESSIONAL_COST } from "@/lib/pricing-constants";
 import {
+  type CreditReservation,
   creditsService,
   InsufficientCreditsError,
-  type CreditReservation,
 } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
+import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
-import {
-  VOICE_CLONE_INSTANT_COST,
-  VOICE_CLONE_PROFESSIONAL_COST,
-} from "@/lib/pricing-constants";
 
 const MAX_FILES = 10;
 const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
@@ -35,8 +33,9 @@ const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
  */
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const user = await requireAuthWithOrg();
+    // Authenticate user (supports both session and API key)
+    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
+    const organizationId = user.organization_id;
 
     // Parse multipart form data
     const formData = await request.formData();
@@ -80,24 +79,15 @@ export async function POST(request: NextRequest) {
 
     // Validate files
     if (files.length === 0) {
-      return NextResponse.json(
-        { error: "At least one audio file is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "At least one audio file is required" }, { status: 400 });
     }
 
     if (files.length > MAX_FILES) {
-      return NextResponse.json(
-        { error: `Maximum ${MAX_FILES} files allowed` },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: `Maximum ${MAX_FILES} files allowed` }, { status: 400 });
     }
 
     if (totalSize > MAX_TOTAL_SIZE) {
-      return NextResponse.json(
-        { error: "Total file size exceeds 100MB limit" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Total file size exceeds 100MB limit" }, { status: 400 });
     }
 
     // Parse settings if provided
@@ -106,32 +96,23 @@ export async function POST(request: NextRequest) {
       try {
         settings = JSON.parse(settingsStr);
       } catch {
-        return NextResponse.json(
-          { error: "Invalid settings JSON" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Invalid settings JSON" }, { status: 400 });
       }
     }
 
-    logger.info(
-      `[Voice Clone API] Creating ${cloneType} voice clone: ${name}`,
-      {
-        userId: user.id,
-        organizationId: user.organization_id!!,
-        fileCount: files.length,
-        totalSize,
-      },
-    );
+    logger.info(`[Voice Clone API] Creating ${cloneType} voice clone: ${name}`, {
+      userId: user.id,
+      organizationId,
+      fileCount: files.length,
+      totalSize,
+    });
 
-    const cost =
-      cloneType === "instant"
-        ? VOICE_CLONE_INSTANT_COST
-        : VOICE_CLONE_PROFESSIONAL_COST;
+    const cost = cloneType === "instant" ? VOICE_CLONE_INSTANT_COST : VOICE_CLONE_PROFESSIONAL_COST;
 
     let reservation: CreditReservation;
     try {
       reservation = await creditsService.reserve({
-        organizationId: user.organization_id!!,
+        organizationId,
         amount: cost,
         userId: user.id,
         description: `Voice cloning (${cloneType}): ${name}`,
@@ -139,7 +120,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       if (error instanceof InsufficientCreditsError) {
         logger.warn("[Voice Clone API] Insufficient credits", {
-          organizationId: user.organization_id,
+          organizationId,
           required: error.required,
         });
         return NextResponse.json(
@@ -157,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info("[Voice Clone API] Credits reserved", {
-      organizationId: user.organization_id!!,
+      organizationId,
       amount: cost,
     });
 
@@ -165,7 +146,7 @@ export async function POST(request: NextRequest) {
       // Create voice clone
       const startTime = Date.now();
       const result = await voiceCloningService.createVoiceClone({
-        organizationId: user.organization_id!!,
+        organizationId,
         userId: user.id,
         name,
         description,
@@ -184,9 +165,9 @@ export async function POST(request: NextRequest) {
       await reservation.reconcile(cost);
 
       await usageService.create({
-        organization_id: user.organization_id!!,
+        organization_id: organizationId,
         user_id: user.id,
-        api_key_id: null,
+        api_key_id: apiKey?.id ?? null,
         type: "voice_cloning",
         model: cloneType,
         provider: "elevenlabs",
@@ -222,8 +203,7 @@ export async function POST(request: NextRequest) {
             progress: result.job.progress,
           },
           creditsDeducted: cost,
-          estimatedCompletionTime:
-            cloneType === "professional" ? "30-60 minutes" : "30 seconds",
+          estimatedCompletionTime: cloneType === "professional" ? "30-60 minutes" : "30 seconds",
         },
         { status: 201 },
       );
@@ -235,15 +215,15 @@ export async function POST(request: NextRequest) {
       await reservation.reconcile(0);
 
       logger.info("[Voice Clone API] Credits refunded via reconcile(0)", {
-        organizationId: user.organization_id!!,
+        organizationId,
         amount: cost,
       });
 
       // Record failed usage
       await usageService.create({
-        organization_id: user.organization_id!!,
+        organization_id: organizationId,
         user_id: user.id,
-        api_key_id: null,
+        api_key_id: apiKey?.id ?? null,
         type: "voice_cloning",
         model: cloneType,
         provider: "elevenlabs",
@@ -302,9 +282,9 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     logger.error("[Voice Clone API] Unexpected error:", error);
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const status = getErrorStatusCode(error);
+    if (status !== 500) {
+      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
     }
 
     return NextResponse.json(

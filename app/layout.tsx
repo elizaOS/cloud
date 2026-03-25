@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeProvider } from "@elizaos/cloud-ui";
 import { Analytics } from "@vercel/analytics/next";
-import { ThemeProvider } from "@/components/theme/theme-provider";
-import { Toaster } from "sonner";
+import { DM_Mono, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import NextTopLoader from "nextjs-toploader";
-import PrivyProvider from "@/lib/providers/PrivyProvider";
+import { Toaster } from "sonner";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import { PostHogProvider } from "@/lib/providers/PostHogProvider";
-import localFont from "next/font/local";
-import { DM_Mono, Inter } from "next/font/google";
+import PrivyProvider from "@/lib/providers/PrivyProvider";
 
 // DM Mono for landing page
 const dmMono = DM_Mono({
@@ -62,17 +62,15 @@ const sfPro = localFont({
  */
 const baseUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000");
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
 export const metadata: Metadata = {
   title: {
-    default: "Cloud - AI Agent Development Platform",
-    template: "%s | Cloud",
+    default: "Eliza Cloud - Managed Hosting for AI Agents",
+    template: "%s | Eliza Cloud",
   },
   description:
-    "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
+    "Managed hosting, provisioning, billing, and deployment for AI agents on Eliza Cloud.",
   keywords: [
     "AI",
     "agents",
@@ -85,19 +83,18 @@ export const metadata: Metadata = {
     "LLM",
     "deployment",
   ],
-  authors: [{ name: "elizaOS Team" }],
-  creator: "elizaOS",
-  publisher: "elizaOS",
+  authors: [{ name: "Eliza Cloud" }],
+  creator: "Eliza Cloud",
+  publisher: "Eliza Cloud",
   metadataBase: new URL(baseUrl),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "elizaOS Platform - AI Agent Development Platform",
-    description:
-      "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
+    title: "Eliza Cloud - Managed Hosting for AI Agents",
+    description: "Managed hosting, provisioning, billing, and deployment for AI agents",
     url: "/",
-    siteName: "elizaOS Platform",
+    siteName: "Eliza Cloud",
     type: "website",
     locale: "en_US",
     images: [
@@ -105,18 +102,15 @@ export const metadata: Metadata = {
         url: "/cloudlogo.png",
         width: 1200,
         height: 630,
-        alt: "elizaOS Cloud - Make Agents in Seconds",
+        alt: "Eliza Cloud",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "elizaOS Platform",
-    description:
-      "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
+    title: "Eliza Cloud",
+    description: "Managed hosting, provisioning, billing, and deployment for AI agents",
     images: ["/cloudlogo.png"],
-    creator: "@elizaos",
-    site: "@elizaos",
   },
   robots: {
     index: true,

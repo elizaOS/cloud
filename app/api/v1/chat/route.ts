@@ -1,27 +1,31 @@
-import { streamText, type UIMessage, convertToModelMessages } from "ai";
-import { gateway } from "@ai-sdk/gateway";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import { conversationsService } from "@/lib/services/conversations";
-import { usageService } from "@/lib/services/usage";
-import { generationsService } from "@/lib/services/generations";
-import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
-import { contentModerationService } from "@/lib/services/content-moderation";
-import {
-  creditsService,
-  InsufficientCreditsError,
-  type CreditReservation,
-} from "@/lib/services/credits";
-import { calculateCost, estimateTokens } from "@/lib/pricing";
-import { resolveModel } from "@/lib/models";
-import { logger } from "@/lib/utils/logger";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { AnonymousSession } from "@/db/schemas";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { resolveModel } from "@/lib/models";
+import { estimateTokens } from "@/lib/pricing";
+import { getLanguageModel } from "@/lib/providers/language-model";
+import { billUsage } from "@/lib/services/ai-billing";
+import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
+import { contentModerationService } from "@/lib/services/content-moderation";
+import { conversationsService } from "@/lib/services/conversations";
+import {
+  type CreditReservation,
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import { generationsService } from "@/lib/services/generations";
+import { usageService } from "@/lib/services/usage";
+import type { ApiKey, UserWithOrganization } from "@/lib/types";
+import { createCreditReservationSettler } from "@/lib/utils/credit-reservation";
+import { logger } from "@/lib/utils/logger";
+import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
-export const maxDuration = 60;
+export const maxDuration = 800;
 
 const VALID_MESSAGE_ROLES = ["user", "assistant", "system", "tool"] as const;
 type ValidRole = (typeof VALID_MESSAGE_ROLES)[number];
@@ -73,9 +77,7 @@ function normalizeMessages(
 /**
  * Extract text content from message parts.
  */
-function extractTextFromParts(
-  parts: Array<{ type: string; text?: string }>,
-): string {
+function extractTextFromParts(parts: Array<{ type: string; text?: string }>): string {
   return parts.map((p) => (p.type === "text" ? p.text : "")).join("");
 }
 
@@ -101,9 +103,11 @@ function getMessageText(msg: UIMessage | { content?: string }): string {
  * @returns Streaming text response or JSON error.
  */
 async function handlePOST(req: NextRequest) {
+  let settleReservation: ((actualCost: number) => Promise<void>) | null = null;
+
   try {
     let user: UserWithOrganization;
-    let apiKey: ApiKey | undefined = undefined;
+    let apiKey: ApiKey | undefined;
     let isAnonymous = false;
     let anonymousSession: AnonymousSession | null = null;
 
@@ -148,10 +152,7 @@ async function handlePOST(req: NextRequest) {
 
     // Validate messages array is not empty
     if (!rawMessages || rawMessages.length === 0) {
-      return NextResponse.json(
-        { error: "Messages array cannot be empty" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Messages array cannot be empty" }, { status: 400 });
     }
 
     // Normalize messages to UIMessage format (handles both OpenAI and UIMessage formats)
@@ -159,10 +160,7 @@ async function handlePOST(req: NextRequest) {
     try {
       messages = normalizeMessages(rawMessages);
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.includes("Invalid message role")
-      ) {
+      if (error instanceof Error && error.message.includes("Invalid message role")) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
       throw error;
@@ -217,9 +215,7 @@ async function handlePOST(req: NextRequest) {
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
       // Check message limit for anonymous users
-      const limitCheck = await checkAnonymousLimit(
-        anonymousSession.session_token,
-      );
+      const limitCheck = await checkAnonymousLimit(anonymousSession.session_token);
 
       if (!limitCheck.allowed) {
         const errorMessage =
@@ -254,13 +250,11 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Reserve credits BEFORE making API call (prevents TOCTOU race condition)
-    let reservation: CreditReservation =
-      creditsService.createAnonymousReservation();
+    let reservation: CreditReservation = creditsService.createAnonymousReservation();
+    const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     if (!isAnonymous && user.organization_id) {
-      const messageText = messages
-        .map((m) => extractTextFromParts(m.parts))
-        .join(" ");
+      const messageText = messages.map((m) => extractTextFromParts(m.parts)).join(" ");
       const estimatedInputTokens = estimateTokens(messageText);
 
       try {
@@ -286,43 +280,53 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
+    settleReservation = createCreditReservationSettler(reservation);
+    const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
+
     const result = streamText({
-      model: gateway.languageModel(selectedModel),
+      model: getLanguageModel(selectedModel),
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: await convertToModelMessages(messages),
+      abortSignal: req.signal,
+      timeout: routeTimeoutMs,
       onFinish: async ({ text, usage }) => {
-        if (!usage) return;
-
         try {
+          if (!usage) {
+            await settleReservation?.(0);
+            return;
+          }
+
           // Increment message count AFTER successful completion (for anonymous users)
           if (isAnonymous && anonymousSession) {
-            await anonymousSessionsService.incrementMessageCount(
-              anonymousSession.id,
-            );
+            await anonymousSessionsService.incrementMessageCount(anonymousSession.id);
 
-            logger.info(
-              "chat-api",
-              "Incremented anonymous message count after success",
-              {
-                sessionId: anonymousSession.id,
-                newCount: anonymousSession.message_count + 1,
-              },
-            );
+            logger.info("chat-api", "Incremented anonymous message count after success", {
+              sessionId: anonymousSession.id,
+              newCount: anonymousSession.message_count + 1,
+            });
           }
 
           const userMessage = messages[messages.length - 1];
 
-          const { inputCost, outputCost, totalCost } = await calculateCost(
-            selectedModel,
-            provider,
-            usage.inputTokens || 0,
-            usage.outputTokens || 0,
+          // Use the shared AI billing path to calculate cost, apply markups,
+          // and reconcile the reservation in one place.
+          const billing = await billUsage(
+            {
+              organizationId: user.organization_id || "anonymous",
+              userId: user.id,
+              apiKeyId: apiKey?.id,
+              model: selectedModel,
+              provider,
+              affiliateCode,
+            },
+            usage,
           );
+          await settleReservation?.(billing.totalCost);
 
-          // Reconcile credits (refund excess if actual < reserved)
-          // For anonymous users, reservation.reconcile is a no-op
-          await reservation.reconcile(totalCost);
+          const totalCostBilled = billing.totalCost;
+          const inputCostBilled = billing.inputCost;
+          const outputCostBilled = billing.outputCost;
 
           // Track token usage for anonymous users (no credits, just analytics)
           if (isAnonymous && anonymousSession) {
@@ -345,7 +349,7 @@ async function handlePOST(req: NextRequest) {
               content: extractTextFromParts(userMessage.parts),
               model: selectedModel,
               tokens: usage.inputTokens,
-              cost: String(inputCost),
+              cost: String(inputCostBilled),
             });
 
             // Add assistant message
@@ -354,7 +358,7 @@ async function handlePOST(req: NextRequest) {
               content: text,
               model: selectedModel,
               tokens: usage.outputTokens,
-              cost: String(outputCost),
+              cost: String(outputCostBilled),
             });
           }
 
@@ -370,16 +374,14 @@ async function handlePOST(req: NextRequest) {
               provider: provider,
               input_tokens: usage.inputTokens,
               output_tokens: usage.outputTokens,
-              input_cost: String(inputCost),
-              output_cost: String(outputCost),
+              input_cost: String(inputCostBilled),
+              output_cost: String(outputCostBilled),
               is_successful: true,
             });
 
             if (apiKey) {
               const lastMessageParts = messages[messages.length - 1]?.parts;
-              const userPrompt = lastMessageParts
-                ? extractTextFromParts(lastMessageParts)
-                : "";
+              const userPrompt = lastMessageParts ? extractTextFromParts(lastMessageParts) : "";
               await generationsService.create({
                 organization_id: user.organization_id,
                 user_id: user.id,
@@ -391,32 +393,30 @@ async function handlePOST(req: NextRequest) {
                 status: "completed",
                 content: text,
                 tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-                cost: String(totalCost),
-                credits: String(totalCost),
+                cost: String(totalCostBilled),
+                credits: String(totalCostBilled),
                 usage_record_id: usageRecord.id,
                 completed_at: new Date(),
                 result: {
                   text: text,
                   inputTokens: usage.inputTokens,
                   outputTokens: usage.outputTokens,
-                  totalTokens:
-                    (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                  totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
                 },
               });
             }
           }
 
           logger.info("chat-api", "Cost charged", {
-            totalCost,
-            inputCost,
-            outputCost,
+            totalCost: totalCostBilled,
+            inputCost: inputCostBilled,
+            outputCost: outputCostBilled,
           });
         } catch (error) {
-          logger.error(
-            "chat-api",
-            "Error persisting messages or deducting credits",
-            { error: error instanceof Error ? error.message : "Unknown error" },
-          );
+          await settleReservation?.(0);
+          logger.error("chat-api", "Error persisting messages or deducting credits", {
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
 
           if (usage && user.organization_id) {
             try {
@@ -432,15 +432,12 @@ async function handlePOST(req: NextRequest) {
                 input_cost: String(0),
                 output_cost: String(0),
                 is_successful: false,
-                error_message:
-                  error instanceof Error ? error.message : "Unknown error",
+                error_message: error instanceof Error ? error.message : "Unknown error",
               });
 
               if (apiKey) {
                 const lastMessageParts = messages[messages.length - 1]?.parts;
-                const userPrompt = lastMessageParts
-                  ? extractTextFromParts(lastMessageParts)
-                  : "";
+                const userPrompt = lastMessageParts ? extractTextFromParts(lastMessageParts) : "";
                 await generationsService.create({
                   organization_id: user.organization_id,
                   user_id: user.id,
@@ -450,34 +447,44 @@ async function handlePOST(req: NextRequest) {
                   provider: provider,
                   prompt: userPrompt,
                   status: "failed",
-                  error:
-                    error instanceof Error ? error.message : "Unknown error",
+                  error: error instanceof Error ? error.message : "Unknown error",
                   usage_record_id: errorUsageRecord.id,
                   completed_at: new Date(),
                 });
               }
             } catch (usageError) {
               logger.error("chat-api", "Error creating usage record", {
-                error:
-                  usageError instanceof Error
-                    ? usageError.message
-                    : "Unknown error",
+                error: usageError instanceof Error ? usageError.message : "Unknown error",
               });
             }
           }
         }
       },
+      onAbort: async () => {
+        await settleReservation?.(0);
+        logger.info("chat-api", "Aborted chat stream before completion", {
+          userId: user.id,
+          model: selectedModel,
+        });
+      },
     });
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
+    await settleReservation?.(0);
     logger.error("chat-api", "Error processing chat", {
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return new Response(JSON.stringify({ error: "Failed to process chat" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    const status = getErrorStatusCode(error);
+    return new Response(
+      JSON.stringify({
+        error: status === 500 ? "Failed to process chat" : getSafeErrorMessage(error),
+      }),
+      {
+        status,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
 

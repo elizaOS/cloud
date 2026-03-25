@@ -7,9 +7,9 @@
  * See: https://github.com/vercel/next.js/issues/58611
  */
 
-import type { NextRequest } from "next/server";
 import { PrivyClient } from "@privy-io/server-auth";
 import { Redis } from "@upstash/redis";
+import type { NextRequest } from "next/server";
 
 // Helper to create "next" response (continue to route handler)
 // Uses internal Next.js header that NextResponse.next() sets
@@ -51,10 +51,7 @@ function middlewareRedirect(
   // Set cookies to delete
   if (options?.deleteCookies) {
     for (const cookie of options.deleteCookies) {
-      headers.append(
-        "Set-Cookie",
-        `${cookie}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
-      );
+      headers.append("Set-Cookie", `${cookie}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
     }
   }
 
@@ -71,8 +68,7 @@ let redis: Redis | null = null;
 function getRedis(): Redis | null {
   if (redis) return redis;
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token =
-    process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (url && token) redis = new Redis({ url, token });
   return redis;
 }
@@ -83,6 +79,7 @@ interface CachedAuth {
   valid: boolean;
   userId?: string;
   expiration?: number;
+  reason?: "expired" | "invalid";
   cachedAt: number;
 }
 
@@ -131,24 +128,91 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
   const client = getRedis();
   if (!client) return;
   try {
-    await client.setex(
-      `proxy:auth:${hashToken(token)}`,
-      AUTH_CACHE_TTL,
-      JSON.stringify(auth),
-    );
+    await client.setex(`proxy:auth:${hashToken(token)}`, AUTH_CACHE_TTL, JSON.stringify(auth));
   } catch (error) {
     // Log Redis write errors but don't block auth - caching is best-effort
-    console.warn("[Proxy] Redis cache write failed:", error instanceof Error ? error.message : String(error));
+    console.warn(
+      "[Proxy] Redis cache write failed:",
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
 function isJwtExpiredError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const e = error as { code?: unknown; claim?: unknown; reason?: unknown };
+  return e.code === "ERR_JWT_EXPIRED" || (e.claim === "exp" && e.reason === "check_failed");
+}
+
+function isInvalidOrMalformedJwtError(error: unknown): boolean {
+  if (!error || typeof error !== "object" || isJwtExpiredError(error)) return false;
+
+  const e = error as { code?: unknown; name?: unknown; message?: unknown };
+  const code = typeof e.code === "string" ? e.code : "";
+  const name = typeof e.name === "string" ? e.name : "";
+  const message = typeof e.message === "string" ? e.message : "";
+
   return (
-    e.code === "ERR_JWT_EXPIRED" ||
-    (e.claim === "exp" && e.reason === "check_failed")
+    code === "ERR_JWS_INVALID" ||
+    code === "ERR_JWT_INVALID" ||
+    code === "ERR_JWT_MALFORMED" ||
+    code === "ERR_JWS_SIGNATURE_VERIFICATION_FAILED" ||
+    name === "JWSInvalid" ||
+    name === "JWTInvalid" ||
+    name === "JWTMalformed" ||
+    name === "JWSSignatureVerificationFailed" ||
+    message.includes("Invalid Compact JWS") ||
+    message.includes("JWSInvalid") ||
+    message.includes("JWTInvalid") ||
+    message.includes("JWTMalformed") ||
+    message.includes("JWSSignatureVerificationFailed") ||
+    message.toLowerCase().includes("invalid jwt")
   );
+}
+
+function isObviouslyMalformedToken(token: string): boolean {
+  const normalized = token.trim();
+  if (normalized.length === 0 || /\s/.test(normalized)) {
+    return true;
+  }
+
+  const segments = normalized.split(".");
+  return segments.length !== 3 || segments.some((segment) => segment.length === 0);
+}
+
+function buildLoginRedirectUrl(request: NextRequest): URL {
+  const url = request.nextUrl.clone();
+  const returnTo = `${url.pathname}${url.search}`;
+
+  url.pathname = "/login";
+  url.search = "";
+  url.searchParams.set("returnTo", returnTo || "/dashboard");
+
+  return url;
+}
+
+function handleTokenFailure(
+  request: NextRequest,
+  pathname: string,
+  startTime: number,
+  reason: "expired" | "invalid",
+  options?: { clearCookies?: boolean },
+): Response {
+  if (pathname.startsWith("/api/")) {
+    const errorMessage = reason === "expired" ? "Token expired" : "Invalid authentication token";
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 401,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Proxy-Time": `${Date.now() - startTime}ms`,
+      },
+    });
+  }
+
+  return middlewareRedirect(buildLoginRedirectUrl(request), {
+    deleteCookies: options?.clearCookies ? ["privy-token", "privy-id-token"] : undefined,
+    headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
+  });
 }
 
 const publicPaths = [
@@ -156,7 +220,9 @@ const publicPaths = [
   "/marketplace",
   "/payment/success",
   "/dashboard/chat",
+  "/dashboard/build",
   "/chat",
+  "/api/health",
   "/api/eliza",
   "/api/models",
   "/api/fal/proxy",
@@ -165,17 +231,22 @@ const publicPaths = [
   "/auth/error",
   "/auth/cli-login",
   "/api/auth/cli-session",
+  "/api/auth/pair", // Milady agent pairing (validates its own one-time tokens)
+  "/api/auth/siwe", // SIWE nonce + verify (EIP-4361)
   "/api/set-anonymous-session",
   "/api/anonymous-session",
+  "/api/auth/create-anonymous-session",
   "/api/affiliate",
   "/api/v1/generate-image",
   "/api/v1/generate-video",
   "/api/v1/chat",
   "/api/v1/chat/completions",
+  "/api/v1/messages",
   "/api/v1/responses",
   "/api/v1/embeddings",
   "/api/v1/models",
   "/api/v1/credits/topup",
+  "/api/v1/topup", // x402 payment-gated topup (auth via payment proof, not session)
   "/api/stripe/webhook",
   "/api/crypto/webhook",
   "/api/privy/webhook",
@@ -191,6 +262,7 @@ const publicPaths = [
   "/api/v1/discord/callback", // Discord OAuth callback (redirects from Discord)
   "/api/v1/twitter/callback", // Twitter OAuth callback
   "/api/v1/oauth/providers", // Public endpoint - list available OAuth providers
+  "/api/v1/oauth/callback", // Legacy OAuth callback wrapper (redirects from providers)
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",
@@ -201,6 +273,9 @@ const publicPaths = [
   "/api/eliza-app/auth", // Eliza App public auth endpoints
   "/api/eliza-app/webhook", // Eliza App webhooks (they verify their own signatures)
   "/api/eliza-app/user", // Eliza App user endpoints (uses own session validation)
+  "/api/eliza-app/cli-auth", // Eliza app CLI authorization endpoints
+  "/api/eliza-app/provision-agent", // Eliza CLI provisioning endpoint
+  "/api/eliza-app/gateway", // Eliza CLI gateway proxies
 ];
 
 const publicPathPatterns = [
@@ -229,10 +304,9 @@ export async function proxy(request: NextRequest) {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods":
-          "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Gateway-Secret",
+          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Gateway-Secret, X-Wallet-Address, X-Timestamp, X-Wallet-Signature",
         "Access-Control-Max-Age": "86400",
         "X-Proxy-Time": `${Date.now() - startTime}ms`,
       },
@@ -258,32 +332,55 @@ export async function proxy(request: NextRequest) {
   try {
     const authToken = request.cookies.get("privy-token");
     const authHeader = request.headers.get("Authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const apiKey = request.headers.get("X-API-Key");
 
-    if (apiKey || (bearerToken && bearerToken.startsWith("eliza_"))) {
+    // Wallet-sig passthrough only for paths that verify the signature (getTopupRecipient or verifyWalletSignature)
+    const walletSig = request.headers.get("X-Wallet-Signature");
+    const allowWalletPassthrough =
+      pathname.startsWith("/api/v1/topup") || pathname.startsWith("/api/v1/user/wallets");
+    if (
+      apiKey ||
+      (walletSig && allowWalletPassthrough) ||
+      (bearerToken && bearerToken.startsWith("eliza_"))
+    ) {
       return middlewareNext({
         headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
       });
     }
 
     const token = bearerToken || authToken?.value;
+    const usingCookieToken = !bearerToken && token === authToken?.value;
 
     if (!token) {
       if (pathname.startsWith("/api/")) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Proxy-Time": `${Date.now() - startTime}ms`,
+          },
         });
       }
-      const url = request.nextUrl.clone();
-      url.pathname = "/";
-      return middlewareRedirect(url);
+      return middlewareRedirect(buildLoginRedirectUrl(request), {
+        headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
+      });
+    }
+
+    if (isObviouslyMalformedToken(token)) {
+      await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
+      return handleTokenFailure(request, pathname, startTime, "invalid", {
+        clearCookies: usingCookieToken,
+      });
     }
 
     const cachedAuth = await getCachedAuth(token);
+    if (cachedAuth && !cachedAuth.valid) {
+      return handleTokenFailure(request, pathname, startTime, cachedAuth.reason ?? "invalid", {
+        clearCookies: usingCookieToken,
+      });
+    }
+
     if (cachedAuth?.valid && cachedAuth.userId) {
       if (cachedAuth.expiration) {
         const now = Math.floor(Date.now() / 1000);
@@ -315,47 +412,39 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    let user: Awaited<ReturnType<typeof privyClient.verifyAuthToken>> | null =
-      null;
+    let user: Awaited<ReturnType<typeof privyClient.verifyAuthToken>> | null = null;
     try {
       user = await privyClient.verifyAuthToken(token);
     } catch (error) {
       if (isJwtExpiredError(error)) {
-        await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
-        if (pathname.startsWith("/api/")) {
-          return new Response(JSON.stringify({ error: "Token expired" }), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-        const url = request.nextUrl.clone();
-        url.pathname = "/";
-        return middlewareRedirect(url, {
-          deleteCookies: ["privy-token", "privy-id-token"],
+        await setCachedAuth(token, { valid: false, reason: "expired", cachedAt: Date.now() });
+        return handleTokenFailure(request, pathname, startTime, "expired", {
+          clearCookies: usingCookieToken,
         });
       }
+
+      if (isInvalidOrMalformedJwtError(error)) {
+        await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
+        return handleTokenFailure(request, pathname, startTime, "invalid", {
+          clearCookies: usingCookieToken,
+        });
+      }
+
       throw error;
     }
 
     if (!user) {
-      await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
-      if (pathname.startsWith("/api/")) {
-        return new Response(
-          JSON.stringify({ error: "Invalid authentication token" }),
-          { status: 401, headers: { "Content-Type": "application/json" } },
-        );
-      }
-      const url = request.nextUrl.clone();
-      url.pathname = "/";
-      return middlewareRedirect(url);
+      await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
+      return handleTokenFailure(request, pathname, startTime, "invalid", {
+        clearCookies: usingCookieToken,
+      });
     }
 
     await setCachedAuth(token, {
       valid: true,
       userId: user.userId,
       expiration:
-        typeof (user as unknown as { expiration?: unknown }).expiration ===
-        "number"
+        typeof (user as unknown as { expiration?: unknown }).expiration === "number"
           ? ((user as unknown as { expiration: number }).expiration as number)
           : undefined,
       cachedAt: Date.now(),
@@ -383,7 +472,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { userSessionsService } from "@/lib/services/user-sessions";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * GET /api/sessions/current
@@ -42,10 +42,7 @@ async function handleGET() {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch session stats",
+        error: error instanceof Error ? error.message : "Failed to fetch session stats",
       },
       { status: 500 },
     );

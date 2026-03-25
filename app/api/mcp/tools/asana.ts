@@ -11,10 +11,10 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 const API_BASE = "https://app.asana.com/api/1.0";
 
@@ -54,11 +54,10 @@ async function asanaApi(method: string, path: string, body?: unknown) {
   if (!response.ok) {
     const errorText = await response.text();
     let parsed: { errors?: { message: string }[] } = {};
-    try { parsed = JSON.parse(errorText); } catch {}
-    throw new Error(
-      parsed?.errors?.[0]?.message ||
-      `Asana API error: ${response.status}`,
-    );
+    try {
+      parsed = JSON.parse(errorText);
+    } catch {}
+    throw new Error(parsed?.errors?.[0]?.message || `Asana API error: ${response.status}`);
   }
 
   if (response.status === 204) return { success: true };
@@ -82,9 +81,17 @@ export function registerAsanaTools(server: McpServer): void {
         });
         const active = connections.find((c) => c.status === "active");
         if (!active) {
-          return jsonResponse({ connected: false, message: "Asana not connected. Connect in Settings > Connections." });
+          return jsonResponse({
+            connected: false,
+            message: "Asana not connected. Connect in Settings > Connections.",
+          });
         }
-        return jsonResponse({ connected: true, email: active.email, scopes: active.scopes, linkedAt: active.linkedAt });
+        return jsonResponse({
+          connected: true,
+          email: active.email,
+          scopes: active.scopes,
+          linkedAt: active.linkedAt,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to check status"));
       }
@@ -96,7 +103,10 @@ export function registerAsanaTools(server: McpServer): void {
     { description: "Get the currently authenticated Asana user", inputSchema: {} },
     async () => {
       try {
-        const data = await asanaApi("GET", "/users/me?opt_fields=gid,name,email,photo,workspaces,workspaces.name");
+        const data = await asanaApi(
+          "GET",
+          "/users/me?opt_fields=gid,name,email,photo,workspaces,workspaces.name",
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get current user"));
@@ -108,7 +118,9 @@ export function registerAsanaTools(server: McpServer): void {
     "asana_list_workspaces",
     {
       description: "List Asana workspaces accessible to the user",
-      inputSchema: { limit: z.number().int().min(1).max(100).optional().describe("Max results (default 100)") },
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional().describe("Max results (default 100)"),
+      },
     },
     async ({ limit }) => {
       try {
@@ -134,10 +146,15 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ workspaceGid, archived, limit }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,name,color,created_at,modified_at,owner,team,archived" });
+        const params = new URLSearchParams({
+          opt_fields: "gid,name,color,created_at,modified_at,owner,team,archived",
+        });
         if (archived !== undefined) params.set("archived", String(archived));
         if (limit) params.set("limit", String(limit));
-        const data = await asanaApi("GET", `/workspaces/${workspaceGid}/projects?${params.toString()}`);
+        const data = await asanaApi(
+          "GET",
+          `/workspaces/${workspaceGid}/projects?${params.toString()}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list projects"));
@@ -153,7 +170,10 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ projectGid }) => {
       try {
-        const data = await asanaApi("GET", `/projects/${projectGid}?opt_fields=gid,name,notes,color,created_at,modified_at,owner,team,members,due_on,start_on,archived,permalink_url`);
+        const data = await asanaApi(
+          "GET",
+          `/projects/${projectGid}?opt_fields=gid,name,notes,color,created_at,modified_at,owner,team,members,due_on,start_on,archived,permalink_url`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get project"));
@@ -173,7 +193,10 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ projectGid, limit, offset }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,name,assignee,assignee.name,completed,due_on,created_at,modified_at,notes" });
+        const params = new URLSearchParams({
+          opt_fields:
+            "gid,name,assignee,assignee.name,completed,due_on,created_at,modified_at,notes",
+        });
         if (limit) params.set("limit", String(limit));
         if (offset) params.set("offset", offset);
         const data = await asanaApi("GET", `/projects/${projectGid}/tasks?${params.toString()}`);
@@ -192,7 +215,10 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ taskGid }) => {
       try {
-        const data = await asanaApi("GET", `/tasks/${taskGid}?opt_fields=gid,name,notes,assignee,assignee.name,assignee.email,completed,completed_at,due_on,due_at,start_on,created_at,modified_at,projects,projects.name,tags,tags.name,parent,parent.name,permalink_url`);
+        const data = await asanaApi(
+          "GET",
+          `/tasks/${taskGid}?opt_fields=gid,name,notes,assignee,assignee.name,assignee.email,completed,completed_at,due_on,due_at,start_on,created_at,modified_at,projects,projects.name,tags,tags.name,parent,parent.name,permalink_url`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get task"));
@@ -267,27 +293,37 @@ export function registerAsanaTools(server: McpServer): void {
   server.registerTool(
     "asana_search_tasks",
     {
-      description: "Search tasks in an Asana workspace. Note: search results may have a 10-60 second indexing delay.",
+      description:
+        "Search tasks in an Asana workspace. Note: search results may have a 10-60 second indexing delay.",
       inputSchema: {
         workspaceGid: z.string().min(1).describe("Workspace GID"),
         text: z.string().optional().describe("Free text search"),
         assignee: z.string().optional().describe("Assignee GID (use 'me' for current user)"),
         projectGid: z.string().optional().describe("Filter by project GID"),
         completed: z.boolean().optional().describe("Filter by completion status"),
-        sortBy: z.string().optional().describe("Sort by: created_at, completed_at, modified_at, due_date, likes"),
+        sortBy: z
+          .string()
+          .optional()
+          .describe("Sort by: created_at, completed_at, modified_at, due_date, likes"),
         limit: z.number().int().min(1).max(100).optional().describe("Max results"),
       },
     },
     async ({ workspaceGid, text, assignee, projectGid, completed, sortBy, limit }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,name,assignee,assignee.name,completed,due_on,created_at,modified_at,permalink_url" });
+        const params = new URLSearchParams({
+          opt_fields:
+            "gid,name,assignee,assignee.name,completed,due_on,created_at,modified_at,permalink_url",
+        });
         if (text) params.set("text", text);
         if (assignee) params.set("assignee.any", assignee);
         if (projectGid) params.set("projects.any", projectGid);
         if (completed !== undefined) params.set("completed", String(completed));
         if (sortBy) params.set("sort_by", sortBy);
         if (limit) params.set("limit", String(limit));
-        const data = await asanaApi("GET", `/workspaces/${workspaceGid}/tasks/search?${params.toString()}`);
+        const data = await asanaApi(
+          "GET",
+          `/workspaces/${workspaceGid}/tasks/search?${params.toString()}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to search tasks"));
@@ -325,7 +361,9 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ taskGid, limit }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,text,created_at,created_by,created_by.name,resource_subtype" });
+        const params = new URLSearchParams({
+          opt_fields: "gid,text,created_at,created_by,created_by.name,resource_subtype",
+        });
         if (limit) params.set("limit", String(limit));
         const data = await asanaApi("GET", `/tasks/${taskGid}/stories?${params.toString()}`);
         return jsonResponse(data);
@@ -369,7 +407,10 @@ export function registerAsanaTools(server: McpServer): void {
       try {
         const params = new URLSearchParams({ opt_fields: "gid,name,email,photo" });
         if (limit) params.set("limit", String(limit));
-        const data = await asanaApi("GET", `/workspaces/${workspaceGid}/users?${params.toString()}`);
+        const data = await asanaApi(
+          "GET",
+          `/workspaces/${workspaceGid}/users?${params.toString()}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list users"));

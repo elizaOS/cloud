@@ -5,10 +5,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { withInternalAuth } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
-import { FailoverRequestSchema } from "@/lib/services/gateway-discord/schemas";
+import { withInternalAuth } from "@/lib/auth/internal-api";
 import { DEAD_POD_THRESHOLD_MS } from "@/lib/services/gateway-discord/constants";
+import { FailoverRequestSchema } from "@/lib/services/gateway-discord/schemas";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -39,28 +39,21 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
     logger.warn("[Gateway Failover] Rejected self-claim attempt", {
       pod: claiming_pod,
     });
-    return NextResponse.json(
-      { error: "Cannot claim connections from self" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Cannot claim connections from self" }, { status: 400 });
   }
 
   // Quick check - reject if pod has any recent heartbeat (optimization)
-  const recentHeartbeat =
-    await discordConnectionsRepository.hasRecentHeartbeat(
-      dead_pod,
-      DEAD_POD_THRESHOLD_MS,
-    );
+  const recentHeartbeat = await discordConnectionsRepository.hasRecentHeartbeat(
+    dead_pod,
+    DEAD_POD_THRESHOLD_MS,
+  );
 
   if (recentHeartbeat) {
     logger.warn("[Gateway Failover] Rejected claim - pod has recent heartbeat", {
       claimingPod: claiming_pod,
       deadPod: dead_pod,
     });
-    return NextResponse.json(
-      { error: "Pod is not dead - has recent heartbeat" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Pod is not dead - has recent heartbeat" }, { status: 400 });
   }
 
   logger.warn("[Gateway Failover] Processing failover request", {

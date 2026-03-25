@@ -4,9 +4,9 @@ import { NextResponse } from "next/server";
 const mcpDefinitions = [
   {
     id: "eliza-cloud-mcp",
-    name: "ElizaOS Cloud MCP",
+    name: "MILADY CLOUD MCP",
     description:
-      "Core ElizaOS Cloud platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities",
+      "Core MILADY CLOUD platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities",
     version: "1.0.0",
     endpoint: "/api/mcp",
     category: "platform",
@@ -16,8 +16,7 @@ const mcpDefinitions = [
     tools: [
       {
         name: "check_credits",
-        description:
-          "Check credit balance and recent transactions for your organization",
+        description: "Check credit balance and recent transactions for your organization",
         parameters: {
           includeTransactions: {
             type: "boolean",
@@ -37,8 +36,7 @@ const mcpDefinitions = [
       },
       {
         name: "get_recent_usage",
-        description:
-          "Get recent API usage statistics including models used, costs, and tokens",
+        description: "Get recent API usage statistics including models used, costs, and tokens",
         parameters: {
           limit: {
             type: "number",
@@ -163,7 +161,7 @@ const mcpDefinitions = [
       {
         name: "chat_with_agent",
         description:
-          "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE.",
+          "Send a message to your deployed elizaOS agent and receive a response. Supports streaming via SSE.",
         parameters: {
           message: {
             type: "string",
@@ -187,8 +185,7 @@ const mcpDefinitions = [
       },
       {
         name: "list_agents",
-        description:
-          "List all available agents, characters, and deployed ElizaOS instances.",
+        description: "List all available agents, characters, and deployed elizaOS instances.",
         parameters: {
           filters: {
             type: "object",
@@ -329,14 +326,12 @@ const mcpDefinitions = [
       },
       {
         name: "get_market_data",
-        description:
-          "Get comprehensive market data including price, volume, supply, ATH/ATL",
+        description: "Get comprehensive market data including price, volume, supply, ATH/ATL",
         cost: "Free",
       },
       {
         name: "list_trending",
-        description:
-          "Get list of trending cryptocurrencies by search popularity",
+        description: "Get list of trending cryptocurrencies by search popularity",
         cost: "Free",
       },
     ],

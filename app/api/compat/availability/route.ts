@@ -1,0 +1,84 @@
+/**
+ * GET /api/compat/availability — aggregate capacity is public, node topology requires auth
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
+import { validateServiceKey } from "@/lib/auth/service-key";
+import { authenticateWaifuBridge } from "@/lib/auth/waifu-bridge";
+import { handleCompatCorsOptions, withCompatCors } from "../_lib/cors";
+
+export const dynamic = "force-dynamic";
+const CORS_METHODS = "GET, OPTIONS";
+
+export function OPTIONS() {
+  return handleCompatCorsOptions(CORS_METHODS);
+}
+
+async function canViewNodeTopology(request: NextRequest): Promise<boolean> {
+  try {
+    // Only service keys and waifu-bridge (admin-level callers) may see
+    // per-node topology. Regular authenticated users receive aggregate
+    // capacity only — exposing hostnames/node-ids to end-users is an
+    // unnecessary information leak.
+    if (validateServiceKey(request)) {
+      return true;
+    }
+
+    if (await authenticateWaifuBridge(request)) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const nodes = await dockerNodesRepository.findAll();
+    const includeNodeTopology = await canViewNodeTopology(request);
+
+    let totalSlots = 0;
+    let usedSlots = 0;
+
+    const nodesSummary = nodes.map((n) => {
+      const cap = n.capacity ?? 0;
+      const allocated = n.allocated_count ?? 0;
+      totalSlots += cap;
+      usedSlots += allocated;
+      return {
+        nodeId: n.node_id,
+        hostname: n.hostname,
+        capacity: cap,
+        allocated,
+        available: Math.max(0, cap - allocated),
+        status: n.status,
+      };
+    });
+
+    return withCompatCors(
+      NextResponse.json({
+        success: true,
+        data: {
+          totalSlots,
+          usedSlots,
+          availableSlots: Math.max(0, totalSlots - usedSlots),
+          acceptingNewAgents: totalSlots > usedSlots,
+          ...(includeNodeTopology ? { nodes: nodesSummary } : {}),
+        },
+      }),
+      CORS_METHODS,
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return withCompatCors(
+      NextResponse.json(
+        { success: false, error: `Failed to fetch availability: ${message}` },
+        { status: 500 },
+      ),
+      CORS_METHODS,
+    );
+  }
+}

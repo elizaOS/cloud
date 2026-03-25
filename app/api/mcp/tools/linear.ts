@@ -4,12 +4,12 @@
  * Uses per-organization OAuth tokens via oauthService.
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 async function getLinearToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -53,7 +53,9 @@ async function linearGraphQL(query: string, variables?: Record<string, unknown>)
     throw new Error(`Linear API returned invalid JSON: ${text.slice(0, 200)}`);
   }
   if (data?.errors?.length) {
-    throw new Error(data.errors.map((e: { message: string }) => e.message).join("; ") || "Linear API error");
+    throw new Error(
+      data.errors.map((e: { message: string }) => e.message).join("; ") || "Linear API error",
+    );
   }
   return data?.data;
 }
@@ -100,7 +102,7 @@ export function registerLinearTools(server: McpServer): void {
     {
       description: "List or filter issues",
       inputSchema: {
-        filter: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
         first: z.number().int().min(1).max(100).optional(),
         after: z.string().optional(),
         orderBy: z.string().optional(),
@@ -467,7 +469,7 @@ export function registerLinearTools(server: McpServer): void {
       inputSchema: {
         first: z.number().int().min(1).max(100).optional(),
         after: z.string().optional(),
-        filter: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ first, after, filter }) => {
@@ -626,7 +628,7 @@ export function registerLinearTools(server: McpServer): void {
       inputSchema: {
         first: z.number().int().min(1).max(100).optional(),
         after: z.string().optional(),
-        filter: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ first, after, filter }) => {
@@ -730,7 +732,7 @@ export function registerLinearTools(server: McpServer): void {
       inputSchema: {
         first: z.number().int().min(1).max(100).optional(),
         after: z.string().optional(),
-        filter: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ first, after, filter }) => {

@@ -1,8 +1,8 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { MCPsPageWrapper } from "./mcps-page-wrapper";
-import { MCPsSection, MCPsSectionSkeleton } from "./mcps-section";
+import { MCPsPageWrapper } from "@/packages/ui/src/components/mcps/mcps-page-wrapper";
+import { MCPsSection, MCPsSectionSkeleton } from "@/packages/ui/src/components/mcps/mcps-section";
 
 export const metadata: Metadata = {
   title: "MCP Servers",
@@ -18,9 +18,9 @@ export const dynamic = "force-dynamic";
 const demoMcpServers = [
   {
     id: "eliza-cloud-mcp",
-    name: "ElizaOS Cloud MCP",
+    name: "MILADY CLOUD MCP",
     description:
-      "Core ElizaOS Cloud platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities.",
+      "Core MILADY CLOUD platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities.",
     endpoint: "/api/mcp",
     version: "1.0.0",
     category: "platform",
@@ -83,12 +83,7 @@ const demoMcpServers = [
     toolCount: 4,
     icon: "cloud",
     color: "#06B6D4",
-    features: [
-      "Current Weather",
-      "16-Day Forecast",
-      "Weather Comparison",
-      "Location Search",
-    ],
+    features: ["Current Weather", "16-Day Forecast", "Weather Comparison", "Location Search"],
   },
   {
     id: "crypto-mcp",

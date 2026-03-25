@@ -8,7 +8,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { discoverApiV1Routes } from "@/lib/docs/api-route-discovery";
+import { discoverPublicApiRoutes } from "@/lib/docs/api-route-discovery";
 
 type OpenApiPathItem = Record<
   string,
@@ -30,7 +30,7 @@ function toOperationId(method: string, routePath: string) {
     .replace(/^\//, "")
     .replace(/[{}]/g, "")
     .replace(/[^a-zA-Z0-9/_-]/g, "")
-    .replace(/[\/-]+/g, "_");
+    .replace(/[/-]+/g, "_");
   return `${method.toLowerCase()}_${clean}`;
 }
 
@@ -42,9 +42,9 @@ function tagForPath(routePath: string) {
 }
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
-  const discovered = await discoverApiV1Routes();
+  const discovered = await discoverPublicApiRoutes();
   const discoveredPaths: Record<string, OpenApiPathItem> = {};
 
   for (const r of discovered) {
@@ -79,7 +79,7 @@ export async function GET() {
         "AI agent infrastructure API. Supports REST, MCP, and A2A protocols with API key authentication.",
       contact: {
         name: "Eliza Cloud",
-        url: "https://elizacloud.ai",
+        url: "https://www.elizacloud.ai",
       },
       license: {
         name: "MIT",
@@ -114,7 +114,7 @@ export async function GET() {
     tags: [],
     externalDocs: {
       description: "Eliza Cloud Documentation",
-      url: "https://elizacloud.ai/docs",
+      url: "https://www.elizacloud.ai/docs",
     },
   };
 

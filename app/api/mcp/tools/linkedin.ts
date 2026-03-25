@@ -8,10 +8,10 @@
 
 import type { McpServer } from "mcp-handler";
 import { z } from "zod3";
-import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
+import { logger } from "@/lib/utils/logger";
 import { getAuthContext } from "../lib/context";
-import { jsonResponse, errorResponse } from "../lib/responses";
+import { errorResponse, jsonResponse } from "../lib/responses";
 
 const LINKEDIN_REST_BASE = "https://api.linkedin.com/rest";
 const LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo";
@@ -51,7 +51,8 @@ async function linkedinFetch(path: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    const msg = error?.message || error?.serviceErrorCode || `LinkedIn API error: ${response.status}`;
+    const msg =
+      error?.message || error?.serviceErrorCode || `LinkedIn API error: ${response.status}`;
     throw new Error(msg);
   }
 
@@ -114,7 +115,8 @@ export function registerLinkedInTools(server: McpServer): void {
   server.registerTool(
     "linkedin_get_profile",
     {
-      description: "Get the current LinkedIn user's profile information including name, email, and profile picture",
+      description:
+        "Get the current LinkedIn user's profile information including name, email, and profile picture",
       inputSchema: {},
     },
     async () => {
@@ -140,11 +142,16 @@ export function registerLinkedInTools(server: McpServer): void {
   server.registerTool(
     "linkedin_create_post",
     {
-      description: "Create a new LinkedIn post on behalf of the authenticated user. Supports text posts with optional visibility settings.",
+      description:
+        "Create a new LinkedIn post on behalf of the authenticated user. Supports text posts with optional visibility settings.",
       inputSchema: {
         text: z.string().describe("The post content/commentary text"),
-        visibility: z.enum(["PUBLIC", "CONNECTIONS"]).optional()
-          .describe("Post visibility. Default: 'PUBLIC'. Use 'CONNECTIONS' to limit to connections only."),
+        visibility: z
+          .enum(["PUBLIC", "CONNECTIONS"])
+          .optional()
+          .describe(
+            "Post visibility. Default: 'PUBLIC'. Use 'CONNECTIONS' to limit to connections only.",
+          ),
       },
     },
     async ({ text, visibility = "PUBLIC" }) => {
@@ -195,7 +202,9 @@ export function registerLinkedInTools(server: McpServer): void {
     {
       description: "Delete a LinkedIn post permanently",
       inputSchema: {
-        postUrn: z.string().describe("The post URN to delete (e.g., urn:li:share:12345 or urn:li:ugcPost:12345)"),
+        postUrn: z
+          .string()
+          .describe("The post URN to delete (e.g., urn:li:share:12345 or urn:li:ugcPost:12345)"),
       },
     },
     async ({ postUrn }) => {

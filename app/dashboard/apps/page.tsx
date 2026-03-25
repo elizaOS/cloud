@@ -21,11 +21,11 @@ export default async function AppsPage() {
 // import { Suspense } from "react";
 // import { requireAuthWithOrg } from "@/lib/auth";
 // import { appsService } from "@/lib/services/apps";
-// import { AppsTable } from "@/components/apps/apps-table";
-// import { AppsSkeleton } from "@/components/apps/apps-skeleton";
+// import { AppsTable } from "@/packages/ui/src/components/apps/apps-table";
+// import { AppsSkeleton } from "@/packages/ui/src/components/apps/apps-skeleton";
 // import { Grid3x3, Users, TrendingUp, Activity } from "lucide-react";
-// import { AppsPageWrapper } from "./apps-page-wrapper";
-// import { AppsEmptyState } from "./apps-empty-state";
+// import { AppsPageWrapper } from "@/packages/ui/src/components/apps/apps-page-wrapper";
+// import { AppsEmptyState } from "@/packages/ui/src/components/apps/apps-empty-state";
 //
 // export default async function AppsPage() {
 //   const user = await requireAuthWithOrg();

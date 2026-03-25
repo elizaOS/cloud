@@ -22,19 +22,19 @@
  * - Credit reservation before processing ensures payment
  */
 
+import { fileTypeFromBuffer } from "file-type";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getElevenLabsService } from "@/lib/services/elevenlabs";
-import { usageService } from "@/lib/services/usage";
+import { calculateSTTCost } from "@/lib/pricing";
 import {
+  type CreditReservation,
   creditsService,
   InsufficientCreditsError,
-  type CreditReservation,
 } from "@/lib/services/credits";
-import { calculateSTTCost } from "@/lib/pricing";
+import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
-import { fileTypeFromBuffer } from "file-type";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
@@ -59,10 +59,7 @@ const ALLOWED_AUDIO_SIGNATURES = new Set([
   "video/webm", // Safari/macOS creates this for audio recordings
 ]);
 
-function estimateAudioDurationMinutes(
-  fileSizeBytes: number,
-  mimeType: string,
-): number {
+function estimateAudioDurationMinutes(fileSizeBytes: number, mimeType: string): number {
   const bitratesKbps: Record<string, number> = {
     "audio/mpeg": 128,
     "audio/mp3": 128,
@@ -101,10 +98,7 @@ export async function POST(request: NextRequest) {
     const languageCode = formData.get("languageCode") as string | undefined;
 
     if (!audioFile) {
-      return NextResponse.json(
-        { error: "No audio file provided" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "No audio file provided" }, { status: 400 });
     }
 
     if (audioFile.size > MAX_FILE_SIZE) {
@@ -130,9 +124,7 @@ export async function POST(request: NextRequest) {
     const fileTypeResult = await fileTypeFromBuffer(buffer);
 
     if (!fileTypeResult) {
-      logger.warn(
-        `[Voice STT API] Unable to detect file type for ${audioFile.name} - rejecting`,
-      );
+      logger.warn(`[Voice STT API] Unable to detect file type for ${audioFile.name} - rejecting`);
       return NextResponse.json(
         {
           error:
@@ -166,10 +158,7 @@ export async function POST(request: NextRequest) {
       `[Voice STT API] Processing for user ${user.id}: ${audioFile.name} (${audioFile.size} bytes, verified: ${fileTypeResult.mime}, final: ${finalMimeType})`,
     );
 
-    const estimatedDurationMinutes = estimateAudioDurationMinutes(
-      audioFile.size,
-      finalMimeType,
-    );
+    const estimatedDurationMinutes = estimateAudioDurationMinutes(audioFile.size, finalMimeType);
     const estimatedCost = calculateSTTCost(estimatedDurationMinutes);
 
     try {
@@ -206,9 +195,7 @@ export async function POST(request: NextRequest) {
 
     await reservation.reconcile(estimatedCost);
 
-    logger.info(
-      `[Voice STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`,
-    );
+    logger.info(`[Voice STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`);
 
     (async () => {
       try {
@@ -286,8 +273,7 @@ export async function POST(request: NextRequest) {
         ) {
           return NextResponse.json(
             {
-              error:
-                "Speech-to-Text requires a paid plan. Please upgrade to continue.",
+              error: "Speech-to-Text requires a paid plan. Please upgrade to continue.",
             },
             { status: 402 },
           );
@@ -304,10 +290,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (errorMessage.includes("elevenlabs_api_key")) {
-        return NextResponse.json(
-          { error: "Service not configured" },
-          { status: 500 },
-        );
+        return NextResponse.json({ error: "Service not configured" }, { status: 500 });
       }
     }
 
