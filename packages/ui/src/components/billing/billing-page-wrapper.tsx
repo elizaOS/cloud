@@ -20,17 +20,22 @@ import {
 import { Info } from "lucide-react";
 import type { CreditPack as DBCreditPack } from "@/lib/types";
 import { BillingPageClient } from "./billing-page-client";
+import { MiladyPricingInfo } from "./milady-pricing-info";
 
 interface BillingPageWrapperProps {
   creditPacks: DBCreditPack[];
   currentCredits: number;
   canceled?: string;
+  runningAgents?: number;
+  idleAgents?: number;
 }
 
 export function BillingPageWrapper({
   creditPacks,
   currentCredits,
   canceled,
+  runningAgents = 0,
+  idleAgents = 0,
 }: BillingPageWrapperProps) {
   useSetPageHeader({
     title: "Billing & Balance",
@@ -62,6 +67,12 @@ export function BillingPageWrapper({
           </div>
         </div>
       </BrandCard>
+
+      <MiladyPricingInfo
+        currentCredits={currentCredits}
+        runningAgents={runningAgents}
+        idleAgents={idleAgents}
+      />
 
       <BillingPageClient
         creditPacks={creditPacks.map((p) => ({
