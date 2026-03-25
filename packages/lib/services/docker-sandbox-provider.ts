@@ -104,9 +104,6 @@ const HEALTH_CHECK_POLL_INTERVAL_MS = 3_000;
 /** Health-check polling: total timeout (ms). */
 const HEALTH_CHECK_TIMEOUT_MS = 60_000;
 
-/** Single HTTP request timeout for health check (ms). */
-const HEALTH_CHECK_REQUEST_TIMEOUT_MS = 8_000;
-
 /** SSH command timeout for docker pull (can be slow on first pull). */
 const PULL_TIMEOUT_MS = 300_000; // 5 min
 
@@ -411,8 +408,6 @@ export class DockerSandboxProvider implements SandboxProvider {
     }
 
     // 5. Build the base environment (spread to avoid mutating caller's environmentVars)
-    const apiToken =
-      environmentVars.ELIZA_API_TOKEN || environmentVars.MILADY_API_TOKEN || crypto.randomUUID();
     const baseEnv: Record<string, string> = {
       ...environmentVars,
       ...vpnEnvVars,
@@ -432,15 +427,6 @@ export class DockerSandboxProvider implements SandboxProvider {
       // Eliza server requires JWT_SECRET in production mode.
       // Generate a unique per-container secret if the caller didn't provide one.
       JWT_SECRET: environmentVars.JWT_SECRET || crypto.randomUUID(),
-      // The milady server auto-generates a random ELIZA_API_TOKEN when
-      // ELIZA_API_BIND is non-loopback (0.0.0.0) and no token is set.
-      // Set it explicitly so our pairing endpoint can return it.
-      // IMPORTANT: use a separate random value — do NOT reuse JWT_SECRET,
-      // which is the container's auth signing key.
-      // Note: server reads ELIZA_API_TOKEN (MILADY_API_TOKEN is ignored
-      // due to a copy-paste bug in server.ts). Set both for compat.
-      MILADY_API_TOKEN: apiToken,
-      ELIZA_API_TOKEN: apiToken,
       // Allow the agent subdomain origin so the browser can call the API.
       MILADY_ALLOWED_ORIGINS: `https://${agentId}.${getAgentBaseDomain()}`,
     };
@@ -471,8 +457,15 @@ export class DockerSandboxProvider implements SandboxProvider {
       const allEnv: Record<string, string> = {
         ...baseEnv,
         STEWARD_AGENT_TOKEN: stewardAgentToken,
-        // Bind to 0.0.0.0 so the health endpoint is reachable from outside the container
+        // Bind to 0.0.0.0 so Docker port mapping works (container otherwise
+        // listens on 127.0.0.1 which is unreachable via -p host:container).
         ELIZA_API_BIND: "0.0.0.0",
+        // Clear API tokens so the web UI is accessible without auth.
+        // The compiled runtime reads MILADY_API_TOKEN first via `??` — setting
+        // it to "" prevents fallthrough to the auto-generated ELIZA_API_TOKEN.
+        // TODO: Wire up pairing flow to pass token to browser, then re-enable.
+        MILADY_API_TOKEN: "",
+        ELIZA_API_TOKEN: "",
       };
 
       // Validate env keys/values before they are interpolated into remote shell commands.
@@ -670,30 +663,41 @@ export class DockerSandboxProvider implements SandboxProvider {
   // checkHealth
   // ------------------------------------------------------------------
 
-  async checkHealth(healthUrl: string): Promise<boolean> {
-    const url = healthUrl.replace(/\/$/, "") + "/health";
+  async checkHealth(handle: SandboxHandle): Promise<boolean> {
+    const meta = await this.resolveContainer(handle.sandboxId);
+    const ssh = DockerSSHClient.getClient(
+      meta.hostname,
+      meta.sshPort,
+      meta.hostKeyFingerprint,
+      meta.sshUser,
+    );
     const deadline = Date.now() + HEALTH_CHECK_TIMEOUT_MS;
+    const inspectCmd = `docker inspect --format '{{.State.Health.Status}}' ${shellQuote(meta.containerName)}`;
 
     logger.info(
-      `[docker-sandbox] Polling health at ${url} (timeout: ${HEALTH_CHECK_TIMEOUT_MS / 1000}s)`,
+      `[docker-sandbox] Polling Docker health for ${meta.containerName} on ${meta.nodeId} (${meta.hostname}) (timeout: ${HEALTH_CHECK_TIMEOUT_MS / 1000}s)`,
     );
 
     while (Date.now() < deadline) {
       try {
-        const response = await fetch(url, {
-          method: "GET",
-          signal: AbortSignal.timeout(HEALTH_CHECK_REQUEST_TIMEOUT_MS),
-        });
+        const status = (
+          await ssh.exec(inspectCmd, Math.min(10_000, HEALTH_CHECK_TIMEOUT_MS))
+        ).trim();
 
-        // 2xx = healthy, 401 = server is up but requires auth (also healthy)
-        if (response.ok || response.status === 401) {
-          logger.info(`[docker-sandbox] Health check passed (${response.status}): ${url}`);
+        if (status === "healthy") {
+          logger.info(
+            `[docker-sandbox] Docker health check passed for ${meta.containerName}: ${status}`,
+          );
           return true;
         }
 
-        logger.debug(`[docker-sandbox] Health check returned ${response.status}, retrying...`);
-      } catch {
-        // Connection refused, timeout, etc. — expected while container boots
+        logger.debug(
+          `[docker-sandbox] Docker health for ${meta.containerName} is ${status || "unknown"}, retrying...`,
+        );
+      } catch (err) {
+        logger.debug(
+          `[docker-sandbox] Docker health inspect failed for ${meta.containerName}, retrying: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
 
       // Wait before retrying (but don't overshoot the deadline)
@@ -709,7 +713,7 @@ export class DockerSandboxProvider implements SandboxProvider {
     }
 
     logger.warn(
-      `[docker-sandbox] Health check timed out after ${HEALTH_CHECK_TIMEOUT_MS / 1000}s: ${url}`,
+      `[docker-sandbox] Docker health check timed out after ${HEALTH_CHECK_TIMEOUT_MS / 1000}s for ${meta.containerName} on ${meta.hostname}`,
     );
     return false;
   }

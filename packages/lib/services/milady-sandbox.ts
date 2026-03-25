@@ -309,7 +309,7 @@ export class MiladySandboxService {
 
       try {
         // 3. Health check (via provider)
-        if (!(await (await this.getProvider()).checkHealth(handle.healthUrl))) {
+        if (!(await (await this.getProvider()).checkHealth(handle))) {
           throw new Error("Sandbox health check timed out");
         }
 

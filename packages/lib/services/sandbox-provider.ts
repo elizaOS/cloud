@@ -13,10 +13,12 @@ export interface SandboxProvider {
   stop(sandboxId: string): Promise<void>;
 
   /**
-   * Poll the health endpoint until it responds OK or timeout.
+   * Poll the sandbox until it reports healthy or times out.
+   * Providers may use the public health URL, internal provider metadata,
+   * or platform-native health state depending on the runtime.
    * Returns true if healthy, false if timed out.
    */
-  checkHealth(healthUrl: string): Promise<boolean>;
+  checkHealth(handle: SandboxHandle): Promise<boolean>;
 
   /** Run a shell command inside the sandbox (optional — not all providers support this). */
   runCommand?(sandboxId: string, cmd: string, args?: string[]): Promise<string>;
