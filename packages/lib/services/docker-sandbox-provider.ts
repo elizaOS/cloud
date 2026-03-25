@@ -457,6 +457,15 @@ export class DockerSandboxProvider implements SandboxProvider {
       const allEnv: Record<string, string> = {
         ...baseEnv,
         STEWARD_AGENT_TOKEN: stewardAgentToken,
+        // Bind to 0.0.0.0 so Docker port mapping works (container otherwise
+        // listens on 127.0.0.1 which is unreachable via -p host:container).
+        ELIZA_API_BIND: "0.0.0.0",
+        // Clear API tokens so the web UI is accessible without auth.
+        // The compiled runtime reads MILADY_API_TOKEN first via `??` — setting
+        // it to "" prevents fallthrough to the auto-generated ELIZA_API_TOKEN.
+        // TODO: Wire up pairing flow to pass token to browser, then re-enable.
+        MILADY_API_TOKEN: "",
+        ELIZA_API_TOKEN: "",
       };
 
       // Validate env keys/values before they are interpolated into remote shell commands.
