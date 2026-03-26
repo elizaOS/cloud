@@ -19,18 +19,6 @@
       "schedule": "*/15 * * * *"
     },
     {
-      "path": "/api/v1/cron/deployment-monitor",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/v1/cron/health-check",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/v1/cron/process-provisioning-jobs",
-      "schedule": "* * * * *"
-    },
-    {
       "path": "/api/cron/sample-eliza-price",
       "schedule": "*/5 * * * *"
     },
