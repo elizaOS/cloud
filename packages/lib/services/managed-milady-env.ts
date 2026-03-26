@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { apiKeysService } from "./api-keys";
+import { resolveStewardContainerUrl } from "./docker-sandbox-utils";
 
 const DEFAULT_MILADY_APP_URL = "https://app.milady.ai";
 const DEFAULT_CLOUD_PUBLIC_URL = "https://www.elizacloud.ai";
@@ -126,6 +127,8 @@ export async function prepareManagedMiladyEnvironment(params: {
   existingEnv?: Record<string, string> | null;
   organizationId: string;
   userId: string;
+  /** Sandbox/agent ID — used as STEWARD_AGENT_ID for Docker-backed agents. */
+  sandboxId?: string;
 }): Promise<ManagedMiladyEnvironmentResult> {
   const existingEnv = { ...(params.existingEnv ?? {}) };
   const userApiKey = await getOrCreateUserApiKey(params.userId, params.organizationId);
@@ -142,6 +145,22 @@ export async function prepareManagedMiladyEnvironment(params: {
     ELIZAOS_CLOUD_ENABLED: "true",
     ELIZAOS_CLOUD_BASE_URL: resolveCloudPublicUrl(),
   };
+
+  // Steward env vars — Docker-backed agents need these to talk to the wallet vault.
+  // STEWARD_API_URL is resolved for container reachability (host.docker.internal
+  // or the explicit override). STEWARD_AGENT_ID maps to the sandbox ID.
+  // STEWARD_AGENT_TOKEN is set during provisioning in docker-sandbox-provider.ts.
+  const stewardContainerUrl = resolveStewardContainerUrl(
+    process.env.STEWARD_API_URL || "http://localhost:3200",
+    process.env.STEWARD_CONTAINER_URL,
+  );
+
+  if (!existingEnv.STEWARD_API_URL) {
+    environmentVars.STEWARD_API_URL = stewardContainerUrl;
+  }
+  if (params.sandboxId && !existingEnv.STEWARD_AGENT_ID) {
+    environmentVars.STEWARD_AGENT_ID = params.sandboxId;
+  }
 
   const changed = JSON.stringify(existingEnv) !== JSON.stringify(environmentVars);
 

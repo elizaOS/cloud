@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { dbRead } from "@/db/helpers";
 import { type MiladySandboxStatus, miladySandboxes } from "@/db/schemas/milady-sandboxes";
 import { requireAdmin } from "@/lib/auth";
+import { getStewardAgent } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -97,10 +98,39 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(miladySandboxes.created_at))
       .limit(limit);
 
+    // Enrich containers with wallet info from Steward (best-effort, parallel)
+    const enrichedContainers = await Promise.all(
+      containers.map(async (c) => {
+        let walletAddress: string | null = null;
+        let walletProvider: "steward" | "privy" | null = null;
+
+        // All Docker-node containers use Steward wallets
+        if (c.nodeId) {
+          try {
+            const stewardAgent = await getStewardAgent(c.id);
+            if (stewardAgent?.walletAddress) {
+              walletAddress = stewardAgent.walletAddress;
+              walletProvider = "steward";
+            } else {
+              walletProvider = "steward"; // registered but wallet pending
+            }
+          } catch {
+            // Steward unreachable — leave as null
+          }
+        }
+
+        return {
+          ...c,
+          walletAddress,
+          walletProvider,
+        };
+      }),
+    );
+
     return NextResponse.json({
       success: true,
       data: {
-        containers,
+        containers: enrichedContainers,
         total: totalCount, // actual total matching filters
         returned: containers.length, // number returned in this page
         filters: {

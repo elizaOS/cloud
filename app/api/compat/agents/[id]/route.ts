@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/compat-envelope";
 import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-config";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { getStewardAgent } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../../_lib/auth";
 import { handleCompatCorsOptions, withCompatCors } from "../../_lib/cors";
@@ -41,7 +42,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    return withCompatCors(NextResponse.json(envelope(toCompatAgent(agent))), CORS_METHODS);
+    // Resolve wallet info for Docker-backed agents
+    let walletInfo: { address: string | null; provider: "steward" | "privy" | null } | undefined;
+    if (agent.node_id) {
+      try {
+        const stewardAgent = await getStewardAgent(agentId);
+        if (stewardAgent?.walletAddress) {
+          walletInfo = { address: stewardAgent.walletAddress, provider: "steward" };
+        }
+      } catch {
+        // Steward unreachable — wallet fields will be null
+      }
+    }
+
+    return withCompatCors(
+      NextResponse.json(envelope(toCompatAgent(agent, walletInfo))),
+      CORS_METHODS,
+    );
   } catch (err) {
     return handleCompatError(err, CORS_METHODS);
   }
