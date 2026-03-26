@@ -134,6 +134,7 @@
     "@solana/web3.js": "^1.98.4",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.4",
+    "@stwd/sdk": "^0.3.0",
     "@tabler/icons-react": "^3.36.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",

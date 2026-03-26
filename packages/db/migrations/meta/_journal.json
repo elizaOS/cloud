@@ -372,6 +372,27 @@
       "when": 1773868800000,
       "tag": "0053_add_milady_billing_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1774300000000,
+      "tag": "0056_add_billing_status_check",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1774300100000,
+      "tag": "0057_update_milady_hourly_rate_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1774800000000,
+      "tag": "0058_add_steward_wallet_provider",
+      "breakpoints": true
     }
   ]
 }
