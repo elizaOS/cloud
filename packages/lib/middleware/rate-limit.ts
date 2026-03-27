@@ -285,8 +285,8 @@ export function withRateLimit<T = Record<string, string>>(
     // Add rate limit headers to successful responses
     // Create new response with additional headers to preserve immutability
     const newHeaders = new Headers(response.headers);
-    for (const [key, value] of Object.entries(headers)) {
-      newHeaders.set(key, value);
+    for (const [headerKey, value] of Object.entries(headers)) {
+      newHeaders.set(headerKey, value);
     }
 
     return new Response(response.body, {
