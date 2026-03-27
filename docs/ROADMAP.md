@@ -6,6 +6,18 @@ High-level direction and rationale. Dates are targets, not commitments.
 
 ## Done
 
+### Anthropic extended thinking via `ANTHROPIC_COT_BUDGET` (Mar 2026)
+
+- **What:** Optional env var sets a token budget for Anthropic “extended thinking” on eligible Claude models; merged into `providerOptions` alongside existing gateway/Google options.
+- **Why:** Operators can turn on reasoning-style behavior deploy-wide with predictable cost and policy boundaries, without exposing per-request thinking budgets from untrusted clients. Merge helpers avoid clobbering `gateway.order` or `google.responseModalities` when adding `anthropic.thinking`.
+- **Docs:** [docs/anthropic-cot-budget.md](./anthropic-cot-budget.md)
+
+### Unit tests: Milady `MILADY_PRICING` and billing cron (Mar 2026)
+
+- **What:** Shared `mockMiladyPricingMinimumDepositForRouteTests()`; Milady billing cron tests use stable DB mocks; `package.json` script paths updated for the renamed test file.
+- **Why:** Replacing `@/lib/constants/milady-pricing` with only `{ MINIMUM_DEPOSIT }` stripped hourly rates and warning thresholds for **every later importer in the same Bun process**, so billing cron assertions failed only when the full unit tree ran. Spreading real constants preserves cross-module correctness.
+- **Docs:** [docs/unit-testing-milady-mocks.md](./unit-testing-milady-mocks.md)
+
 ### Anthropic Messages API compatibility (Jan 2026)
 
 - **What:** POST `/api/v1/messages` with Anthropic request/response format, tools, streaming SSE.

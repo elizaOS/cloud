@@ -1,3 +1,19 @@
+/**
+ * Unit tests for `GET/POST /api/cron/milady-billing`.
+ *
+ * **Why `z-` in the filename:** `package.json` routes this file through `test:repo-unit:special` (and
+ * excludes it from bulk); the prefix is a loose sort-key reminder, not a runtime requirement.
+ *
+ * **Why `registerMiladyBillingMocks()` in `beforeEach`:** Other unit files call `mock.module("@/db/client")`.
+ * Re-applying our mocks each test avoids stale module doubles when the full tree runs.
+ *
+ * **Why inline `select` / `update` / `transaction` factories (not `mock()`):** Keeps queue-backed
+ * implementations reliably bound to this file’s arrays after repeated `mock.module` registration.
+ *
+ * **Why never mock `milady-pricing` here with `{ MINIMUM_DEPOSIT }` only:** Use
+ * `mockMiladyPricingMinimumDepositForRouteTests` in *route* tests that need a deposit override; partial
+ * pricing objects break this handler’s imports in-process (see docs/unit-testing-milady-mocks.md).
+ */
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
@@ -76,8 +92,7 @@ const mockLogger = {
 };
 
 function registerMiladyBillingMocks(): void {
-  // Inline closures (not `mock.fn`) so re-registering after other tests' `mock.module("@/db/client")`
-  // always wires `@/db/client` to these queue-backed implementations.
+  // Inline closures: Bun `mock()` wrappers were order-sensitive when another file replaced `@/db/client`.
   mock.module("@/db/client", () => ({
     dbRead: {
       select: () => createReadBuilder(readResultsQueue.shift() ?? []),

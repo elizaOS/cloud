@@ -232,6 +232,9 @@ cloud/
 ├── .env.example            # Environment template
 ├── docs/                    # Detailed documentation
 │   ├── API_REFERENCE.md    # Complete API reference
+│   ├── anthropic-cot-budget.md   # ANTHROPIC_COT_BUDGET + provider merge WHYs
+│   ├── unit-testing-milady-mocks.md  # Bun mock.module + Milady pricing test WHYs
+│   ├── ROADMAP.md          # Product direction and done items
 │   ├── DEPLOYMENT.md       # Deployment guide
 │   ├── DEPLOYMENT_TROUBLESHOOTING.md  # Troubleshooting
 │   ├── STRIPE_SETUP.md     # Stripe integration
@@ -553,10 +556,17 @@ Tests are split by kind; use the right script for what you want to run:
 | `bun run test:unit`        | `tests/unit/`        | Unit tests (mocked deps, fast) | Env preload only; some skip without `DATABASE_URL`        |
 | `bun run test:integration` | `tests/integration/` | API/DB/E2E integration tests   | `DATABASE_URL` (+ migrations); some need a running server |
 | `bun run test:runtime`     | `tests/runtime/`     | Runtime/factory and perf tests | `DATABASE_URL` (+ migrations), heavier                    |
-| `bun run test`             | all of the above     | Full suite in one run          | Same as integration + runtime for those layers            |
+| `bun run test`             | `test:repo-unit:bulk` + `special` | Two staged **unit** batches (see `package.json` for included/excluded files) | Env preload only (same family as `test:unit`) |
 | `bun run test:playwright`  | `tests/playwright/`  | Playwright E2E (optional)      | `@playwright/test` installed                              |
 
-Env is loaded from `.env`, `.env.local`, and `.env.test` via preload. See `docs/test-failure-assessment.md` for skip behavior and remaining failure categories.
+Env is loaded from `.env`, `.env.local`, and `.env.test` via preload.
+
+### Engineering docs (WHYs)
+
+- **[docs/unit-testing-milady-mocks.md](docs/unit-testing-milady-mocks.md)** — Why partial `MILADY_PRICING` mocks break other Milady modules under Bun, and how the billing cron tests isolate `mock.module("@/db/client")` contention.
+- **[docs/anthropic-cot-budget.md](docs/anthropic-cot-budget.md)** — Why `ANTHROPIC_COT_BUDGET` is deploy-scoped and how provider-option merges avoid clobbering gateway/Google settings.
+- **[CHANGELOG.md](CHANGELOG.md)** — Engineering changelog (Keep a Changelog style).
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** — Product direction and rationale; “Done” links to the above where relevant.
 
 ### Development Workflow
 

@@ -1,12 +1,19 @@
 /**
  * Deploy-wide **ANTHROPIC_COT_BUDGET** → `providerOptions.anthropic.thinking` (AI SDK / gateway JSON).
  *
+ * **Why env-only budget (not per-request):** Thinking increases token usage and cost; exposing budgets
+ * only via environment keeps policy operator-controlled and avoids untrusted clients enabling expensive
+ * behavior. **Why merge helpers:** Routes already set `gateway` or `google` keys; shallow merge would
+ * drop nested keys, so we deep-merge known top-level fragments before spreading into SDK calls.
+ *
  * **Spread helpers** (pick one per call site):
  * - {@link mergeAnthropicCotProviderOptions} — plain `streamText` / `generateText` (no base `providerOptions`).
  * - {@link mergeGoogleImageModalitiesWithAnthropicCot} — Gemini-style image (`google.responseModalities`).
  * - {@link mergeGatewayGroqPreferenceWithAnthropicCot} — forwarded chat body + `gateway.order: ['groq']` (e.g. `/responses`).
  *
  * Lower-level: {@link mergeProviderOptions}, {@link anthropicThinkingProviderOptions}, {@link parseAnthropicCotBudgetFromEnv}.
+ *
+ * @see docs/anthropic-cot-budget.md
  */
 
 import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
