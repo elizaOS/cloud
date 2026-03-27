@@ -367,8 +367,10 @@ async function handlePOST(req: NextRequest) {
       let textResponse = "";
 
       try {
-        const isGoogleModel = imageModel.startsWith("google/");
-        const cotOpts = isGoogleModel
+        // Use isGeminiImageModel to properly distinguish Gemini models (which need responseModalities)
+        // from all other providers (OpenAI, Anthropic, etc.) which use standard CoT options
+        const isGeminiImageModel = imageModel.startsWith("google/");
+        const cotOpts = isGeminiImageModel
           ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel)
           : mergeAnthropicCotProviderOptions(imageModel);
         const result = streamText({ ...streamConfig, ...cotOpts });
