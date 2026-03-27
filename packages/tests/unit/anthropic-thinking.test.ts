@@ -193,6 +193,55 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
   test("non-anthropic → null", () => {
     expect(resolveAnthropicThinkingBudgetTokens("gpt-4o", { [COT_ENV_KEY]: "1024" })).toBeNull();
   });
+
+  test("anthropic model with env budget → returns budget", () => {
+    expect(
+      resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4.5", { [COT_ENV_KEY]: "2048" }),
+    ).toBe(2048);
+  });
+
+  test("anthropic model with per-agent budget overrides env", () => {
+    expect(
+      resolveAnthropicThinkingBudgetTokens(
+        "anthropic/claude-sonnet-4.5",
+        { [COT_ENV_KEY]: "1024" },
+        4096,
+      ),
+    ).toBe(4096);
+  });
+
+  test("anthropic model with per-agent 0 disables despite env", () => {
+    expect(
+      resolveAnthropicThinkingBudgetTokens(
+        "anthropic/claude-sonnet-4.5",
+        { [COT_ENV_KEY]: "1024" },
+        0,
+      ),
+    ).toBeNull();
+  });
+
+  test("ANTHROPIC_COT_BUDGET_MAX clamps per-agent budget", () => {
+    expect(
+      resolveAnthropicThinkingBudgetTokens(
+        "anthropic/claude-sonnet-4.5",
+        { [COT_ENV_KEY]: "1024", [COT_MAX_ENV_KEY]: "500" },
+        9000,
+      ),
+    ).toBe(500);
+  });
+
+  test("ANTHROPIC_COT_BUDGET_MAX clamps env default", () => {
+    expect(
+      resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4.5", {
+        [COT_ENV_KEY]: "9000",
+        [COT_MAX_ENV_KEY]: "1000",
+      }),
+    ).toBe(1000);
+  });
+
+  test("no budget configured → null", () => {
+    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4.5", {})).toBeNull();
+  });
 });
 
 describe("mergeProviderOptions", () => {
