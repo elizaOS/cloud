@@ -232,6 +232,9 @@ cloud/
 ├── .env.example            # Environment template
 ├── docs/                    # Detailed documentation
 │   ├── API_REFERENCE.md    # Complete API reference
+│   ├── anthropic-cot-budget.md   # ANTHROPIC_COT_BUDGET + provider merge WHYs
+│   ├── unit-testing-milady-mocks.md  # Bun mock.module + Milady pricing test WHYs
+│   ├── ROADMAP.md          # Product direction and done items
 │   ├── DEPLOYMENT.md       # Deployment guide
 │   ├── DEPLOYMENT_TROUBLESHOOTING.md  # Troubleshooting
 │   ├── STRIPE_SETUP.md     # Stripe integration
@@ -553,10 +556,17 @@ Tests are split by kind; use the right script for what you want to run:
 | `bun run test:unit`        | `tests/unit/`        | Unit tests (mocked deps, fast) | Env preload only; some skip without `DATABASE_URL`        |
 | `bun run test:integration` | `tests/integration/` | API/DB/E2E integration tests   | `DATABASE_URL` (+ migrations); some need a running server |
 | `bun run test:runtime`     | `tests/runtime/`     | Runtime/factory and perf tests | `DATABASE_URL` (+ migrations), heavier                    |
-| `bun run test`             | all of the above     | Full suite in one run          | Same as integration + runtime for those layers            |
+| `bun run test`             | `test:repo-unit:bulk` + `special` | Two staged **unit** batches (see `package.json` for included/excluded files) | Env preload only (same family as `test:unit`) |
 | `bun run test:playwright`  | `tests/playwright/`  | Playwright E2E (optional)      | `@playwright/test` installed                              |
 
-Env is loaded from `.env`, `.env.local`, and `.env.test` via preload. See `docs/test-failure-assessment.md` for skip behavior and remaining failure categories.
+Env is loaded from `.env`, `.env.local`, and `.env.test` via preload.
+
+### Engineering docs (WHYs)
+
+- **[docs/unit-testing-milady-mocks.md](docs/unit-testing-milady-mocks.md)** — Why partial `MILADY_PRICING` mocks break other Milady modules under Bun, and how the billing cron tests isolate `mock.module("@/db/client")` contention.
+- **[docs/anthropic-cot-budget.md](docs/anthropic-cot-budget.md)** — Per-agent `settings.anthropicThinkingBudgetTokens` (MCP/A2A), env default (`ANTHROPIC_COT_BUDGET`) and cap (`ANTHROPIC_COT_BUDGET_MAX`), and **why** thinking budgets are not request parameters.
+- **[CHANGELOG.md](CHANGELOG.md)** — Engineering changelog (Keep a Changelog style).
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** — Product direction and rationale; “Done” links to the above where relevant.
 
 ### Development Workflow
 
@@ -710,6 +720,8 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 **Cost**: Token-based pricing from `lib/pricing.ts`
 
 **Anthropic Messages API (Claude Code):** For tools that expect the [Anthropic Messages API](https://docs.anthropic.com/en/api/messages) (e.g. Claude Code), use **POST /api/v1/messages** with the same request/response shape. Set `ANTHROPIC_BASE_URL=https://cloud.milady.ai/api/v1` and `ANTHROPIC_API_KEY` to your Cloud API key so usage goes through Cloud credits instead of a direct Anthropic key. See [API docs → Anthropic Messages](/docs/api/messages). *Why: single API key and billing for both OpenAI-style and Anthropic-style clients.*
+
+**Public cloud agents (MCP / A2A) — Anthropic extended thinking:** For **`POST /api/agents/{id}/mcp`** (`chat` tool) and **`POST /api/agents/{id}/a2a`** (`chat`), extended thinking uses the character’s **`settings.anthropicThinkingBudgetTokens`** when the model is Anthropic (`0` = off; omitted = fall back to `ANTHROPIC_COT_BUDGET`). Optional **`ANTHROPIC_COT_BUDGET_MAX`** clamps any effective budget. *Why: the agent owner controls cost/quality per agent; MCP/A2A clients cannot pass a thinking budget in the request (untrusted input).* See [docs/anthropic-cot-budget.md](docs/anthropic-cot-budget.md).
 
 ### 2. AI Image Generation
 

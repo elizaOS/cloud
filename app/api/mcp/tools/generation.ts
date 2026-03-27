@@ -7,6 +7,10 @@
 import { gateway } from "@ai-sdk/gateway";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { streamText } from "ai";
+import {
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
+} from "@/lib/providers/anthropic-thinking";
 import { z } from "zod/v3";
 import { uploadBase64Image } from "@/lib/blob";
 import { calculateCost, getProviderFromModel, IMAGE_GENERATION_COST } from "@/lib/pricing";
@@ -134,9 +138,14 @@ export function registerGenerationTools(server: McpServer): void {
         generationId = generation.id;
 
         // Generate text (non-streaming for MCP)
+        // MCP text generation intentionally inherits ANTHROPIC_COT_BUDGET if set in env.
+        // Unlike SEO/promotion routes (which pass 0 to disable for temperature compat),
+        // interactive text-gen benefits from extended thinking. No explicit temperature
+        // is set here, so CoT's temperature override is acceptable.
         const result = await streamText({
           model: gateway.languageModel(model),
           prompt,
+          ...mergeAnthropicCotProviderOptions(model),
         });
 
         let fullText = "";
@@ -294,11 +303,10 @@ export function registerGenerationTools(server: McpServer): void {
 
         const enhancedPrompt = `${prompt}, ${aspectRatioDescriptions[aspectRatio]}`;
 
+        const geminiImageModel = "google/gemini-2.5-flash-image";
         const result = streamText({
-          model: "google/gemini-2.5-flash-image",
-          providerOptions: {
-            google: { responseModalities: ["TEXT", "IMAGE"] },
-          },
+          model: geminiImageModel,
+          ...mergeGoogleImageModalitiesWithAnthropicCot(geminiImageModel),
           prompt: `Generate an image: ${enhancedPrompt}`,
         });
 

@@ -11,6 +11,10 @@
  * - API key authentication (uses org credits)
  *
  * When monetization is enabled, the agent creator earns their markup percentage.
+ *
+ * **Anthropic extended thinking:** The `chat` tool merges `providerOptions` using
+ * `user_characters.settings.anthropicThinkingBudgetTokens` (see `parseThinkingBudgetFromCharacterSettings`).
+ * **Why:** Thinking budget is owner-defined on the character, not passed by MCP clients (untrusted).
  */
 
 import { gateway } from "@ai-sdk/gateway";
@@ -19,6 +23,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
+import {
+  mergeAnthropicCotProviderOptions,
+  parseThinkingBudgetFromCharacterSettings,
+  resolveAnthropicThinkingBudgetTokens,
+} from "@/lib/providers/anthropic-thinking";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
@@ -263,6 +272,7 @@ async function handleToolCall(
     inference_markup_percentage: string | null;
     system: string | null;
     bio: string | string[];
+    settings: Record<string, unknown>;
   },
   params: Record<string, unknown>,
   rpcId: string | number,
@@ -320,6 +330,16 @@ async function handleToolCall(
     const provider = getProviderFromModel(model);
     const markupPct = Number(character.inference_markup_percentage || 0);
 
+    // Resolve effective thinking budget before reservation (applies ANTHROPIC_COT_BUDGET_MAX cap)
+    const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
+    const effectiveThinkingBudget = 
+      resolveAnthropicThinkingBudgetTokens(model, process.env, agentThinkingBudget) ?? 0;
+    // Include thinking budget in output token estimate for Anthropic models
+    const baseOutputTokens = 500;
+    const estimatedOutputTokens = model.includes("claude") && effectiveThinkingBudget > 0
+      ? baseOutputTokens + effectiveThinkingBudget
+      : baseOutputTokens;
+
     // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
     let reservation: CreditReservation;
     try {
@@ -328,7 +348,7 @@ async function handleToolCall(
         model,
         provider,
         estimatedInputTokens: estimateTokens(systemPrompt + message),
-        estimatedOutputTokens: 500,
+        estimatedOutputTokens,
         userId: authResult.user.id,
         description: `Agent MCP: ${character.name}`,
       });
@@ -350,6 +370,11 @@ async function handleToolCall(
       const result = await streamText({
         model: gateway.languageModel(model),
         messages,
+        ...mergeAnthropicCotProviderOptions(
+          model,
+          process.env,
+          agentThinkingBudget,
+        ),
       });
 
       let fullText = "";

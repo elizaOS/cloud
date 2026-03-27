@@ -134,7 +134,8 @@ describe("Security Validations", () => {
       // JSON.parse creates objects without prototype pollution
       // The __proto__ becomes a regular property
       expect(Object.hasOwn(parsed, "__proto__")).toBe(true);
-      expect({}.polluted).toBeUndefined(); // Global prototype not polluted
+      const pristine: Record<string, unknown> = {};
+      expect(pristine.polluted).toBeUndefined(); // Global prototype not polluted
     });
 
     it("handles very large numbers correctly", () => {

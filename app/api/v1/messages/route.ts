@@ -30,6 +30,7 @@ import {
   getSafeModelParams,
   normalizeModelName,
 } from "@/lib/pricing";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import {
   billUsage,
   estimateInputTokens,
@@ -667,6 +668,7 @@ async function handleNonStream(
       ...safeParams,
       ...(tools ? { tools } : {}),
       ...(toolChoice ? { toolChoice } : {}),
+      ...mergeAnthropicCotProviderOptions(model),
     });
 
     const billing = await billUsage(
@@ -791,6 +793,7 @@ async function handleStream(
     ...safeParams,
     ...(tools ? { tools } : {}),
     ...(toolChoice ? { toolChoice } : {}),
+    ...mergeAnthropicCotProviderOptions(model),
     onFinish: async ({ text, totalUsage }) => {
       try {
         const billing = await billUsage(

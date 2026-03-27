@@ -13,6 +13,29 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ## March 2026
 
+### Mar 28, 2026
+
+**Per-agent Anthropic extended thinking (MCP / A2A)**
+
+- **`user_characters.settings.anthropicThinkingBudgetTokens`**: integer token budget for Anthropic “extended thinking” on **`POST /api/agents/{id}/mcp`** (`chat`) and **`POST /api/agents/{id}/a2a`** (`chat`). **`0`** disables thinking for that agent even if `ANTHROPIC_COT_BUDGET` is set; omitted or invalid values fall back to env default. **Why:** Agent owners set inference policy in stored character data without redeploying; request bodies must not carry budgets so third-party MCP/A2A callers cannot inflate token spend.
+- **`ANTHROPIC_COT_BUDGET`**: clarified as **default** when the character does not set the key (and for routes that have no resolved character). **`ANTHROPIC_COT_BUDGET_MAX`**: optional ceiling on any effective budget. **Why:** Operators keep a baseline and a worst-case cap while still allowing per-agent overrides.
+
+Docs: [Anthropic CoT / thinking](../../docs/anthropic-cot-budget.md), [CHANGELOG.md](../../CHANGELOG.md).
+
+### Mar 27, 2026
+
+**Anthropic extended thinking (deploy policy)**
+
+- Optional **`ANTHROPIC_COT_BUDGET`**: positive integer enables Anthropic extended thinking for eligible Claude models via `providerOptions.anthropic.thinking`; unset or `0` leaves behavior unchanged. **Why:** Thinking uses extra tokens—keeping control in environment config avoids arbitrary client-controlled budgets and keeps billing/support predictable.
+- Provider-option **merge helpers** preserve existing `gateway` / `google` keys when adding Anthropic fragments. **Why:** Routes already set gateway order or image modalities; overwriting the whole `providerOptions` object would drop those settings.
+
+**Milady unit tests and pricing mocks**
+
+- **`mockMiladyPricingMinimumDepositForRouteTests`**: route tests that tweak minimum deposit now spread the real `MILADY_PRICING` object instead of replacing it with `{ MINIMUM_DEPOSIT }` only. **Why:** `mock.module` replaces the entire module for the process; partial objects removed hourly rates and warning thresholds and broke Milady billing cron tests when the full unit suite ran.
+- Billing cron test file renamed to `z-milady-billing-route.test.ts` with stable queue-backed DB mocks re-registered in `beforeEach`. **Why:** Reduces order-dependent failures when other tests also mock `@/db/client`.
+
+Engineering details: [CHANGELOG.md](../../CHANGELOG.md), [docs/unit-testing-milady-mocks.md](../../docs/unit-testing-milady-mocks.md), [docs/anthropic-cot-budget.md](../../docs/anthropic-cot-budget.md).
+
 ### Mar 8, 2026
 
 **Anthropic Messages API compatibility**

@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import type { AuthResultWithOrg } from "@/app/api/mcp/lib/context";
 import { authContextStorage, getAuthContext } from "@/app/api/mcp/lib/context";
 import { errorResponse, jsonResponse } from "@/app/api/mcp/lib/responses";
 
@@ -84,9 +85,10 @@ describe("authContextStorage", () => {
         organization_id: "org-456",
         organization: { id: "org-456", name: "Test Org" },
       },
-    } as any;
+      authMethod: "session" as const,
+    } as AuthResultWithOrg;
 
-    let capturedContext: any;
+    let capturedContext: AuthResultWithOrg | undefined;
     await authContextStorage.run(mockAuth, async () => {
       capturedContext = authContextStorage.getStore();
     });
@@ -95,18 +97,34 @@ describe("authContextStorage", () => {
   });
 
   test("context is isolated between runs", async () => {
-    const auth1 = { user: { id: "user-1" } } as any;
-    const auth2 = { user: { id: "user-2" } } as any;
+    const auth1 = {
+      user: {
+        id: "user-1",
+        organization_id: "org-1",
+        organization: { id: "org-1", name: "O1" },
+      },
+      authMethod: "session" as const,
+    } as AuthResultWithOrg;
+    const auth2 = {
+      user: {
+        id: "user-2",
+        organization_id: "org-2",
+        organization: { id: "org-2", name: "O2" },
+      },
+      authMethod: "session" as const,
+    } as AuthResultWithOrg;
 
     const results: string[] = [];
 
     await Promise.all([
       authContextStorage.run(auth1, async () => {
         await new Promise((r) => setTimeout(r, 10));
-        results.push(authContextStorage.getStore()?.user.id);
+        const id = authContextStorage.getStore()?.user.id;
+        if (id !== undefined) results.push(id);
       }),
       authContextStorage.run(auth2, async () => {
-        results.push(authContextStorage.getStore()?.user.id);
+        const id = authContextStorage.getStore()?.user.id;
+        if (id !== undefined) results.push(id);
       }),
     ]);
 
@@ -127,13 +145,14 @@ describe("getAuthContext", () => {
         organization_id: "test-org",
         organization: { id: "test-org", name: "Test" },
       },
-    } as any;
+      authMethod: "session" as const,
+    } as AuthResultWithOrg;
 
-    let result: any;
+    let result: AuthResultWithOrg | undefined;
     await authContextStorage.run(mockAuth, async () => {
       result = getAuthContext();
     });
 
-    expect(result.user.id).toBe("test-user");
+    expect(result?.user.id).toBe("test-user");
   });
 });

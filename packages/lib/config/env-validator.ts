@@ -75,6 +75,70 @@ const ENV_VARS = {
     description: "AI Gateway API key",
   },
 
+  ANTHROPIC_COT_BUDGET: {
+    required: false,
+    // Note: 0 is treated as "disabled" by parseAnthropicCotBudgetFromEnv (returns null).
+    // Only positive integers enable thinking. Invalid non-empty values throw at runtime,
+    // so we fail fast at startup with failOnInvalid: true.
+    failOnInvalid: true,
+    description:
+      "Default Anthropic extended-thinking token budget when a character omits settings.anthropicThinkingBudgetTokens. Positive integer to enable; 0 or unset = disabled",
+    validate: (value: string) => {
+      const trimmed = value.trim();
+      if (trimmed === "") {
+        return false;
+      }
+      if (!/^\d+$/.test(trimmed)) {
+        return false;
+      }
+      const n = Number.parseInt(trimmed, 10);
+      // 0 is valid (means disabled), positive integers enable thinking
+      return n >= 0 && n <= Number.MAX_SAFE_INTEGER;
+    },
+    errorMessage:
+      "Must be a non-negative integer; 0 or unset = disabled, positive = thinking budget tokens",
+  },
+
+  ANTHROPIC_COT_BUDGET_MAX: {
+    required: false,
+    // Note: Invalid non-empty values here trigger request-time exceptions in anthropic-thinking.ts.
+    // Validation failures for this variable should be treated as errors (not warnings) to fail fast.
+    failOnInvalid: true,
+    description:
+      "Optional ceiling (tokens) for any effective Anthropic thinking budget (character setting or env default). Unset = no cap",
+    validate: (value: string) => {
+      const trimmed = value.trim();
+      if (trimmed === "") {
+        return false;
+      }
+      if (!/^\d+$/.test(trimmed)) {
+        return false;
+      }
+      const n = Number.parseInt(trimmed, 10);
+      return n >= 0 && n <= Number.MAX_SAFE_INTEGER;
+    },
+    errorMessage: "Must be a non-negative integer string (0 = no cap)",
+  },
+
+  RATE_LIMIT_MULTIPLIER: {
+    required: false,
+    failOnInvalid: true,
+    description:
+      "Multiplier for rate limit thresholds (e.g., 100 for 100x limits in dev). Defaults to 1 (production limits).",
+    validate: (value: string) => {
+      const trimmed = value.trim();
+      if (trimmed === "") {
+        return false;
+      }
+      if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+        return false;
+      }
+      const n = Number.parseFloat(trimmed);
+      return n > 0 && Number.isFinite(n);
+    },
+    errorMessage: "Must be a positive number (e.g., 1, 10, 100)",
+  },
+
   // Storage
   BLOB_READ_WRITE_TOKEN: {
     required: false,
@@ -191,11 +255,13 @@ export function validateEnvironment(): EnvValidationResult {
     if ("validate" in config && config.validate && !config.validate(value)) {
       const errorMsg =
         "errorMessage" in config && config.errorMessage ? config.errorMessage : "Invalid format";
-      if (config.required) {
+      // Treat as error if required OR if failOnInvalid is set (for optional vars that throw at runtime)
+      const treatAsError = config.required || ("failOnInvalid" in config && config.failOnInvalid);
+      if (treatAsError) {
         errors.push({
           variable,
           message: `${variable}: ${errorMsg}`,
-          required: true,
+          required: config.required,
         });
       } else {
         warnings.push({

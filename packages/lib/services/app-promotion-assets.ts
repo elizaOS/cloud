@@ -1,6 +1,10 @@
 import { gateway } from "@ai-sdk/gateway";
 import { put } from "@vercel/blob";
 import { generateText, streamText } from "ai";
+import {
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
+} from "@/lib/providers/anthropic-thinking";
 import { z } from "zod";
 import type { App } from "@/db/repositories";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
@@ -297,11 +301,11 @@ class AppPromotionAssetsService {
     try {
       // Use model string directly (not gateway.languageModel) for image generation
       // This matches the working pattern in /api/v1/generate-image
+      // Note: Image generation uses Gemini models which don't support CoT, so temperature
+      // control is not affected by ANTHROPIC_COT_BUDGET settings.
       const result = streamText({
         model: IMAGE_MODEL,
-        providerOptions: {
-          google: { responseModalities: ["TEXT", "IMAGE"] },
-        },
+        ...mergeGoogleImageModalitiesWithAnthropicCot(IMAGE_MODEL),
         prompt: `Generate a promotional banner image: ${prompt}`,
       });
 
@@ -458,8 +462,13 @@ Return JSON with these exact fields:
 
 Return ONLY valid JSON. No markdown, no explanation.`;
 
+    const copyModel = "anthropic/claude-sonnet-4";
+    // Note: Explicitly disable extended thinking (pass 0) for ad copy generation.
+    // This is a background service that requires temperature control for creative output,
+    // and enabling CoT would silently drop temperature per @ai-sdk/anthropic behavior.
     const { text } = await generateText({
-      model: gateway.languageModel("anthropic/claude-sonnet-4"),
+      model: gateway.languageModel(copyModel),
+      ...mergeAnthropicCotProviderOptions(copyModel, process.env, 0),
       temperature: 0.8,
       prompt,
     });

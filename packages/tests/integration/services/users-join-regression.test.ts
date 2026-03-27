@@ -66,7 +66,11 @@ describe("Privy read-path regression (5c31c7732)", () => {
     expect(serviceUser!.organization_id).toBe(relationalUser!.organization_id);
 
     const serviceOrg = serviceUser!.organization!;
-    const relationalOrg = relationalUser!.organization!;
+    const relationalOrgRaw = relationalUser!.organization;
+    if (relationalOrgRaw == null || Array.isArray(relationalOrgRaw)) {
+      throw new Error("expected single organization relation");
+    }
+    const relationalOrg = relationalOrgRaw;
     expect(serviceOrg.credit_balance).toBe(relationalOrg.credit_balance);
     expect(serviceOrg.id).toBe(relationalOrg.id);
     expect(serviceOrg.name).toBe(relationalOrg.name);

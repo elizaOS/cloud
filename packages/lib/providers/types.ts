@@ -2,6 +2,8 @@
  * Type definitions for AI provider interfaces.
  */
 
+import type { CloudMergedProviderOptions } from "@/lib/providers/cloud-provider-options";
+
 /**
  * OpenAI-compatible chat message.
  */
@@ -45,11 +47,8 @@ export interface OpenAIChatRequest {
   seed?: number;
   logprobs?: boolean;
   top_logprobs?: number;
-  providerOptions?: {
-    gateway?: {
-      order?: string[];
-    };
-  };
+  /** AI Gateway + provider-specific options (matches AI SDK `SharedV3ProviderOptions`). */
+  providerOptions?: CloudMergedProviderOptions;
 }
 
 export interface ProviderRequestOptions {

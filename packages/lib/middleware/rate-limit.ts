@@ -41,6 +41,11 @@ function validateRateLimitConfig() {
   if (hasValidatedConfig) return;
   hasValidatedConfig = true;
 
+  // Note: Set RATE_LIMIT_DISABLED=true in development to bypass rate limiting for integration tests.
+  if (process.env.RATE_LIMIT_DISABLED === "true" && process.env.NODE_ENV !== "production") {
+    return;
+  }
+
   if (process.env.NODE_ENV === "production") {
     if (process.env.REDIS_RATE_LIMITING !== "true") {
       throw new Error(
@@ -51,7 +56,9 @@ function validateRateLimitConfig() {
     }
     logger.info("[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)");
   } else {
-    logger.info("[Rate Limit] 🔓 Development mode: Rate limits relaxed (10000 req/window)");
+    logger.info(
+      "[Rate Limit] Development mode: same numeric limits as production; storage is in-memory (set REDIS_RATE_LIMITING=true to use Redis).",
+    );
   }
 }
 
@@ -283,8 +290,8 @@ export function withRateLimit<T = Record<string, string>>(
     // Add rate limit headers to successful responses
     // Create new response with additional headers to preserve immutability
     const newHeaders = new Headers(response.headers);
-    for (const [key, value] of Object.entries(headers)) {
-      newHeaders.set(key, value);
+    for (const [headerKey, value] of Object.entries(headers)) {
+      newHeaders.set(headerKey, value);
     }
 
     return new Response(response.body, {
@@ -296,52 +303,65 @@ export function withRateLimit<T = Record<string, string>>(
 }
 
 /**
- * Preset rate limit configurations
- * DEVELOPMENT: Very high limits to allow rapid testing and iteration
- * PRODUCTION: Strict limits to protect against abuse
+ * Get rate limit multiplier from environment.
+ * Allows local developers to increase limits without code changes.
+ * Set RATE_LIMIT_MULTIPLIER=100 in .env.local to effectively disable limits during dev.
+ * Default is 1 (production-level limits).
  */
-const isDevelopment = process.env.NODE_ENV !== "production";
+function getRateLimitMultiplier(): number {
+  const multiplier = process.env.RATE_LIMIT_MULTIPLIER;
+  if (!multiplier) return 1;
+  const parsed = Number.parseInt(multiplier, 10);
+  return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+}
+
+/**
+ * Preset rate limit configurations (same values in dev and production).
+ * Only the backing store differs: Redis when REDIS_RATE_LIMITING=true, else in-memory.
+ *
+ * NOTE FOR LOCAL DEVELOPMENT: These are production-level limits by default.
+ * Set RATE_LIMIT_MULTIPLIER=100 in .env.local to increase limits for local dev/testing.
+ */
+const rateLimitMultiplier = getRateLimitMultiplier();
 
 export const RateLimitPresets = {
-  // Generous limits for general API usage
+  /** 60 requests per minute - standard API endpoints */
   STANDARD: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 60, // Dev: virtually unlimited, Prod: 60/min
+    windowMs: 60000,
+    maxRequests: 60 * rateLimitMultiplier,
   },
 
-  // Strict limits for expensive operations
+  /** 10 requests per minute - sensitive operations */
   STRICT: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 10, // Dev: virtually unlimited, Prod: 10/min
+    windowMs: 60000,
+    maxRequests: 10 * rateLimitMultiplier,
   },
 
-  // Relaxed limits for high-frequency AI endpoints (chat completions, responses)
+  /** 200 requests per minute - high-throughput endpoints */
   RELAXED: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 200, // Dev: virtually unlimited, Prod: 200/min
+    windowMs: 60000,
+    maxRequests: 200 * rateLimitMultiplier,
   },
 
-  // Very strict for critical operations (deployments, payments)
+  /** 5 requests per 5 minutes - critical/expensive operations */
   CRITICAL: {
-    windowMs: 300000, // 5 minutes
-    maxRequests: isDevelopment ? 10000 : 5, // Dev: virtually unlimited, Prod: 5/5min
+    windowMs: 300000,
+    maxRequests: 5 * rateLimitMultiplier,
   },
 
-  // Burst allowance for real-time features
+  /** 10 requests per second - burst protection */
   BURST: {
-    windowMs: 1000, // 1 second
-    maxRequests: isDevelopment ? 1000 : 10, // Dev: 1000/sec, Prod: 10/sec
+    windowMs: 1000,
+    maxRequests: 10 * rateLimitMultiplier,
   },
 
-  // Aggressive limits for webhook endpoints (external services calling us)
-  // Webhooks are server-to-server and should be rate limited per IP
-  // 100/min is reasonable for payment provider callbacks
+  /** 100 requests per minute, keyed by IP - for public endpoints */
   AGGRESSIVE: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 100, // Dev: virtually unlimited, Prod: 100/min
+    windowMs: 60000,
+    maxRequests: 100 * rateLimitMultiplier,
     keyGenerator: getIpKey,
   },
-} as const;
+};
 
 /**
  * Cost-based rate limiting for expensive operations

@@ -126,6 +126,9 @@ describe("UsersService", () => {
     test("handles case sensitivity based on database collation", async () => {
       // Arrange
       const email = testData.user.email;
+      if (email === null || email === undefined) {
+        throw new Error("fixture user must have an email");
+      }
       const uppercaseEmail = email.toUpperCase();
 
       // Act
@@ -135,7 +138,7 @@ describe("UsersService", () => {
       // PostgreSQL default is case-sensitive, so uppercase lookup may return undefined
       if (user) {
         // If found, emails should match (case-insensitive comparison)
-        expect(user.email.toLowerCase()).toBe(email.toLowerCase());
+        expect((user.email ?? "").toLowerCase()).toBe(email.toLowerCase());
       } else {
         // Case-sensitive DB - original email should still work
         const originalUser = await usersService.getByEmail(email);
@@ -301,7 +304,8 @@ describe("UsersService", () => {
         const user = await usersService.getByPrivyId(privyId);
 
         expect(user).toBeDefined();
-        expect([testData.user.id, secondData.user.id]).toContain(user?.id);
+        const winnerId = user!.id;
+        expect([testData.user.id, secondData.user.id]).toContain(winnerId);
       } finally {
         await cleanupTestData(connectionString, secondData.organization.id);
         await cleanupTestData(connectionString, testData.organization.id);

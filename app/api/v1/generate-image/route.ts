@@ -3,6 +3,10 @@ import { streamText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import {
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
+} from "@/lib/providers/anthropic-thinking";
 import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -334,9 +338,6 @@ async function handlePOST(req: NextRequest) {
 
         streamConfig = {
           model: imageModel,
-          providerOptions: {
-            google: { responseModalities: ["TEXT", "IMAGE"] },
-          },
           messages: [
             {
               role: "user",
@@ -358,9 +359,6 @@ async function handlePOST(req: NextRequest) {
         // Google/other models: Text-to-image with simple prompt
         streamConfig = {
           model: imageModel,
-          providerOptions: {
-            google: { responseModalities: ["TEXT", "IMAGE"] },
-          },
           prompt: `Generate an image: ${enhancedPrompt}`,
         };
       }
@@ -369,7 +367,16 @@ async function handlePOST(req: NextRequest) {
       let textResponse = "";
 
       try {
-        const result = streamText(streamConfig);
+        // Image generation routes explicitly disable CoT (pass 0) because:
+        // 1. Extended thinking is not applicable to image generation
+        // 2. Temperature control must be preserved for image quality
+        // 3. Future Anthropic image models should not silently receive thinking options
+        // Google models need responseModalities for image output; all others get empty options.
+        const isGoogleModel = imageModel.startsWith("google/");
+        const cotOpts = isGoogleModel
+          ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel, process.env, 0)
+          : mergeAnthropicCotProviderOptions(imageModel, process.env, 0);
+        const result = streamText({ ...streamConfig, ...cotOpts });
 
         for await (const delta of result.fullStream) {
           switch (delta.type) {

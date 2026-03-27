@@ -21,6 +21,7 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import { getLanguageModel } from "@/lib/providers/language-model";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import {
   billUsage,
   estimateInputTokens,
@@ -430,6 +431,7 @@ async function handleStreamingRequest(
       : undefined,
   });
 
+  // Anthropic extended thinking: ANTHROPIC_COT_BUDGET (>0); @ai-sdk/anthropic strips temp/topP/topK when thinking is on.
   const result = streamText({
     model: getLanguageModel(model),
     system: systemPrompt,
@@ -438,6 +440,7 @@ async function handleStreamingRequest(
     timeout: timeoutMs,
     ...safeParams,
     ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
+    ...mergeAnthropicCotProviderOptions(model),
     onFinish: async ({ text, usage }) => {
       try {
         const billing = await billUsage(
@@ -606,6 +609,7 @@ async function handleNonStreamingRequest(
       timeout: timeoutMs,
       ...safeParamsNonStream,
       ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
+      ...mergeAnthropicCotProviderOptions(model),
     });
 
     // Bill using actual usage from SDK response

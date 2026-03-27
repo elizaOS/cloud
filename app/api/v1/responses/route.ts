@@ -28,6 +28,7 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import { getProviderForModel } from "@/lib/providers";
+import { mergeGatewayGroqPreferenceWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
 import type { OpenAIChatRequest, OpenAIChatResponse } from "@/lib/providers/types";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { creditsService } from "@/lib/services/credits";
@@ -661,15 +662,12 @@ async function handlePOST(req: NextRequest) {
     }
 
     const providerInstance = getProviderForModel(model);
+    // Gateway: Groq preference + optional ANTHROPIC_COT_BUDGET (providerOptions.anthropic.thinking) per AI Gateway docs.
     const requestWithProvider = isGroqNativeModel(model)
       ? safeRequest
       : {
           ...safeRequest,
-          providerOptions: {
-            gateway: {
-              order: ["groq"], // Use Groq as preferred provider
-            },
-          },
+          ...mergeGatewayGroqPreferenceWithAnthropicCot(model),
         };
     const providerResponse = await providerInstance.chatCompletions(requestWithProvider, {
       signal: req.signal,

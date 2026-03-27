@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { canAutoCreateWaifuBridgeOrg } from "@/lib/auth/waifu-bridge";
 
+const mutableEnv = process.env as Record<string, string | undefined>;
+
 describe("waifu bridge auth policy", () => {
   const savedNodeEnv = process.env.NODE_ENV;
   const savedAutoCreate = process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE;
@@ -10,7 +12,7 @@ describe("waifu bridge auth policy", () => {
   });
 
   afterEach(() => {
-    process.env.NODE_ENV = savedNodeEnv;
+    mutableEnv.NODE_ENV = savedNodeEnv;
     if (savedAutoCreate === undefined) {
       delete process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE;
     } else {
@@ -19,26 +21,26 @@ describe("waifu bridge auth policy", () => {
   });
 
   test("disables auto-creating orgs in production by default", () => {
-    process.env.NODE_ENV = "production";
+    mutableEnv.NODE_ENV = "production";
     expect(canAutoCreateWaifuBridgeOrg()).toBe(false);
   });
 
   test("disables auto-creating orgs in development by default (no longer relies on NODE_ENV)", () => {
-    process.env.NODE_ENV = "development";
+    mutableEnv.NODE_ENV = "development";
     expect(canAutoCreateWaifuBridgeOrg()).toBe(false);
   });
 
   test("disables auto-creating orgs in preview/staging by default", () => {
-    process.env.NODE_ENV = "test";
+    mutableEnv.NODE_ENV = "test";
     expect(canAutoCreateWaifuBridgeOrg()).toBe(false);
   });
 
   test("allows explicit opt-in for org auto-creation regardless of NODE_ENV", () => {
-    process.env.NODE_ENV = "production";
+    mutableEnv.NODE_ENV = "production";
     process.env.WAIFU_BRIDGE_ALLOW_ORG_AUTO_CREATE = "true";
     expect(canAutoCreateWaifuBridgeOrg()).toBe(true);
 
-    process.env.NODE_ENV = "development";
+    mutableEnv.NODE_ENV = "development";
     expect(canAutoCreateWaifuBridgeOrg()).toBe(true);
   });
 

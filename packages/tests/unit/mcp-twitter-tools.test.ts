@@ -7,6 +7,24 @@
 
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import type { OAuthConnection } from "@/lib/services/oauth/types";
+
+function twitterOAuthFixture(
+  o: Partial<OAuthConnection> & Pick<OAuthConnection, "id" | "status">,
+): OAuthConnection {
+  const { id, status, ...rest } = o;
+  return {
+    platform: "twitter",
+    platformUserId: rest.platformUserId ?? `pu-${id}`,
+    scopes: rest.scopes ?? [],
+    linkedAt: rest.linkedAt ?? new Date("2026-01-01T00:00:00Z"),
+    tokenExpired: rest.tokenExpired ?? false,
+    source: rest.source ?? "platform_credentials",
+    id,
+    status,
+    ...rest,
+  };
+}
 
 process.env.TWITTER_API_KEY = "test-api-key";
 process.env.TWITTER_API_SECRET_KEY = "test-api-secret";
@@ -193,13 +211,12 @@ const mockOAuth = {
     accessTokenSecret: "sec",
   })),
   listConnections: mock(async () => [
-    {
+    twitterOAuthFixture({
       id: "c1",
       status: "active",
       displayName: "testuser",
       scopes: ["read", "write"],
-      linkedAt: "2026-01-01T00:00:00Z",
-    },
+    }),
   ]),
 };
 
@@ -219,7 +236,16 @@ function auth(orgId = "org-1") {
   } as any;
 }
 
-async function callTool(name: string, args: Record<string, unknown> = {}, orgId = "org-1") {
+type TwitterToolHandlerResult = {
+  content: Array<{ text: string }>;
+  isError?: boolean;
+};
+
+async function callTool(
+  name: string,
+  args: Record<string, unknown> = {},
+  orgId = "org-1",
+): Promise<TwitterToolHandlerResult> {
   const { registerTwitterTools } = await import("@/app/api/mcp/tools/twitter");
   let handler: AnyFn | undefined;
   const mockServer = {
@@ -230,10 +256,10 @@ async function callTool(name: string, args: Record<string, unknown> = {}, orgId 
   registerTwitterTools(mockServer);
   if (!handler) throw new Error(`Tool "${name}" not found`);
   const h = handler;
-  return authContextStorage.run(auth(orgId), () => h(args));
+  return authContextStorage.run(auth(orgId), () => h(args)) as Promise<TwitterToolHandlerResult>;
 }
 
-function parse(result: { content: Array<{ text: string }> }) {
+function parse(result: TwitterToolHandlerResult) {
   return JSON.parse(result.content[0].text);
 }
 
@@ -249,13 +275,12 @@ describe("Twitter MCP Tools", () => {
     }));
     mockOAuth.listConnections.mockReset();
     mockOAuth.listConnections.mockImplementation(async () => [
-      {
+      twitterOAuthFixture({
         id: "c1",
         status: "active",
         displayName: "testuser",
         scopes: ["read", "write"],
-        linkedAt: "2026-01-01T00:00:00Z",
-      },
+      }),
     ]);
   });
 
@@ -327,8 +352,8 @@ describe("Twitter MCP Tools", () => {
 
     test("filters out revoked/expired connections", async () => {
       mockOAuth.listConnections.mockImplementation(async () => [
-        { id: "c1", status: "revoked", displayName: "old" },
-        { id: "c2", status: "expired", displayName: "expired" },
+        twitterOAuthFixture({ id: "c1", status: "revoked", displayName: "old" }),
+        twitterOAuthFixture({ id: "c2", status: "expired", displayName: "expired" }),
       ]);
       const p = parse(await callTool("twitter_status"));
       expect(p.connected).toBe(false);
@@ -969,7 +994,9 @@ describe("Twitter MCP Tools", () => {
     test("missing accessTokenSecret returns a specific reconnect error", async () => {
       mockOAuth.getValidTokenByPlatform.mockImplementation(async () => ({
         accessToken: "tok",
-        accessTokenSecret: null,
+        accessTokenSecret: "",
+        refreshed: false,
+        fromCache: false,
       }));
       const r = await callTool("twitter_get_me");
       expect(r.isError).toBe(true);

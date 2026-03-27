@@ -9,6 +9,7 @@ import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { resolveModel } from "@/lib/models";
 import { estimateTokens } from "@/lib/pricing";
 import { getLanguageModel } from "@/lib/providers/language-model";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import { billUsage } from "@/lib/services/ai-billing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -290,6 +291,7 @@ async function handlePOST(req: NextRequest) {
       messages: await convertToModelMessages(messages),
       abortSignal: req.signal,
       timeout: routeTimeoutMs,
+      ...mergeAnthropicCotProviderOptions(selectedModel),
       onFinish: async ({ text, usage }) => {
         try {
           if (!usage) {

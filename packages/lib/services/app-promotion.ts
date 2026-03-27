@@ -1,5 +1,6 @@
 import { gateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import type { App } from "@/db/repositories";
 import {
   AD_COPY_GENERATION_COST,
@@ -248,10 +249,15 @@ Generate the following in JSON format:
 
 Return ONLY valid JSON, no markdown.`;
 
+    const promoModel = "anthropic/claude-sonnet-4";
+    // Note: When ANTHROPIC_COT_BUDGET is set, temperature is silently dropped by @ai-sdk/anthropic.
+    // Promotional content generation is a background service that does not benefit from extended thinking.
+    // Pass 0 as thinkingBudget to explicitly disable CoT for these internal service calls.
     const { text } = await generateText({
-      model: gateway.languageModel("anthropic/claude-sonnet-4"),
+      model: gateway.languageModel(promoModel),
       temperature: 0.7,
       prompt,
+      ...mergeAnthropicCotProviderOptions(promoModel, process.env, 0),
     });
 
     // Parse and validate the AI response

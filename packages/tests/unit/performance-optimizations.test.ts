@@ -42,6 +42,18 @@ describe("Action validation cache", () => {
 
   const emptyState = { values: {}, data: {}, text: "" } as State;
 
+  type ProviderSnapshot = { data?: unknown; values?: unknown };
+
+  function providerActionsData(state: ProviderSnapshot): { name: string }[] {
+    expect(state.data).toBeDefined();
+    return (state.data as { actionsData: { name: string }[] }).actionsData;
+  }
+
+  function providerValues(state: ProviderSnapshot): Record<string, string> {
+    expect(state.values).toBeDefined();
+    return state.values as Record<string, string>;
+  }
+
   test("returns validated actions, filters out invalid ones", async () => {
     const validAction: Action = {
       name: "TEST_ACTION",
@@ -66,8 +78,8 @@ describe("Action validation cache", () => {
       emptyState,
     );
 
-    expect(result.data.actionsData).toHaveLength(1);
-    expect(result.data.actionsData[0].name).toBe("TEST_ACTION");
+    expect(providerActionsData(result)).toHaveLength(1);
+    expect(providerActionsData(result)[0].name).toBe("TEST_ACTION");
   });
 
   test("caches results — same message ID validates only once", async () => {
@@ -165,8 +177,8 @@ describe("Action validation cache", () => {
       makeMessage("msg-error-1"),
       emptyState,
     );
-    expect(result.data.actionsData).toHaveLength(1);
-    expect(result.data.actionsData[0].name).toBe("GOOD");
+    expect(providerActionsData(result)).toHaveLength(1);
+    expect(providerActionsData(result)[0].name).toBe("GOOD");
   });
 
   test("caches discoverable tool count from MCP service", async () => {
@@ -184,7 +196,7 @@ describe("Action validation cache", () => {
       makeMessage("msg-mcp-count-1"),
       emptyState,
     );
-    expect(result.values.discoverableToolCount).toBe("42");
+    expect(providerValues(result).discoverableToolCount).toBe("42");
   });
 
   test("handles missing MCP service gracefully", async () => {
@@ -202,7 +214,7 @@ describe("Action validation cache", () => {
     } as unknown as IAgentRuntime;
 
     const result = await actionsProvider.get!(runtime, makeMessage("msg-no-mcp-1"), emptyState);
-    expect(result.values.discoverableToolCount).toBe("");
+    expect(providerValues(result).discoverableToolCount).toBe("");
   });
 
   test("no validated actions returns empty values", async () => {
@@ -220,8 +232,8 @@ describe("Action validation cache", () => {
       makeMessage("msg-empty-1"),
       emptyState,
     );
-    expect(result.data.actionsData).toHaveLength(0);
-    expect(result.values.actionsWithParams).toBe("");
+    expect(providerActionsData(result)).toHaveLength(0);
+    expect(providerValues(result).actionsWithParams).toBe("");
   });
 
   test("parallel calls after cache is warm all return same data", async () => {
@@ -251,8 +263,8 @@ describe("Action validation cache", () => {
     ]);
 
     expect(validateCallCount).toBe(1);
-    expect(r1.data.actionsData).toEqual(r2.data.actionsData);
-    expect(r2.data.actionsData).toEqual(r3.data.actionsData);
+    expect(providerActionsData(r1)).toEqual(providerActionsData(r2));
+    expect(providerActionsData(r2)).toEqual(providerActionsData(r3));
   });
 
   test("concurrent calls on cold cache cause redundant validation (known trade-off)", async () => {
@@ -282,9 +294,9 @@ describe("Action validation cache", () => {
     // All 3 see !cached and run validation independently — this is the known trade-off.
     // Correctness is preserved: all return valid data, just redundant work.
     expect(validateCallCount).toBeGreaterThanOrEqual(2);
-    expect(r1.data.actionsData).toHaveLength(1);
-    expect(r2.data.actionsData).toHaveLength(1);
-    expect(r3.data.actionsData).toHaveLength(1);
+    expect(providerActionsData(r1)).toHaveLength(1);
+    expect(providerActionsData(r2)).toHaveLength(1);
+    expect(providerActionsData(r3)).toHaveLength(1);
   });
 
   test("invalidation clears the stale eviction timer before recaching", async () => {
@@ -355,10 +367,10 @@ describe("Action validation cache", () => {
     } as unknown as Memory;
 
     const r1 = await actionsProvider.get!(runtime, msg, emptyState);
-    expect(r1.data.actionsData).toHaveLength(1);
+    expect(providerActionsData(r1)).toHaveLength(1);
 
     const r2 = await actionsProvider.get!(runtime, msg, emptyState);
-    expect(r2.data.actionsData).toHaveLength(1);
+    expect(providerActionsData(r2)).toHaveLength(1);
     expect(validateCallCount).toBe(2);
   });
 });

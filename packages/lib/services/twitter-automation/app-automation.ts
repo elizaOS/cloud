@@ -1,5 +1,6 @@
 import { gateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import { TwitterApi } from "twitter-api-v2";
 import { type App, appsRepository } from "@/db/repositories";
 import { TWITTER_POST_COST } from "@/lib/promotion-pricing";
@@ -232,8 +233,14 @@ Requirements:
 Return ONLY the tweet text, nothing else.`;
 
     try {
+      const twModel = "anthropic/claude-sonnet-4";
+      // Note: Explicitly disable extended thinking (pass 0) for tweet generation.
+      // This is a background service that requires temperature control for creative output,
+      // and enabling CoT would silently drop temperature per @ai-sdk/anthropic behavior.
+      // Temperature 0.8 for varied, creative tweet content.
       const { text } = await generateText({
-        model: gateway.languageModel("anthropic/claude-sonnet-4"),
+        model: gateway.languageModel(twModel),
+        ...mergeAnthropicCotProviderOptions(twModel, process.env, 0),
         temperature: 0.8,
         prompt,
       });

@@ -13,6 +13,7 @@ import type {
   SeoRequest,
 } from "@/db/schemas/seo";
 import { seoRequests, seoRequestTypeEnum } from "@/db/schemas/seo";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { logger } from "@/lib/utils/logger";
 import { creditsService } from "./credits";
@@ -202,9 +203,14 @@ async function callClaudeSeoDraft(
   schema?: Record<string, unknown>;
 }> {
   const modelId = "anthropic/claude-sonnet-4";
+  // Note: Explicitly disable extended thinking (pass 0) for SEO generation.
+  // This is a background service that does not benefit from CoT, and enabling it
+  // would silently drop temperature control per @ai-sdk/anthropic behavior.
+  // Temperature 0.3 for deterministic, consistent SEO metadata output.
   const { text } = await generateText({
     model: gateway.languageModel(modelId),
     temperature: 0.3,
+    ...mergeAnthropicCotProviderOptions(modelId, process.env, 0),
     system:
       type === "meta"
         ? "Generate concise SEO metadata JSON with keys: title, description, keywords (array), metaTags (object). Keep title <= 60 chars, description <= 155 chars."

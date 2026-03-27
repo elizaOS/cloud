@@ -364,7 +364,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
         timeoutMs: 120000,
         debug: {
           enabled: debugEnabled,
-          renderView: "detail",
+          renderView: "full",
           storeTrace: true,
         },
       },
@@ -392,7 +392,7 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
         console.log("DEBUG TRACE");
         console.log("=".repeat(60));
 
-        const markdown = renderDebugTrace(trace, "detail");
+        const markdown = renderDebugTrace(trace, "full");
         console.log(markdown);
 
         console.log("\n" + "=".repeat(60));
@@ -404,11 +404,12 @@ describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () 
         console.log(`   Steps: ${trace.steps?.length || 0}`);
         console.log(`   Duration: ${trace.endedAt ? trace.endedAt - trace.startedAt : "N/A"}ms`);
 
-        if (trace.failure) {
+        const fail = trace.failures[0];
+        if (fail) {
           console.log(`\nFailure detected:`);
-          console.log(`   Type: ${trace.failure.type}`);
-          console.log(`   Message: ${trace.failure.message}`);
-          console.log(`   Step: ${trace.failure.step}`);
+          console.log(`   Type: ${fail.type}`);
+          console.log(`   Message: ${fail.message}`);
+          console.log(`   Step: ${fail.stepIndex}`);
         }
       } else {
         console.log("\nNo debug trace captured (trace may not have been generated)");

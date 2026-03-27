@@ -3,10 +3,19 @@
  *
  * Core skill implementations for A2A protocol.
  * Only includes skills that are fully tested and working.
+ *
+ * Note: CoT budget uses env-only resolution (no per-character settings) because
+ * A2A skills operate at the protocol level without a resolved character context.
+ * The calling agent's character is not available here — skills are invoked via
+ * the A2A protocol which only provides user/org context, not agent personality.
  */
 
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
+import {
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
+} from "@/lib/providers/anthropic-thinking";
 import {
   calculateCost,
   estimateRequestCost,
@@ -88,6 +97,7 @@ export async function executeSkillChatCompletion(
         content: m.content,
       })),
       ...options,
+      ...mergeAnthropicCotProviderOptions(model),
     });
 
     let fullText = "";
@@ -186,9 +196,10 @@ export async function executeSkillImageGeneration(
       "3:4": "portrait",
     };
 
+    const imageModelId = "google/gemini-2.5-flash-image";
     const result = streamText({
-      model: "google/gemini-2.5-flash-image",
-      providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } },
+      model: imageModelId,
+      ...mergeGoogleImageModalitiesWithAnthropicCot(imageModelId),
       prompt: `Generate an image: ${prompt}, ${aspectDesc[aspectRatio] || "square"} composition`,
     });
 
