@@ -41,6 +41,11 @@ function validateRateLimitConfig() {
   if (hasValidatedConfig) return;
   hasValidatedConfig = true;
 
+  // Note: Set RATE_LIMIT_DISABLED=true in development to bypass rate limiting for integration tests.
+  if (process.env.RATE_LIMIT_DISABLED === "true" && process.env.NODE_ENV !== "production") {
+    return;
+  }
+
   if (process.env.NODE_ENV === "production") {
     if (process.env.REDIS_RATE_LIMITING !== "true") {
       throw new Error(

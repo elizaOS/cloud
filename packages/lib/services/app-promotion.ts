@@ -250,6 +250,9 @@ Generate the following in JSON format:
 Return ONLY valid JSON, no markdown.`;
 
     const promoModel = "anthropic/claude-sonnet-4";
+    // Note: When ANTHROPIC_COT_BUDGET is set, temperature is silently dropped by @ai-sdk/anthropic.
+    // Promotional content generation is a background service that does not benefit from extended thinking.
+    // Consider passing null as thinkingBudget to disable CoT for these internal service calls.
     const { text } = await generateText({
       model: gateway.languageModel(promoModel),
       temperature: 0.7,
