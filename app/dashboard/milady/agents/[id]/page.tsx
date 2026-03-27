@@ -16,7 +16,6 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import { formatHourlyRate, formatMonthlyEstimate } from "@/lib/constants/milady-pricing-display";
 import { statusBadgeColor, statusDotColor } from "@/lib/constants/sandbox-status";
-import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { adminService } from "@/lib/services/admin";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { getStewardWalletInfo, type StewardWalletInfo } from "@/lib/services/steward-client";
@@ -95,7 +94,6 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
     : null;
 
   const isDockerBacked = isDockerBacked_early;
-  const webUiUrl = getPreferredMiladyAgentWebUiUrl(agent);
   const sshCommand = agent.headscale_ip ? `ssh root@${agent.headscale_ip}` : null;
 
   const badgeColor = statusBadgeColor(agent.status);
@@ -115,7 +113,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           <span>Milady Instances</span>
         </Link>
 
-        {webUiUrl && agent.status === "running" && <MiladyConnectButton agentId={agent.id} />}
+        {agent.status === "running" && <MiladyConnectButton agentId={agent.id} />}
       </div>
 
       {/* ── Agent header ── */}
@@ -269,14 +267,6 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {webUiUrl && (
-            <div className="border border-white/10 bg-black/40 px-4 py-3 flex items-center gap-3 text-sm">
-              <span className="text-[11px] uppercase tracking-widest text-white/35 shrink-0">
-                Web UI
-              </span>
-              <span className="text-white/50 font-mono text-xs break-all">{webUiUrl}</span>
-            </div>
-          )}
         </section>
       )}
 
@@ -343,7 +333,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       )}
 
       {/* ── Actions card ── */}
-      <MiladyAgentActions agentId={agent.id} status={agent.status} webUiUrl={webUiUrl} />
+      <MiladyAgentActions agentId={agent.id} status={agent.status} />
 
       {/* ── Backups / history ── */}
       <MiladyBackupsPanel
