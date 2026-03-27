@@ -367,9 +367,10 @@ async function handlePOST(req: NextRequest) {
       let textResponse = "";
 
       try {
-        const cotOpts = isOpenAIModel
-          ? mergeAnthropicCotProviderOptions(imageModel)
-          : mergeGoogleImageModalitiesWithAnthropicCot(imageModel);
+        const isGoogleModel = imageModel.startsWith("google/");
+        const cotOpts = isGoogleModel
+          ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel)
+          : mergeAnthropicCotProviderOptions(imageModel);
         const result = streamText({ ...streamConfig, ...cotOpts });
 
         for await (const delta of result.fullStream) {
