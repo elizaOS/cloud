@@ -369,7 +369,9 @@ async function handlePOST(req: NextRequest) {
         // extended thinking is not applicable to image generation and may cause issues with
         // future image-capable models. Only Google models need special handling for responseModalities.
         const isGeminiImageModel = imageModel.startsWith("google/");
-        // Pass 0 as thinkingBudget to explicitly disable CoT for image generation routes
+        // Note: The 0 argument is technically redundant for Google models since
+        // resolveAnthropicThinkingBudgetTokens returns null for non-Anthropic providers,
+        // but we pass it explicitly to document that CoT is intentionally disabled for image routes.
         const cotOpts = isGeminiImageModel
           ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel, process.env, 0)
           : {}; // No CoT for non-Google image models - thinking is text-generation only
