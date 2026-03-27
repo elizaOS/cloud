@@ -468,9 +468,9 @@ Return ONLY valid JSON. No markdown, no explanation.`;
     // and enabling CoT would silently drop temperature per @ai-sdk/anthropic behavior.
     const { text } = await generateText({
       model: gateway.languageModel(copyModel),
+      ...mergeAnthropicCotProviderOptions(copyModel, process.env, 0),
       temperature: 0.8,
       prompt,
-      ...mergeAnthropicCotProviderOptions(copyModel, process.env, 0),
     });
 
     return parseAiJson(text, AdCopyVariantsSchema, "ad copy variants");
