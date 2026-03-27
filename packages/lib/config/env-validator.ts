@@ -77,11 +77,10 @@ const ENV_VARS = {
 
   ANTHROPIC_COT_BUDGET: {
     required: false,
-    // Note: Invalid non-empty values here trigger request-time exceptions in anthropic-thinking.ts.
-    // Validation failures for this variable should be treated as errors (not warnings) to fail fast.
-    failOnInvalid: true,
+    // Note: 0 means "disabled" and is valid. Invalid non-empty values (e.g. "abc") will
+    // cause warnings but not startup failures, matching parseAnthropicCotBudgetFromEnv behavior.
     description:
-      "Default Anthropic extended-thinking token budget when a character omits settings.anthropicThinkingBudgetTokens. Positive integer to enable; unset or 0 = disabled",
+      "Default Anthropic extended-thinking token budget when a character omits settings.anthropicThinkingBudgetTokens. Positive integer to enable; 0 or unset = disabled",
     validate: (value: string) => {
       const trimmed = value.trim();
       if (trimmed === "") {
@@ -91,11 +90,11 @@ const ENV_VARS = {
         return false;
       }
       const n = Number.parseInt(trimmed, 10);
-      // 0 is treated as disabled by parseAnthropicCotBudgetFromEnv, so only accept positive integers
-      return n > 0 && n <= Number.MAX_SAFE_INTEGER;
+      // 0 is valid (means disabled), positive integers enable thinking
+      return n >= 0 && n <= Number.MAX_SAFE_INTEGER;
     },
     errorMessage:
-      "Must be a positive integer (0 or unset = disabled; Anthropic often expects at least ~1024)",
+      "Must be a non-negative integer (0 or unset = disabled; positive integer enables thinking, Anthropic often expects at least ~1024)",
   },
 
   ANTHROPIC_COT_BUDGET_MAX: {
