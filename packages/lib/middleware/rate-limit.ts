@@ -340,25 +340,25 @@ export const RateLimitPresets = {
   /** 200 requests per minute - high-throughput endpoints */
   RELAXED: {
     windowMs: 60000,
-    maxRequests: 200 * _multiplier,
+    maxRequests: 200 * rateLimitMultiplier,
   },
 
   /** 5 requests per 5 minutes - critical/expensive operations */
   CRITICAL: {
     windowMs: 300000,
-    maxRequests: 5 * _multiplier,
+    maxRequests: 5 * rateLimitMultiplier,
   },
 
   /** 10 requests per second - burst protection */
   BURST: {
     windowMs: 1000,
-    maxRequests: 10 * _multiplier,
+    maxRequests: 10 * rateLimitMultiplier,
   },
 
   /** 100 requests per minute, keyed by IP - for public endpoints */
   AGGRESSIVE: {
     windowMs: 60000,
-    maxRequests: 100 * _multiplier,
+    maxRequests: 100 * rateLimitMultiplier,
     keyGenerator: getIpKey,
   },
 };
