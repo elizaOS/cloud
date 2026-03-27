@@ -319,6 +319,9 @@ CRITICAL RULES:
 
         // Stream with tools (no execute functions - SDK v6.0.x pattern)
         // Use fullStream to capture ALL parts including reasoning tokens
+        // Note: App Builder intentionally inherits ANTHROPIC_COT_BUDGET if set —
+        // interactive code generation benefits from extended thinking, and temperature
+        // is not specified here (model defaults are used).
         const result = streamText({
           model: gateway.languageModel(model),
           system: finalSystemPrompt,
