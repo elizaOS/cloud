@@ -319,15 +319,14 @@ CRITICAL RULES:
 
         // Stream with tools (no execute functions - SDK v6.0.x pattern)
         // Use fullStream to capture ALL parts including reasoning tokens
-        // Note: App Builder intentionally inherits ANTHROPIC_COT_BUDGET if set —
-        // interactive code generation benefits from extended thinking, and temperature
-        // is not specified here (model defaults apply; CoT would drop temperature anyway
-        // per @ai-sdk/anthropic behavior).
+        // Note: App Builder explicitly disables CoT (passes 0) to match other background
+        // services and preserve temperature control. If CoT is desired for interactive
+        // code generation, credit estimation would need updates similar to MCP/A2A routes.
         const result = streamText({
           model: gateway.languageModel(model),
           system: finalSystemPrompt,
           messages,
-          ...mergeAnthropicCotProviderOptions(model),
+          ...mergeAnthropicCotProviderOptions(model, process.env, 0),
           tools: {
             install_packages: tool({
               description:
