@@ -329,6 +329,16 @@ async function handleToolCall(
     const provider = getProviderFromModel(model);
     const markupPct = Number(character.inference_markup_percentage || 0);
 
+    // Resolve effective thinking budget before reservation
+    const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
+    const effectiveThinkingBudget = agentThinkingBudget ?? 
+      (process.env.ANTHROPIC_COT_BUDGET ? parseInt(process.env.ANTHROPIC_COT_BUDGET, 10) : 0);
+    // Include thinking budget in output token estimate for Anthropic models
+    const baseOutputTokens = 500;
+    const estimatedOutputTokens = model.includes("claude") && effectiveThinkingBudget > 0
+      ? baseOutputTokens + effectiveThinkingBudget
+      : baseOutputTokens;
+
     // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
     let reservation: CreditReservation;
     try {
@@ -337,7 +347,7 @@ async function handleToolCall(
         model,
         provider,
         estimatedInputTokens: estimateTokens(systemPrompt + message),
-        estimatedOutputTokens: 500,
+        estimatedOutputTokens,
         userId: authResult.user.id,
         description: `Agent MCP: ${character.name}`,
       });
@@ -356,7 +366,6 @@ async function handleToolCall(
     }
 
     try {
-      const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
       const result = await streamText({
         model: gateway.languageModel(model),
         messages,
