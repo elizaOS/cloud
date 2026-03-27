@@ -1,5 +1,9 @@
 import { gateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
+import {
+  anthropicThinkingProviderOptions,
+  mergeProviderOptions,
+} from "@/lib/providers/anthropic-thinking";
 import type { App } from "@/db/repositories";
 import {
   AD_COPY_GENERATION_COST,
@@ -248,10 +252,12 @@ Generate the following in JSON format:
 
 Return ONLY valid JSON, no markdown.`;
 
+    const promoModel = "anthropic/claude-sonnet-4";
     const { text } = await generateText({
-      model: gateway.languageModel("anthropic/claude-sonnet-4"),
+      model: gateway.languageModel(promoModel),
       temperature: 0.7,
       prompt,
+      ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(promoModel)),
     });
 
     // Parse and validate the AI response

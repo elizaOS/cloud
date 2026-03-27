@@ -103,39 +103,42 @@ function createBlooioSignature(rawBody: string, timestamp: number): string {
   return `t=${timestamp},v1=${signature}`;
 }
 
-const signedWebhookFetch: typeof fetch = (input, init) => {
-  const url = getRequestUrl(input);
-  const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+const signedWebhookFetch: typeof fetch = Object.assign(
+  (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = getRequestUrl(input);
+    const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
 
-  if (method !== "POST") {
-    return originalFetch(input, init);
-  }
+    if (method !== "POST") {
+      return originalFetch(input, init);
+    }
 
-  const headers = new Headers(
-    init?.headers ?? (input instanceof Request ? input.headers : undefined),
-  );
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined),
+    );
 
-  if (headers.get("X-Test-Skip-Signature") === "true") {
-    headers.delete("X-Test-Skip-Signature");
+    if (headers.get("X-Test-Skip-Signature") === "true") {
+      headers.delete("X-Test-Skip-Signature");
+      return originalFetch(input, { ...init, headers });
+    }
+
+    if (url.includes("/api/webhooks/twilio/") && !headers.has("X-Twilio-Signature")) {
+      const body = init?.body;
+      if (body instanceof URLSearchParams || typeof body === "string") {
+        headers.set("X-Twilio-Signature", createTwilioSignature(url, body));
+      }
+    }
+
+    if (url.includes("/api/webhooks/blooio/") && !headers.has("X-Blooio-Signature")) {
+      const body = init?.body;
+      if (typeof body === "string") {
+        headers.set("X-Blooio-Signature", createBlooioSignature(body, Math.floor(Date.now() / 1000)));
+      }
+    }
+
     return originalFetch(input, { ...init, headers });
-  }
-
-  if (url.includes("/api/webhooks/twilio/") && !headers.has("X-Twilio-Signature")) {
-    const body = init?.body;
-    if (body instanceof URLSearchParams || typeof body === "string") {
-      headers.set("X-Twilio-Signature", createTwilioSignature(url, body));
-    }
-  }
-
-  if (url.includes("/api/webhooks/blooio/") && !headers.has("X-Blooio-Signature")) {
-    const body = init?.body;
-    if (typeof body === "string") {
-      headers.set("X-Blooio-Signature", createBlooioSignature(body, Math.floor(Date.now() / 1000)));
-    }
-  }
-
-  return originalFetch(input, { ...init, headers });
-};
+  },
+  { preconnect: originalFetch.preconnect.bind(originalFetch) },
+);
 
 describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
   let testData: TestDataSet;

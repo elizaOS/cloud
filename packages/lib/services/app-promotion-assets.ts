@@ -1,6 +1,11 @@
 import { gateway } from "@ai-sdk/gateway";
 import { put } from "@vercel/blob";
 import { generateText, streamText } from "ai";
+import type { CloudMergedProviderOptions } from "@/lib/providers/anthropic-thinking";
+import {
+  anthropicThinkingProviderOptions,
+  mergeProviderOptions,
+} from "@/lib/providers/anthropic-thinking";
 import { z } from "zod";
 import type { App } from "@/db/repositories";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
@@ -299,9 +304,14 @@ class AppPromotionAssetsService {
       // This matches the working pattern in /api/v1/generate-image
       const result = streamText({
         model: IMAGE_MODEL,
-        providerOptions: {
-          google: { responseModalities: ["TEXT", "IMAGE"] },
-        },
+        ...mergeProviderOptions(
+          {
+            providerOptions: {
+              google: { responseModalities: ["TEXT", "IMAGE"] },
+            } satisfies CloudMergedProviderOptions,
+          },
+          anthropicThinkingProviderOptions(IMAGE_MODEL),
+        ),
         prompt: `Generate a promotional banner image: ${prompt}`,
       });
 
@@ -458,10 +468,12 @@ Return JSON with these exact fields:
 
 Return ONLY valid JSON. No markdown, no explanation.`;
 
+    const copyModel = "anthropic/claude-sonnet-4";
     const { text } = await generateText({
-      model: gateway.languageModel("anthropic/claude-sonnet-4"),
+      model: gateway.languageModel(copyModel),
       temperature: 0.8,
       prompt,
+      ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(copyModel)),
     });
 
     return parseAiJson(text, AdCopyVariantsSchema, "ad copy variants");

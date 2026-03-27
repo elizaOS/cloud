@@ -75,6 +75,25 @@ const ENV_VARS = {
     description: "AI Gateway API key",
   },
 
+  ANTHROPIC_COT_BUDGET: {
+    required: false,
+    description:
+      "Optional positive integer: Anthropic extended-thinking token budget for Claude via gateway. Unset or 0 disables",
+    validate: (value: string) => {
+      const trimmed = value.trim();
+      if (trimmed === "") {
+        return false;
+      }
+      if (!/^\d+$/.test(trimmed)) {
+        return false;
+      }
+      const n = Number.parseInt(trimmed, 10);
+      return n >= 0 && n <= Number.MAX_SAFE_INTEGER;
+    },
+    errorMessage:
+      "Must be a non-negative integer string (0 = off; when enabling, Anthropic often expects at least ~1024)",
+  },
+
   // Storage
   BLOB_READ_WRITE_TOKEN: {
     required: false,

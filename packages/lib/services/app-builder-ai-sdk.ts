@@ -21,6 +21,10 @@
 import { gateway } from "@ai-sdk/gateway";
 import type { ModelMessage, UserModelMessage } from "ai";
 import { streamText, tool } from "ai";
+import {
+  anthropicThinkingProviderOptions,
+  mergeProviderOptions,
+} from "@/lib/providers/anthropic-thinking";
 import { buildFullAppPrompt, type FullAppTemplateType } from "@/lib/fragments/prompt";
 import { logger } from "@/lib/utils/logger";
 
@@ -322,6 +326,7 @@ CRITICAL RULES:
           model: gateway.languageModel(model),
           system: finalSystemPrompt,
           messages,
+          ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(model)),
           tools: {
             install_packages: tool({
               description:

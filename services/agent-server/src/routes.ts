@@ -17,7 +17,11 @@ function getAuthToken(headers: HeaderMap): string | null {
   return null;
 }
 
-function requireInternalAuth(headers: HeaderMap, set: { status?: number }, sharedSecret: string) {
+function requireInternalAuth(
+  headers: HeaderMap,
+  set: { status?: number | string },
+  sharedSecret: string,
+) {
   if (!sharedSecret) {
     set.status = 503;
     return { error: "Server auth not configured" };

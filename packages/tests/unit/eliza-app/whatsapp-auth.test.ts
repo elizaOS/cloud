@@ -83,7 +83,7 @@ describe("WhatsApp Webhook Subscription Verification Logic", () => {
   });
 
   test("rejects wrong mode", () => {
-    const mode = "unsubscribe";
+    const mode = "unsubscribe" as string;
     const verifyToken = TEST_VERIFY_TOKEN;
     const challenge = "1234567890";
 
@@ -93,7 +93,7 @@ describe("WhatsApp Webhook Subscription Verification Logic", () => {
 
   test("rejects wrong verify token", () => {
     const mode = "subscribe";
-    const verifyToken = "wrong_token";
+    const verifyToken = "wrong_token" as string;
     const challenge = "1234567890";
 
     const isValid = mode === "subscribe" && verifyToken === TEST_VERIFY_TOKEN && !!challenge;

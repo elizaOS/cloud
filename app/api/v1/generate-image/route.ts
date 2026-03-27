@@ -3,6 +3,11 @@ import { streamText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import type { CloudMergedProviderOptions } from "@/lib/providers/anthropic-thinking";
+import {
+  anthropicThinkingProviderOptions,
+  mergeProviderOptions,
+} from "@/lib/providers/anthropic-thinking";
 import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -369,7 +374,14 @@ async function handlePOST(req: NextRequest) {
       let textResponse = "";
 
       try {
-        const result = streamText(streamConfig);
+        const mergedOpts = mergeProviderOptions(
+          "providerOptions" in streamConfig
+            ? { providerOptions: streamConfig.providerOptions as CloudMergedProviderOptions }
+            : undefined,
+          anthropicThinkingProviderOptions(imageModel),
+        );
+        type StreamTextParams = Parameters<typeof streamText>[0];
+        const result = streamText({ ...streamConfig, ...mergedOpts } as StreamTextParams);
 
         for await (const delta of result.fullStream) {
           switch (delta.type) {

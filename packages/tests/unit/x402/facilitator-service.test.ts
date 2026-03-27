@@ -300,9 +300,11 @@ describe("Edge Cases & Fuzz", () => {
     const payload = createValidPayload();
     // Remove a required field
     const broken = { ...payload };
-    (broken.payload as Record<string, unknown>).authorization = {};
+    (broken.payload as unknown as Record<string, unknown>).authorization = {};
 
-    expect((broken.payload.authorization as Record<string, unknown>).from).toBeUndefined();
+    expect(
+      (broken.payload.authorization as unknown as Record<string, unknown>).from,
+    ).toBeUndefined();
   });
 
   it("should handle empty signature", () => {

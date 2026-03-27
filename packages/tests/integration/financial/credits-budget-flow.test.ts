@@ -190,7 +190,6 @@ describe("Credits-Budget Flow Integration", () => {
         organizationId: orgId,
         amount: 100,
         description: "Manual top-up",
-        source: "manual",
       });
 
       // Now allocation should work

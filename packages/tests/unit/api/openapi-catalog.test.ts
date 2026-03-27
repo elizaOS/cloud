@@ -3,23 +3,25 @@ import { describe, expect, test } from "bun:test";
 import { GET, OPTIONS } from "@/app/api/openapi.json/route";
 import { discoverPublicApiRoutes } from "@/lib/docs/api-route-discovery";
 import { API_ENDPOINTS } from "@/lib/swagger/endpoint-discovery";
-import { jsonRequest } from "./route-test-helpers";
-
 describe("Public API catalog", () => {
-  test("route discovery includes every documented endpoint", { timeout: 15_000 }, async () => {
-    const routes = await discoverPublicApiRoutes();
-    const implemented = new Set<string>();
+  test(
+    "route discovery includes every documented endpoint",
+    async () => {
+      const routes = await discoverPublicApiRoutes();
+      const implemented = new Set<string>();
 
-    for (const route of routes) {
-      for (const method of route.methods) {
-        implemented.add(`${method} ${route.path}`);
+      for (const route of routes) {
+        for (const method of route.methods) {
+          implemented.add(`${method} ${route.path}`);
+        }
       }
-    }
 
-    for (const endpoint of API_ENDPOINTS) {
-      expect(implemented.has(`${endpoint.method} ${endpoint.path}`)).toBe(true);
-    }
-  });
+      for (const endpoint of API_ENDPOINTS) {
+        expect(implemented.has(`${endpoint.method} ${endpoint.path}`)).toBe(true);
+      }
+    },
+    { timeout: 15_000 },
+  );
 
   test("openapi.json includes every documented endpoint and method", async () => {
     const response = await GET();
@@ -42,9 +44,7 @@ describe("Public API catalog", () => {
   });
 
   test("openapi.json OPTIONS exposes CORS preflight headers", async () => {
-    const response = await OPTIONS(
-      jsonRequest("http://localhost:3000/api/openapi.json", "OPTIONS"),
-    );
+    const response = await OPTIONS();
 
     expect(response.status).toBe(204);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");

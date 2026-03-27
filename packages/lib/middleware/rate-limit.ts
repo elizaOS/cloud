@@ -51,7 +51,9 @@ function validateRateLimitConfig() {
     }
     logger.info("[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)");
   } else {
-    logger.info("[Rate Limit] 🔓 Development mode: Rate limits relaxed (10000 req/window)");
+    logger.info(
+      "[Rate Limit] Development mode: same numeric limits as production; storage is in-memory (set REDIS_RATE_LIMITING=true to use Redis).",
+    );
   }
 }
 
@@ -296,49 +298,38 @@ export function withRateLimit<T = Record<string, string>>(
 }
 
 /**
- * Preset rate limit configurations
- * DEVELOPMENT: Very high limits to allow rapid testing and iteration
- * PRODUCTION: Strict limits to protect against abuse
+ * Preset rate limit configurations (same values in dev and production).
+ * Only the backing store differs: Redis when REDIS_RATE_LIMITING=true, else in-memory.
  */
-const isDevelopment = process.env.NODE_ENV !== "production";
-
 export const RateLimitPresets = {
-  // Generous limits for general API usage
   STANDARD: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 60, // Dev: virtually unlimited, Prod: 60/min
+    windowMs: 60000,
+    maxRequests: 60,
   },
 
-  // Strict limits for expensive operations
   STRICT: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 10, // Dev: virtually unlimited, Prod: 10/min
+    windowMs: 60000,
+    maxRequests: 10,
   },
 
-  // Relaxed limits for high-frequency AI endpoints (chat completions, responses)
   RELAXED: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 200, // Dev: virtually unlimited, Prod: 200/min
+    windowMs: 60000,
+    maxRequests: 200,
   },
 
-  // Very strict for critical operations (deployments, payments)
   CRITICAL: {
-    windowMs: 300000, // 5 minutes
-    maxRequests: isDevelopment ? 10000 : 5, // Dev: virtually unlimited, Prod: 5/5min
+    windowMs: 300000,
+    maxRequests: 5,
   },
 
-  // Burst allowance for real-time features
   BURST: {
-    windowMs: 1000, // 1 second
-    maxRequests: isDevelopment ? 1000 : 10, // Dev: 1000/sec, Prod: 10/sec
+    windowMs: 1000,
+    maxRequests: 10,
   },
 
-  // Aggressive limits for webhook endpoints (external services calling us)
-  // Webhooks are server-to-server and should be rate limited per IP
-  // 100/min is reasonable for payment provider callbacks
   AGGRESSIVE: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 100, // Dev: virtually unlimited, Prod: 100/min
+    windowMs: 60000,
+    maxRequests: 100,
     keyGenerator: getIpKey,
   },
 } as const;

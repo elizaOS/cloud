@@ -239,7 +239,7 @@ describe("agents/route orphan character cleanup", () => {
 
   test("original error propagates even if cleanup fails", async () => {
     const fakeCharactersService = {
-      delete: async () => {
+      delete: async (_id?: string) => {
         throw new Error("cleanup also failed");
       },
     };

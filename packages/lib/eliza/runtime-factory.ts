@@ -13,7 +13,12 @@ import {
   type UUID,
   type World,
 } from "@elizaos/core";
-import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
+import createDatabaseAdapterDefault from "@elizaos/plugin-sql/node";
+
+const createDatabaseAdapter = createDatabaseAdapterDefault as (
+  config: { postgresUrl: string },
+  agentId: UUID,
+) => IDatabaseAdapter;
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
 import { agentLoader } from "./agent-loader";

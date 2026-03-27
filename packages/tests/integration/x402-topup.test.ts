@@ -5,21 +5,26 @@ const originalX402RecipientAddress = process.env.X402_RECIPIENT_ADDRESS;
 const mockUpdateCreditBalance = mock();
 const mockApplyReferralCode = mock();
 const mockCalculateRevenueSplits = mock();
-let referralsServiceForTest: {
+
+type ReferralsServicePatch = {
   applyReferralCode: typeof mockApplyReferralCode;
   calculateRevenueSplits: typeof mockCalculateRevenueSplits;
-} | null = null;
+};
+type OrganizationsServicePatch = {
+  updateCreditBalance: typeof mockUpdateCreditBalance;
+};
+type RedeemableEarningsServicePatch = {
+  addEarnings: typeof mockAddEarnings;
+};
+
+let referralsServiceForTest!: ReferralsServicePatch;
 let originalApplyReferralCode: unknown;
 let originalCalculateRevenueSplits: unknown;
-let organizationsServiceForTest: {
-  updateCreditBalance: typeof mockUpdateCreditBalance;
-} | null = null;
+let organizationsServiceForTest!: OrganizationsServicePatch;
 let originalUpdateCreditBalance: unknown;
 
 const mockAddEarnings = mock().mockResolvedValue(true);
-let redeemableEarningsServiceForTest: {
-  addEarnings: typeof mockAddEarnings;
-} | null = null;
+let redeemableEarningsServiceForTest!: RedeemableEarningsServicePatch;
 let originalAddEarnings: unknown;
 
 // Register mock.module BEFORE any dynamic imports so the mock is in place
@@ -50,20 +55,22 @@ describe("x402 Topup Endpoints", () => {
     const actualReferralsModule = await import("@/lib/services/referrals");
     const actualOrganizationsModule = await import("@/lib/services/organizations");
     const actualRedeemableEarningsModule = await import("@/lib/services/redeemable-earnings");
-    referralsServiceForTest =
-      actualReferralsModule.referralsService as typeof referralsServiceForTest;
-    originalApplyReferralCode = referralsServiceForTest.applyReferralCode;
-    originalCalculateRevenueSplits = referralsServiceForTest.calculateRevenueSplits;
-    referralsServiceForTest.applyReferralCode = mockApplyReferralCode;
-    referralsServiceForTest.calculateRevenueSplits = mockCalculateRevenueSplits;
-    organizationsServiceForTest =
-      actualOrganizationsModule.organizationsService as typeof organizationsServiceForTest;
-    originalUpdateCreditBalance = organizationsServiceForTest.updateCreditBalance;
-    organizationsServiceForTest.updateCreditBalance = mockUpdateCreditBalance;
-    redeemableEarningsServiceForTest =
-      actualRedeemableEarningsModule.redeemableEarningsService as typeof redeemableEarningsServiceForTest;
-    originalAddEarnings = redeemableEarningsServiceForTest.addEarnings;
-    redeemableEarningsServiceForTest.addEarnings = mockAddEarnings;
+    const referrals = actualReferralsModule.referralsService as unknown as ReferralsServicePatch;
+    referralsServiceForTest = referrals;
+    originalApplyReferralCode = referrals.applyReferralCode;
+    originalCalculateRevenueSplits = referrals.calculateRevenueSplits;
+    referrals.applyReferralCode = mockApplyReferralCode;
+    referrals.calculateRevenueSplits = mockCalculateRevenueSplits;
+
+    const orgs = actualOrganizationsModule.organizationsService as unknown as OrganizationsServicePatch;
+    organizationsServiceForTest = orgs;
+    originalUpdateCreditBalance = orgs.updateCreditBalance;
+    orgs.updateCreditBalance = mockUpdateCreditBalance;
+
+    const redeem = actualRedeemableEarningsModule.redeemableEarningsService as unknown as RedeemableEarningsServicePatch;
+    redeemableEarningsServiceForTest = redeem;
+    originalAddEarnings = redeem.addEarnings;
+    redeem.addEarnings = mockAddEarnings;
   });
 
   beforeEach(() => {
@@ -88,19 +95,13 @@ describe("x402 Topup Endpoints", () => {
   });
 
   afterAll(() => {
-    if (referralsServiceForTest) {
-      referralsServiceForTest.applyReferralCode =
-        originalApplyReferralCode as typeof mockApplyReferralCode;
-      referralsServiceForTest.calculateRevenueSplits =
-        originalCalculateRevenueSplits as typeof mockCalculateRevenueSplits;
-    }
-    if (organizationsServiceForTest) {
-      organizationsServiceForTest.updateCreditBalance =
-        originalUpdateCreditBalance as typeof mockUpdateCreditBalance;
-    }
-    if (redeemableEarningsServiceForTest) {
-      redeemableEarningsServiceForTest.addEarnings = originalAddEarnings as typeof mockAddEarnings;
-    }
+    referralsServiceForTest.applyReferralCode =
+      originalApplyReferralCode as typeof mockApplyReferralCode;
+    referralsServiceForTest.calculateRevenueSplits =
+      originalCalculateRevenueSplits as typeof mockCalculateRevenueSplits;
+    organizationsServiceForTest.updateCreditBalance =
+      originalUpdateCreditBalance as typeof mockUpdateCreditBalance;
+    redeemableEarningsServiceForTest.addEarnings = originalAddEarnings as typeof mockAddEarnings;
     if (originalX402RecipientAddress === undefined) {
       delete process.env.X402_RECIPIENT_ADDRESS;
     } else {

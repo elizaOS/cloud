@@ -38,7 +38,7 @@ describe("Internal JWT Authentication", () => {
     process.env.JWT_SIGNING_PRIVATE_KEY = TEST_PRIVATE_KEY_B64;
     process.env.JWT_SIGNING_PUBLIC_KEY = TEST_PUBLIC_KEY_B64;
     process.env.JWT_SIGNING_KEY_ID = "test-key-id";
-    process.env.NODE_ENV = "test";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "test";
   });
 
   afterAll(() => {
@@ -232,7 +232,7 @@ describe("Internal API Middleware", () => {
     process.env.JWT_SIGNING_PRIVATE_KEY = TEST_PRIVATE_KEY_B64;
     process.env.JWT_SIGNING_PUBLIC_KEY = TEST_PUBLIC_KEY_B64;
     process.env.JWT_SIGNING_KEY_ID = "test-key-id";
-    process.env.NODE_ENV = "test";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "test";
   });
 
   afterAll(() => {

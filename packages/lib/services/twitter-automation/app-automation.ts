@@ -1,5 +1,9 @@
 import { gateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
+import {
+  anthropicThinkingProviderOptions,
+  mergeProviderOptions,
+} from "@/lib/providers/anthropic-thinking";
 import { TwitterApi } from "twitter-api-v2";
 import { type App, appsRepository } from "@/db/repositories";
 import { TWITTER_POST_COST } from "@/lib/promotion-pricing";
@@ -232,10 +236,12 @@ Requirements:
 Return ONLY the tweet text, nothing else.`;
 
     try {
+      const twModel = "anthropic/claude-sonnet-4";
       const { text } = await generateText({
-        model: gateway.languageModel("anthropic/claude-sonnet-4"),
+        model: gateway.languageModel(twModel),
         temperature: 0.8,
         prompt,
+        ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(twModel)),
       });
 
       return {

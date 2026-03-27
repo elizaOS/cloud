@@ -13,7 +13,7 @@ const originalFetch = globalThis.fetch;
 process.env.ALCHEMY_API_KEY = "test-alchemy-key";
 
 const fetchMock = mock();
-globalThis.fetch = fetchMock as typeof fetch;
+globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -44,7 +44,7 @@ import { POST } from "@/app/api/v1/proxy/evm-rpc/[chain]/route";
 
 describe("EVM RPC proxy route", () => {
   beforeEach(() => {
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockDeductCredits.mockReset();

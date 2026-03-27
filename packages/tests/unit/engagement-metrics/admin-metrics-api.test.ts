@@ -40,7 +40,7 @@ const mockOAuthRate = {
 };
 
 const mockGetMetricsOverview = mock(() => Promise.resolve(mockOverview));
-const mockGetDailyMetrics = mock(() => Promise.resolve(mockDailyMetrics));
+const mockGetDailyMetrics = mock((_start: Date, _end: Date) => Promise.resolve(mockDailyMetrics));
 const mockGetRetentionCohorts = mock(() => Promise.resolve(mockRetentionCohorts));
 const mockGetActiveUsers = mock(() => Promise.resolve(mockActiveUsers));
 const mockGetNewSignups = mock(() => Promise.resolve(mockSignups));

@@ -114,7 +114,7 @@ describe("MCP proxy affiliate pricing", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         }),
-    ) as typeof globalThis.fetch;
+    ) as unknown as typeof globalThis.fetch;
   });
 
   afterEach(() => {
@@ -177,7 +177,7 @@ describe("MCP proxy affiliate pricing", () => {
         new Response("upstream failure", {
           status: 502,
         }),
-    ) as typeof globalThis.fetch;
+    ) as unknown as typeof globalThis.fetch;
 
     const request = new NextRequest("https://example.com/api/mcp/proxy/mcp-1", {
       method: "POST",

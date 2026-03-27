@@ -20,6 +20,10 @@ import { z } from "zod";
 import type { UserCharacter } from "@/db/schemas/user-characters";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
+import {
+  anthropicThinkingProviderOptions,
+  mergeProviderOptions,
+} from "@/lib/providers/anthropic-thinking";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
@@ -321,6 +325,7 @@ async function handleChat(
     const result = await streamText({
       model: gateway.languageModel(model),
       messages: fullMessages,
+      ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(model)),
     });
 
     let fullText = "";

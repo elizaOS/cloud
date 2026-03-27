@@ -12,8 +12,8 @@ import { NextRequest } from "next/server";
 
 // ─── Mock Setup ──────────────────────────────────────────────────────────────
 
-const mockComputeDailyMetrics = mock(() => Promise.resolve());
-const mockComputeRetentionCohorts = mock(() => Promise.resolve());
+const mockComputeDailyMetrics = mock((_date: Date) => Promise.resolve());
+const mockComputeRetentionCohorts = mock((_date: Date) => Promise.resolve());
 
 mock.module("@/lib/services/user-metrics", () => ({
   userMetricsService: {

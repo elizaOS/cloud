@@ -7,6 +7,10 @@
 import { gateway } from "@ai-sdk/gateway";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { streamText } from "ai";
+import {
+  anthropicThinkingProviderOptions,
+  mergeProviderOptions,
+} from "@/lib/providers/anthropic-thinking";
 import { z } from "zod/v3";
 import { uploadBase64Image } from "@/lib/blob";
 import { calculateCost, getProviderFromModel, IMAGE_GENERATION_COST } from "@/lib/pricing";
@@ -137,6 +141,7 @@ export function registerGenerationTools(server: McpServer): void {
         const result = await streamText({
           model: gateway.languageModel(model),
           prompt,
+          ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(model)),
         });
 
         let fullText = "";
@@ -294,11 +299,13 @@ export function registerGenerationTools(server: McpServer): void {
 
         const enhancedPrompt = `${prompt}, ${aspectRatioDescriptions[aspectRatio]}`;
 
+        const geminiImageModel = "google/gemini-2.5-flash-image";
         const result = streamText({
-          model: "google/gemini-2.5-flash-image",
-          providerOptions: {
-            google: { responseModalities: ["TEXT", "IMAGE"] },
-          },
+          model: geminiImageModel,
+          ...mergeProviderOptions(
+            { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } },
+            anthropicThinkingProviderOptions(geminiImageModel),
+          ),
           prompt: `Generate an image: ${enhancedPrompt}`,
         });
 

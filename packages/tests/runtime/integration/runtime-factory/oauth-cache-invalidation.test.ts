@@ -376,7 +376,9 @@ describe.skipIf(!hasDatabaseUrl)("OAuth flow cache invalidation integration", ()
     const runtime2 = await runtimeFactory.createRuntimeForUser(userContext2);
 
     // 4. Verify MCP settings are now present
-    const mcpSettings = runtime2.settings?.mcp || (runtime2.character as any)?.settings?.mcp;
+    const mcpSettings = (
+      runtime2.character as { settings?: { mcp?: { servers?: Record<string, unknown> } } }
+    ).settings?.mcp;
     expect(mcpSettings).toBeDefined();
     expect(mcpSettings?.servers?.google).toBeDefined();
 

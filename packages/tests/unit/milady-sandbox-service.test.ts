@@ -72,7 +72,17 @@ vi.mock("@/lib/services/sandbox-provider", () => ({
   createSandboxProvider: vi.fn(),
 }));
 
+import type { SandboxProvider } from "@/lib/services/sandbox-provider";
 import { MiladySandboxService } from "@/lib/services/milady-sandbox";
+
+function testSandboxProvider(overrides: Partial<SandboxProvider> = {}): SandboxProvider {
+  return {
+    create: vi.fn(),
+    stop: vi.fn().mockResolvedValue(undefined),
+    checkHealth: vi.fn(),
+    ...overrides,
+  };
+}
 
 describe("MiladySandboxService lifecycle guards", () => {
   beforeEach(() => {
@@ -83,7 +93,7 @@ describe("MiladySandboxService lifecycle guards", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    (vi as unknown as { restoreAllMocks: () => void }).restoreAllMocks();
   });
 
   it("stops an orphanable sandbox on delete even when DB status is disconnected", async () => {
@@ -115,6 +125,12 @@ describe("MiladySandboxService lifecycle guards", () => {
       web_ui_port: null,
       headscale_ip: null,
       docker_image: null,
+      billing_status: "active",
+      last_billed_at: null,
+      hourly_rate: "0.0100",
+      total_billed: "0.00",
+      shutdown_warning_sent_at: null,
+      scheduled_shutdown_at: null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -130,9 +146,7 @@ describe("MiladySandboxService lifecycle guards", () => {
       fn({ execute }),
     );
 
-    const provider = {
-      stop: vi.fn().mockResolvedValue(undefined),
-    } as unknown as ConstructorParameters<typeof MiladySandboxService>[0];
+    const provider = testSandboxProvider();
 
     const service = new MiladySandboxService(provider);
     const result = await service.deleteAgent("agent-1", "org-1");
@@ -170,6 +184,12 @@ describe("MiladySandboxService lifecycle guards", () => {
       web_ui_port: null,
       headscale_ip: null,
       docker_image: null,
+      billing_status: "active",
+      last_billed_at: null,
+      hourly_rate: "0.0100",
+      total_billed: "0.00",
+      shutdown_warning_sent_at: null,
+      scheduled_shutdown_at: null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -184,9 +204,7 @@ describe("MiladySandboxService lifecycle guards", () => {
       fn({ execute }),
     );
 
-    const provider = {
-      stop: vi.fn().mockResolvedValue(undefined),
-    } as unknown as ConstructorParameters<typeof MiladySandboxService>[0];
+    const provider = testSandboxProvider();
 
     const service = new MiladySandboxService(provider);
     const result = await service.deleteAgent("agent-1", "org-1");
@@ -227,6 +245,12 @@ describe("MiladySandboxService lifecycle guards", () => {
       web_ui_port: null,
       headscale_ip: null,
       docker_image: null,
+      billing_status: "active",
+      last_billed_at: null,
+      hourly_rate: "0.0100",
+      total_billed: "0.00",
+      shutdown_warning_sent_at: null,
+      scheduled_shutdown_at: null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -242,9 +266,9 @@ describe("MiladySandboxService lifecycle guards", () => {
       fn({ execute }),
     );
 
-    const provider = {
+    const provider = testSandboxProvider({
       stop: vi.fn().mockRejectedValue(new Error("Container not found in memory or DB")),
-    } as unknown as ConstructorParameters<typeof MiladySandboxService>[0];
+    });
 
     const service = new MiladySandboxService(provider);
     const result = await service.deleteAgent("agent-1", "org-1");

@@ -143,7 +143,6 @@ describe("Cross-Service Concurrent Operations", () => {
             organizationId: orgId,
             amount: 10,
             description: "Stress add",
-            source: "manual",
           }),
         ),
         ...Array.from({ length: 10 }, () =>

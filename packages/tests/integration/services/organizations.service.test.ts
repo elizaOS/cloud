@@ -155,7 +155,7 @@ describe("OrganizationsService", () => {
       // The user created in testData should be associated
       expect(result!.users).toBeDefined();
       expect(result!.users.length).toBeGreaterThanOrEqual(1);
-      expect(result!.users.some((u: { id: string }) => u.id === testData.user.id)).toBe(true);
+      expect(result!.users.map((u) => (u as { id: string }).id)).toContain(testData.user.id);
 
       // Cleanup
       await cleanupTestData(connectionString, testData.organization.id);

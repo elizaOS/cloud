@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest, NextResponse } from "next/server";
 
-const mockRequireAdminWithResponse = mock(async () => ({
-  user: { id: "admin-1" },
-  role: "admin",
-}));
+type AdminPricingAuthResult =
+  | { user: { id: string }; role: string }
+  | NextResponse<unknown>;
+
+const mockRequireAdminWithResponse = mock(
+  async (): Promise<AdminPricingAuthResult> => ({
+    user: { id: "admin-1" },
+    role: "admin",
+  }),
+);
 
 const mockListByService = mock(async () => [] as any[]);
 const mockUpsert = mock(async () => ({
@@ -61,12 +67,15 @@ async function importRoute() {
 }
 
 function createRequest(method: string, url: string, body?: unknown): NextRequest {
-  const init: RequestInit = { method };
+  const u = new URL(url, "http://localhost");
   if (body !== undefined) {
-    init.body = JSON.stringify(body);
-    init.headers = { "Content-Type": "application/json" };
+    return new NextRequest(u, {
+      method,
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
   }
-  return new NextRequest(url, init);
+  return new NextRequest(u, { method });
 }
 
 describe("Admin Service Pricing API", () => {

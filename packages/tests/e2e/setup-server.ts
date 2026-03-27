@@ -182,8 +182,14 @@ export async function ensureServer(): Promise<void> {
       },
     });
 
-    pipeServerLogs(serverProcess.stdout, "stdout");
-    pipeServerLogs(serverProcess.stderr, "stderr");
+    pipeServerLogs(
+      serverProcess.stdout instanceof ReadableStream ? serverProcess.stdout : null,
+      "stdout",
+    );
+    pipeServerLogs(
+      serverProcess.stderr instanceof ReadableStream ? serverProcess.stderr : null,
+      "stderr",
+    );
     watchServerExit(serverProcess);
 
     try {
@@ -235,34 +241,37 @@ function isRecoverableServerError(error: unknown): boolean {
   );
 }
 
-const fetchWithServer: typeof fetch = async (input, init) => {
-  const requestUrl = getRequestUrl(input);
-  const isManagedRequest = requestUrl.startsWith(SERVER_URL);
+const fetchWithServer: typeof fetch = Object.assign(
+  async (input: RequestInfo | URL, init?: RequestInit) => {
+    const requestUrl = getRequestUrl(input);
+    const isManagedRequest = requestUrl.startsWith(SERVER_URL);
 
-  if (!isManagedRequest) {
-    return await baseFetch(input, init);
-  }
-
-  const nextRequest = createRequestFactory(input, init);
-
-  for (let attempt = 0; attempt < MANAGED_FETCH_RETRIES; attempt += 1) {
-    try {
-      await ensureServer();
-
-      const [requestInput, requestInit] = nextRequest();
-      return await baseFetch(requestInput, requestInit);
-    } catch (error) {
-      const isLastAttempt = attempt === MANAGED_FETCH_RETRIES - 1;
-      if (!isRecoverableServerError(error) || isLastAttempt) {
-        throw error;
-      }
-
-      await Bun.sleep(POLL_INTERVAL_MS * (attempt + 1));
+    if (!isManagedRequest) {
+      return await baseFetch(input, init);
     }
-  }
 
-  throw new Error("Managed fetch exhausted all retry attempts");
-};
+    const nextRequest = createRequestFactory(input, init);
+
+    for (let attempt = 0; attempt < MANAGED_FETCH_RETRIES; attempt += 1) {
+      try {
+        await ensureServer();
+
+        const [requestInput, requestInit] = nextRequest();
+        return await baseFetch(requestInput, requestInit);
+      } catch (error) {
+        const isLastAttempt = attempt === MANAGED_FETCH_RETRIES - 1;
+        if (!isRecoverableServerError(error) || isLastAttempt) {
+          throw error;
+        }
+
+        await Bun.sleep(POLL_INTERVAL_MS * (attempt + 1));
+      }
+    }
+
+    throw new Error("Managed fetch exhausted all retry attempts");
+  },
+  { preconnect: baseFetch.preconnect.bind(baseFetch) },
+);
 
 globalThis.fetch = fetchWithServer;
 
