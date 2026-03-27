@@ -295,10 +295,8 @@ async function handleChat(
   ];
 
   // Calculate estimated costs, including potential thinking budget
-  // Note: estimateRequestCost adds thinking tokens to output estimate when budget is provided
-// Calculate estimated costs, including potential thinking budget
   // Use resolveAnthropicThinkingBudgetTokens to get effective budget (same as MCP route)
-  // This ensures credit reservation accounts for thinking tokens
+  // Add thinking budget on top of base output tokens for accurate credit reservation
   const provider = getProviderFromModel(model);
   const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
   const effectiveThinkingBudget = resolveAnthropicThinkingBudgetTokens(
@@ -306,7 +304,9 @@ async function handleChat(
     process.env,
     agentThinkingBudget ?? undefined,
   );
-  const baseCost = await estimateRequestCost(model, fullMessages, effectiveThinkingBudget);
+  // Add thinking budget to base output estimate (500 tokens) to match MCP route behavior
+  const maxOutputTokens = effectiveThinkingBudget != null ? 500 + effectiveThinkingBudget : undefined;
+  const baseCost = await estimateRequestCost(model, fullMessages, maxOutputTokens);
 
   // Apply markup if monetization is enabled
   const markupPct = Number(character.inference_markup_percentage || 0);
