@@ -106,73 +106,7 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
   });
 });
 
-// Keep backward compatibility with any existing tests that may follow
-describe("resolveAnthropicThinkingBudgetTokens (legacy non-Anthropic guard)", () => {
-  let prevBudget: string | undefined;
-  let prevMax: string | undefined;
 
-  beforeEach(() => {
-    prevBudget = process.env[COT_ENV_KEY];
-    prevMax = process.env[COT_MAX_ENV_KEY];
-    delete process.env[COT_ENV_KEY];
-    delete process.env[COT_MAX_ENV_KEY];
-  });
-
-  afterEach(() => {
-    if (prevBudget === undefined) {
-      delete process.env[COT_ENV_KEY];
-    } else {
-      process.env[COT_ENV_KEY] = prevBudget;
-    }
-    if (prevMax === undefined) {
-      delete process.env[COT_MAX_ENV_KEY];
-    } else {
-      process.env[COT_MAX_ENV_KEY] = prevMax;
-    }
-  });
-
-  test("returns null for non-Anthropic models", () => {
-    process.env[COT_ENV_KEY] = "5000";
-    expect(resolveAnthropicThinkingBudgetTokens("openai/gpt-4", process.env)).toBeNull();
-    expect(resolveAnthropicThinkingBudgetTokens("google/gemini-pro", process.env)).toBeNull();
-  });
-
-  test("returns agent budget when provided for Anthropic model", () => {
-    process.env[COT_ENV_KEY] = "5000";
-    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, 8000)).toBe(8000);
-  });
-
-  test("returns null when agent budget is 0 (explicit disable)", () => {
-    process.env[COT_ENV_KEY] = "5000";
-    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, 0)).toBeNull();
-  });
-
-  test("falls back to env budget when agent budget is undefined", () => {
-    process.env[COT_ENV_KEY] = "5000";
-    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, undefined)).toBe(5000);
-  });
-
-  test("returns null when both agent budget and env budget are unset", () => {
-    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, undefined)).toBeNull();
-  });
-
-  test("clamps budget to max when max is set and budget exceeds it", () => {
-    process.env[COT_ENV_KEY] = "10000";
-    process.env[COT_MAX_ENV_KEY] = "5000";
-    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, undefined)).toBe(5000);
-  });
-
-  test("clamps agent budget to max when max is set", () => {
-    process.env[COT_MAX_ENV_KEY] = "3000";
-    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, 8000)).toBe(3000);
-  });
-
-  test("returns budget unchanged when under max cap", () => {
-    process.env[COT_ENV_KEY] = "2000";
-    process.env[COT_MAX_ENV_KEY] = "5000";
-    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, undefined)).toBe(2000);
-  });
-});
 
 describe("anthropic COT env", () => {
   let prev: string | undefined;
@@ -347,62 +281,18 @@ describe("parseThinkingBudgetFromCharacterSettings", () => {
       parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 42 }),
     ).toBe(42);
   });
+
+  test("float input is truncated to integer", () => {
+    expect(
+      parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 4000.9 }),
+    ).toBe(4000);
+    expect(
+      parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 1.1 }),
+    ).toBe(1);
+  });
 });
 
-describe("resolveAnthropicThinkingBudgetTokens", () => {
-  test("non-anthropic → null", () => {
-    expect(resolveAnthropicThinkingBudgetTokens("gpt-4o", { [COT_ENV_KEY]: "1024" })).toBeNull();
-  });
 
-  test("anthropic model with env budget → returns budget", () => {
-    expect(
-      resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4.5", { [COT_ENV_KEY]: "2048" }),
-    ).toBe(2048);
-  });
-
-  test("anthropic model with per-agent budget overrides env", () => {
-    expect(
-      resolveAnthropicThinkingBudgetTokens(
-        "anthropic/claude-sonnet-4.5",
-        { [COT_ENV_KEY]: "1024" },
-        4096,
-      ),
-    ).toBe(4096);
-  });
-
-  test("anthropic model with per-agent 0 disables despite env", () => {
-    expect(
-      resolveAnthropicThinkingBudgetTokens(
-        "anthropic/claude-sonnet-4.5",
-        { [COT_ENV_KEY]: "1024" },
-        0,
-      ),
-    ).toBeNull();
-  });
-
-  test("ANTHROPIC_COT_BUDGET_MAX clamps per-agent budget", () => {
-    expect(
-      resolveAnthropicThinkingBudgetTokens(
-        "anthropic/claude-sonnet-4.5",
-        { [COT_ENV_KEY]: "1024", [COT_MAX_ENV_KEY]: "500" },
-        9000,
-      ),
-    ).toBe(500);
-  });
-
-  test("ANTHROPIC_COT_BUDGET_MAX clamps env default", () => {
-    expect(
-      resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4.5", {
-        [COT_ENV_KEY]: "9000",
-        [COT_MAX_ENV_KEY]: "1000",
-      }),
-    ).toBe(1000);
-  });
-
-  test("no budget configured → null", () => {
-    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4.5", {})).toBeNull();
-  });
-});
 
 describe("mergeProviderOptions", () => {
   test("empty + empty → {}", () => {
