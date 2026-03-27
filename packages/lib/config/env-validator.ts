@@ -77,6 +77,9 @@ const ENV_VARS = {
 
   ANTHROPIC_COT_BUDGET: {
     required: false,
+    // Note: Invalid non-empty values here trigger request-time exceptions in anthropic-thinking.ts.
+    // Validation failures for this variable should be treated as errors (not warnings) to fail fast.
+    failOnInvalid: true,
     description:
       "Default Anthropic extended-thinking token budget when a character omits settings.anthropicThinkingBudgetTokens. Unset or 0 disables unless the character sets a positive budget",
     validate: (value: string) => {
@@ -96,6 +99,9 @@ const ENV_VARS = {
 
   ANTHROPIC_COT_BUDGET_MAX: {
     required: false,
+    // Note: Invalid non-empty values here trigger request-time exceptions in anthropic-thinking.ts.
+    // Validation failures for this variable should be treated as errors (not warnings) to fail fast.
+    failOnInvalid: true,
     description:
       "Optional ceiling (tokens) for any effective Anthropic thinking budget (character setting or env default). Unset = no cap",
     validate: (value: string) => {
@@ -228,11 +234,13 @@ export function validateEnvironment(): EnvValidationResult {
     if ("validate" in config && config.validate && !config.validate(value)) {
       const errorMsg =
         "errorMessage" in config && config.errorMessage ? config.errorMessage : "Invalid format";
-      if (config.required) {
+      // Treat as error if required OR if failOnInvalid is set (for optional vars that throw at runtime)
+      const treatAsError = config.required || ("failOnInvalid" in config && config.failOnInvalid);
+      if (treatAsError) {
         errors.push({
           variable,
           message: `${variable}: ${errorMsg}`,
-          required: true,
+          required: config.required,
         });
       } else {
         warnings.push({
