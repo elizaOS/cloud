@@ -301,6 +301,8 @@ class AppPromotionAssetsService {
     try {
       // Use model string directly (not gateway.languageModel) for image generation
       // This matches the working pattern in /api/v1/generate-image
+      // Note: Image generation uses Gemini models which don't support CoT, so temperature
+      // control is not affected by ANTHROPIC_COT_BUDGET settings.
       const result = streamText({
         model: IMAGE_MODEL,
         ...mergeGoogleImageModalitiesWithAnthropicCot(IMAGE_MODEL),
