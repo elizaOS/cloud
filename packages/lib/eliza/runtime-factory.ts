@@ -15,10 +15,12 @@ import {
 } from "@elizaos/core";
 import createDatabaseAdapterDefault from "@elizaos/plugin-sql/node";
 
+// Note: @elizaos/plugin-sql/node exports a CommonJS default that TypeScript cannot
+// infer through the ESM boundary. We assert the known signature here. If the upstream
+// adapter factory signature changes, this assertion will need to be updated manually.
 const createDatabaseAdapter = createDatabaseAdapterDefault as (
   config: { postgresUrl: string },
   agentId: UUID,
-// Note: using type assertion here for flexibility while ensuring correct adapter interface.
 ) => IDatabaseAdapter;
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
