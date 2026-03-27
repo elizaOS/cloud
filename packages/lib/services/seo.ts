@@ -203,10 +203,12 @@ async function callClaudeSeoDraft(
   schema?: Record<string, unknown>;
 }> {
   const modelId = "anthropic/claude-sonnet-4";
+  // Note: When ANTHROPIC_COT_BUDGET is set, temperature is silently dropped by @ai-sdk/anthropic.
+  // SEO generation is a background service that does not benefit from extended thinking.
+  // Consider passing null as thinkingBudget to disable CoT for these internal service calls.
   const { text } = await generateText({
     model: gateway.languageModel(modelId),
-    temperature: 0.3,
-    ...mergeAnthropicCotProviderOptions(modelId),
+    ...mergeAnthropicCotProviderOptions(modelId, process.env, null),
     system:
       type === "meta"
         ? "Generate concise SEO metadata JSON with keys: title, description, keywords (array), metaTags (object). Keep title <= 60 chars, description <= 155 chars."
