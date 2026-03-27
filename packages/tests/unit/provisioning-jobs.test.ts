@@ -118,7 +118,7 @@ describe("ProvisioningJobService", () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    (vi as unknown as { restoreAllMocks: () => void }).restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   // ─────────────────────────────────────────────────────────────────
