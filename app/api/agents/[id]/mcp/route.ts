@@ -11,6 +11,10 @@
  * - API key authentication (uses org credits)
  *
  * When monetization is enabled, the agent creator earns their markup percentage.
+ *
+ * **Anthropic extended thinking:** The `chat` tool merges `providerOptions` using
+ * `user_characters.settings.anthropicThinkingBudgetTokens` (see `parseThinkingBudgetFromCharacterSettings`).
+ * **Why:** Thinking budget is owner-defined on the character, not passed by MCP clients (untrusted).
  */
 
 import { gateway } from "@ai-sdk/gateway";
@@ -19,7 +23,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
-import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
+import {
+  mergeAnthropicCotProviderOptions,
+  parseThinkingBudgetFromCharacterSettings,
+} from "@/lib/providers/anthropic-thinking";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
@@ -264,6 +271,7 @@ async function handleToolCall(
     inference_markup_percentage: string | null;
     system: string | null;
     bio: string | string[];
+    settings: Record<string, unknown>;
   },
   params: Record<string, unknown>,
   rpcId: string | number,
@@ -348,10 +356,15 @@ async function handleToolCall(
     }
 
     try {
+      const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
       const result = await streamText({
         model: gateway.languageModel(model),
         messages,
-        ...mergeAnthropicCotProviderOptions(model),
+        ...mergeAnthropicCotProviderOptions(
+          model,
+          process.env,
+          agentThinkingBudget,
+        ),
       });
 
       let fullText = "";

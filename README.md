@@ -564,7 +564,7 @@ Env is loaded from `.env`, `.env.local`, and `.env.test` via preload.
 ### Engineering docs (WHYs)
 
 - **[docs/unit-testing-milady-mocks.md](docs/unit-testing-milady-mocks.md)** — Why partial `MILADY_PRICING` mocks break other Milady modules under Bun, and how the billing cron tests isolate `mock.module("@/db/client")` contention.
-- **[docs/anthropic-cot-budget.md](docs/anthropic-cot-budget.md)** — Why `ANTHROPIC_COT_BUDGET` is deploy-scoped and how provider-option merges avoid clobbering gateway/Google settings.
+- **[docs/anthropic-cot-budget.md](docs/anthropic-cot-budget.md)** — Per-agent `settings.anthropicThinkingBudgetTokens` (MCP/A2A), env default (`ANTHROPIC_COT_BUDGET`) and cap (`ANTHROPIC_COT_BUDGET_MAX`), and **why** thinking budgets are not request parameters.
 - **[CHANGELOG.md](CHANGELOG.md)** — Engineering changelog (Keep a Changelog style).
 - **[docs/ROADMAP.md](docs/ROADMAP.md)** — Product direction and rationale; “Done” links to the above where relevant.
 
@@ -720,6 +720,8 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 **Cost**: Token-based pricing from `lib/pricing.ts`
 
 **Anthropic Messages API (Claude Code):** For tools that expect the [Anthropic Messages API](https://docs.anthropic.com/en/api/messages) (e.g. Claude Code), use **POST /api/v1/messages** with the same request/response shape. Set `ANTHROPIC_BASE_URL=https://cloud.milady.ai/api/v1` and `ANTHROPIC_API_KEY` to your Cloud API key so usage goes through Cloud credits instead of a direct Anthropic key. See [API docs → Anthropic Messages](/docs/api/messages). *Why: single API key and billing for both OpenAI-style and Anthropic-style clients.*
+
+**Public cloud agents (MCP / A2A) — Anthropic extended thinking:** For **`POST /api/agents/{id}/mcp`** (`chat` tool) and **`POST /api/agents/{id}/a2a`** (`chat`), extended thinking uses the character’s **`settings.anthropicThinkingBudgetTokens`** when the model is Anthropic (`0` = off; omitted = fall back to `ANTHROPIC_COT_BUDGET`). Optional **`ANTHROPIC_COT_BUDGET_MAX`** clamps any effective budget. *Why: the agent owner controls cost/quality per agent; MCP/A2A clients cannot pass a thinking budget in the request (untrusted input).* See [docs/anthropic-cot-budget.md](docs/anthropic-cot-budget.md).
 
 ### 2. AI Image Generation
 

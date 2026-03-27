@@ -78,7 +78,7 @@ const ENV_VARS = {
   ANTHROPIC_COT_BUDGET: {
     required: false,
     description:
-      "Optional positive integer: Anthropic extended-thinking token budget for Claude via gateway. Unset or 0 disables",
+      "Default Anthropic extended-thinking token budget when a character omits settings.anthropicThinkingBudgetTokens. Unset or 0 disables unless the character sets a positive budget",
     validate: (value: string) => {
       const trimmed = value.trim();
       if (trimmed === "") {
@@ -92,6 +92,24 @@ const ENV_VARS = {
     },
     errorMessage:
       "Must be a non-negative integer string (0 = off; when enabling, Anthropic often expects at least ~1024)",
+  },
+
+  ANTHROPIC_COT_BUDGET_MAX: {
+    required: false,
+    description:
+      "Optional ceiling (tokens) for any effective Anthropic thinking budget (character setting or env default). Unset = no cap",
+    validate: (value: string) => {
+      const trimmed = value.trim();
+      if (trimmed === "") {
+        return false;
+      }
+      if (!/^\d+$/.test(trimmed)) {
+        return false;
+      }
+      const n = Number.parseInt(trimmed, 10);
+      return n >= 0 && n <= Number.MAX_SAFE_INTEGER;
+    },
+    errorMessage: "Must be a non-negative integer string (0 = no cap)",
   },
 
   // Storage

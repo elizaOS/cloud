@@ -13,6 +13,15 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ## March 2026
 
+### Mar 28, 2026
+
+**Per-agent Anthropic extended thinking (MCP / A2A)**
+
+- **`user_characters.settings.anthropicThinkingBudgetTokens`**: integer token budget for Anthropic “extended thinking” on **`POST /api/agents/{id}/mcp`** (`chat`) and **`POST /api/agents/{id}/a2a`** (`chat`). **`0`** disables thinking for that agent even if `ANTHROPIC_COT_BUDGET` is set; omitted or invalid values fall back to env default. **Why:** Agent owners set inference policy in stored character data without redeploying; request bodies must not carry budgets so third-party MCP/A2A callers cannot inflate token spend.
+- **`ANTHROPIC_COT_BUDGET`**: clarified as **default** when the character does not set the key (and for routes that have no resolved character). **`ANTHROPIC_COT_BUDGET_MAX`**: optional ceiling on any effective budget. **Why:** Operators keep a baseline and a worst-case cap while still allowing per-agent overrides.
+
+Docs: [Anthropic CoT / thinking](../../docs/anthropic-cot-budget.md), [CHANGELOG.md](../../CHANGELOG.md).
+
 ### Mar 27, 2026
 
 **Anthropic extended thinking (deploy policy)**

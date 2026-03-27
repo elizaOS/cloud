@@ -6,9 +6,13 @@ import {
   mergeGoogleImageModalitiesWithAnthropicCot,
   mergeProviderOptions,
   parseAnthropicCotBudgetFromEnv,
+  parseAnthropicCotBudgetMaxFromEnv,
+  parseThinkingBudgetFromCharacterSettings,
+  resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
 
 const COT_ENV_KEY = "ANTHROPIC_COT_BUDGET";
+const COT_MAX_ENV_KEY = "ANTHROPIC_COT_BUDGET_MAX";
 
 describe("anthropic COT env", () => {
   let prev: string | undefined;
@@ -79,6 +83,42 @@ describe("anthropic COT env", () => {
     test("anthropic model + no budget → {}", () => {
       expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", {})).toEqual({});
     });
+
+    test("per-agent 0 disables despite env default", () => {
+      const env = { [COT_ENV_KEY]: "1024" };
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 0)).toEqual({});
+    });
+
+    test("per-agent budget overrides env default", () => {
+      const env = { [COT_ENV_KEY]: "1024" };
+      expect(
+        anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 2048),
+      ).toEqual({
+        providerOptions: {
+          anthropic: { thinking: { type: "enabled", budgetTokens: 2048 } },
+        },
+      });
+    });
+
+    test("ANTHROPIC_COT_BUDGET_MAX clamps per-agent budget", () => {
+      const env = { [COT_ENV_KEY]: "1024", [COT_MAX_ENV_KEY]: "500" };
+      expect(
+        anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 9000),
+      ).toEqual({
+        providerOptions: {
+          anthropic: { thinking: { type: "enabled", budgetTokens: 500 } },
+        },
+      });
+    });
+
+    test("ANTHROPIC_COT_BUDGET_MAX clamps env default when no per-agent override", () => {
+      const env = { [COT_ENV_KEY]: "9000", [COT_MAX_ENV_KEY]: "1000" };
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env)).toEqual({
+        providerOptions: {
+          anthropic: { thinking: { type: "enabled", budgetTokens: 1000 } },
+        },
+      });
+    });
   });
 
   describe("mergeAnthropicCotProviderOptions", () => {
@@ -115,6 +155,43 @@ describe("mergeGoogleImageModalitiesWithAnthropicCot", () => {
         anthropicThinkingProviderOptions("google/gemini-2.5-flash-image", {}),
       ),
     );
+  });
+});
+
+describe("parseAnthropicCotBudgetMaxFromEnv", () => {
+  test("unset → null", () => {
+    expect(parseAnthropicCotBudgetMaxFromEnv({})).toBeNull();
+  });
+
+  test("positive → cap", () => {
+    expect(parseAnthropicCotBudgetMaxFromEnv({ [COT_MAX_ENV_KEY]: "8192" })).toBe(8192);
+  });
+});
+
+describe("parseThinkingBudgetFromCharacterSettings", () => {
+  test("missing or invalid → undefined", () => {
+    expect(parseThinkingBudgetFromCharacterSettings(undefined)).toBeUndefined();
+    expect(parseThinkingBudgetFromCharacterSettings({})).toBeUndefined();
+    expect(
+      parseThinkingBudgetFromCharacterSettings({
+        anthropicThinkingBudgetTokens: "nope" as unknown as number,
+      }),
+    ).toBeUndefined();
+  });
+
+  test("integer ≥ 0", () => {
+    expect(
+      parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 0 }),
+    ).toBe(0);
+    expect(
+      parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 42 }),
+    ).toBe(42);
+  });
+});
+
+describe("resolveAnthropicThinkingBudgetTokens", () => {
+  test("non-anthropic → null", () => {
+    expect(resolveAnthropicThinkingBudgetTokens("gpt-4o", { [COT_ENV_KEY]: "1024" })).toBeNull();
   });
 });
 

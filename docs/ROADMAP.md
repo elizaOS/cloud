@@ -6,10 +6,10 @@ High-level direction and rationale. Dates are targets, not commitments.
 
 ## Done
 
-### Anthropic extended thinking via `ANTHROPIC_COT_BUDGET` (Mar 2026)
+### Anthropic extended thinking (per agent + env) (Mar 2026)
 
-- **What:** Optional env var sets a token budget for Anthropic “extended thinking” on eligible Claude models; merged into `providerOptions` alongside existing gateway/Google options.
-- **Why:** Operators can turn on reasoning-style behavior deploy-wide with predictable cost and policy boundaries, without exposing per-request thinking budgets from untrusted clients. Merge helpers avoid clobbering `gateway.order` or `google.responseModalities` when adding `anthropic.thinking`.
+- **What:** `user_characters.settings.anthropicThinkingBudgetTokens` sets thinking per cloud agent (MCP/A2A chat). `ANTHROPIC_COT_BUDGET` is the default when that key is omitted; `ANTHROPIC_COT_BUDGET_MAX` optionally caps any effective budget.
+- **Why:** Agent owners control inference policy without redeploying; request bodies must not carry budgets (untrusted clients). Env default + max give operators baseline and cost bounds.
 - **Docs:** [docs/anthropic-cot-budget.md](./anthropic-cot-budget.md)
 
 ### Unit tests: Milady `MILADY_PRICING` and billing cron (Mar 2026)
@@ -27,6 +27,11 @@ High-level direction and rationale. Dates are targets, not commitments.
 ---
 
 ## Near term
+
+### Per-agent Anthropic thinking: UX and coverage
+
+- **Dashboard / character editor** — Expose `settings.anthropicThinkingBudgetTokens` with copy that explains cost vs quality tradeoffs. *Why: today the field is JSON-only; most creators will not discover it from docs alone.*
+- **Room- or conversation-scoped chat** — When `/api/v1/chat` (or eliza runtime paths) resolve a `user_characters` row, thread the same `parseThinkingBudgetFromCharacterSettings` + merge helpers. *Why: parity between “chat in app” and “chat via MCP/A2A” for the same agent.*
 
 ### Messages API: extended compatibility
 

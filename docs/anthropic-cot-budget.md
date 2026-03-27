@@ -1,50 +1,61 @@
-# Anthropic extended thinking (`ANTHROPIC_COT_BUDGET`)
+# Anthropic extended thinking (per cloud agent + env defaults)
 
-Deploy-wide optional control for **Anthropic “extended thinking”** (chain-of-thought style reasoning) when using Claude models through the AI SDK / gateway.
+**Extended thinking** (Anthropic “chain-of-thought” style reasoning) is configured per **cloud agent** (a row in `user_characters`) with optional **deploy** defaults and caps. It is **not** controlled from raw API request bodies.
 
-## What it does
+## Per-agent setting (`user_characters.settings`)
 
-When set to a **positive integer**, eligible Anthropic model calls receive `providerOptions.anthropic.thinking` with `{ type: "enabled", budgetTokens: <n> }`, consistent with `@ai-sdk/anthropic` and gateway expectations.
+| Key | Type | Meaning |
+|-----|------|---------|
+| `anthropicThinkingBudgetTokens` | Integer ≥ 0 | Token budget for thinking when the model is Anthropic. **`0`** turns thinking **off** for that agent even if env default is set. **Omitted** or invalid → fall back to env (see below). |
 
-When **unset**, **empty**, or **0**, thinking is **not** injected—behavior matches a normal request with no thinking budget.
+**Why JSON on the character:** The agent’s owner configures inference policy in one place (dashboard / API that updates the character). No redeploy is required to change thinking for a specific public agent.
 
-## Why env-based (not per-request)
+**Why not a request parameter:** Callers of MCP/A2A/chat could not be trusted to raise thinking budgets and spend more tokens; the stored character record is the source of truth.
 
-**Why a single env var:**
+Exported constant: `ANTHROPIC_THINKING_BUDGET_CHARACTER_SETTINGS_KEY` in `packages/lib/providers/anthropic-thinking.ts` (value: `anthropicThinkingBudgetTokens`).
 
-- **Operational simplicity:** Enable or disable thinking for the whole deployment without changing every route or client.
-- **Cost predictability:** Thinking consumes extra tokens; a deploy-level switch avoids accidental enablement from arbitrary client payloads.
-- **Safety:** Per-request user-controlled thinking budgets would complicate billing, abuse review, and support. Env keeps the contract “platform policy,” not “untrusted input.”
+## Environment variables
 
-**Why `ANTHROPIC_COT_BUDGET` is validated strictly (non-empty must be digits, fail-fast on garbage):** Mis-set env vars should **fail at startup / validation** rather than silently producing `NaN` or partial provider options that the gateway rejects at runtime.
+| Variable | Role |
+|----------|------|
+| `ANTHROPIC_COT_BUDGET` | **Default** budget when the character **does not** set `anthropicThinkingBudgetTokens` (or it is invalid). Unset / empty / `0` → no budget from env (thinking stays off unless the character sets a positive integer). |
+| `ANTHROPIC_COT_BUDGET_MAX` | Optional **ceiling** for any effective budget (character value **or** env default): `effective = min(requested, max)`. Unset / empty / `0` → no cap. |
 
-## Why merge helpers exist (`mergeProviderOptions`, `mergeAnthropicCotProviderOptions`, …)
+**Why a default env:** Operators can turn on a baseline for routes that have **no** character context (e.g. generic `/api/v1/chat`) while agents with explicit settings override or disable locally.
 
-Different call sites already set other `providerOptions` keys:
+**Why a max env:** Caps worst-case token use if a character sets a very large `anthropicThinkingBudgetTokens`.
 
-- **Google image** flows need `google.responseModalities`.
-- **Forwarded chat** bodies may set `gateway.order` (e.g. prefer Groq).
+## Where per-agent budget is applied
 
-**Why not overwrite:** Replacing the entire `providerOptions` object would drop unrelated keys. **Deep-merge helpers** (see `packages/lib/providers/anthropic-thinking.ts`) combine nested `gateway`, `anthropic`, and `google` fragments so thinking can be added **without** clobbering existing options.
+Today, **`parseThinkingBudgetFromCharacterSettings`** is wired into:
 
-## Why `cloud-provider-options.ts`
+- `POST /api/agents/{id}/mcp` (tool `chat`)
+- `POST /api/agents/{id}/a2a` (method `chat`)
 
-`CloudMergedProviderOptions` is typed as `Record<string, JSONObject>` to align with AI SDK shared provider option shapes. **Why:** Keeps merged objects assignable where the SDK expects JSON-serializable nested records, and avoids `any` at merge boundaries.
+Other routes keep **env-only** behavior (no `character.settings` on the request path).
 
-## Where it is applied
+## Merge helpers (`mergeProviderOptions`, …)
 
-Thinking merges are threaded through server routes and services that forward to the gateway (e.g. chat, completions, messages, responses, image generation paths) **only when** the resolved model provider is Anthropic—see `getProviderFromModel` checks in `anthropicThinkingProviderOptions`.
+Routes may already set `gateway` or `google` under `providerOptions`. Helpers **deep-merge** known top-level keys so adding `anthropic.thinking` does not drop sibling options.
 
-## Configuration
+## `cloud-provider-options.ts`
 
-| Variable | Required | Meaning |
-|----------|----------|---------|
-| `ANTHROPIC_COT_BUDGET` | No | Positive integer string → enable with that token budget; unset / `0` → off |
+`CloudMergedProviderOptions` matches AI SDK `Record<string, JSONObject>` so merged objects stay type-safe without `any`.
 
-Documented in `.env.example` and validated in `packages/lib/config/env-validator.ts`.
+## How to set `anthropicThinkingBudgetTokens`
+
+Update the character’s `settings` JSON (`user_characters.settings` in PostgreSQL)—via your **character edit API**, **dashboard** (when exposed), or a one-off SQL/admin tool. The value must be a **finite number**; non-numbers are ignored and env default applies.
+
+**Why there is no query/body parameter on MCP/A2A:** Consumers are often third-party tools; letting them pass a thinking budget would let anyone raise token spend against the billed org. The **character record** is authenticated-owner data.
+
+## Operator checklist
+
+1. Set **`ANTHROPIC_COT_BUDGET_MAX`** in production if you want a hard ceiling on thinking tokens.
+2. Optionally set **`ANTHROPIC_COT_BUDGET`** as a default for routes **without** a resolved character (e.g. `/api/v1/chat`).
+3. Document for creators: add `anthropicThinkingBudgetTokens` under **Settings** when you ship UI, or point them at this doc for API-managed characters.
 
 ## Related code
 
-- `packages/lib/providers/anthropic-thinking.ts` — parse env, build fragments, merge helpers
-- `packages/lib/providers/cloud-provider-options.ts` — shared merged options type
-- `packages/tests/unit/anthropic-thinking.test.ts` — unit tests for parsing and merges
+- `packages/lib/providers/anthropic-thinking.ts` — resolution, merges, character parser
+- `packages/lib/config/env-validator.ts` — validates env keys when set
+- `packages/tests/unit/anthropic-thinking.test.ts` — unit tests

@@ -8,16 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **`ANTHROPIC_COT_BUDGET`** — Optional deploy-wide Anthropic extended-thinking token budget, mapped to `providerOptions.anthropic.thinking` for eligible Claude models. **Why:** Enable chain-of-thought style reasoning through the gateway under explicit operator control, without per-request untrusted budgets.
-- **`packages/lib/providers/cloud-provider-options.ts`** — Shared type for merged `providerOptions` aligned with AI SDK JSON expectations. **Why:** Type-safe merges across routes without `any`.
-- **`mockMiladyPricingMinimumDepositForRouteTests`** — Test helper in `packages/tests/helpers/mock-milady-pricing-for-route-tests.ts`. **Why:** Route tests that only need a custom `MINIMUM_DEPOSIT` must not replace the entire `MILADY_PRICING` object; doing so broke Milady billing cron tests in full `bun run test:unit` runs.
+- **Per-agent Anthropic extended thinking** — `user_characters.settings.anthropicThinkingBudgetTokens` (integer ≥ 0) controls thinking for **MCP** and **A2A** agent chat when the model is Anthropic. **`ANTHROPIC_COT_BUDGET_MAX`** optionally caps any effective budget (character or env default). **Why:** Agent owners set policy in stored character data; request bodies must not carry budgets (untrusted MCP/A2A callers). Env still supplies defaults where no character field exists and caps worst-case cost.
+- **`ANTHROPIC_COT_BUDGET`** (existing) — Clarified role as **default** when the character omits `anthropicThinkingBudgetTokens` (or value is invalid), plus baseline for routes without a resolved character. **Why:** One deploy-level knob for generic chat; per-agent overrides stay in JSON.
+- **`parseThinkingBudgetFromCharacterSettings`**, **`resolveAnthropicThinkingBudgetTokens`**, **`parseAnthropicCotBudgetMaxFromEnv`**, **`ANTHROPIC_THINKING_BUDGET_CHARACTER_SETTINGS_KEY`** — See `packages/lib/providers/anthropic-thinking.ts`. **Why:** Single resolution path and a stable settings key for dashboards/APIs.
+- **`packages/lib/providers/cloud-provider-options.ts`** — Shared type for merged `providerOptions`. **Why:** Type-safe merges without `any`.
+- **`mockMiladyPricingMinimumDepositForRouteTests`** — Test helper in `packages/tests/helpers/mock-milady-pricing-for-route-tests.ts`. **Why:** Partial `MILADY_PRICING` mocks broke Milady billing cron under full `bun run test:unit`.
 
 ### Changed
 
-- **Milady billing cron unit tests** — Renamed to `z-milady-billing-route.test.ts` and wired in `package.json` bulk/special scripts; `registerMiladyBillingMocks()` uses queue-backed inline `dbRead`/`dbWrite` factories re-applied in `beforeEach`. **Why:** Partial pricing mocks and global `mock.module("@/db/client")` contention caused order-dependent failures; stable queues + full pricing constants fix that class of bug.
+- **`POST /api/agents/{id}/mcp`** (`chat` tool) and **`POST /api/agents/{id}/a2a`** (`chat`) pass character `settings` into `mergeAnthropicCotProviderOptions`. **Why:** Those routes always resolve a `user_characters` row; other v1 routes remain env-only until a character is available on the request path.
+- **Milady billing cron unit tests** — `z-milady-billing-route.test.ts`, queue-backed DB mocks, `package.json` script paths. **Why:** `mock.module` ordering and partial pricing objects caused flaky full-suite failures.
 
 ### Documentation
 
-- **`docs/unit-testing-milady-mocks.md`** — WHY for Milady test layout and `mock.module` pitfalls.
-- **`docs/anthropic-cot-budget.md`** — WHY for env-based thinking and merge helpers.
-- **`docs/ROADMAP.md`** — Updated “Done” items for the above.
+- **`docs/anthropic-cot-budget.md`** — Per-agent settings, env default/max, operator checklist, MCP/A2A scope.
+- **`docs/unit-testing-milady-mocks.md`** — Milady `mock.module` pitfalls.
+- **`docs/ROADMAP.md`** — Done / near-term items.
