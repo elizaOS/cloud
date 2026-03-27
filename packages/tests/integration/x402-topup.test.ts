@@ -17,15 +17,15 @@ type RedeemableEarningsServicePatch = {
   addEarnings: typeof mockAddEarnings;
 };
 
-let referralsServiceForTest!: ReferralsServicePatch;
-let originalApplyReferralCode!: ReferralsServicePatch["applyReferralCode"];
-let originalCalculateRevenueSplits!: ReferralsServicePatch["calculateRevenueSplits"];
-let organizationsServiceForTest!: OrganizationsServicePatch;
-let originalUpdateCreditBalance!: OrganizationsServicePatch["updateCreditBalance"];
+let referralsServiceForTest: ReferralsServicePatch | null = null;
+let originalApplyReferralCode: ReferralsServicePatch["applyReferralCode"] | null = null;
+let originalCalculateRevenueSplits: ReferralsServicePatch["calculateRevenueSplits"] | null = null;
+let organizationsServiceForTest: OrganizationsServicePatch | null = null;
+let originalUpdateCreditBalance: OrganizationsServicePatch["updateCreditBalance"] | null = null;
 
 const mockAddEarnings = mock().mockResolvedValue(true);
-let redeemableEarningsServiceForTest!: RedeemableEarningsServicePatch;
-let originalAddEarnings!: RedeemableEarningsServicePatch["addEarnings"];
+let redeemableEarningsServiceForTest: RedeemableEarningsServicePatch | null = null;
+let originalAddEarnings: RedeemableEarningsServicePatch["addEarnings"] | null = null;
 
 // Register mock.module BEFORE any dynamic imports so the mock is in place
 // when topup-handler statically imports wallet-signup
@@ -95,10 +95,23 @@ describe("x402 Topup Endpoints", () => {
   });
 
   afterAll(() => {
-    referralsServiceForTest.applyReferralCode = originalApplyReferralCode;
-    referralsServiceForTest.calculateRevenueSplits = originalCalculateRevenueSplits;
-    organizationsServiceForTest.updateCreditBalance = originalUpdateCreditBalance;
-    redeemableEarningsServiceForTest.addEarnings = originalAddEarnings;
+    // Restore referrals service methods if they were patched
+    if (referralsServiceForTest !== null) {
+      if (originalApplyReferralCode !== null) {
+        referralsServiceForTest.applyReferralCode = originalApplyReferralCode;
+      }
+      if (originalCalculateRevenueSplits !== null) {
+        referralsServiceForTest.calculateRevenueSplits = originalCalculateRevenueSplits;
+      }
+    }
+    // Restore organizations service methods if they were patched
+    if (organizationsServiceForTest !== null && originalUpdateCreditBalance !== null) {
+      organizationsServiceForTest.updateCreditBalance = originalUpdateCreditBalance;
+    }
+    // Restore redeemable earnings service methods if they were patched
+    if (redeemableEarningsServiceForTest !== null && originalAddEarnings !== null) {
+      redeemableEarningsServiceForTest.addEarnings = originalAddEarnings;
+    }
     if (originalX402RecipientAddress === undefined) {
       delete process.env.X402_RECIPIENT_ADDRESS;
     } else {
