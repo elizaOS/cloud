@@ -368,11 +368,12 @@ async function handlePOST(req: NextRequest) {
 
       try {
         // Use isGeminiImageModel to properly distinguish Gemini models (which need responseModalities)
-        // from all other providers (OpenAI, Anthropic, etc.) which use standard CoT options
+        // from all other providers. For image generation, we explicitly disable extended thinking
+        // (pass 0) since CoT is not applicable to image generation endpoints and would add cost.
         const isGeminiImageModel = imageModel.startsWith("google/");
         const cotOpts = isGeminiImageModel
           ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel)
-          : mergeAnthropicCotProviderOptions(imageModel);
+          : mergeAnthropicCotProviderOptions(imageModel, process.env, 0);
         const result = streamText({ ...streamConfig, ...cotOpts });
 
         for await (const delta of result.fullStream) {
