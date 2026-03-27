@@ -27,6 +27,7 @@ import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/
 import {
   mergeAnthropicCotProviderOptions,
   parseThinkingBudgetFromCharacterSettings,
+  resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -294,9 +295,18 @@ async function handleChat(
   ];
 
   // Calculate estimated costs, including potential thinking budget
+  // Note: estimateRequestCost adds thinking tokens to output estimate when budget is provided
+// Calculate estimated costs, including potential thinking budget
+  // Use resolveAnthropicThinkingBudgetTokens to get effective budget (same as MCP route)
+  // This ensures credit reservation accounts for thinking tokens
   const provider = getProviderFromModel(model);
   const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
-  const baseCost = await estimateRequestCost(model, fullMessages, agentThinkingBudget);
+  const effectiveThinkingBudget = resolveAnthropicThinkingBudgetTokens(
+    model,
+    process.env,
+    agentThinkingBudget ?? undefined,
+  );
+  const baseCost = await estimateRequestCost(model, fullMessages, effectiveThinkingBudget);
 
   // Apply markup if monetization is enabled
   const markupPct = Number(character.inference_markup_percentage || 0);
