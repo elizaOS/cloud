@@ -9,17 +9,22 @@ type OrgEncryptionKeyRow = {
   rotated_at: null;
 };
 
-const dbReadFindFirst = mock(async (_opts: unknown): Promise<OrgEncryptionKeyRow | null> => null);
-const dbWriteFindFirst = mock(async (_opts: unknown): Promise<OrgEncryptionKeyRow | null> => null);
+type FindFirstOptions = {
+  where?: Record<string, string>;
+  orderBy?: Record<string, string>;
+};
+
+const dbReadFindFirst = mock(async (_opts: FindFirstOptions): Promise<OrgEncryptionKeyRow | null> => null);
+const dbWriteFindFirst = mock(async (_opts: FindFirstOptions): Promise<OrgEncryptionKeyRow | null> => null);
 const insertReturning = mock(async (): Promise<OrgEncryptionKeyRow[]> => []);
-const loggerWarn = mock((..._args: unknown[]) => undefined);
-const loggerInfo = mock((..._args: unknown[]) => undefined);
-const loggerError = mock((..._args: unknown[]) => undefined);
+const loggerWarn = mock((..._args: string[]) => undefined);
+const loggerInfo = mock((..._args: string[]) => undefined);
+const loggerError = mock((..._args: string[]) => undefined);
 
 const mockDbRead = {
   query: {
     organizationEncryptionKeys: {
-      findFirst: (opts: unknown) => dbReadFindFirst(opts),
+      findFirst: (opts: FindFirstOptions) => dbReadFindFirst(opts),
     },
   },
 };
@@ -27,7 +32,7 @@ const mockDbRead = {
 const mockDbWrite = {
   query: {
     organizationEncryptionKeys: {
-      findFirst: (opts: unknown) => dbWriteFindFirst(opts),
+      findFirst: (opts: FindFirstOptions) => dbWriteFindFirst(opts),
     },
   },
   insert: () => ({
@@ -51,13 +56,13 @@ mock.module("@/db/helpers", () => ({
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
-    warn: (...args: unknown[]) => {
+    warn: (...args: string[]) => {
       loggerWarn(...args);
     },
-    info: (...args: unknown[]) => {
+    info: (...args: string[]) => {
       loggerInfo(...args);
     },
-    error: (...args: unknown[]) => {
+    error: (...args: string[]) => {
       loggerError(...args);
     },
   },
