@@ -91,8 +91,8 @@ export async function executeSkillChatCompletion(
         role: m.role as "user" | "assistant" | "system",
         content: m.content,
       })),
-      ...mergeAnthropicCotProviderOptions(model),
       ...options,
+      ...mergeAnthropicCotProviderOptions(model),
     });
 
     let fullText = "";
