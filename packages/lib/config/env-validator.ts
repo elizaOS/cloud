@@ -96,7 +96,7 @@ const ENV_VARS = {
       return n >= 0 && n <= Number.MAX_SAFE_INTEGER;
     },
     errorMessage:
-      "Must be a non-negative integer (0 = disabled, positive = thinking budget tokens); unset also means disabled",
+      "Must be a non-negative integer; 0 or unset = disabled, positive = thinking budget tokens",
   },
 
   ANTHROPIC_COT_BUDGET_MAX: {
