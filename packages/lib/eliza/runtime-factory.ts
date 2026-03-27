@@ -28,6 +28,7 @@ import {
 // Note: @elizaos/plugin-sql/node exports a CommonJS default that TypeScript cannot
 // infer through the ESM boundary. We validate and assert the known signature here.
 // If the upstream adapter factory signature changes, this will throw at startup.
+// TODO: Check if @elizaos/plugin-sql exports a proper named type for the adapter factory.
 type CreateDatabaseAdapterFn = (
   config: { postgresUrl: string },
   agentId: UUID,
