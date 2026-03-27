@@ -367,21 +367,17 @@ async function handlePOST(req: NextRequest) {
       let textResponse = "";
 
       try {
-        // Use isGeminiImageModel to properly distinguish Gemini models (which need responseModalities)
+        // Use isGoogleModel to properly distinguish Google/Gemini models (which need responseModalities)
         // from all other providers. For image generation, we skip CoT injection entirely since
         // extended thinking is not applicable to image generation and may cause issues with
         // future image-capable models. Only Google models need special handling for responseModalities.
-        const isGeminiImageModel = imageModel.startsWith("google/");
-        const isOpenAIModel = imageModel.startsWith("openai/");
-        // Note: CoT is always off for Google image models (resolveAnthropicThinkingBudgetTokens
-        // returns null for non-Anthropic models). The 0 argument is redundant but documents intent.
-        // For OpenAI image models, no provider options needed (they use tools).
-        // For any other provider, we pass {} since image generation doesn't support CoT.
-        const cotOpts = isGeminiImageModel
+        const isGoogleModel = imageModel.startsWith("google/");
+        // Note: CoT is always off for image models (resolveAnthropicThinkingBudgetTokens
+        // returns null for non-Anthropic models, and image generation doesn't support thinking).
+        // Google models need responseModalities; all others (OpenAI uses tools, Anthropic, etc.) get {}.
+        const cotOpts = isGoogleModel
           ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel, process.env)
-          : isOpenAIModel
-            ? {} // OpenAI image models use tools, no provider options needed
-            : {}; // Image generation doesn't support extended thinking; skip CoT for all providers
+          : mergeAnthropicCotProviderOptions(imageModel, process.env, 0); // 0 disables CoT for non-Google image models
         const result = streamText({ ...streamConfig, ...cotOpts });
 
         for await (const delta of result.fullStream) {
