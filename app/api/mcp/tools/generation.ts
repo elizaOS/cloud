@@ -138,10 +138,10 @@ export function registerGenerationTools(server: McpServer): void {
         generationId = generation.id;
 
         // Generate text (non-streaming for MCP)
-        // Note: MCP text generation intentionally inherits ANTHROPIC_COT_BUDGET if set —
-        // unlike SEO/promotion routes (which pass 0 to disable), interactive text-gen
-        // can benefit from extended thinking. Temperature is not specified, so model
-        // defaults apply (CoT would drop temperature anyway per @ai-sdk/anthropic behavior).
+        // MCP text generation intentionally inherits ANTHROPIC_COT_BUDGET if set in env.
+        // Unlike SEO/promotion routes (which pass 0 to disable for temperature compat),
+        // interactive text-gen benefits from extended thinking. No explicit temperature
+        // is set here, so CoT's temperature override is acceptable.
         const result = await streamText({
           model: gateway.languageModel(model),
           prompt,
