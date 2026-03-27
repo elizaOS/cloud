@@ -26,12 +26,23 @@ import {
 } from "@/lib/cache/edge-runtime-cache";
 
 // Note: @elizaos/plugin-sql/node exports a CommonJS default that TypeScript cannot
-// infer through the ESM boundary. We assert the known signature here. If the upstream
-// adapter factory signature changes, this assertion will need to be updated manually.
-const createDatabaseAdapter = createDatabaseAdapterDefault as (
+// infer through the ESM boundary. We validate and assert the known signature here.
+// If the upstream adapter factory signature changes, this will throw at startup.
+type CreateDatabaseAdapterFn = (
   config: { postgresUrl: string },
   agentId: UUID,
 ) => IDatabaseAdapter;
+
+function ensureCreateDatabaseAdapter(fn: unknown): CreateDatabaseAdapterFn {
+  if (typeof fn !== "function") {
+    throw new TypeError(
+      'Default export from "@elizaos/plugin-sql/node" is not a callable database adapter factory',
+    );
+  }
+  return fn as CreateDatabaseAdapterFn;
+}
+
+const createDatabaseAdapter = ensureCreateDatabaseAdapter(createDatabaseAdapterDefault);
 
 const adapterEmbeddingDimensions = new Map<string, number>();
 
