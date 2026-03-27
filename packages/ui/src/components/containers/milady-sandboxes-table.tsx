@@ -50,7 +50,6 @@ import { toast } from "sonner";
 import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
 import { type SandboxListAgent, useSandboxListPoll } from "@/lib/hooks/use-sandbox-status-poll";
-import { getClientSafeMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { AgentCostBadge } from "./agent-cost-badge";
 import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
 
@@ -96,13 +95,6 @@ import { formatRelative, statusBadgeColor, statusDotColor } from "@/lib/constant
 
 function isDockerBacked(sb: MiladySandboxRow): boolean {
   return !!sb.node_id;
-}
-
-function getConnectUrl(sb: MiladySandboxRow): string | null {
-  return getClientSafeMiladyAgentWebUiUrl({
-    ...sb,
-    canonicalWebUiUrl: sb.canonical_web_ui_url,
-  });
 }
 
 // ----------------------------------------------------------------
@@ -566,7 +558,6 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
               ) : (
                 filtered.map((sb) => {
                   const isDocker = isDockerBacked(sb);
-                  const connectUrl = getConnectUrl(sb);
                   const trackedJob = poller.getStatus(sb.id);
                   const isProvisioningActive = poller.isActive(sb.id);
                   const displayStatus = isProvisioningActive ? "provisioning" : sb.status;
@@ -632,7 +623,7 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
 
                       {/* Web UI */}
                       <TableCell>
-                        {connectUrl && displayStatus === "running" ? (
+                        {displayStatus === "running" ? (
                           <button
                             type="button"
                             onClick={() => openWebUIWithPairing(sb.id)}
@@ -679,7 +670,7 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                             </TooltipContent>
                           </Tooltip>
 
-                          {connectUrl && displayStatus === "running" && (
+                          {displayStatus === "running" && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
@@ -767,7 +758,6 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
           ) : (
             filtered.map((sb) => {
               const isDocker = isDockerBacked(sb);
-              const connectUrl = getConnectUrl(sb);
               const trackedJob = poller.getStatus(sb.id);
               const isProvisioningActive = poller.isActive(sb.id);
               const displayStatus = isProvisioningActive ? "provisioning" : sb.status;
@@ -830,7 +820,7 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
                       Details
                     </a>
 
-                    {connectUrl && displayStatus === "running" && (
+                    {displayStatus === "running" && (
                       <button
                         type="button"
                         onClick={() => openWebUIWithPairing(sb.id)}

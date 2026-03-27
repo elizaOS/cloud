@@ -279,6 +279,7 @@ export class MiladySandboxService {
       existingEnv: (rec.environment_vars as Record<string, string>) ?? {},
       organizationId: rec.organization_id,
       userId: rec.user_id,
+      sandboxId: agentId,
     });
 
     if (managedEnvironment.changed) {

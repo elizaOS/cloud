@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   try {
     const { user } = await requireCompatAuth(request);
     const agents = await miladySandboxService.listAgents(user.organization_id);
-    return withCompatCors(NextResponse.json(envelope(agents.map(toCompatAgent))), CORS_METHODS);
+    return withCompatCors(NextResponse.json(envelope(agents.map((a) => toCompatAgent(a)))), CORS_METHODS);
   } catch (err) {
     return handleCompatError(err, CORS_METHODS);
   }
