@@ -3,7 +3,13 @@
  *
  * Core skill implementations for A2A protocol.
  * Only includes skills that are fully tested and working.
+ *
+ * Note: CoT budget uses env-only resolution (no per-character settings) because
+ * A2A skills operate at the protocol level without a resolved character context.
+ * The calling agent's character is not available here — skills are invoked via
+ * the A2A protocol which only provides user/org context, not agent personality.
  */
+</search>
 
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
