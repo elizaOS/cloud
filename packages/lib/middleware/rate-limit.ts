@@ -322,19 +322,19 @@ function getRateLimitMultiplier(): number {
  * NOTE FOR LOCAL DEVELOPMENT: These are production-level limits by default.
  * Set RATE_LIMIT_MULTIPLIER=100 in .env.local to increase limits for local dev/testing.
  */
-const _multiplier = getRateLimitMultiplier();
+const rateLimitMultiplier = getRateLimitMultiplier();
 
 export const RateLimitPresets = {
   /** 60 requests per minute - standard API endpoints */
   STANDARD: {
     windowMs: 60000,
-    maxRequests: 60 * _multiplier,
+    maxRequests: 60 * rateLimitMultiplier,
   },
 
   /** 10 requests per minute - sensitive operations */
   STRICT: {
     windowMs: 60000,
-    maxRequests: 10 * _multiplier,
+    maxRequests: 10 * rateLimitMultiplier,
   },
 
   /** 200 requests per minute - high-throughput endpoints */
