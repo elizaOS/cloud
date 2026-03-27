@@ -1,10 +1,9 @@
 import { gateway } from "@ai-sdk/gateway";
 import { put } from "@vercel/blob";
 import { generateText, streamText } from "ai";
-import type { CloudMergedProviderOptions } from "@/lib/providers/anthropic-thinking";
 import {
-  anthropicThinkingProviderOptions,
-  mergeProviderOptions,
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
 } from "@/lib/providers/anthropic-thinking";
 import { z } from "zod";
 import type { App } from "@/db/repositories";
@@ -304,14 +303,7 @@ class AppPromotionAssetsService {
       // This matches the working pattern in /api/v1/generate-image
       const result = streamText({
         model: IMAGE_MODEL,
-        ...mergeProviderOptions(
-          {
-            providerOptions: {
-              google: { responseModalities: ["TEXT", "IMAGE"] },
-            } satisfies CloudMergedProviderOptions,
-          },
-          anthropicThinkingProviderOptions(IMAGE_MODEL),
-        ),
+        ...mergeGoogleImageModalitiesWithAnthropicCot(IMAGE_MODEL),
         prompt: `Generate a promotional banner image: ${prompt}`,
       });
 
@@ -473,7 +465,7 @@ Return ONLY valid JSON. No markdown, no explanation.`;
       model: gateway.languageModel(copyModel),
       temperature: 0.8,
       prompt,
-      ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(copyModel)),
+      ...mergeAnthropicCotProviderOptions(copyModel),
     });
 
     return parseAiJson(text, AdCopyVariantsSchema, "ad copy variants");

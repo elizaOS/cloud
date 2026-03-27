@@ -2,7 +2,7 @@
  * Type definitions for AI provider interfaces.
  */
 
-import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
+import type { CloudMergedProviderOptions } from "@/lib/providers/cloud-provider-options";
 
 /**
  * OpenAI-compatible chat message.
@@ -47,13 +47,8 @@ export interface OpenAIChatRequest {
   seed?: number;
   logprobs?: boolean;
   top_logprobs?: number;
-  providerOptions?: {
-    gateway?: {
-      order?: string[];
-    };
-    /** Forwarded to Vercel AI Gateway for Anthropic models (e.g. extended thinking). */
-    anthropic?: AnthropicProviderOptions;
-  };
+  /** AI Gateway + provider-specific options (matches AI SDK `SharedV3ProviderOptions`). */
+  providerOptions?: CloudMergedProviderOptions;
 }
 
 export interface ProviderRequestOptions {

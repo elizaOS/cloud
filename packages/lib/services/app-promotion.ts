@@ -1,9 +1,6 @@
 import { gateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
-import {
-  anthropicThinkingProviderOptions,
-  mergeProviderOptions,
-} from "@/lib/providers/anthropic-thinking";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import type { App } from "@/db/repositories";
 import {
   AD_COPY_GENERATION_COST,
@@ -257,7 +254,7 @@ Return ONLY valid JSON, no markdown.`;
       model: gateway.languageModel(promoModel),
       temperature: 0.7,
       prompt,
-      ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(promoModel)),
+      ...mergeAnthropicCotProviderOptions(promoModel),
     });
 
     // Parse and validate the AI response

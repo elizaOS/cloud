@@ -7,6 +7,7 @@ import { GroqProvider } from "./groq";
 import type { AIProvider } from "./types";
 import { VercelGatewayProvider } from "./vercel-gateway";
 
+export * from "./anthropic-thinking";
 export { GroqProvider } from "./groq";
 export * from "./types";
 export { VercelGatewayProvider } from "./vercel-gateway";

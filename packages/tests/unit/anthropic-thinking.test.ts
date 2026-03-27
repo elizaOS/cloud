@@ -1,86 +1,120 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   anthropicThinkingProviderOptions,
+  mergeAnthropicCotProviderOptions,
+  mergeGatewayGroqPreferenceWithAnthropicCot,
+  mergeGoogleImageModalitiesWithAnthropicCot,
   mergeProviderOptions,
   parseAnthropicCotBudgetFromEnv,
 } from "@/lib/providers/anthropic-thinking";
 
-describe("parseAnthropicCotBudgetFromEnv", () => {
-  const key = "ANTHROPIC_COT_BUDGET";
+const COT_ENV_KEY = "ANTHROPIC_COT_BUDGET";
+
+describe("anthropic COT env", () => {
   let prev: string | undefined;
 
   beforeEach(() => {
-    prev = process.env[key];
-    delete process.env[key];
+    prev = process.env[COT_ENV_KEY];
+    delete process.env[COT_ENV_KEY];
   });
 
   afterEach(() => {
     if (prev === undefined) {
-      delete process.env[key];
+      delete process.env[COT_ENV_KEY];
     } else {
-      process.env[key] = prev;
+      process.env[COT_ENV_KEY] = prev;
     }
   });
 
-  test("unset and empty → null", () => {
-    expect(parseAnthropicCotBudgetFromEnv({})).toBeNull();
-    expect(parseAnthropicCotBudgetFromEnv({ [key]: "" })).toBeNull();
+  describe("parseAnthropicCotBudgetFromEnv", () => {
+    test("unset and empty → null", () => {
+      expect(parseAnthropicCotBudgetFromEnv({})).toBeNull();
+      expect(parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "" })).toBeNull();
+    });
+
+    test("0 → null", () => {
+      expect(parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "0" })).toBeNull();
+    });
+
+    test("positive integer → number", () => {
+      expect(parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "1024" })).toBe(1024);
+      expect(parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: " 2048 " })).toBe(2048);
+    });
+
+    test("invalid non-empty throws", () => {
+      expect(() => parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "abc" })).toThrow(
+        /non-negative integer/,
+      );
+      expect(() => parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "12.5" })).toThrow(
+        /non-negative integer/,
+      );
+      expect(() => parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "12x" })).toThrow(
+        /non-negative integer/,
+      );
+    });
   });
 
-  test("0 → null", () => {
-    expect(parseAnthropicCotBudgetFromEnv({ [key]: "0" })).toBeNull();
+  describe("anthropicThinkingProviderOptions", () => {
+    test("non-anthropic model → {}", () => {
+      expect(anthropicThinkingProviderOptions("gpt-4o", {})).toEqual({});
+      expect(anthropicThinkingProviderOptions("openai/gpt-4o", { [COT_ENV_KEY]: "1024" })).toEqual(
+        {},
+      );
+    });
+
+    test("anthropic model + budget → thinking enabled", () => {
+      const env = { [COT_ENV_KEY]: "1024" };
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env)).toEqual({
+        providerOptions: {
+          anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
+        },
+      });
+      expect(anthropicThinkingProviderOptions("claude-sonnet-4-5-20250929", env)).toEqual({
+        providerOptions: {
+          anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
+        },
+      });
+    });
+
+    test("anthropic model + no budget → {}", () => {
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", {})).toEqual({});
+    });
   });
 
-  test("positive integer → number", () => {
-    expect(parseAnthropicCotBudgetFromEnv({ [key]: "1024" })).toBe(1024);
-    expect(parseAnthropicCotBudgetFromEnv({ [key]: " 2048 " })).toBe(2048);
+  describe("mergeAnthropicCotProviderOptions", () => {
+    test("aliases mergeProviderOptions(undefined, anthropicThinking…)", () => {
+      expect(mergeAnthropicCotProviderOptions("openai/gpt-4o", {})).toEqual({});
+      const env = { [COT_ENV_KEY]: "1024" };
+      expect(mergeAnthropicCotProviderOptions("anthropic/claude-sonnet-4.5", env)).toEqual(
+        mergeProviderOptions(
+          undefined,
+          anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env),
+        ),
+      );
+    });
   });
 
-  test("invalid non-empty throws", () => {
-    expect(() => parseAnthropicCotBudgetFromEnv({ [key]: "abc" })).toThrow(/non-negative integer/);
-    expect(() => parseAnthropicCotBudgetFromEnv({ [key]: "12.5" })).toThrow(/non-negative integer/);
-    expect(() => parseAnthropicCotBudgetFromEnv({ [key]: "12x" })).toThrow(/non-negative integer/);
+  describe("mergeGatewayGroqPreferenceWithAnthropicCot", () => {
+    test("gateway order + anthropic when Claude + budget", () => {
+      const env = { [COT_ENV_KEY]: "1024" };
+      expect(mergeGatewayGroqPreferenceWithAnthropicCot("anthropic/claude-sonnet-4.5", env)).toEqual(
+        mergeProviderOptions(
+          { providerOptions: { gateway: { order: ["groq"] } } },
+          anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env),
+        ),
+      );
+    });
   });
 });
 
-describe("anthropicThinkingProviderOptions", () => {
-  const key = "ANTHROPIC_COT_BUDGET";
-  let prev: string | undefined;
-
-  beforeEach(() => {
-    prev = process.env[key];
-    delete process.env[key];
-  });
-
-  afterEach(() => {
-    if (prev === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = prev;
-    }
-  });
-
-  test("non-anthropic model → {}", () => {
-    expect(anthropicThinkingProviderOptions("gpt-4o", {})).toEqual({});
-    expect(anthropicThinkingProviderOptions("openai/gpt-4o", { [key]: "1024" })).toEqual({});
-  });
-
-  test("anthropic model + budget → thinking enabled", () => {
-    const env = { [key]: "1024" };
-    expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env)).toEqual({
-      providerOptions: {
-        anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
-      },
-    });
-    expect(anthropicThinkingProviderOptions("claude-sonnet-4-5-20250929", env)).toEqual({
-      providerOptions: {
-        anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
-      },
-    });
-  });
-
-  test("anthropic model + no budget → {}", () => {
-    expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", {})).toEqual({});
+describe("mergeGoogleImageModalitiesWithAnthropicCot", () => {
+  test("matches explicit google merge + anthropic fragment", () => {
+    expect(mergeGoogleImageModalitiesWithAnthropicCot("google/gemini-2.5-flash-image", {})).toEqual(
+      mergeProviderOptions(
+        { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } },
+        anthropicThinkingProviderOptions("google/gemini-2.5-flash-image", {}),
+      ),
+    );
   });
 });
 

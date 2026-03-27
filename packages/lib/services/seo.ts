@@ -13,10 +13,7 @@ import type {
   SeoRequest,
 } from "@/db/schemas/seo";
 import { seoRequests, seoRequestTypeEnum } from "@/db/schemas/seo";
-import {
-  anthropicThinkingProviderOptions,
-  mergeProviderOptions,
-} from "@/lib/providers/anthropic-thinking";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { logger } from "@/lib/utils/logger";
 import { creditsService } from "./credits";
@@ -209,7 +206,7 @@ async function callClaudeSeoDraft(
   const { text } = await generateText({
     model: gateway.languageModel(modelId),
     temperature: 0.3,
-    ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(modelId)),
+    ...mergeAnthropicCotProviderOptions(modelId),
     system:
       type === "meta"
         ? "Generate concise SEO metadata JSON with keys: title, description, keywords (array), metaTags (object). Keep title <= 60 chars, description <= 155 chars."

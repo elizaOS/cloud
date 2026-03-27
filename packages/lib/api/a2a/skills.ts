@@ -8,8 +8,8 @@
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
 import {
-  anthropicThinkingProviderOptions,
-  mergeProviderOptions,
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
 } from "@/lib/providers/anthropic-thinking";
 import {
   calculateCost,
@@ -91,7 +91,7 @@ export async function executeSkillChatCompletion(
         role: m.role as "user" | "assistant" | "system",
         content: m.content,
       })),
-      ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(model)),
+      ...mergeAnthropicCotProviderOptions(model),
       ...options,
     });
 
@@ -194,10 +194,7 @@ export async function executeSkillImageGeneration(
     const imageModelId = "google/gemini-2.5-flash-image";
     const result = streamText({
       model: imageModelId,
-      ...mergeProviderOptions(
-        { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } },
-        anthropicThinkingProviderOptions(imageModelId),
-      ),
+      ...mergeGoogleImageModalitiesWithAnthropicCot(imageModelId),
       prompt: `Generate an image: ${prompt}, ${aspectDesc[aspectRatio] || "square"} composition`,
     });
 

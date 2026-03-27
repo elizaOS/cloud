@@ -19,10 +19,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
-import {
-  anthropicThinkingProviderOptions,
-  mergeProviderOptions,
-} from "@/lib/providers/anthropic-thinking";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
@@ -354,7 +351,7 @@ async function handleToolCall(
       const result = await streamText({
         model: gateway.languageModel(model),
         messages,
-        ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(model)),
+        ...mergeAnthropicCotProviderOptions(model),
       });
 
       let fullText = "";

@@ -3,10 +3,9 @@ import { streamText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import type { CloudMergedProviderOptions } from "@/lib/providers/anthropic-thinking";
 import {
-  anthropicThinkingProviderOptions,
-  mergeProviderOptions,
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
 } from "@/lib/providers/anthropic-thinking";
 import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { uploadBase64Image } from "@/lib/blob";
@@ -339,9 +338,6 @@ async function handlePOST(req: NextRequest) {
 
         streamConfig = {
           model: imageModel,
-          providerOptions: {
-            google: { responseModalities: ["TEXT", "IMAGE"] },
-          },
           messages: [
             {
               role: "user",
@@ -363,9 +359,6 @@ async function handlePOST(req: NextRequest) {
         // Google/other models: Text-to-image with simple prompt
         streamConfig = {
           model: imageModel,
-          providerOptions: {
-            google: { responseModalities: ["TEXT", "IMAGE"] },
-          },
           prompt: `Generate an image: ${enhancedPrompt}`,
         };
       }
@@ -374,14 +367,10 @@ async function handlePOST(req: NextRequest) {
       let textResponse = "";
 
       try {
-        const mergedOpts = mergeProviderOptions(
-          "providerOptions" in streamConfig
-            ? { providerOptions: streamConfig.providerOptions as CloudMergedProviderOptions }
-            : undefined,
-          anthropicThinkingProviderOptions(imageModel),
-        );
-        type StreamTextParams = Parameters<typeof streamText>[0];
-        const result = streamText({ ...streamConfig, ...mergedOpts } as StreamTextParams);
+        const cotOpts = isOpenAIModel
+          ? mergeAnthropicCotProviderOptions(imageModel)
+          : mergeGoogleImageModalitiesWithAnthropicCot(imageModel);
+        const result = streamText({ ...streamConfig, ...cotOpts });
 
         for await (const delta of result.fullStream) {
           switch (delta.type) {

@@ -1,9 +1,6 @@
 import { gateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
-import {
-  anthropicThinkingProviderOptions,
-  mergeProviderOptions,
-} from "@/lib/providers/anthropic-thinking";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import { TwitterApi } from "twitter-api-v2";
 import { type App, appsRepository } from "@/db/repositories";
 import { TWITTER_POST_COST } from "@/lib/promotion-pricing";
@@ -241,7 +238,7 @@ Return ONLY the tweet text, nothing else.`;
         model: gateway.languageModel(twModel),
         temperature: 0.8,
         prompt,
-        ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(twModel)),
+        ...mergeAnthropicCotProviderOptions(twModel),
       });
 
       return {

@@ -1,21 +1,25 @@
 /**
- * ANTHROPIC_COT_BUDGET → AI SDK / gateway-forward providerOptions (plugin-anthropic parity).
+ * Deploy-wide **ANTHROPIC_COT_BUDGET** → `providerOptions.anthropic.thinking` (AI SDK / gateway JSON).
+ *
+ * **Spread helpers** (pick one per call site):
+ * - {@link mergeAnthropicCotProviderOptions} — plain `streamText` / `generateText` (no base `providerOptions`).
+ * - {@link mergeGoogleImageModalitiesWithAnthropicCot} — Gemini-style image (`google.responseModalities`).
+ * - {@link mergeGatewayGroqPreferenceWithAnthropicCot} — forwarded chat body + `gateway.order: ['groq']` (e.g. `/responses`).
+ *
+ * Lower-level: {@link mergeProviderOptions}, {@link anthropicThinkingProviderOptions}, {@link parseAnthropicCotBudgetFromEnv}.
  */
 
 import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import type { JSONObject } from "@ai-sdk/provider";
 import { getProviderFromModel } from "@/lib/pricing";
+import type { CloudMergedProviderOptions } from "./cloud-provider-options";
 
 const ENV_KEY = "ANTHROPIC_COT_BUDGET";
 
 /** Subset of env used for tests and callers that only pass a few keys. */
 export type AnthropicCotEnv = Record<string, string | undefined>;
 
-/**
- * AI SDK v3 `providerOptions` is `Record<string, JSONObject>` (see SharedV3ProviderOptions).
- * We merge gateway / anthropic / google under that contract.
- */
-export type CloudMergedProviderOptions = Record<string, JSONObject>;
+export type { CloudMergedProviderOptions } from "./cloud-provider-options";
 
 function parsePositiveIntStrict(raw: string): number {
   const trimmed = raw.trim();
@@ -62,7 +66,7 @@ const anthropicThinkingOptions = (budgetTokens: number): AnthropicProviderOption
 export function anthropicThinkingProviderOptions(
   modelId: string,
   env: AnthropicCotEnv = process.env,
-): { providerOptions: { anthropic: AnthropicProviderOptions } } | Record<string, never> {
+): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
   if (getProviderFromModel(modelId) !== "anthropic") {
     return {};
   }
@@ -70,9 +74,10 @@ export function anthropicThinkingProviderOptions(
   if (budget === null) {
     return {};
   }
+  const anthropic = anthropicThinkingOptions(budget);
   return {
     providerOptions: {
-      anthropic: anthropicThinkingOptions(budget),
+      anthropic,
     },
   };
 }
@@ -100,4 +105,44 @@ export function mergeProviderOptions(
     out.google = { ...a.google, ...b.google };
   }
   return { providerOptions: out };
+}
+
+/**
+ * Spread into `streamText` / `generateText` after model and messages.
+ * Equivalent to `mergeProviderOptions(undefined, anthropicThinkingProviderOptions(modelId))`.
+ */
+export function mergeAnthropicCotProviderOptions(
+  modelId: string,
+  env: AnthropicCotEnv = process.env,
+): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
+  return mergeProviderOptions(undefined, anthropicThinkingProviderOptions(modelId, env));
+}
+
+const GOOGLE_IMAGE_MODALITIES: JSONObject = { responseModalities: ["TEXT", "IMAGE"] };
+
+/**
+ * Gemini (and similar) image generation: `google.responseModalities` plus optional COT merge.
+ * For non-Anthropic `modelId`, the COT fragment is empty (no-op).
+ */
+export function mergeGoogleImageModalitiesWithAnthropicCot(
+  modelId: string,
+  env: AnthropicCotEnv = process.env,
+): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
+  return mergeProviderOptions(
+    { providerOptions: { google: GOOGLE_IMAGE_MODALITIES } },
+    anthropicThinkingProviderOptions(modelId, env),
+  );
+}
+
+/**
+ * Chat-completions-shaped forwards (e.g. `/responses`): prefer Groq in gateway order plus optional COT.
+ */
+export function mergeGatewayGroqPreferenceWithAnthropicCot(
+  modelId: string,
+  env: AnthropicCotEnv = process.env,
+): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
+  return mergeProviderOptions(
+    { providerOptions: { gateway: { order: ["groq"] } } },
+    anthropicThinkingProviderOptions(modelId, env),
+  );
 }

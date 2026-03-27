@@ -21,10 +21,7 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import { getLanguageModel } from "@/lib/providers/language-model";
-import {
-  anthropicThinkingProviderOptions,
-  mergeProviderOptions,
-} from "@/lib/providers/anthropic-thinking";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import {
   billUsage,
   estimateInputTokens,
@@ -443,7 +440,7 @@ async function handleStreamingRequest(
     timeout: timeoutMs,
     ...safeParams,
     ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
-    ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(model)),
+    ...mergeAnthropicCotProviderOptions(model),
     onFinish: async ({ text, usage }) => {
       try {
         const billing = await billUsage(
@@ -612,7 +609,7 @@ async function handleNonStreamingRequest(
       timeout: timeoutMs,
       ...safeParamsNonStream,
       ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
-      ...mergeProviderOptions(undefined, anthropicThinkingProviderOptions(model)),
+      ...mergeAnthropicCotProviderOptions(model),
     });
 
     // Bill using actual usage from SDK response

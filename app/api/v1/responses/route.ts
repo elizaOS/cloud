@@ -28,10 +28,7 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import { getProviderForModel } from "@/lib/providers";
-import {
-  anthropicThinkingProviderOptions,
-  mergeProviderOptions,
-} from "@/lib/providers/anthropic-thinking";
+import { mergeGatewayGroqPreferenceWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
 import type { OpenAIChatRequest, OpenAIChatResponse } from "@/lib/providers/types";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { creditsService } from "@/lib/services/credits";
@@ -670,10 +667,7 @@ async function handlePOST(req: NextRequest) {
       ? safeRequest
       : {
           ...safeRequest,
-          ...mergeProviderOptions(
-            { providerOptions: { gateway: { order: ["groq"] } } },
-            anthropicThinkingProviderOptions(model),
-          ),
+          ...mergeGatewayGroqPreferenceWithAnthropicCot(model),
         };
     const providerResponse = await providerInstance.chatCompletions(requestWithProvider, {
       signal: req.signal,
