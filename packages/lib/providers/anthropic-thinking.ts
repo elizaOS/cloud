@@ -26,17 +26,21 @@ import type { CloudMergedProviderOptions } from "./cloud-provider-options";
  * Models that support Anthropic extended thinking.
  * Only Claude 3.5 Sonnet (new) and Claude 3 Opus support extended thinking.
  * Haiku, Instant, and older Claude 2 variants do not.
+ * Note: Patterns do not use ^ anchor to support provider-prefixed model IDs (e.g. "anthropic/claude-sonnet-4").
  */
 const EXTENDED_THINKING_MODEL_PATTERNS = [
-  /^claude-3-5-sonnet/, // Claude 3.5 Sonnet (all versions)
-  /^claude-3-opus/, // Claude 3 Opus
-  /^claude-sonnet-4/, // Claude Sonnet 4
-  /^claude-opus-4/, // Claude Opus 4
+  /claude-3-5-sonnet/, // Claude 3.5 Sonnet (all versions)
+  /claude-3-7-sonnet/, // Claude 3.7 Sonnet
+  /claude-3-opus/, // Claude 3 Opus
+  /claude-sonnet-4/, // Claude Sonnet 4
+  /claude-opus-4/, // Claude Opus 4
 ];
 
 /**
  * Check if the given model ID supports extended thinking.
  * Not all Anthropic models support this feature.
+ * Handles both bare model IDs (e.g. "claude-sonnet-4") and
+ * provider-prefixed IDs (e.g. "anthropic/claude-sonnet-4").
  */
 export function supportsExtendedThinking(modelId: string): boolean {
   const normalizedId = modelId.toLowerCase();
@@ -178,7 +182,7 @@ const anthropicThinkingOptions = (budgetTokens: number): AnthropicProviderOption
  * AI SDK / gateway fragment when budget is active and model is Anthropic.
  *
  * @param agentThinkingBudgetTokens When set (including `0` handled as off via {@link resolveAnthropicThinkingBudgetTokens}),
- * uses the character’s budget; when omitted, uses `ANTHROPIC_COT_BUDGET` only.
+ * uses the character's budget; when omitted, uses `ANTHROPIC_COT_BUDGET` only.
  */
 export function anthropicThinkingProviderOptions(
   modelId: string,
