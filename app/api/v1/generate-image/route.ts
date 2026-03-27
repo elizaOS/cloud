@@ -3,10 +3,7 @@ import { streamText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  mergeAnthropicCotProviderOptions,
-  mergeGoogleImageModalitiesWithAnthropicCot,
-} from "@/lib/providers/anthropic-thinking";
+import { mergeGoogleImageModalitiesWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
 import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -368,12 +365,13 @@ async function handlePOST(req: NextRequest) {
 
       try {
         // Use isGeminiImageModel to properly distinguish Gemini models (which need responseModalities)
-        // from all other providers. For image generation, we explicitly disable extended thinking
-        // (pass 0) since CoT is not applicable to image generation endpoints and would add cost.
+        // from all other providers. For image generation, we skip CoT injection entirely since
+        // extended thinking is not applicable to image generation and may cause issues with
+        // future image-capable models. Only Google models need special handling for responseModalities.
         const isGeminiImageModel = imageModel.startsWith("google/");
         const cotOpts = isGeminiImageModel
           ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel)
-          : mergeAnthropicCotProviderOptions(imageModel, process.env, 0);
+          : {}; // No CoT for non-Google image models - thinking is text-generation only
         const result = streamText({ ...streamConfig, ...cotOpts });
 
         for await (const delta of result.fullStream) {
