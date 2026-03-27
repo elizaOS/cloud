@@ -461,11 +461,14 @@ Return JSON with these exact fields:
 Return ONLY valid JSON. No markdown, no explanation.`;
 
     const copyModel = "anthropic/claude-sonnet-4";
+    // Note: Explicitly disable extended thinking (pass 0) for ad copy generation.
+    // This is a background service that requires temperature control for creative output,
+    // and enabling CoT would silently drop temperature per @ai-sdk/anthropic behavior.
     const { text } = await generateText({
       model: gateway.languageModel(copyModel),
       temperature: 0.8,
       prompt,
-      ...mergeAnthropicCotProviderOptions(copyModel),
+      ...mergeAnthropicCotProviderOptions(copyModel, process.env, 0),
     });
 
     return parseAiJson(text, AdCopyVariantsSchema, "ad copy variants");
