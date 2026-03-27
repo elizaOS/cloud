@@ -234,14 +234,15 @@ Return ONLY the tweet text, nothing else.`;
 
     try {
       const twModel = "anthropic/claude-sonnet-4";
-      // Note: When ANTHROPIC_COT_BUDGET is set, temperature is silently dropped by @ai-sdk/anthropic.
-      // Tweet generation is a background service that does not benefit from extended thinking.
-      // Pass 0 as thinkingBudget to explicitly disable CoT for these internal service calls.
+      // Note: Explicitly disable extended thinking (pass 0) for tweet generation.
+      // This is a background service that requires temperature control for creative output,
+      // and enabling CoT would silently drop temperature per @ai-sdk/anthropic behavior.
+      // Temperature 0.8 for varied, creative tweet content.
       const { text } = await generateText({
         model: gateway.languageModel(twModel),
+        ...mergeAnthropicCotProviderOptions(twModel, process.env, 0),
         temperature: 0.8,
         prompt,
-        ...mergeAnthropicCotProviderOptions(twModel, process.env, 0),
       });
 
       return {
