@@ -120,6 +120,25 @@ const ENV_VARS = {
     errorMessage: "Must be a non-negative integer string (0 = no cap)",
   },
 
+  RATE_LIMIT_MULTIPLIER: {
+    required: false,
+    failOnInvalid: true,
+    description:
+      "Multiplier for rate limit thresholds (e.g., 100 for 100x limits in dev). Defaults to 1 (production limits).",
+    validate: (value: string) => {
+      const trimmed = value.trim();
+      if (trimmed === "") {
+        return false;
+      }
+      if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+        return false;
+      }
+      const n = Number.parseFloat(trimmed);
+      return n > 0 && Number.isFinite(n);
+    },
+    errorMessage: "Must be a positive number (e.g., 1, 10, 100)",
+  },
+
   // Storage
   BLOB_READ_WRITE_TOKEN: {
     required: false,
