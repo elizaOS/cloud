@@ -9,7 +9,7 @@ const HEALTHCHECK_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 500;
 const MANAGED_FETCH_RETRIES = 4;
 const TEST_SERVER_SCRIPT = process.env.TEST_SERVER_SCRIPT || "dev";
-const baseFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+const baseFetch: typeof fetch = globalThis.fetch;
 
 let serverProcess: Subprocess | null = null;
 let startedServer = false;
@@ -270,7 +270,9 @@ const fetchWithServer: typeof fetch = Object.assign(
 
     throw new Error("Managed fetch exhausted all retry attempts");
   },
-  { preconnect: baseFetch.preconnect.bind(baseFetch) },
+  typeof baseFetch.preconnect === "function"
+    ? { preconnect: baseFetch.preconnect.bind(baseFetch) }
+    : {},
 );
 
 globalThis.fetch = fetchWithServer;
