@@ -9,7 +9,6 @@
  * The calling agent's character is not available here — skills are invoked via
  * the A2A protocol which only provides user/org context, not agent personality.
  */
-</search>
 
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
