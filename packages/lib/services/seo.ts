@@ -206,10 +206,10 @@ async function callClaudeSeoDraft(
   // Note: Explicitly disable extended thinking (pass 0) for SEO generation.
   // This is a background service that does not benefit from CoT, and enabling it
   // would silently drop temperature control per @ai-sdk/anthropic behavior.
-  // Temperature 0.7 is set for creative SEO content generation.
+  // Temperature 0.3 for deterministic, consistent SEO metadata output.
   const { text } = await generateText({
     model: gateway.languageModel(modelId),
-    temperature: 0.7,
+    temperature: 0.3,
     ...mergeAnthropicCotProviderOptions(modelId, process.env, 0),
     system:
       type === "meta"
