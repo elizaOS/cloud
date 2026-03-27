@@ -104,6 +104,31 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
     });
     expect(result).toBe(10000);
   });
+
+  test("returns null when env budget is 0 (explicitly disabled)", () => {
+    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {
+      [COT_ENV_KEY]: "0",
+    });
+    expect(result).toBeNull();
+  });
+
+  test("per-agent budget takes precedence over env budget", () => {
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      { [COT_ENV_KEY]: "5000" },
+      3000,
+    );
+    expect(result).toBe(3000);
+  });
+
+  test("max cap of 0 effectively disables thinking", () => {
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      { [COT_MAX_ENV_KEY]: "0" },
+      5000,
+    );
+    expect(result).toBe(0);
+  });
 });
 
 
