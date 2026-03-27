@@ -121,13 +121,15 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
     expect(result).toBe(3000);
   });
 
-  test("max cap of 0 effectively disables thinking", () => {
+  test("max cap of 0 means no cap, per-agent budget passes through", () => {
+    // parseAnthropicCotBudgetMaxFromEnv returns null for "0" (meaning no cap),
+    // so the per-agent budget of 5000 is returned unchanged.
     const result = resolveAnthropicThinkingBudgetTokens(
       "anthropic/claude-sonnet-4",
       { [COT_MAX_ENV_KEY]: "0" },
       5000,
     );
-    expect(result).toBe(0);
+    expect(result).toBe(5000);
   });
 });
 
