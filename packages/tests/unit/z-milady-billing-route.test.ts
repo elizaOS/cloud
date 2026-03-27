@@ -61,16 +61,11 @@ function createInsertBuilder(queue: unknown[][]) {
   };
 }
 
-const mockDbReadSelect = mock(() => createReadBuilder(readResultsQueue.shift() ?? []));
-const mockDbWriteUpdate = mock(() =>
-  createUpdateBuilder(writeUpdateResultsQueue, writeUpdateSetCalls),
-);
-const mockDbWriteTransaction = mock(async (callback: (tx: any) => Promise<unknown>) =>
-  callback({
-    update: () => createUpdateBuilder(txUpdateResultsQueue, txUpdateSetCalls),
-    insert: () => createInsertBuilder(txInsertResultsQueue),
-  }),
-);
+type MiladyBillingTestTx = {
+  update: () => ReturnType<typeof createUpdateBuilder>;
+  insert: () => ReturnType<typeof createInsertBuilder>;
+};
+
 const mockListByOrganization = mock(async () => []);
 const mockSendContainerShutdownWarningEmail = mock(async () => undefined);
 const mockTrackServerEvent = mock(() => undefined);
@@ -80,38 +75,48 @@ const mockLogger = {
   error: mock(() => undefined),
 };
 
-mock.module("@/db/client", () => ({
-  dbRead: {
-    select: mockDbReadSelect,
-  },
-  dbWrite: {
-    update: mockDbWriteUpdate,
-    transaction: mockDbWriteTransaction,
-  },
-}));
+function registerMiladyBillingMocks(): void {
+  // Inline closures (not `mock.fn`) so re-registering after other tests' `mock.module("@/db/client")`
+  // always wires `@/db/client` to these queue-backed implementations.
+  mock.module("@/db/client", () => ({
+    dbRead: {
+      select: () => createReadBuilder(readResultsQueue.shift() ?? []),
+    },
+    dbWrite: {
+      update: () => createUpdateBuilder(writeUpdateResultsQueue, writeUpdateSetCalls),
+      transaction: async (callback: (tx: MiladyBillingTestTx) => Promise<unknown>) =>
+        callback({
+          update: () => createUpdateBuilder(txUpdateResultsQueue, txUpdateSetCalls),
+          insert: () => createInsertBuilder(txInsertResultsQueue),
+        }),
+    },
+  }));
 
-mock.module("@/db/repositories", () => ({
-  usersRepository: {
-    listByOrganization: mockListByOrganization,
-  },
-}));
+  mock.module("@/db/repositories", () => ({
+    usersRepository: {
+      listByOrganization: mockListByOrganization,
+    },
+  }));
 
-mock.module("@/lib/services/email", () => ({
-  emailService: {
-    sendContainerShutdownWarningEmail: mockSendContainerShutdownWarningEmail,
-  },
-}));
+  mock.module("@/lib/services/email", () => ({
+    emailService: {
+      sendContainerShutdownWarningEmail: mockSendContainerShutdownWarningEmail,
+    },
+  }));
 
-mock.module("@/lib/analytics/posthog-server", () => ({
-  trackServerEvent: mockTrackServerEvent,
-}));
+  mock.module("@/lib/analytics/posthog-server", () => ({
+    trackServerEvent: mockTrackServerEvent,
+  }));
 
-mock.module("@/lib/utils/logger", () => ({
-  logger: mockLogger,
-}));
+  mock.module("@/lib/utils/logger", () => ({
+    logger: mockLogger,
+  }));
+}
+
+registerMiladyBillingMocks();
 
 async function importRoute() {
-  return await import("@/app/api/cron/milady-billing/route");
+  return import("@/app/api/cron/milady-billing/route");
 }
 
 function createRequest(): NextRequest {
@@ -142,6 +147,8 @@ function enqueueBaseReadState({
 
 describe("Milady billing cron", () => {
   beforeEach(() => {
+    registerMiladyBillingMocks();
+
     previousCronSecret = process.env.CRON_SECRET;
     previousAppUrl = process.env.NEXT_PUBLIC_APP_URL;
 
@@ -154,22 +161,6 @@ describe("Milady billing cron", () => {
 
     process.env.CRON_SECRET = TEST_SECRET;
     process.env.NEXT_PUBLIC_APP_URL = "https://example.com";
-
-    mockDbReadSelect.mockClear();
-    mockDbReadSelect.mockImplementation(() => createReadBuilder(readResultsQueue.shift() ?? []));
-
-    mockDbWriteUpdate.mockClear();
-    mockDbWriteUpdate.mockImplementation(() =>
-      createUpdateBuilder(writeUpdateResultsQueue, writeUpdateSetCalls),
-    );
-
-    mockDbWriteTransaction.mockClear();
-    mockDbWriteTransaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) =>
-      callback({
-        update: () => createUpdateBuilder(txUpdateResultsQueue, txUpdateSetCalls),
-        insert: () => createInsertBuilder(txInsertResultsQueue),
-      }),
-    );
 
     mockListByOrganization.mockClear();
     mockListByOrganization.mockResolvedValue([]);
@@ -248,8 +239,8 @@ describe("Milady billing cron", () => {
       orgBalance: "1.0000",
     });
 
-    // Fresh balance lookup used by queueShutdownWarning after the debit guard fails.
-    readResultsQueue.push([{ credit_balance: "0.0010" }]);
+    // getOrgBalance in queueShutdownWarning + second refresh after warning_sent in the handler loop
+    readResultsQueue.push([{ credit_balance: "0.0010" }], [{ credit_balance: "0.0010" }]);
 
     txUpdateResultsQueue.push([{ id: "sandbox-1" }], []);
     writeUpdateResultsQueue.push([]);

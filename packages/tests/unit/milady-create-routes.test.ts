@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
+import { mockMiladyPricingMinimumDepositForRouteTests } from "../helpers/mock-milady-pricing-for-route-tests";
 import { jsonRequest } from "./api/route-test-helpers";
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
@@ -54,9 +55,7 @@ mock.module("@/lib/services/milady-billing-gate", () => ({
   checkMiladyCreditGate: mockCheckMiladyCreditGate,
 }));
 
-mock.module("@/lib/constants/milady-pricing", () => ({
-  MILADY_PRICING: { MINIMUM_DEPOSIT: 5 },
-}));
+mockMiladyPricingMinimumDepositForRouteTests(5);
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
