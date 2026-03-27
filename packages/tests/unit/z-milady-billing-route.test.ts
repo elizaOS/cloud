@@ -99,7 +99,7 @@ function registerMiladyBillingMocks(): void {
     },
     dbWrite: {
       update: () => createUpdateBuilder(writeUpdateResultsQueue, writeUpdateSetCalls),
-      transaction: async (callback: (tx: MiladyBillingTestTx) => Promise<unknown>) =>
+      transaction: async <T>(callback: (tx: MiladyBillingTestTx) => Promise<T>): Promise<T> =>
         callback({
           update: () => createUpdateBuilder(txUpdateResultsQueue, txUpdateSetCalls),
           insert: () => createInsertBuilder(txInsertResultsQueue),
