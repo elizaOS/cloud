@@ -22,6 +22,27 @@ import type { JSONObject } from "@ai-sdk/provider";
 import { getProviderFromModel } from "@/lib/pricing";
 import type { CloudMergedProviderOptions } from "./cloud-provider-options";
 
+/**
+ * Models that support Anthropic extended thinking.
+ * Only Claude 3.5 Sonnet (new) and Claude 3 Opus support extended thinking.
+ * Haiku, Instant, and older Claude 2 variants do not.
+ */
+const EXTENDED_THINKING_MODEL_PATTERNS = [
+  /^claude-3-5-sonnet/, // Claude 3.5 Sonnet (all versions)
+  /^claude-3-opus/, // Claude 3 Opus
+  /^claude-sonnet-4/, // Claude Sonnet 4
+  /^claude-opus-4/, // Claude Opus 4
+];
+
+/**
+ * Check if the given model ID supports extended thinking.
+ * Not all Anthropic models support this feature.
+ */
+export function supportsExtendedThinking(modelId: string): boolean {
+  const normalizedId = modelId.toLowerCase();
+  return EXTENDED_THINKING_MODEL_PATTERNS.some((pattern) => pattern.test(normalizedId));
+}
+
 const ENV_KEY = "ANTHROPIC_COT_BUDGET";
 const ENV_MAX_KEY = "ANTHROPIC_COT_BUDGET_MAX";
 
@@ -124,6 +145,10 @@ export function resolveAnthropicThinkingBudgetTokens(
   agentThinkingBudgetTokens?: number,
 ): number | null {
   if (getProviderFromModel(modelId) !== "anthropic") {
+    return null;
+  }
+  // Not all Anthropic models support extended thinking (e.g. Haiku, Instant, Claude 2)
+  if (!supportsExtendedThinking(modelId)) {
     return null;
   }
   const maxCap = parseAnthropicCotBudgetMaxFromEnv(env);
