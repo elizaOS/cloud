@@ -293,9 +293,10 @@ async function handleChat(
     })),
   ];
 
-  // Calculate estimated costs
+  // Calculate estimated costs, including potential thinking budget
   const provider = getProviderFromModel(model);
-  const baseCost = await estimateRequestCost(model, fullMessages);
+  const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
+  const baseCost = await estimateRequestCost(model, fullMessages, agentThinkingBudget);
 
   // Apply markup if monetization is enabled
   const markupPct = Number(character.inference_markup_percentage || 0);
@@ -327,7 +328,6 @@ async function handleChat(
 
   // Generate response
   try {
-    const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
     const result = await streamText({
       model: gateway.languageModel(model),
       messages: fullMessages,
