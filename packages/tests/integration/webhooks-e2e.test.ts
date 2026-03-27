@@ -67,7 +67,7 @@ async function upsertSecret(
   );
 }
 
-const originalFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+const originalFetch: typeof fetch = globalThis.fetch;
 
 function getRequestUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") {
@@ -137,7 +137,9 @@ const signedWebhookFetch: typeof fetch = Object.assign(
 
     return originalFetch(input, { ...init, headers });
   },
-  { preconnect: originalFetch.preconnect.bind(originalFetch) },
+  typeof originalFetch.preconnect === "function"
+    ? { preconnect: originalFetch.preconnect.bind(originalFetch) }
+    : {},
 );
 
 describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
