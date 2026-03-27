@@ -298,13 +298,21 @@ describe("402 Response Format", () => {
 describe("Edge Cases & Fuzz", () => {
   it("should handle missing authorization fields", () => {
     const payload = createValidPayload();
-    // Remove a required field
-    const broken = { ...payload };
-    (broken.payload as unknown as Record<string, unknown>).authorization = {};
+    // Create a broken payload with empty authorization to test validation
+    type BrokenPaymentPayload = Omit<PaymentPayload, "payload"> & {
+      payload: Omit<PaymentPayload["payload"], "authorization"> & {
+        authorization: Partial<PaymentAuthorization>;
+      };
+    };
+    const broken: BrokenPaymentPayload = {
+      ...payload,
+      payload: {
+        ...payload.payload,
+        authorization: {},
+      },
+    };
 
-    expect(
-      (broken.payload.authorization as unknown as Record<string, unknown>).from,
-    ).toBeUndefined();
+    expect(broken.payload.authorization.from).toBeUndefined();
   });
 
   it("should handle empty signature", () => {
