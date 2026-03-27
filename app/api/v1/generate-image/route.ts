@@ -367,17 +367,15 @@ async function handlePOST(req: NextRequest) {
       let textResponse = "";
 
       try {
-        // Use isGoogleModel to properly distinguish Google/Gemini models (which need responseModalities)
-        // from all other providers. For image generation, we skip CoT injection entirely since
-        // extended thinking is not applicable to image generation and may cause issues with
-        // future image-capable models. Only Google models need special handling for responseModalities.
+        // Image generation routes explicitly disable CoT (pass 0) because:
+        // 1. Extended thinking is not applicable to image generation
+        // 2. Temperature control must be preserved for image quality
+        // 3. Future Anthropic image models should not silently receive thinking options
+        // Google models need responseModalities for image output; all others get empty options.
         const isGoogleModel = imageModel.startsWith("google/");
-        // Note: CoT is always off for image models (resolveAnthropicThinkingBudgetTokens
-        // returns null for non-Anthropic models, and image generation doesn't support thinking).
-        // Google models need responseModalities; all others (OpenAI uses tools, Anthropic, etc.) get {}.
         const cotOpts = isGoogleModel
-          ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel, process.env)
-          : mergeAnthropicCotProviderOptions(imageModel, process.env, 0); // 0 disables CoT for non-Google image models
+          ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel, process.env, 0)
+          : mergeAnthropicCotProviderOptions(imageModel, process.env, 0);
         const result = streamText({ ...streamConfig, ...cotOpts });
 
         for await (const delta of result.fullStream) {
