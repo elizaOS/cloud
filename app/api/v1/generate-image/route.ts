@@ -3,7 +3,10 @@ import { streamText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { mergeGoogleImageModalitiesWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
+import {
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
+} from "@/lib/providers/anthropic-thinking";
 import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -369,12 +372,15 @@ async function handlePOST(req: NextRequest) {
         // extended thinking is not applicable to image generation and may cause issues with
         // future image-capable models. Only Google models need special handling for responseModalities.
         const isGeminiImageModel = imageModel.startsWith("google/");
-        // Note: The 0 argument is technically redundant for Google models since
-        // resolveAnthropicThinkingBudgetTokens returns null for non-Anthropic providers,
-        // but we pass it explicitly to document that CoT is intentionally disabled for image routes.
+        const isOpenAIModel = imageModel.startsWith("openai/");
+        // Note: CoT is intentionally disabled (pass 0) for all image generation routes.
+        // Extended thinking is text-generation only and would be invalid for image models.
+        // Google models need responseModalities; OpenAI/others just need CoT disabled.
         const cotOpts = isGeminiImageModel
           ? mergeGoogleImageModalitiesWithAnthropicCot(imageModel, process.env, 0)
-          : {}; // No CoT for non-Google image models - thinking is text-generation only
+          : isOpenAIModel
+            ? {} // OpenAI image models use tools, no provider options needed
+            : mergeAnthropicCotProviderOptions(imageModel, process.env, 0); // Explicitly disable CoT for any other provider
         const result = streamText({ ...streamConfig, ...cotOpts });
 
         for await (const delta of result.fullStream) {
