@@ -14,6 +14,73 @@ import {
 const COT_ENV_KEY = "ANTHROPIC_COT_BUDGET";
 const COT_MAX_ENV_KEY = "ANTHROPIC_COT_BUDGET_MAX";
 
+describe("resolveAnthropicThinkingBudgetTokens", () => {
+  let prevBudget: string | undefined;
+  let prevMax: string | undefined;
+
+  beforeEach(() => {
+    prevBudget = process.env[COT_ENV_KEY];
+    prevMax = process.env[COT_MAX_ENV_KEY];
+    delete process.env[COT_ENV_KEY];
+    delete process.env[COT_MAX_ENV_KEY];
+  });
+
+  afterEach(() => {
+    if (prevBudget === undefined) {
+      delete process.env[COT_ENV_KEY];
+    } else {
+      process.env[COT_ENV_KEY] = prevBudget;
+    }
+    if (prevMax === undefined) {
+      delete process.env[COT_MAX_ENV_KEY];
+    } else {
+      process.env[COT_MAX_ENV_KEY] = prevMax;
+    }
+  });
+
+  test("returns null for non-Anthropic models", () => {
+    process.env[COT_ENV_KEY] = "5000";
+    expect(resolveAnthropicThinkingBudgetTokens("openai/gpt-4", process.env)).toBeNull();
+    expect(resolveAnthropicThinkingBudgetTokens("google/gemini-pro", process.env)).toBeNull();
+  });
+
+  test("returns agent budget when provided for Anthropic model", () => {
+    process.env[COT_ENV_KEY] = "5000";
+    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, 8000)).toBe(8000);
+  });
+
+  test("returns null when agent budget is 0 (explicit disable)", () => {
+    process.env[COT_ENV_KEY] = "5000";
+    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, 0)).toBeNull();
+  });
+
+  test("falls back to env budget when agent budget is undefined", () => {
+    process.env[COT_ENV_KEY] = "5000";
+    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, undefined)).toBe(5000);
+  });
+
+  test("returns null when both agent budget and env budget are unset", () => {
+    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, undefined)).toBeNull();
+  });
+
+  test("clamps budget to max when max is set and budget exceeds it", () => {
+    process.env[COT_ENV_KEY] = "10000";
+    process.env[COT_MAX_ENV_KEY] = "5000";
+    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, undefined)).toBe(5000);
+  });
+
+  test("clamps agent budget to max when max is set", () => {
+    process.env[COT_MAX_ENV_KEY] = "3000";
+    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, 8000)).toBe(3000);
+  });
+
+  test("returns budget unchanged when under max cap", () => {
+    process.env[COT_ENV_KEY] = "2000";
+    process.env[COT_MAX_ENV_KEY] = "5000";
+    expect(resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-opus", process.env, undefined)).toBe(2000);
+  });
+});
+
 describe("anthropic COT env", () => {
   let prev: string | undefined;
 
