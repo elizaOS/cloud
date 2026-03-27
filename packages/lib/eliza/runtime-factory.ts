@@ -14,6 +14,7 @@ import {
   type World,
 } from "@elizaos/core";
 import createDatabaseAdapterDefault from "@elizaos/plugin-sql/node";
+
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
 import { agentLoader } from "./agent-loader";
