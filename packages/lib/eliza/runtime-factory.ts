@@ -14,6 +14,16 @@ import {
   type World,
 } from "@elizaos/core";
 import createDatabaseAdapterDefault from "@elizaos/plugin-sql/node";
+import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
+import { logger } from "@/lib/utils/logger";
+import { agentLoader } from "./agent-loader";
+import { buildElevenLabsSettings, getDefaultModels, getElizaCloudApiUrl } from "./config";
+import "@/lib/polyfills/dom-polyfills";
+import {
+  edgeRuntimeCache,
+  getStaticEmbeddingDimension,
+  KNOWN_EMBEDDING_DIMENSIONS,
+} from "@/lib/cache/edge-runtime-cache";
 
 // Note: @elizaos/plugin-sql/node exports a CommonJS default that TypeScript cannot
 // infer through the ESM boundary. We assert the known signature here. If the upstream
@@ -22,18 +32,6 @@ const createDatabaseAdapter = createDatabaseAdapterDefault as (
   config: { postgresUrl: string },
   agentId: UUID,
 ) => IDatabaseAdapter;
-import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
-import { logger } from "@/lib/utils/logger";
-import { agentLoader } from "./agent-loader";
-import { buildElevenLabsSettings, getDefaultModels, getElizaCloudApiUrl } from "./config";
-import mcpPlugin from "./plugin-mcp";
-import type { UserContext } from "./user-context";
-import "@/lib/polyfills/dom-polyfills";
-import {
-  edgeRuntimeCache,
-  getStaticEmbeddingDimension,
-  KNOWN_EMBEDDING_DIMENSIONS,
-} from "@/lib/cache/edge-runtime-cache";
 
 const adapterEmbeddingDimensions = new Map<string, number>();
 
