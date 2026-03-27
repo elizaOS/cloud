@@ -13,6 +13,7 @@ const originalFetch = globalThis.fetch;
 process.env.ALCHEMY_API_KEY = "test-alchemy-key";
 
 const fetchMock = mock();
+// Note: fetchMock mimics fetch behavior for isolation in unit tests without external calls.
 globalThis.fetch = fetchMock as unknown as typeof fetch;
 
 mock.module("@/lib/auth", () => ({
