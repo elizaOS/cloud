@@ -319,9 +319,9 @@ CRITICAL RULES:
 
         // Stream with tools (no execute functions - SDK v6.0.x pattern)
         // Use fullStream to capture ALL parts including reasoning tokens
-        // Note: App Builder explicitly disables CoT (passes 0) to match other background
-        // services and preserve temperature control. If CoT is desired for interactive
-        // code generation, credit estimation would need updates similar to MCP/A2A routes.
+        // CoT explicitly disabled (0) to preserve temperature control for code generation.
+        // App Builder relies on temperature for creative variation; enabling CoT would
+        // silently drop temperature per @ai-sdk/anthropic behavior.
         const result = streamText({
           model: gateway.languageModel(model),
           system: finalSystemPrompt,
