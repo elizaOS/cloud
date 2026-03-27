@@ -300,33 +300,45 @@ export function withRateLimit<T = Record<string, string>>(
 /**
  * Preset rate limit configurations (same values in dev and production).
  * Only the backing store differs: Redis when REDIS_RATE_LIMITING=true, else in-memory.
+ *
+ * NOTE FOR LOCAL DEVELOPMENT: These are production-level limits. Local developers
+ * will be rate-limited at the same thresholds (e.g., STANDARD: 60 req/min).
+ * If you need higher limits during development, either:
+ * - Use a custom config with higher maxRequests
+ * - Or temporarily increase the preset values locally (do not commit)
  */
 export const RateLimitPresets = {
+  /** 60 requests per minute - standard API endpoints */
   STANDARD: {
     windowMs: 60000,
     maxRequests: 60,
   },
 
+  /** 10 requests per minute - sensitive operations */
   STRICT: {
     windowMs: 60000,
     maxRequests: 10,
   },
 
+  /** 200 requests per minute - high-throughput endpoints */
   RELAXED: {
     windowMs: 60000,
     maxRequests: 200,
   },
 
+  /** 5 requests per 5 minutes - critical/expensive operations */
   CRITICAL: {
     windowMs: 300000,
     maxRequests: 5,
   },
 
+  /** 10 requests per second - burst protection */
   BURST: {
     windowMs: 1000,
     maxRequests: 10,
   },
 
+  /** 100 requests per minute, keyed by IP - for public endpoints */
   AGGRESSIVE: {
     windowMs: 60000,
     maxRequests: 100,
