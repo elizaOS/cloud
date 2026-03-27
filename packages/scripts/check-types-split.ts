@@ -50,10 +50,11 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
 
 async function getDirectoriesToCheck(): Promise<string[]> {
   const appSubdirs = await splitIntoSubdirectories("app");
+  const libSubdirs = await splitIntoSubdirectories("packages/lib");
 
   return [
     "packages/db",
-    "packages/lib",
+    ...libSubdirs,
     "packages/ui/src/components",
     ...appSubdirs,
   ];
