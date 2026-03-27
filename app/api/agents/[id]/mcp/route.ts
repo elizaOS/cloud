@@ -26,6 +26,7 @@ import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/prici
 import {
   mergeAnthropicCotProviderOptions,
   parseThinkingBudgetFromCharacterSettings,
+  resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -329,10 +330,10 @@ async function handleToolCall(
     const provider = getProviderFromModel(model);
     const markupPct = Number(character.inference_markup_percentage || 0);
 
-    // Resolve effective thinking budget before reservation
+    // Resolve effective thinking budget before reservation (applies ANTHROPIC_COT_BUDGET_MAX cap)
     const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
-    const effectiveThinkingBudget = agentThinkingBudget ?? 
-      (process.env.ANTHROPIC_COT_BUDGET ? parseInt(process.env.ANTHROPIC_COT_BUDGET, 10) : 0);
+    const effectiveThinkingBudget = 
+      resolveAnthropicThinkingBudgetTokens(model, process.env, agentThinkingBudget) ?? 0;
     // Include thinking budget in output token estimate for Anthropic models
     const baseOutputTokens = 500;
     const estimatedOutputTokens = model.includes("claude") && effectiveThinkingBudget > 0
