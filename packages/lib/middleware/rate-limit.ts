@@ -298,53 +298,65 @@ export function withRateLimit<T = Record<string, string>>(
 }
 
 /**
+ * Get rate limit multiplier from environment.
+ * Allows local developers to increase limits without code changes.
+ * Set RATE_LIMIT_MULTIPLIER=100 in .env.local to effectively disable limits during dev.
+ * Default is 1 (production-level limits).
+ */
+function getRateLimitMultiplier(): number {
+  const multiplier = process.env.RATE_LIMIT_MULTIPLIER;
+  if (!multiplier) return 1;
+  const parsed = Number.parseInt(multiplier, 10);
+  return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+}
+
+/**
  * Preset rate limit configurations (same values in dev and production).
  * Only the backing store differs: Redis when REDIS_RATE_LIMITING=true, else in-memory.
  *
- * NOTE FOR LOCAL DEVELOPMENT: These are production-level limits. Local developers
- * will be rate-limited at the same thresholds (e.g., STANDARD: 60 req/min).
- * If you need higher limits during development, either:
- * - Use a custom config with higher maxRequests
- * - Or temporarily increase the preset values locally (do not commit)
+ * NOTE FOR LOCAL DEVELOPMENT: These are production-level limits by default.
+ * Set RATE_LIMIT_MULTIPLIER=100 in .env.local to increase limits for local dev/testing.
  */
+const _multiplier = getRateLimitMultiplier();
+
 export const RateLimitPresets = {
   /** 60 requests per minute - standard API endpoints */
   STANDARD: {
     windowMs: 60000,
-    maxRequests: 60,
+    maxRequests: 60 * _multiplier,
   },
 
   /** 10 requests per minute - sensitive operations */
   STRICT: {
     windowMs: 60000,
-    maxRequests: 10,
+    maxRequests: 10 * _multiplier,
   },
 
   /** 200 requests per minute - high-throughput endpoints */
   RELAXED: {
     windowMs: 60000,
-    maxRequests: 200,
+    maxRequests: 200 * _multiplier,
   },
 
   /** 5 requests per 5 minutes - critical/expensive operations */
   CRITICAL: {
     windowMs: 300000,
-    maxRequests: 5,
+    maxRequests: 5 * _multiplier,
   },
 
   /** 10 requests per second - burst protection */
   BURST: {
     windowMs: 1000,
-    maxRequests: 10,
+    maxRequests: 10 * _multiplier,
   },
 
   /** 100 requests per minute, keyed by IP - for public endpoints */
   AGGRESSIVE: {
     windowMs: 60000,
-    maxRequests: 100,
+    maxRequests: 100 * _multiplier,
     keyGenerator: getIpKey,
   },
-} as const;
+};
 
 /**
  * Cost-based rate limiting for expensive operations
