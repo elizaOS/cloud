@@ -321,7 +321,8 @@ CRITICAL RULES:
         // Use fullStream to capture ALL parts including reasoning tokens
         // Note: App Builder intentionally inherits ANTHROPIC_COT_BUDGET if set —
         // interactive code generation benefits from extended thinking, and temperature
-        // is not specified here (model defaults are used).
+        // is not specified here (model defaults apply; CoT would drop temperature anyway
+        // per @ai-sdk/anthropic behavior).
         const result = streamText({
           model: gateway.languageModel(model),
           system: finalSystemPrompt,
