@@ -199,6 +199,10 @@ export function anthropicThinkingProviderOptions(
 
 /**
  * Deep-merge nested provider keys so gateway order / google / anthropic are preserved.
+ *
+ * Note: Only `gateway`, `anthropic`, and `google` keys are deep-merged. Other provider keys
+ * (e.g. `openai`, `mistral`) present in both `base` and `extra` will be clobbered by the
+ * top-level spread. Extend the merge list below if additional providers need deep merging.
  */
 export function mergeProviderOptions(
   base?: { providerOptions?: CloudMergedProviderOptions },
