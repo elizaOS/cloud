@@ -38,6 +38,99 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
     }
   });
 
+  test("returns null for non-Anthropic model", () => {
+    const result = resolveAnthropicThinkingBudgetTokens("openai/gpt-4", {});
+    expect(result).toBeNull();
+  });
+
+  test("returns null for Anthropic model that does not support extended thinking", () => {
+    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-haiku", {});
+    expect(result).toBeNull();
+  });
+
+  test("uses per-agent budget when provided for supported Anthropic model", () => {
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      {},
+      5000,
+    );
+    expect(result).toBe(5000);
+  });
+
+  test("returns null when per-agent budget is 0 (explicitly disabled)", () => {
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      { [COT_ENV_KEY]: "10000" },
+      0,
+    );
+    expect(result).toBeNull();
+  });
+
+  test("falls back to env budget when per-agent budget is undefined", () => {
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      { [COT_ENV_KEY]: "8000" },
+    );
+    expect(result).toBe(8000);
+  });
+
+  test("returns null when both per-agent and env budgets are unset", () => {
+    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {});
+    expect(result).toBeNull();
+  });
+
+  test("clamps budget to max cap when max is set and budget exceeds it", () => {
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      { [COT_MAX_ENV_KEY]: "3000" },
+      5000,
+    );
+    expect(result).toBe(3000);
+  });
+
+  test("does not clamp budget when under max cap", () => {
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      { [COT_MAX_ENV_KEY]: "10000" },
+      5000,
+    );
+    expect(result).toBe(5000);
+  });
+
+  test("clamps env fallback budget to max cap", () => {
+    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {
+      [COT_ENV_KEY]: "15000",
+      [COT_MAX_ENV_KEY]: "10000",
+    });
+    expect(result).toBe(10000);
+  });
+});
+
+// Keep backward compatibility with any existing tests that may follow
+describe("resolveAnthropicThinkingBudgetTokens (legacy non-Anthropic guard)", () => {
+  let prevBudget: string | undefined;
+  let prevMax: string | undefined;
+
+  beforeEach(() => {
+    prevBudget = process.env[COT_ENV_KEY];
+    prevMax = process.env[COT_MAX_ENV_KEY];
+    delete process.env[COT_ENV_KEY];
+    delete process.env[COT_MAX_ENV_KEY];
+  });
+
+  afterEach(() => {
+    if (prevBudget === undefined) {
+      delete process.env[COT_ENV_KEY];
+    } else {
+      process.env[COT_ENV_KEY] = prevBudget;
+    }
+    if (prevMax === undefined) {
+      delete process.env[COT_MAX_ENV_KEY];
+    } else {
+      process.env[COT_MAX_ENV_KEY] = prevMax;
+    }
+  });
+
   test("returns null for non-Anthropic models", () => {
     process.env[COT_ENV_KEY] = "5000";
     expect(resolveAnthropicThinkingBudgetTokens("openai/gpt-4", process.env)).toBeNull();
