@@ -18,6 +18,7 @@ import createDatabaseAdapterDefault from "@elizaos/plugin-sql/node";
 const createDatabaseAdapter = createDatabaseAdapterDefault as (
   config: { postgresUrl: string },
   agentId: UUID,
+// Note: using type assertion here for flexibility while ensuring correct adapter interface.
 ) => IDatabaseAdapter;
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
