@@ -102,7 +102,7 @@ const DEFAULT_SSH_USERNAME = process.env.MILADY_SSH_USER || "root";
 const HEALTH_CHECK_POLL_INTERVAL_MS = 3_000;
 
 /** Health-check polling: total timeout (ms). */
-const HEALTH_CHECK_TIMEOUT_MS = 60_000;
+const HEALTH_CHECK_TIMEOUT_MS = 180_000;
 
 /** SSH command timeout for docker pull (can be slow on first pull). */
 const PULL_TIMEOUT_MS = 300_000; // 5 min
