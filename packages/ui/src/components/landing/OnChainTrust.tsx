@@ -12,61 +12,94 @@ import { Check } from "lucide-react";
 import Image from "next/image";
 import MicropaymentNetwork from "./MicropaymentNetwork";
 
+type MockCardImage =
+  | { avif: string; jpeg: string }
+  | { src: string; alt: string };
+
 export default function OnChainTrust() {
-  const mockCardData = [
+  const mockCardData: Array<{
+    name: string;
+    description: string;
+    address: string;
+    image: MockCardImage;
+  }> = [
     {
       name: "Sage",
       description: "Your default AI companion",
       address: "0xA9E3...C14",
-      image: "/cloud-agent-samples/1.png",
+      image: {
+        avif: "/cloud-agent-samples/1.avif",
+        jpeg: "/cloud-agent-samples/1.jpg",
+      },
     },
     {
       name: "Nova",
       description: "Creative writing assistant",
       address: "0xB2F4...A27",
-      image: "/cloud-agent-samples/2.png",
+      image: {
+        avif: "/cloud-agent-samples/2.avif",
+        jpeg: "/cloud-agent-samples/2.jpg",
+      },
     },
     {
       name: "Atlas",
       description: "Data analysis expert",
       address: "0xC8D1...F93",
-      image: "/cloud-agent-samples/3.png",
+      image: {
+        avif: "/cloud-agent-samples/3.avif",
+        jpeg: "/cloud-agent-samples/3.jpg",
+      },
     },
     {
       name: "Echo",
       description: "Voice interaction specialist",
       address: "0xD4E2...B61",
-      image: "/cloud-agent-samples/4.png",
+      image: {
+        avif: "/cloud-agent-samples/4.avif",
+        jpeg: "/cloud-agent-samples/4.jpg",
+      },
     },
     {
       name: "Eliza",
       description: "Knowledge base curator",
       address: "0xE7A5...D48",
-      image: "/avatars/eliza-default.png",
+      image: { src: "/avatars/eliza-default.png", alt: "Eliza" },
     },
     {
       name: "Pixel",
       description: "Image generation AI",
       address: "0xF1B8...E52",
-      image: "/cloud-agent-samples/5.png",
+      image: {
+        avif: "/cloud-agent-samples/5.avif",
+        jpeg: "/cloud-agent-samples/5.jpg",
+      },
     },
     {
       name: "Cipher",
       description: "Code optimization tool",
       address: "0xA3C9...F17",
-      image: "/cloud-agent-samples/6.png",
+      image: {
+        avif: "/cloud-agent-samples/6.avif",
+        jpeg: "/cloud-agent-samples/6.jpg",
+      },
     },
     {
       name: "Muse",
       description: "Music composition helper",
       address: "0xB6D2...C83",
-      image: "/cloud-agent-samples/7.png",
+      image: {
+        avif: "/cloud-agent-samples/7.avif",
+        jpeg: "/cloud-agent-samples/7.jpg",
+      },
     },
     {
       name: "Scout",
       description: "Research aggregator",
       address: "0xC9E4...A94",
-      image: "/cloud-agent-samples/8.png",
+      image: {
+        avif: "/cloud-agent-samples/8.avif",
+        jpeg: "/cloud-agent-samples/8.jpg",
+      },
     },
   ];
   return (
@@ -133,14 +166,30 @@ export default function OnChainTrust() {
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <div className="h-10 w-10 rounded-sm flex-shrink-0 relative overflow-hidden">
-                          <Image
-                            src={agent.image}
-                            alt="Agent"
-                            fill
-                            sizes="40px"
-                            className="object-cover select-none"
-                            draggable={false}
-                          />
+                          {"src" in agent.image ? (
+                            <Image
+                              src={agent.image.src}
+                              alt={agent.image.alt}
+                              fill
+                              sizes="40px"
+                              className="object-cover select-none"
+                              draggable={false}
+                            />
+                          ) : (
+                            <picture className="absolute inset-0 block">
+                              <source srcSet={agent.image.avif} type="image/avif" />
+                              <img
+                                src={agent.image.jpeg}
+                                alt=""
+                                width={40}
+                                height={40}
+                                decoding="async"
+                                loading="lazy"
+                                draggable={false}
+                                className="h-full w-full object-cover select-none"
+                              />
+                            </picture>
+                          )}
                         </div>
                         <h3 className="select-none text-xs font-semibold text-white">
                           {agent.name}
