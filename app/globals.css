@@ -1475,12 +1475,6 @@ button:not(:disabled),
   animation-delay: 0.8s;
 }
 
-/* OnChainTrust button hover */
-.onchain-trust-button:hover {
-  background-color: transparent !important;
-  color: #e1e1e1 !important;
-}
-
 /* ========================================
    Landing Page Chat Components
    ======================================== */
