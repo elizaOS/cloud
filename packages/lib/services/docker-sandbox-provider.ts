@@ -435,10 +435,6 @@ export class DockerSandboxProvider implements SandboxProvider {
       JWT_SECRET: environmentVars.JWT_SECRET || crypto.randomUUID(),
       // Allow the agent subdomain origin so the browser can call the API.
       MILADY_ALLOWED_ORIGINS: `https://${agentId}.${getAgentBaseDomain()}`,
-      // Cloud-provisioned containers skip pairing and onboarding UI —
-      // the platform handles authentication and agent setup.
-      MILADY_CLOUD_PROVISIONED: "1",
-      ELIZA_CLOUD_PROVISIONED: "1",
     };
 
     // 6. SSH to node, ensure volume dir, pull image, register in Steward,
