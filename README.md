@@ -215,7 +215,7 @@ cloud/
 │   ├── eliza/               # elizaOS integration
 │   │   ├── agent-runtime.ts # AgentRuntime wrapper
 │   │   ├── agent.ts         # Agent management
-│   │   └── plugin-assistant/  # Custom elizaOS plugin
+│   │   └── plugin-cloud-bootstrap/  # Cloud bootstrap plugin (@eliza-cloud/plugin-assistant id)
 │   ├── config/              # Configuration
 │   │   ├── env-validator.ts # Environment validation
 │   │   ├── env-consolidation.ts  # Config helpers
