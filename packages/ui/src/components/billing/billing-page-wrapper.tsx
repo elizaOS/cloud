@@ -1,86 +1,27 @@
-/**
- * Billing page wrapper component setting page header and displaying payment cancellation alerts.
- * Wraps billing page client with page context and alert handling.
- *
- * @param props - Billing page wrapper configuration
- * @param props.creditPacks - Array of available credit packs
- * @param props.currentCredits - Current credit balance
- * @param props.canceled - Optional cancellation message from Stripe
- */
-
 "use client";
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  BrandCard,
-  useSetPageHeader,
-} from "@elizaos/cloud-ui";
-import { Info } from "lucide-react";
-import type { CreditPack as DBCreditPack } from "@/lib/types";
-import { BillingPageClient } from "./billing-page-client";
-import { MiladyPricingInfo } from "./milady-pricing-info";
+import { useSetPageHeader } from "@elizaos/cloud-ui";
+import type { UserWithOrganization } from "@/lib/types";
+import { BillingTab } from "@/packages/ui/src/components/settings/tabs/billing-tab";
 
 interface BillingPageWrapperProps {
-  creditPacks: DBCreditPack[];
-  currentCredits: number;
+  user: UserWithOrganization;
   canceled?: string;
-  runningAgents?: number;
-  idleAgents?: number;
 }
 
-export function BillingPageWrapper({
-  creditPacks,
-  currentCredits,
-  canceled,
-  runningAgents = 0,
-  idleAgents = 0,
-}: BillingPageWrapperProps) {
+export function BillingPageWrapper({ user, canceled }: BillingPageWrapperProps) {
   useSetPageHeader({
-    title: "Billing & Balance",
-    description: "Add funds to power your AI generations",
+    title: "Billing",
   });
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {canceled && (
-        <Alert variant="destructive" className="rounded-none border-rose-500/40 bg-rose-500/10">
-          <Info className="h-4 w-4 text-rose-400" />
-          <AlertTitle className="text-rose-400">Payment Canceled</AlertTitle>
-          <AlertDescription className="text-rose-400">
-            Your payment was canceled. No charges were made.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <BrandCard className="relative" corners={false}>
-        <div className="flex items-start gap-3">
-          <Info className="h-4 w-4 text-[#FF5800] mt-0.5 shrink-0" />
-          <div>
-            <h4 className="font-semibold text-white mb-1">How Billing Works</h4>
-            <p className="text-sm text-white/60">
-              You are charged for all AI operations including text generation, image creation, and
-              video rendering. Add funds in bulk to get better rates. Your balance never expires and
-              is shared across your organization.
-            </p>
-          </div>
+        <div className="mb-4 border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+          Payment canceled. No charges were made.
         </div>
-      </BrandCard>
-
-      <MiladyPricingInfo
-        currentCredits={currentCredits}
-        runningAgents={runningAgents}
-        idleAgents={idleAgents}
-      />
-
-      <BillingPageClient
-        creditPacks={creditPacks.map((p) => ({
-          ...p,
-          credits: Number(p.credits),
-        }))}
-        currentCredits={currentCredits}
-      />
+      )}
+      <BillingTab user={user} />
     </div>
   );
 }

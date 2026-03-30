@@ -27,10 +27,6 @@
       "schedule": "* * * * *"
     },
     {
-      "path": "/api/v1/cron/process-provisioning-jobs",
-      "schedule": "* * * * *"
-    },
-    {
       "path": "/api/cron/sample-eliza-price",
       "schedule": "*/5 * * * *"
     },
@@ -45,6 +41,10 @@
     {
       "path": "/api/cron/release-pending-earnings",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-stuck-provisioning",
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/cleanup-anonymous-sessions",

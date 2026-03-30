@@ -304,11 +304,11 @@ export function AgentCard({
             <div className="relative flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg">
               <Skeleton className="absolute inset-0 w-full h-full" />
               <Image
-                src={ensureAvatarUrl(avatarUrl)}
+                src={ensureAvatarUrl(avatarUrl, agent.name)}
                 alt={agent.name}
                 fill
                 className="object-cover"
-                unoptimized={!isBuiltInAvatar(avatarUrl)}
+                unoptimized={!isBuiltInAvatar(ensureAvatarUrl(avatarUrl, agent.name))}
               />
             </div>
 
@@ -493,7 +493,7 @@ export function AgentCard({
         <Skeleton className="absolute inset-0 w-full h-full" />
 
         <Image
-          src={ensureAvatarUrl(avatarUrl)}
+          src={ensureAvatarUrl(avatarUrl, agent.name)}
           alt={agent.name}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
@@ -502,7 +502,7 @@ export function AgentCard({
             !showDeleteConfirm && "group-hover:scale-105",
           )}
           priority
-          unoptimized={!isBuiltInAvatar(avatarUrl)}
+          unoptimized={!isBuiltInAvatar(ensureAvatarUrl(avatarUrl, agent.name))}
         />
 
         {/* Gradient overlay */}

@@ -92,19 +92,32 @@ mock.module("@/lib/services/api-keys", () => ({
   },
 }));
 
+class MockInsufficientCreditsError extends Error {
+  constructor(message = "Insufficient credits") {
+    super(message);
+    this.name = "InsufficientCreditsError";
+  }
+}
 mock.module("@/lib/services/credits", () => ({
   creditsService: {
     addCredits: mockAddCredits,
   },
+  InsufficientCreditsError: MockInsufficientCreditsError,
 }));
 
-mock.module("@/db/repositories", () => ({
+mock.module("@/db/repositories/organization-invites", () => ({
   organizationInvitesRepository: {
     markAsAccepted: mockMarkInviteAccepted,
   },
+}));
+// Re-export the real UsersRepository class so downstream tests that import
+// it (e.g. users-repository-compat.test.ts) aren't broken by mock pollution.
+const { UsersRepository: RealUsersRepository } = await import("@/db/repositories/users");
+mock.module("@/db/repositories/users", () => ({
   usersRepository: {
     delete: mockDeleteUserRecord,
   },
+  UsersRepository: RealUsersRepository,
 }));
 
 mock.module("@/lib/services/abuse-detection", () => ({

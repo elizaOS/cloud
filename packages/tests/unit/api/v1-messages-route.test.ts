@@ -68,6 +68,7 @@ mock.module("@/lib/services/credits", () => ({
   creditsService: {
     createAnonymousReservation: mockCreateAnonymousReservation,
   },
+  InsufficientCreditsError: MockInsufficientCreditsError,
 }));
 
 mock.module("@/lib/pricing", () => ({

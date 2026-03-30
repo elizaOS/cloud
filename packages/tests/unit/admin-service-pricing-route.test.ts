@@ -27,7 +27,7 @@ mock.module("@/lib/api/admin-auth", () => ({
   requireAdminWithResponse: mockRequireAdminWithResponse,
 }));
 
-mock.module("@/db/repositories", () => ({
+mock.module("@/db/repositories/service-pricing", () => ({
   servicePricingRepository: {
     listByService: mockListByService,
     upsert: mockUpsert,

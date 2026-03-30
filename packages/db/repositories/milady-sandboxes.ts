@@ -82,7 +82,10 @@ export class MiladySandboxesRepository {
   }
 
   async findRunningSandbox(id: string, orgId: string): Promise<MiladySandbox | undefined> {
-    const [r] = await dbRead
+    // Use dbWrite (primary) instead of dbRead (replica) to ensure fresh data.
+    // The VPS worker writes bridge_url/status to primary, and read replicas
+    // may lag behind, causing the wallet proxy to return "not running".
+    const [r] = await dbWrite
       .select()
       .from(miladySandboxes)
       .where(

@@ -66,7 +66,10 @@ export async function POST(
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
-    const sync = request.nextUrl.searchParams.get("sync") === "true";
+    // Always use async job queue — sync provisioning is disabled in production
+    // because the VPS worker handles SSH/Docker operations that can't run in
+    // serverless functions. The sync path remains in code for local dev only.
+    const sync = false;
 
     logger.info("[milady-api] Provision requested", {
       agentId,

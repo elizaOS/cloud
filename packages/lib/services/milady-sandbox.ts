@@ -32,6 +32,10 @@ import { getNeonClient, NeonClientError } from "./neon-client";
 import { JOB_TYPES } from "./provisioning-jobs";
 import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
 
+/** Shared Neon project used as branch parent for per-agent databases. */
+const NEON_PARENT_PROJECT_ID: string =
+  process.env.NEON_PARENT_PROJECT_ID ?? "snowy-waterfall-29926749"; // env var required in prod
+
 export interface CreateAgentParams {
   organizationId: string;
   userId: string;
@@ -206,10 +210,11 @@ export class MiladySandboxService {
       }
       if (rec.neon_project_id) {
         try {
-          await this.cleanupNeon(rec.neon_project_id);
+          await this.cleanupNeon(rec.neon_project_id, rec.neon_branch_id);
         } catch (e) {
           logger.warn("[milady-sandbox] Neon cleanup failed during delete", {
             projectId: rec.neon_project_id,
+            branchId: rec.neon_branch_id,
             error: e instanceof Error ? e.message : String(e),
           });
           return {
@@ -603,6 +608,144 @@ export class MiladySandboxService {
     }
   }
 
+  /**
+   * Proxy an HTTP request to the agent's wallet API endpoint.
+   * Used by the cloud backend to forward wallet/steward requests from the dashboard.
+   *
+   * @param agentId  - The sandbox record ID
+   * @param orgId    - The organization ID (authorization)
+   * @param walletPath - Path after `/api/wallet/`, e.g. "steward-policies"
+   * @param method   - HTTP method ("GET" | "POST")
+   * @param body     - Optional request body (for POST requests)
+   * @param query    - Optional query string (e.g. "limit=20")
+   * @returns The raw fetch Response, or null if the sandbox is not running
+   */
+  // Allowed wallet sub-paths for proxy (prevents path traversal)
+  private static readonly ALLOWED_WALLET_PATHS = new Set([
+    "addresses",
+    "balances",
+    "steward-status",
+    "steward-policies",
+    "steward-tx-records",
+    "steward-pending-approvals",
+    "steward-approve-tx",
+    "steward-deny-tx",
+  ]);
+
+  // Allowed query parameters for wallet proxy
+  private static readonly ALLOWED_QUERY_PARAMS = new Set([
+    "limit",
+    "offset",
+    "cursor",
+    "type",
+    "status",
+  ]);
+
+  async proxyWalletRequest(
+    agentId: string,
+    orgId: string,
+    walletPath: string,
+    method: "GET" | "POST",
+    body?: string | null,
+    query?: string,
+  ): Promise<Response | null> {
+    // Validate wallet path against whitelist (prevents path traversal)
+    if (!MiladySandboxService.ALLOWED_WALLET_PATHS.has(walletPath)) {
+      logger.warn("[milady-sandbox] Rejected wallet proxy: invalid path", {
+        agentId,
+        walletPath,
+      });
+      return new Response(JSON.stringify({ error: "Invalid wallet endpoint" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Sanitize query parameters
+    let sanitizedQuery = "";
+    if (query) {
+      const params = new URLSearchParams(query);
+      const filtered = new URLSearchParams();
+      for (const [key, value] of params) {
+        if (MiladySandboxService.ALLOWED_QUERY_PARAMS.has(key)) {
+          filtered.set(key, value);
+        }
+      }
+      sanitizedQuery = filtered.toString();
+    }
+
+    const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
+    if (!rec) {
+      logger.warn("[milady-sandbox] Wallet proxy: sandbox not found or not running", {
+        agentId,
+        orgId,
+        walletPath,
+      });
+      return null;
+    }
+    if (!rec.bridge_url) {
+      logger.warn("[milady-sandbox] Wallet proxy: no bridge_url", {
+        agentId,
+        status: rec.status,
+        walletPath,
+      });
+      return null;
+    }
+
+    try {
+      const fullPath = `/api/wallet/${walletPath}${sanitizedQuery ? `?${sanitizedQuery}` : ""}`;
+
+      // Extract API token from environment_vars
+      const envVars = rec.environment_vars as Record<string, string> | null;
+      const apiToken = envVars?.MILADY_API_TOKEN;
+      if (!apiToken) {
+        logger.warn("[milady-sandbox] No MILADY_API_TOKEN for wallet proxy", { agentId });
+      }
+
+      // Determine the agent endpoint. Prefer the public domain (reachable from
+      // Vercel serverless functions) over internal bridge IPs (only reachable
+      // from within the Hetzner network).
+      const agentBaseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+      let endpoint: string;
+      if (agentBaseDomain) {
+        // Public URL: https://{agentId}.waifu.fun/api/wallet/...
+        endpoint = `https://${agentId}.${agentBaseDomain}${fullPath}`;
+      } else if (rec.web_ui_port && rec.node_id) {
+        // Internal fallback: http://{host}:{web_ui_port}/api/wallet/...
+        const bridgeUrl = new URL(rec.bridge_url);
+        endpoint = `${bridgeUrl.protocol}//${bridgeUrl.hostname}:${rec.web_ui_port}${fullPath}`;
+      } else {
+        endpoint = await this.getSafeBridgeEndpoint(rec, fullPath);
+      }
+
+      logger.info("[milady-sandbox] Wallet proxy endpoint", {
+        agentId,
+        endpoint: endpoint.replace(/Bearer.*/, "***"),
+      });
+
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (apiToken) {
+        headers.Authorization = `Bearer ${apiToken}`;
+      }
+      const fetchOptions: RequestInit = {
+        method,
+        headers,
+        signal: AbortSignal.timeout(30_000),
+      };
+      if (method === "POST" && body != null) {
+        fetchOptions.body = body;
+      }
+      return await fetch(endpoint, fetchOptions);
+    } catch (error) {
+      logger.warn("[milady-sandbox] Wallet proxy request failed", {
+        agentId,
+        walletPath,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
   async bridgeStream(agentId: string, orgId: string, rpc: BridgeRequest): Promise<Response | null> {
     const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
     if (!rec?.bridge_url) return null;
@@ -941,11 +1084,11 @@ export class MiladySandboxService {
       database_status: "provisioning",
     });
     const neon = getNeonClient();
-    const name = `milady-${sanitizeProjectNameSegment(rec.agent_name ?? "agent")}-${rec.id.substring(0, 8)}`;
-    const result = await neon.createProject({ name, region: "aws-us-east-1" });
+    const branchName = `milady-${sanitizeProjectNameSegment(rec.agent_name ?? "agent")}-${rec.id.substring(0, 8)}`;
+    const result = await neon.createBranch(NEON_PARENT_PROJECT_ID, branchName);
 
     const updated = await miladySandboxesRepository.update(rec.id, {
-      neon_project_id: result.projectId,
+      neon_project_id: NEON_PARENT_PROJECT_ID,
       neon_branch_id: result.branchId,
       database_uri: result.connectionUri,
       database_status: "ready",
@@ -953,12 +1096,16 @@ export class MiladySandboxService {
     });
 
     if (!updated) {
-      logger.error("[milady-sandbox] DB update failed after Neon creation, cleaning orphan", {
-        projectId: result.projectId,
-      });
-      await neon.deleteProject(result.projectId).catch((e) => {
-        logger.error("[milady-sandbox] Orphan Neon project cleanup failed", {
-          projectId: result.projectId,
+      logger.error(
+        "[milady-sandbox] DB update failed after Neon branch creation, cleaning orphan",
+        {
+          projectId: NEON_PARENT_PROJECT_ID,
+          branchId: result.branchId,
+        },
+      );
+      await neon.deleteBranch(NEON_PARENT_PROJECT_ID, result.branchId).catch((e) => {
+        logger.error("[milady-sandbox] Orphan Neon branch cleanup failed", {
+          branchId: result.branchId,
           error: e instanceof Error ? e.message : String(e),
         });
       });
@@ -971,13 +1118,21 @@ export class MiladySandboxService {
     return { success: true, connectionUri: result.connectionUri };
   }
 
-  private async cleanupNeon(projectId: string) {
+  private async cleanupNeon(projectId: string, branchId?: string | null) {
+    const neon = getNeonClient();
     try {
-      await getNeonClient().deleteProject(projectId);
+      if (projectId === NEON_PARENT_PROJECT_ID && branchId) {
+        // New branch-based: delete the branch, not the project
+        await neon.deleteBranch(NEON_PARENT_PROJECT_ID, branchId);
+      } else {
+        // Legacy project-based: delete the entire project
+        await neon.deleteProject(projectId);
+      }
     } catch (error) {
       if (error instanceof NeonClientError && error.statusCode === 404) {
-        logger.info("[milady-sandbox] Neon project already absent during cleanup", {
+        logger.info("[milady-sandbox] Neon resource already absent during cleanup", {
           projectId,
+          branchId,
         });
         return;
       }
