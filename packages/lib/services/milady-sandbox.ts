@@ -33,7 +33,7 @@ import { JOB_TYPES } from "./provisioning-jobs";
 import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
 
 /** Shared Neon project used as branch parent for per-agent databases. */
-const NEON_PARENT_PROJECT_ID: string = process.env.NEON_PARENT_PROJECT_ID ?? "holy-rain-20729618"; // env var required in prod
+const NEON_PARENT_PROJECT_ID: string = process.env.NEON_PARENT_PROJECT_ID ?? "snowy-waterfall-29926749"; // env var required in prod
 
 export interface CreateAgentParams {
   organizationId: string;
