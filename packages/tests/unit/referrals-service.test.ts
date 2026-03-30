@@ -42,6 +42,7 @@ mock.module("@/db/repositories/users", () => ({
   },
   UsersRepository: class MockUsersRepository {
     findById = mockFindUserById;
+    static resetWhatsAppColumnSupportCacheForTests() {}
   },
 }));
 

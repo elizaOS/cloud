@@ -116,6 +116,7 @@ mock.module("@/db/repositories/users", () => ({
   },
   UsersRepository: class MockUsersRepository {
     delete = mockDeleteUserRecord;
+    static resetWhatsAppColumnSupportCacheForTests() {}
   },
 }));
 
