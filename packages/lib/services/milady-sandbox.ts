@@ -694,20 +694,35 @@ export class MiladySandboxService {
 
     try {
       const fullPath = `/api/wallet/${walletPath}${sanitizedQuery ? `?${sanitizedQuery}` : ""}`;
-      // Wallet REST API runs on web_ui_port, not the bridge (JSON-RPC) port.
-      let endpoint: string;
-      if (rec.web_ui_port && rec.node_id) {
-        const bridgeUrl = new URL(rec.bridge_url);
-        endpoint = `${bridgeUrl.protocol}//${bridgeUrl.hostname}:${rec.web_ui_port}${fullPath}`;
-      } else {
-        endpoint = await this.getSafeBridgeEndpoint(rec, fullPath);
-      }
-      // Extract API token from environment_vars using typed access
+
+      // Extract API token from environment_vars
       const envVars = rec.environment_vars as Record<string, string> | null;
       const apiToken = envVars?.MILADY_API_TOKEN;
       if (!apiToken) {
         logger.warn("[milady-sandbox] No MILADY_API_TOKEN for wallet proxy", { agentId });
       }
+
+      // Determine the agent endpoint. Prefer the public domain (reachable from
+      // Vercel serverless functions) over internal bridge IPs (only reachable
+      // from within the Hetzner network).
+      const agentBaseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+      let endpoint: string;
+      if (agentBaseDomain) {
+        // Public URL: https://{agentId}.waifu.fun/api/wallet/...
+        endpoint = `https://${agentId}.${agentBaseDomain}${fullPath}`;
+      } else if (rec.web_ui_port && rec.node_id) {
+        // Internal fallback: http://{host}:{web_ui_port}/api/wallet/...
+        const bridgeUrl = new URL(rec.bridge_url);
+        endpoint = `${bridgeUrl.protocol}//${bridgeUrl.hostname}:${rec.web_ui_port}${fullPath}`;
+      } else {
+        endpoint = await this.getSafeBridgeEndpoint(rec, fullPath);
+      }
+
+      logger.info("[milady-sandbox] Wallet proxy endpoint", {
+        agentId,
+        endpoint: endpoint.replace(/Bearer.*/, "***"),
+      });
+
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (apiToken) {
         headers.Authorization = `Bearer ${apiToken}`;
