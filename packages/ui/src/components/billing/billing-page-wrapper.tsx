@@ -1,29 +1,19 @@
 /**
  * Billing page wrapper component setting page header and displaying payment cancellation alerts.
- * Wraps billing page client with page context and alert handling.
  *
  * @param props - Billing page wrapper configuration
- * @param props.creditPacks - Array of available credit packs
  * @param props.currentCredits - Current credit balance
  * @param props.canceled - Optional cancellation message from Stripe
  */
 
 "use client";
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  BrandCard,
-  useSetPageHeader,
-} from "@elizaos/cloud-ui";
+import { Alert, AlertDescription, AlertTitle, useSetPageHeader } from "@elizaos/cloud-ui";
 import { Info } from "lucide-react";
-import type { CreditPack as DBCreditPack } from "@/lib/types";
 import { BillingPageClient } from "./billing-page-client";
 import { MiladyPricingInfo } from "./milady-pricing-info";
 
 interface BillingPageWrapperProps {
-  creditPacks: DBCreditPack[];
   currentCredits: number;
   canceled?: string;
   runningAgents?: number;
@@ -31,7 +21,6 @@ interface BillingPageWrapperProps {
 }
 
 export function BillingPageWrapper({
-  creditPacks,
   currentCredits,
   canceled,
   runningAgents = 0,
@@ -54,33 +43,13 @@ export function BillingPageWrapper({
         </Alert>
       )}
 
-      <BrandCard className="relative" corners={false}>
-        <div className="flex items-start gap-3">
-          <Info className="h-4 w-4 text-[#FF5800] mt-0.5 shrink-0" />
-          <div>
-            <h4 className="font-semibold text-white mb-1">How Billing Works</h4>
-            <p className="text-sm text-white/60">
-              You are charged for all AI operations including text generation, image creation, and
-              video rendering. Add funds in bulk to get better rates. Your balance never expires and
-              is shared across your organization.
-            </p>
-          </div>
-        </div>
-      </BrandCard>
-
       <MiladyPricingInfo
         currentCredits={currentCredits}
         runningAgents={runningAgents}
         idleAgents={idleAgents}
       />
 
-      <BillingPageClient
-        creditPacks={creditPacks.map((p) => ({
-          ...p,
-          credits: Number(p.credits),
-        }))}
-        currentCredits={currentCredits}
-      />
+      <BillingPageClient currentCredits={currentCredits} />
     </div>
   );
 }

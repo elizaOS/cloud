@@ -47,7 +47,7 @@ export function DashboardActionCards({ creditBalance, className }: DashboardActi
         <div>
           <h3 className="text-base font-semibold text-white">Chat with Eliza</h3>
           <p className="mt-1 text-sm text-white/50">
-            Talk to the default AI agent or any of your custom characters
+            Talk to any agent
           </p>
         </div>
         {/* Glow effect */}
@@ -68,7 +68,7 @@ export function DashboardActionCards({ creditBalance, className }: DashboardActi
         <div>
           <h3 className="text-base font-semibold text-white">Create an Agent</h3>
           <p className="mt-1 text-sm text-white/50">
-            Build and customize your own AI character with unique personality
+            Build a custom agent
           </p>
         </div>
         <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/10 blur-3xl transition-opacity duration-500 group-hover:opacity-100 opacity-0" />
@@ -90,7 +90,7 @@ export function DashboardActionCards({ creditBalance, className }: DashboardActi
         <div>
           <h3 className="text-base font-semibold text-white">Credits &amp; Billing</h3>
           <p className="mt-1 text-sm text-white/50">
-            View balance, purchase credits, and manage your billing
+            Top up credits and view usage
           </p>
         </div>
         <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl transition-opacity duration-500 group-hover:opacity-100 opacity-0" />
@@ -106,7 +106,7 @@ export function DashboardActionCards({ creditBalance, className }: DashboardActi
         <div>
           <h3 className="text-base font-semibold text-white">Developer APIs</h3>
           <p className="mt-1 mb-3 text-sm text-white/50">
-            Integrate AI agents into your own apps and services
+            Build with the API
           </p>
           <div className="flex items-center gap-3">
             <Link

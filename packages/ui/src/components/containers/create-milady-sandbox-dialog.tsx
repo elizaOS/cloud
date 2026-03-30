@@ -4,7 +4,6 @@ import {
   BrandButton,
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -218,7 +217,7 @@ function ProvisioningProgress({
           </>
         ) : (
           <BrandButton variant="outline" size="sm" onClick={onClose}>
-            {hasError ? "Close" : "Close — continues in background"}
+            Close
           </BrandButton>
         )}
       </div>
@@ -414,7 +413,7 @@ export function CreateMiladySandboxDialog({
       ) : (
         <BrandButton size="sm" onClick={() => setOpen(true)} disabled={busy}>
           <Plus className="h-4 w-4" />
-          New Sandbox
+          New Agent
         </BrandButton>
       )}
 
@@ -429,13 +428,8 @@ export function CreateMiladySandboxDialog({
         <DialogContent className="sm:max-w-md bg-neutral-900 border-white/10">
           <DialogHeader>
             <DialogTitle className="text-white">
-              {isProvisioningPhase ? "Launching Agent" : "Create Sandbox"}
+              {isProvisioningPhase ? "Launching Agent" : "New Agent"}
             </DialogTitle>
-            {!isProvisioningPhase && (
-              <DialogDescription className="text-white/50">
-                Create an agent sandbox and optionally start provisioning right away.
-              </DialogDescription>
-            )}
           </DialogHeader>
 
           {isProvisioningPhase ? (
@@ -476,7 +470,7 @@ export function CreateMiladySandboxDialog({
                 {/* Flavor selector */}
                 <div className="space-y-1.5">
                   <Label htmlFor="milady-flavor" className="text-white/60 text-xs">
-                    Agent Flavor
+                    Type
                   </Label>
                   <Select value={flavorId} onValueChange={setFlavorId} disabled={busy}>
                     <SelectTrigger
@@ -525,7 +519,7 @@ export function CreateMiladySandboxDialog({
                       Start immediately
                     </Label>
                     <p className="text-[11px] text-white/35">
-                      Queue provisioning as soon as the record is created.
+                      Start right after creation
                     </p>
                   </div>
                   <Switch
@@ -542,11 +536,9 @@ export function CreateMiladySandboxDialog({
                     <div className="shrink-0 mt-0.5 w-1.5 h-1.5 bg-[#FF5800] rounded-full" />
                     <div className="space-y-0.5">
                       <p className="text-[11px] font-mono text-white/70">
-                        Running: {formatHourlyRate(MILADY_PRICING.RUNNING_HOURLY_RATE)} (
-                        {formatMonthlyEstimate(MILADY_PRICING.RUNNING_HOURLY_RATE)})
+                        {formatHourlyRate(MILADY_PRICING.RUNNING_HOURLY_RATE)}/hr running · {formatHourlyRate(MILADY_PRICING.IDLE_HOURLY_RATE)}/hr idle
                       </p>
                       <p className="text-[10px] font-mono text-white/35">
-                        Idle when stopped: {formatHourlyRate(MILADY_PRICING.IDLE_HOURLY_RATE)} ·
                         Min. deposit {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)}
                       </p>
                     </div>
@@ -570,7 +562,7 @@ export function CreateMiladySandboxDialog({
                   disabled={!agentName.trim() || busy || (isCustom && !customImage.trim())}
                 >
                   {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {busy ? "Creating…" : autoStart ? "Create & Start" : "Create Sandbox"}
+                  {busy ? "Creating…" : autoStart ? "Deploy" : "Create"}
                 </BrandButton>
               </DialogFooter>
             </>

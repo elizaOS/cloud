@@ -110,10 +110,9 @@ export function MiladyPricingInfo({
           </div>
         </div>
 
-        <p className="text-[10px] text-white/20 font-mono leading-relaxed">
-          Min. deposit {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)} · Credits never expire ·{" "}
-          Auto-suspend at {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)} balance ·{" "}
-          {MILADY_PRICING.GRACE_PERIOD_HOURS}h grace period
+        <p className="text-[10px] text-white/20 font-mono">
+          Min. {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)} · Never expires · Suspends at{" "}
+          {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)} · {MILADY_PRICING.GRACE_PERIOD_HOURS}h grace
         </p>
       </div>
     </BrandCard>

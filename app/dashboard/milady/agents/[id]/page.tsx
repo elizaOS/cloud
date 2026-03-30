@@ -20,6 +20,7 @@ import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { adminService } from "@/lib/services/admin";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { MiladyAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
+import { MiladyAgentTabs } from "@/packages/ui/src/components/containers/milady-agent-tabs";
 import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
 import { MiladyBackupsPanel } from "@/packages/ui/src/components/containers/milady-backups-panel";
 import { MiladyConnectButton } from "@/packages/ui/src/components/containers/milady-connect-button";
@@ -221,6 +222,10 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      {/* ── Tabs: Overview | Wallet | Transactions | Policies ── */}
+      <MiladyAgentTabs agentId={agent.id}>
+        {/* ── Overview tab content ── */}
+
       {/* ── Error message ── */}
       {agent.error_message && (
         <div className="flex items-start gap-3 p-4 bg-red-950/20 border border-red-500/20">
@@ -358,6 +363,8 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           nodeId={agent.node_id}
         />
       )}
+
+      </MiladyAgentTabs>
     </div>
   );
 }
