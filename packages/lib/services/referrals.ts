@@ -115,6 +115,11 @@ function generateReferralCode(userId: string): string {
  * Service for managing referral programs and social sharing rewards.
  */
 export class ReferralsService {
+  /**
+   * Ensures the user has exactly one `referral_codes` row (generated string).
+   * Exposed to HTTP clients via GET `/api/v1/referrals`. WHY idempotent create here: Dashboard can
+   * call repeatedly from header + Affiliates without a separate "create code" mutation.
+   */
   async getOrCreateCode(userId: string): Promise<ReferralCode> {
     const existing = await referralCodesRepository.findByUserId(userId);
     if (existing) return existing;

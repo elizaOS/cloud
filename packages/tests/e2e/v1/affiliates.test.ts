@@ -81,6 +81,11 @@ describe("Referrals API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
+  test("GET /api/v1/referrals requires auth", async () => {
+    const response = await api.get("/api/v1/referrals");
+    expect([401, 403]).toContain(response.status);
+  });
+
   test.skipIf(!api.hasApiKey())("POST /api/v1/referrals/apply with invalid code", async () => {
     const response = await api.post(
       "/api/v1/referrals/apply",
@@ -88,6 +93,25 @@ describe("Referrals API", () => {
       { authenticated: true },
     );
     expect([200, 400, 404]).toContain(response.status);
+  });
+
+  test.skipIf(!api.hasApiKey())("GET /api/v1/referrals returns flat code payload with auth", async () => {
+    const first = await api.get("/api/v1/referrals", { authenticated: true });
+    expect(first.status).toBe(200);
+    const body = (await first.json()) as {
+      code: string;
+      total_referrals: number;
+      is_active: boolean;
+    };
+    expect(typeof body.code).toBe("string");
+    expect(body.code.length).toBeGreaterThan(0);
+    expect(typeof body.total_referrals).toBe("number");
+    expect(typeof body.is_active).toBe("boolean");
+
+    const second = await api.get("/api/v1/referrals", { authenticated: true });
+    expect(second.status).toBe(200);
+    const body2 = (await second.json()) as { code: string };
+    expect(body2.code).toBe(body.code);
   });
 });
 

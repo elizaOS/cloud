@@ -13,6 +13,15 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ## March 2026
 
+### Mar 30, 2026
+
+**Referral invite links — API, dashboard UI, docs**
+
+- **`GET /api/v1/referrals`** — Returns the signed-in user’s referral row as flat JSON (`code`, `total_referrals`, `is_active`); creates a code via `getOrCreateCode` on first success. **Why:** One round trip for “my link,” no separate create endpoint; idempotent and safe for duplicate calls from header + Affiliates page.
+- **HTTP semantics** — `401` for auth failures (including `Authentication required` and API key errors), **`403` for `ForbiddenError`** (e.g. no org), `500` for unexpected errors. **Why:** Callers can tell “not logged in” from “logged in but not allowed” instead of masking 403 as 500.
+- **Dashboard** — Header **Invite** (lazy fetch, clipboard, toast; hidden for anonymous users and during `authGraceActive`). Affiliates page **Invite friends** card above the affiliate link (distinct styling); inactive codes show a warning and block copy in header. **Why:** Discoverability without a new nav item; avoids conflating `?ref=` with `?affiliate=`; grace-period gating avoids broken clicks mid-session sync.
+- **Docs** — [docs/referrals.md](../../docs/referrals.md) (flows, APIs, WHYs), [docs/affiliate-referral-comparison.md](../../docs/affiliate-referral-comparison.md); README subsection updated; [ROADMAP.md](../../docs/ROADMAP.md) entry. Shared type `ReferralMeResponse` + `parseReferralMeResponse` in `packages/lib/types/referral-me.ts`. **Why:** README previously linked to missing referral docs; flat JSON and parser reduce client bugs.
+
 ### Mar 8, 2026
 
 **Anthropic Messages API compatibility**
