@@ -26,9 +26,7 @@ export function MiladyAgentTabs({ agentId, children }: MiladyAgentTabsProps) {
             type="button"
             onClick={() => setActiveTab(tab)}
             className={`relative shrink-0 px-5 py-3 font-mono text-[11px] uppercase tracking-[0.2em] transition-colors ${
-              activeTab === tab
-                ? "text-[#FF5800]"
-                : "text-white/40 hover:text-white/70"
+              activeTab === tab ? "text-[#FF5800]" : "text-white/40 hover:text-white/70"
             }`}
           >
             {tab}

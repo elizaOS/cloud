@@ -45,9 +45,7 @@ describe("getMiladyAgentPublicWebUiUrl", () => {
         baseDomain: "https://milady.shad0w.xyz/dashboard",
         path: "/chat",
       }),
-    ).toBe(
-      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz/chat",
-    );
+    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz/chat");
   });
 
   test("can fall back to the placeholder domain for compat callers", () => {
@@ -71,24 +69,20 @@ describe("getPreferredMiladyAgentWebUiUrl", () => {
   test("falls back to direct headscale url when no canonical domain is configured", () => {
     delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
-    expect(getPreferredMiladyAgentWebUiUrl(makeSandbox())).toBe(
-      "http://100.64.0.5:20100",
-    );
+    expect(getPreferredMiladyAgentWebUiUrl(makeSandbox())).toBe("http://100.64.0.5:20100");
   });
 
   test("falls back to bridge port when web ui port is missing", () => {
     delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
-    expect(
-      getPreferredMiladyAgentWebUiUrl(makeSandbox({ web_ui_port: null })),
-    ).toBe("http://100.64.0.5:18800");
+    expect(getPreferredMiladyAgentWebUiUrl(makeSandbox({ web_ui_port: null }))).toBe(
+      "http://100.64.0.5:18800",
+    );
   });
 });
 
 describe("getMiladyAgentDirectWebUiUrl", () => {
   test("returns null when headscale access is unavailable", () => {
-    expect(
-      getMiladyAgentDirectWebUiUrl(makeSandbox({ headscale_ip: null })),
-    ).toBeNull();
+    expect(getMiladyAgentDirectWebUiUrl(makeSandbox({ headscale_ip: null }))).toBeNull();
   });
 });

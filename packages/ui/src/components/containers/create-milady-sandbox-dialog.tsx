@@ -21,11 +21,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AGENT_FLAVORS, getDefaultFlavor, getFlavorById } from "@/lib/constants/agent-flavors";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
-import {
-  formatHourlyRate,
-  formatMonthlyEstimate,
-  formatUSD,
-} from "@/lib/constants/milady-pricing-display";
+import { formatHourlyRate, formatUSD } from "@/lib/constants/milady-pricing-display";
 import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 import { type SandboxStatus, useSandboxStatusPoll } from "@/lib/hooks/use-sandbox-status-poll";
 
@@ -518,9 +514,7 @@ export function CreateMiladySandboxDialog({
                     <Label htmlFor="milady-auto-start" className="text-sm text-white/70">
                       Start immediately
                     </Label>
-                    <p className="text-[11px] text-white/35">
-                      Start right after creation
-                    </p>
+                    <p className="text-[11px] text-white/35">Start right after creation</p>
                   </div>
                   <Switch
                     id="milady-auto-start"
@@ -536,7 +530,8 @@ export function CreateMiladySandboxDialog({
                     <div className="shrink-0 mt-0.5 w-1.5 h-1.5 bg-[#FF5800] rounded-full" />
                     <div className="space-y-0.5">
                       <p className="text-[11px] font-mono text-white/70">
-                        {formatHourlyRate(MILADY_PRICING.RUNNING_HOURLY_RATE)}/hr running · {formatHourlyRate(MILADY_PRICING.IDLE_HOURLY_RATE)}/hr idle
+                        {formatHourlyRate(MILADY_PRICING.RUNNING_HOURLY_RATE)}/hr running ·{" "}
+                        {formatHourlyRate(MILADY_PRICING.IDLE_HOURLY_RATE)}/hr idle
                       </p>
                       <p className="text-[10px] font-mono text-white/35">
                         Min. deposit {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)}

@@ -170,7 +170,10 @@ export class NeonClient {
     const connectionUri = data.connection_uris?.[0]?.connection_uri;
 
     if (!connectionUri) {
-      throw new NeonClientError("No connection URI in Neon branch response", "MISSING_CONNECTION_URI");
+      throw new NeonClientError(
+        "No connection URI in Neon branch response",
+        "MISSING_CONNECTION_URI",
+      );
     }
 
     let host: string;

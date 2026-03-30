@@ -42,7 +42,7 @@ interface StewardStatus {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function truncateAddress(addr: string): string {
+function _truncateAddress(addr: string): string {
   if (!addr || addr.length < 10) return addr;
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
@@ -85,12 +85,28 @@ function CopyButton({ text }: { text: string }) {
       className="ml-1.5 text-white/30 hover:text-white/70 transition-colors"
     >
       {copied ? (
-        <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg
+          className="w-3 h-3 text-emerald-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
       ) : (
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        <svg
+          className="w-3 h-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+          />
         </svg>
       )}
     </button>
@@ -132,7 +148,9 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
       const [addrRes, balRes, stewardRes] = await Promise.allSettled([
         fetch(`${base}/addresses`).then((r) => (r.ok ? r.json() : Promise.reject(r.statusText))),
         fetch(`${base}/balances`).then((r) => (r.ok ? r.json() : Promise.reject(r.statusText))),
-        fetch(`${base}/steward-status`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch(`${base}/steward-status`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
       ]);
 
       if (!mountedRef.current) return;
@@ -204,16 +222,22 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
             <div className="px-4 py-3 grid grid-cols-[80px_1fr] gap-4 items-center">
               <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">EVM</p>
               <div className="flex items-center min-w-0">
-                <span className="font-mono text-sm text-white/80 break-all">{data.addresses?.evmAddress}</span>
+                <span className="font-mono text-sm text-white/80 break-all">
+                  {data.addresses?.evmAddress}
+                </span>
                 <CopyButton text={data.addresses?.evmAddress ?? ""} />
               </div>
             </div>
           )}
           {hasSolana && (
             <div className="px-4 py-3 grid grid-cols-[80px_1fr] gap-4 items-center">
-              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">Solana</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">
+                Solana
+              </p>
               <div className="flex items-center min-w-0">
-                <span className="font-mono text-sm text-white/80 break-all">{data.addresses?.solanaAddress}</span>
+                <span className="font-mono text-sm text-white/80 break-all">
+                  {data.addresses?.solanaAddress}
+                </span>
                 <CopyButton text={data.addresses?.solanaAddress ?? ""} />
               </div>
             </div>
@@ -227,7 +251,9 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
           <SectionHeader label="Steward" />
           <div className="border border-white/10 bg-black/40 divide-y divide-white/5">
             <div className="px-4 py-3 grid grid-cols-[80px_1fr] gap-4 items-center">
-              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">Status</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">
+                Status
+              </p>
               <div className="flex items-center gap-2">
                 <span
                   className={`inline-block w-2 h-2 rounded-full ${
@@ -245,7 +271,9 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
             </div>
             {data.steward.version && (
               <div className="px-4 py-3 grid grid-cols-[80px_1fr] gap-4 items-center">
-                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">Version</p>
+                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">
+                  Version
+                </p>
                 <span className="font-mono text-sm text-white/80">{data.steward.version}</span>
               </div>
             )}

@@ -20,8 +20,8 @@ import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { adminService } from "@/lib/services/admin";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { MiladyAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
-import { MiladyAgentTabs } from "@/packages/ui/src/components/containers/milady-agent-tabs";
 import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
+import { MiladyAgentTabs } from "@/packages/ui/src/components/containers/milady-agent-tabs";
 import { MiladyBackupsPanel } from "@/packages/ui/src/components/containers/milady-backups-panel";
 import { MiladyConnectButton } from "@/packages/ui/src/components/containers/milady-connect-button";
 import { MiladyLogsViewer } from "@/packages/ui/src/components/containers/milady-logs-viewer";
@@ -226,144 +226,143 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       <MiladyAgentTabs agentId={agent.id}>
         {/* ── Overview tab content ── */}
 
-      {/* ── Error message ── */}
-      {agent.error_message && (
-        <div className="flex items-start gap-3 p-4 bg-red-950/20 border border-red-500/20">
-          <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-sm font-medium text-red-400">
-              Error ({agent.error_count} occurrence{agent.error_count !== 1 ? "s" : ""})
-            </p>
-            <p className="text-sm text-red-400/70">{agent.error_message}</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Docker infrastructure (admin) ── */}
-      {isAdmin && isDockerBacked && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-block size-2 bg-[#FF5800]" />
-            <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
-              Infrastructure
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 border border-white/10">
-            <InfoCell label="Node" value={agent.node_id ?? "—"} mono />
-            <InfoCell label="Container" value={agent.container_name ?? "—"} mono />
-            <InfoCell label="Docker Image" value={agent.docker_image ?? "—"} mono />
-            {agent.headscale_ip && (
-              <InfoCell label="VPN IP" value={agent.headscale_ip} mono accent="emerald" />
-            )}
-            {agent.bridge_port && (
-              <InfoCell label="Bridge Port" value={String(agent.bridge_port)} mono />
-            )}
-            {agent.web_ui_port && (
-              <InfoCell label="Web UI Port" value={String(agent.web_ui_port)} mono />
-            )}
-          </div>
-
-          {webUiUrl && (
-            <div className="border border-white/10 bg-black/40 px-4 py-3 flex items-center gap-3 text-sm">
-              <span className="text-[11px] uppercase tracking-widest text-white/35 shrink-0">
-                Web UI
-              </span>
-              <span className="text-white/50 font-mono text-xs break-all">{webUiUrl}</span>
+        {/* ── Error message ── */}
+        {agent.error_message && (
+          <div className="flex items-start gap-3 p-4 bg-red-950/20 border border-red-500/20">
+            <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-medium text-red-400">
+                Error ({agent.error_count} occurrence{agent.error_count !== 1 ? "s" : ""})
+              </p>
+              <p className="text-sm text-red-400/70">{agent.error_message}</p>
             </div>
-          )}
-        </section>
-      )}
-
-      {/* ── SSH access (admin) ── */}
-      {isAdmin && sshCommand && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-block size-2 bg-[#FF5800]" />
-            <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
-              SSH Access
-            </p>
           </div>
+        )}
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 px-4 py-3 border border-white/10 bg-black/60">
-              <Terminal className="h-4 w-4 text-emerald-400 shrink-0" />
-              <code
-                className="text-sm text-emerald-400 font-mono flex-1"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                {sshCommand}
-              </code>
+        {/* ── Docker infrastructure (admin) ── */}
+        {isAdmin && isDockerBacked && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-block size-2 bg-[#FF5800]" />
+              <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
+                Infrastructure
+              </p>
             </div>
-            {agent.bridge_port && (
-              <div className="flex items-center gap-3 px-4 py-3 border border-white/10 bg-black/60">
-                <Terminal className="h-4 w-4 text-blue-400 shrink-0" />
-                <code
-                  className="text-sm text-blue-400 font-mono flex-1"
-                  style={{ fontFamily: "var(--font-roboto-mono)" }}
-                >
-                  {`curl http://${agent.headscale_ip}:${agent.bridge_port}/health`}
-                </code>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 border border-white/10">
+              <InfoCell label="Node" value={agent.node_id ?? "—"} mono />
+              <InfoCell label="Container" value={agent.container_name ?? "—"} mono />
+              <InfoCell label="Docker Image" value={agent.docker_image ?? "—"} mono />
+              {agent.headscale_ip && (
+                <InfoCell label="VPN IP" value={agent.headscale_ip} mono accent="emerald" />
+              )}
+              {agent.bridge_port && (
+                <InfoCell label="Bridge Port" value={String(agent.bridge_port)} mono />
+              )}
+              {agent.web_ui_port && (
+                <InfoCell label="Web UI Port" value={String(agent.web_ui_port)} mono />
+              )}
+            </div>
+
+            {webUiUrl && (
+              <div className="border border-white/10 bg-black/40 px-4 py-3 flex items-center gap-3 text-sm">
+                <span className="text-[11px] uppercase tracking-widest text-white/35 shrink-0">
+                  Web UI
+                </span>
+                <span className="text-white/50 font-mono text-xs break-all">{webUiUrl}</span>
               </div>
             )}
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      {/* ── Vercel sandbox info (admin) ── */}
-      {isAdmin && !isDockerBacked && agent.bridge_url && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-block size-2 bg-[#FF5800]" />
-            <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
-              Sandbox Connection
-            </p>
-          </div>
+        {/* ── SSH access (admin) ── */}
+        {isAdmin && sshCommand && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-block size-2 bg-[#FF5800]" />
+              <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
+                SSH Access
+              </p>
+            </div>
 
-          <div className="border border-white/10 bg-black/40 px-4 py-3 flex items-start gap-3">
-            <span className="text-[11px] uppercase tracking-widest text-white/35 shrink-0 pt-0.5">
-              Bridge URL
-            </span>
-            <a
-              href={agent.bridge_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-[#FF5800] hover:text-[#FF5800]/70 flex items-center gap-1 transition-colors font-mono break-all"
-            >
-              {agent.bridge_url}
-              <ExternalLink className="h-3 w-3 shrink-0" />
-            </a>
-          </div>
-        </section>
-      )}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 px-4 py-3 border border-white/10 bg-black/60">
+                <Terminal className="h-4 w-4 text-emerald-400 shrink-0" />
+                <code
+                  className="text-sm text-emerald-400 font-mono flex-1"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  {sshCommand}
+                </code>
+              </div>
+              {agent.bridge_port && (
+                <div className="flex items-center gap-3 px-4 py-3 border border-white/10 bg-black/60">
+                  <Terminal className="h-4 w-4 text-blue-400 shrink-0" />
+                  <code
+                    className="text-sm text-blue-400 font-mono flex-1"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    {`curl http://${agent.headscale_ip}:${agent.bridge_port}/health`}
+                  </code>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
-      {/* ── Actions card ── */}
-      <MiladyAgentActions agentId={agent.id} status={agent.status} webUiUrl={webUiUrl} />
+        {/* ── Vercel sandbox info (admin) ── */}
+        {isAdmin && !isDockerBacked && agent.bridge_url && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-block size-2 bg-[#FF5800]" />
+              <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
+                Sandbox Connection
+              </p>
+            </div>
 
-      {/* ── Backups / history ── */}
-      <MiladyBackupsPanel
-        agentId={agent.id}
-        agentName={agent.agent_name ?? "Unnamed Agent"}
-        status={agent.status}
-      />
+            <div className="border border-white/10 bg-black/40 px-4 py-3 flex items-start gap-3">
+              <span className="text-[11px] uppercase tracking-widest text-white/35 shrink-0 pt-0.5">
+                Bridge URL
+              </span>
+              <a
+                href={agent.bridge_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-[#FF5800] hover:text-[#FF5800]/70 flex items-center gap-1 transition-colors font-mono break-all"
+              >
+                {agent.bridge_url}
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
+            </div>
+          </section>
+        )}
 
-      {/* ── User-facing app logs ── */}
-      <MiladyLogsViewer
-        agentId={agent.id}
-        agentName={agent.agent_name ?? "Unnamed Agent"}
-        status={agent.status}
-        showAdvancedHint={isAdmin && isDockerBacked}
-      />
+        {/* ── Actions card ── */}
+        <MiladyAgentActions agentId={agent.id} status={agent.status} webUiUrl={webUiUrl} />
 
-      {/* ── Admin: Docker Logs ── */}
-      {isAdmin && isDockerBacked && agent.container_name && agent.node_id && (
-        <DockerLogsViewer
-          sandboxId={agent.id}
-          containerName={agent.container_name}
-          nodeId={agent.node_id}
+        {/* ── Backups / history ── */}
+        <MiladyBackupsPanel
+          agentId={agent.id}
+          agentName={agent.agent_name ?? "Unnamed Agent"}
+          status={agent.status}
         />
-      )}
 
+        {/* ── User-facing app logs ── */}
+        <MiladyLogsViewer
+          agentId={agent.id}
+          agentName={agent.agent_name ?? "Unnamed Agent"}
+          status={agent.status}
+          showAdvancedHint={isAdmin && isDockerBacked}
+        />
+
+        {/* ── Admin: Docker Logs ── */}
+        {isAdmin && isDockerBacked && agent.container_name && agent.node_id && (
+          <DockerLogsViewer
+            sandboxId={agent.id}
+            containerName={agent.container_name}
+            nodeId={agent.node_id}
+          />
+        )}
       </MiladyAgentTabs>
     </div>
   );

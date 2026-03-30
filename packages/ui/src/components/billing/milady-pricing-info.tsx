@@ -112,7 +112,8 @@ export function MiladyPricingInfo({
 
         <p className="text-[10px] text-white/20 font-mono">
           Min. {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)} · Never expires · Suspends at{" "}
-          {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)} · {MILADY_PRICING.GRACE_PERIOD_HOURS}h grace
+          {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)} · {MILADY_PRICING.GRACE_PERIOD_HOURS}h
+          grace
         </p>
       </div>
     </BrandCard>

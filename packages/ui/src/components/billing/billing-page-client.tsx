@@ -30,7 +30,7 @@ export function BillingPageClient({ currentCredits }: BillingPageClientProps) {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(null);
-  const [balance, setBalance] = useState(currentCredits);
+  const [balance, _setBalance] = useState(currentCredits);
 
   const fetchCryptoStatus = useCallback(async () => {
     try {
@@ -153,7 +153,11 @@ export function BillingPageClient({ currentCredits }: BillingPageClientProps) {
               type="button"
               onClick={() => {
                 setPaymentMethod("card");
-                trackEvent("payment_method_selected", { method: "stripe", source_page: "billing", current_balance: balance });
+                trackEvent("payment_method_selected", {
+                  method: "stripe",
+                  source_page: "billing",
+                  current_balance: balance,
+                });
               }}
               className={`flex items-center gap-2 px-4 py-2 font-mono text-sm border transition-colors ${
                 paymentMethod === "card"
@@ -168,7 +172,11 @@ export function BillingPageClient({ currentCredits }: BillingPageClientProps) {
               type="button"
               onClick={() => {
                 setPaymentMethod("crypto");
-                trackEvent("payment_method_selected", { method: "crypto", source_page: "billing", current_balance: balance });
+                trackEvent("payment_method_selected", {
+                  method: "crypto",
+                  source_page: "billing",
+                  current_balance: balance,
+                });
               }}
               className={`flex items-center gap-2 px-4 py-2 font-mono text-sm border transition-colors ${
                 paymentMethod === "crypto"

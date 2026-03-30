@@ -124,7 +124,8 @@ export function MiladyPricingBanner({
 
         {/* Minimum deposit note */}
         <p className="text-[10px] text-white/25 mt-3 font-mono">
-          Min. {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)} · Suspends at {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)}
+          Min. {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)} · Suspends at{" "}
+          {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)}
         </p>
       </div>
     </BrandCard>

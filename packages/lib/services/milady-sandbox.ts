@@ -650,7 +650,8 @@ export class MiladySandboxService {
       }
       // Agent REST API requires MILADY_API_TOKEN for auth
       const apiToken = (rec as Record<string, unknown>).environment_vars
-        ? ((rec as Record<string, unknown>).environment_vars as Record<string, string>)?.MILADY_API_TOKEN
+        ? ((rec as Record<string, unknown>).environment_vars as Record<string, string>)
+            ?.MILADY_API_TOKEN
         : undefined;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (apiToken) {
@@ -1025,10 +1026,13 @@ export class MiladySandboxService {
     });
 
     if (!updated) {
-      logger.error("[milady-sandbox] DB update failed after Neon branch creation, cleaning orphan", {
-        projectId: NEON_PARENT_PROJECT_ID,
-        branchId: result.branchId,
-      });
+      logger.error(
+        "[milady-sandbox] DB update failed after Neon branch creation, cleaning orphan",
+        {
+          projectId: NEON_PARENT_PROJECT_ID,
+          branchId: result.branchId,
+        },
+      );
       await neon.deleteBranch(NEON_PARENT_PROJECT_ID, result.branchId).catch((e) => {
         logger.error("[milady-sandbox] Orphan Neon branch cleanup failed", {
           branchId: result.branchId,

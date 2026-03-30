@@ -22,9 +22,7 @@ function formatConfigValue(val: unknown): string {
 }
 
 function policyLabel(type: string): string {
-  return type
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // ── Main Component ───────────────────────────────────────────────────────────
@@ -49,13 +47,15 @@ export function MiladyPoliciesSection({ agentId }: MiladyPoliciesSectionProps) {
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const data = await res.json();
       if (!mountedRef.current) return;
-      setPolicies(Array.isArray(data) ? data : data.policies ?? []);
+      setPolicies(Array.isArray(data) ? data : (data.policies ?? []));
     } catch (err) {
       if (!mountedRef.current) return;
       const msg = err instanceof Error ? err.message : "Failed to load policies";
-      setError(msg.includes("503") || msg.includes("not configured")
-        ? "Steward is not configured for this agent. Policies require a connected Steward instance."
-        : msg);
+      setError(
+        msg.includes("503") || msg.includes("not configured")
+          ? "Steward is not configured for this agent. Policies require a connected Steward instance."
+          : msg,
+      );
     } finally {
       if (mountedRef.current) setLoading(false);
     }
@@ -64,13 +64,17 @@ export function MiladyPoliciesSection({ agentId }: MiladyPoliciesSectionProps) {
   useEffect(() => {
     mountedRef.current = true;
     fetchPolicies();
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchPolicies]);
 
   if (loading) {
     return (
       <div className="space-y-3 animate-pulse">
-        {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-white/5 border border-white/10" />)}
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-20 bg-white/5 border border-white/10" />
+        ))}
       </div>
     );
   }
@@ -147,7 +151,10 @@ export function MiladyPoliciesSection({ agentId }: MiladyPoliciesSectionProps) {
             {configEntries.length > 0 && (
               <div className="divide-y divide-white/5">
                 {configEntries.map(([key, val]) => (
-                  <div key={key} className="px-4 py-2.5 grid grid-cols-[180px_1fr] gap-4 items-start">
+                  <div
+                    key={key}
+                    className="px-4 py-2.5 grid grid-cols-[180px_1fr] gap-4 items-start"
+                  >
                     <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-white/30 break-all">
                       {key.replace(/_/g, " ")}
                     </span>

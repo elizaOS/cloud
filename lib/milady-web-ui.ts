@@ -2,10 +2,7 @@ import type { MiladySandbox } from "@/db/schemas/milady-sandboxes";
 
 const DEFAULT_AGENT_BASE_DOMAIN = "agents.example.com";
 
-type MiladyWebUiTarget = Pick<
-  MiladySandbox,
-  "id" | "headscale_ip" | "web_ui_port" | "bridge_port"
->;
+type MiladyWebUiTarget = Pick<MiladySandbox, "id" | "headscale_ip" | "web_ui_port" | "bridge_port">;
 
 interface MiladyWebUiUrlOptions {
   baseDomain?: string | null;
@@ -83,7 +80,6 @@ export function getPreferredMiladyAgentWebUiUrl(
   options: MiladyWebUiUrlOptions = {},
 ): string | null {
   return (
-    getMiladyAgentPublicWebUiUrl(sandbox, options) ??
-    getMiladyAgentDirectWebUiUrl(sandbox, options)
+    getMiladyAgentPublicWebUiUrl(sandbox, options) ?? getMiladyAgentDirectWebUiUrl(sandbox, options)
   );
 }

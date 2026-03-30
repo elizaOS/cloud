@@ -51,8 +51,15 @@ function formatDate(s: string) {
   try {
     const d = new Date(s);
     if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  } catch { return "—"; }
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
 }
 
 function formatValue(value?: string) {
@@ -62,7 +69,9 @@ function formatValue(value?: string) {
     if (eth === 0) return "0 ETH";
     if (eth < 0.0001) return "<0.0001 ETH";
     return `${eth.toFixed(4)} ETH`;
-  } catch { return value; }
+  } catch {
+    return value;
+  }
 }
 
 const STATUS_FILTERS = [
@@ -94,44 +103,55 @@ export function MiladyTransactionsSection({ agentId }: MiladyTransactionsSection
 
   const base = `/api/v1/milady/agents/${agentId}/api/wallet`;
 
-  const fetchRecords = useCallback(async (newOffset: number, append: boolean) => {
-    if (append) setLoadingMore(true);
-    else setLoading(true);
-    setError(null);
+  const fetchRecords = useCallback(
+    async (newOffset: number, append: boolean) => {
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      setError(null);
 
-    try {
-      const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(newOffset) });
-      if (statusFilter) params.set("status", statusFilter);
-      const res = await fetch(`${base}/steward-tx-records?${params}`);
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      const result = await res.json();
-      if (!mountedRef.current) return;
-      const incoming = Array.isArray(result.records) ? result.records : Array.isArray(result) ? result : [];
-      if (append) {
-        setRecords((prev) => [...prev, ...incoming]);
-      } else {
-        setRecords(incoming);
+      try {
+        const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(newOffset) });
+        if (statusFilter) params.set("status", statusFilter);
+        const res = await fetch(`${base}/steward-tx-records?${params}`);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const result = await res.json();
+        if (!mountedRef.current) return;
+        const incoming = Array.isArray(result.records)
+          ? result.records
+          : Array.isArray(result)
+            ? result
+            : [];
+        if (append) {
+          setRecords((prev) => [...prev, ...incoming]);
+        } else {
+          setRecords(incoming);
+        }
+        setTotal(result.total ?? incoming.length);
+        setOffset(newOffset);
+      } catch (err) {
+        if (!mountedRef.current) return;
+        const msg = err instanceof Error ? err.message : "Failed to load transactions";
+        setError(
+          msg.includes("503") || msg.includes("not configured")
+            ? "No transaction history available."
+            : msg,
+        );
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
-      setTotal(result.total ?? incoming.length);
-      setOffset(newOffset);
-    } catch (err) {
-      if (!mountedRef.current) return;
-      const msg = err instanceof Error ? err.message : "Failed to load transactions";
-      setError(msg.includes("503") || msg.includes("not configured")
-        ? "No transaction history available."
-        : msg);
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    }
-  }, [base, statusFilter]);
+    },
+    [base, statusFilter],
+  );
 
   useEffect(() => {
     mountedRef.current = true;
     fetchRecords(0, false);
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchRecords]);
 
   const handleLoadMore = useCallback(() => {
@@ -142,7 +162,9 @@ export function MiladyTransactionsSection({ agentId }: MiladyTransactionsSection
     <div className="space-y-4">
       {/* Filter bar */}
       <div className="flex items-center gap-2 overflow-x-auto">
-        <span className="font-mono text-[10px] tracking-[0.15em] text-white/30 shrink-0">FILTER:</span>
+        <span className="font-mono text-[10px] tracking-[0.15em] text-white/30 shrink-0">
+          FILTER:
+        </span>
         {STATUS_FILTERS.map((f) => (
           <button
             key={f.value}
@@ -164,7 +186,10 @@ export function MiladyTransactionsSection({ agentId }: MiladyTransactionsSection
         {/* Header */}
         <div className="hidden sm:grid grid-cols-[140px_1fr_1fr_100px_1fr] gap-px bg-white/5">
           {["DATE", "TO", "AMOUNT", "STATUS", "TX HASH"].map((h) => (
-            <div key={h} className="bg-black/60 px-3 py-2 font-mono text-[9px] tracking-[0.15em] text-white/30">
+            <div
+              key={h}
+              className="bg-black/60 px-3 py-2 font-mono text-[9px] tracking-[0.15em] text-white/30"
+            >
               {h}
             </div>
           ))}
@@ -194,61 +219,80 @@ export function MiladyTransactionsSection({ agentId }: MiladyTransactionsSection
           <div className="p-8 text-center">
             <p className="font-mono text-sm text-white/30">NO TRANSACTIONS</p>
             <p className="font-mono text-xs text-white/20 mt-1">
-              {statusFilter ? `No transactions with status "${statusFilter}"` : "No transaction history found"}
+              {statusFilter
+                ? `No transactions with status "${statusFilter}"`
+                : "No transaction history found"}
             </p>
           </div>
         )}
 
-        {!loading && records.map((tx, i) => {
-          const colors = STATUS_COLORS[tx.status] ?? STATUS_COLORS.signed;
-          return (
-            <div
-              key={tx.id || `tx-${i}`}
-              className="grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_100px_1fr] gap-px bg-white/5 border-t border-white/5 first:border-t-0"
-            >
-              <div className="bg-black/60 px-3 py-2.5">
-                <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">DATE:</span>
-                <span className="font-mono text-[11px] text-white/70 tabular-nums">{formatDate(tx.createdAt)}</span>
+        {!loading &&
+          records.map((tx, i) => {
+            const colors = STATUS_COLORS[tx.status] ?? STATUS_COLORS.signed;
+            return (
+              <div
+                key={tx.id || `tx-${i}`}
+                className="grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_100px_1fr] gap-px bg-white/5 border-t border-white/5 first:border-t-0"
+              >
+                <div className="bg-black/60 px-3 py-2.5">
+                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">DATE:</span>
+                  <span className="font-mono text-[11px] text-white/70 tabular-nums">
+                    {formatDate(tx.createdAt)}
+                  </span>
+                </div>
+                <div className="bg-black/60 px-3 py-2.5 flex items-center">
+                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">TO:</span>
+                  {tx.request?.to ? (
+                    <span className="font-mono text-[11px] text-white/70">
+                      {truncate(tx.request.to)}
+                    </span>
+                  ) : (
+                    <span className="font-mono text-[11px] text-white/25">—</span>
+                  )}
+                </div>
+                <div className="bg-black/60 px-3 py-2.5">
+                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">AMOUNT:</span>
+                  <span className="font-mono text-[11px] text-white/70 tabular-nums">
+                    {formatValue(tx.request?.value)}
+                  </span>
+                </div>
+                <div className="bg-black/60 px-3 py-2.5 flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+                  <span className={`font-mono text-[10px] tracking-wide ${colors.text}`}>
+                    {tx.status.toUpperCase()}
+                  </span>
+                </div>
+                <div className="bg-black/60 px-3 py-2.5">
+                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">HASH:</span>
+                  {tx.txHash ? (
+                    <a
+                      href={explorerUrl(tx.txHash, tx.request?.chainId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-[11px] text-[#FF5800] hover:text-[#FF5800]/70 transition-colors inline-flex items-center gap-1"
+                    >
+                      {truncate(tx.txHash)}
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25"
+                        />
+                      </svg>
+                    </a>
+                  ) : (
+                    <span className="font-mono text-[11px] text-white/25">—</span>
+                  )}
+                </div>
               </div>
-              <div className="bg-black/60 px-3 py-2.5 flex items-center">
-                <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">TO:</span>
-                {tx.request?.to ? (
-                  <span className="font-mono text-[11px] text-white/70">{truncate(tx.request.to)}</span>
-                ) : (
-                  <span className="font-mono text-[11px] text-white/25">—</span>
-                )}
-              </div>
-              <div className="bg-black/60 px-3 py-2.5">
-                <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">AMOUNT:</span>
-                <span className="font-mono text-[11px] text-white/70 tabular-nums">{formatValue(tx.request?.value)}</span>
-              </div>
-              <div className="bg-black/60 px-3 py-2.5 flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
-                <span className={`font-mono text-[10px] tracking-wide ${colors.text}`}>
-                  {tx.status.toUpperCase()}
-                </span>
-              </div>
-              <div className="bg-black/60 px-3 py-2.5">
-                <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">HASH:</span>
-                {tx.txHash ? (
-                  <a
-                    href={explorerUrl(tx.txHash, tx.request?.chainId)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-mono text-[11px] text-[#FF5800] hover:text-[#FF5800]/70 transition-colors inline-flex items-center gap-1"
-                  >
-                    {truncate(tx.txHash)}
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
-                    </svg>
-                  </a>
-                ) : (
-                  <span className="font-mono text-[11px] text-white/25">—</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
         {!loading && records.length < total && (
           <div className="p-3 bg-black/60 border-t border-white/5 text-center">
@@ -266,7 +310,12 @@ export function MiladyTransactionsSection({ agentId }: MiladyTransactionsSection
                   LOADING…
                 </>
               ) : (
-                <>LOAD MORE <span className="text-white/30">({records.length}/{total})</span></>
+                <>
+                  LOAD MORE{" "}
+                  <span className="text-white/30">
+                    ({records.length}/{total})
+                  </span>
+                </>
               )}
             </button>
           </div>
