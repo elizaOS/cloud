@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import { stubUsersRepositoryModule } from "@/tests/support/bun-partial-module-shims";
 
 const TEST_SECRET = "milady-cron-secret";
 
@@ -90,11 +91,13 @@ mock.module("@/db/client", () => ({
   },
 }));
 
-mock.module("@/db/repositories/users", () => ({
-  usersRepository: {
-    listByOrganization: mockListByOrganization,
-  },
-}));
+mock.module("@/db/repositories/users", () =>
+  stubUsersRepositoryModule({
+    usersRepository: {
+      listByOrganization: mockListByOrganization,
+    },
+  }),
+);
 
 mock.module("@/lib/services/email", () => ({
   emailService: {
@@ -192,6 +195,10 @@ describe("Milady billing cron", () => {
     } else {
       process.env.NEXT_PUBLIC_APP_URL = previousAppUrl;
     }
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   test("skips a sandbox cleanly when another run already billed it", async () => {

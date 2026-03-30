@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockGetAffiliateCodeById = mock();
@@ -32,6 +33,7 @@ mock.module("@/lib/services/user-mcps", () => ({
 }));
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     reserveAndDeductCredits: mockReserveAndDeductCredits,
     refundCredits: mockRefundCredits,

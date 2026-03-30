@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  creditsModuleRuntimeShim,
+  stubUsersRepositoryModule,
+} from "@/tests/support/bun-partial-module-shims";
 
 const mockFindByUserId = mock();
 const mockFindById = mock();
@@ -28,13 +32,16 @@ mock.module("@/db/repositories/referrals", () => ({
   socialShareRewardsRepository: {},
 }));
 
-mock.module("@/db/repositories/users", () => ({
-  usersRepository: {
-    findById: mockFindUserById,
-  },
-}));
+mock.module("@/db/repositories/users", () =>
+  stubUsersRepositoryModule({
+    usersRepository: {
+      findById: mockFindUserById,
+    },
+  }),
+);
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     addCredits: mockAddCredits,
   },

@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { Client } from "pg";
+import {
+  creditsModuleRuntimeShim,
+  stubUsersRepositoryModule,
+} from "@/tests/support/bun-partial-module-shims";
 
 const mockGetByPrivyId = mock();
 const mockGetByPrivyIdForWrite = mock();
@@ -93,6 +97,7 @@ mock.module("@/lib/services/api-keys", () => ({
 }));
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     addCredits: mockAddCredits,
   },
@@ -104,11 +109,13 @@ mock.module("@/db/repositories/organization-invites", () => ({
   },
 }));
 
-mock.module("@/db/repositories/users", () => ({
-  usersRepository: {
-    delete: mockDeleteUserRecord,
-  },
-}));
+mock.module("@/db/repositories/users", () =>
+  stubUsersRepositoryModule({
+    usersRepository: {
+      delete: mockDeleteUserRecord,
+    },
+  }),
+);
 
 mock.module("@/lib/services/abuse-detection", () => ({
   abuseDetectionService: {
@@ -141,6 +148,10 @@ mock.module("@/lib/utils/default-eliza-character", () => ({
     source: "cloud",
   }),
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 describe("syncUserFromPrivy", () => {
   beforeEach(() => {

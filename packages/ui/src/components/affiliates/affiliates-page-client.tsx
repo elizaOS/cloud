@@ -122,6 +122,8 @@ export function AffiliatesPageClient() {
     );
   }
 
+  const pageOrigin = typeof window !== "undefined" ? window.location.origin : getAppUrl();
+
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto">
       {/* Introduction Banner */}
@@ -182,10 +184,7 @@ export function AffiliatesPageClient() {
               .
             </p>
             <p className="mt-2 font-mono text-xs text-white/50 break-all">
-              {buildReferralInviteLoginUrl(
-                typeof window !== "undefined" ? window.location.origin : getAppUrl(),
-                referralMe.code,
-              )}
+              {buildReferralInviteLoginUrl(pageOrigin, referralMe.code)}
             </p>
           </div>
         ) : (
@@ -200,22 +199,18 @@ export function AffiliatesPageClient() {
             <div className="flex items-center gap-3 bg-white/5 border border-cyan-500/20 rounded-lg p-3">
               <LinkIcon className="h-5 w-5 text-cyan-400/60 shrink-0" />
               <div className="flex-1 font-mono text-white/80 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-                {buildReferralInviteLoginUrl(
-                  typeof window !== "undefined" ? window.location.origin : getAppUrl(),
-                  referralMe.code,
-                )}
+                {buildReferralInviteLoginUrl(pageOrigin, referralMe.code)}
               </div>
               <Button
                 variant="secondary"
                 className="shrink-0 bg-cyan-500/15 hover:bg-cyan-500/25 text-white border-cyan-500/30"
                 onClick={() => {
                   void (async () => {
-                    const origin = typeof window !== "undefined" ? window.location.origin : "";
-                    if (!origin) {
+                    if (!pageOrigin) {
                       toast.error("Could not build invite link");
                       return;
                     }
-                    const url = buildReferralInviteLoginUrl(origin, referralMe.code);
+                    const url = buildReferralInviteLoginUrl(pageOrigin, referralMe.code);
                     const ok = await copyTextToClipboard(url);
                     if (ok) {
                       setReferralCopied(true);

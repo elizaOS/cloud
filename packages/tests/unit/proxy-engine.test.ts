@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { AuthenticationError } from "@/lib/api/errors";
+import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
 const mockRequireAuth = mock();
 const mockRequireAuthWithOrg = mock();
@@ -36,6 +37,7 @@ class MockInsufficientCreditsError extends Error {
 }
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     reserve: mockReserve,
   },

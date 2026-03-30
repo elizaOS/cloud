@@ -26,11 +26,16 @@ export default async function MiladyDashboardPage() {
     // Table likely missing — show empty list
   }
 
-  // Compute canonical Web UI URLs server-side so the client table can link them
-  const baseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+  // Compute canonical Web UI URLs server-side so the client table can link them.
+  // Omit baseDomain when env is empty/whitespace so resolution falls through to default domain.
+  const rawAgentBaseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+  const miladyPublicWebUiOptions =
+    rawAgentBaseDomain !== undefined && rawAgentBaseDomain.trim() !== ""
+      ? { baseDomain: rawAgentBaseDomain }
+      : {};
   const sandboxesWithUrls = sandboxes.map((sandbox) => ({
     ...sandbox,
-    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, { baseDomain }),
+    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, miladyPublicWebUiOptions),
   }));
 
   // Count agents by status for pricing banner

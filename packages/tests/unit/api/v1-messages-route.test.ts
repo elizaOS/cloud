@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
 import { jsonRequest } from "./route-test-helpers";
 
@@ -65,6 +66,7 @@ mock.module("@/lib/services/ai-billing", () => ({
 }));
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     createAnonymousReservation: mockCreateAnonymousReservation,
   },

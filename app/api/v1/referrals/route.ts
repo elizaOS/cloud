@@ -37,6 +37,9 @@ function isAuthError(error: Error): boolean {
  * Uses {@link AuthenticationError} for auth failures from `requireAuthOrApiKeyWithOrg`, then
  * `getErrorStatusCode` for other `ApiError` shapes, then wallet fail-closed messages until those
  * paths throw typed errors.
+ *
+ * TODO: Remove wallet `message.includes` once wallet auth throws {@link AuthenticationError}
+ * (or another `ApiError` with status 401). Until then, message drift risks 500 instead of 401.
  */
 function isUnauthorizedError(error: unknown): boolean {
   if (error instanceof Error && isAuthError(error)) return true;
