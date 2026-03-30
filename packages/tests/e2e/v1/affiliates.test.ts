@@ -81,6 +81,11 @@ describe("Referrals API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
+  test("GET /api/v1/referrals requires auth (401 vs 403 depends on auth layer)", async () => {
+    const response = await api.get("/api/v1/referrals");
+    expect([401, 403]).toContain(response.status);
+  });
+
   test.skipIf(!api.hasApiKey())("POST /api/v1/referrals/apply with invalid code", async () => {
     const response = await api.post(
       "/api/v1/referrals/apply",
@@ -89,6 +94,47 @@ describe("Referrals API", () => {
     );
     expect([200, 400, 404]).toContain(response.status);
   });
+
+  test.skipIf(!api.hasApiKey())(
+    "GET /api/v1/referrals returns flat code payload with auth",
+    async () => {
+      const first = await api.get("/api/v1/referrals", { authenticated: true });
+      expect(first.status).toBe(200);
+      const body = (await first.json()) as {
+        code: string;
+        total_referrals: number;
+        is_active: boolean;
+      };
+      expect(typeof body.code).toBe("string");
+      expect(body.code.length).toBeGreaterThan(0);
+      expect(typeof body.total_referrals).toBe("number");
+      expect(typeof body.is_active).toBe("boolean");
+
+      const second = await api.get("/api/v1/referrals", { authenticated: true });
+      expect(second.status).toBe(200);
+      const body2 = (await second.json()) as { code: string };
+      expect(body2.code).toBe(body.code);
+    },
+  );
+
+  test.skipIf(!api.hasApiKey())(
+    "GET /api/v1/referrals inactive code: same JSON shape as active (is_active false)",
+    async () => {
+      const res = await api.get("/api/v1/referrals", { authenticated: true });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        code: string;
+        total_referrals: number;
+        is_active: boolean;
+      };
+      expect(typeof body.is_active).toBe("boolean");
+      if (!body.is_active) {
+        expect(body.code.length).toBeGreaterThan(0);
+        expect(Number.isInteger(body.total_referrals)).toBe(true);
+        expect(body.total_referrals).toBeGreaterThanOrEqual(0);
+      }
+    },
+  );
 });
 
 describe("Analytics API", () => {

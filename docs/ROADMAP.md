@@ -6,6 +6,12 @@ High-level direction and rationale. Dates are targets, not commitments.
 
 ## Done
 
+### Referral invite links — GET `/api/v1/referrals` + dashboard UX (Mar 2026)
+
+- **What:** Authenticated users can copy a referral invite URL (`/login?ref=…`) from the header **Invite** button and from an **Invite friends** card on `/dashboard/affiliates`; `GET /api/v1/referrals` ensures a `referral_codes` row exists and returns flat JSON; inactive codes block copy in the header and show a clear state on the Affiliates page; `403` returned for `ForbiddenError` (e.g. missing org).
+- **Why:** Referral attribution already existed (`apply`, login query params, revenue splits) but users had no first-class way to discover their code or link. Colocating with Affiliates under Monetization keeps one “growth links” area without implying affiliate and referral are the same program. **Why not nested JSON in GET:** Reduces parser mistakes in clients and small models.
+- **Follow-ups (later):** Vanity codes, optional `intent=signup` on links, shared client cache (SWR) if duplicate GETs become noisy—see [referrals.md](./referrals.md).
+
 ### Anthropic Messages API compatibility (Jan 2026)
 
 - **What:** POST `/api/v1/messages` with Anthropic request/response format, tools, streaming SSE.
@@ -30,6 +36,11 @@ High-level direction and rationale. Dates are targets, not commitments.
 ---
 
 ## Later
+
+### Referral program polish
+
+- **Vanity referral codes** — User-chosen strings with strict validation and uniqueness. *Why: memorability; requires abuse review and collision handling.*
+- **Single client cache for `GET /api/v1/referrals`** — e.g. React context or SWR so header and Affiliates page share one request. *Why: fewer redundant GETs; today idempotent DB writes make duplicates harmless.*
 
 ### Multi-provider parity
 

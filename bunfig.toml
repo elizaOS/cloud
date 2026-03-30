@@ -1,2 +1,5 @@
 [test]
 preload = ["./packages/tests/load-env.ts"]
+# mock.module() is process-global; default Bun concurrency (20) causes cross-test mock bleed.
+# Match package.json bulk/special scripts so plain `bun test` stays deterministic.
+maxConcurrency = 1

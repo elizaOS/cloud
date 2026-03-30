@@ -1158,8 +1158,9 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - **Referrals**: Signup-based. When a user signs up with a referral code, we record the link; when they buy credits (Stripe or x402), we **redistribute 100%** of that purchase in a 50/40/10 split (ElizaCloud / app owner / creator). Signup and qualified bonuses ($1 + $0.50 + $0.50) are minted as marketing spend, not carved from revenue. **Why:** One predictable split model; no risk of over-paying (splits always sum to 100%).
 - **Affiliates**: Link-based. Users can be linked to an affiliate code; on **auto top-up** and **MCP usage** we add a markup (default 20%) to what the customer pays and pay that to the affiliate. **Why:** Affiliate cost is passed to the customer, so we never over-allocate.
 - **No double-apply:** Referral splits apply only to Stripe checkout and x402; affiliate markup only to auto top-up and MCP. No single transaction pays both.
+- **Invite links (referral):** Signed-in users can copy `…/login?ref=<code>` from the dashboard header (**Invite**) and from the **Invite friends** card on `/dashboard/affiliates`. **`GET /api/v1/referrals`** returns `{ code, total_referrals, is_active }` and creates a code on first use. **`POST /api/v1/referrals/apply`** still applies someone else’s code after login. **Why:** Referral economics existed in code, but there was no product surface for “my link”; flat JSON and a dedicated card avoid confusing referral URLs (`?ref=`) with affiliate URLs (`?affiliate=`).
 
-See [docs/referrals.md](./docs/referrals.md) for flow, API, and revenue math; [docs/affiliate-referral-comparison.md](./docs/affiliate-referral-comparison.md) for comparison with the other cloud repo.
+See [docs/referrals.md](./docs/referrals.md) for flow, APIs, UI behavior, and WHYs; [docs/affiliate-referral-comparison.md](./docs/affiliate-referral-comparison.md) for a side-by-side with affiliates.
 
 #### Signup codes
 

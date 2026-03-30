@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest, NextResponse } from "next/server";
 
 const mockRequireAdminWithResponse = mock(async () => ({
@@ -27,7 +27,7 @@ mock.module("@/lib/api/admin-auth", () => ({
   requireAdminWithResponse: mockRequireAdminWithResponse,
 }));
 
-mock.module("@/db/repositories", () => ({
+mock.module("@/db/repositories/service-pricing", () => ({
   servicePricingRepository: {
     listByService: mockListByService,
     upsert: mockUpsert,
@@ -223,5 +223,9 @@ describe("Admin Service Pricing API", () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.cache_invalidated).toBe(false);
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 });

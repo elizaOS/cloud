@@ -56,12 +56,10 @@ export function getMiladyAgentPublicWebUiUrl(
   sandbox: Pick<MiladySandbox, "id" | "headscale_ip">,
   options: MiladyWebUiUrlOptions = {},
 ): string | null {
-  const normalizedDomain = normalizeAgentBaseDomain(
-    options.baseDomain ?? process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ?? DEFAULT_AGENT_BASE_DOMAIN,
-  );
-  if (!normalizedDomain) {
-    return null;
-  }
+  const normalizedDomain =
+    normalizeAgentBaseDomain(options.baseDomain) ??
+    normalizeAgentBaseDomain(process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN) ??
+    DEFAULT_AGENT_BASE_DOMAIN;
 
   return applyPath(`https://${sandbox.id}.${normalizedDomain}`, options.path);
 }

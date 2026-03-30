@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 import { routeParams } from "./api/route-test-helpers";
@@ -6,7 +6,8 @@ import { routeParams } from "./api/route-test-helpers";
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockFindByIdAndOrg = mock();
 const mockGenerateToken = mock();
-const mockGetMiladyAgentPublicWebUiUrl = mock();
+
+const savedAgentBaseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -24,18 +25,15 @@ mock.module("@/lib/services/pairing-token", () => ({
   }),
 }));
 
-mock.module("@/lib/milady-web-ui", () => ({
-  getMiladyAgentPublicWebUiUrl: mockGetMiladyAgentPublicWebUiUrl,
-}));
-
 import { POST } from "@/app/api/v1/milaidy/agents/[agentId]/pairing-token/route";
 
 describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
   beforeEach(() => {
+    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "waifu.fun";
+
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockFindByIdAndOrg.mockReset();
     mockGenerateToken.mockReset();
-    mockGetMiladyAgentPublicWebUiUrl.mockReset();
 
     mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
       user: {
@@ -43,6 +41,15 @@ describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
         organization_id: "org-1",
       },
     });
+  });
+
+  afterAll(() => {
+    if (savedAgentBaseDomain === undefined) {
+      delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+    } else {
+      process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = savedAgentBaseDomain;
+    }
+    mock.restore();
   });
 
   test("returns 404 when the agent is not visible in the caller org", async () => {
@@ -66,11 +73,11 @@ describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
     mockFindByIdAndOrg.mockResolvedValue({
       id: "agent-1",
       status: "running",
+      headscale_ip: null,
       environment_vars: {
         MILADY_API_TOKEN: "ui-token",
       },
     });
-    mockGetMiladyAgentPublicWebUiUrl.mockReturnValue("https://agent-1.waifu.fun");
     mockGenerateToken.mockResolvedValue("pair-token");
 
     const response = await POST(
@@ -101,12 +108,12 @@ describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
     mockFindByIdAndOrg.mockResolvedValue({
       id: "agent-1",
       status: "running",
+      headscale_ip: null,
       environment_vars: {
         MILADY_API_TOKEN: "",
         ELIZA_API_TOKEN: "",
       },
     });
-    mockGetMiladyAgentPublicWebUiUrl.mockReturnValue("https://agent-1.waifu.fun");
     mockGenerateToken.mockResolvedValue("pair-token");
 
     const response = await POST(
