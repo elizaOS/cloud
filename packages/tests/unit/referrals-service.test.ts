@@ -40,6 +40,9 @@ mock.module("@/db/repositories/users", () => ({
   usersRepository: {
     findById: mockFindUserById,
   },
+  UsersRepository: class MockUsersRepository {
+    findById = mockFindUserById;
+  },
 }));
 
 mock.module("@/lib/services/credits", () => ({

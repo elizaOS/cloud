@@ -114,6 +114,9 @@ mock.module("@/db/repositories/users", () => ({
   usersRepository: {
     delete: mockDeleteUserRecord,
   },
+  UsersRepository: class MockUsersRepository {
+    delete = mockDeleteUserRecord;
+  },
 }));
 
 mock.module("@/lib/services/abuse-detection", () => ({
