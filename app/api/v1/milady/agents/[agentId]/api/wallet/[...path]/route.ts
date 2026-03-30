@@ -3,6 +3,7 @@ import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,13 @@ async function proxyToAgent(
       }
     }
 
+    logger.info("[wallet-proxy] Request", {
+      agentId,
+      orgId: user.organization_id,
+      walletPath,
+      method,
+    });
+
     const agentResponse = await miladySandboxService.proxyWalletRequest(
       agentId,
       user.organization_id,
@@ -79,6 +87,11 @@ async function proxyToAgent(
     );
 
     if (!agentResponse) {
+      logger.warn("[wallet-proxy] Proxy returned null", {
+        agentId,
+        orgId: user.organization_id,
+        walletPath,
+      });
       return applyCorsHeaders(
         NextResponse.json(
           { success: false, error: "Agent is not running or unreachable" },

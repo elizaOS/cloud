@@ -33,7 +33,8 @@ import { JOB_TYPES } from "./provisioning-jobs";
 import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
 
 /** Shared Neon project used as branch parent for per-agent databases. */
-const NEON_PARENT_PROJECT_ID: string = process.env.NEON_PARENT_PROJECT_ID ?? "snowy-waterfall-29926749"; // env var required in prod
+const NEON_PARENT_PROJECT_ID: string =
+  process.env.NEON_PARENT_PROJECT_ID ?? "snowy-waterfall-29926749"; // env var required in prod
 
 export interface CreateAgentParams {
   organizationId: string;
@@ -674,9 +675,18 @@ export class MiladySandboxService {
     }
 
     const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
-    if (!rec?.bridge_url) {
-      logger.warn("[milady-sandbox] Wallet proxy to non-running sandbox", {
+    if (!rec) {
+      logger.warn("[milady-sandbox] Wallet proxy: sandbox not found or not running", {
         agentId,
+        orgId,
+        walletPath,
+      });
+      return null;
+    }
+    if (!rec.bridge_url) {
+      logger.warn("[milady-sandbox] Wallet proxy: no bridge_url", {
+        agentId,
+        status: rec.status,
         walletPath,
       });
       return null;
