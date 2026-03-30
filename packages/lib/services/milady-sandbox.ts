@@ -33,7 +33,12 @@ import { JOB_TYPES } from "./provisioning-jobs";
 import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
 
 /** Shared Neon project used as branch parent for per-agent databases. */
-const NEON_PARENT_PROJECT_ID = process.env.NEON_PARENT_PROJECT_ID || "holy-rain-20729618";
+const NEON_PARENT_PROJECT_ID = process.env.NEON_PARENT_PROJECT_ID;
+if (!NEON_PARENT_PROJECT_ID) {
+  logger.warn(
+    "[milady-sandbox] NEON_PARENT_PROJECT_ID not set — Neon branch provisioning will fail",
+  );
+}
 
 export interface CreateAgentParams {
   organizationId: string;
@@ -619,6 +624,27 @@ export class MiladySandboxService {
    * @param query    - Optional query string (e.g. "limit=20")
    * @returns The raw fetch Response, or null if the sandbox is not running
    */
+  // Allowed wallet sub-paths for proxy (prevents path traversal)
+  private static readonly ALLOWED_WALLET_PATHS = new Set([
+    "addresses",
+    "balances",
+    "steward-status",
+    "steward-policies",
+    "steward-tx-records",
+    "steward-pending-approvals",
+    "steward-approve-tx",
+    "steward-deny-tx",
+  ]);
+
+  // Allowed query parameters for wallet proxy
+  private static readonly ALLOWED_QUERY_PARAMS = new Set([
+    "limit",
+    "offset",
+    "cursor",
+    "type",
+    "status",
+  ]);
+
   async proxyWalletRequest(
     agentId: string,
     orgId: string,
@@ -627,6 +653,31 @@ export class MiladySandboxService {
     body?: string | null,
     query?: string,
   ): Promise<Response | null> {
+    // Validate wallet path against whitelist (prevents path traversal)
+    if (!MiladySandboxService.ALLOWED_WALLET_PATHS.has(walletPath)) {
+      logger.warn("[milady-sandbox] Rejected wallet proxy: invalid path", {
+        agentId,
+        walletPath,
+      });
+      return new Response(JSON.stringify({ error: "Invalid wallet endpoint" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Sanitize query parameters
+    let sanitizedQuery = "";
+    if (query) {
+      const params = new URLSearchParams(query);
+      const filtered = new URLSearchParams();
+      for (const [key, value] of params) {
+        if (MiladySandboxService.ALLOWED_QUERY_PARAMS.has(key)) {
+          filtered.set(key, value);
+        }
+      }
+      sanitizedQuery = filtered.toString();
+    }
+
     const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
     if (!rec?.bridge_url) {
       logger.warn("[milady-sandbox] Wallet proxy to non-running sandbox", {
@@ -637,25 +688,24 @@ export class MiladySandboxService {
     }
 
     try {
-      const fullPath = `/api/wallet/${walletPath}${query ? `?${query}` : ""}`;
+      const fullPath = `/api/wallet/${walletPath}${sanitizedQuery ? `?${sanitizedQuery}` : ""}`;
       // Wallet REST API runs on web_ui_port, not the bridge (JSON-RPC) port.
-      // Build the URL from bridge_url but swap to web_ui_port if available.
       let endpoint: string;
       if (rec.web_ui_port && rec.node_id) {
-        // Extract host from bridge_url and use web_ui_port
         const bridgeUrl = new URL(rec.bridge_url);
         endpoint = `${bridgeUrl.protocol}//${bridgeUrl.hostname}:${rec.web_ui_port}${fullPath}`;
       } else {
         endpoint = await this.getSafeBridgeEndpoint(rec, fullPath);
       }
-      // Agent REST API requires MILADY_API_TOKEN for auth
-      const apiToken = (rec as Record<string, unknown>).environment_vars
-        ? ((rec as Record<string, unknown>).environment_vars as Record<string, string>)
-            ?.MILADY_API_TOKEN
-        : undefined;
+      // Extract API token from environment_vars using typed access
+      const envVars = rec.environment_vars as Record<string, string> | null;
+      const apiToken = envVars?.MILADY_API_TOKEN;
+      if (!apiToken) {
+        logger.warn("[milady-sandbox] No MILADY_API_TOKEN for wallet proxy", { agentId });
+      }
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (apiToken) {
-        headers["Authorization"] = `Bearer ${apiToken}`;
+        headers.Authorization = `Bearer ${apiToken}`;
       }
       const fetchOptions: RequestInit = {
         method,
