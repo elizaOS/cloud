@@ -1,12 +1,16 @@
 /**
  * One-click copy of `{origin}/login?ref=…` for signed-in dashboard users.
  *
- * WHY fetch on each click (no response cache): Admin or backend can flip `is_active`; every click
- * revalidates via GET `/api/v1/referrals` so copy decisions match current server state.
+ * WHY fetch on each click (no in-memory cache of `ReferralMeResponse`): Every click calls
+ * GET `/api/v1/referrals` so `is_active` matches the server; concurrent clicks dedupe via
+ * `inFlightRef` only.
  *
  * WHY in-flight dedupe: Concurrent clicks share one promise so we do not spam `getOrCreateCode`.
  *
  * WHY block copy when `!is_active`: Apply rejects inactive codes; sharing would waste invitees’ time.
+ *
+ * Clipboard: `copyTextToClipboard` falls back to `document.execCommand('copy')` when the Clipboard
+ * API is unavailable (e.g. plain HTTP). Production dashboard should still use HTTPS.
  */
 "use client";
 
@@ -14,14 +18,13 @@ import { BrandButton } from "@elizaos/cloud-ui";
 import { Loader2, UserPlus } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-import { parseReferralMeResponse, type ReferralMeResponse } from "@/lib/types/referral-me";
+import type { ReferralMeResponse } from "@/lib/types/referral-me";
+import { copyTextToClipboard } from "@/lib/utils/copy-to-clipboard";
 import { buildReferralInviteLoginUrl } from "@/lib/utils/referral-invite-url";
-
-const REFERRALS_ME_PATH = "/api/v1/referrals";
+import { fetchReferralMe } from "@/lib/utils/referral-me-fetch";
 
 export function HeaderInviteButton() {
   const [loading, setLoading] = useState(false);
-  const cachedRef = useRef<ReferralMeResponse | null>(null);
   const inFlightRef = useRef<Promise<ReferralMeResponse> | null>(null);
 
   const resolveMe = useCallback(async (): Promise<ReferralMeResponse> => {
@@ -29,25 +32,7 @@ export function HeaderInviteButton() {
       return inFlightRef.current;
     }
 
-    const promise = (async (): Promise<ReferralMeResponse> => {
-      const res = await fetch(REFERRALS_ME_PATH, {
-        method: "GET",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        cachedRef.current = null;
-        const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(errBody.error || `Request failed (${res.status})`);
-      }
-      const json = await res.json();
-      const parsed = parseReferralMeResponse(json);
-      if (!parsed) {
-        cachedRef.current = null;
-        throw new Error("Invalid response from server");
-      }
-      cachedRef.current = parsed;
-      return parsed;
-    })();
+    const promise = fetchReferralMe();
 
     inFlightRef.current = promise;
     return promise.finally(() => {
@@ -79,14 +64,12 @@ export function HeaderInviteButton() {
     }
 
     const url = buildReferralInviteLoginUrl(origin, me.code);
-    await navigator.clipboard.writeText(url).then(
-      () => {
-        toast.success("Invite link copied!");
-      },
-      () => {
-        toast.error("Could not copy to clipboard");
-      },
-    );
+    const ok = await copyTextToClipboard(url);
+    if (ok) {
+      toast.success("Invite link copied!");
+    } else {
+      toast.error("Could not copy to clipboard");
+    }
   }, [resolveMe]);
 
   return (

@@ -21,7 +21,7 @@ import { AuthenticationError, ForbiddenError, getErrorStatusCode } from "@/lib/a
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { referralsService } from "@/lib/services/referrals";
-import type { ReferralMeResponse } from "@/lib/types/referral-me";
+import { coerceNonNegativeIntegerCount, type ReferralMeResponse } from "@/lib/types/referral-me";
 import { getCorsHeaders } from "@/lib/utils/cors";
 import { logger } from "@/lib/utils/logger";
 
@@ -70,27 +70,20 @@ async function handleGET(request: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const row = await referralsService.getOrCreateCode(user.id);
 
-    const rawTotal: unknown = row.total_referrals;
-    let totalReferrals: number;
-    if (typeof rawTotal === "number") {
-      totalReferrals = rawTotal;
-    } else if (typeof rawTotal === "string" && /^\d+$/.test(rawTotal.trim())) {
-      totalReferrals = parseInt(rawTotal, 10);
-    } else if (typeof rawTotal === "bigint") {
-      totalReferrals = Number(rawTotal);
-    } else {
-      throw new Error(
-        `Referrals API: total_referrals must be a number, bigint, or digit-only string (row.total_referrals=${String(rawTotal)})`,
-      );
+    if (row == null || typeof row !== "object") {
+      throw new Error("Referrals API: getOrCreateCode returned no referral row");
+    }
+    if (typeof row.code !== "string" || row.code.length === 0) {
+      throw new Error("Referrals API: referral row missing code");
+    }
+    if (typeof row.is_active !== "boolean") {
+      throw new Error("Referrals API: referral row missing is_active");
     }
 
-    if (
-      !Number.isFinite(totalReferrals) ||
-      !Number.isInteger(totalReferrals) ||
-      totalReferrals < 0
-    ) {
+    const totalReferrals = coerceNonNegativeIntegerCount(row.total_referrals);
+    if (totalReferrals === null) {
       throw new Error(
-        `Referrals API: total_referrals must be a non-negative finite integer (row.total_referrals=${String(rawTotal)})`,
+        `Referrals API: total_referrals is not a valid non-negative integer (row.total_referrals=${String(row.total_referrals)})`,
       );
     }
 

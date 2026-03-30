@@ -98,10 +98,13 @@ mock.module("@/lib/services/credits", () => ({
   },
 }));
 
-mock.module("@/db/repositories", () => ({
+mock.module("@/db/repositories/organization-invites", () => ({
   organizationInvitesRepository: {
     markAsAccepted: mockMarkInviteAccepted,
   },
+}));
+
+mock.module("@/db/repositories/users", () => ({
   usersRepository: {
     delete: mockDeleteUserRecord,
   },

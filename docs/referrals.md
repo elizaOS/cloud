@@ -50,7 +50,9 @@ This document describes the **referral program** (signup attribution, bonuses, 5
 
 - **UI:** Header **Invite** does not copy an inactive link (toast explains). The Affiliates page shows an **inactive** state with read-only URL and no Copy. **Why:** Stops sharing links that will fail at apply time; still lets support/debug see which code is paused.
 
-- **Header cache:** The Invite button caches the last successful `GET` response in-memory until reload. If an admin sets `is_active` to false **after** that fetch, the client may still hold `is_active: true` until refresh—**copy** is re-validated against cached `is_active` only (stale “active” could allow one bad copy). **Why accepted:** Rare; full consistency would need polling or invalidation events.
+- **Invite button freshness:** Each header **Invite** click calls `GET /api/v1/referrals` again (concurrent clicks dedupe on one in-flight request). `is_active` reflects the server at click time, not a stale page-load cache.
+
+- **Clipboard:** Copy helpers use the Clipboard API when available, then fall back to `document.execCommand('copy')` for plain HTTP or older browsers. **Production dashboard should use HTTPS** (or localhost); some environments still block clipboard access entirely.
 
 ---
 

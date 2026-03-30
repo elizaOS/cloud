@@ -81,7 +81,7 @@ describe("Referrals API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test("GET /api/v1/referrals requires auth", async () => {
+  test("GET /api/v1/referrals requires auth (401 vs 403 depends on auth layer)", async () => {
     const response = await api.get("/api/v1/referrals");
     expect([401, 403]).toContain(response.status);
   });
@@ -114,6 +114,25 @@ describe("Referrals API", () => {
       expect(second.status).toBe(200);
       const body2 = (await second.json()) as { code: string };
       expect(body2.code).toBe(body.code);
+    },
+  );
+
+  test.skipIf(!api.hasApiKey())(
+    "GET /api/v1/referrals inactive code: same JSON shape as active (is_active false)",
+    async () => {
+      const res = await api.get("/api/v1/referrals", { authenticated: true });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        code: string;
+        total_referrals: number;
+        is_active: boolean;
+      };
+      expect(typeof body.is_active).toBe("boolean");
+      if (!body.is_active) {
+        expect(body.code.length).toBeGreaterThan(0);
+        expect(Number.isInteger(body.total_referrals)).toBe(true);
+        expect(body.total_referrals).toBeGreaterThanOrEqual(0);
+      }
     },
   );
 });
