@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
+class MockInsufficientCreditsError extends Error {
+  required: number;
+  constructor(required: number) {
+    super("Insufficient credits");
+    this.required = required;
+  }
+}
+
 const mockFindByUserId = mock();
 const mockFindById = mock();
 const mockFindByCode = mock();
@@ -38,6 +46,7 @@ mock.module("@/lib/services/credits", () => ({
   creditsService: {
     addCredits: mockAddCredits,
   },
+  InsufficientCreditsError: MockInsufficientCreditsError,
 }));
 
 mock.module("@/lib/services/app-credits", () => ({

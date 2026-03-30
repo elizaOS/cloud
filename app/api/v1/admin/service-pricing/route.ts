@@ -21,7 +21,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { servicePricingRepository } from "@/db/repositories";
+import { servicePricingRepository } from "@/db/repositories/service-pricing";
 import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { logger } from "@/lib/utils/logger";
