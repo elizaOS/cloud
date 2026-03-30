@@ -92,10 +92,17 @@ mock.module("@/lib/services/api-keys", () => ({
   },
 }));
 
+class MockInsufficientCreditsError extends Error {
+  constructor(message = "Insufficient credits") {
+    super(message);
+    this.name = "InsufficientCreditsError";
+  }
+}
 mock.module("@/lib/services/credits", () => ({
   creditsService: {
     addCredits: mockAddCredits,
   },
+  InsufficientCreditsError: MockInsufficientCreditsError,
 }));
 
 mock.module("@/db/repositories/organization-invites", () => ({
