@@ -1,11 +1,10 @@
 /**
  * One-click copy of `{origin}/login?ref=…` for signed-in dashboard users.
  *
- * WHY lazy fetch on click (not on mount): Avoids an extra API call on every dashboard paint; most
- * sessions never use Invite.
+ * WHY fetch on each click (no response cache): Admin or backend can flip `is_active`; every click
+ * revalidates via GET `/api/v1/referrals` so copy decisions match current server state.
  *
- * WHY cache + in-flight dedupe: Double-clicks or strict-mode remounts must not spam
- * `getOrCreateCode`; the promise ref collapses concurrent requests into one.
+ * WHY in-flight dedupe: Concurrent clicks share one promise so we do not spam `getOrCreateCode`.
  *
  * WHY block copy when `!is_active`: Apply rejects inactive codes; sharing would waste invitees’ time.
  */
@@ -16,6 +15,7 @@ import { Loader2, UserPlus } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { parseReferralMeResponse, type ReferralMeResponse } from "@/lib/types/referral-me";
+import { buildReferralInviteLoginUrl } from "@/lib/utils/referral-invite-url";
 
 const REFERRALS_ME_PATH = "/api/v1/referrals";
 
@@ -25,9 +25,6 @@ export function HeaderInviteButton() {
   const inFlightRef = useRef<Promise<ReferralMeResponse> | null>(null);
 
   const resolveMe = useCallback(async (): Promise<ReferralMeResponse> => {
-    if (cachedRef.current) {
-      return cachedRef.current;
-    }
     if (inFlightRef.current) {
       return inFlightRef.current;
     }
@@ -38,12 +35,14 @@ export function HeaderInviteButton() {
         credentials: "include",
       });
       if (!res.ok) {
+        cachedRef.current = null;
         const errBody = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(errBody.error || `Request failed (${res.status})`);
       }
-      const json: unknown = await res.json();
+      const json = await res.json();
       const parsed = parseReferralMeResponse(json);
       if (!parsed) {
+        cachedRef.current = null;
         throw new Error("Invalid response from server");
       }
       cachedRef.current = parsed;
@@ -51,10 +50,9 @@ export function HeaderInviteButton() {
     })();
 
     inFlightRef.current = promise;
-    const result = await promise.finally(() => {
+    return promise.finally(() => {
       inFlightRef.current = null;
     });
-    return result;
   }, []);
 
   const onClick = useCallback(async () => {
@@ -80,7 +78,7 @@ export function HeaderInviteButton() {
       return;
     }
 
-    const url = `${origin}/login?ref=${encodeURIComponent(me.code)}`;
+    const url = buildReferralInviteLoginUrl(origin, me.code);
     await navigator.clipboard.writeText(url).then(
       () => {
         toast.success("Invite link copied!");

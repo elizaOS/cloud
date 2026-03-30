@@ -9,11 +9,15 @@
  *
  * WHY `force-dynamic`: This handler may insert on first hit; caching would be wrong.
  *
- * WHY `ForbiddenError` before `isAuthError`: Auth errors return 401; missing org / feature gate
- * returns 403 with a clear message instead of masking as 500.
+ * WHY `ForbiddenError` before auth mapping: Missing org / feature gate returns 403 instead of 500.
+ *
+ * REST note — GET performs `getOrCreateCode` (may INSERT): This intentionally trades strict
+ * HTTP safety for one round-trip UX. Callers must be authenticated and rate-limited; we do not
+ * rely on CDN cache. Automated clients with a valid session could create a row; risk is bounded
+ * by auth + `referral_codes` unique(user_id). A stricter design would be POST to create + GET read-only.
  */
 import { type NextRequest, NextResponse } from "next/server";
-import { ForbiddenError } from "@/lib/api/errors";
+import { AuthenticationError, ForbiddenError, getErrorStatusCode } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { referralsService } from "@/lib/services/referrals";
@@ -23,17 +27,27 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
-/** WHY broad message match: Session + API key auth throw varied `AuthenticationError` messages; all should map to 401 for this route. */
-function isAuthError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  return (
-    error.message.includes("Unauthorized") ||
-    error.message.includes("Authentication required") ||
-    error.message.includes("Invalid or expired token") ||
-    error.message.includes("Invalid or expired API key") ||
-    error.message.includes("Invalid wallet signature") ||
-    error.message.includes("Wallet authentication failed")
-  );
+/** True when `requireAuthOrApiKeyWithOrg` (and other auth paths) threw {@link AuthenticationError}. */
+function isAuthError(error: Error): boolean {
+  return error instanceof AuthenticationError;
+}
+
+/**
+ * Maps thrown errors to “treat as 401” for this route.
+ * Uses {@link AuthenticationError} for auth failures from `requireAuthOrApiKeyWithOrg`, then
+ * `getErrorStatusCode` for other `ApiError` shapes, then wallet fail-closed messages until those
+ * paths throw typed errors.
+ */
+function isUnauthorizedError(error: unknown): boolean {
+  if (error instanceof Error && isAuthError(error)) return true;
+  if (getErrorStatusCode(error) === 401) return true;
+  if (error instanceof Error) {
+    return (
+      error.message.includes("Invalid wallet signature") ||
+      error.message.includes("Wallet authentication failed")
+    );
+  }
+  return false;
 }
 
 export async function OPTIONS(request: NextRequest) {
@@ -56,14 +70,33 @@ async function handleGET(request: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const row = await referralsService.getOrCreateCode(user.id);
 
-    const totalReferrals =
-      typeof row.total_referrals === "number"
-        ? row.total_referrals
-        : Number(row.total_referrals);
+    const rawTotal: unknown = row.total_referrals;
+    let totalReferrals: number;
+    if (typeof rawTotal === "number") {
+      totalReferrals = rawTotal;
+    } else if (typeof rawTotal === "string" && /^\d+$/.test(rawTotal.trim())) {
+      totalReferrals = parseInt(rawTotal, 10);
+    } else if (typeof rawTotal === "bigint") {
+      totalReferrals = Number(rawTotal);
+    } else {
+      throw new Error(
+        `Referrals API: total_referrals must be a number, bigint, or digit-only string (row.total_referrals=${String(rawTotal)})`,
+      );
+    }
+
+    if (
+      !Number.isFinite(totalReferrals) ||
+      !Number.isInteger(totalReferrals) ||
+      totalReferrals < 0
+    ) {
+      throw new Error(
+        `Referrals API: total_referrals must be a non-negative finite integer (row.total_referrals=${String(rawTotal)})`,
+      );
+    }
 
     const body: ReferralMeResponse = {
       code: row.code,
-      total_referrals: Number.isFinite(totalReferrals) ? totalReferrals : 0,
+      total_referrals: totalReferrals,
       is_active: row.is_active,
     };
 
@@ -73,7 +106,7 @@ async function handleGET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 403, headers: corsHeaders });
     }
 
-    if (isAuthError(error)) {
+    if (isUnauthorizedError(error)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 

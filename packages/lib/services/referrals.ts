@@ -119,6 +119,9 @@ export class ReferralsService {
    * Ensures the user has exactly one `referral_codes` row (generated string).
    * Exposed to HTTP clients via GET `/api/v1/referrals`. WHY idempotent create here: Dashboard can
    * call repeatedly from header + Affiliates without a separate "create code" mutation.
+   *
+   * Concurrency: `user_id` is UNIQUE; two parallel first-time callers may both miss `findByUserId`
+   * and one INSERT can hit 23505—handled by re-fetching by `user_id` and retrying code generation.
    */
   async getOrCreateCode(userId: string): Promise<ReferralCode> {
     const existing = await referralCodesRepository.findByUserId(userId);

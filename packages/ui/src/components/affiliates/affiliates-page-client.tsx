@@ -1,19 +1,13 @@
 "use client";
 
 import { BrandCard, Button, Input, Skeleton } from "@elizaos/cloud-ui";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Copy,
-  Link as LinkIcon,
-  UserCog,
-  Users,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Link as LinkIcon, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { parseReferralMeResponse, type ReferralMeResponse } from "@/lib/types/referral-me";
 import { getAppUrl } from "@/lib/utils/app-url";
+import { buildReferralInviteLoginUrl } from "@/lib/utils/referral-invite-url";
 
 interface AffiliateData {
   id: string;
@@ -79,24 +73,33 @@ export function AffiliatesPageClient() {
     const loadReferral = async () => {
       setLoadingReferral(true);
       setReferralFetchFailed(false);
-      const res = await fetch("/api/v1/referrals", { method: "GET", credentials: "include" });
-      if (cancelled) return;
-      if (!res.ok) {
-        setReferralFetchFailed(true);
-        setReferralMe(null);
-        setLoadingReferral(false);
-        return;
+      try {
+        const res = await fetch("/api/v1/referrals", { method: "GET", credentials: "include" });
+        if (cancelled) return;
+        if (!res.ok) {
+          setReferralFetchFailed(true);
+          setReferralMe(null);
+          return;
+        }
+        const json = await res.json();
+        if (cancelled) return;
+        const parsed = parseReferralMeResponse(json);
+        if (!parsed) {
+          setReferralFetchFailed(true);
+          setReferralMe(null);
+        } else {
+          setReferralMe(parsed);
+        }
+      } catch {
+        if (!cancelled) {
+          setReferralFetchFailed(true);
+          setReferralMe(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingReferral(false);
+        }
       }
-      const json: unknown = await res.json();
-      const parsed = parseReferralMeResponse(json);
-      if (cancelled) return;
-      if (!parsed) {
-        setReferralFetchFailed(true);
-        setReferralMe(null);
-      } else {
-        setReferralMe(parsed);
-      }
-      setLoadingReferral(false);
     };
     void loadReferral();
     return () => {
@@ -181,10 +184,7 @@ export function AffiliatesPageClient() {
       {/* Referral invite: uses GET /api/v1/referrals (parallel to affiliate fetch, own loading state).
           WHY separate from affiliate card: Different URL (?ref= vs ?affiliate=), economics, and copy.
           WHY cyan accent: Visually distinct from orange affiliate branding so users don’t merge the two mentally. */}
-      <BrandCard
-        corners={false}
-        className="border-l-4 border-l-cyan-500/60 border border-white/10"
-      >
+      <BrandCard corners={false} className="border-l-4 border-l-cyan-500/60 border border-white/10">
         <div className="flex items-start gap-3 mb-4">
           <Users className="h-5 w-5 text-cyan-400 mt-0.5 shrink-0" />
           <div className="min-w-0 flex-1">
@@ -210,9 +210,10 @@ export function AffiliatesPageClient() {
               looks wrong.
             </p>
             <p className="mt-2 font-mono text-xs text-white/50 break-all">
-              {typeof window !== "undefined"
-                ? `${window.location.origin}/login?ref=${encodeURIComponent(referralMe.code)}`
-                : `${getAppUrl()}/login?ref=${encodeURIComponent(referralMe.code)}`}
+              {buildReferralInviteLoginUrl(
+                typeof window !== "undefined" ? window.location.origin : getAppUrl(),
+                referralMe.code,
+              )}
             </p>
           </div>
         ) : (
@@ -227,9 +228,10 @@ export function AffiliatesPageClient() {
             <div className="flex items-center gap-3 bg-white/5 border border-cyan-500/20 rounded-lg p-3">
               <LinkIcon className="h-5 w-5 text-cyan-400/60 shrink-0" />
               <div className="flex-1 font-mono text-white/80 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-                {typeof window !== "undefined"
-                  ? `${window.location.origin}/login?ref=${encodeURIComponent(referralMe.code)}`
-                  : `${getAppUrl()}/login?ref=${encodeURIComponent(referralMe.code)}`}
+                {buildReferralInviteLoginUrl(
+                  typeof window !== "undefined" ? window.location.origin : getAppUrl(),
+                  referralMe.code,
+                )}
               </div>
               <Button
                 variant="secondary"
@@ -240,7 +242,7 @@ export function AffiliatesPageClient() {
                     toast.error("Could not build invite link");
                     return;
                   }
-                  const url = `${origin}/login?ref=${encodeURIComponent(referralMe.code)}`;
+                  const url = buildReferralInviteLoginUrl(origin, referralMe.code);
                   void navigator.clipboard.writeText(url).then(
                     () => {
                       setReferralCopied(true);

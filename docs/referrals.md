@@ -28,6 +28,8 @@ This document describes the **referral program** (signup attribution, bonuses, 5
 
 - **`GET /api/v1/referrals`** calls `getOrCreateCode` on first success. **Why GET creates a row:** One round trip for the dashboard—no separate “create my code” step. The operation is **idempotent**; duplicate calls are safe.
 
+- **REST / safety:** Strictly speaking, GET should not mutate state; here we trade that for UX. Mitigations: **auth required**, **rate limiting**, **`force-dynamic`** (no CDN cache). A caller with a valid session could create a row; `user_id` is **UNIQUE** so at most one row per user. Concurrent first requests hit **Postgres unique violations**—handled inside `getOrCreateCode` by re-reading `user_id`. A purist alternative is `POST` to create + `GET` read-only.
+
 ### Where the link appears
 
 1. **Dashboard header — “Invite”**  
@@ -38,8 +40,7 @@ This document describes the **referral program** (signup attribution, bonuses, 5
 
 ### Share URL shape
 
-- **Referral invite:** `{origin}/login?ref={encodeURIComponent(code)}`  
-  Login also accepts `referral_code` as a query param for the same purpose.
+- **Referral invite:** Use `buildReferralInviteLoginUrl(origin, code)` from `packages/lib/utils/referral-invite-url.ts` so all surfaces stay aligned. Equivalent: `{origin}/login?ref={encodeURIComponent(code)}`. Login also accepts `referral_code` as a query param for the same purpose.
 
 - **Why `encodeURIComponent`:** Codes are alphanumeric + hyphen; encoding stays correct if the format ever changes and matches browser URL rules.
 
@@ -48,6 +49,8 @@ This document describes the **referral program** (signup attribution, bonuses, 5
 - If `referral_codes.is_active` is `false`, `POST /api/v1/referrals/apply` rejects the code. The **GET** endpoint still returns the row so the owner can see status.
 
 - **UI:** Header **Invite** does not copy an inactive link (toast explains). The Affiliates page shows an **inactive** state with read-only URL and no Copy. **Why:** Stops sharing links that will fail at apply time; still lets support/debug see which code is paused.
+
+- **Header cache:** The Invite button caches the last successful `GET` response in-memory until reload. If an admin sets `is_active` to false **after** that fetch, the client may still hold `is_active: true` until refresh—**copy** is re-validated against cached `is_active` only (stale “active” could allow one bad copy). **Why accepted:** Rare; full consistency would need polling or invalidation events.
 
 ---
 
@@ -68,7 +71,7 @@ This document describes the **referral program** (signup attribution, bonuses, 5
 ```
 
 - **Errors**
-  - **401** — Not authenticated (messages matched include `Authentication required`, invalid API key/token, wallet signature failures—aligned with other v1 routes).
+  - **401** — Not authenticated. The route uses `getErrorStatusCode` from `@/lib/api/errors` (typed `ApiError` / legacy message heuristics) plus explicit handling for wallet **plain `Error`** strings (`Invalid wallet signature`, `Wallet authentication failed`) that `requireAuthOrApiKey` still throws outside `AuthenticationError`.
   - **403** — Authenticated but forbidden (e.g. missing org / `ForbiddenError`). **Why:** Distinguishes “who are you?” from “you can’t use this feature yet.”
   - **500** — Unexpected server error (logged).
 
@@ -97,6 +100,7 @@ This document describes the **referral program** (signup attribution, bonuses, 5
 | GET me + OPTIONS | `app/api/v1/referrals/route.ts` |
 | Apply | `app/api/v1/referrals/apply/route.ts` |
 | Response typing / parse helper | `packages/lib/types/referral-me.ts` |
+| Share URL helper | `packages/lib/utils/referral-invite-url.ts` |
 | Header invite | `packages/ui/src/components/layout/header-invite-button.tsx` |
 | Affiliates + invite card | `packages/ui/src/components/affiliates/affiliates-page-client.tsx` |
 
