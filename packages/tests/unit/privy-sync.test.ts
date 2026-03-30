@@ -110,14 +110,14 @@ mock.module("@/db/repositories/organization-invites", () => ({
     markAsAccepted: mockMarkInviteAccepted,
   },
 }));
+// Re-export the real UsersRepository class so downstream tests that import
+// it (e.g. users-repository-compat.test.ts) aren't broken by mock pollution.
+const { UsersRepository: RealUsersRepository } = await import("@/db/repositories/users");
 mock.module("@/db/repositories/users", () => ({
   usersRepository: {
     delete: mockDeleteUserRecord,
   },
-  UsersRepository: class MockUsersRepository {
-    delete = mockDeleteUserRecord;
-    static resetWhatsAppColumnSupportCacheForTests() {}
-  },
+  UsersRepository: RealUsersRepository,
 }));
 
 mock.module("@/lib/services/abuse-detection", () => ({

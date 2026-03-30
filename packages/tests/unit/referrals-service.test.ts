@@ -36,14 +36,12 @@ mock.module("@/db/repositories/referrals", () => ({
   socialShareRewardsRepository: {},
 }));
 
+const { UsersRepository: RealUsersRepository } = await import("@/db/repositories/users");
 mock.module("@/db/repositories/users", () => ({
   usersRepository: {
     findById: mockFindUserById,
   },
-  UsersRepository: class MockUsersRepository {
-    findById = mockFindUserById;
-    static resetWhatsAppColumnSupportCacheForTests() {}
-  },
+  UsersRepository: RealUsersRepository,
 }));
 
 mock.module("@/lib/services/credits", () => ({
