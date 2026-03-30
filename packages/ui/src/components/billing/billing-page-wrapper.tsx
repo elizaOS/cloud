@@ -1,55 +1,27 @@
-/**
- * Billing page wrapper component setting page header and displaying payment cancellation alerts.
- *
- * @param props - Billing page wrapper configuration
- * @param props.currentCredits - Current credit balance
- * @param props.canceled - Optional cancellation message from Stripe
- */
-
 "use client";
 
-import { Alert, AlertDescription, AlertTitle, useSetPageHeader } from "@elizaos/cloud-ui";
-import { Info } from "lucide-react";
-import { BillingPageClient } from "./billing-page-client";
-import { MiladyPricingInfo } from "./milady-pricing-info";
+import { useSetPageHeader } from "@elizaos/cloud-ui";
+import type { UserWithOrganization } from "@/lib/types";
+import { BillingTab } from "@/packages/ui/src/components/settings/tabs/billing-tab";
 
 interface BillingPageWrapperProps {
-  currentCredits: number;
+  user: UserWithOrganization;
   canceled?: string;
-  runningAgents?: number;
-  idleAgents?: number;
 }
 
-export function BillingPageWrapper({
-  currentCredits,
-  canceled,
-  runningAgents = 0,
-  idleAgents = 0,
-}: BillingPageWrapperProps) {
+export function BillingPageWrapper({ user, canceled }: BillingPageWrapperProps) {
   useSetPageHeader({
-    title: "Billing & Balance",
-    description: "Add funds to power your AI generations",
+    title: "Billing",
   });
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {canceled && (
-        <Alert variant="destructive" className="rounded-none border-rose-500/40 bg-rose-500/10">
-          <Info className="h-4 w-4 text-rose-400" />
-          <AlertTitle className="text-rose-400">Payment Canceled</AlertTitle>
-          <AlertDescription className="text-rose-400">
-            Your payment was canceled. No charges were made.
-          </AlertDescription>
-        </Alert>
+        <div className="mb-4 border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+          Payment canceled. No charges were made.
+        </div>
       )}
-
-      <MiladyPricingInfo
-        currentCredits={currentCredits}
-        runningAgents={runningAgents}
-        idleAgents={idleAgents}
-      />
-
-      <BillingPageClient currentCredits={currentCredits} />
+      <BillingTab user={user} />
     </div>
   );
 }
