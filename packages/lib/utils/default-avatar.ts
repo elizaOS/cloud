@@ -166,11 +166,15 @@ export function getAvailableAvatarStyles(): Array<{
  * Ensure a character has an avatar URL, using the fallback if needed.
  *
  * @param avatarUrl - The character's current avatar URL (may be null/undefined/empty)
- * @returns A valid avatar URL (either the original or the fallback)
+ * @param name - Optional character name for deterministic avatar selection
+ * @returns A valid avatar URL (either the original or a deterministic/fallback avatar)
  */
-export function ensureAvatarUrl(avatarUrl: string | null | undefined): string {
+export function ensureAvatarUrl(avatarUrl: string | null | undefined, name?: string): string {
   if (avatarUrl && avatarUrl.trim() !== "") {
     return avatarUrl;
+  }
+  if (name) {
+    return generateDefaultAvatarUrl(name);
   }
   return DEFAULT_AVATAR;
 }

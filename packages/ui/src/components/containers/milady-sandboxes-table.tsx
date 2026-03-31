@@ -442,11 +442,8 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
             <Boxes className="h-6 w-6 text-white/40" />
           </div>
           <div className="space-y-1.5">
-            <p className="text-white font-medium">No sandboxes yet</p>
-            <p className="text-sm text-white/45">
-              Create your first agent sandbox to get started. You can provision it immediately or
-              start it later from the dashboard.
-            </p>
+            <p className="text-white font-medium">No agents yet</p>
+            <p className="text-sm text-white/45">Deploy your first agent to get started.</p>
           </div>
           <div className="pt-2">
             <CreateMiladySandboxDialog

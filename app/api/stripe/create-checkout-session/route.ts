@@ -19,6 +19,8 @@ const ALLOWED_ORIGINS = [
   process.env.NEXT_PUBLIC_APP_URL,
   "http://localhost:3000",
   "http://localhost:3001",
+  "https://milady.ai",
+  "https://www.milady.ai",
 ].filter(Boolean) as string[];
 
 // Configurable currency

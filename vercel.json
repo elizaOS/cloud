@@ -19,6 +19,14 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/v1/cron/deployment-monitor",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/v1/cron/health-check",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/sample-eliza-price",
       "schedule": "*/5 * * * *"
     },
@@ -33,6 +41,10 @@
     {
       "path": "/api/cron/release-pending-earnings",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-stuck-provisioning",
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/cleanup-anonymous-sessions",
