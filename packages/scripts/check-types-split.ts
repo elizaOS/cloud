@@ -49,11 +49,11 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
 }
 
 async function getDirectoriesToCheck(): Promise<string[]> {
-  const libSubdirs = await splitIntoSubdirectories("lib");
+  const libSubdirs = await splitIntoSubdirectories("packages/lib");
   const appSubdirs = await splitIntoSubdirectories("app");
-  const componentSubdirs = await splitIntoSubdirectories("components");
+  const componentSubdirs = await splitIntoSubdirectories("packages/ui/src/components");
 
-  return ["db", ...libSubdirs, ...componentSubdirs, ...appSubdirs];
+  return ["packages/db", ...libSubdirs, ...componentSubdirs, ...appSubdirs];
 }
 
 async function createTempTsconfig(directory: string, baseTsconfig: object): Promise<string> {

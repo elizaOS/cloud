@@ -24,6 +24,11 @@
       "Default": 3000,
       "Description": "Container port"
     },
+    "DirectContainerPortCidr": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Optional IPv4 CIDR allowed to reach the container port directly. Leave empty to require ALB-only access."
+    },
     "ContainerCpu": {
       "Type": "Number",
       "Default": 1792,
@@ -123,6 +128,18 @@
           ]
         }
       ]
+    },
+    "HasDirectContainerPortCidr": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "DirectContainerPortCidr"
+            },
+            ""
+          ]
+        }
+      ]
     }
   },
   "Resources": {
@@ -153,15 +170,25 @@
             "Description": "Allow traffic from ALB"
           },
           {
-            "IpProtocol": "tcp",
-            "FromPort": {
-              "Ref": "ContainerPort"
-            },
-            "ToPort": {
-              "Ref": "ContainerPort"
-            },
-            "CidrIp": "0.0.0.0/0",
-            "Description": "Allow direct public access to container port"
+            "Fn::If": [
+              "HasDirectContainerPortCidr",
+              {
+                "IpProtocol": "tcp",
+                "FromPort": {
+                  "Ref": "ContainerPort"
+                },
+                "ToPort": {
+                  "Ref": "ContainerPort"
+                },
+                "CidrIp": {
+                  "Ref": "DirectContainerPortCidr"
+                },
+                "Description": "Optional direct access to container port"
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
           }
         ],
         "SecurityGroupEgress": [
@@ -891,7 +918,7 @@
       }
     },
     "DirectAccessUrl": {
-      "Description": "Direct access URL via EC2 public DNS (bypasses ALB)",
+      "Description": "Direct access URL via EC2 public DNS (requires DirectContainerPortCidr opt-in)",
       "Value": {
         "Fn::Sub": "http://${EC2Instance.PublicDnsName}:${ContainerPort}"
       }
