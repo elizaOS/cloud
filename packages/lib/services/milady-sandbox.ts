@@ -1081,51 +1081,34 @@ export class MiladySandboxService {
   private async provisionNeon(
     rec: MiladySandbox,
   ): Promise<{ success: boolean; connectionUri?: string; error?: string }> {
-    await miladySandboxesRepository.update(rec.id, {
-      database_status: "provisioning",
-    });
-    const neon = getNeonClient();
-    const branchName = `milady-${sanitizeProjectNameSegment(rec.agent_name ?? "agent")}-${rec.id.substring(0, 8)}`;
-    const result = await neon.createBranch(NEON_PARENT_PROJECT_ID, branchName);
+    // Use the shared cloud database instead of creating per-agent Neon projects.
+    // ElizaOS plugin-sql tables scope all data by agent UUID, so multiple agents
+    // safely coexist in one database. This avoids Neon project/branch limits
+    // (BRANCHES_LIMIT_EXCEEDED at 100 projects / 10 branches per project).
+    const sharedDbUrl = process.env.DATABASE_URL;
+    if (!sharedDbUrl) {
+      return { success: false, error: "DATABASE_URL not configured in cloud environment" };
+    }
 
-    const updated = await miladySandboxesRepository.update(rec.id, {
-      neon_project_id: NEON_PARENT_PROJECT_ID,
-      neon_branch_id: result.branchId,
-      database_uri: result.connectionUri,
+    await miladySandboxesRepository.update(rec.id, {
+      database_uri: sharedDbUrl,
       database_status: "ready",
       database_error: null,
     });
 
-    if (!updated) {
-      logger.error(
-        "[milady-sandbox] DB update failed after Neon branch creation, cleaning orphan",
-        {
-          projectId: NEON_PARENT_PROJECT_ID,
-          branchId: result.branchId,
-        },
-      );
-      await neon.deleteBranch(NEON_PARENT_PROJECT_ID, result.branchId).catch((e) => {
-        logger.error("[milady-sandbox] Orphan Neon branch cleanup failed", {
-          branchId: result.branchId,
-          error: e instanceof Error ? e.message : String(e),
-        });
-      });
-      return {
-        success: false,
-        error: "Failed to persist database credentials",
-      };
-    }
-
-    return { success: true, connectionUri: result.connectionUri };
+    return { success: true, connectionUri: sharedDbUrl };
   }
 
-  private async cleanupNeon(projectId: string, branchId?: string | null) {
+  private async cleanupNeon(projectId: string | null | undefined, branchId?: string | null) {
+    // In shared-DB mode no per-agent Neon project exists; nothing to clean up.
+    if (!projectId) return;
+
     const neon = getNeonClient();
     try {
       if (projectId === NEON_PARENT_PROJECT_ID && branchId) {
-        // New branch-based: delete the branch, not the project
+        // Branch-based: delete the branch, not the shared project
         await neon.deleteBranch(NEON_PARENT_PROJECT_ID, branchId);
-      } else {
+      } else if (projectId !== NEON_PARENT_PROJECT_ID) {
         // Legacy project-based: delete the entire project
         await neon.deleteProject(projectId);
       }
