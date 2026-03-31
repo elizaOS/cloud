@@ -938,41 +938,28 @@ export class MiladySandboxService {
   private async provisionNeon(
     rec: MiladySandbox,
   ): Promise<{ success: boolean; connectionUri?: string; error?: string }> {
-    await miladySandboxesRepository.update(rec.id, {
-      database_status: "provisioning",
-    });
-    const neon = getNeonClient();
-    const name = `milady-${sanitizeProjectNameSegment(rec.agent_name ?? "agent")}-${rec.id.substring(0, 8)}`;
-    const result = await neon.createProject({ name, region: "aws-us-east-1" });
+    // Use the shared cloud database instead of creating per-agent Neon projects.
+    // ElizaOS plugin-sql tables scope all data by agent UUID, so multiple agents
+    // safely coexist in one database. This avoids Neon project/branch limits
+    // (BRANCHES_LIMIT_EXCEEDED at 100 projects / 10 branches per project).
+    const sharedDbUrl = process.env.DATABASE_URL;
+    if (!sharedDbUrl) {
+      return { success: false, error: "DATABASE_URL not configured in cloud environment" };
+    }
 
-    const updated = await miladySandboxesRepository.update(rec.id, {
-      neon_project_id: result.projectId,
-      neon_branch_id: result.branchId,
-      database_uri: result.connectionUri,
+    await miladySandboxesRepository.update(rec.id, {
+      database_uri: sharedDbUrl,
       database_status: "ready",
       database_error: null,
     });
 
-    if (!updated) {
-      logger.error("[milady-sandbox] DB update failed after Neon creation, cleaning orphan", {
-        projectId: result.projectId,
-      });
-      await neon.deleteProject(result.projectId).catch((e) => {
-        logger.error("[milady-sandbox] Orphan Neon project cleanup failed", {
-          projectId: result.projectId,
-          error: e instanceof Error ? e.message : String(e),
-        });
-      });
-      return {
-        success: false,
-        error: "Failed to persist database credentials",
-      };
-    }
-
-    return { success: true, connectionUri: result.connectionUri };
+    return { success: true, connectionUri: sharedDbUrl };
   }
 
-  private async cleanupNeon(projectId: string) {
+  private async cleanupNeon(projectId: string | null | undefined) {
+    // In shared-DB mode no per-agent Neon project exists; nothing to clean up.
+    if (!projectId) return;
+
     try {
       await getNeonClient().deleteProject(projectId);
     } catch (error) {
