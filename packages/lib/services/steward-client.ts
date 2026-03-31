@@ -21,6 +21,12 @@ const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
 const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
 
+if (!STEWARD_TENANT_API_KEY) {
+  console.warn(
+    "[steward-client] STEWARD_TENANT_API_KEY is not set; Steward requests will run without tenant API key auth",
+  );
+}
+
 // ---------------------------------------------------------------------------
 // SDK client (singleton)
 // ---------------------------------------------------------------------------
@@ -162,9 +168,7 @@ export async function getStewardWalletInfo(agentId: string): Promise<StewardWall
     try {
       const balanceResult = await client.getBalance(agentId);
       balance = balanceResult.balances?.nativeFormatted ?? null;
-      chain = balanceResult.balances?.chainId
-        ? `eip155:${balanceResult.balances.chainId}`
-        : null;
+      chain = balanceResult.balances?.chainId ? `eip155:${balanceResult.balances.chainId}` : null;
     } catch {
       // Balance fetch is best-effort
     }

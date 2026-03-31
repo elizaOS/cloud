@@ -8,5 +8,17 @@ export const dynamic = "force-dynamic";
  * The VPS worker polls the jobs table directly and has SSH access to Docker nodes.
  */
 export async function POST() {
-  return NextResponse.json({ success: true, message: "Provisioning handled by VPS worker", skipped: true });
+  return NextResponse.json({
+    success: true,
+    message: "Provisioning handled by VPS worker",
+    skipped: true,
+  });
+}
+
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    message: "Provisioning handled by VPS worker",
+    skipped: true,
+  });
 }

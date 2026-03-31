@@ -90,9 +90,9 @@ export function toCompatAgent(
     database_status: sandbox.database_status,
     error_message: sandbox.error_message,
     last_heartbeat_at: sandbox.last_heartbeat_at ? toISO(sandbox.last_heartbeat_at) : null,
-    // Wallet info — Docker agents use Steward, everything else defaults to null
+    // Wallet info — only expose a provider when wallet info was actually resolved
     wallet_address: walletInfo?.address ?? null,
-    wallet_provider: walletInfo?.provider ?? (sandbox.node_id ? "steward" : null),
+    wallet_provider: walletInfo?.provider ?? null,
   };
 }
 

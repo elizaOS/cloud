@@ -81,6 +81,12 @@ const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
 const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
 
+if (!STEWARD_TENANT_API_KEY) {
+  console.warn(
+    "[docker-sandbox] STEWARD_TENANT_API_KEY is not set; Steward registration will run without tenant API key auth",
+  );
+}
+
 // URL injected into container env vars. Containers on the bridge network (milady-isolated)
 // cannot reach the host via localhost. On Linux we pair host.docker.internal with an
 // explicit host-gateway alias in docker create so the same default works cross-platform.

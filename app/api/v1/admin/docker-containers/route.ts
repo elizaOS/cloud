@@ -19,6 +19,28 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
+const STEWARD_ENRICHMENT_CONCURRENCY = 5;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex++;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }
+
+  const workerCount = Math.min(limit, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
 // ---------------------------------------------------------------------------
 // GET — List all Docker containers across all nodes
 // ---------------------------------------------------------------------------
@@ -99,8 +121,10 @@ export async function GET(request: NextRequest) {
       .limit(limit);
 
     // Enrich containers with wallet info from Steward (best-effort, parallel)
-    const enrichedContainers = await Promise.all(
-      containers.map(async (c) => {
+    const enrichedContainers = await mapWithConcurrency(
+      containers,
+      STEWARD_ENRICHMENT_CONCURRENCY,
+      async (c) => {
         let walletAddress: string | null = null;
         let walletProvider: "steward" | "privy" | null = null;
 
@@ -124,7 +148,7 @@ export async function GET(request: NextRequest) {
           walletAddress,
           walletProvider,
         };
-      }),
+      },
     );
 
     return NextResponse.json({

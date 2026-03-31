@@ -33,8 +33,7 @@ import { JOB_TYPES } from "./provisioning-jobs";
 import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
 
 /** Shared Neon project used as branch parent for per-agent databases. */
-const NEON_PARENT_PROJECT_ID: string =
-  process.env.NEON_PARENT_PROJECT_ID ?? "snowy-waterfall-29926749"; // env var required in prod
+const NEON_PARENT_PROJECT_ID: string = process.env.NEON_PARENT_PROJECT_ID ?? "";
 
 export interface CreateAgentParams {
   organizationId: string;
@@ -83,17 +82,6 @@ export interface SnapshotResult {
 
 const MAX_BACKUPS = 10;
 type LifecycleTx = Parameters<Parameters<Database["transaction"]>[0]>[0];
-
-function sanitizeProjectNameSegment(value: string): string {
-  const sanitized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 20);
-
-  return sanitized || "agent";
-}
 
 export class MiladySandboxService {
   private _provider?: SandboxProvider;
