@@ -506,7 +506,7 @@ export class DockerSandboxProvider implements SandboxProvider {
         ...(requiresDockerHostGateway(STEWARD_CONTAINER_URL)
           ? ["--add-host host.docker.internal:host-gateway"]
           : []),
-        `--health-cmd ${shellQuote(getDockerHealthCmd(allEnv.MILADY_PORT || DEFAULT_MILADY_PORT))}`,
+        `--health-cmd ${shellQuote(getDockerHealthCmd(allEnv.PORT || DEFAULT_AGENT_PORT))}`,
         "--health-interval 10s",
         "--health-timeout 5s",
         "--health-start-period 15s",
