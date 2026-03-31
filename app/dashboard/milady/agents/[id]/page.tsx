@@ -338,7 +338,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         )}
 
         {/* ── Actions card ── */}
-        <MiladyAgentActions agentId={agent.id} status={agent.status} webUiUrl={webUiUrl} />
+        <MiladyAgentActions agentId={agent.id} status={agent.status} />
 
         {/* ── Backups / history ── */}
         <MiladyBackupsPanel
