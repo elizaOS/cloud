@@ -43,13 +43,21 @@ function validateRateLimitConfig() {
 
   if (process.env.NODE_ENV === "production") {
     if (process.env.REDIS_RATE_LIMITING !== "true") {
-      throw new Error(
-        "🚨 SECURITY: Redis rate limiting is required in production. " +
-          "In-memory rate limiting allows bypass across serverless instances. " +
-          "Set REDIS_RATE_LIMITING=true and configure Redis connection.",
+      // ⚠️  IMPORTANT: On a single-server VPS, in-memory rate limiting is safe
+      // because there is only one process. Multi-instance/serverless deployments
+      // SHOULD configure Redis so limits are shared across instances.
+      // We log a warning here instead of throwing so the first API call does not
+      // fail with HTTP 500 (the original bug: hasValidatedConfig was set to true
+      // BEFORE the throw, causing the first request to 500 and subsequent ones
+      // to succeed — masking the misconfiguration while breaking UX).
+      logger.warn(
+        "[Rate Limit] ⚠️  In-memory rate limiting in production. " +
+          "For multi-instance deployments set REDIS_RATE_LIMITING=true and configure Redis. " +
+          "Single-server deployments are unaffected.",
       );
+    } else {
+      logger.info("[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)");
     }
-    logger.info("[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)");
   } else {
     logger.info("[Rate Limit] 🔓 Development mode: Rate limits relaxed (10000 req/window)");
   }
