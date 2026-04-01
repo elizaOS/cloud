@@ -59,17 +59,19 @@ export interface DatabaseStatus {
 
 export class UserDatabaseService {
   /**
-   * Provision a new database for an app.
+   * Provision a database for an app.
    *
-   * Flow:
-   * 1. Check if app already has a database
-   * 2. Update app status to "provisioning"
-   * 3. Create Neon project
-   * 4. Store credentials and update status to "ready"
+   * Uses the shared cloud DATABASE_URL instead of creating per-app Neon
+   * projects. ElizaOS plugin-sql tables scope data by agent/app UUID so
+   * multiple apps safely coexist. This avoids Neon project/branch limits
+   * (BRANCHES_LIMIT_EXCEEDED).
+   *
+   * Legacy per-app Neon projects with existing neon_project_id still get
+   * their credentials returned correctly.
    *
    * @param appId App ID
-   * @param appName App name (used for Neon project name)
-   * @param region Optional AWS region
+   * @param appName App name (used for logging)
+   * @param region Optional AWS region (ignored in shared-DB mode)
    * @returns Provision result with connection URI
    */
   async provisionDatabase(
@@ -134,85 +136,39 @@ export class UserDatabaseService {
       };
     }
 
-    // Track created project for cleanup if subsequent operations fail
-    let createdProjectId: string | null = null;
-
     try {
-      // Create Neon project
-      const neonClient = getNeonClient();
-      const projectName = `${appName.substring(0, 30)}-${appId.substring(0, 8)}`;
-      const result = await neonClient.createProject({
-        name: projectName,
-        region,
-      });
-
-      // Track the project ID for potential cleanup
-      createdProjectId = result.projectId;
+      // Use shared cloud DATABASE_URL instead of per-app Neon projects.
+      // ElizaOS plugin-sql tables scope data by agent/app UUID, so multiple
+      // apps safely coexist. This avoids BRANCHES_LIMIT_EXCEEDED errors.
+      const sharedDbUrl = process.env.DATABASE_URL;
+      if (!sharedDbUrl) {
+        throw new Error("DATABASE_URL not configured in cloud environment");
+      }
 
       // Encrypt the connection URI before storing
-      const encryptedUri = await fieldEncryption.encrypt(app.organization_id, result.connectionUri);
+      const encryptedUri = await fieldEncryption.encrypt(app.organization_id, sharedDbUrl);
 
-      // Store credentials (URI is now encrypted)
       await appsRepository.update(appId, {
         user_database_uri: encryptedUri,
-        user_database_project_id: result.projectId,
-        user_database_branch_id: result.branchId,
         user_database_status: "ready",
         user_database_error: null,
       });
 
-      logger.info("Database provisioned successfully", {
-        appId,
-        projectId: result.projectId,
-      });
+      logger.info("Database provisioned successfully (shared DB)", { appId });
 
       return {
         success: true,
-        connectionUri: result.connectionUri,
-        projectId: result.projectId,
-        branchId: result.branchId,
+        connectionUri: sharedDbUrl,
         region,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      let errorCode: ProvisionResult["errorCode"] = "UNKNOWN";
-
-      if (error instanceof NeonClientError) {
-        if (error.statusCode === 429) {
-          errorCode = "RATE_LIMITED";
-        } else if (error.code === "QUOTA_EXCEEDED") {
-          errorCode = "QUOTA_EXCEEDED";
-        } else {
-          errorCode = "API_ERROR";
-        }
-      }
 
       logger.error("Database provisioning failed", {
         appId,
         error: errorMessage,
-        errorCode,
       });
 
-      // Clean up orphaned Neon project if it was created but subsequent operations failed
-      if (createdProjectId) {
-        try {
-          const neonClient = getNeonClient();
-          await neonClient.deleteProject(createdProjectId);
-          logger.info("Cleaned up orphaned Neon project after failure", {
-            appId,
-            projectId: createdProjectId,
-          });
-        } catch (cleanupError) {
-          // Log but don't fail - the main error is more important
-          logger.error("Failed to clean up orphaned Neon project", {
-            appId,
-            projectId: createdProjectId,
-            error: cleanupError instanceof Error ? cleanupError.message : "Unknown",
-          });
-        }
-      }
-
-      // Update status to error
       await appsRepository.update(appId, {
         user_database_status: "error",
         user_database_error: errorMessage,
@@ -221,7 +177,7 @@ export class UserDatabaseService {
       return {
         success: false,
         error: errorMessage,
-        errorCode,
+        errorCode: "UNKNOWN",
       };
     }
   }
