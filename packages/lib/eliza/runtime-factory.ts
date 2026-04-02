@@ -13,7 +13,7 @@ import {
   type UUID,
   type World,
 } from "@elizaos/core";
-import createDatabaseAdapterDefault from "@elizaos/plugin-sql/node";
+import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
@@ -25,26 +25,6 @@ import {
   getStaticEmbeddingDimension,
   KNOWN_EMBEDDING_DIMENSIONS,
 } from "@/lib/cache/edge-runtime-cache";
-
-// Note: @elizaos/plugin-sql/node exports a CommonJS default that TypeScript cannot
-// infer through the ESM boundary. We validate and assert the known signature here.
-// If the upstream adapter factory signature changes, this will throw at startup.
-// TODO: Check if @elizaos/plugin-sql exports a proper named type for the adapter factory.
-type CreateDatabaseAdapterFn = (
-  config: { postgresUrl: string },
-  agentId: UUID,
-) => IDatabaseAdapter;
-
-function ensureCreateDatabaseAdapter(fn: unknown): CreateDatabaseAdapterFn {
-  if (typeof fn !== "function") {
-    throw new TypeError(
-      'Default export from "@elizaos/plugin-sql/node" is not a callable database adapter factory',
-    );
-  }
-  return fn as CreateDatabaseAdapterFn;
-}
-
-const createDatabaseAdapter = ensureCreateDatabaseAdapter(createDatabaseAdapterDefault);
 
 const adapterEmbeddingDimensions = new Map<string, number>();
 
