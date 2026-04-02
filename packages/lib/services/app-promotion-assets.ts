@@ -3,7 +3,7 @@ import { put } from "@vercel/blob";
 import { generateText, streamText } from "ai";
 import {
   mergeAnthropicCotProviderOptions,
-  mergeGoogleImageModalities,
+  mergeGoogleImageModalitiesWithAnthropicCot,
 } from "@/lib/providers/anthropic-thinking";
 import { z } from "zod";
 import type { App } from "@/db/repositories";
@@ -301,10 +301,11 @@ class AppPromotionAssetsService {
     try {
       // Use model string directly (not gateway.languageModel) for image generation
       // This matches the working pattern in /api/v1/generate-image
-      // Note: mergeGoogleImageModalities returns image modalities for Google models.
+      // Note: mergeGoogleImageModalitiesWithAnthropicCot returns image modalities for Google models.
+      // The third argument (thinking budget) is a no-op for Google models.
       const result = streamText({
         model: IMAGE_MODEL,
-        ...mergeGoogleImageModalities(IMAGE_MODEL),
+        ...mergeGoogleImageModalitiesWithAnthropicCot(IMAGE_MODEL),
         prompt: `Generate a promotional banner image: ${prompt}`,
       });
 
