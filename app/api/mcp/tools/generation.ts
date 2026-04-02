@@ -145,7 +145,7 @@ export function registerGenerationTools(server: McpServer): void {
         const result = await streamText({
           model: gateway.languageModel(model),
           prompt,
-          ...mergeAnthropicCotProviderOptions(model),
+          ...mergeAnthropicCotProviderOptions(model, process.env),
         });
 
         let fullText = "";
