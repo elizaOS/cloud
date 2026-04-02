@@ -301,11 +301,12 @@ class AppPromotionAssetsService {
     try {
       // Use model string directly (not gateway.languageModel) for image generation
       // This matches the working pattern in /api/v1/generate-image
-      // Note: Image generation uses Gemini models which don't support CoT, so temperature
-      // control is not affected by ANTHROPIC_COT_BUDGET settings.
+      // Note: Image generation uses Gemini models. CoT is explicitly disabled (pass 0)
+      // to ensure consistent behavior regardless of ANTHROPIC_COT_BUDGET settings.
+      // Google models ignore the thinking budget but we pass 0 for documentation clarity.
       const result = streamText({
         model: IMAGE_MODEL,
-        ...mergeGoogleImageModalitiesWithAnthropicCot(IMAGE_MODEL),
+        ...mergeGoogleImageModalitiesWithAnthropicCot(IMAGE_MODEL, process.env, 0),
         prompt: `Generate a promotional banner image: ${prompt}`,
       });
 
