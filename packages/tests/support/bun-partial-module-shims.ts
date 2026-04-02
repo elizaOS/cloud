@@ -9,13 +9,12 @@ const MIN_RESERVATION = 0.000001;
 
 /** Minimal interface for stubbing usersRepository in tests. */
 interface UsersRepositoryStub {
-  listByOrganization?: (...args: unknown[]) => Promise<unknown[]>;
-  [key: string]: unknown;
+  listByOrganization?: (organizationId: string) => Promise<{ id: string; email: string }[]>;
 }
 
 /** Shape returned by stubUsersRepositoryModule matching the real module exports. */
 interface UsersRepositoryModuleStub {
-  UsersRepository: new () => object;
+  UsersRepository: new () => UsersRepositoryStub;
   usersRepository: UsersRepositoryStub;
 }
 
