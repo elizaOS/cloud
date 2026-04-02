@@ -292,6 +292,7 @@ async function handlePOST(req: NextRequest) {
     // not just the thinking budget. The effective max is the greater of this minimum and the budget.
     // Default minimum output tokens to allow for actual response generation (consistent with MCP endpoint)
     const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
+    const cotBudget = resolveAnthropicThinkingBudgetTokens(selectedModel, process.env);
     const effectiveMaxOutputTokens = cotBudget
       ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, cotBudget)
       : undefined;
