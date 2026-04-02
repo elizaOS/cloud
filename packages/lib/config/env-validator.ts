@@ -124,19 +124,20 @@ const ENV_VARS = {
     required: false,
     failOnInvalid: true,
     description:
-      "Multiplier for rate limit thresholds (e.g., 100 for 100x limits in dev). Defaults to 1 (production limits).",
+      "Multiplier for rate limit thresholds (e.g., 100 for 100x limits in dev). Defaults to 1 (production limits). Ignored in production.",
     validate: (value: string) => {
       const trimmed = value.trim();
       if (trimmed === "") {
         return false;
       }
-      if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+      // Only accept positive integers (no floats) to match runtime parseInt behavior
+      if (!/^\d+$/.test(trimmed)) {
         return false;
       }
-      const n = Number.parseFloat(trimmed);
-      return n > 0 && Number.isFinite(n);
+      const n = Number.parseInt(trimmed, 10);
+      return n >= 1 && n <= Number.MAX_SAFE_INTEGER;
     },
-    errorMessage: "Must be a positive number (e.g., 1, 10, 100)",
+    errorMessage: "Must be a positive integer >= 1 (e.g., 1, 10, 100)",
   },
 
   // Storage
