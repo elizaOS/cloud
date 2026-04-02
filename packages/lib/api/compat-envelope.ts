@@ -23,7 +23,16 @@
 import type { MiladySandbox, MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
 import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 
+/**
+ * Get the public web UI URL for an agent sandbox.
+ *
+ * This wrapper intentionally omits the baseDomain option, relying on
+ * getMiladyAgentPublicWebUiUrl's default behavior (env var / hardcoded fallback).
+ * This avoids the edge case where passing { baseDomain: "" } would return null
+ * instead of falling through to the default URL.
+ */
 function getAgentWebUiUrl(sandbox: MiladySandbox): string | null {
+  // Note: Do not add baseDomain option here; empty string would bypass env/default fallback
   return getMiladyAgentPublicWebUiUrl(sandbox);
 }
 
