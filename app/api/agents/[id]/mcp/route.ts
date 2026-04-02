@@ -333,10 +333,11 @@ async function handleToolCall(
     // Resolve effective thinking budget before reservation (applies ANTHROPIC_COT_BUDGET_MAX cap)
     const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
     const effectiveThinkingBudget = 
-      resolveAnthropicThinkingBudgetTokens(model, process.env, agentThinkingBudget) ?? 0;
-    // Include thinking budget in output token estimate for Anthropic models
+      resolveAnthropicThinkingBudgetTokens(model, process.env, agentThinkingBudget);
+    // Include thinking budget in output token estimate when budget is non-null
+    // (resolveAnthropicThinkingBudgetTokens already checks model support)
     const baseOutputTokens = 500;
-    const estimatedOutputTokens = model.includes("claude") && effectiveThinkingBudget > 0
+    const estimatedOutputTokens = effectiveThinkingBudget != null
       ? baseOutputTokens + effectiveThinkingBudget
       : baseOutputTokens;
 
