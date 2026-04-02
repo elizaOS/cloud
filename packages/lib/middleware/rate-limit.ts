@@ -42,8 +42,8 @@ function validateRateLimitConfig() {
   hasValidatedConfig = true;
 
   // Note: RATE_LIMIT_DISABLED=true skips this startup validation warning only;
-  // actual rate limiting is still enforced. Use RATE_LIMIT_MULTIPLIER=100 to
-  // effectively bypass limits in development.
+  // actual rate limiting is still enforced. Use RATE_LIMIT_MULTIPLIER=1000 to
+  // effectively bypass limits in development (replaces the old dev-mode behavior).
   if (process.env.RATE_LIMIT_DISABLED === "true" && process.env.NODE_ENV !== "production") {
     return;
   }
