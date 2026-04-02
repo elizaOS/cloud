@@ -72,6 +72,10 @@ This document describes the **referral program** (signup attribution, bonuses, 5
 }
 ```
 
+  - `code` — The user's unique referral code string.
+  - `total_referrals` — Count of successful referral signups (rows in `referral_signups` where this user is the referrer).
+  - `is_active` — Whether the code can be used for new signups.
+
 - **Errors**
   - **401** — Not authenticated. The route uses `getErrorStatusCode` from `@/lib/api/errors` (typed `ApiError` / legacy message heuristics) plus explicit handling for wallet **plain `Error`** strings (`Invalid wallet signature`, `Wallet authentication failed`) that `requireAuthOrApiKey` still throws outside `AuthenticationError`.
   - **403** — Authenticated but forbidden (e.g. missing org / `ForbiddenError`). **Why:** Distinguishes “who are you?” from “you can’t use this feature yet.”
