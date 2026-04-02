@@ -320,7 +320,7 @@ function getRateLimitMultiplier(): number {
   }
   const multiplier = process.env.RATE_LIMIT_MULTIPLIER;
   if (!multiplier) return 1;
-  // Use parseInt to match env-validator which only accepts integer strings
+  // Use parseInt to match env-validator which only accepts integer strings (/^\d+$/)
   const parsed = Number.parseInt(multiplier, 10);
   return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
 }
