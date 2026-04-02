@@ -35,6 +35,7 @@ Today, **`parseThinkingBudgetFromCharacterSettings`** is wired into:
 Other routes keep **env-only** behavior (no `character.settings` on the request path):
 
 - `POST /api/v1/chat` — uses `mergeAnthropicCotProviderOptions` with env defaults only (`ANTHROPIC_COT_BUDGET` / `ANTHROPIC_COT_BUDGET_MAX`). No character context is available on this route.
+- `POST /api/v1/chat/completions` — uses `mergeAnthropicCotProviderOptions` with env defaults only (implementation: `app/api/v1/chat/completions/route.ts`). No character context is available on this route.
 
 ## Merge helpers (`mergeProviderOptions`, …)
 
