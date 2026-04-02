@@ -41,7 +41,9 @@ function validateRateLimitConfig() {
   if (hasValidatedConfig) return;
   hasValidatedConfig = true;
 
-  // Note: Set RATE_LIMIT_DISABLED=true in development to bypass rate limiting for integration tests.
+  // Note: RATE_LIMIT_DISABLED=true skips this startup validation warning only;
+  // actual rate limiting is still enforced. Use RATE_LIMIT_MULTIPLIER=100 to
+  // effectively bypass limits in development.
   if (process.env.RATE_LIMIT_DISABLED === "true" && process.env.NODE_ENV !== "production") {
     return;
   }
@@ -318,7 +320,8 @@ function getRateLimitMultiplier(): number {
   }
   const multiplier = process.env.RATE_LIMIT_MULTIPLIER;
   if (!multiplier) return 1;
-  const parsed = Math.floor(Number.parseFloat(multiplier));
+  // Use parseInt to match env-validator which only accepts integer strings
+  const parsed = Number.parseInt(multiplier, 10);
   return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
 }
 
