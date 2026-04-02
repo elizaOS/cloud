@@ -42,13 +42,17 @@ export const maxDuration = 800;
 /**
  * Computes effective max_tokens when Anthropic CoT is enabled.
  * When thinking is active, max_tokens must be >= budgetTokens or Anthropic API rejects.
+ * If no max_tokens is provided but CoT is active, we must set max_tokens to at least the budget.
  */
 function computeEffectiveMaxTokens(
   requestMaxTokens: number | undefined,
   cotBudget: number | null,
 ): number | undefined {
-  if (!requestMaxTokens) return undefined;
-  return cotBudget ? Math.max(requestMaxTokens, cotBudget) : requestMaxTokens;
+  if (cotBudget) {
+    // When CoT is active, ensure max_tokens >= budgetTokens (Anthropic API requirement)
+    return Math.max(requestMaxTokens ?? 0, cotBudget);
+  }
+  return requestMaxTokens;
 }
 
 // ============================================================================
