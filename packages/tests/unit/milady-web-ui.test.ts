@@ -64,9 +64,9 @@ describe("getMiladyAgentPublicWebUiUrl", () => {
 
   test("treats baseDomain: undefined like omitted (env then default)", () => {
     process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "custom.example";
-    expect(
-      getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: undefined }),
-    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.custom.example");
+    expect(getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: undefined })).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.custom.example",
+    );
   });
 });
 
