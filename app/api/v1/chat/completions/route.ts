@@ -39,18 +39,22 @@ import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
 
+// Minimum tokens to reserve for actual response generation when CoT is active
+const MIN_RESPONSE_TOKENS = 4096;
+
 /**
  * Computes effective max_tokens when Anthropic CoT is enabled.
  * When thinking is active, max_tokens must be >= budgetTokens or Anthropic API rejects.
- * If no max_tokens is provided but CoT is active, we must set max_tokens to at least the budget.
+ * Additionally, we must reserve capacity for the actual response (not just thinking).
  */
 function computeEffectiveMaxTokens(
   requestMaxTokens: number | undefined,
   cotBudget: number | null,
 ): number | undefined {
   if (cotBudget !== null) {
-    // When CoT is active, ensure max_tokens >= budgetTokens (Anthropic API requirement)
-    return Math.max(requestMaxTokens ?? 0, cotBudget);
+    // When CoT is active, ensure max_tokens covers both thinking budget AND response capacity
+    // Without this, thinking consumes all tokens leaving nothing for the actual response
+    return Math.max(requestMaxTokens ?? MIN_RESPONSE_TOKENS, cotBudget + MIN_RESPONSE_TOKENS);
   }
   return requestMaxTokens;
 }
@@ -349,7 +353,12 @@ async function handlePOST(req: NextRequest) {
       estimatedInputTokens,
     });
 
-    // 8. Handle streaming vs non-streaming
+    // 8. Resolve Anthropic CoT budget once (shared by streaming and non-streaming paths)
+    const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+    const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
+    const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
+
+    // 9. Handle streaming vs non-streaming
     if (request.stream) {
       return handleStreamingRequest(
         model,
@@ -364,6 +373,9 @@ async function handlePOST(req: NextRequest) {
         req.signal,
         routeTimeoutMs,
         settleReservation,
+        cotBudget,
+        cotOptions,
+        effectiveMaxTokens,
       );
     } else {
       return handleNonStreamingRequest(
@@ -379,6 +391,8 @@ async function handlePOST(req: NextRequest) {
         req.signal,
         routeTimeoutMs,
         settleReservation,
+        cotOptions,
+        effectiveMaxTokens,
       );
     }
   } catch (error) {
@@ -432,6 +446,9 @@ async function handleStreamingRequest(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
+  cotBudget: number | null,
+  cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
+  effectiveMaxTokens: number | undefined,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -446,12 +463,6 @@ async function handleStreamingRequest(
         : [request.stop]
       : undefined,
   });
-
-  // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
-  const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-  // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
-  const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
-  const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
 
   const result = streamText({
     model: getLanguageModel(model),
@@ -606,6 +617,8 @@ async function handleNonStreamingRequest(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
+  cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
+  effectiveMaxTokens: number | undefined,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -622,11 +635,6 @@ async function handleNonStreamingRequest(
   });
 
   try {
-    // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
-    const cotBudgetNonStream = resolveAnthropicThinkingBudgetTokens(model, process.env);
-    // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
-    const cotOptionsNonStream = cotBudgetNonStream != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudgetNonStream) : {};
-    const effectiveMaxTokensNonStream = computeEffectiveMaxTokens(request.max_tokens, cotBudgetNonStream);
 
     const result = await generateText({
       model: getLanguageModel(model),
@@ -635,8 +643,8 @@ async function handleNonStreamingRequest(
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
-      ...(effectiveMaxTokensNonStream && { maxOutputTokens: effectiveMaxTokensNonStream }),
-      ...cotOptionsNonStream,
+      ...(effectiveMaxTokens && { maxOutputTokens: effectiveMaxTokens }),
+      ...cotOptions,
     });
 
     // Bill using actual usage from SDK response
