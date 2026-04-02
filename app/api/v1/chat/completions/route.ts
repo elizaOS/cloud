@@ -21,7 +21,7 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import { getLanguageModel } from "@/lib/providers/language-model";
-import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
+import { mergeAnthropicCotProviderOptions, resolveAnthropicThinkingBudgetTokens } from "@/lib/providers/anthropic-thinking";
 import {
   billUsage,
   estimateInputTokens,
@@ -434,8 +434,8 @@ async function handleStreamingRequest(
   // Anthropic extended thinking: ANTHROPIC_COT_BUDGET (>0); @ai-sdk/anthropic strips temp/topP/topK when thinking is on.
   // Note: If ANTHROPIC_COT_BUDGET is set, max_tokens must be >= budgetTokens or Anthropic API rejects the request.
   // We adjust maxOutputTokens to be at least the CoT budget to avoid breaking existing API consumers.
+  const cotBudget = resolveAnthropicThinkingBudgetTokens(model);
   const cotOptions = mergeAnthropicCotProviderOptions(model);
-  const cotBudget = (cotOptions.providerOptions?.anthropic as { thinking?: { budgetTokens?: number } })?.thinking?.budgetTokens;
   const effectiveMaxTokens = request.max_tokens
     ? (cotBudget ? Math.max(request.max_tokens, cotBudget) : request.max_tokens)
     : undefined;
@@ -611,8 +611,8 @@ async function handleNonStreamingRequest(
   try {
     // Note: If ANTHROPIC_COT_BUDGET is set, max_tokens must be >= budgetTokens or Anthropic API rejects the request.
     // We adjust maxOutputTokens to be at least the CoT budget to avoid breaking existing API consumers.
+    const cotBudgetNonStream = resolveAnthropicThinkingBudgetTokens(model);
     const cotOptionsNonStream = mergeAnthropicCotProviderOptions(model);
-    const cotBudgetNonStream = (cotOptionsNonStream.providerOptions?.anthropic as { thinking?: { budgetTokens?: number } })?.thinking?.budgetTokens;
     const effectiveMaxTokensNonStream = request.max_tokens
       ? (cotBudgetNonStream ? Math.max(request.max_tokens, cotBudgetNonStream) : request.max_tokens)
       : undefined;
