@@ -432,6 +432,14 @@ async function handleStreamingRequest(
   });
 
   // Anthropic extended thinking: ANTHROPIC_COT_BUDGET (>0); @ai-sdk/anthropic strips temp/topP/topK when thinking is on.
+  // Note: If ANTHROPIC_COT_BUDGET is set, max_tokens must be >= budgetTokens or Anthropic API rejects the request.
+  // We adjust maxOutputTokens to be at least the CoT budget to avoid breaking existing API consumers.
+  const cotOptions = mergeAnthropicCotProviderOptions(model);
+  const cotBudget = (cotOptions.providerOptions?.anthropic as { thinking?: { budgetTokens?: number } })?.thinking?.budgetTokens;
+  const effectiveMaxTokens = request.max_tokens
+    ? (cotBudget ? Math.max(request.max_tokens, cotBudget) : request.max_tokens)
+    : undefined;
+
   const result = streamText({
     model: getLanguageModel(model),
     system: systemPrompt,
@@ -439,8 +447,8 @@ async function handleStreamingRequest(
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
-    ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
-    ...mergeAnthropicCotProviderOptions(model),
+    ...(effectiveMaxTokens && { maxOutputTokens: effectiveMaxTokens }),
+    ...cotOptions,
     onFinish: async ({ text, usage }) => {
       try {
         const billing = await billUsage(
@@ -601,6 +609,14 @@ async function handleNonStreamingRequest(
   });
 
   try {
+    // Note: If ANTHROPIC_COT_BUDGET is set, max_tokens must be >= budgetTokens or Anthropic API rejects the request.
+    // We adjust maxOutputTokens to be at least the CoT budget to avoid breaking existing API consumers.
+    const cotOptionsNonStream = mergeAnthropicCotProviderOptions(model);
+    const cotBudgetNonStream = (cotOptionsNonStream.providerOptions?.anthropic as { thinking?: { budgetTokens?: number } })?.thinking?.budgetTokens;
+    const effectiveMaxTokensNonStream = request.max_tokens
+      ? (cotBudgetNonStream ? Math.max(request.max_tokens, cotBudgetNonStream) : request.max_tokens)
+      : undefined;
+
     const result = await generateText({
       model: getLanguageModel(model),
       system: systemPrompt,
@@ -608,8 +624,8 @@ async function handleNonStreamingRequest(
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
-      ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
-      ...mergeAnthropicCotProviderOptions(model),
+      ...(effectiveMaxTokensNonStream && { maxOutputTokens: effectiveMaxTokensNonStream }),
+      ...cotOptionsNonStream,
     });
 
     // Bill using actual usage from SDK response
