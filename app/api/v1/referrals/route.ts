@@ -27,29 +27,49 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
-/** True when `requireAuthOrApiKeyWithOrg` (and other auth paths) threw {@link AuthenticationError}. */
-function isAuthError(error: Error): boolean {
-  return error instanceof AuthenticationError;
+/**
+ * Known wallet authentication failure message patterns.
+ * Note: These string patterns are fragile—if wallet auth error messages change upstream,
+ * this will incorrectly return 500 instead of 401. Track as technical debt.
+ */
+const WALLET_AUTH_FAILURE_PATTERNS = [
+  "Invalid wallet signature",
+  "Wallet authentication failed",
+] as const;
+
+/**
+ * Checks if error indicates wallet authentication failure via message patterns.
+ * Used to convert untyped wallet errors to {@link AuthenticationError}.
+ */
+function isWalletAuthFailure(error: Error): boolean {
+  return WALLET_AUTH_FAILURE_PATTERNS.some((pattern) => error.message.includes(pattern));
 }
 
 /**
- * Maps thrown errors to “treat as 401” for this route.
- * Uses {@link AuthenticationError} for auth failures from `requireAuthOrApiKeyWithOrg`, then
- * `getErrorStatusCode` for other `ApiError` shapes, then wallet fail-closed messages until those
- * paths throw typed errors.
- *
- * TODO: Remove wallet `message.includes` once wallet auth throws {@link AuthenticationError}
- * (or another `ApiError` with status 401). Until then, message drift risks 500 instead of 401.
+ * Wraps auth call and converts known wallet auth failures to typed {@link AuthenticationError}.
+ * This contains the fragile message-matching in one place and ensures downstream code
+ * only needs to check for typed errors.
+ */
+async function requireAuthWithTypedErrors(request: NextRequest) {
+  try {
+    return await requireAuthOrApiKeyWithOrg(request);
+  } catch (error) {
+    // Convert wallet auth failures to typed AuthenticationError
+    if (error instanceof Error && isWalletAuthFailure(error)) {
+      throw new AuthenticationError(error.message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Maps thrown errors to "treat as 401" for this route.
+ * Uses {@link AuthenticationError} for auth failures, then `getErrorStatusCode` for other
+ * `ApiError` shapes with 401 status.
  */
 function isUnauthorizedError(error: unknown): boolean {
-  if (error instanceof Error && isAuthError(error)) return true;
+  if (error instanceof AuthenticationError) return true;
   if (getErrorStatusCode(error) === 401) return true;
-  if (error instanceof Error) {
-    return (
-      error.message.includes("Invalid wallet signature") ||
-      error.message.includes("Wallet authentication failed")
-    );
-  }
   return false;
 }
 
@@ -70,7 +90,7 @@ async function handleGET(request: NextRequest) {
   const corsHeaders = getCorsHeaders(origin);
 
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { user } = await requireAuthWithTypedErrors(request);
     const row = await referralsService.getOrCreateCode(user.id);
 
     if (row == null || typeof row !== "object") {
