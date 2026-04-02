@@ -2,8 +2,10 @@ import { gateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
 import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import type { App } from "@/db/repositories";
+// Note: When ANTHROPIC_COT_BUDGET is set and model is Anthropic, temperature is silently dropped
+// per @ai-sdk/anthropic behavior. This service uses temperature for creative copy generation.
 import {
-  AD_COPY_GENERATION_COST,
+  mergeAnthropicCotProviderOptions,
   DISCORD_AUTOMATION_SETUP_COST,
   DISCORD_POST_COST,
   TELEGRAM_AUTOMATION_SETUP_COST,
