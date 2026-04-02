@@ -365,6 +365,9 @@ async function handlePOST(req: NextRequest) {
       try {
         // Image generation endpoints do not use extended thinking (CoT).
         // Google models need responseModalities for image output.
+        // Note: This assumes Google model IDs start with "google/". If a gateway alias
+        // routes to a Google model without this prefix, responseModalities will be omitted
+        // and image generation may fail silently with no image in the response.
         const isGoogleModel = imageModel.startsWith("google/");
         const providerOpts = isGoogleModel
           ? { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } }
