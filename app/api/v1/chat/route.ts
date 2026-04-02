@@ -288,13 +288,13 @@ async function handlePOST(req: NextRequest) {
     const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
 
     // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection.
-    // We use a minimum output capacity (e.g., 16000) to allow for actual response generation,
-    // not just the thinking budget. The effective max is the greater of this minimum and the budget.
+    // When CoT is active, thinking tokens count against max_tokens, so we must add a buffer
+    // for actual response generation on top of the thinking budget.
     // Default minimum output tokens to allow for actual response generation (consistent with MCP endpoint)
     const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
     const cotBudget = resolveAnthropicThinkingBudgetTokens(selectedModel, process.env);
     const effectiveMaxOutputTokens = cotBudget
-      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, cotBudget)
+      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, cotBudget + DEFAULT_MIN_OUTPUT_TOKENS)
       : undefined;
 
     const result = streamText({
