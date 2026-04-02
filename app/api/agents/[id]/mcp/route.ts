@@ -28,14 +28,14 @@ import {
   parseThinkingBudgetFromCharacterSettings,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
-
-// Default minimum output tokens to allow for actual response generation
-const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
-import { charactersService } from "@/lib/services/characters/characters";
+import { charactersService } from "@/lib/services/characters";
 import type { CreditReservation } from "@/lib/services/credits";
 import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
+
+// Default minimum output tokens to allow for actual response generation
+const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
 
 export const maxDuration = 60;
 
@@ -340,7 +340,7 @@ async function handleToolCall(
     // Include thinking budget in output token estimate when budget is non-null
     // (resolveAnthropicThinkingBudgetTokens already checks model support internally)
     // Note: Use higher base to allow for actual response generation, not just thinking budget
-    const baseOutputTokens = 4096;
+    const baseOutputTokens = DEFAULT_MIN_OUTPUT_TOKENS;
     const estimatedOutputTokens = effectiveThinkingBudget != null
       ? baseOutputTokens + effectiveThinkingBudget
       : baseOutputTokens;
