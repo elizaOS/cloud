@@ -23,6 +23,9 @@ function copyViaExecCommand(text: string): boolean {
   if (typeof document === "undefined") {
     return false;
   }
+  if (!document.body) {
+    return false;
+  }
 
   const node = document.createElement("textarea");
   node.value = text;
