@@ -6,8 +6,7 @@ import {
   supportsExtendedThinking,
   type ThinkingConfig,
   type CharacterThinkingSettings,
-// Note: imports are structured to unify testing across different modules consistently
-} from "./anthropic-thinking";
+} from "./src/lib/anthropic-thinking";
 
 describe("anthropic-thinking", () => {
   describe("validateBudgetTokens", () => {
