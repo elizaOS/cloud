@@ -302,10 +302,10 @@ class AppPromotionAssetsService {
       // Use model string directly (not gateway.languageModel) for image generation
       // This matches the working pattern in /api/v1/generate-image
       // Note: mergeGoogleImageModalitiesWithAnthropicCot returns image modalities for Google models.
-      // The third argument (thinking budget) is a no-op for Google models.
+      // CoT/thinking budget has no effect on Google models (only applies to Anthropic).
       const result = streamText({
         model: IMAGE_MODEL,
-        ...mergeGoogleImageModalitiesWithAnthropicCot(IMAGE_MODEL),
+        ...mergeGoogleImageModalitiesWithAnthropicCot(IMAGE_MODEL, process.env),
         prompt: `Generate a promotional banner image: ${prompt}`,
       });
 
