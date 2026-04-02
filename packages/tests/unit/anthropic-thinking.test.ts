@@ -422,4 +422,17 @@ describe("mergeProviderOptions", () => {
     // The entire openai object from extra replaces base — projectId is lost
     expect(merged.providerOptions.openai).toEqual({ organizationId: "org-789" });
   });
+
+  test("documents that non-deep-merged keys drop base fields on conflict", () => {
+    // This test documents the expected (if surprising) behavior:
+    // when both base and extra have a provider key that isn't in the deep-merge list,
+    // the entire extra object replaces base, losing any fields only in base.
+    const merged = mergeProviderOptions(
+      { providerOptions: { mistral: { apiKey: "key-1", safeMode: true } } },
+      { providerOptions: { mistral: { apiKey: "key-2" } } },
+    );
+    // safeMode is lost because mistral isn't deep-merged
+    expect(merged.providerOptions.mistral).toEqual({ apiKey: "key-2" });
+    expect((merged.providerOptions.mistral as { safeMode?: boolean }).safeMode).toBeUndefined();
+  });
 });
