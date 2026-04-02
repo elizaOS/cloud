@@ -30,7 +30,10 @@ import {
   getSafeModelParams,
   normalizeModelName,
 } from "@/lib/pricing";
-import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
+import {
+  getEffectiveAnthropicCotBudget,
+  mergeAnthropicCotProviderOptions,
+} from "@/lib/providers/anthropic-thinking";
 import {
   billUsage,
   estimateInputTokens,
@@ -657,12 +660,16 @@ async function handleNonStream(
 ) {
   const provider = getProviderFromModel(model);
 
+  // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection
+  const cotBudget = getEffectiveAnthropicCotBudget(model);
+  const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens, cotBudget) : request.max_tokens;
+
   try {
     const result = await generateText({
       model: gateway.languageModel(model),
       system: systemPrompt,
       messages,
-      maxOutputTokens: request.max_tokens,
+      maxOutputTokens: effectiveMaxTokens,
       abortSignal,
       timeout: timeoutMs,
       ...safeParams,
@@ -783,11 +790,15 @@ async function handleStream(
   const provider = getProviderFromModel(model);
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
 
+  // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection
+  const cotBudget = getEffectiveAnthropicCotBudget(model);
+  const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens, cotBudget) : request.max_tokens;
+
   const result = streamText({
     model: gateway.languageModel(model),
     system: systemPrompt,
     messages,
-    maxOutputTokens: request.max_tokens,
+    maxOutputTokens: effectiveMaxTokens,
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
