@@ -662,7 +662,7 @@ async function handleNonStream(
 
   // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-  const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens, cotBudget) : request.max_tokens;
+  const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens ?? 0, cotBudget) : request.max_tokens;
 
   try {
     const result = await generateText({
@@ -675,7 +675,7 @@ async function handleNonStream(
       ...safeParams,
       ...(tools ? { tools } : {}),
       ...(toolChoice ? { toolChoice } : {}),
-      ...mergeAnthropicCotProviderOptions(model),
+      ...mergeAnthropicCotProviderOptions(model, process.env, cotBudget ?? undefined),
     });
 
     const billing = await billUsage(
@@ -792,7 +792,7 @@ async function handleStream(
 
   // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-  const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens, cotBudget) : request.max_tokens;
+  const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens ?? 0, cotBudget) : request.max_tokens;
 
   const result = streamText({
     model: gateway.languageModel(model),
@@ -804,7 +804,7 @@ async function handleStream(
     ...safeParams,
     ...(tools ? { tools } : {}),
     ...(toolChoice ? { toolChoice } : {}),
-    ...mergeAnthropicCotProviderOptions(model),
+    ...mergeAnthropicCotProviderOptions(model, process.env, cotBudget ?? undefined),
     onFinish: async ({ text, totalUsage }) => {
       try {
         const billing = await billUsage(
