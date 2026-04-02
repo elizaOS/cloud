@@ -67,7 +67,11 @@ const MISTRAL_TEXT_MODEL_IDS = [
   "mistral/mistral-large-3",
   "mistral/ministral-8b",
 ] as const;
-const MINIMAX_TEXT_MODEL_IDS = ["minimax/minimax-m2.5", "minimax/minimax-m2.1-lightning"] as const;
+const MINIMAX_TEXT_MODEL_IDS = [
+  "minimax/minimax-m2.7",
+  "minimax/minimax-m2.5",
+  "minimax/minimax-m2.1-lightning",
+] as const;
 const QWEN_TEXT_MODEL_IDS = [
   "alibaba/qwen3-max",
   "alibaba/qwen3.5-plus",

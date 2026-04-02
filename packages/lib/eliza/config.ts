@@ -45,8 +45,8 @@ export function getElizaCloudApiUrl(): string {
  */
 export function getDefaultModels() {
   return {
-    small: process.env.ELIZAOS_CLOUD_SMALL_MODEL || "moonshotai/kimi-k2-0905",
-    large: process.env.ELIZAOS_CLOUD_LARGE_MODEL || "moonshotai/kimi-k2-0905",
+    small: process.env.ELIZAOS_CLOUD_SMALL_MODEL || "minimax/minimax-m2.7",
+    large: process.env.ELIZAOS_CLOUD_LARGE_MODEL || "anthropic/claude-sonnet-4.6",
     embedding: process.env.ELIZAOS_CLOUD_EMBEDDING_MODEL || "text-embedding-3-small",
   };
 }
@@ -57,8 +57,8 @@ export function getDefaultModels() {
  */
 export const ALLOWED_CHAT_MODELS: readonly string[] = [
   ...FALLBACK_TEXT_SELECTOR_MODELS.map((model) => model.modelId),
-  "moonshotai/kimi-k2-0905",
-  "moonshotai/kimi-k2-turbo",
+  "minimax/minimax-m2.7",
+  "anthropic/claude-sonnet-4.6",
   "deepseek/deepseek-v3.2-exp",
   "deepseek/deepseek-r1",
 ];

@@ -54,9 +54,9 @@ function extractProvider(modelId: string): string {
   return "openai";
 }
 
-const FAST_MODEL_ID = getEnvModelId("fast", "openai/gpt-oss-120b");
-const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-opus-4.5");
-const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-sonnet-4.5");
+const FAST_MODEL_ID = getEnvModelId("fast", "minimax/minimax-m2.7");
+const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-sonnet-4.6");
+const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-opus-4.6");
 
 export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   fast: {
@@ -67,8 +67,8 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
     provider: extractProvider(FAST_MODEL_ID),
     icon: "zap",
     pricing: {
-      inputPer1k: 0.0001,
-      outputPer1k: 0.0004,
+      inputPer1k: 0.0002,
+      outputPer1k: 0.001,
       currency: "USD",
     },
     capabilities: ["text", "code", "function_calling"],
@@ -82,8 +82,8 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
     provider: extractProvider(PRO_MODEL_ID),
     icon: "sparkles",
     pricing: {
-      inputPer1k: 0.001,
-      outputPer1k: 0.005,
+      inputPer1k: 0.003,
+      outputPer1k: 0.015,
       currency: "USD",
     },
     capabilities: ["text", "code", "reasoning", "vision", "function_calling", "long_context"],
@@ -219,13 +219,6 @@ export const DEFAULT_IMAGE_MODEL = IMAGE_MODELS[0];
 export const ADDITIONAL_MODELS: AdditionalModel[] = [
   // Moonshot AI
   {
-    id: "kimi-k2",
-    name: "Kimi K2",
-    description: "Fast & capable",
-    modelId: "moonshotai/kimi-k2-0905",
-    provider: "moonshot",
-  },
-  {
     id: "kimi-k2-turbo",
     name: "Kimi K2 Turbo",
     description: "Extra speed",
@@ -250,9 +243,23 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   // Anthropic
   {
     id: "claude-opus",
-    name: "Claude Opus 4.1",
+    name: "Claude Opus 4.6",
     description: "Most powerful",
-    modelId: "anthropic/claude-opus-4.1",
+    modelId: "anthropic/claude-opus-4.6",
+    provider: "anthropic",
+  },
+  {
+    id: "claude-sonnet",
+    name: "Claude Sonnet 4.6",
+    description: "Balanced and capable",
+    modelId: "anthropic/claude-sonnet-4.6",
+    provider: "anthropic",
+  },
+  {
+    id: "claude-haiku",
+    name: "Claude Haiku 4.5",
+    description: "Fast Anthropic option",
+    modelId: "anthropic/claude-haiku-4.5",
     provider: "anthropic",
   },
   // Google
@@ -318,9 +325,16 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   },
   // Minimax
   {
+    id: "minimax-m2.7",
+    name: "Minimax M2.7",
+    description: "Fast & affordable default",
+    modelId: "minimax/minimax-m2.7",
+    provider: "minimax",
+  },
+  {
     id: "minimax-m2.5",
     name: "Minimax M2.5",
-    description: "Chinese frontier model",
+    description: "Previous-generation Minimax",
     modelId: "minimax/minimax-m2.5",
     provider: "minimax",
   },
@@ -365,8 +379,8 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
 export const BUILD_MODE_TIERS: Record<ModelTier, ModelTierConfig> = {
   fast: {
     ...MODEL_TIERS.fast,
-    modelId: "moonshotai/kimi-k2-0905",
-    provider: "moonshotai",
+    modelId: "minimax/minimax-m2.7",
+    provider: "minimax",
     description: "Fast responses for build mode",
   },
   pro: {
@@ -396,7 +410,7 @@ export const DEFAULT_MODEL_TIER: ModelTier = "pro";
  * logger.info(config.modelId); // "google/gemini-2.5-flash-lite"
  *
  * // Using raw model ID (returns matching tier or creates custom config)
- * const config = resolveModel("anthropic/claude-sonnet-4.5");
+ * const config = resolveModel("anthropic/claude-sonnet-4.6");
  */
 export function resolveModel(tierOrModelId?: string | null): ModelTierConfig {
   if (!tierOrModelId) {

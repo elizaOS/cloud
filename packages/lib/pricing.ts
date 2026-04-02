@@ -104,11 +104,23 @@ function getFallbackPricing(
     "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
     "gpt-4-turbo": { input: 0.01, output: 0.03 },
     "gpt-3.5-turbo": { input: 0.0005, output: 0.0015 },
+    "gpt-5": { input: 0.005, output: 0.02 },
+    "gpt-5-mini": { input: 0.0003, output: 0.0012 },
+    "claude-sonnet-4.6": { input: 0.003, output: 0.015 },
+    "claude-sonnet-4.5": { input: 0.003, output: 0.015 },
+    "claude-opus-4.6": { input: 0.015, output: 0.075 },
+    "claude-opus-4.5": { input: 0.015, output: 0.075 },
+    "claude-haiku-4.5": { input: 0.0008, output: 0.004 },
     "claude-3-5-sonnet-20241022": { input: 0.003, output: 0.015 },
     "claude-3-5-haiku-20241022": { input: 0.001, output: 0.005 },
+    "gemini-2.5-flash": { input: 0.00015, output: 0.001 },
+    "gemini-3-pro": { input: 0.00125, output: 0.01 },
+    "deepseek-v3.2": { input: 0.00027, output: 0.0011 },
+    "minimax-m2.7": { input: 0.0002, output: 0.001 },
+    "minimax-m2.5": { input: 0.0002, output: 0.001 },
   };
 
-  const pricing = pricingMap[model] || { input: 0.0025, output: 0.01 };
+  const pricing = pricingMap[model] || { input: 0.001, output: 0.005 };
 
   // Calculate base costs in cents
   const baseInputCostCents = Math.ceil((inputTokens / 1000) * pricing.input * 100);
