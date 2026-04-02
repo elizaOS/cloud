@@ -259,9 +259,8 @@ Return ONLY valid JSON, no markdown.`;
       model: gateway.languageModel(promoModel),
       temperature: 0.7,
       prompt,
-      // Note: When ANTHROPIC_COT_BUDGET is set, @ai-sdk/anthropic silently strips temperature,
-      // topP, and topK when extended thinking is active. Temperature settings below may be
-      // ignored if CoT is enabled for this model.
+      // Note: CoT is explicitly disabled (budget=0) for promotional content generation
+      // because it doesn't benefit from extended thinking and needs temperature control.
       ...mergeAnthropicCotProviderOptions(promoModel, process.env, 0),
     });
 
