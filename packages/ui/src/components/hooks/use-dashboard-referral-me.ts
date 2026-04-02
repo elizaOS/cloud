@@ -12,6 +12,13 @@ export interface UseDashboardReferralMeResult {
   refetch: () => void;
 }
 
+/**
+ * Hook to fetch and manage referral data for the dashboard.
+ *
+ * Note: Uses stale-while-revalidate pattern — on refetch(), loadingReferral
+ * becomes true while referralMe retains its previous value. This allows UI to
+ * show existing data with a loading indicator rather than flashing to empty state.
+ */
 export function useDashboardReferralMe(): UseDashboardReferralMeResult {
   const [referralMe, setReferralMe] = useState<ReferralMeResponse | null>(null);
   const [loadingReferral, setLoadingReferral] = useState(true);
