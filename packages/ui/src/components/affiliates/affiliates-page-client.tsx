@@ -26,7 +26,7 @@ export function AffiliatesPageClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [referralCopied, setReferralCopied] = useState(false);
-  const { referralMe, loadingReferral, referralFetchFailed } = useDashboardReferralMe();
+  const { referralMe, loadingReferral, referralFetchFailed, refetch: refetchReferral } = useDashboardReferralMe();
 
   const createAffiliateCode = useCallback(async (initialMarkup = 20) => {
     const res = await fetch("/api/v1/affiliates", {
@@ -166,9 +166,19 @@ export function AffiliatesPageClient() {
         {loadingReferral ? (
           <Skeleton className="h-14 rounded-lg" />
         ) : referralFetchFailed || !referralMe ? (
-          <p className="text-sm text-white/50">
-            Could not load your invite link. Use the Invite button in the header or try again later.
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-white/50">
+              Could not load your invite link.
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="shrink-0 bg-cyan-500/15 hover:bg-cyan-500/25 text-white border-cyan-500/30"
+              onClick={() => refetchReferral()}
+            >
+              Retry
+            </Button>
+          </div>
         ) : !referralMe.is_active ? (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100/90">
             <p className="font-medium text-amber-100">Invite link inactive</p>
