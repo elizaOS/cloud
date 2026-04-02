@@ -449,7 +449,7 @@ async function handleStreamingRequest(
 
   // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-  // Note: Passing resolved budget avoids redundant env parsing inside mergeAnthropicCotProviderOptions
+  // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
   const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
   const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
 
@@ -624,7 +624,7 @@ async function handleNonStreamingRequest(
   try {
     // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
     const cotBudgetNonStream = resolveAnthropicThinkingBudgetTokens(model, process.env);
-    // Note: Passing resolved budget avoids redundant env parsing inside mergeAnthropicCotProviderOptions
+    // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
     const cotOptionsNonStream = cotBudgetNonStream != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudgetNonStream) : {};
     const effectiveMaxTokensNonStream = computeEffectiveMaxTokens(request.max_tokens, cotBudgetNonStream);
 
