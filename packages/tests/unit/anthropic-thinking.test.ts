@@ -329,9 +329,11 @@ describe("supportsExtendedThinking", () => {
     expect(supportsExtendedThinking("claude-3-5-sonnet-20241022")).toBe(true);
   });
 
-  test("returns true for Claude 3.7 Sonnet", () => {
+  test("returns true for Claude 3.7 Sonnet variants", () => {
     expect(supportsExtendedThinking("claude-3-7-sonnet")).toBe(true);
     expect(supportsExtendedThinking("anthropic/claude-3-7-sonnet")).toBe(true);
+    expect(supportsExtendedThinking("claude-3-7-sonnet-20250219")).toBe(true);
+    expect(supportsExtendedThinking("anthropic/claude-3-7-sonnet-latest")).toBe(true);
   });
 
   test("returns true for Claude 3 Opus", () => {
@@ -344,9 +346,11 @@ describe("supportsExtendedThinking", () => {
     expect(supportsExtendedThinking("anthropic/claude-sonnet-4")).toBe(true);
   });
 
-  test("returns true for Claude Opus 4", () => {
+  test("returns true for Claude Opus 4 variants", () => {
     expect(supportsExtendedThinking("claude-opus-4")).toBe(true);
     expect(supportsExtendedThinking("anthropic/claude-opus-4")).toBe(true);
+    expect(supportsExtendedThinking("claude-opus-4-20250514")).toBe(true);
+    expect(supportsExtendedThinking("anthropic/claude-opus-4-latest")).toBe(true);
   });
 
   test("returns false for Claude Haiku (does not support thinking)", () => {
