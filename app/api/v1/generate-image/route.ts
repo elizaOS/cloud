@@ -369,6 +369,12 @@ async function handlePOST(req: NextRequest) {
         // routes to a Google model without this prefix, responseModalities will be omitted
         // and image generation may fail silently with no image in the response.
         const isGoogleModel = imageModel.startsWith("google/");
+        if (!isGoogleModel && !imageModel.startsWith("openai/") && !imageModel.startsWith("bfl/")) {
+          logger.warn("[Generate Image] Model may be a gateway alias; responseModalities not applied", {
+            model: imageModel,
+            hint: "If this is a Google model alias, image generation may fail silently",
+          });
+        }
         const providerOpts = isGoogleModel
           ? { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } }
           : {};
