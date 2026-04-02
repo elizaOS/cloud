@@ -336,7 +336,8 @@ async function handleToolCall(
       resolveAnthropicThinkingBudgetTokens(model, process.env, agentThinkingBudget);
     // Include thinking budget in output token estimate when budget is non-null
     // (resolveAnthropicThinkingBudgetTokens already checks model support internally)
-    const baseOutputTokens = 500;
+    // Note: Use higher base to allow for actual response generation, not just thinking budget
+    const baseOutputTokens = 4096;
     const estimatedOutputTokens = effectiveThinkingBudget != null
       ? baseOutputTokens + effectiveThinkingBudget
       : baseOutputTokens;
