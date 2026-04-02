@@ -31,7 +31,7 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import {
-  getEffectiveAnthropicCotBudget,
+  resolveAnthropicThinkingBudgetTokens,
   mergeAnthropicCotProviderOptions,
 } from "@/lib/providers/anthropic-thinking";
 import {
@@ -661,7 +661,7 @@ async function handleNonStream(
   const provider = getProviderFromModel(model);
 
   // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection
-  const cotBudget = getEffectiveAnthropicCotBudget(model);
+  const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
   const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens, cotBudget) : request.max_tokens;
 
   try {
@@ -791,7 +791,7 @@ async function handleStream(
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
 
   // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection
-  const cotBudget = getEffectiveAnthropicCotBudget(model);
+  const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
   const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens, cotBudget) : request.max_tokens;
 
   const result = streamText({
