@@ -374,6 +374,7 @@ export const RateLimitPresets = {
 } as const;
 
 // Freeze presets to prevent accidental mutation of security-critical thresholds
+// Note: `as const` makes the type readonly; Object.freeze adds runtime immutability for computed values
 Object.freeze(RateLimitPresets);
 Object.values(RateLimitPresets).forEach(Object.freeze);
 
