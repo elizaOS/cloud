@@ -118,8 +118,11 @@ describe("Referrals API", () => {
   );
 
   test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/referrals inactive code: same JSON shape as active (is_active false)",
+    "GET /api/v1/referrals validates JSON shape (active or inactive)",
     async () => {
+      // Note: In fresh test environments codes are always active; inactive branch
+      // requires a seeded fixture. We validate shape unconditionally since the
+      // payload structure is identical for both active and inactive codes.
       const res = await api.get("/api/v1/referrals", { authenticated: true });
       expect(res.status).toBe(200);
       const body = (await res.json()) as {
@@ -128,11 +131,9 @@ describe("Referrals API", () => {
         is_active: boolean;
       };
       expect(typeof body.is_active).toBe("boolean");
-      if (!body.is_active) {
-        expect(body.code.length).toBeGreaterThan(0);
-        expect(Number.isInteger(body.total_referrals)).toBe(true);
-        expect(body.total_referrals).toBeGreaterThanOrEqual(0);
-      }
+      expect(body.code.length).toBeGreaterThan(0);
+      expect(Number.isInteger(body.total_referrals)).toBe(true);
+      expect(body.total_referrals).toBeGreaterThanOrEqual(0);
     },
   );
 });
