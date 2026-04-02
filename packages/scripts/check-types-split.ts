@@ -50,6 +50,7 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
 
 async function getDirectoriesToCheck(): Promise<string[]> {
   const appSubdirs = await splitIntoSubdirectories("app");
+  // Split packages/lib into subdirectories for parallel type-checking to reduce CI time
   const libSubdirs = await splitIntoSubdirectories("packages/lib");
 
   return [
