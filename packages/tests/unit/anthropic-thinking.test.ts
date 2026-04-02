@@ -9,6 +9,7 @@ import {
   parseAnthropicCotBudgetMaxFromEnv,
   parseThinkingBudgetFromCharacterSettings,
   resolveAnthropicThinkingBudgetTokens,
+  supportsExtendedThinking,
 } from "@/lib/providers/anthropic-thinking";
 
 const COT_ENV_KEY = "ANTHROPIC_COT_BUDGET";
@@ -320,6 +321,50 @@ describe("parseThinkingBudgetFromCharacterSettings", () => {
 });
 
 
+
+describe("supportsExtendedThinking", () => {
+  test("returns true for Claude 3.5 Sonnet variants", () => {
+    expect(supportsExtendedThinking("claude-3-5-sonnet")).toBe(true);
+    expect(supportsExtendedThinking("anthropic/claude-3-5-sonnet")).toBe(true);
+    expect(supportsExtendedThinking("claude-3-5-sonnet-20241022")).toBe(true);
+  });
+
+  test("returns true for Claude 3.7 Sonnet", () => {
+    expect(supportsExtendedThinking("claude-3-7-sonnet")).toBe(true);
+    expect(supportsExtendedThinking("anthropic/claude-3-7-sonnet")).toBe(true);
+  });
+
+  test("returns true for Claude 3 Opus", () => {
+    expect(supportsExtendedThinking("claude-3-opus")).toBe(true);
+    expect(supportsExtendedThinking("anthropic/claude-3-opus")).toBe(true);
+  });
+
+  test("returns true for Claude Sonnet 4", () => {
+    expect(supportsExtendedThinking("claude-sonnet-4")).toBe(true);
+    expect(supportsExtendedThinking("anthropic/claude-sonnet-4")).toBe(true);
+  });
+
+  test("returns true for Claude Opus 4", () => {
+    expect(supportsExtendedThinking("claude-opus-4")).toBe(true);
+    expect(supportsExtendedThinking("anthropic/claude-opus-4")).toBe(true);
+  });
+
+  test("returns false for Claude Haiku (does not support thinking)", () => {
+    expect(supportsExtendedThinking("claude-3-haiku")).toBe(false);
+    expect(supportsExtendedThinking("anthropic/claude-3-haiku")).toBe(false);
+  });
+
+  test("returns false for non-Anthropic models", () => {
+    expect(supportsExtendedThinking("gpt-4")).toBe(false);
+    expect(supportsExtendedThinking("openai/gpt-4o")).toBe(false);
+    expect(supportsExtendedThinking("google/gemini-pro")).toBe(false);
+  });
+
+  test("is case-insensitive", () => {
+    expect(supportsExtendedThinking("CLAUDE-SONNET-4")).toBe(true);
+    expect(supportsExtendedThinking("Claude-3-5-Sonnet")).toBe(true);
+  });
+});
 
 describe("mergeProviderOptions", () => {
   test("empty + empty → {}", () => {
