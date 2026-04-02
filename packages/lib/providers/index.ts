@@ -7,6 +7,9 @@ import { GroqProvider } from "./groq";
 import type { AIProvider } from "./types";
 import { VercelGatewayProvider } from "./vercel-gateway";
 
+// Note: anthropic-thinking parse helpers (parseAnthropicCotBudgetFromEnv, etc.) are exported
+// as public API. Whitespace-only env values (e.g. "   ") will throw at startup rather than
+// silently disable thinking - this is intentional fail-fast behavior.
 export * from "./anthropic-thinking";
 export { GroqProvider } from "./groq";
 export * from "./types";
