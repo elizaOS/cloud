@@ -15,6 +15,7 @@ import { streamText } from "ai";
 import {
   mergeAnthropicCotProviderOptions,
   mergeGoogleImageModalitiesWithAnthropicCot,
+  resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
 import {
   calculateCost,
@@ -90,6 +91,11 @@ export async function executeSkillChatCompletion(
   }
 
   try {
+    // Resolve CoT budget once to compute both provider options and maxOutputTokens
+    const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+    // When thinking is enabled, maxOutputTokens must be >= budgetTokens or Anthropic API rejects
+    const effectiveMaxTokens = cotBudget != null ? Math.max(options.maxTokens ?? 4096, cotBudget) : options.maxTokens;
+
     const result = await streamText({
       model: gateway.languageModel(model),
       messages: messages.map((m) => ({
@@ -97,7 +103,8 @@ export async function executeSkillChatCompletion(
         content: m.content,
       })),
       ...options,
-      ...mergeAnthropicCotProviderOptions(model),
+      ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
+      ...(cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {}),
     });
 
     let fullText = "";
