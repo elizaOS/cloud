@@ -34,8 +34,11 @@ import type { CreditReservation } from "@/lib/services/credits";
 import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
-// Default minimum output tokens to allow for actual response generation
-const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
+/**
+ * Default minimum output tokens to allow for actual response generation.
+ * Consistent with A2A endpoint for credit estimation.
+ */
+export const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
 
 export const maxDuration = 60;
 
@@ -372,8 +375,9 @@ async function handleToolCall(
     }
 
     // Anthropic API requires maxOutputTokens >= budgetTokens when thinking is enabled
+    // Also need to reserve capacity for actual response generation beyond thinking
     const maxOutputTokens = effectiveThinkingBudget
-      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, effectiveThinkingBudget)
+      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, effectiveThinkingBudget) + DEFAULT_MIN_OUTPUT_TOKENS
       : undefined;
 
     try {
