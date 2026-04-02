@@ -49,26 +49,29 @@ export function HeaderInviteButton() {
     }
 
     setLoading(true);
-    const me = await resolveMe().catch((e: unknown) => {
-      const msg = e instanceof Error ? e.message : "Could not load invite link";
-      toast.error(msg);
-      return null;
-    });
-    setLoading(false);
+    try {
+      const me = await resolveMe().catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : "Could not load invite link";
+        toast.error(msg);
+        return null;
+      });
 
-    if (!me) return;
+      if (!me) return;
 
-    if (!me.is_active) {
-      toast.error("Your invite link is inactive and cannot be shared.");
-      return;
-    }
+      if (!me.is_active) {
+        toast.error("Your invite link is inactive and cannot be shared.");
+        return;
+      }
 
-    const url = buildReferralInviteLoginUrl(origin, me.code);
-    const ok = await copyTextToClipboard(url);
-    if (ok) {
-      toast.success("Invite link copied!");
-    } else {
-      toast.error("Could not copy to clipboard");
+      const url = buildReferralInviteLoginUrl(origin, me.code);
+      const ok = await copyTextToClipboard(url);
+      if (ok) {
+        toast.success("Invite link copied!");
+      } else {
+        toast.error("Could not copy to clipboard");
+      }
+    } finally {
+      setLoading(false);
     }
   }, [resolveMe]);
 
