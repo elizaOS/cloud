@@ -660,8 +660,10 @@ async function handleNonStream(
 ) {
   const provider = getProviderFromModel(model);
 
-  // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection
+  // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+  // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
+  const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
   const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens ?? 0, cotBudget) : request.max_tokens;
 
   try {
@@ -675,7 +677,7 @@ async function handleNonStream(
       ...safeParams,
       ...(tools ? { tools } : {}),
       ...(toolChoice ? { toolChoice } : {}),
-      ...mergeAnthropicCotProviderOptions(model, process.env, cotBudget ?? undefined),
+      ...cotOptions,
     });
 
     const billing = await billUsage(
@@ -790,8 +792,10 @@ async function handleStream(
   const provider = getProviderFromModel(model);
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
 
-  // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection
+  // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+  // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
+  const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
   const effectiveMaxTokens = cotBudget ? Math.max(request.max_tokens ?? 0, cotBudget) : request.max_tokens;
 
   const result = streamText({
@@ -804,7 +808,7 @@ async function handleStream(
     ...safeParams,
     ...(tools ? { tools } : {}),
     ...(toolChoice ? { toolChoice } : {}),
-    ...mergeAnthropicCotProviderOptions(model, process.env, cotBudget ?? undefined),
+    ...cotOptions,
     onFinish: async ({ text, totalUsage }) => {
       try {
         const billing = await billUsage(
