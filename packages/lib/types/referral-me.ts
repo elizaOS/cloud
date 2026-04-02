@@ -24,7 +24,9 @@ export function coerceNonNegativeIntegerCount(val: unknown): number | null {
   if (typeof val === "string") {
     const s = val.trim();
     if (!/^(0|[1-9]\d*)$/.test(s)) return null;
-    return parseInt(s, 10);
+    const n = parseInt(s, 10);
+    if (!Number.isSafeInteger(n)) return null;
+    return n;
   }
   if (typeof val === "bigint") {
     const n = Number(val);
