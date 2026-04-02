@@ -326,10 +326,7 @@ CRITICAL RULES:
           model: gateway.languageModel(model),
           system: finalSystemPrompt,
           messages,
-          // CoT explicitly disabled (0) to preserve temperature control for code generation.
-          // App Builder relies on temperature for creative variation; enabling CoT would
-          // silently drop temperature per @ai-sdk/anthropic behavior.
-          ...mergeAnthropicCotProviderOptions(model, 0),
+          ...mergeAnthropicCotProviderOptions(model, process.env, 0),
           tools: {
             install_packages: tool({
               description:
