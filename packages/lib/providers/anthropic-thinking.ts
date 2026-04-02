@@ -24,8 +24,8 @@ import type { CloudMergedProviderOptions } from "./cloud-provider-options";
 
 /**
  * Models that support Anthropic extended thinking.
- * Only Claude 3.5 Sonnet (new) and Claude 3 Opus support extended thinking.
- * Haiku, Instant, and older Claude 2 variants do not.
+ * Supported: Claude 3.5 Sonnet, Claude 3.7 Sonnet, Claude 3 Opus, Claude Sonnet 4, Claude Opus 4.
+ * Not supported: Haiku, Instant, and older Claude 2 variants.
  * Note: Patterns do not use ^ anchor to support provider-prefixed model IDs (e.g. "anthropic/claude-sonnet-4").
  */
 const EXTENDED_THINKING_MODEL_PATTERNS = [
