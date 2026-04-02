@@ -411,4 +411,15 @@ describe("mergeProviderOptions", () => {
       thinking: { type: "enabled", budgetTokens: 100 },
     });
   });
+
+  test("non-deep-merged provider key in both base and extra — extra clobbers base", () => {
+    // Note: Only gateway, anthropic, and google keys are deep-merged.
+    // Other provider keys (e.g. openai, mistral) are clobbered by outer spread.
+    const merged = mergeProviderOptions(
+      { providerOptions: { openai: { organizationId: "org-123", projectId: "proj-456" } } },
+      { providerOptions: { openai: { organizationId: "org-789" } } },
+    );
+    // The entire openai object from extra replaces base — projectId is lost
+    expect(merged.providerOptions.openai).toEqual({ organizationId: "org-789" });
+  });
 });
