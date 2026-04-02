@@ -9,7 +9,10 @@ import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { resolveModel } from "@/lib/models";
 import { estimateTokens } from "@/lib/pricing";
 import { getLanguageModel } from "@/lib/providers/language-model";
-import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
+import {
+  mergeAnthropicCotProviderOptions,
+  resolveAnthropicThinkingBudgetTokens,
+} from "@/lib/providers/anthropic-thinking";
 import { billUsage } from "@/lib/services/ai-billing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -284,6 +287,15 @@ async function handlePOST(req: NextRequest) {
     settleReservation = createCreditReservationSettler(reservation);
     const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
 
+    // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection.
+    // We use a minimum output capacity (e.g., 16000) to allow for actual response generation,
+    // not just the thinking budget. The effective max is the greater of this minimum and the budget.
+    const cotBudget = resolveAnthropicThinkingBudgetTokens(selectedModel, process.env);
+    const DEFAULT_MIN_OUTPUT_TOKENS = 16000;
+    const effectiveMaxOutputTokens = cotBudget
+      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, cotBudget)
+      : undefined;
+
     const result = streamText({
       model: getLanguageModel(selectedModel),
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
@@ -291,7 +303,8 @@ async function handlePOST(req: NextRequest) {
       messages: await convertToModelMessages(messages),
       abortSignal: req.signal,
       timeout: routeTimeoutMs,
-      ...mergeAnthropicCotProviderOptions(selectedModel),
+      ...(effectiveMaxOutputTokens ? { maxOutputTokens: effectiveMaxOutputTokens } : {}),
+      ...mergeAnthropicCotProviderOptions(selectedModel, process.env, cotBudget ?? undefined),
       onFinish: async ({ text, usage }) => {
         try {
           if (!usage) {
