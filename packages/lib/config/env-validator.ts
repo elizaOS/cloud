@@ -121,7 +121,7 @@ const ENV_VARS = {
   },
 
   RATE_LIMIT_MULTIPLIER: {
-    required: false,
+        pattern: /^\d+$/,
     failOnInvalid: true,
     description:
       "Multiplier for rate limit thresholds (e.g., 100 for 100x limits in dev). Defaults to 1 (production limits). Ignored in production.",
