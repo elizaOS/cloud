@@ -211,6 +211,10 @@ export function AffiliatesPageClient() {
                       return;
                     }
                     const url = buildReferralInviteLoginUrl(pageOrigin, referralMe.code);
+                    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+                      toast.error("Copy to clipboard is not supported in this browser");
+                      return;
+                    }
                     const ok = await copyTextToClipboard(url);
                     if (ok) {
                       setReferralCopied(true);
