@@ -91,7 +91,7 @@ mock.module("@/db/client", () => ({
   },
 }));
 
-mock.module("@/db/repositories/users", () =>
+mock.module("@/db/repositories", () =>
   stubUsersRepositoryModule({
     usersRepository: {
       listByOrganization: mockListByOrganization,
