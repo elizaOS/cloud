@@ -448,8 +448,9 @@ async function handleStreamingRequest(
   });
 
   // Anthropic extended thinking: ANTHROPIC_COT_BUDGET (>0); @ai-sdk/anthropic strips temp/topP/topK when thinking is on.
+  // Resolve budget once and pass to mergeAnthropicCotProviderOptions to avoid redundant resolution.
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-  const cotOptions = mergeAnthropicCotProviderOptions(model);
+  const cotOptions = mergeAnthropicCotProviderOptions(model, process.env, cotBudget ?? undefined);
   const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
 
   const result = streamText({
@@ -621,8 +622,9 @@ async function handleNonStreamingRequest(
   });
 
   try {
+    // Resolve budget once and pass to mergeAnthropicCotProviderOptions to avoid redundant resolution.
     const cotBudgetNonStream = resolveAnthropicThinkingBudgetTokens(model, process.env);
-    const cotOptionsNonStream = mergeAnthropicCotProviderOptions(model);
+    const cotOptionsNonStream = mergeAnthropicCotProviderOptions(model, process.env, cotBudgetNonStream ?? undefined);
     const effectiveMaxTokensNonStream = computeEffectiveMaxTokens(request.max_tokens, cotBudgetNonStream);
 
     const result = await generateText({
