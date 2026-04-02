@@ -29,8 +29,8 @@ import type { CloudMergedProviderOptions } from "./cloud-provider-options";
  * Note: Patterns do not use ^ anchor to support provider-prefixed model IDs (e.g. "anthropic/claude-sonnet-4").
  */
 const EXTENDED_THINKING_MODEL_PATTERNS = [
-  /claude-3-5-sonnet/, // Claude 3.5 Sonnet (all versions)
-  /claude-3-7-sonnet/, // Claude 3.7 Sonnet
+  /claude-3[.-]5-sonnet/, // Claude 3.5 Sonnet (all versions, hyphen or dot)
+  /claude-3[.-]7-sonnet/, // Claude 3.7 Sonnet (hyphen or dot)
   /claude-3-opus/, // Claude 3 Opus
   /claude-sonnet-4/, // Claude Sonnet 4
   /claude-opus-4/, // Claude Opus 4
