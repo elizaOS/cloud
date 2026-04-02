@@ -307,11 +307,18 @@ export function withRateLimit<T = Record<string, string>>(
  * Allows local developers to increase limits without code changes.
  * Set RATE_LIMIT_MULTIPLIER=100 in .env.local to effectively disable limits during dev.
  * Default is 1 (production-level limits).
+ *
+ * NOTE: Multiplier is ignored in production (NODE_ENV=production) to prevent
+ * accidental rate limit inflation from leftover staging/dev configuration.
  */
 function getRateLimitMultiplier(): number {
+  // In production, always enforce strict rate limits (multiplier = 1)
+  if (process.env.NODE_ENV === "production") {
+    return 1;
+  }
   const multiplier = process.env.RATE_LIMIT_MULTIPLIER;
   if (!multiplier) return 1;
-  const parsed = Number.parseInt(multiplier, 10);
+  const parsed = Math.floor(Number.parseFloat(multiplier));
   return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
 }
 
