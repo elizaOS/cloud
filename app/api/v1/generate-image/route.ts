@@ -364,20 +364,13 @@ async function handlePOST(req: NextRequest) {
 
       try {
         // Image generation endpoints do not use extended thinking (CoT).
-        // Google models need responseModalities for image output.
-        // Note: This assumes Google model IDs start with "google/". If a gateway alias
-        // routes to a Google model without this prefix, responseModalities will be omitted
-        // and image generation may fail silently with no image in the response.
-        const isGoogleModel = imageModel.startsWith("google/");
-        if (!isGoogleModel && !imageModel.startsWith("openai/") && !imageModel.startsWith("bfl/")) {
-          logger.warn("[Generate Image] Model may be a gateway alias; responseModalities not applied", {
-            model: imageModel,
-            hint: "If this is a Google model alias, image generation may fail silently",
-          });
-        }
-        const providerOpts = isGoogleModel
-          ? { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } }
-          : {};
+        // Always include responseModalities for image output - this endpoint is exclusively
+        // for image generation, so it's safe to always request IMAGE modality. This avoids
+        // silent failures when gateway aliases route to Google models without the "google/" prefix.
+        const isOpenAIModel = imageModel.startsWith("openai/");
+        const providerOpts = isOpenAIModel
+          ? {}
+          : { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } };
         const result = streamText({ ...streamConfig, ...providerOpts });
 
         for await (const delta of result.fullStream) {
