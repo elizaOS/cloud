@@ -260,9 +260,9 @@ Return ONLY valid JSON, no markdown.`;
       temperature: 0.7,
       prompt,
       // Note: When ANTHROPIC_COT_BUDGET is set, @ai-sdk/anthropic silently strips temperature,
-  // topP, and topK when extended thinking is active. Temperature settings below may be
-  // ignored if CoT is enabled for this model.
-  ...mergeAnthropicCotProviderOptions(promoModel, process.env, 0),
+      // topP, and topK when extended thinking is active. Temperature settings below may be
+      // ignored if CoT is enabled for this model.
+      ...mergeAnthropicCotProviderOptions(promoModel, process.env, 0),
     });
 
     // Parse and validate the AI response
