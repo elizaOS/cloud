@@ -48,7 +48,7 @@ function computeEffectiveMaxTokens(
   requestMaxTokens: number | undefined,
   cotBudget: number | null,
 ): number | undefined {
-  if (cotBudget) {
+  if (cotBudget !== null) {
     // When CoT is active, ensure max_tokens >= budgetTokens (Anthropic API requirement)
     return Math.max(requestMaxTokens ?? 0, cotBudget);
   }
