@@ -68,8 +68,7 @@ export function getMiladyAgentPublicWebUiUrl(
   options: MiladyWebUiUrlOptions = {},
 ): string | null {
   const rawOpt = options.baseDomain;
-  const baseDomainOptionSupplied =
-    Object.hasOwn(options, "baseDomain") && rawOpt !== undefined;
+  const baseDomainOptionSupplied = Object.hasOwn(options, "baseDomain") && rawOpt !== undefined;
 
   if (baseDomainOptionSupplied) {
     const explicit = normalizeAgentBaseDomain(rawOpt);
