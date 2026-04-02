@@ -39,6 +39,18 @@ import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
 
+/**
+ * Computes effective max_tokens when Anthropic CoT is enabled.
+ * When thinking is active, max_tokens must be >= budgetTokens or Anthropic API rejects.
+ */
+function computeEffectiveMaxTokens(
+  requestMaxTokens: number | undefined,
+  cotBudget: number | null,
+): number | undefined {
+  if (!requestMaxTokens) return undefined;
+  return cotBudget ? Math.max(requestMaxTokens, cotBudget) : requestMaxTokens;
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -432,13 +444,9 @@ async function handleStreamingRequest(
   });
 
   // Anthropic extended thinking: ANTHROPIC_COT_BUDGET (>0); @ai-sdk/anthropic strips temp/topP/topK when thinking is on.
-  // Note: If ANTHROPIC_COT_BUDGET is set, max_tokens must be >= budgetTokens or Anthropic API rejects the request.
-  // We adjust maxOutputTokens to be at least the CoT budget to avoid breaking existing API consumers.
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model);
   const cotOptions = mergeAnthropicCotProviderOptions(model);
-  const effectiveMaxTokens = request.max_tokens
-    ? (cotBudget ? Math.max(request.max_tokens, cotBudget) : request.max_tokens)
-    : undefined;
+  const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
 
   const result = streamText({
     model: getLanguageModel(model),
@@ -609,13 +617,9 @@ async function handleNonStreamingRequest(
   });
 
   try {
-    // Note: If ANTHROPIC_COT_BUDGET is set, max_tokens must be >= budgetTokens or Anthropic API rejects the request.
-    // We adjust maxOutputTokens to be at least the CoT budget to avoid breaking existing API consumers.
     const cotBudgetNonStream = resolveAnthropicThinkingBudgetTokens(model);
     const cotOptionsNonStream = mergeAnthropicCotProviderOptions(model);
-    const effectiveMaxTokensNonStream = request.max_tokens
-      ? (cotBudgetNonStream ? Math.max(request.max_tokens, cotBudgetNonStream) : request.max_tokens)
-      : undefined;
+    const effectiveMaxTokensNonStream = computeEffectiveMaxTokens(request.max_tokens, cotBudgetNonStream);
 
     const result = await generateText({
       model: getLanguageModel(model),
