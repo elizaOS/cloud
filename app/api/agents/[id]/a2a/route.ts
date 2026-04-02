@@ -302,7 +302,7 @@ async function handleChat(
   const effectiveThinkingBudget = resolveAnthropicThinkingBudgetTokens(
     model,
     process.env,
-    agentThinkingBudget ?? undefined,
+    agentThinkingBudget,
   );
   // Add thinking budget to base output estimate (500 tokens) to match MCP route behavior
   const maxOutputTokens = effectiveThinkingBudget != null ? 500 + effectiveThinkingBudget : undefined;
@@ -341,11 +341,7 @@ async function handleChat(
     const result = await streamText({
       model: gateway.languageModel(model),
       messages: fullMessages,
-      ...mergeAnthropicCotProviderOptions(
-        model,
-        process.env,
-        agentThinkingBudget,
-      ),
+      ...mergeAnthropicCotProviderOptions(model, process.env, agentThinkingBudget),
     });
 
     let fullText = "";
