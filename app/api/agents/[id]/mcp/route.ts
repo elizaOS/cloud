@@ -28,6 +28,9 @@ import {
   parseThinkingBudgetFromCharacterSettings,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
+
+// Default minimum output tokens to allow for actual response generation
+const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
@@ -368,10 +371,16 @@ async function handleToolCall(
       throw error;
     }
 
+    // Anthropic API requires maxOutputTokens >= budgetTokens when thinking is enabled
+    const maxOutputTokens = effectiveThinkingBudget
+      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, effectiveThinkingBudget)
+      : undefined;
+
     try {
       const result = await streamText({
         model: gateway.languageModel(model),
         messages,
+        ...(maxOutputTokens && { maxOutputTokens }),
         ...mergeAnthropicCotProviderOptions(
           model,
           process.env,
