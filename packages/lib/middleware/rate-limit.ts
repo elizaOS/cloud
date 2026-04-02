@@ -371,7 +371,11 @@ export const RateLimitPresets = {
     maxRequests: 100 * rateLimitMultiplier,
     keyGenerator: getIpKey,
   },
-};
+} as const;
+
+// Freeze presets to prevent accidental mutation of security-critical thresholds
+Object.freeze(RateLimitPresets);
+Object.values(RateLimitPresets).forEach(Object.freeze);
 
 /**
  * Cost-based rate limiting for expensive operations
