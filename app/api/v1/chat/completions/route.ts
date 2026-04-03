@@ -354,9 +354,9 @@ async function handlePOST(req: NextRequest) {
     });
 
     // 8. Resolve Anthropic CoT budget once (shared by streaming and non-streaming paths)
-    // Note: cotBudget is resolved once here and passed to mergeAnthropicCotProviderOptions to avoid redundant resolution
+    // Note: mergeAnthropicCotProviderOptions re-resolves internally but short-circuits env parsing when budget is passed
     const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-    const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, {}, cotBudget) : {};
+    const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
     const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
 
     // 9. Handle streaming vs non-streaming
@@ -472,7 +472,7 @@ async function handleStreamingRequest(
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
-    ...(effectiveMaxTokens && { maxOutputTokens: effectiveMaxTokens }),
+    ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
     ...cotOptions,
     onFinish: async ({ text, usage }) => {
       try {
@@ -644,7 +644,7 @@ async function handleNonStreamingRequest(
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
-      ...(effectiveMaxTokens && { maxOutputTokens: effectiveMaxTokens }),
+      ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
       ...cotOptions,
     });
 
