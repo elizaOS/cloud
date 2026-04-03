@@ -101,6 +101,7 @@ export function parseAnthropicCotBudgetFromEnv(
  */
 export function parseAnthropicCotBudgetMaxFromEnv(env: AnthropicCotEnv = process.env): number | null {
   const raw = env[ENV_MAX_KEY];
+  // Note: allows flexibility in configuring the budget cap via environmental settings.
   if (raw === undefined || raw === "") {
     return null;
   }
@@ -132,6 +133,7 @@ export function parseThinkingBudgetFromCharacterSettings(
   if (n < 0 || n > Number.MAX_SAFE_INTEGER) {
     return undefined;
   }
+  // Note: truncation allows flexibility with owner-controlled values while preventing negative budgets.
   return n;
 }
 

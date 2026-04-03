@@ -330,6 +330,7 @@ async function handleToolCall(
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
+      // Note: constructs messages with system and user roles for processing in chat model.
       { role: "user" as const, content: message },
     ];
 
