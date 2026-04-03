@@ -665,8 +665,8 @@ async function handleNonStream(
   // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
   const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
   // When CoT is active, max_tokens must include room for both thinking AND response tokens
-  const MIN_RESPONSE_BUFFER = 1000;
-  const effectiveMaxTokens = cotBudget
+  const MIN_RESPONSE_BUFFER = 4096;
+  const effectiveMaxTokens = cotBudget != null
     ? Math.max(request.max_tokens ?? MIN_RESPONSE_BUFFER, cotBudget + MIN_RESPONSE_BUFFER)
     : request.max_tokens;
 
@@ -801,8 +801,8 @@ async function handleStream(
   // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
   const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
   // When CoT is active, max_tokens must include room for both thinking AND response tokens
-  const MIN_RESPONSE_BUFFER = 1000;
-  const effectiveMaxTokens = cotBudget
+  const MIN_RESPONSE_BUFFER = 4096;
+  const effectiveMaxTokens = cotBudget != null
     ? Math.max(request.max_tokens ?? MIN_RESPONSE_BUFFER, cotBudget + MIN_RESPONSE_BUFFER)
     : request.max_tokens;
 
