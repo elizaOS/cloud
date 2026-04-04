@@ -148,9 +148,9 @@ jobs:
             fi
             
             # Fetch and checkout
-            git fetch origin
-            git checkout ${{ needs.determine-env.outputs.branch }}
-            git pull origin ${{ needs.determine-env.outputs.branch }}
+            BRANCH="${{ needs.determine-env.outputs.branch }}"
+            git fetch origin "$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
             
             # Install and build
             export BUN_INSTALL="$HOME/.bun"

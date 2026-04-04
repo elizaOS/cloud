@@ -7,8 +7,10 @@ const mockLinkUserToAffiliate = mock();
 const mockGetAffiliateCodeByUserId = mock();
 const mockCreateAffiliateCodeIfNotExists = mock();
 const mockUpdateAffiliateCode = mock();
+const { AffiliatesRepository } = await import("@/db/repositories/affiliates");
 
 mock.module("@/db/repositories/affiliates", () => ({
+  AffiliatesRepository,
   affiliatesRepository: {
     getAffiliateCodeByCode: mockGetAffiliateCodeByCode,
     getAffiliateCodeById: mockGetAffiliateCodeById,

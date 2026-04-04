@@ -13,12 +13,14 @@ const mockLoggerError = mock();
 const mockLoggerWarn = mock();
 const mockLoggerInfo = mock();
 const mockLoggerDebug = mock();
+const { AffiliatesRepository } = await import("@/db/repositories/affiliates");
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
 }));
 
 mock.module("@/db/repositories/affiliates", () => ({
+  AffiliatesRepository,
   affiliatesRepository: {
     getAffiliateCodeById: mockGetAffiliateCodeById,
     getUserAffiliate: mockGetUserAffiliate,

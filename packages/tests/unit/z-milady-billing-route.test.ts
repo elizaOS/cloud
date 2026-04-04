@@ -28,6 +28,7 @@ const txUpdateSetCalls: Array<Record<string, unknown>> = [];
 const writeUpdateSetCalls: Array<Record<string, unknown>> = [];
 let previousCronSecret: string | undefined;
 let previousAppUrl: string | undefined;
+const realRepositoriesModule = await import("@/db/repositories");
 
 function createReadBuilder(result: unknown[]) {
   return {
@@ -109,10 +110,13 @@ function registerMiladyBillingMocks(): void {
   }));
 
   mock.module("@/db/repositories", () =>
-    stubUsersRepositoryModule({
-      usersRepository: {
-        listByOrganization: mockListByOrganization,
-      },
+    ({
+      ...realRepositoriesModule,
+      ...stubUsersRepositoryModule({
+        usersRepository: {
+          listByOrganization: mockListByOrganization,
+        },
+      }),
     }),
   );
 

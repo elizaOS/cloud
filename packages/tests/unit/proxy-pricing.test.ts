@@ -7,6 +7,7 @@ const mockListByService = mock();
 const mockLoggerError = mock();
 const mockLoggerWarn = mock();
 const mockLoggerInfo = mock();
+const { ServicePricingRepository } = await import("@/db/repositories/service-pricing");
 
 mock.module("@/lib/cache/client", () => ({
   cache: {
@@ -17,7 +18,8 @@ mock.module("@/lib/cache/client", () => ({
   },
 }));
 
-mock.module("@/db/repositories", () => ({
+mock.module("@/db/repositories/service-pricing", () => ({
+  ServicePricingRepository,
   servicePricingRepository: {
     listByService: mockListByService,
   },
