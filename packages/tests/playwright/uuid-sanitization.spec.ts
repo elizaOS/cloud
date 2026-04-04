@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /**
  * UUID Sanitization E2E Tests
@@ -14,6 +14,16 @@ import { expect, test } from "@playwright/test";
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
+async function gotoDashboardChat(page: Page, search: string) {
+  const response = await page.goto(`${BASE_URL}/dashboard/chat${search}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.locator("body")).toContainText("Create New Agent");
+
+  return response;
+}
+
 test.describe("UUID Sanitization - Dashboard Chat", () => {
   test.describe("Malformed characterId Handling", () => {
     test("dashboard chat handles characterId with trailing backslash", async ({ page }) => {
@@ -21,7 +31,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       // URL: ?characterId=17c8b876-86a0-465d-9794-2aea244f4239%5C
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C"; // %5C = backslash
 
-      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=${malformedId}`);
+      const response = await gotoDashboardChat(page, `?characterId=${malformedId}`);
 
       // Should NOT return 500 (the original bug)
       expect(response?.status()).not.toBe(500);
@@ -33,7 +43,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
     test("dashboard chat handles characterId with double backslash", async ({ page }) => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C%5C";
 
-      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=${malformedId}`);
+      const response = await gotoDashboardChat(page, `?characterId=${malformedId}`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
@@ -42,21 +52,21 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
     test("dashboard chat handles characterId with trailing forward slash", async ({ page }) => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%2F"; // %2F = forward slash
 
-      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=${malformedId}`);
+      const response = await gotoDashboardChat(page, `?characterId=${malformedId}`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
     });
 
     test("dashboard chat handles completely invalid characterId", async ({ page }) => {
-      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=not-a-valid-uuid`);
+      const response = await gotoDashboardChat(page, "?characterId=not-a-valid-uuid");
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
     });
 
     test("dashboard chat handles empty characterId", async ({ page }) => {
-      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=`);
+      const response = await gotoDashboardChat(page, "?characterId=");
 
       expect(response?.status()).toBe(200);
     });
@@ -65,7 +75,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       // Valid UUID that likely doesn't exist - should still not 500
       const validUuid = "00000000-0000-4000-8000-000000000000";
 
-      const response = await page.goto(`${BASE_URL}/dashboard/chat?characterId=${validUuid}`);
+      const response = await gotoDashboardChat(page, `?characterId=${validUuid}`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
@@ -76,14 +86,14 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
     test("dashboard chat handles roomId with trailing backslash", async ({ page }) => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C";
 
-      const response = await page.goto(`${BASE_URL}/dashboard/chat?roomId=${malformedId}`);
+      const response = await gotoDashboardChat(page, `?roomId=${malformedId}`);
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
     });
 
     test("dashboard chat handles invalid roomId", async ({ page }) => {
-      const response = await page.goto(`${BASE_URL}/dashboard/chat?roomId=invalid-room-id`);
+      const response = await gotoDashboardChat(page, "?roomId=invalid-room-id");
 
       expect(response?.status()).not.toBe(500);
       expect(response?.status()).toBe(200);
@@ -96,8 +106,8 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       page.on("pageerror", (err) => errors.push(err.message));
 
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C";
-      await page.goto(`${BASE_URL}/dashboard/chat?characterId=${malformedId}`);
-      await page.waitForLoadState("networkidle");
+      await gotoDashboardChat(page, `?characterId=${malformedId}`);
+      await page.waitForTimeout(500);
 
       // Filter out known non-critical errors
       const criticalErrors = errors.filter(
@@ -118,8 +128,9 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       // Attempt SQL injection via characterId parameter
       const maliciousId = "'; DROP TABLE users; --";
 
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${encodeURIComponent(maliciousId)}`,
+      const response = await gotoDashboardChat(
+        page,
+        `?characterId=${encodeURIComponent(maliciousId)}`,
       );
 
       // Should not return 500 (SQL error)
@@ -130,8 +141,9 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
     test("dashboard chat safely handles unicode in characterId", async ({ page }) => {
       const unicodeId = "test-id-\u0000-null-byte";
 
-      const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${encodeURIComponent(unicodeId)}`,
+      const response = await gotoDashboardChat(
+        page,
+        `?characterId=${encodeURIComponent(unicodeId)}`,
       );
 
       expect(response?.status()).not.toBe(500);
