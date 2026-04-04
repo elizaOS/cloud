@@ -109,16 +109,14 @@ function registerMiladyBillingMocks(): void {
     },
   }));
 
-  mock.module("@/db/repositories", () =>
-    ({
-      ...realRepositoriesModule,
-      ...stubUsersRepositoryModule({
-        usersRepository: {
-          listByOrganization: mockListByOrganization,
-        },
-      }),
+  mock.module("@/db/repositories", () => ({
+    ...realRepositoriesModule,
+    ...stubUsersRepositoryModule({
+      usersRepository: {
+        listByOrganization: mockListByOrganization,
+      },
     }),
-  );
+  }));
 
   mock.module("@/lib/services/email", () => ({
     emailService: {
