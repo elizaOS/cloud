@@ -45,12 +45,15 @@ const mockUpsert = vi.mocked(servicePricingRepository.upsert);
 const mockInvalidateCache = vi.mocked(invalidateServicePricingCache);
 
 function createRequest(method: string, url: string, body?: unknown): NextRequest {
-  const init: RequestInit = { method };
+  const u = new URL(url, "http://localhost");
   if (body) {
-    init.body = JSON.stringify(body);
-    init.headers = { "Content-Type": "application/json" };
+    return new NextRequest(u, {
+      method,
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
   }
-  return new NextRequest(new URL(url, "http://localhost"), init);
+  return new NextRequest(u, { method });
 }
 
 describe("Service Pricing Admin API - Integration", () => {

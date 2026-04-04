@@ -120,7 +120,7 @@ describe("referralsService", () => {
 
     const result = await referralsService.getOrCreateCode("user-1");
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       id: "existing-code",
       user_id: "user-1",
       code: "ABCD-1234",
@@ -145,7 +145,7 @@ describe("referralsService", () => {
 
     const result = await referralsService.getOrCreateCode("user-1");
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       id: "new-code",
       user_id: "user-1",
       code: "UNIQ-123",

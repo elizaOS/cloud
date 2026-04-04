@@ -567,7 +567,7 @@ describe("ProvisioningJobService", () => {
         ok: true,
         status: 200,
       });
-      global.fetch = mockFetch;
+      global.fetch = mockFetch as unknown as typeof fetch;
 
       await service.processPendingJobs(5);
 
@@ -622,7 +622,7 @@ describe("ProvisioningJobService", () => {
       );
 
       const mockFetch = vi.fn();
-      global.fetch = mockFetch as typeof fetch;
+      global.fetch = mockFetch as unknown as typeof fetch;
 
       await service.processPendingJobs(5);
 

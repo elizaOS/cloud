@@ -31,6 +31,10 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import {
+  resolveAnthropicThinkingBudgetTokens,
+  mergeAnthropicCotProviderOptions,
+} from "@/lib/providers/anthropic-thinking";
+import {
   billUsage,
   estimateInputTokens,
   InsufficientCreditsError,
@@ -656,17 +660,28 @@ async function handleNonStream(
 ) {
   const provider = getProviderFromModel(model);
 
+  // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
+  const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+  // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
+  const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
+  // When CoT is active, max_tokens must include room for both thinking AND response tokens
+  const MIN_RESPONSE_BUFFER = 4096;
+  const effectiveMaxTokens = cotBudget != null
+    ? Math.max(request.max_tokens ?? MIN_RESPONSE_BUFFER, cotBudget + MIN_RESPONSE_BUFFER)
+    : request.max_tokens;
+
   try {
     const result = await generateText({
       model: gateway.languageModel(model),
       system: systemPrompt,
       messages,
-      maxOutputTokens: request.max_tokens,
+      maxOutputTokens: effectiveMaxTokens,
       abortSignal,
       timeout: timeoutMs,
       ...safeParams,
       ...(tools ? { tools } : {}),
       ...(toolChoice ? { toolChoice } : {}),
+      ...cotOptions,
     });
 
     const billing = await billUsage(
@@ -781,16 +796,27 @@ async function handleStream(
   const provider = getProviderFromModel(model);
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
 
+  // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
+  const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+  // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
+  const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
+  // When CoT is active, max_tokens must include room for both thinking AND response tokens
+  const MIN_RESPONSE_BUFFER = 4096;
+  const effectiveMaxTokens = cotBudget != null
+    ? Math.max(request.max_tokens ?? MIN_RESPONSE_BUFFER, cotBudget + MIN_RESPONSE_BUFFER)
+    : request.max_tokens;
+
   const result = streamText({
     model: gateway.languageModel(model),
     system: systemPrompt,
     messages,
-    maxOutputTokens: request.max_tokens,
+    maxOutputTokens: effectiveMaxTokens,
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
     ...(tools ? { tools } : {}),
     ...(toolChoice ? { toolChoice } : {}),
+    ...cotOptions,
     onFinish: async ({ text, totalUsage }) => {
       try {
         const billing = await billUsage(

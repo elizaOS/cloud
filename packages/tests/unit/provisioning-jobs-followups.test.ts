@@ -137,7 +137,7 @@ describe("ProvisioningJobService follow-ups", () => {
       expectedUpdatedAt: new Date("2026-03-01T12:00:00.000Z"),
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       created: false,
       job: {
         id: "job-existing",

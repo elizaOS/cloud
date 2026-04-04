@@ -1,17 +1,30 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import crypto from "crypto";
 
-const dbReadFindFirst = mock(async () => null);
-const dbWriteFindFirst = mock(async () => null);
-const insertReturning = mock(async () => []);
-const loggerWarn = mock(() => undefined);
-const loggerInfo = mock(() => undefined);
-const loggerError = mock(() => undefined);
+type OrgEncryptionKeyRow = {
+  id: string;
+  organization_id: string;
+  encrypted_dek: string;
+  key_version: number;
+  rotated_at: null;
+};
+
+type FindFirstOptions = {
+  where?: Record<string, string>;
+  orderBy?: Record<string, string>;
+};
+
+const dbReadFindFirst = mock(async (_opts: FindFirstOptions): Promise<OrgEncryptionKeyRow | null> => null);
+const dbWriteFindFirst = mock(async (_opts: FindFirstOptions): Promise<OrgEncryptionKeyRow | null> => null);
+const insertReturning = mock(async (): Promise<OrgEncryptionKeyRow[]> => []);
+const loggerWarn = mock((..._args: string[]) => undefined);
+const loggerInfo = mock((..._args: string[]) => undefined);
+const loggerError = mock((..._args: string[]) => undefined);
 
 const mockDbRead = {
   query: {
     organizationEncryptionKeys: {
-      findFirst: (...args: unknown[]) => dbReadFindFirst(...args),
+      findFirst: (opts: FindFirstOptions) => dbReadFindFirst(opts),
     },
   },
 };
@@ -19,7 +32,7 @@ const mockDbRead = {
 const mockDbWrite = {
   query: {
     organizationEncryptionKeys: {
-      findFirst: (...args: unknown[]) => dbWriteFindFirst(...args),
+      findFirst: (opts: FindFirstOptions) => dbWriteFindFirst(opts),
     },
   },
   insert: () => ({
@@ -43,9 +56,15 @@ mock.module("@/db/helpers", () => ({
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {
-    warn: (...args: unknown[]) => loggerWarn(...args),
-    info: (...args: unknown[]) => loggerInfo(...args),
-    error: (...args: unknown[]) => loggerError(...args),
+    warn: (...args: string[]) => {
+      loggerWarn(...args);
+    },
+    info: (...args: string[]) => {
+      loggerInfo(...args);
+    },
+    error: (...args: string[]) => {
+      loggerError(...args);
+    },
   },
 }));
 
@@ -62,7 +81,7 @@ function wrapDekForTest(dek: Buffer, masterKeyHex: string): string {
   );
 }
 
-function createOrgKey(overrides: Partial<Record<string, unknown>> = {}) {
+function createOrgKey(overrides: Partial<OrgEncryptionKeyRow> = {}): OrgEncryptionKeyRow {
   return {
     id: "key-1",
     organization_id: "org-1",

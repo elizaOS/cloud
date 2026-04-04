@@ -6,6 +6,18 @@ High-level direction and rationale. Dates are targets, not commitments.
 
 ## Done
 
+### Anthropic extended thinking (per agent + env) (Mar 2026)
+
+- **What:** `user_characters.settings.anthropicThinkingBudgetTokens` sets thinking per cloud agent (MCP/A2A chat). `ANTHROPIC_COT_BUDGET` is the default when that key is omitted; `ANTHROPIC_COT_BUDGET_MAX` optionally caps any effective budget.
+- **Why:** Agent owners control inference policy without redeploying; request bodies must not carry budgets (untrusted clients). Env default + max give operators baseline and cost bounds.
+- **Docs:** [docs/anthropic-cot-budget.md](./anthropic-cot-budget.md)
+
+### Unit tests: Milady `MILADY_PRICING` and billing cron (Mar 2026)
+
+- **What:** Shared `mockMiladyPricingMinimumDepositForRouteTests()`; Milady billing cron tests use stable DB mocks; `package.json` script paths updated for the renamed test file.
+- **Why:** Replacing `@/lib/constants/milady-pricing` with only `{ MINIMUM_DEPOSIT }` stripped hourly rates and warning thresholds for **every later importer in the same Bun process**, so billing cron assertions failed only when the full unit tree ran. Spreading real constants preserves cross-module correctness.
+- **Docs:** [docs/unit-testing-milady-mocks.md](./unit-testing-milady-mocks.md)
+
 ### Anthropic Messages API compatibility (Jan 2026)
 
 - **What:** POST `/api/v1/messages` with Anthropic request/response format, tools, streaming SSE.
@@ -15,6 +27,11 @@ High-level direction and rationale. Dates are targets, not commitments.
 ---
 
 ## Near term
+
+### Per-agent Anthropic thinking: UX and coverage
+
+- **Dashboard / character editor** — Expose `settings.anthropicThinkingBudgetTokens` with copy that explains cost vs quality tradeoffs. *Why: today the field is JSON-only; most creators will not discover it from docs alone.*
+- **Room- or conversation-scoped chat** — When `/api/v1/chat` (or eliza runtime paths) resolve a `user_characters` row, thread the same `parseThinkingBudgetFromCharacterSettings` + merge helpers. *Why: parity between “chat in app” and “chat via MCP/A2A” for the same agent.*
 
 ### Messages API: extended compatibility
 

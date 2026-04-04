@@ -127,7 +127,7 @@ describe("Provider Registry", () => {
       });
 
       it("should have empty callback route (API key platforms)", () => {
-        expect(twilio.routes.callback).toBe("");
+        expect(twilio.routes!.callback).toBe("");
       });
     });
 

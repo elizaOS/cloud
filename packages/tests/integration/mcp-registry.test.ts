@@ -16,7 +16,7 @@ const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
 // The registry route pulls in a large dependency graph and can exceed the
 // default request timeout on cold CI webpack compilations.
 const TIMEOUT = 30000;
-const test = (name: string, fn: () => unknown | Promise<unknown>) => bunTest(name, fn, TIMEOUT);
+const test = (name: string, fn: () => void | Promise<void>) => bunTest(name, fn, TIMEOUT);
 
 interface McpRegistryEntry {
   id: string;

@@ -138,12 +138,12 @@ describe("Cross-Service Concurrent Operations", () => {
       // Mix of operations that touch BOTH credits AND budgets
       const operations = [
         // Direct credit operations
+        // Note: source field intentionally omitted - addCredits API no longer requires it
         ...Array.from({ length: 5 }, () =>
           creditsService.addCredits({
             organizationId: orgId,
             amount: 10,
             description: "Stress add",
-            source: "manual",
           }),
         ),
         ...Array.from({ length: 10 }, () =>

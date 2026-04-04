@@ -21,6 +21,7 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import { getLanguageModel } from "@/lib/providers/language-model";
+import { mergeAnthropicCotProviderOptions, resolveAnthropicThinkingBudgetTokens } from "@/lib/providers/anthropic-thinking";
 import {
   billUsage,
   estimateInputTokens,
@@ -37,6 +38,26 @@ import { logger } from "@/lib/utils/logger";
 import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
+
+// Minimum tokens to reserve for actual response generation when CoT is active
+const MIN_RESPONSE_TOKENS = 4096;
+
+/**
+ * Computes effective max_tokens when Anthropic CoT is enabled.
+ * When thinking is active, max_tokens must be >= budgetTokens or Anthropic API rejects.
+ * Additionally, we must reserve capacity for the actual response (not just thinking).
+ */
+function computeEffectiveMaxTokens(
+  requestMaxTokens: number | undefined,
+  cotBudget: number | null,
+): number | undefined {
+  if (cotBudget !== null) {
+    // When CoT is active, ensure max_tokens covers both thinking budget AND response capacity
+    // Without this, thinking consumes all tokens leaving nothing for the actual response
+    return Math.max(requestMaxTokens ?? MIN_RESPONSE_TOKENS, cotBudget + MIN_RESPONSE_TOKENS);
+  }
+  return requestMaxTokens;
+}
 
 // ============================================================================
 // Types
@@ -332,7 +353,13 @@ async function handlePOST(req: NextRequest) {
       estimatedInputTokens,
     });
 
-    // 8. Handle streaming vs non-streaming
+    // 8. Resolve Anthropic CoT budget once (shared by streaming and non-streaming paths)
+    // Note: mergeAnthropicCotProviderOptions re-resolves internally but short-circuits env parsing when budget is passed
+    const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+    const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
+    const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
+
+    // 9. Handle streaming vs non-streaming
     if (request.stream) {
       return handleStreamingRequest(
         model,
@@ -347,6 +374,9 @@ async function handlePOST(req: NextRequest) {
         req.signal,
         routeTimeoutMs,
         settleReservation,
+        cotBudget,
+        cotOptions,
+        effectiveMaxTokens,
       );
     } else {
       return handleNonStreamingRequest(
@@ -362,6 +392,8 @@ async function handlePOST(req: NextRequest) {
         req.signal,
         routeTimeoutMs,
         settleReservation,
+        cotOptions,
+        effectiveMaxTokens,
       );
     }
   } catch (error) {
@@ -415,6 +447,9 @@ async function handleStreamingRequest(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
+  cotBudget: number | null,
+  cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
+  effectiveMaxTokens: number | undefined,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -437,7 +472,8 @@ async function handleStreamingRequest(
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
-    ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
+    ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
+    ...cotOptions,
     onFinish: async ({ text, usage }) => {
       try {
         const billing = await billUsage(
@@ -582,6 +618,8 @@ async function handleNonStreamingRequest(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
+  cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
+  effectiveMaxTokens: number | undefined,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -598,6 +636,7 @@ async function handleNonStreamingRequest(
   });
 
   try {
+
     const result = await generateText({
       model: getLanguageModel(model),
       system: systemPrompt,
@@ -605,7 +644,8 @@ async function handleNonStreamingRequest(
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
-      ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
+      ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
+      ...cotOptions,
     });
 
     // Bill using actual usage from SDK response

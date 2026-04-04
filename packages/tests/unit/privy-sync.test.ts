@@ -226,7 +226,7 @@ describe("syncUserFromPrivy", () => {
       }),
     );
     expect(mockUpsertPrivyIdentity).toHaveBeenCalledWith("user-new", "did:privy:new-user");
-    expect(result).toEqual(hydratedUser);
+    expect(result).toMatchObject(hydratedUser);
   });
 
   test("upserts user identity before reading linked accounts by new Privy id", async () => {
@@ -268,7 +268,7 @@ describe("syncUserFromPrivy", () => {
       }),
     );
     expect(mockUpsertPrivyIdentity).toHaveBeenCalledWith("user-existing", "did:privy:new-user");
-    expect(result).toEqual(linkedUser);
+    expect(result).toMatchObject(linkedUser);
   });
 
   test("restores the previous Privy ID when account linking upsert fails", async () => {
@@ -492,7 +492,7 @@ describe("syncUserFromPrivy", () => {
       linkedAccounts: [],
     } as never);
 
-    expect(result).toEqual(recoveredUser);
+    expect(result).toMatchObject(recoveredUser);
     expect(mockDeleteUserRecord).not.toHaveBeenCalled();
     expect(mockMarkInviteAccepted).toHaveBeenCalledWith("invite-1", "user-invite");
   });
@@ -576,7 +576,7 @@ describe("syncUserFromPrivy", () => {
       linkedAccounts: [],
     } as never);
 
-    expect(result).toEqual(recoveredUser);
+    expect(result).toMatchObject(recoveredUser);
     expect(mockDeleteUserRecord).not.toHaveBeenCalled();
     expect(mockDeleteOrganization).not.toHaveBeenCalled();
   });

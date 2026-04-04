@@ -1,11 +1,22 @@
 import { Redis } from "@upstash/redis";
 import {
   Client,
+  type Attachment,
   type ClientOptions,
+  type Embed,
   Events,
   GatewayIntentBits,
+  type GuildMember,
+  Interaction,
   Message,
+  MessageReaction,
   Partials,
+  type PartialGuildMember,
+  type PartialMessage,
+  type PartialMessageReaction,
+  Role,
+  type User,
+  type PartialUser,
 } from "discord.js";
 import { logger } from "./logger";
 import {
@@ -746,6 +757,7 @@ export class GatewayManager {
     applicationId: string;
     botToken: string;
     intents: number;
+    characterId: string | null;
   }): Promise<void> {
     logger.info("Connecting bot", {
       connectionId: assignment.connectionId,
@@ -792,7 +804,7 @@ export class GatewayManager {
           });
         }
       };
-      conn.listeners.set(eventName, wrappedHandler as (...args: unknown[]) => void);
+      conn.listeners.set(eventName, wrappedHandler as unknown as (...args: unknown[]) => void);
       return wrappedHandler;
     };
 
@@ -828,29 +840,32 @@ export class GatewayManager {
 
     client.on(
       Events.MessageUpdate,
-      createHandler(Events.MessageUpdate, async (_oldMessage, newMessage) => {
-        conn.eventsReceived++;
-        if (newMessage.partial) return;
-        await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_UPDATE", {
-          id: newMessage.id,
-          channel_id: newMessage.channelId,
-          guild_id: newMessage.guildId,
-          content: newMessage.content,
-          edited_timestamp: newMessage.editedAt?.toISOString(),
-          author: newMessage.author
-            ? {
-                id: newMessage.author.id,
-                username: newMessage.author.username,
-                bot: newMessage.author.bot,
-              }
-            : undefined,
-        });
-      }),
+      createHandler(
+        Events.MessageUpdate,
+        async (_oldMessage: Message | PartialMessage, newMessage: Message | PartialMessage) => {
+          conn.eventsReceived++;
+          if (newMessage.partial) return;
+          await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_UPDATE", {
+            id: newMessage.id,
+            channel_id: newMessage.channelId,
+            guild_id: newMessage.guildId,
+            content: newMessage.content,
+            edited_timestamp: newMessage.editedAt?.toISOString(),
+            author: newMessage.author
+              ? {
+                  id: newMessage.author.id,
+                  username: newMessage.author.username,
+                  bot: newMessage.author.bot,
+                }
+              : undefined,
+          });
+        },
+      ),
     );
 
     client.on(
       Events.MessageDelete,
-      createHandler(Events.MessageDelete, async (message) => {
+      createHandler(Events.MessageDelete, async (message: Message | PartialMessage) => {
         conn.eventsReceived++;
         await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_DELETE", {
           id: message.id,
@@ -862,21 +877,24 @@ export class GatewayManager {
 
     client.on(
       Events.MessageReactionAdd,
-      createHandler(Events.MessageReactionAdd, async (reaction, user) => {
-        conn.eventsReceived++;
-        await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_REACTION_ADD", {
-          message_id: reaction.message.id,
-          channel_id: reaction.message.channelId,
-          guild_id: reaction.message.guildId,
-          emoji: { name: reaction.emoji.name, id: reaction.emoji.id },
-          user_id: user.id,
-        });
-      }),
+      createHandler(
+        Events.MessageReactionAdd,
+        async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
+          conn.eventsReceived++;
+          await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_REACTION_ADD", {
+            message_id: reaction.message.id,
+            channel_id: reaction.message.channelId,
+            guild_id: reaction.message.guildId,
+            emoji: { name: reaction.emoji.name, id: reaction.emoji.id },
+            user_id: user.id,
+          });
+        },
+      ),
     );
 
     client.on(
       Events.GuildMemberAdd,
-      createHandler(Events.GuildMemberAdd, async (member) => {
+      createHandler(Events.GuildMemberAdd, async (member: GuildMember) => {
         conn.eventsReceived++;
         await this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_ADD", {
           guild_id: member.guild.id,
@@ -888,7 +906,7 @@ export class GatewayManager {
             bot: member.user.bot,
           },
           nick: member.nickname,
-          roles: member.roles.cache.map((r) => r.id),
+          roles: member.roles.cache.map((r: Role) => r.id),
           joined_at: member.joinedAt?.toISOString(),
         });
       }),
@@ -896,7 +914,7 @@ export class GatewayManager {
 
     client.on(
       Events.GuildMemberRemove,
-      createHandler(Events.GuildMemberRemove, async (member) => {
+      createHandler(Events.GuildMemberRemove, async (member: GuildMember | PartialGuildMember) => {
         conn.eventsReceived++;
         await this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_REMOVE", {
           guild_id: member.guild.id,
@@ -911,7 +929,7 @@ export class GatewayManager {
 
     client.on(
       Events.InteractionCreate,
-      createHandler(Events.InteractionCreate, async (interaction) => {
+      createHandler(Events.InteractionCreate, async (interaction: Interaction) => {
         conn.eventsReceived++;
         await this.forwardEvent(assignment.connectionId, conn, "INTERACTION_CREATE", {
           id: interaction.id,
@@ -923,13 +941,12 @@ export class GatewayManager {
             username: interaction.user.username,
             bot: interaction.user.bot,
           },
-          data:
-            "commandName" in interaction
-              ? {
-                  name: interaction.commandName,
-                  options: "options" in interaction ? interaction.options.data : undefined,
-                }
-              : undefined,
+          data: interaction.isChatInputCommand()
+            ? {
+                name: interaction.commandName,
+                options: interaction.options.data,
+              }
+            : undefined,
         });
       }),
     );
@@ -1069,25 +1086,25 @@ export class GatewayManager {
       member: message.member
         ? {
             nick: message.member.nickname,
-            roles: message.member.roles.cache.map((r) => r.id),
+            roles: message.member.roles.cache.map((r: Role) => r.id),
           }
         : undefined,
       content: message.content,
       timestamp: message.createdAt.toISOString(),
-      attachments: message.attachments.map((a) => ({
+      attachments: message.attachments.map((a: Attachment) => ({
         id: a.id,
         filename: a.name,
         url: a.url,
         content_type: a.contentType,
         size: a.size,
       })),
-      embeds: message.embeds.map((e) => ({
+      embeds: message.embeds.map((e: Embed) => ({
         title: e.title,
         description: e.description,
         url: e.url,
         color: e.color,
       })),
-      mentions: message.mentions.users.map((u) => ({
+      mentions: message.mentions.users.map((u: User) => ({
         id: u.id,
         username: u.username,
         bot: u.bot,
@@ -1156,7 +1173,10 @@ export class GatewayManager {
 
     try {
       await refreshKedaActivity(this.redis, route.serverName);
-      await message.channel.sendTyping();
+      const { channel } = message;
+      if ("sendTyping" in channel && typeof channel.sendTyping === "function") {
+        await channel.sendTyping();
+      }
 
       const userId = `discord-user-${message.author.id}`;
       const response = await forwardToServer(

@@ -16,7 +16,7 @@ export function jsonRequest(
   });
 }
 
-export function routeParams(params: Record<string, string>) {
+export function routeParams<T extends Record<string, string>>(params: T): { params: Promise<T> } {
   return { params: Promise.resolve(params) };
 }
 
@@ -34,5 +34,5 @@ export function formDataRequest(url: string, formData: FormData) {
 
 export function createFile(name: string, type: string, contents: string | Uint8Array = "test") {
   const data = typeof contents === "string" ? new TextEncoder().encode(contents) : contents;
-  return new File([data], name, { type });
+  return new File([data as BlobPart], name, { type });
 }

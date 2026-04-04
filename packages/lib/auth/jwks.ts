@@ -5,7 +5,7 @@
  * Supports key rotation by allowing multiple active keys identified by "kid".
  */
 
-import { exportJWK, importPKCS8, importSPKI, type KeyLike as JoseCryptoKey, type JWK } from "jose";
+import { exportJWK, importPKCS8, importSPKI, type JWK, type KeyLike } from "jose";
 
 /**
  * Environment variables for JWT signing keys.
@@ -21,8 +21,8 @@ const JWT_SIGNING_KEY_ID = process.env.JWT_SIGNING_KEY_ID ?? "primary";
 const ALGORITHM = "ES256";
 
 // Cached key instances to avoid repeated parsing
-let cachedPrivateKey: JoseCryptoKey | null = null;
-let cachedPublicKey: JoseCryptoKey | null = null;
+let cachedPrivateKey: KeyLike | null = null;
+let cachedPublicKey: KeyLike | null = null;
 
 // Log configuration issues once at startup
 if (!JWT_SIGNING_PRIVATE_KEY && process.env.NODE_ENV !== "test") {
@@ -50,7 +50,7 @@ function decodePemKey(base64Key: string, type: "PRIVATE" | "PUBLIC"): string {
  * Get the private key for signing JWTs.
  * Keys are cached after first load.
  */
-export async function getPrivateKey(): Promise<JoseCryptoKey> {
+export async function getPrivateKey(): Promise<KeyLike> {
   if (cachedPrivateKey) {
     return cachedPrivateKey;
   }
@@ -68,7 +68,7 @@ export async function getPrivateKey(): Promise<JoseCryptoKey> {
  * Get the public key for verifying JWTs.
  * Keys are cached after first load.
  */
-export async function getPublicKey(): Promise<JoseCryptoKey> {
+export async function getPublicKey(): Promise<KeyLike> {
   if (cachedPublicKey) {
     return cachedPublicKey;
   }

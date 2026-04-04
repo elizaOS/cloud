@@ -21,6 +21,7 @@
 import { gateway } from "@ai-sdk/gateway";
 import type { ModelMessage, UserModelMessage } from "ai";
 import { streamText, tool } from "ai";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import { buildFullAppPrompt, type FullAppTemplateType } from "@/lib/fragments/prompt";
 import { logger } from "@/lib/utils/logger";
 
@@ -318,10 +319,14 @@ CRITICAL RULES:
 
         // Stream with tools (no execute functions - SDK v6.0.x pattern)
         // Use fullStream to capture ALL parts including reasoning tokens
+        // CoT explicitly disabled (0) to preserve temperature control for code generation.
+        // App Builder relies on temperature for creative variation; enabling CoT would
+        // silently drop temperature per @ai-sdk/anthropic behavior.
         const result = streamText({
           model: gateway.languageModel(model),
           system: finalSystemPrompt,
           messages,
+          ...mergeAnthropicCotProviderOptions(model, process.env, 0),
           tools: {
             install_packages: tool({
               description:

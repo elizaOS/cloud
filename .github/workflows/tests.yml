@@ -30,6 +30,8 @@ jobs:
         run: bun run lint
       - name: Run typecheck
         run: bun run check-types
+      - name: Run test project typecheck
+        run: bun run check-types:tests
 
   unit-tests:
     runs-on: ubuntu-latest

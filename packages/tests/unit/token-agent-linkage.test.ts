@@ -365,9 +365,13 @@ describe("Token lookup logic", () => {
 
 describe("by-token endpoint validation", () => {
   test("requires address query parameter", () => {
-    const address = null;
-    const isValid = address != null && address.length > 0;
-    expect(isValid).toBe(false);
+    const scenarios: { address: string | null; expectValid: boolean }[] = [
+      { address: null, expectValid: false },
+    ];
+    for (const { address, expectValid } of scenarios) {
+      const isValid = address !== null && address.length > 0;
+      expect(isValid).toBe(expectValid);
+    }
   });
 
   test("accepts address with optional chain", () => {

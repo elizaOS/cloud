@@ -331,8 +331,9 @@ describe("OAuthErrorCode Enum", () => {
       "INTERNAL_ERROR",
     ];
 
+    const values = Object.values(OAuthErrorCode) as string[];
     for (const code of expectedCodes) {
-      expect(Object.values(OAuthErrorCode)).toContain(code);
+      expect(values).toContain(code);
     }
   });
 });

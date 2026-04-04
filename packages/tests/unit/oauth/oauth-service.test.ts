@@ -175,7 +175,7 @@ describe("OAuth Service Logic", () => {
         expect(provider.type).toBe("api_key");
         // For api_key platforms, we expect requiresCredentials: true
         // and authUrl pointing to the initiate route
-        expect(provider.routes.initiate).toBeDefined();
+        expect(provider.routes?.initiate).toBeDefined();
       }
     });
 
@@ -184,7 +184,7 @@ describe("OAuth Service Logic", () => {
       const oauthPlatforms = [
         { id: "google", type: "oauth2" },
         { id: "twitter", type: "oauth1a" },
-      ];
+      ] as const;
 
       for (const { id, type } of oauthPlatforms) {
         const provider = OAUTH_PROVIDERS[id];
@@ -319,8 +319,9 @@ describe("OAuth Types", () => {
 
       // Create connections with each status
       for (const status of statuses) {
-        const conn = createMockConnection(status as OAuthConnection["status"]);
-        expect(conn.status).toBe(status);
+        const typedStatus = status as OAuthConnection["status"];
+        const conn = createMockConnection(typedStatus);
+        expect(conn.status).toBe(typedStatus);
       }
     });
   });

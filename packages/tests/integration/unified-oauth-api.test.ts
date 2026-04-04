@@ -74,7 +74,7 @@ function hasUsableCacheConfig(): boolean {
 const CACHE_CONFIGURED = hasUsableCacheConfig();
 const encryptionService = createEncryptionService();
 let secretsClient: Client | null = null;
-const it = (name: string, fn: () => unknown | Promise<unknown>) => bunIt(name, fn, TIMEOUT);
+const it = (name: string, fn: () => void | Promise<void>) => bunIt(name, fn, TIMEOUT);
 
 describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   let testData: TestDataSet;

@@ -6,7 +6,7 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { IMAGE_GENERATION_COST } from "@/lib/pricing";
+import { getProviderFromModel, IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { billUsage } from "@/lib/services/ai-billing";
 import { appsService } from "@/lib/services/apps";
 import {
@@ -272,8 +272,9 @@ async function handlePOST(req: NextRequest) {
       textResponse: string;
       mimeType: string;
     } | null> {
-      // Detect provider from model string (e.g., "openai/gpt-5-nano" -> "openai")
-      const isOpenAIModel = imageModel.startsWith("openai/");
+      // Detect provider from model - use centralized helper for robustness
+      // This handles gateway aliases that may route models without explicit prefixes
+      const isOpenAIModel = getProviderFromModel(imageModel) === "openai";
 
       // Build the request based on provider and whether we have a source image
       let streamConfig: Parameters<typeof streamText>[0];
@@ -334,9 +335,6 @@ async function handlePOST(req: NextRequest) {
 
         streamConfig = {
           model: imageModel,
-          providerOptions: {
-            google: { responseModalities: ["TEXT", "IMAGE"] },
-          },
           messages: [
             {
               role: "user",
@@ -358,9 +356,6 @@ async function handlePOST(req: NextRequest) {
         // Google/other models: Text-to-image with simple prompt
         streamConfig = {
           model: imageModel,
-          providerOptions: {
-            google: { responseModalities: ["TEXT", "IMAGE"] },
-          },
           prompt: `Generate an image: ${enhancedPrompt}`,
         };
       }
@@ -369,7 +364,14 @@ async function handlePOST(req: NextRequest) {
       let textResponse = "";
 
       try {
-        const result = streamText(streamConfig);
+        // Image generation endpoints do not use extended thinking (CoT).
+        // Always include responseModalities for image output - this endpoint is exclusively
+        // for image generation, so it's safe to always request IMAGE modality. This avoids
+        // silent failures when gateway aliases route to Google models without the "google/" prefix.
+        const providerOpts = isOpenAIModel
+          ? {}
+          : { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } };
+        const result = streamText({ ...streamConfig, ...providerOpts });
 
         for await (const delta of result.fullStream) {
           switch (delta.type) {

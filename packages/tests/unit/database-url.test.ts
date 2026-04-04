@@ -6,6 +6,8 @@ import {
   resolveDatabaseUrl,
 } from "@/db/database-url";
 
+type StringEnv = Record<string, string | undefined>;
+
 const originalEnv = { ...process.env };
 
 afterEach(() => {
@@ -97,20 +99,20 @@ describe("database URL fallback", () => {
   test("hydrates process.env when fallback is applied", () => {
     delete process.env.DATABASE_URL;
     delete process.env.TEST_DATABASE_URL;
-    process.env.NODE_ENV = "test";
+    (process.env as StringEnv).NODE_ENV = "test";
     process.env.LOCAL_DOCKER_DB_HOST = "docker.test";
     process.env.LOCAL_DOCKER_DB_PORT = "5439";
     delete process.env.CI;
     delete process.env.VERCEL;
     delete process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK;
 
-    const applied = applyDatabaseUrlFallback(process.env);
+    const applied = applyDatabaseUrlFallback(process.env as StringEnv);
 
     expect(applied).toBe("postgresql://eliza_dev:local_dev_password@docker.test:5439/eliza_dev");
-    expect(process.env.DATABASE_URL).toBe(
+    expect((process.env as StringEnv).DATABASE_URL).toBe(
       "postgresql://eliza_dev:local_dev_password@docker.test:5439/eliza_dev",
     );
-    expect(process.env.TEST_DATABASE_URL).toBe(
+    expect((process.env as StringEnv).TEST_DATABASE_URL).toBe(
       "postgresql://eliza_dev:local_dev_password@docker.test:5439/eliza_dev",
     );
   });

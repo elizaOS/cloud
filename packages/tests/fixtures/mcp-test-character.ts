@@ -103,7 +103,7 @@ export const mcpTestCharacter: Character = {
  * A simpler test character without MCP for baseline testing
  */
 export const simpleTestCharacter: Character = {
-  id: "test-agent-simple-001",
+  id: "aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee",
   name: "TestAgent",
   system: "You are a helpful test agent. Respond concisely.",
   bio: "A simple test agent for integration testing.",

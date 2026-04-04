@@ -302,7 +302,7 @@ describe("Markdown fallback with real HTTP server", () => {
       attemptCount++;
       requestLog.push({ body, attempt: attemptCount });
       return await handler(body, attemptCount);
-    }) as typeof globalThis.fetch;
+    }) as unknown as typeof globalThis.fetch;
   }
 
   async function sendWithFallback(
