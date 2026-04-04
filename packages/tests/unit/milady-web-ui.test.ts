@@ -56,6 +56,18 @@ describe("getMiladyAgentPublicWebUiUrl", () => {
       "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.waifu.fun",
     );
   });
+
+  test("returns null when explicit baseDomain fails normalization (no silent default)", () => {
+    expect(getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: "" })).toBeNull();
+    expect(getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: "   " })).toBeNull();
+  });
+
+  test("treats baseDomain: undefined like omitted (env then default)", () => {
+    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "custom.example";
+    expect(getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: undefined })).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.custom.example",
+    );
+  });
 });
 
 describe("getPreferredMiladyAgentWebUiUrl", () => {

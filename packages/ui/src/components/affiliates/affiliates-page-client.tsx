@@ -1,11 +1,15 @@
 "use client";
 
 import { BrandCard, Button, Input, Skeleton } from "@elizaos/cloud-ui";
-import { AlertTriangle, CheckCircle2, Copy, Link as LinkIcon, UserCog } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Link as LinkIcon, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useDashboardReferralMe } from "@/components/hooks/use-dashboard-referral-me";
+import { COPY_FEEDBACK_DURATION_MS } from "@/lib/constants/copy-feedback";
 import { getAppUrl } from "@/lib/utils/app-url";
+import { copyTextToClipboard } from "@/lib/utils/copy-to-clipboard";
+import { buildReferralInviteLoginUrl } from "@/lib/utils/referral-invite-url";
 
 interface AffiliateData {
   id: string;
@@ -21,6 +25,8 @@ export function AffiliatesPageClient() {
   const [markupPercent, setMarkupPercent] = useState<string>("20.00");
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [referralCopied, setReferralCopied] = useState(false);
+  const { referralMe, loadingReferral, referralFetchFailed, refetch: refetchReferral } = useDashboardReferralMe();
 
   const createAffiliateCode = useCallback(async (initialMarkup = 20) => {
     const res = await fetch("/api/v1/affiliates", {
@@ -62,13 +68,17 @@ export function AffiliatesPageClient() {
     fetchAffiliateData();
   }, [fetchAffiliateData]);
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (!affiliateData) return;
     const url = `${window.location.origin}/login?affiliate=${affiliateData.code}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    toast.success("Link copied to clipboard!");
-    setTimeout(() => setCopied(false), 2000);
+    const ok = await copyTextToClipboard(url);
+    if (ok) {
+      setCopied(true);
+      toast.success("Link copied to clipboard!");
+      setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
+    } else {
+      toast.error("Could not copy to clipboard");
+    }
   };
 
   const handleSaveMarkup = async () => {
@@ -106,10 +116,13 @@ export function AffiliatesPageClient() {
     return (
       <div className="flex flex-col gap-6 max-w-4xl mx-auto">
         <Skeleton className="h-44 rounded-lg" />
+        <Skeleton className="h-36 rounded-lg" />
         <Skeleton className="h-44 rounded-lg" />
       </div>
     );
   }
+
+  const pageOrigin = typeof window !== "undefined" ? window.location.origin : getAppUrl();
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto">
@@ -135,12 +148,109 @@ export function AffiliatesPageClient() {
         </div>
       </BrandCard>
 
+      {/* Referral invite: uses GET /api/v1/referrals (parallel to affiliate fetch, own loading state).
+          WHY separate from affiliate card: Different URL (?ref= vs ?affiliate=), economics, and copy.
+          WHY cyan accent: Visually distinct from orange affiliate branding so users don’t merge the two mentally. */}
+      <BrandCard corners={false} className="border-l-4 border-l-cyan-500/60 border border-white/10">
+        <div className="flex items-start gap-3 mb-4">
+          <Users className="h-5 w-5 text-cyan-400 mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-semibold text-white mb-1">Invite friends</h3>
+            <p className="text-sm text-white/60">
+              Share your invite link—you both earn bonus credits when they sign up, and you earn a
+              share of their purchases on Eliza Cloud.
+            </p>
+          </div>
+        </div>
+
+        {loadingReferral ? (
+          <Skeleton className="h-14 rounded-lg" />
+        ) : referralFetchFailed || !referralMe ? (
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-white/50">
+              Could not load your invite link.
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="shrink-0 bg-cyan-500/15 hover:bg-cyan-500/25 text-white border-cyan-500/30"
+              onClick={() => refetchReferral()}
+            >
+              Retry
+            </Button>
+          </div>
+        ) : !referralMe.is_active ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100/90">
+            <p className="font-medium text-amber-100">Invite link inactive</p>
+            <p className="mt-1 text-amber-100/80">
+              Your referral code is turned off for new signups. Only an Eliza Cloud administrator
+              can re-enable it. If you believe this is a mistake,{" "}
+              <a
+                href="mailto:support@eliza.cloud?subject=Referral%20code%20inactive"
+                className="text-cyan-300 underline hover:text-cyan-200"
+              >
+                email support@eliza.cloud
+              </a>
+              .
+            </p>
+            <p className="mt-2 font-mono text-xs text-white/50 break-all">
+              {buildReferralInviteLoginUrl(pageOrigin, referralMe.code)}
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-cyan-200/70 mb-3">
+              {referralMe.total_referrals === 0
+                ? "No friends have joined yet—share your link to get started."
+                : referralMe.total_referrals === 1
+                  ? "1 friend has joined with your link."
+                  : `${referralMe.total_referrals} friends have joined with your link.`}
+            </p>
+            <div className="flex items-center gap-3 bg-white/5 border border-cyan-500/20 rounded-lg p-3">
+              <LinkIcon className="h-5 w-5 text-cyan-400/60 shrink-0" />
+              <div className="flex-1 font-mono text-white/80 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
+                {buildReferralInviteLoginUrl(pageOrigin, referralMe.code)}
+              </div>
+              <Button
+                variant="secondary"
+                className="shrink-0 bg-cyan-500/15 hover:bg-cyan-500/25 text-white border-cyan-500/30"
+                onClick={() => {
+                  void (async () => {
+                    if (!pageOrigin) {
+                      toast.error("Could not build invite link");
+                      return;
+                    }
+                    const url = buildReferralInviteLoginUrl(pageOrigin, referralMe.code);
+                    const ok = await copyTextToClipboard(url);
+                    if (ok) {
+                      setReferralCopied(true);
+                      toast.success("Invite link copied!");
+                      setTimeout(() => setReferralCopied(false), COPY_FEEDBACK_DURATION_MS);
+                    } else {
+                      toast.error("Could not copy to clipboard");
+                    }
+                  })();
+                }}
+              >
+                {referralCopied ? (
+                  <CheckCircle2 className="h-4 w-4 mr-2 text-green-400" />
+                ) : (
+                  <Copy className="h-4 w-4 mr-2" />
+                )}
+                {referralCopied ? "Copied" : "Copy"}
+              </Button>
+            </div>
+          </>
+        )}
+      </BrandCard>
+
       {/* Affiliate Link */}
       <BrandCard corners={false}>
         <h3 className="text-lg font-semibold text-white mb-1">Your Affiliate Link</h3>
         <p className="text-sm text-white/60 mb-4">
-          Copy this link and share it anywhere. Users who create an account using this link will be
-          automatically tracked as your referrals.
+          Copy this link and share it anywhere. Users who sign up with it are tracked as your
+          affiliate signups for marked-up top-ups and MCP usage—not the same as friend invites
+          above.
         </p>
 
         <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-lg p-3">
@@ -234,15 +344,21 @@ export function AffiliatesPageClient() {
               size="sm"
               className="h-6 w-6 p-0 text-white/40 hover:text-white"
               onClick={() => {
-                const codeSnippet = `curl -X POST https://api.elizacloud.ai/v1/chat/completions \\
+                void (async () => {
+                  const codeSnippet = `curl -X POST https://api.elizacloud.ai/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "X-Affiliate-Code: ${affiliateData?.code || "YOUR_CODE_HERE"}" \\
   -d '{
     "model": "google/gemini-2.5-flash",
     "messages": [{"role": "user", "content": "Hello!"}]
   }'`;
-                navigator.clipboard.writeText(codeSnippet);
-                toast.success("Code snippet copied!");
+                  const ok = await copyTextToClipboard(codeSnippet);
+                  if (ok) {
+                    toast.success("Code snippet copied!");
+                  } else {
+                    toast.error("Could not copy to clipboard");
+                  }
+                })();
               }}
             >
               <Copy className="h-3 w-3" />

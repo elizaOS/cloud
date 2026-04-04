@@ -14,6 +14,7 @@ import { BrandButton, usePageHeader } from "@elizaos/cloud-ui";
 import { LogIn, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { memo, useState } from "react";
+import { HeaderInviteButton } from "./header-invite-button";
 import UserMenu from "./user-menu";
 
 interface HeaderProps {
@@ -79,6 +80,8 @@ function HeaderComponent({
           </a>
         ) : (
           <div className="flex flex-row items-center gap-3 md:gap-4">
+            {/* WHY hide Invite during authGraceActive: Session may not be ready; fetch would 401 and confuse users next to UserMenu preserveWhileUnauthed. */}
+            {!authGraceActive ? <HeaderInviteButton /> : null}
             <UserMenu preserveWhileUnauthed={authGraceActive} />
           </div>
         )}

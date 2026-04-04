@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
 import { createFile, formDataRequest, jsonRequest, routeParams } from "./route-test-helpers";
 
@@ -66,6 +67,7 @@ mock.module("@/lib/services/usage", () => ({
 }));
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     reserve: mockCreditsReserve,
   },

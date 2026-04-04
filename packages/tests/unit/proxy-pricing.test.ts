@@ -17,7 +17,7 @@ mock.module("@/lib/cache/client", () => ({
   },
 }));
 
-mock.module("@/db/repositories", () => ({
+mock.module("@/db/repositories/service-pricing", () => ({
   servicePricingRepository: {
     listByService: mockListByService,
   },

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 import { routeParams } from "./api/route-test-helpers";
@@ -29,7 +29,7 @@ import { POST } from "@/app/api/v1/milaidy/agents/[agentId]/pairing-token/route"
 
 describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
   beforeEach(() => {
-    delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+    process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "waifu.fun";
 
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockFindByIdAndOrg.mockReset();
@@ -49,6 +49,10 @@ describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
     } else {
       process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = savedAgentBaseDomain;
     }
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   test("returns 404 when the agent is not visible in the caller org", async () => {
@@ -72,6 +76,7 @@ describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
     mockFindByIdAndOrg.mockResolvedValue({
       id: "agent-1",
       status: "running",
+      headscale_ip: null,
       environment_vars: {
         MILADY_API_TOKEN: "ui-token",
       },
@@ -106,6 +111,7 @@ describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
     mockFindByIdAndOrg.mockResolvedValue({
       id: "agent-1",
       status: "running",
+      headscale_ip: null,
       environment_vars: {
         MILADY_API_TOKEN: "",
         ELIZA_API_TOKEN: "",

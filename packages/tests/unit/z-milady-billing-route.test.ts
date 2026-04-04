@@ -14,8 +14,9 @@
  * `mockMiladyPricingMinimumDepositForRouteTests` in *route* tests that need a deposit override; partial
  * pricing objects break this handler’s imports in-process (see docs/unit-testing-milady-mocks.md).
  */
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import { stubUsersRepositoryModule } from "@/tests/support/bun-partial-module-shims";
 
 const TEST_SECRET = "milady-cron-secret";
 
@@ -107,11 +108,13 @@ function registerMiladyBillingMocks(): void {
     },
   }));
 
-  mock.module("@/db/repositories", () => ({
-    usersRepository: {
-      listByOrganization: mockListByOrganization,
-    },
-  }));
+  mock.module("@/db/repositories", () =>
+    stubUsersRepositoryModule({
+      usersRepository: {
+        listByOrganization: mockListByOrganization,
+      },
+    }),
+  );
 
   mock.module("@/lib/services/email", () => ({
     emailService: {
@@ -198,6 +201,10 @@ describe("Milady billing cron", () => {
     } else {
       process.env.NEXT_PUBLIC_APP_URL = previousAppUrl;
     }
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   test("skips a sandbox cleanly when another run already billed it", async () => {
