@@ -8,8 +8,8 @@ import { miladySandboxService } from "./milady-sandbox";
 
 const DEFAULT_MILADY_APP_URL = "https://app.milady.ai";
 const DEFAULT_CLOUD_PUBLIC_URL = "https://www.elizacloud.ai";
-const DEFAULT_SMALL_MODEL = "moonshotai/kimi-k2-turbo";
-const DEFAULT_LARGE_MODEL = "moonshotai/kimi-k2-0905";
+const DEFAULT_SMALL_MODEL = "minimax/minimax-m2.7";
+const DEFAULT_LARGE_MODEL = "anthropic/claude-sonnet-4.6";
 const LAUNCH_SESSION_TTL_SECONDS = 300;
 const DEV_MILADY_APP_ORIGINS = [
   "http://localhost:5173",

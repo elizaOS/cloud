@@ -81,6 +81,12 @@ const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
 const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
 
+if (!STEWARD_TENANT_API_KEY) {
+  console.warn(
+    "[docker-sandbox] STEWARD_TENANT_API_KEY is not set; Steward registration will run without tenant API key auth",
+  );
+}
+
 // URL injected into container env vars. Containers on the bridge network (milady-isolated)
 // cannot reach the host via localhost. On Linux we pair host.docker.internal with an
 // explicit host-gateway alias in docker create so the same default works cross-platform.
@@ -102,7 +108,7 @@ const DEFAULT_SSH_USERNAME = process.env.MILADY_SSH_USER || "root";
 const HEALTH_CHECK_POLL_INTERVAL_MS = 3_000;
 
 /** Health-check polling: total timeout (ms). */
-const HEALTH_CHECK_TIMEOUT_MS = 60_000;
+const HEALTH_CHECK_TIMEOUT_MS = 180_000;
 
 /** SSH command timeout for docker pull (can be slow on first pull). */
 const PULL_TIMEOUT_MS = 300_000; // 5 min
@@ -422,11 +428,9 @@ export class DockerSandboxProvider implements SandboxProvider {
       ELIZA_CLOUD_PROVISIONED: "1",
       STEWARD_API_URL: STEWARD_CONTAINER_URL,
       STEWARD_AGENT_ID: agentId,
-      // steward-enabled image runs two processes:
-      //   milady.mjs (UI)   on MILADY_PORT (default 2138)
-      //   cloud-agent       on PORT        (default 2139)
-      // Do NOT set PORT=2138 here — it would collide with MILADY_PORT
-      // and the API service would steal the UI port.
+      // The current cloud agent image listens on PORT (default 2139).
+      // Keep MILADY_PORT for compatibility, but publish/probe the external
+      // host ports against PORT so new containers don't expose a dead 2138.
       MILADY_PORT: DEFAULT_MILADY_PORT,
       PORT: DEFAULT_AGENT_PORT,
       BRIDGE_PORT: DEFAULT_BRIDGE_PORT,
@@ -470,14 +474,14 @@ export class DockerSandboxProvider implements SandboxProvider {
         // bridge port unreachable from outside the container.
         MILADY_API_BIND: "0.0.0.0",
         ELIZA_API_BIND: "0.0.0.0",
-        // Prevent the server from auto-generating an API token when bound to
-        // 0.0.0.0. Without this, the compat server locks all routes behind auth.
+        // Prevent the server from auto-generating a RANDOM API token when bound
+        // to 0.0.0.0.  The DB-provisioned MILADY_API_TOKEN (set in baseEnv by
+        // managed-milady-env.ts) is the canonical inbound auth token — the pair
+        // flow hands it to the browser so the web UI can authenticate.  Clearing
+        // it here caused isAuthorized() to reject every request on cloud-
+        // provisioned containers (no token + cloud flag = 401).
         MILADY_DISABLE_AUTO_API_TOKEN: "1",
         ELIZA_DISABLE_AUTO_API_TOKEN: "1",
-        // Clear compat API tokens that leak in from managed launch environment.
-        // A non-empty token triggers auth on all routes, blocking the web UI.
-        MILADY_API_TOKEN: "",
-        ELIZA_API_TOKEN: "",
       };
 
       // Validate env keys/values before they are interpolated into remote shell commands.
@@ -500,20 +504,18 @@ export class DockerSandboxProvider implements SandboxProvider {
         ...(requiresDockerHostGateway(STEWARD_CONTAINER_URL)
           ? ["--add-host host.docker.internal:host-gateway"]
           : []),
-        `--health-cmd ${shellQuote(getDockerHealthCmd(allEnv.MILADY_PORT || DEFAULT_MILADY_PORT))}`,
+        `--health-cmd ${shellQuote(getDockerHealthCmd(allEnv.PORT || DEFAULT_AGENT_PORT))}`,
         "--health-interval 10s",
         "--health-timeout 5s",
         "--health-start-period 15s",
         "--health-retries 6",
         ...(headscaleEnabled ? ["--cap-add=NET_ADMIN", "--device /dev/net/tun"] : []),
         `-v ${shellQuote(volumePath)}:/app/data`,
-        // Both bridge and webUi ports map to the same internal port (MILADY_PORT/2138).
-        // The milady agent starts a single server on MILADY_PORT that serves both
-        // the API (used by bridge_url) and the Web UI dashboard (used by health_url).
-        // Port 31337 (DEFAULT_BRIDGE_PORT) was the old mapping but nothing ever
-        // listened there — the agent only reads MILADY_PORT for its listen port.
-        `-p ${bridgePort}:${allEnv.MILADY_PORT || DEFAULT_MILADY_PORT}`,
-        `-p ${webUiPort}:${allEnv.MILADY_PORT || DEFAULT_MILADY_PORT}`,
+        // The cloud image serves both API and web UI from PORT (default 2139).
+        // Publish both externally allocated host ports to that live listener so
+        // nginx can reach /api/* via bridge_url and the UI via web_ui_port.
+        `-p ${bridgePort}:${allEnv.PORT || DEFAULT_AGENT_PORT}`,
+        `-p ${webUiPort}:${allEnv.PORT || DEFAULT_AGENT_PORT}`,
         envFlags,
         shellQuote(resolvedImage),
       ].join(" ");

@@ -107,7 +107,7 @@ describe("POST /api/v1/milaidy/agents/[agentId]/pairing-token", () => {
     );
   });
 
-  test("opens the web UI directly when the sandbox has no UI API token", async () => {
+  test("falls back to the root web UI url without a UI API token", async () => {
     mockFindByIdAndOrg.mockResolvedValue({
       id: "agent-1",
       status: "running",

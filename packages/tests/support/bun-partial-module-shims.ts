@@ -6,24 +6,22 @@
 
 const COST_BUFFER = Number(process.env.CREDIT_COST_BUFFER) || 1.5;
 const MIN_RESERVATION = 0.000001;
+const { UsersRepository: RealUsersRepository } = await import("@/db/repositories/users");
 
 /** Minimal interface for stubbing usersRepository in tests. */
-interface UsersRepositoryStub {
-  listByOrganization?: (organizationId: string) => Promise<{ id: string; email: string }[]>;
-}
+type UsersRepositoryStub = Record<string, unknown>;
 
 /** Shape returned by stubUsersRepositoryModule matching the real module exports. */
-interface UsersRepositoryModuleStub {
-  UsersRepository: new () => UsersRepositoryStub;
-  usersRepository: UsersRepositoryStub;
+interface UsersRepositoryModuleStub<TUsersRepository extends UsersRepositoryStub> {
+  UsersRepository: typeof RealUsersRepository;
+  usersRepository: TUsersRepository;
 }
 
-export function stubUsersRepositoryModule(overrides: {
-  usersRepository: UsersRepositoryStub;
-}): UsersRepositoryModuleStub {
-  class UsersRepository {}
+export function stubUsersRepositoryModule<TUsersRepository extends UsersRepositoryStub>(overrides: {
+  usersRepository: TUsersRepository;
+}): UsersRepositoryModuleStub<TUsersRepository> {
   return {
-    UsersRepository,
+    UsersRepository: RealUsersRepository,
     usersRepository: overrides.usersRepository,
   };
 }

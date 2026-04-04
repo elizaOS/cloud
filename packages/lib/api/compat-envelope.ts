@@ -60,12 +60,24 @@ export interface CompatAgentShape {
   database_status: string;
   error_message: string | null;
   last_heartbeat_at: string | null;
+  // wallet info (Phase 1 — steward migration)
+  wallet_address: string | null;
+  wallet_provider: "steward" | "privy" | null;
 }
 
 /**
  * Translate a MiladySandbox row to the canonical Agent shape.
  */
-export function toCompatAgent(sandbox: MiladySandbox): CompatAgentShape {
+/**
+ * Translate a MiladySandbox row to the canonical Agent shape.
+ *
+ * Optionally accepts pre-resolved wallet info to avoid redundant Steward calls.
+ * If not provided, wallet fields default to null.
+ */
+export function toCompatAgent(
+  sandbox: MiladySandbox,
+  walletInfo?: { address: string | null; provider: "steward" | "privy" | null },
+): CompatAgentShape {
   const webUiUrl = getAgentWebUiUrl(sandbox);
 
   return {
@@ -85,6 +97,9 @@ export function toCompatAgent(sandbox: MiladySandbox): CompatAgentShape {
     database_status: sandbox.database_status,
     error_message: sandbox.error_message,
     last_heartbeat_at: sandbox.last_heartbeat_at ? toISO(sandbox.last_heartbeat_at) : null,
+    // Wallet info — only expose a provider when wallet info was actually resolved
+    wallet_address: walletInfo?.address ?? null,
+    wallet_provider: walletInfo?.provider ?? null,
   };
 }
 

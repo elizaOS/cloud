@@ -7,9 +7,12 @@ import { users } from "./users";
 /**
  * Agent Server Wallets table schema.
  *
- * Tracks secure server-side wallets provisioned via Privy for agents.
- * The private keys reside entirely within Privy KMS.
- * The client pubkey is used to verify RPC requests from the remote agent.
+ * Tracks secure server-side wallets provisioned for agents.
+ * Supports dual providers: Privy (legacy) and Steward (new).
+ *
+ * The `wallet_provider` column routes RPC calls to the correct backend.
+ * New wallets default to 'steward' when the feature flag is enabled;
+ * existing wallets remain on 'privy' until explicitly migrated.
  */
 export const agentServerWallets = pgTable(
   "agent_server_wallets",
@@ -25,8 +28,15 @@ export const agentServerWallets = pgTable(
       onDelete: "set null",
     }),
 
-    // The ID of the wallet in Privy
-    privy_wallet_id: text("privy_wallet_id").notNull(),
+    // Provider routing: 'privy' (legacy) or 'steward' (new)
+    wallet_provider: text("wallet_provider").notNull().default("privy"),
+
+    // Privy wallet ID (nullable — only set for privy-managed wallets)
+    privy_wallet_id: text("privy_wallet_id"),
+
+    // Steward references (only set for steward-managed wallets)
+    steward_agent_id: text("steward_agent_id"),
+    steward_tenant_id: text("steward_tenant_id"),
 
     // The public address of the provisioned wallet
     address: text("address").notNull(),
@@ -47,6 +57,10 @@ export const agentServerWallets = pgTable(
     privy_wallet_idx: index("agent_server_wallets_privy_wallet_idx").on(table.privy_wallet_id),
     address_idx: index("agent_server_wallets_address_idx").on(table.address),
     client_address_idx: index("agent_server_wallets_client_address_idx").on(table.client_address),
+    steward_agent_idx: index("agent_server_wallets_steward_agent_idx").on(table.steward_agent_id),
+    wallet_provider_idx: index("agent_server_wallets_wallet_provider_idx").on(
+      table.wallet_provider,
+    ),
   }),
 );
 

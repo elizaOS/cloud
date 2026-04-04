@@ -3,6 +3,14 @@ import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shi
 
 import { jsonRequest } from "./route-test-helpers";
 
+class MockInsufficientCreditsError extends Error {
+  required: number;
+  constructor(required: number) {
+    super("Insufficient credits");
+    this.required = required;
+  }
+}
+
 const mockRequireAuthOrApiKey = mock();
 const mockGetAnonymousUser = mock();
 const mockGetOrCreateAnonymousUser = mock();
@@ -68,6 +76,7 @@ mock.module("@/lib/services/credits", () => ({
     reserveAndDeductCredits: mockReserveAndDeductCredits,
     reconcile: mockReconcileCredits,
   },
+  InsufficientCreditsError: MockInsufficientCreditsError,
 }));
 
 mock.module("@/lib/services/generations", () => ({

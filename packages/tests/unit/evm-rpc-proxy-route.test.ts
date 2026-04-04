@@ -2,6 +2,14 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
+class MockInsufficientCreditsError extends Error {
+  required: number;
+  constructor(required: number) {
+    super("Insufficient credits");
+    this.required = required;
+  }
+}
+
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockDeductCredits = mock();
 const mockGetProxyCost = mock();
@@ -26,6 +34,7 @@ mock.module("@/lib/services/credits", () => ({
   creditsService: {
     deductCredits: mockDeductCredits,
   },
+  InsufficientCreditsError: MockInsufficientCreditsError,
 }));
 
 mock.module("@/lib/services/proxy-billing", () => ({

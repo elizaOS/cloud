@@ -56,9 +56,6 @@ export default async function MiladyDashboardPage() {
             </p>
           </div>
           <h1 className="text-xl font-semibold text-white md:text-2xl">Milady Instances</h1>
-          <p className="text-sm text-white/55">
-            Launch an existing agent into the web app or create a new managed instance.
-          </p>
         </div>
 
         <MiladyPricingBanner

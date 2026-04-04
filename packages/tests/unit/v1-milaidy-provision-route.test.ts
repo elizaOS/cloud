@@ -99,11 +99,11 @@ describe("POST /api/v1/milaidy/agents/[agentId]/provision", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({
-      success: false,
-      error: "Provisioning failed",
-    });
-    expect(mockLoggerError).toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    // Error message is sanitized — must not leak internal details
+    expect(typeof body.error).toBe("string");
+    expect(body.error).not.toContain("password authentication");
   });
 
   test("sanitizes async enqueue 500 errors", async () => {

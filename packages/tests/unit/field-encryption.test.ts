@@ -50,6 +50,7 @@ const mockDbWrite = {
 };
 
 mock.module("@/db/helpers", () => ({
+  writeTransaction: async (fn: (tx: unknown) => unknown) => fn({}),
   dbRead: mockDbRead,
   dbWrite: mockDbWrite,
 }));

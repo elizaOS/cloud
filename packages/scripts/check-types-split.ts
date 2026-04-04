@@ -49,16 +49,11 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
 }
 
 async function getDirectoriesToCheck(): Promise<string[]> {
-  const appSubdirs = await splitIntoSubdirectories("app");
-  // Split packages/lib into subdirectories for parallel type-checking to reduce CI time
   const libSubdirs = await splitIntoSubdirectories("packages/lib");
+  const appSubdirs = await splitIntoSubdirectories("app");
+  const componentSubdirs = await splitIntoSubdirectories("packages/ui/src/components");
 
-  return [
-    "packages/db",
-    ...libSubdirs,
-    "packages/ui/src/components",
-    ...appSubdirs,
-  ];
+  return ["packages/db", ...libSubdirs, ...componentSubdirs, ...appSubdirs];
 }
 
 async function createTempTsconfig(directory: string, baseTsconfig: object): Promise<string> {

@@ -41,6 +41,7 @@ mock.module("@/lib/security/outbound-url", () => ({
 }));
 
 mock.module("@/db/helpers", () => ({
+  writeTransaction: async (fn: (tx: unknown) => unknown) => fn({}),
   dbWrite: { transaction: (...args: unknown[]) => mockDbWriteTransaction(...args) },
   dbRead: {},
   db: {},
