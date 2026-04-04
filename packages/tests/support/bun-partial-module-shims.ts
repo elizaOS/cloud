@@ -4,12 +4,13 @@
  * (e.g. `@/db/repositories`) and later imports in the same process.
  */
 
-const COST_BUFFER = Number(process.env.CREDIT_COST_BUFFER) || 1.5;
+const parsedCostBuffer = Number.parseFloat(process.env.CREDIT_COST_BUFFER ?? "");
+const COST_BUFFER = Number.isFinite(parsedCostBuffer) ? parsedCostBuffer : 1.5;
 const MIN_RESERVATION = 0.000001;
 const { UsersRepository: RealUsersRepository } = await import("@/db/repositories/users");
 
 /** Minimal interface for stubbing usersRepository in tests. */
-type UsersRepositoryStub = Record<string, unknown>;
+type UsersRepositoryStub = Partial<InstanceType<typeof RealUsersRepository>>;
 
 /** Shape returned by stubUsersRepositoryModule matching the real module exports. */
 interface UsersRepositoryModuleStub<TUsersRepository extends UsersRepositoryStub> {

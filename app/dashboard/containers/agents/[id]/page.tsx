@@ -223,7 +223,6 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
               <InfoCell label="Web UI Port" value={String(agent.web_ui_port)} mono />
             )}
           </div>
-
         </section>
       )}
 

@@ -21,8 +21,8 @@
 import { gateway } from "@ai-sdk/gateway";
 import type { ModelMessage, UserModelMessage } from "ai";
 import { streamText, tool } from "ai";
-import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import { buildFullAppPrompt, type FullAppTemplateType } from "@/lib/fragments/prompt";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import { logger } from "@/lib/utils/logger";
 
 // Import shared utilities from the sandbox module - single source of truth

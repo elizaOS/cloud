@@ -76,18 +76,18 @@ function resetMockFetch() {
 
 // Mock OAuth service
 const mockOAuthService = {
-  getValidTokenByPlatform: mock(
-    async (params: GetTokenByPlatformParams): Promise<TokenResult> => {
-      if (params.platform !== "hubspot") {
-        throw new Error(`Unknown platform: ${params.platform}`);
-      }
-      throw new Error("No active connection found for hubspot");
+  getValidTokenByPlatform: mock(async (params: GetTokenByPlatformParams): Promise<TokenResult> => {
+    if (params.platform !== "hubspot") {
+      throw new Error(`Unknown platform: ${params.platform}`);
+    }
+    throw new Error("No active connection found for hubspot");
+  }),
+  listConnections: mock(async (_params: ListConnectionsParams): Promise<OAuthConnection[]> => []),
+  isPlatformConnected: mock(
+    async (_organizationId: string, _platform: string): Promise<boolean> => {
+      return false;
     },
   ),
-  listConnections: mock(async (_params: ListConnectionsParams): Promise<OAuthConnection[]> => []),
-  isPlatformConnected: mock(async (_organizationId: string, _platform: string): Promise<boolean> => {
-    return false;
-  }),
 };
 
 // Mock the oauth service module

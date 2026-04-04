@@ -3,7 +3,7 @@
 import { BrandCard, Button, Input, Skeleton } from "@elizaos/cloud-ui";
 import { AlertTriangle, CheckCircle2, Copy, Link as LinkIcon, UserCog, Users } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDashboardReferralMe } from "@/components/hooks/use-dashboard-referral-me";
 import { COPY_FEEDBACK_DURATION_MS } from "@/lib/constants/copy-feedback";
@@ -26,7 +26,14 @@ export function AffiliatesPageClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [referralCopied, setReferralCopied] = useState(false);
-  const { referralMe, loadingReferral, referralFetchFailed, refetch: refetchReferral } = useDashboardReferralMe();
+  const affiliateCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const referralCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    referralMe,
+    loadingReferral,
+    referralFetchFailed,
+    refetch: refetchReferral,
+  } = useDashboardReferralMe();
 
   const createAffiliateCode = useCallback(async (initialMarkup = 20) => {
     const res = await fetch("/api/v1/affiliates", {
@@ -68,6 +75,18 @@ export function AffiliatesPageClient() {
     fetchAffiliateData();
   }, [fetchAffiliateData]);
 
+  useEffect(
+    () => () => {
+      if (affiliateCopyTimerRef.current) {
+        clearTimeout(affiliateCopyTimerRef.current);
+      }
+      if (referralCopyTimerRef.current) {
+        clearTimeout(referralCopyTimerRef.current);
+      }
+    },
+    [],
+  );
+
   const handleCopyLink = async () => {
     if (!affiliateData) return;
     const url = `${window.location.origin}/login?affiliate=${affiliateData.code}`;
@@ -75,7 +94,10 @@ export function AffiliatesPageClient() {
     if (ok) {
       setCopied(true);
       toast.success("Link copied to clipboard!");
-      setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
+      if (affiliateCopyTimerRef.current) {
+        clearTimeout(affiliateCopyTimerRef.current);
+      }
+      affiliateCopyTimerRef.current = setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
     } else {
       toast.error("Could not copy to clipboard");
     }
@@ -167,9 +189,7 @@ export function AffiliatesPageClient() {
           <Skeleton className="h-14 rounded-lg" />
         ) : referralFetchFailed || !referralMe ? (
           <div className="flex items-center gap-3">
-            <p className="text-sm text-white/50">
-              Could not load your invite link.
-            </p>
+            <p className="text-sm text-white/50">Could not load your invite link.</p>
             <Button
               variant="secondary"
               size="sm"
@@ -225,7 +245,13 @@ export function AffiliatesPageClient() {
                     if (ok) {
                       setReferralCopied(true);
                       toast.success("Invite link copied!");
-                      setTimeout(() => setReferralCopied(false), COPY_FEEDBACK_DURATION_MS);
+                      if (referralCopyTimerRef.current) {
+                        clearTimeout(referralCopyTimerRef.current);
+                      }
+                      referralCopyTimerRef.current = setTimeout(
+                        () => setReferralCopied(false),
+                        COPY_FEEDBACK_DURATION_MS,
+                      );
                     } else {
                       toast.error("Could not copy to clipboard");
                     }

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
-  validateBudgetTokens,
-  getThinkingConfig,
   buildThinkingParam,
+  type CharacterThinkingSettings,
+  getThinkingConfig,
   supportsExtendedThinking,
   type ThinkingConfig,
-  type CharacterThinkingSettings,
-// Note: imports from the correct path for modular design in the mono-repo structure
+  validateBudgetTokens,
+  // Note: imports from the correct path for modular design in the mono-repo structure
 } from "./src/lib/anthropic-thinking";
 
 describe("anthropic-thinking", () => {

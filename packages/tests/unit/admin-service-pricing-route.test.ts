@@ -1,9 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { NextRequest, NextResponse } from "next/server";
 
-type AdminPricingAuthResult =
-  | { user: { id: string }; role: string }
-  | NextResponse<unknown>;
+type AdminPricingAuthResult = { user: { id: string }; role: string } | NextResponse<unknown>;
 
 const mockRequireAdminWithResponse = mock(
   async (): Promise<AdminPricingAuthResult> => ({

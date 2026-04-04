@@ -1,6 +1,5 @@
 import { gateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
-import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import type { App } from "@/db/repositories";
 // Note: When ANTHROPIC_COT_BUDGET is set and model is Anthropic, temperature is silently dropped
 // per @ai-sdk/anthropic behavior. This service uses temperature for creative copy generation.
@@ -13,6 +12,7 @@ import {
   TWITTER_AUTOMATION_SETUP_COST,
   TWITTER_POST_COST,
 } from "@/lib/promotion-pricing";
+import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
 import type { PostContent, SocialPlatform } from "@/lib/types/social-media";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { logger } from "@/lib/utils/logger";

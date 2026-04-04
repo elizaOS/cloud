@@ -18,12 +18,23 @@ const mockLoggerInfo = mock();
 const mockLoggerDebug = mock();
 const mockLoggerWarn = mock();
 const originalFetch = globalThis.fetch;
+const forwardFetchPreconnect: NonNullable<typeof originalFetch.preconnect> = (...args) => {
+  if (typeof originalFetch.preconnect === "function") {
+    originalFetch.preconnect(...args);
+  }
+};
+const fetchMock = Object.assign(
+  mock(
+    (..._args: Parameters<typeof fetch>): ReturnType<typeof fetch> =>
+      Promise.reject(new Error("fetchMock not configured")),
+  ),
+  { preconnect: forwardFetchPreconnect },
+);
 
 process.env.ALCHEMY_API_KEY = "test-alchemy-key";
 
-const fetchMock = mock();
 // Note: fetchMock mimics fetch behavior for isolation in unit tests without external calls.
-globalThis.fetch = fetchMock as unknown as typeof fetch;
+globalThis.fetch = fetchMock;
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -56,7 +67,7 @@ import { POST } from "@/app/api/v1/proxy/evm-rpc/[chain]/route";
 
 describe("EVM RPC proxy route", () => {
   beforeEach(() => {
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    globalThis.fetch = fetchMock;
 
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockDeductCredits.mockReset();

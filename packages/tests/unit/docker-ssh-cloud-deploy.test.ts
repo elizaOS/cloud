@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 // which poisons the module cache for later dynamic `await import(...)` calls.
 // Importing via the file-system path with a cache-buster query param
 // guarantees we always get the real implementation regardless of mocks.
+// @ts-expect-error Bun supports cache-busting query imports in tests.
 import { redact } from "../../lib/utils/logger?v=docker-ssh-test";
 
 // ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@
  * - Authenticated flows require TEST_API_KEY env var
  */
 
-import { test as base, expect, type APIRequestContext } from "@playwright/test";
+import { type APIRequestContext, test as base, expect } from "@playwright/test";
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;

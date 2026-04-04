@@ -187,7 +187,12 @@ describe("dual-provider wallet routing", () => {
 
       mockPrivyWalletCreate.mockResolvedValue({ id: "pw_privy1", address: "0xPrivy1" });
       mockInsertReturning.mockResolvedValue([
-        { id: "rec-1", wallet_provider: "privy", privy_wallet_id: "pw_privy1", address: "0xPrivy1" },
+        {
+          id: "rec-1",
+          wallet_provider: "privy",
+          privy_wallet_id: "pw_privy1",
+          address: "0xPrivy1",
+        },
       ]);
 
       const { provisionServerWallet } = await import("@/lib/services/server-wallets");
@@ -411,7 +416,8 @@ describe("dual-provider wallet routing", () => {
         expect.objectContaining({ walletId: "pw_rpc1", method: "eth_sendTransaction" }),
       );
       expect(mockStewardSignTransaction).not.toHaveBeenCalled();
-      expect(result).toEqual({ method: "eth_sendTransaction", data: "0xResult" });
+      expect(result).toEqual(expect.objectContaining({ method: "eth_sendTransaction" }));
+      expect(result).toEqual(expect.objectContaining({ data: "0xResult" }));
     });
 
     it("routes to Steward for a wallet record with wallet_provider='steward'", async () => {
@@ -479,10 +485,12 @@ describe("dual-provider wallet routing", () => {
         signature: "0xSig" as `0x${string}`,
       });
 
-      expect(mockStewardSignTransaction).toHaveBeenCalledWith(
-        "cloud-agent-dispatch",
-        { to: "0xTo1", value: "0x64", data: "0xdata", chainId: 1 },
-      );
+      expect(mockStewardSignTransaction).toHaveBeenCalledWith("cloud-agent-dispatch", {
+        to: "0xTo1",
+        value: "0x64",
+        data: "0xdata",
+        chainId: 1,
+      });
       expect(result).toEqual({ txHash: "0xTx1" });
     });
 

@@ -13,16 +13,16 @@
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
 import {
-  mergeAnthropicCotProviderOptions,
-  mergeGoogleImageModalitiesWithAnthropicCot,
-  resolveAnthropicThinkingBudgetTokens,
-} from "@/lib/providers/anthropic-thinking";
-import {
   calculateCost,
   estimateRequestCost,
   getProviderFromModel,
   IMAGE_GENERATION_COST,
 } from "@/lib/pricing";
+import {
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
+  resolveAnthropicThinkingBudgetTokens,
+} from "@/lib/providers/anthropic-thinking";
 import { agentService } from "@/lib/services/agents/agents";
 import { charactersService } from "@/lib/services/characters/characters";
 import { containersService } from "@/lib/services/containers";
@@ -51,6 +51,8 @@ import type {
   VideoGenerationResult,
 } from "./types";
 
+const MIN_RESPONSE_TOKENS = 4096;
+
 /**
  * Chat completion skill - Generate text with LLMs
  */
@@ -69,8 +71,13 @@ export async function executeSkillChatCompletion(
     maxTokens: dataContent.max_tokens as number | undefined,
   };
 
+  const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+  const effectiveMaxTokens =
+    cotBudget != null
+      ? Math.max(options.maxTokens ?? MIN_RESPONSE_TOKENS, cotBudget + MIN_RESPONSE_TOKENS)
+      : options.maxTokens;
   const provider = getProviderFromModel(model);
-  const estimatedCost = await estimateRequestCost(model, messages);
+  const estimatedCost = await estimateRequestCost(model, messages, effectiveMaxTokens);
 
   // Reserve credits BEFORE the operation (TOCTOU-safe)
   let reservation: CreditReservation;
@@ -91,11 +98,6 @@ export async function executeSkillChatCompletion(
   }
 
   try {
-    // Resolve CoT budget once to compute both provider options and maxOutputTokens
-    const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-    // When thinking is enabled, maxOutputTokens must be >= budgetTokens or Anthropic API rejects
-    const effectiveMaxTokens = cotBudget != null ? Math.max(options.maxTokens ?? 4096, cotBudget) : options.maxTokens;
-
     const result = await streamText({
       model: gateway.languageModel(model),
       messages: messages.map((m) => ({

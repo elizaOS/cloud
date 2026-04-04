@@ -1,6 +1,6 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { agentServerWallets } from "@/db/schemas/agent-server-wallets";
@@ -8,8 +8,8 @@ import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-config";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
-import { getStewardAgent } from "@/lib/services/steward-client";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
+import { getStewardAgent } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";

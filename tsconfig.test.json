@@ -18,6 +18,7 @@
       "@/db/*": ["./packages/db/*"],
       "@/tests/*": ["./packages/tests/*"],
       "@/types/*": ["./packages/types/*"],
+      "@/components/*": ["./packages/ui/src/components/*"],
       "@elizaos/cloud-ui": ["./packages/ui/src/index.ts"],
       "@elizaos/cloud-ui/*": ["./packages/ui/src/*"],
       "@/*": ["./*"]

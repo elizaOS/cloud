@@ -2,10 +2,7 @@ import type { WalletApiWalletResponseType } from "@privy-io/server-auth";
 import { eq } from "drizzle-orm";
 import { verifyMessage } from "viem";
 import { db } from "@/db/client";
-import {
-  agentServerWallets,
-  type AgentServerWallet,
-} from "@/db/schemas/agent-server-wallets";
+import { type AgentServerWallet, agentServerWallets } from "@/db/schemas/agent-server-wallets";
 import { getPrivyClient } from "@/lib/auth/privy-client";
 import { cache } from "@/lib/cache/client";
 import { WALLET_PROVIDER_FLAGS } from "@/lib/config/wallet-provider-flags";
@@ -48,9 +45,7 @@ class RpcReplayError extends Error {
 
 class ServerWalletNotFoundError extends Error {
   constructor() {
-    super(
-      "Server wallet not found: No provisioned wallet matches this client address.",
-    );
+    super("Server wallet not found: No provisioned wallet matches this client address.");
     this.name = "ServerWalletNotFoundError";
   }
 }
@@ -130,15 +125,12 @@ async function provisionStewardWallet({
       })
       .returning();
 
-    logger.info(
-      `[server-wallets] Provisioned Steward wallet for ${agentName}: ${walletAddress}`,
-    );
+    logger.info(`[server-wallets] Provisioned Steward wallet for ${agentName}: ${walletAddress}`);
     return record;
   } catch (error: unknown) {
     const code = error instanceof Error ? Reflect.get(error, "code") : undefined;
     const isUniqueViolation =
-      code === "23505" ||
-      (error instanceof Error && error.message.includes("unique constraint"));
+      code === "23505" || (error instanceof Error && error.message.includes("unique constraint"));
     if (isUniqueViolation) {
       throw new WalletAlreadyExistsError();
     }
@@ -183,8 +175,7 @@ async function provisionPrivyWallet({
   } catch (error: unknown) {
     const code = error instanceof Error ? Reflect.get(error, "code") : undefined;
     const isUniqueViolation =
-      code === "23505" ||
-      (error instanceof Error && error.message.includes("unique constraint"));
+      code === "23505" || (error instanceof Error && error.message.includes("unique constraint"));
     if (isUniqueViolation) {
       if (wallet?.id) {
         const walletId = wallet.id;
@@ -228,11 +219,7 @@ export async function getOrganizationIdForClientAddress(
 // RPC execution — top-level (validates signature, routes by provider)
 // ---------------------------------------------------------------------------
 
-export async function executeServerWalletRpc({
-  clientAddress,
-  payload,
-  signature,
-}: ExecuteParams) {
+export async function executeServerWalletRpc({ clientAddress, payload, signature }: ExecuteParams) {
   // Timestamp check
   const now = Date.now();
   if (!payload.timestamp || now - payload.timestamp > 5 * 60 * 1000) {
@@ -280,9 +267,7 @@ async function executeStewardRpc(wallet: AgentServerWallet, payload: RpcPayload)
   const agentId = wallet.steward_agent_id;
 
   if (!agentId) {
-    throw new Error(
-      `Wallet ${wallet.id} is marked as steward but has no steward_agent_id`,
-    );
+    throw new Error(`Wallet ${wallet.id} is marked as steward but has no steward_agent_id`);
   }
 
   switch (payload.method) {
@@ -330,9 +315,7 @@ async function executeStewardRpc(wallet: AgentServerWallet, payload: RpcPayload)
 
 async function executePrivyRpc(wallet: AgentServerWallet, payload: RpcPayload) {
   if (!wallet.privy_wallet_id) {
-    throw new Error(
-      `Wallet ${wallet.id} is marked as privy but has no privy_wallet_id`,
-    );
+    throw new Error(`Wallet ${wallet.id} is marked as privy but has no privy_wallet_id`);
   }
 
   const privy = getPrivyClient();

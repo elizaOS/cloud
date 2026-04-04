@@ -50,11 +50,7 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
   });
 
   test("uses per-agent budget when provided for supported Anthropic model", () => {
-    const result = resolveAnthropicThinkingBudgetTokens(
-      "anthropic/claude-sonnet-4",
-      {},
-      5000,
-    );
+    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {}, 5000);
     expect(result).toBe(5000);
   });
 
@@ -68,10 +64,9 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
   });
 
   test("falls back to env budget when per-agent budget is undefined", () => {
-    const result = resolveAnthropicThinkingBudgetTokens(
-      "anthropic/claude-sonnet-4",
-      { [COT_ENV_KEY]: "8000" },
-    );
+    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {
+      [COT_ENV_KEY]: "8000",
+    });
     expect(result).toBe(8000);
   });
 
@@ -133,8 +128,6 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
     expect(result).toBe(5000);
   });
 });
-
-
 
 describe("anthropic COT env", () => {
   let prev: string | undefined;
@@ -213,9 +206,7 @@ describe("anthropic COT env", () => {
 
     test("per-agent budget overrides env default", () => {
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(
-        anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 2048),
-      ).toEqual({
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 2048)).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 2048 } },
         },
@@ -224,9 +215,7 @@ describe("anthropic COT env", () => {
 
     test("ANTHROPIC_COT_BUDGET_MAX clamps per-agent budget", () => {
       const env = { [COT_ENV_KEY]: "1024", [COT_MAX_ENV_KEY]: "500" };
-      expect(
-        anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 9000),
-      ).toEqual({
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 9000)).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 500 } },
         },
@@ -259,7 +248,9 @@ describe("anthropic COT env", () => {
   describe("mergeGatewayGroqPreferenceWithAnthropicCot", () => {
     test("gateway order + anthropic when Claude + budget", () => {
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(mergeGatewayGroqPreferenceWithAnthropicCot("anthropic/claude-sonnet-4.5", env)).toEqual(
+      expect(
+        mergeGatewayGroqPreferenceWithAnthropicCot("anthropic/claude-sonnet-4.5", env),
+      ).toEqual(
         mergeProviderOptions(
           { providerOptions: { gateway: { order: ["groq"] } } },
           anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env),
@@ -302,31 +293,27 @@ describe("parseThinkingBudgetFromCharacterSettings", () => {
   });
 
   test("integer ≥ 0", () => {
-    expect(
-      parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 0 }),
-    ).toBe(0);
-    expect(
-      parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 42 }),
-    ).toBe(42);
+    expect(parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 0 })).toBe(0);
+    expect(parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 42 })).toBe(
+      42,
+    );
   });
 
-  test("float input is truncated to integer", () => {
+  test("float input is rejected", () => {
     expect(
       parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 4000.9 }),
-    ).toBe(4000);
+    ).toBeUndefined();
     expect(
       parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 1.1 }),
-    ).toBe(1);
+    ).toBeUndefined();
   });
 });
 
-
-
 describe("supportsExtendedThinking", () => {
-  test("returns true for Claude 3.5 Sonnet variants", () => {
-    expect(supportsExtendedThinking("claude-3-5-sonnet")).toBe(true);
-    expect(supportsExtendedThinking("anthropic/claude-3-5-sonnet")).toBe(true);
-    expect(supportsExtendedThinking("claude-3-5-sonnet-20241022")).toBe(true);
+  test("returns false for Claude 3.5 Sonnet variants", () => {
+    expect(supportsExtendedThinking("claude-3-5-sonnet")).toBe(false);
+    expect(supportsExtendedThinking("anthropic/claude-3-5-sonnet")).toBe(false);
+    expect(supportsExtendedThinking("claude-3-5-sonnet-20241022")).toBe(false);
   });
 
   test("returns true for Claude 3.7 Sonnet variants", () => {
@@ -336,9 +323,9 @@ describe("supportsExtendedThinking", () => {
     expect(supportsExtendedThinking("anthropic/claude-3-7-sonnet-latest")).toBe(true);
   });
 
-  test("returns true for Claude 3 Opus", () => {
-    expect(supportsExtendedThinking("claude-3-opus")).toBe(true);
-    expect(supportsExtendedThinking("anthropic/claude-3-opus")).toBe(true);
+  test("returns false for Claude 3 Opus", () => {
+    expect(supportsExtendedThinking("claude-3-opus")).toBe(false);
+    expect(supportsExtendedThinking("anthropic/claude-3-opus")).toBe(false);
   });
 
   test("returns true for Claude Sonnet 4", () => {
@@ -366,7 +353,7 @@ describe("supportsExtendedThinking", () => {
 
   test("is case-insensitive", () => {
     expect(supportsExtendedThinking("CLAUDE-SONNET-4")).toBe(true);
-    expect(supportsExtendedThinking("Claude-3-5-Sonnet")).toBe(true);
+    expect(supportsExtendedThinking("Claude-3-7-Sonnet")).toBe(true);
   });
 });
 

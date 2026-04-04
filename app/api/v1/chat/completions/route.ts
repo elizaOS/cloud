@@ -20,8 +20,11 @@ import {
   getSafeModelParams,
   normalizeModelName,
 } from "@/lib/pricing";
+import {
+  mergeAnthropicCotProviderOptions,
+  resolveAnthropicThinkingBudgetTokens,
+} from "@/lib/providers/anthropic-thinking";
 import { getLanguageModel } from "@/lib/providers/language-model";
-import { mergeAnthropicCotProviderOptions, resolveAnthropicThinkingBudgetTokens } from "@/lib/providers/anthropic-thinking";
 import {
   billUsage,
   estimateInputTokens,
@@ -226,6 +229,10 @@ async function handlePOST(req: NextRequest) {
     const model = request.model;
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
+    const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+    const cotOptions =
+      cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
+    const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
 
     // 5. Check content moderation
     if (await contentModerationService.shouldBlockUser(user.id)) {
@@ -261,7 +268,7 @@ async function handlePOST(req: NextRequest) {
     const estimatedInputTokens = estimateInputTokens(
       request.messages.map((m) => ({ content: getMessageContent(m) })),
     );
-    const estimatedOutputTokens = request.max_tokens || 500;
+    const estimatedOutputTokens = effectiveMaxTokens ?? request.max_tokens ?? 500;
     const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     let reservation: CreditReservation;
@@ -353,13 +360,7 @@ async function handlePOST(req: NextRequest) {
       estimatedInputTokens,
     });
 
-    // 8. Resolve Anthropic CoT budget once (shared by streaming and non-streaming paths)
-    // Note: mergeAnthropicCotProviderOptions re-resolves internally but short-circuits env parsing when budget is passed
-    const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-    const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
-    const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
-
-    // 9. Handle streaming vs non-streaming
+    // 8. Handle streaming vs non-streaming
     if (request.stream) {
       return handleStreamingRequest(
         model,
@@ -374,7 +375,6 @@ async function handlePOST(req: NextRequest) {
         req.signal,
         routeTimeoutMs,
         settleReservation,
-        cotBudget,
         cotOptions,
         effectiveMaxTokens,
       );
@@ -447,7 +447,6 @@ async function handleStreamingRequest(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
-  cotBudget: number | null,
   cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
   effectiveMaxTokens: number | undefined,
 ) {
@@ -636,7 +635,6 @@ async function handleNonStreamingRequest(
   });
 
   try {
-
     const result = await generateText({
       model: getLanguageModel(model),
       system: systemPrompt,

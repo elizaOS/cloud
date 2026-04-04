@@ -305,7 +305,8 @@ async function handleChat(
     agentThinkingBudget,
   );
   // Add thinking budget to base output estimate (500 tokens) to match MCP route behavior
-  const maxOutputTokens = effectiveThinkingBudget != null ? 500 + effectiveThinkingBudget : undefined;
+  const maxOutputTokens =
+    effectiveThinkingBudget != null ? 500 + effectiveThinkingBudget : undefined;
   const baseCost = await estimateRequestCost(model, fullMessages, maxOutputTokens);
 
   // Apply markup if monetization is enabled
@@ -341,7 +342,7 @@ async function handleChat(
     const result = await streamText({
       model: gateway.languageModel(model),
       messages: fullMessages,
-      ...mergeAnthropicCotProviderOptions(model, process.env, agentThinkingBudget),
+      ...mergeAnthropicCotProviderOptions(model, process.env, effectiveThinkingBudget ?? undefined),
     });
 
     let fullText = "";

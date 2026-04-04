@@ -1,4 +1,8 @@
-import type { JSONObject } from "@ai-sdk/provider";
+export type CloudJsonValue = null | string | number | boolean | CloudJsonObject | CloudJsonValue[];
+
+export type CloudJsonObject = {
+  [key: string]: CloudJsonValue | undefined;
+};
 
 /**
  * Shape of merged `providerOptions` passed into AI SDK calls (gateway, `streamText`, forwarded bodies).
@@ -8,4 +12,4 @@ import type { JSONObject } from "@ai-sdk/provider";
  * **Why a dedicated type:** `anthropic-thinking.ts` merges fragments from several routes; one alias
  * keeps merges consistent and documents intent at call sites.
  */
-export type CloudMergedProviderOptions = Record<string, JSONObject>;
+export type CloudMergedProviderOptions = Record<string, CloudJsonObject>;

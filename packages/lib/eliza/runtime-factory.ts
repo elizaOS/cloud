@@ -19,6 +19,8 @@ import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
 import { agentLoader } from "./agent-loader";
 import { buildElevenLabsSettings, getDefaultModels, getElizaCloudApiUrl } from "./config";
+import mcpPlugin from "./plugin-mcp";
+import type { UserContext } from "./user-context";
 import "@/lib/polyfills/dom-polyfills";
 import {
   edgeRuntimeCache,

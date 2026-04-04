@@ -31,6 +31,7 @@ export function useDashboardReferralMe(): UseDashboardReferralMeResult {
 
   useEffect(() => {
     let cancelled = false;
+    void fetchTrigger;
 
     const load = async () => {
       setLoadingReferral(true);
@@ -43,7 +44,6 @@ export function useDashboardReferralMe(): UseDashboardReferralMeResult {
       } catch {
         if (!cancelled) {
           setReferralFetchFailed(true);
-          setReferralMe(null);
         }
       } finally {
         if (!cancelled) {

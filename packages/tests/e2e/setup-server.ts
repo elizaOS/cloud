@@ -10,6 +10,11 @@ const POLL_INTERVAL_MS = 500;
 const MANAGED_FETCH_RETRIES = 4;
 const TEST_SERVER_SCRIPT = process.env.TEST_SERVER_SCRIPT || "dev";
 const baseFetch: typeof fetch = globalThis.fetch;
+const forwardBasePreconnect: NonNullable<typeof baseFetch.preconnect> = (...args) => {
+  if (typeof baseFetch.preconnect === "function") {
+    baseFetch.preconnect(...args);
+  }
+};
 
 let serverProcess: Subprocess | null = null;
 let startedServer = false;
@@ -270,9 +275,7 @@ const fetchWithServer: typeof fetch = Object.assign(
 
     throw new Error("Managed fetch exhausted all retry attempts");
   },
-  typeof baseFetch.preconnect === "function"
-    ? { preconnect: baseFetch.preconnect.bind(baseFetch) }
-    : {},
+  { preconnect: forwardBasePreconnect },
 );
 
 globalThis.fetch = fetchWithServer;

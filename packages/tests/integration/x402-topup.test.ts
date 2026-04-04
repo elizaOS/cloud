@@ -55,19 +55,22 @@ describe("x402 Topup Endpoints", () => {
     const actualReferralsModule = await import("@/lib/services/referrals");
     const actualOrganizationsModule = await import("@/lib/services/organizations");
     const actualRedeemableEarningsModule = await import("@/lib/services/redeemable-earnings");
-    const referrals: ReferralsServicePatch = actualReferralsModule.referralsService as ReferralsServicePatch;
+    const referrals: ReferralsServicePatch =
+      actualReferralsModule.referralsService as unknown as ReferralsServicePatch;
     referralsServiceForTest = referrals;
     originalApplyReferralCode = referrals.applyReferralCode;
     originalCalculateRevenueSplits = referrals.calculateRevenueSplits;
     referrals.applyReferralCode = mockApplyReferralCode;
     referrals.calculateRevenueSplits = mockCalculateRevenueSplits;
 
-    const orgs: OrganizationsServicePatch = actualOrganizationsModule.organizationsService as OrganizationsServicePatch;
+    const orgs: OrganizationsServicePatch =
+      actualOrganizationsModule.organizationsService as unknown as OrganizationsServicePatch;
     organizationsServiceForTest = orgs;
     originalUpdateCreditBalance = orgs.updateCreditBalance;
     orgs.updateCreditBalance = mockUpdateCreditBalance;
 
-    const redeem: RedeemableEarningsServicePatch = actualRedeemableEarningsModule.redeemableEarningsService as RedeemableEarningsServicePatch;
+    const redeem: RedeemableEarningsServicePatch =
+      actualRedeemableEarningsModule.redeemableEarningsService as unknown as RedeemableEarningsServicePatch;
     redeemableEarningsServiceForTest = redeem;
     originalAddEarnings = redeem.addEarnings;
     redeem.addEarnings = mockAddEarnings;

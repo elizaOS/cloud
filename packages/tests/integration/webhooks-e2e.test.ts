@@ -23,6 +23,11 @@ const BLOOIO_WEBHOOK_SECRET = "webhook_secret_123";
 const TWILIO_SECRET_NAMES = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"];
 const BLOOIO_SECRET_NAMES = ["BLOOIO_API_KEY", "BLOOIO_WEBHOOK_SECRET", "BLOOIO_FROM_NUMBER"];
 const encryptionService = createEncryptionService();
+const forwardOriginalFetchPreconnect: NonNullable<typeof originalFetch.preconnect> = (...args) => {
+  if (typeof originalFetch.preconnect === "function") {
+    originalFetch.preconnect(...args);
+  }
+};
 
 async function deleteSecrets(
   client: Client,
@@ -106,7 +111,9 @@ function createBlooioSignature(rawBody: string, timestamp: number): string {
 const signedWebhookFetch: typeof fetch = Object.assign(
   (input: RequestInfo | URL, init?: RequestInit) => {
     const url = getRequestUrl(input);
-    const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+    const method = (
+      init?.method ?? (input instanceof Request ? input.method : "GET")
+    ).toUpperCase();
 
     if (method !== "POST") {
       return originalFetch(input, init);
@@ -131,15 +138,16 @@ const signedWebhookFetch: typeof fetch = Object.assign(
     if (url.includes("/api/webhooks/blooio/") && !headers.has("X-Blooio-Signature")) {
       const body = init?.body;
       if (typeof body === "string") {
-        headers.set("X-Blooio-Signature", createBlooioSignature(body, Math.floor(Date.now() / 1000)));
+        headers.set(
+          "X-Blooio-Signature",
+          createBlooioSignature(body, Math.floor(Date.now() / 1000)),
+        );
       }
     }
 
     return originalFetch(input, { ...init, headers });
   },
-  typeof originalFetch.preconnect === "function"
-    ? { preconnect: originalFetch.preconnect.bind(originalFetch) }
-    : {},
+  { preconnect: forwardOriginalFetchPreconnect },
 );
 
 describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {

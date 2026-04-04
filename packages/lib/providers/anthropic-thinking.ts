@@ -18,20 +18,17 @@
  */
 
 import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
-import type { JSONObject } from "@ai-sdk/provider";
 import { getProviderFromModel } from "@/lib/pricing";
-import type { CloudMergedProviderOptions } from "./cloud-provider-options";
+import type { CloudJsonObject, CloudMergedProviderOptions } from "./cloud-provider-options";
 
 /**
  * Models that support Anthropic extended thinking.
- * Supported: Claude 3.5 Sonnet, Claude 3.7 Sonnet, Claude 3 Opus, Claude Sonnet 4, Claude Opus 4.
- * Not supported: Haiku, Instant, and older Claude 2 variants.
+ * Supported: Claude 3.7 Sonnet, Claude Sonnet 4, Claude Opus 4 / 4.1.
+ * Not supported: Claude 3.5 Sonnet, Claude 3 Opus, Haiku, Instant, and older Claude 2 variants.
  * Note: Patterns do not use ^ anchor to support provider-prefixed model IDs (e.g. "anthropic/claude-sonnet-4").
  */
 const EXTENDED_THINKING_MODEL_PATTERNS = [
-  /claude-3[.-]5-sonnet/, // Claude 3.5 Sonnet (all versions, hyphen or dot)
   /claude-3[.-]7-sonnet/, // Claude 3.7 Sonnet (hyphen or dot)
-  /claude-3-opus/, // Claude 3 Opus
   /claude-sonnet-4/, // Claude Sonnet 4
   /claude-opus-4/, // Claude Opus 4
 ];
@@ -81,9 +78,7 @@ function parsePositiveIntStrict(raw: string, keyLabel: string): number {
  * - "0" or negative as string not possible with strict digit regex; 0 from digits → null
  * - invalid non-empty → throws
  */
-export function parseAnthropicCotBudgetFromEnv(
-  env: AnthropicCotEnv = process.env,
-): number | null {
+export function parseAnthropicCotBudgetFromEnv(env: AnthropicCotEnv = process.env): number | null {
   const raw = env[ENV_KEY];
   if (raw === undefined || raw === "") {
     return null;
@@ -99,7 +94,9 @@ export function parseAnthropicCotBudgetFromEnv(
  * Optional ceiling for any effective thinking budget (env default or per-character setting).
  * Unset / empty / "0" → no cap. Positive → clamp `min(effective, max)`.
  */
-export function parseAnthropicCotBudgetMaxFromEnv(env: AnthropicCotEnv = process.env): number | null {
+export function parseAnthropicCotBudgetMaxFromEnv(
+  env: AnthropicCotEnv = process.env,
+): number | null {
   const raw = env[ENV_MAX_KEY];
   // Note: allows flexibility in configuring the budget cap via environmental settings.
   if (raw === undefined || raw === "") {
@@ -126,15 +123,13 @@ export function parseThinkingBudgetFromCharacterSettings(
   if (raw === undefined) {
     return undefined;
   }
-  if (typeof raw !== "number" || !Number.isFinite(raw)) {
+  if (typeof raw !== "number" || !Number.isInteger(raw)) {
     return undefined;
   }
-  const n = Math.trunc(raw);
-  if (n < 0 || n > Number.MAX_SAFE_INTEGER) {
+  if (raw < 0 || raw > Number.MAX_SAFE_INTEGER) {
     return undefined;
   }
-  // Note: truncation allows flexibility with owner-controlled values while preventing negative budgets.
-  return n;
+  return raw;
 }
 
 /**
@@ -195,7 +190,7 @@ export function anthropicThinkingProviderOptions(
   if (budget === null) {
     return {};
   }
-  const anthropic = anthropicThinkingOptions(budget);
+  const anthropic = anthropicThinkingOptions(budget) as CloudJsonObject;
   return {
     providerOptions: {
       anthropic,
@@ -247,7 +242,7 @@ export function mergeAnthropicCotProviderOptions(
   );
 }
 
-const GOOGLE_IMAGE_MODALITIES: JSONObject = { responseModalities: ["TEXT", "IMAGE"] };
+const GOOGLE_IMAGE_MODALITIES: CloudJsonObject = { responseModalities: ["TEXT", "IMAGE"] };
 
 /**
  * Gemini (and similar) image generation: `google.responseModalities` plus optional COT merge.

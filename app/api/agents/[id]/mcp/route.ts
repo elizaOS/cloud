@@ -29,7 +29,7 @@ import {
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
-import { charactersService } from "@/lib/services/characters";
+import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
 import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
@@ -339,15 +339,19 @@ async function handleToolCall(
 
     // Resolve effective thinking budget before reservation (applies ANTHROPIC_COT_BUDGET_MAX cap)
     const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
-    const effectiveThinkingBudget = 
-      resolveAnthropicThinkingBudgetTokens(model, process.env, agentThinkingBudget);
+    const effectiveThinkingBudget = resolveAnthropicThinkingBudgetTokens(
+      model,
+      process.env,
+      agentThinkingBudget,
+    );
     // Include thinking budget in output token estimate when budget is non-null
     // (resolveAnthropicThinkingBudgetTokens already checks model support internally)
     // Note: Use higher base to allow for actual response generation, not just thinking budget
     const baseOutputTokens = DEFAULT_MIN_OUTPUT_TOKENS;
-    const estimatedOutputTokens = effectiveThinkingBudget != null
-      ? baseOutputTokens + effectiveThinkingBudget
-      : baseOutputTokens;
+    const estimatedOutputTokens =
+      effectiveThinkingBudget != null
+        ? baseOutputTokens + effectiveThinkingBudget
+        : baseOutputTokens;
 
     // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
     let reservation: CreditReservation;
@@ -386,11 +390,7 @@ async function handleToolCall(
         model: gateway.languageModel(model),
         messages,
         ...(maxOutputTokens && { maxOutputTokens }),
-        ...mergeAnthropicCotProviderOptions(
-          model,
-          process.env,
-          agentThinkingBudget,
-        ),
+        ...mergeAnthropicCotProviderOptions(model, process.env, agentThinkingBudget),
       });
 
       let fullText = "";

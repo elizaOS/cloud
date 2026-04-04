@@ -9,7 +9,7 @@ import { appsRepository } from "@/db/repositories/apps";
 import type { App, UserDatabaseStatus } from "@/db/schemas/apps";
 import { logger } from "@/lib/utils/logger";
 import { fieldEncryption } from "./field-encryption";
-import { getNeonClient, NeonClientError } from "./neon-client";
+import { getNeonClient } from "./neon-client";
 
 /**
  * Result from provisioning a user database.

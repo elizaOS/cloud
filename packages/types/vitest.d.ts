@@ -12,6 +12,7 @@ declare module "vitest" {
     mock: (...args: any[]) => any;
     mocked: <T>(value: T) => any;
     clearAllMocks: () => void;
+    restoreAllMocks: () => void;
     fn: (...args: any[]) => any;
   };
 }

@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { GET, OPTIONS } from "@/app/api/openapi.json/route";
 import { discoverPublicApiRoutes } from "@/lib/docs/api-route-discovery";
 import { API_ENDPOINTS } from "@/lib/swagger/endpoint-discovery";
+
 describe("Public API catalog", () => {
   test(
     "route discovery includes every documented endpoint",

@@ -8,11 +8,11 @@ import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { resolveModel } from "@/lib/models";
 import { estimateTokens } from "@/lib/pricing";
-import { getLanguageModel } from "@/lib/providers/language-model";
 import {
   mergeAnthropicCotProviderOptions,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { billUsage } from "@/lib/services/ai-billing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -293,9 +293,10 @@ async function handlePOST(req: NextRequest) {
     // Default minimum output tokens to allow for actual response generation (consistent with MCP endpoint)
     const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
     const cotBudget = resolveAnthropicThinkingBudgetTokens(selectedModel, process.env);
-    const effectiveMaxOutputTokens = cotBudget
-      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, cotBudget + DEFAULT_MIN_OUTPUT_TOKENS)
-      : undefined;
+    const effectiveMaxOutputTokens =
+      cotBudget != null
+        ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, cotBudget + DEFAULT_MIN_OUTPUT_TOKENS)
+        : undefined;
 
     const result = streamText({
       model: getLanguageModel(selectedModel),
@@ -304,7 +305,7 @@ async function handlePOST(req: NextRequest) {
       messages: await convertToModelMessages(messages),
       abortSignal: req.signal,
       timeout: routeTimeoutMs,
-      ...(effectiveMaxOutputTokens ? { maxOutputTokens: effectiveMaxOutputTokens } : {}),
+      ...(effectiveMaxOutputTokens != null ? { maxOutputTokens: effectiveMaxOutputTokens } : {}),
       ...mergeAnthropicCotProviderOptions(selectedModel, process.env, cotBudget ?? undefined),
       onFinish: async ({ text, usage }) => {
         try {

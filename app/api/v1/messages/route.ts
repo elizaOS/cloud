@@ -31,8 +31,8 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import {
-  resolveAnthropicThinkingBudgetTokens,
   mergeAnthropicCotProviderOptions,
+  resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
 import {
   billUsage,
@@ -663,12 +663,14 @@ async function handleNonStream(
   // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
   // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
-  const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
+  const cotOptions =
+    cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
   // When CoT is active, max_tokens must include room for both thinking AND response tokens
   const MIN_RESPONSE_BUFFER = 4096;
-  const effectiveMaxTokens = cotBudget != null
-    ? Math.max(request.max_tokens ?? MIN_RESPONSE_BUFFER, cotBudget + MIN_RESPONSE_BUFFER)
-    : request.max_tokens;
+  const effectiveMaxTokens =
+    cotBudget != null
+      ? Math.max(request.max_tokens ?? MIN_RESPONSE_BUFFER, cotBudget + MIN_RESPONSE_BUFFER)
+      : request.max_tokens;
 
   try {
     const result = await generateText({
@@ -799,12 +801,14 @@ async function handleStream(
   // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
   // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
-  const cotOptions = cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
+  const cotOptions =
+    cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
   // When CoT is active, max_tokens must include room for both thinking AND response tokens
   const MIN_RESPONSE_BUFFER = 4096;
-  const effectiveMaxTokens = cotBudget != null
-    ? Math.max(request.max_tokens ?? MIN_RESPONSE_BUFFER, cotBudget + MIN_RESPONSE_BUFFER)
-    : request.max_tokens;
+  const effectiveMaxTokens =
+    cotBudget != null
+      ? Math.max(request.max_tokens ?? MIN_RESPONSE_BUFFER, cotBudget + MIN_RESPONSE_BUFFER)
+      : request.max_tokens;
 
   const result = streamText({
     model: gateway.languageModel(model),

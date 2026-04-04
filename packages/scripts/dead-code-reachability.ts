@@ -6,7 +6,7 @@
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, normalize, relative, resolve } from "node:path";
+import { basename, dirname, join, normalize, relative, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
 
@@ -52,11 +52,15 @@ function walkDirs(
     if (SKIP_DIRS.has(name)) continue;
     const abs = join(dir, name);
     const st = statSync(abs);
-    const rel = relative(ROOT, abs);
+    const rel = toRepoRelative(abs);
     if (st.isDirectory()) walkDirs(abs, pred, acc);
     else if (pred(abs, rel)) acc.push(abs);
   }
   return acc;
+}
+
+function toRepoRelative(abs: string): string {
+  return relative(ROOT, abs).replaceAll("\\", "/");
 }
 
 function isCandidateSource(abs: string, rel: string): boolean {
@@ -92,10 +96,10 @@ function collectCandidates(): string[] {
 }
 
 function isNextAppEntry(abs: string): boolean {
-  const rel = relative(ROOT, abs);
+  const rel = toRepoRelative(abs);
   if (!rel.startsWith("app/")) return false;
   const base = abs.replace(/\.(tsx?|mts|cts)$/, "");
-  const name = base.split("/").pop() ?? "";
+  const name = basename(base);
   return NEXT_ROUTE_BASENAMES.has(name);
 }
 
@@ -138,6 +142,8 @@ function collectRootEntries(): string[] {
 
 function mapSpecifierToPath(fromFile: string, spec: string): string | null {
   const trimmed = spec.trim();
+  const isSupportedWorkspaceAlias =
+    trimmed === "@elizaos/cloud-ui" || trimmed.startsWith("@elizaos/cloud-ui/");
   if (
     trimmed.startsWith("node:") ||
     trimmed === "react" ||
@@ -147,7 +153,7 @@ function mapSpecifierToPath(fromFile: string, spec: string): string | null {
   ) {
     return null;
   }
-  if (!trimmed.startsWith(".") && !trimmed.startsWith("@/") && !trimmed.startsWith("@elizaos/")) {
+  if (!trimmed.startsWith(".") && !trimmed.startsWith("@/") && !isSupportedWorkspaceAlias) {
     return null;
   }
   if (trimmed === "@elizaos/cloud-ui") {
@@ -186,8 +192,11 @@ function tryResolveFile(basePath: string): string | null {
     `${basePath}.ts`,
     `${basePath}.tsx`,
     `${basePath}.mts`,
+    `${basePath}.cts`,
     join(basePath, "index.ts"),
     join(basePath, "index.tsx"),
+    join(basePath, "index.mts"),
+    join(basePath, "index.cts"),
   ];
   for (const c of candidates) {
     if (existsSync(c) && statSync(c).isFile()) return c;
@@ -233,21 +242,22 @@ function bfs(entries: string[]): Set<string> {
   }
   while (queue.length > 0) {
     const file = queue.pop()!;
-    let source: string;
     try {
-      source = readFileSync(file, "utf8");
-    } catch {
-      continue;
-    }
-    for (const spec of extractSpecifiers(source)) {
-      const mapped = mapSpecifierToPath(file, spec);
-      if (!mapped) continue;
-      const resolved = tryResolveFile(mapped);
-      if (!resolved) continue;
-      if (!visited.has(resolved)) {
-        visited.add(resolved);
-        queue.push(resolved);
+      const source = readFileSync(file, "utf8");
+      for (const spec of extractSpecifiers(source)) {
+        const mapped = mapSpecifierToPath(file, spec);
+        if (!mapped) continue;
+        const resolved = tryResolveFile(mapped);
+        if (!resolved) continue;
+        if (!visited.has(resolved)) {
+          visited.add(resolved);
+          queue.push(resolved);
+        }
       }
+    } catch (error) {
+      throw new Error(
+        `Failed to read ${file}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
   return visited;
@@ -259,7 +269,7 @@ function walkMatch(dir: string, match: (abs: string, rel: string) => boolean, ou
     if (SKIP_DIRS.has(name)) continue;
     const abs = join(dir, name);
     const st = statSync(abs);
-    const rel = relative(ROOT, abs);
+    const rel = toRepoRelative(abs);
     if (st.isDirectory()) walkMatch(abs, match, out);
     else if (match(abs, rel)) out.push(abs);
   }
@@ -305,7 +315,7 @@ function main(): void {
   const testOnlyDead = [...candidates].filter((c) => !testReach.has(c)).sort();
 
   const appNonRouteDead = prodDead.filter((p) => {
-    const rel = relative(ROOT, p);
+    const rel = toRepoRelative(p);
     return rel.startsWith("app/") && !isNextAppEntry(p);
   });
 

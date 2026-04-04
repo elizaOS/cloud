@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import {
-  Client,
   type Attachment,
+  Client,
   type ClientOptions,
   type Embed,
   Events,
@@ -10,13 +10,13 @@ import {
   Interaction,
   Message,
   MessageReaction,
-  Partials,
   type PartialGuildMember,
   type PartialMessage,
   type PartialMessageReaction,
+  Partials,
+  type PartialUser,
   Role,
   type User,
-  type PartialUser,
 } from "discord.js";
 import { logger } from "./logger";
 import {

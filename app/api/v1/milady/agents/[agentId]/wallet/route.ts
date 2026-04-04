@@ -8,15 +8,15 @@
  * For privy-backed agents: returns DB-stored wallet info.
  */
 
-import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { agentServerWallets } from "@/db/schemas/agent-server-wallets";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
-import { getStewardWalletInfo } from "@/lib/services/steward-client";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
+import { getStewardWalletInfo } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";

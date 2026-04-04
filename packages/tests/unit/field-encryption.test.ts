@@ -14,8 +14,12 @@ type FindFirstOptions = {
   orderBy?: Record<string, string>;
 };
 
-const dbReadFindFirst = mock(async (_opts: FindFirstOptions): Promise<OrgEncryptionKeyRow | null> => null);
-const dbWriteFindFirst = mock(async (_opts: FindFirstOptions): Promise<OrgEncryptionKeyRow | null> => null);
+const dbReadFindFirst = mock(
+  async (_opts: FindFirstOptions): Promise<OrgEncryptionKeyRow | null> => null,
+);
+const dbWriteFindFirst = mock(
+  async (_opts: FindFirstOptions): Promise<OrgEncryptionKeyRow | null> => null,
+);
 const insertReturning = mock(async (): Promise<OrgEncryptionKeyRow[]> => []);
 const loggerWarn = mock((..._args: string[]) => undefined);
 const loggerInfo = mock((..._args: string[]) => undefined);

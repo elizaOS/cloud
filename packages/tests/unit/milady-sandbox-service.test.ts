@@ -72,8 +72,8 @@ vi.mock("@/lib/services/sandbox-provider", () => ({
   createSandboxProvider: vi.fn(),
 }));
 
-import type { SandboxProvider } from "@/lib/services/sandbox-provider";
 import { MiladySandboxService } from "@/lib/services/milady-sandbox";
+import type { SandboxProvider } from "@/lib/services/sandbox-provider";
 
 function testSandboxProvider(overrides: Partial<SandboxProvider> = {}): SandboxProvider {
   return {
