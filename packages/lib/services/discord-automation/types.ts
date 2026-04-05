@@ -67,6 +67,20 @@ export interface OAuthState {
   userId: string;
   returnUrl: string;
   nonce: string;
+  flow?: "organization-install" | "milady-managed";
+  agentId?: string;
+  botNickname?: string;
+}
+
+export interface DiscordOAuthIdentity {
+  accessToken: string;
+  guilds: DiscordGuildInfo[];
+  user: {
+    id: string;
+    username: string;
+    globalName: string | null;
+    avatar: string | null;
+  };
 }
 
 export interface SendMessageResult {

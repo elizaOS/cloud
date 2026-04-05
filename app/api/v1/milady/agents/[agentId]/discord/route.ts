@@ -1,0 +1,72 @@
+import { NextRequest, NextResponse } from "next/server";
+import { errorToResponse } from "@/lib/api/errors";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { discordAutomationService } from "@/lib/services/discord-automation";
+import { managedMiladyDiscordService } from "@/lib/services/milady-managed-discord";
+import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
+
+export const dynamic = "force-dynamic";
+
+const CORS_METHODS = "GET, DELETE, OPTIONS";
+
+export function OPTIONS() {
+  return handleCorsOptions(CORS_METHODS);
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> },
+) {
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { agentId } = await params;
+
+    const status = await managedMiladyDiscordService.getStatus({
+      agentId,
+      organizationId: user.organization_id,
+      configured: discordAutomationService.isOAuthConfigured(),
+      applicationId: discordAutomationService.getApplicationId(),
+    });
+
+    if (!status) {
+      return applyCorsHeaders(
+        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
+        CORS_METHODS,
+      );
+    }
+
+    return applyCorsHeaders(NextResponse.json({ success: true, data: status }), CORS_METHODS);
+  } catch (error) {
+    return applyCorsHeaders(errorToResponse(error), CORS_METHODS);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> },
+) {
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { agentId } = await params;
+
+    const result = await managedMiladyDiscordService.disconnectAgent({
+      agentId,
+      organizationId: user.organization_id,
+      configured: discordAutomationService.isOAuthConfigured(),
+      applicationId: discordAutomationService.getApplicationId(),
+    });
+
+    return applyCorsHeaders(
+      NextResponse.json({
+        success: true,
+        data: {
+          ...result.status,
+          restarted: result.restarted,
+        },
+      }),
+      CORS_METHODS,
+    );
+  } catch (error) {
+    return applyCorsHeaders(errorToResponse(error), CORS_METHODS);
+  }
+}

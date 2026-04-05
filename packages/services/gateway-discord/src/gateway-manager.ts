@@ -1622,7 +1622,12 @@ export class GatewayManager {
     });
 
     this.elizaAppClient = new Client({
-      intents: [GatewayIntentBits.DirectMessages, GatewayIntentBits.MessageContent],
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.MessageContent,
+      ],
       // Partials required for DM support - DM channels are not cached by default
       partials: [Partials.Channel, Partials.Message],
     });
@@ -1682,11 +1687,14 @@ export class GatewayManager {
 
   /**
    * Handle a message received by the Eliza App bot.
-   * Filters to DM-only and forwards to the Eliza App webhook.
+   * Handles both DM identity routing and managed guild installs.
    */
   private async handleElizaAppMessage(message: Message): Promise<void> {
     if (message.author.bot) return;
-    if (message.guild) return;
+    if (message.guild) {
+      await this.handleManagedMiladyGuildMessage(message);
+      return;
+    }
     if (!message.content.trim()) return;
 
     if (!this.redis) {
@@ -1767,6 +1775,119 @@ export class GatewayManager {
         agentId: identity.agentId,
         serverName: route.serverName,
         project: this.config.project,
+        error: sanitizeError(error),
+      });
+    }
+  }
+
+  private async handleManagedMiladyGuildMessage(message: Message): Promise<void> {
+    const botUserId = this.elizaAppClient?.user?.id;
+    if (!botUserId || !message.guildId) {
+      return;
+    }
+
+    const trimmedContent = message.content.trim();
+    if (!trimmedContent) {
+      return;
+    }
+
+    const botMentionRegex = new RegExp(`<@!?${botUserId}>`, "g");
+    const botMentioned =
+      message.mentions.users.has(botUserId) || botMentionRegex.test(trimmedContent);
+    if (!botMentioned) {
+      return;
+    }
+
+    const mentionedOtherUser = message.mentions.users.some((user) => user.id !== botUserId);
+    const repliedUserId = message.mentions.repliedUser?.id;
+    const repliedToAnotherUser = Boolean(repliedUserId && repliedUserId !== botUserId);
+    if (mentionedOtherUser || message.mentions.everyone || repliedToAnotherUser) {
+      logger.debug("Ignoring managed guild message that targets someone else", {
+        guildId: message.guildId,
+        channelId: message.channelId,
+        messageId: message.id,
+      });
+      return;
+    }
+
+    const sanitizedContent = trimmedContent.replace(botMentionRegex, "").trim();
+    if (!sanitizedContent) {
+      return;
+    }
+
+    try {
+      if ("sendTyping" in message.channel) {
+        await message.channel.sendTyping();
+      }
+
+      const response = await fetchWithTimeout(
+        `${this.config.elizaCloudUrl}/api/internal/discord/eliza-app/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...this.getAuthHeader(),
+          },
+          body: JSON.stringify({
+            guildId: message.guildId,
+            channelId: message.channelId,
+            messageId: message.id,
+            content: sanitizedContent,
+            sender: {
+              id: message.author.id,
+              username: message.author.username,
+              displayName:
+                message.member?.displayName ?? message.author.globalName ?? undefined,
+              avatar: message.author.displayAvatarURL() || null,
+            },
+          }),
+          timeout: EVENT_FORWARD_TIMEOUT_MS,
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        logger.warn("Managed Milady Discord routing request failed", {
+          guildId: message.guildId,
+          channelId: message.channelId,
+          status: response.status,
+          error: errorText.slice(0, 200),
+        });
+        return;
+      }
+
+      const routed = (await response.json()) as {
+        handled?: boolean;
+        replyText?: string | null;
+        reason?: string;
+        agentId?: string;
+      };
+
+      if (!routed.handled) {
+        logger.debug("Managed Milady Discord message was not handled", {
+          guildId: message.guildId,
+          channelId: message.channelId,
+          reason: routed.reason,
+          agentId: routed.agentId,
+        });
+        return;
+      }
+
+      if (!routed.replyText?.trim()) {
+        return;
+      }
+
+      const replyText = routed.replyText.trim();
+      const truncated = replyText.length > 2000 ? replyText.slice(0, 2000) : replyText;
+      await message.reply({
+        content: truncated,
+        allowedMentions: { repliedUser: false },
+      });
+    } catch (error) {
+      logger.error("Failed to route managed Milady guild message", {
+        guildId: message.guildId,
+        channelId: message.channelId,
+        messageId: message.id,
         error: sanitizeError(error),
       });
     }

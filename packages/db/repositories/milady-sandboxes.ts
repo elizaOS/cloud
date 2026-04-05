@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/helpers";
+import { MILADY_MANAGED_DISCORD_KEY } from "@/lib/services/milady-agent-config";
 import {
   type MiladyBackupSnapshotType,
   type MiladySandbox,
@@ -97,6 +98,22 @@ export class MiladySandboxesRepository {
       )
       .limit(1);
     return r;
+  }
+
+  async findByManagedDiscordGuildId(guildId: string): Promise<MiladySandbox[]> {
+    const trimmedGuildId = guildId.trim();
+    if (!trimmedGuildId) {
+      return [];
+    }
+
+    const result = await dbWrite.execute<MiladySandbox>(sql`
+      SELECT *
+      FROM ${miladySandboxes}
+      WHERE (${miladySandboxes.agent_config} -> ${MILADY_MANAGED_DISCORD_KEY} ->> 'guildId') = ${trimmedGuildId}
+      ORDER BY ${miladySandboxes.updated_at} DESC
+    `);
+
+    return result.rows;
   }
 
   // Writes
