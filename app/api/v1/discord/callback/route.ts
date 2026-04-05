@@ -13,6 +13,7 @@ import {
   sanitizeRelativeRedirectPath,
 } from "@/lib/security/redirect-validation";
 import { discordAutomationService } from "@/lib/services/discord-automation";
+import type { OAuthState } from "@/lib/services/discord-automation/types";
 import { managedMiladyDiscordService } from "@/lib/services/milady-managed-discord";
 import { logger } from "@/lib/utils/logger";
 
@@ -64,14 +65,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   // Parse state for return URL (do this early for error redirects)
-  let decodedState: {
-    returnUrl?: string;
-    flow?: "organization-install" | "milady-managed";
-    agentId?: string;
-    organizationId?: string;
-    userId?: string;
-    botNickname?: string;
-  } | null = null;
+  let decodedState: OAuthState | null = null;
   let returnTarget = resolveOAuthReturnTarget(baseUrl, undefined, false);
   if (state) {
     try {
