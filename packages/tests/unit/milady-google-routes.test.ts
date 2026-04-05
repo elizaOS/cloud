@@ -42,6 +42,11 @@ let postReplySend: typeof import("@/app/api/v1/milady/google/gmail/reply-send/ro
 let getGmailTriage: typeof import("@/app/api/v1/milady/google/gmail/triage/route").GET;
 let getStatus: typeof import("@/app/api/v1/milady/google/status/route").GET;
 
+async function restoreActualModule(specifier: string, relativePath: string) {
+  const actualModule = await import(new URL(relativePath, import.meta.url).href);
+  mock.module(specifier, () => actualModule);
+}
+
 beforeAll(async () => {
   ({ POST: postCalendarEvent } = await import("@/app/api/v1/milady/google/calendar/events/route"));
   ({ GET: getCalendarFeed } = await import("@/app/api/v1/milady/google/calendar/feed/route"));
@@ -53,6 +58,11 @@ beforeAll(async () => {
   ({ GET: getGmailTriage } = await import("@/app/api/v1/milady/google/gmail/triage/route"));
   ({ GET: getStatus } = await import("@/app/api/v1/milady/google/status/route"));
   mock.restore();
+  await restoreActualModule("@/lib/auth", "../../lib/auth.ts");
+  await restoreActualModule(
+    "@/lib/services/milady-google-connector",
+    "../../lib/services/milady-google-connector.ts",
+  );
 });
 
 describe("Milady managed Google routes", () => {
