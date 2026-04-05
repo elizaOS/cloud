@@ -9,7 +9,7 @@
  * - Network error handling
  */
 
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
 import type {
   GetTokenByPlatformParams,
@@ -107,6 +107,10 @@ function createMockAuth(orgId: string = "test-org-123") {
 }
 
 describe("HubSpot MCP Tools", () => {
+  afterAll(() => {
+    mock.restore();
+  });
+
   beforeEach(() => {
     setupMockFetch();
     mockOAuthService.getValidTokenByPlatform.mockReset();

@@ -56,6 +56,7 @@ describe("managed Discord Eliza App routing route", () => {
   });
 
   afterAll(() => {
+    mock.restore();
     process.env = { ...originalEnv };
   });
 

@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
+afterAll(() => {
+  mock.restore();
+});
+
 const mockDiscordGuildUpsert = mock();
 const mockDiscordChannelUpsert = mock();
 const mockLogger = {
@@ -95,7 +99,7 @@ describe("discordAutomationService.handleBotOAuthCallback", () => {
       }
       throw new Error(`Unexpected fetch: ${url}`);
     });
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await discordAutomationService.handleBotOAuthCallback({
       code: "oauth-code",
@@ -183,7 +187,7 @@ describe("discordAutomationService.handleBotOAuthCallback", () => {
       }
       throw new Error(`Unexpected fetch: ${url}`);
     });
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await discordAutomationService.handleBotOAuthCallback({
       code: "oauth-code",

@@ -8,7 +8,11 @@
  * Integration tests should cover the full flow.
  */
 
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+
+afterAll(() => {
+  mock.restore();
+});
 
 mock.module("discord.js", () => ({
   Attachment: class MockAttachment {},

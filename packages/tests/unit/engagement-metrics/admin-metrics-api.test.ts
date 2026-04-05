@@ -9,8 +9,12 @@
  * - Error handling for service failures
  */
 
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+
+afterAll(() => {
+  mock.restore();
+});
 
 // ─── Mock Setup ──────────────────────────────────────────────────────────────
 

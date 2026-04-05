@@ -1,5 +1,9 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import crypto from "crypto";
+
+afterAll(() => {
+  mock.restore();
+});
 
 type OrgEncryptionKeyRow = {
   id: string;

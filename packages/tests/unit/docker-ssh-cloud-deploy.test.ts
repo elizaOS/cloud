@@ -6,7 +6,11 @@
  * never leaked in error messages or logs.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+
+afterAll(() => {
+  mock.restore();
+});
 
 // Import the real `redact` object directly.  Other test files in the batch
 // may call `mock.module("@/lib/utils/logger", ...)` without including `redact`,

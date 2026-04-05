@@ -1,21 +1,20 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { OAuthConnection } from "@/lib/services/oauth/types";
-
-afterAll(() => {
-  mock.restore();
-});
 
 const mockListConnections = mock();
 const mockGetValidTokenByPlatformWithConnectionId = mock();
 const mockInitiateAuth = mock();
 const mockRevokeConnection = mock();
-const mockGoogleFetchWithToken = mock();
-const mockGetProvider = mock();
-const mockIsProviderConfigured = mock();
 const mockDbLimit = mock();
 const mockDbWhere = mock(() => ({ limit: mockDbLimit }));
 const mockDbFrom = mock(() => ({ where: mockDbWhere }));
 const mockDbSelect = mock(() => ({ from: mockDbFrom }));
+const originalFetch = globalThis.fetch;
+const providerEnvKeys = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"] as const;
+let savedProviderEnv: Record<(typeof providerEnvKeys)[number], string | undefined> = {
+  GOOGLE_CLIENT_ID: undefined,
+  GOOGLE_CLIENT_SECRET: undefined,
+};
 
 mock.module("drizzle-orm", () => ({
   and: (...args: unknown[]) => args,
@@ -65,18 +64,6 @@ mock.module("@/lib/services/oauth/oauth-service", () => ({
     null,
 }));
 
-mock.module("@/lib/services/oauth/provider-registry", () => ({
-  getProvider: mockGetProvider,
-  isProviderConfigured: mockIsProviderConfigured,
-}));
-
-mock.module("@/lib/utils/google-mcp-shared", () => ({
-  applyTimeZone: (dateTime: string, timeZone: string | undefined) =>
-    timeZone ? { dateTime, timeZone } : { dateTime },
-  googleFetchWithToken: mockGoogleFetchWithToken,
-  sanitizeHeaderValue: (value: string) => value.replace(/[\r\n]/g, ""),
-}));
-
 import {
   disconnectManagedGoogleConnection,
   fetchManagedGoogleCalendarFeed,
@@ -85,6 +72,28 @@ import {
   initiateManagedGoogleConnection,
   sendManagedGoogleReply,
 } from "@/lib/services/milady-google-connector";
+
+// Drop the top-level module mocks after importing the service under test so
+// they don't leak into later test files loaded by the same Bun process.
+mock.restore();
+
+function saveProviderEnv() {
+  savedProviderEnv = {
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  };
+}
+
+function restoreProviderEnv() {
+  for (const key of providerEnvKeys) {
+    const value = savedProviderEnv[key];
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+}
 
 function createConnection(overrides: Partial<OAuthConnection> = {}): OAuthConnection {
   return {
@@ -116,20 +125,17 @@ function createConnection(overrides: Partial<OAuthConnection> = {}): OAuthConnec
 
 describe("milady Google connector service", () => {
   beforeEach(() => {
+    saveProviderEnv();
+    process.env.GOOGLE_CLIENT_ID = "google-client-id";
+    process.env.GOOGLE_CLIENT_SECRET = "google-client-secret";
     mockListConnections.mockReset();
     mockGetValidTokenByPlatformWithConnectionId.mockReset();
     mockInitiateAuth.mockReset();
     mockRevokeConnection.mockReset();
-    mockGoogleFetchWithToken.mockReset();
-    mockGetProvider.mockReset();
-    mockIsProviderConfigured.mockReset();
     mockDbLimit.mockReset();
     mockDbWhere.mockClear();
     mockDbFrom.mockClear();
     mockDbSelect.mockClear();
-
-    mockGetProvider.mockReturnValue({ id: "google" });
-    mockIsProviderConfigured.mockReturnValue(true);
     mockDbLimit.mockResolvedValue([
       {
         token_expires_at: new Date("2026-04-05T00:00:00.000Z"),
@@ -142,6 +148,11 @@ describe("milady Google connector service", () => {
       },
       connectionId: "conn-google-1",
     });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    restoreProviderEnv();
   });
 
   test("reports managed Google connector status from the active owner connection", async () => {
@@ -267,41 +278,42 @@ describe("milady Google connector service", () => {
   });
 
   test("normalizes Google Calendar events into the Milady managed feed shape", async () => {
-    mockGoogleFetchWithToken.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          items: [
-            {
-              id: "event-1",
-              summary: "Founder sync",
-              description: "Review the launch plan",
-              location: "HQ",
-              status: "confirmed",
-              htmlLink: "https://calendar.google.com/event?eid=event-1",
-              start: {
-                dateTime: "2026-04-04T10:00:00-07:00",
-                timeZone: "America/Los_Angeles",
-              },
-              end: {
-                dateTime: "2026-04-04T10:30:00-07:00",
-                timeZone: "America/Los_Angeles",
-              },
-              organizer: {
-                email: "founder@example.com",
-                displayName: "Founder Example",
-              },
-              attendees: [
-                {
-                  email: "teammate@example.com",
-                  displayName: "Teammate",
-                  responseStatus: "accepted",
+    globalThis.fetch = mock(
+      async () =>
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                id: "event-1",
+                summary: "Founder sync",
+                description: "Review the launch plan",
+                location: "HQ",
+                status: "confirmed",
+                htmlLink: "https://calendar.google.com/event?eid=event-1",
+                start: {
+                  dateTime: "2026-04-04T10:00:00-07:00",
+                  timeZone: "America/Los_Angeles",
                 },
-              ],
-            },
-          ],
-        }),
-      ),
-    );
+                end: {
+                  dateTime: "2026-04-04T10:30:00-07:00",
+                  timeZone: "America/Los_Angeles",
+                },
+                organizer: {
+                  email: "founder@example.com",
+                  displayName: "Founder Example",
+                },
+                attendees: [
+                  {
+                    email: "teammate@example.com",
+                    displayName: "Teammate",
+                    responseStatus: "accepted",
+                  },
+                ],
+              },
+            ],
+          }),
+        ),
+    ) as unknown as typeof fetch;
 
     const feed = await fetchManagedGoogleCalendarFeed({
       organizationId: "org-1",
@@ -327,36 +339,36 @@ describe("milady Google connector service", () => {
 
   test("classifies Gmail triage messages using the connected Google identity", async () => {
     mockListConnections.mockResolvedValue([createConnection()]);
-    mockGoogleFetchWithToken
-      .mockResolvedValueOnce(
-        new Response(
+    globalThis.fetch = mock(async (url: string | URL | Request) => {
+      const urlString = url.toString();
+      if (urlString.includes("/messages?")) {
+        return new Response(
           JSON.stringify({
             messages: [{ id: "msg-1", threadId: "thread-1" }],
           }),
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id: "msg-1",
-            threadId: "thread-1",
-            labelIds: ["INBOX", "UNREAD", "IMPORTANT"],
-            snippet: "Can you review the plan today?",
-            internalDate: "1775327400000",
-            historyId: "history-1",
-            sizeEstimate: 1234,
-            payload: {
-              headers: [
-                { name: "Subject", value: "Project sync" },
-                { name: "From", value: "CEO Example <ceo@example.com>" },
-                { name: "To", value: "founder@example.com" },
-                { name: "Reply-To", value: "ceo@example.com" },
-                { name: "Message-Id", value: "<msg-1@example.com>" },
-              ],
-            },
-          }),
-        ),
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          id: "msg-1",
+          threadId: "thread-1",
+          labelIds: ["INBOX", "UNREAD", "IMPORTANT"],
+          snippet: "Can you review the plan today?",
+          internalDate: "1775327400000",
+          historyId: "history-1",
+          sizeEstimate: 1234,
+          payload: {
+            headers: [
+              { name: "Subject", value: "Project sync" },
+              { name: "From", value: "CEO Example <ceo@example.com>" },
+              { name: "To", value: "founder@example.com" },
+              { name: "Reply-To", value: "ceo@example.com" },
+              { name: "Message-Id", value: "<msg-1@example.com>" },
+            ],
+          },
+        }),
       );
+    }) as unknown as typeof fetch;
 
     const triage = await fetchManagedGoogleGmailTriage({
       organizationId: "org-1",
@@ -380,7 +392,8 @@ describe("milady Google connector service", () => {
   });
 
   test("sends Gmail replies with sanitized RFC822 headers", async () => {
-    mockGoogleFetchWithToken.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const fetchMock = mock(async () => new Response(null, { status: 200 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await sendManagedGoogleReply({
       organizationId: "org-1",
@@ -394,12 +407,8 @@ describe("milady Google connector service", () => {
       references: "<thread-1@example.com>",
     });
 
-    expect(mockGoogleFetchWithToken).toHaveBeenCalledTimes(1);
-    const [, url, options] = mockGoogleFetchWithToken.mock.calls[0] as [
-      string,
-      string,
-      { body?: string },
-    ];
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0] as [string, { body?: string }];
     expect(url).toBe("https://gmail.googleapis.com/gmail/v1/users/me/messages/send");
     const payload = JSON.parse(String(options.body)) as { raw: string };
     const decoded = Buffer.from(payload.raw, "base64url").toString("utf-8");

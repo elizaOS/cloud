@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 const mockValidateAuthHeader = mock();
@@ -31,6 +31,10 @@ mock.module("@/lib/services/oauth/provider-registry", () => ({
 }));
 
 describe("Eliza App connections routes", () => {
+  afterAll(() => {
+    mock.restore();
+  });
+
   beforeEach(() => {
     mockValidateAuthHeader.mockReset();
     mockListConnections.mockReset();

@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { routeParams } from "./api/route-test-helpers";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockRequireServiceKey = mock();
 const mockAuthenticateWaifuBridge = mock();

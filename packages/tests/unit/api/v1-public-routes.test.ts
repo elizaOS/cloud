@@ -1,8 +1,12 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { NextRequest } from "next/server";
 
 import { flushMicrotasks, jsonRequest, routeParams } from "./route-test-helpers";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockRequireAuth = mock();
 const mockRequireAuthWithOrg = mock();

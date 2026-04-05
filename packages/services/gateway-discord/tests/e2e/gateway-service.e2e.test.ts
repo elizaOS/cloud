@@ -5,8 +5,12 @@
  * Uses mocks for external dependencies (Discord API, Redis, Eliza Cloud).
  */
 
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { Hono } from "hono";
+
+afterAll(() => {
+  mock.restore();
+});
 
 // ============================================
 // Mock Setup

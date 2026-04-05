@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
 import { jsonRequest } from "./route-test-helpers";
@@ -125,6 +125,8 @@ mock.module("@/lib/pricing", () => ({
   VIDEO_GENERATION_FALLBACK_COST: 1,
   calculateCost: mockCalculateCost,
   estimateTokens: mockEstimateTokens,
+  getProviderFromModel: (model: string) =>
+    model.startsWith("openai") || model.startsWith("gpt") ? "openai" : "fal",
 }));
 
 mock.module("@/lib/models", () => ({
@@ -181,7 +183,8 @@ import {
   OPTIONS as generateImageOptions,
 } from "@/app/api/v1/generate-image/route";
 import { POST as generatePrompts } from "@/app/api/v1/generate-prompts/route";
-import { POST as generateVideo } from "@/app/api/v1/generate-video/route";
+
+let generateVideo: typeof import("@/app/api/v1/generate-video/route").POST;
 
 const authenticatedUser = {
   id: "user-1",
@@ -193,6 +196,10 @@ const authenticatedUser = {
     name: "Org One",
   },
 };
+
+beforeAll(async () => {
+  ({ POST: generateVideo } = await import("@/app/api/v1/generate-video/route"));
+});
 
 beforeEach(() => {
   process.env.FAL_KEY = "fal_test";

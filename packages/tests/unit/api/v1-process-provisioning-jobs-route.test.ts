@@ -1,5 +1,9 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockProcessPendingJobs = mock();
 

@@ -2,7 +2,7 @@
  * Unit tests for service JWT verification.
  */
 
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import * as jose from "jose";
 import { isServiceJwtEnabled, verifyServiceJwt } from "@/lib/auth/service-jwt";
 
@@ -19,6 +19,10 @@ const TEST_SECRET = "test-jwt-secret-for-waifu-core-bridge";
 
 describe("Service JWT Auth", () => {
   const saved: Record<string, string | undefined> = {};
+
+  afterAll(() => {
+    mock.restore();
+  });
 
   beforeEach(() => {
     saved.MILADY_SERVICE_JWT_SECRET = process.env.MILADY_SERVICE_JWT_SECRET;

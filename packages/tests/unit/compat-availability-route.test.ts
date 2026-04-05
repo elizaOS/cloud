@@ -1,5 +1,9 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockFindAll = mock();
 const mockValidateServiceKey = mock();

@@ -1,5 +1,9 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { jsonRequest } from "./api/route-test-helpers";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockValidateToken = mock();
 const mockFindByIdAndOrg = mock();

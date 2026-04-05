@@ -5,9 +5,13 @@
  * Real: all handler logic, helpers, mappers, error formatting.
  */
 
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
 import type { OAuthConnection } from "@/lib/services/oauth/types";
+
+afterAll(() => {
+  mock.restore();
+});
 
 function twitterOAuthFixture(
   o: Partial<OAuthConnection> & Pick<OAuthConnection, "id" | "status">,

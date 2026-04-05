@@ -5,7 +5,7 @@
  * Real: all handler logic, helpers, mappers, error formatting.
  */
 
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
 import type { ListConnectionsParams, OAuthConnection } from "@/lib/services/oauth/types";
 
@@ -117,6 +117,10 @@ function parse(result: GoogleToolHandlerResult) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe("Google MCP Tools", () => {
+  afterAll(() => {
+    mock.restore();
+  });
+
   beforeEach(() => {
     setupMockFetch();
     mockOAuth.getValidTokenByPlatform.mockReset();
