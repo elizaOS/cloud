@@ -94,10 +94,10 @@ describe("getClientSafeMiladyAgentWebUiUrl", () => {
     ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz");
   });
 
-  test("does not fall back to direct access when no canonical url is provided", () => {
+  test("falls back to direct access when no canonical url is provided", () => {
     delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
-    expect(getClientSafeMiladyAgentWebUiUrl(makeSandbox())).toBeNull();
+    expect(getClientSafeMiladyAgentWebUiUrl(makeSandbox())).toBe("http://100.64.0.5:20100");
   });
 });
 

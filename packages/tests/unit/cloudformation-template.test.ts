@@ -15,10 +15,7 @@ describe("per-user CloudFormation template", () => {
     expect(template.Conditions.HasDirectContainerPortCidr).toEqual({
       "Fn::Not": [
         {
-          "Fn::Equals": [
-            { Ref: "DirectContainerPortCidr" },
-            "",
-          ],
+          "Fn::Equals": [{ Ref: "DirectContainerPortCidr" }, ""],
         },
       ],
     });

@@ -14,6 +14,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun
 // ---------------------------------------------------------------------------
 
 const mockStewardCreateWallet = mock();
+const mockStewardGetAgent = mock();
 const mockStewardSignTransaction = mock();
 const mockStewardSignMessage = mock();
 const mockStewardSignTypedData = mock();
@@ -21,6 +22,7 @@ const mockGetStewardClient = mock();
 
 const mockStewardClient = {
   createWallet: mockStewardCreateWallet,
+  getAgent: mockStewardGetAgent,
   signTransaction: mockStewardSignTransaction,
   signMessage: mockStewardSignMessage,
   signTypedData: mockStewardSignTypedData,
@@ -150,6 +152,7 @@ describe("dual-provider wallet routing", () => {
     // Steward
     mockGetStewardClient.mockClear().mockReturnValue(mockStewardClient);
     mockStewardCreateWallet.mockClear();
+    mockStewardGetAgent.mockClear();
     mockStewardSignTransaction.mockClear();
     mockStewardSignMessage.mockClear();
     mockStewardSignTypedData.mockClear();
@@ -187,7 +190,12 @@ describe("dual-provider wallet routing", () => {
 
       mockPrivyWalletCreate.mockResolvedValue({ id: "pw_privy1", address: "0xPrivy1" });
       mockInsertReturning.mockResolvedValue([
-        { id: "rec-1", wallet_provider: "privy", privy_wallet_id: "pw_privy1", address: "0xPrivy1" },
+        {
+          id: "rec-1",
+          wallet_provider: "privy",
+          privy_wallet_id: "pw_privy1",
+          address: "0xPrivy1",
+        },
       ]);
 
       const { provisionServerWallet } = await import("@/lib/services/server-wallets");
@@ -293,6 +301,67 @@ describe("dual-provider wallet routing", () => {
           chainType: "evm",
         }),
       ).rejects.toThrow("Steward did not return a wallet address");
+    });
+
+    it("reuses an existing Steward agent when createWallet returns a 409 conflict", async () => {
+      mockWalletProviderFlags.USE_STEWARD_FOR_NEW_WALLETS = true;
+
+      mockStewardCreateWallet.mockRejectedValue({
+        name: "StewardApiError",
+        status: 409,
+        message: "Agent already exists",
+      });
+      mockStewardGetAgent.mockResolvedValue({
+        id: "cloud-char-conflict",
+        walletAddress: "0xExistingSteward",
+      });
+      mockInsertReturning.mockResolvedValue([
+        {
+          id: "rec-conflict",
+          wallet_provider: "steward",
+          steward_agent_id: "cloud-char-conflict",
+          address: "0xExistingSteward",
+          privy_wallet_id: null,
+        },
+      ]);
+
+      const { provisionServerWallet } = await import("@/lib/services/server-wallets");
+
+      const result = await provisionServerWallet({
+        organizationId: "org-conflict",
+        userId: "user-conflict",
+        characterId: "char-conflict",
+        clientAddress: "0xClientConflict",
+        chainType: "evm",
+      });
+
+      expect(mockStewardGetAgent).toHaveBeenCalledWith("cloud-char-conflict");
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: "rec-conflict",
+          steward_agent_id: "cloud-char-conflict",
+          address: "0xExistingSteward",
+        }),
+      );
+    });
+
+    it("blocks new Privy wallet creation when DISABLE_PRIVY_WALLETS=true", async () => {
+      mockWalletProviderFlags.USE_STEWARD_FOR_NEW_WALLETS = false;
+      mockWalletProviderFlags.DISABLE_PRIVY_WALLETS = true;
+
+      const { provisionServerWallet } = await import("@/lib/services/server-wallets");
+
+      await expect(
+        provisionServerWallet({
+          organizationId: "org-disabled",
+          userId: "user-disabled",
+          characterId: "char-disabled",
+          clientAddress: "0xClientDisabled",
+          chainType: "evm",
+        }),
+      ).rejects.toThrow(/Privy wallet creation is disabled/);
+
+      expect(mockPrivyWalletCreate).not.toHaveBeenCalled();
     });
   });
 
@@ -479,14 +548,16 @@ describe("dual-provider wallet routing", () => {
         signature: "0xSig" as `0x${string}`,
       });
 
-      expect(mockStewardSignTransaction).toHaveBeenCalledWith(
-        "cloud-agent-dispatch",
-        { to: "0xTo1", value: "0x64", data: "0xdata", chainId: 1 },
-      );
+      expect(mockStewardSignTransaction).toHaveBeenCalledWith("cloud-agent-dispatch", {
+        to: "0xTo1",
+        value: "0x64",
+        data: "0xdata",
+        chainId: 1,
+      });
       expect(result).toEqual({ txHash: "0xTx1" });
     });
 
-    it("dispatches eth_sendTransaction defaults chainId to 8453 (Base) when omitted", async () => {
+    it("dispatches eth_sendTransaction without forcing a hardcoded chainId", async () => {
       mockStewardSignTransaction.mockResolvedValue({ txHash: "0xTxBase" });
 
       const { executeServerWalletRpc } = await import("@/lib/services/server-wallets");
@@ -502,10 +573,13 @@ describe("dual-provider wallet routing", () => {
         signature: "0xSig" as `0x${string}`,
       });
 
-      expect(mockStewardSignTransaction).toHaveBeenCalledWith(
-        "cloud-agent-dispatch",
-        expect.objectContaining({ chainId: 8453 }),
-      );
+      const tx = mockStewardSignTransaction.mock.calls[0]?.[1] as Record<string, unknown>;
+      expect(tx).toEqual({
+        to: "0xTo2",
+        value: "0",
+        data: undefined,
+      });
+      expect("chainId" in tx).toBe(false);
     });
 
     it("dispatches personal_sign to steward.signMessage", async () => {
@@ -553,6 +627,37 @@ describe("dual-provider wallet routing", () => {
         value: { contents: "Hello" },
       });
       expect(result).toEqual({ signature: "0xTypedSig" });
+    });
+
+    it("accepts eth_signTypedData_v4 payloads that are already parsed objects", async () => {
+      mockStewardSignTypedData.mockResolvedValue({ signature: "0xTypedSigObject" });
+
+      const { executeServerWalletRpc } = await import("@/lib/services/server-wallets");
+
+      const typedData = {
+        domain: { name: "TestDomain", chainId: 8453 },
+        types: { Permit: [{ name: "spender", type: "address" }] },
+        primaryType: "Permit",
+        message: { spender: "0xSpender" },
+      };
+      const payload = rpcPayload(
+        "eth_signTypedData_v4",
+        ["0xSignerAddr", typedData],
+        "nonce-dispatch-typed-object",
+      );
+      const result = await executeServerWalletRpc({
+        clientAddress: "0xClientD4Object" as `0x${string}`,
+        payload,
+        signature: "0xSig" as `0x${string}`,
+      });
+
+      expect(mockStewardSignTypedData).toHaveBeenCalledWith("cloud-agent-dispatch", {
+        domain: { name: "TestDomain", chainId: 8453 },
+        types: { Permit: [{ name: "spender", type: "address" }] },
+        primaryType: "Permit",
+        value: { spender: "0xSpender" },
+      });
+      expect(result).toEqual({ signature: "0xTypedSigObject" });
     });
 
     it("throws for unsupported RPC methods on Steward", async () => {

@@ -99,5 +99,5 @@ export function getClientSafeMiladyAgentWebUiUrl(
     return applyPath(sandbox.canonicalWebUiUrl, options.path);
   }
 
-  return null;
+  return getMiladyAgentDirectWebUiUrl(sandbox, options);
 }

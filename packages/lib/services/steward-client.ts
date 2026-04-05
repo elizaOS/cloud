@@ -20,18 +20,24 @@ import { logger } from "@/lib/utils/logger";
 const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
 const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
-
-if (!STEWARD_TENANT_API_KEY) {
-  console.warn(
-    "[steward-client] STEWARD_TENANT_API_KEY is not set; Steward requests will run without tenant API key auth",
-  );
-}
+let hasWarnedMissingStewardTenantApiKey = false;
 
 // ---------------------------------------------------------------------------
 // SDK client (singleton)
 // ---------------------------------------------------------------------------
 
 let _client: StewardClient | null = null;
+
+function warnMissingStewardTenantApiKey() {
+  if (STEWARD_TENANT_API_KEY || hasWarnedMissingStewardTenantApiKey) {
+    return;
+  }
+
+  hasWarnedMissingStewardTenantApiKey = true;
+  logger.warn(
+    "[steward-client] STEWARD_TENANT_API_KEY is not set; Steward requests will run without tenant API key auth",
+  );
+}
 
 /**
  * Returns a configured `@stwd/sdk` StewardClient instance (singleton).
@@ -40,6 +46,7 @@ let _client: StewardClient | null = null;
  */
 export function getStewardClient(): StewardClient {
   if (!_client) {
+    warnMissingStewardTenantApiKey();
     _client = new StewardClient({
       baseUrl: STEWARD_HOST_URL,
       apiKey: STEWARD_TENANT_API_KEY || undefined,
@@ -74,6 +81,8 @@ export interface StewardWalletInfo {
 // ---------------------------------------------------------------------------
 
 function stewardHeaders(): Record<string, string> {
+  warnMissingStewardTenantApiKey();
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };

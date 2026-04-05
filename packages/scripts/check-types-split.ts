@@ -93,6 +93,8 @@ async function createTempTsconfig(directory: string, baseTsconfig: object): Prom
       resolve(workspaceRoot, "**/__tests__/**"),
       resolve(workspaceRoot, "**/*.test.ts"),
       resolve(workspaceRoot, "**/*.test.tsx"),
+      resolve(workspaceRoot, "**/*.stories.ts"),
+      resolve(workspaceRoot, "**/*.stories.tsx"),
       resolve(workspaceRoot, ".next"),
       resolve(workspaceRoot, "out"),
       resolve(workspaceRoot, "build"),

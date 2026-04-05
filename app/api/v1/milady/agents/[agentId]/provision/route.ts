@@ -66,10 +66,11 @@ export async function POST(
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
-    // Always use async job queue — sync provisioning is disabled in production
-    // because the VPS worker handles SSH/Docker operations that can't run in
-    // serverless functions. The sync path remains in code for local dev only.
-    const sync = false;
+    const syncRequested = request.nextUrl.searchParams.get("sync") === "true";
+    const sync =
+      syncRequested &&
+      (process.env.NODE_ENV !== "production" ||
+        process.env.ALLOW_MILADY_SYNC_PROVISIONING === "true");
 
     logger.info("[milady-api] Provision requested", {
       agentId,
@@ -125,7 +126,7 @@ export async function POST(
       );
     }
 
-    // ── Sync fallback (legacy) ────────────────────────────────────────
+    // ── Sync fallback (legacy / local-only) ───────────────────────────
     if (sync) {
       const result = await miladySandboxService.provision(agentId, user.organization_id!);
 

@@ -20,7 +20,7 @@
  * Action: set status = 'error', write a descriptive error_message so the user
  * can see what happened and re-provision.
  *
- * Schedule: every 5 minutes  ("* /5 * * * *" in vercel.json)
+ * Schedule: every 5 minutes; see vercel.json for the exact cron entry.
  * Protected by CRON_SECRET.
  */
 
@@ -43,7 +43,7 @@ interface CleanupResult {
   agentId: string;
   agentName: string | null;
   organizationId: string;
-  stuckSinceMinutes: number;
+  stuckThresholdMinutes: number;
 }
 
 async function handleCleanupStuckProvisioning(request: NextRequest) {
@@ -108,7 +108,7 @@ async function handleCleanupStuckProvisioning(request: NextRequest) {
       organizationId: row.organizationId,
       // updatedAt is now the new timestamp; we can't recover the old one here,
       // but the log message below captures the count.
-      stuckSinceMinutes: STUCK_THRESHOLD_MINUTES, // minimum — actual may be longer
+      stuckThresholdMinutes: STUCK_THRESHOLD_MINUTES,
     }));
 
     if (results.length > 0) {

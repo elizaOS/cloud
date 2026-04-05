@@ -80,12 +80,7 @@ const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
 const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
 const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
-
-if (!STEWARD_TENANT_API_KEY) {
-  console.warn(
-    "[docker-sandbox] STEWARD_TENANT_API_KEY is not set; Steward registration will run without tenant API key auth",
-  );
-}
+let hasWarnedMissingStewardTenantApiKey = false;
 
 // URL injected into container env vars. Containers on the bridge network (milady-isolated)
 // cannot reach the host via localhost. On Linux we pair host.docker.internal with an
@@ -200,11 +195,24 @@ function extractStewardToken(raw: string): string {
   return trimmed;
 }
 
+function warnMissingStewardTenantApiKey() {
+  if (STEWARD_TENANT_API_KEY || hasWarnedMissingStewardTenantApiKey) {
+    return;
+  }
+
+  hasWarnedMissingStewardTenantApiKey = true;
+  logger.warn(
+    "[docker-sandbox] STEWARD_TENANT_API_KEY is not set; Steward registration will run without tenant API key auth",
+  );
+}
+
 async function registerAgentWithSteward(
   ssh: DockerSSHClient,
   agentId: string,
   agentName: string,
 ): Promise<string> {
+  warnMissingStewardTenantApiKey();
+
   const script = `python3 - <<'PY'
 import json
 import sys
