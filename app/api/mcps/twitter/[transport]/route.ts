@@ -57,8 +57,10 @@ async function getTwitterMcpHandler() {
       );
     }
 
+    const user = getAuthUser();
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
+      userId: user.id,
       platform: "twitter",
     });
 
@@ -74,6 +76,12 @@ async function getTwitterMcpHandler() {
     const ctx = authContextStorage.getStore();
     if (!ctx) throw new Error("Not authenticated");
     return ctx.user.organization_id;
+  }
+
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
   }
 
   function jsonResult(data: object) {
@@ -136,6 +144,7 @@ async function getTwitterMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "twitter",
           });
           const active = connections.find((c) => c.status === "active");

@@ -38,8 +38,10 @@ async function getDropboxMcpHandler() {
   const { z } = await import("zod3");
 
   async function getDropboxToken(organizationId: string): Promise<string> {
+    const user = getAuthUser();
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
+      userId: user.id,
       platform: "dropbox",
     });
     return result.accessToken;
@@ -78,6 +80,12 @@ async function getDropboxMcpHandler() {
     return ctx.user.organization_id;
   }
 
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
+  }
+
   function jsonResult(data: object) {
     return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
   }
@@ -97,6 +105,7 @@ async function getDropboxMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "dropbox",
           });
           const active = connections.find((c) => c.status === "active");

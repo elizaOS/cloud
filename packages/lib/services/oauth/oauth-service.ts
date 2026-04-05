@@ -27,6 +27,68 @@ import type {
 const DEFAULT_REDIRECT = "/dashboard/settings?tab=connections";
 const STATE_TTL = 600; // 10 minutes
 
+export function sortConnectionsByRecency(connections: OAuthConnection[]): OAuthConnection[] {
+  return [...connections].sort((a, b) => {
+    const aTime = a.lastUsedAt?.getTime() || a.linkedAt.getTime();
+    const bTime = b.lastUsedAt?.getTime() || b.linkedAt.getTime();
+    return bTime - aTime;
+  });
+}
+
+export function getMostRecentActiveConnection(
+  connections: OAuthConnection[],
+): OAuthConnection | null {
+  const active = connections.filter((c) => c.status === "active");
+  if (active.length === 0) return null;
+  return active.reduce((most, conn) => {
+    const mostTime = most.lastUsedAt?.getTime() || most.linkedAt.getTime();
+    const connTime = conn.lastUsedAt?.getTime() || conn.linkedAt.getTime();
+    return connTime > mostTime ? conn : most;
+  });
+}
+
+export function getPreferredActiveConnection(
+  connections: OAuthConnection[],
+  userId?: string,
+): OAuthConnection | null {
+  if (!userId) {
+    return getMostRecentActiveConnection(connections);
+  }
+
+  const ownedConnection = getMostRecentActiveConnection(
+    connections.filter((connection) => connection.userId === userId),
+  );
+  if (ownedConnection) {
+    return ownedConnection;
+  }
+
+  return getMostRecentActiveConnection(
+    connections.filter((connection) => connection.userId === undefined),
+  );
+}
+
+export function scopeConnectionsForUser(
+  connections: OAuthConnection[],
+  userId?: string,
+): OAuthConnection[] {
+  if (!userId) {
+    return sortConnectionsByRecency(connections);
+  }
+
+  const ownedConnections = sortConnectionsByRecency(
+    connections.filter((connection) => connection.userId === userId),
+  );
+  const sharedConnections = sortConnectionsByRecency(
+    connections.filter((connection) => connection.userId === undefined),
+  );
+
+  if (ownedConnections.length > 0) {
+    return [...ownedConnections, ...sharedConnections];
+  }
+
+  return sharedConnections;
+}
+
 class OAuthService {
   /** List all available OAuth providers with configuration status */
   listProviders(): OAuthProviderInfo[] {
@@ -101,7 +163,7 @@ class OAuthService {
 
   /** List all OAuth connections for an organization */
   async listConnections(params: ListConnectionsParams): Promise<OAuthConnection[]> {
-    const { organizationId, platform } = params;
+    const { organizationId, platform, userId } = params;
     const adapters = platform ? [getAdapter(platform)].filter(Boolean) : getAllAdapters();
     const results = await Promise.allSettled(
       adapters.map((a) => a!.listConnections(organizationId)),
@@ -115,7 +177,7 @@ class OAuthService {
       return [];
     });
 
-    return this.sortConnectionsByRecency(connections);
+    return scopeConnectionsForUser(connections, userId);
   }
 
   /** Get a single connection by ID */
@@ -181,13 +243,13 @@ class OAuthService {
   async getValidTokenByPlatformWithConnectionId(
     params: GetTokenByPlatformParams,
   ): Promise<{ token: TokenResult; connectionId: string }> {
-    const { organizationId, platform } = params;
+    const { organizationId, platform, userId } = params;
 
     const adapter = getAdapter(platform);
     if (!adapter) throw Errors.platformNotSupported(platform);
 
     const connections = await adapter.listConnections(organizationId);
-    const activeConnection = this.getMostRecentActive(connections);
+    const activeConnection = getPreferredActiveConnection(connections, userId);
     if (!activeConnection) throw Errors.platformNotConnected(platform);
 
     const token = await this.getValidToken({
@@ -199,17 +261,21 @@ class OAuthService {
   }
 
   /** Check if a platform has an active connection */
-  async isPlatformConnected(organizationId: string, platform: string): Promise<boolean> {
+  async isPlatformConnected(
+    organizationId: string,
+    platform: string,
+    userId?: string,
+  ): Promise<boolean> {
     const adapter = getAdapter(platform);
     if (!adapter) return false;
 
     const connections = await adapter.listConnections(organizationId);
-    return connections.some((c) => c.status === "active");
+    return getPreferredActiveConnection(connections, userId) !== null;
   }
 
   /** Get all platforms with active connections */
-  async getConnectedPlatforms(organizationId: string): Promise<string[]> {
-    const connections = await this.listConnections({ organizationId });
+  async getConnectedPlatforms(organizationId: string, userId?: string): Promise<string[]> {
+    const connections = await this.listConnections({ organizationId, userId });
     return [...new Set(connections.filter((c) => c.status === "active").map((c) => c.platform))];
   }
 
@@ -227,23 +293,8 @@ class OAuthService {
     }
     return null;
   }
-
-  private getMostRecentActive(connections: OAuthConnection[]): OAuthConnection | null {
-    const active = connections.filter((c) => c.status === "active");
-    if (active.length === 0) return null;
-    return active.reduce((most, conn) => {
-      const mostTime = most.lastUsedAt?.getTime() || most.linkedAt.getTime();
-      const connTime = conn.lastUsedAt?.getTime() || conn.linkedAt.getTime();
-      return connTime > mostTime ? conn : most;
-    });
-  }
-
   private sortConnectionsByRecency(connections: OAuthConnection[]): OAuthConnection[] {
-    return connections.sort((a, b) => {
-      const aTime = a.lastUsedAt?.getTime() || a.linkedAt.getTime();
-      const bTime = b.lastUsedAt?.getTime() || b.linkedAt.getTime();
-      return bTime - aTime;
-    });
+    return sortConnectionsByRecency(connections);
   }
 }
 

@@ -169,6 +169,7 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
 
   const hasRequiredConnection = await connectionEnforcementService.hasRequiredConnection(
     organization.id,
+    userWithOrg.id,
   );
   if (!hasRequiredConnection) {
     const nudgeText = await connectionEnforcementService.generateNudgeResponse({

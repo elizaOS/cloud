@@ -108,6 +108,7 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
 
         return credentials.map((cred) => ({
           id: cred.id,
+          userId: cred.user_id || undefined,
           platform,
           platformUserId: cred.platform_user_id,
           email: cred.platform_email || undefined,

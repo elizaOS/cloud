@@ -182,6 +182,11 @@ describe("Google MCP Tools", () => {
       expect(p.email).toBe("user@test.com");
       expect(p.scopes).toContain("gmail.send");
       expect(p.linkedAt).toBe("2026-01-01T00:00:00.000Z");
+      expect(mockOAuth.listConnections).toHaveBeenCalledWith({
+        organizationId: "org-1",
+        userId: "u-org-1",
+        platform: "google",
+      });
     });
 
     test("returns connected=false when no active connection", async () => {
@@ -229,6 +234,11 @@ describe("Google MCP Tools", () => {
       expect(p.success).toBe(true);
       expect(p.messageId).toBe("msg-123");
       expect(p.threadId).toBe("thread-456");
+      expect(mockOAuth.getValidTokenByPlatform).toHaveBeenCalledWith({
+        organizationId: "org-1",
+        userId: "u-org-1",
+        platform: "google",
+      });
     });
 
     test("handles CC and BCC recipients", async () => {

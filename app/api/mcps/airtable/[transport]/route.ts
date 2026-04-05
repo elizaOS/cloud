@@ -38,8 +38,10 @@ async function getAirtableMcpHandler() {
   const { z } = await import("zod3");
 
   async function getAirtableToken(organizationId: string): Promise<string> {
+    const user = getAuthUser();
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
+      userId: user.id,
       platform: "airtable",
     });
     return result.accessToken;
@@ -75,6 +77,12 @@ async function getAirtableMcpHandler() {
     return ctx.user.organization_id;
   }
 
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
+  }
+
   function jsonResult(data: object) {
     return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
   }
@@ -94,6 +102,7 @@ async function getAirtableMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "airtable",
           });
           const active = connections.find((c) => c.status === "active");

@@ -5,6 +5,10 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import {
+  getPreferredActiveConnection,
+  scopeConnectionsForUser,
+} from "@/lib/services/oauth/oauth-service";
 import { OAUTH_PROVIDERS } from "@/lib/services/oauth/provider-registry";
 import type { OAuthConnection, OAuthProviderInfo } from "@/lib/services/oauth/types";
 
@@ -279,6 +283,51 @@ describe("OAuth Service Logic", () => {
       expect(activePlatforms).toContain("twitter");
       expect(activePlatforms).not.toContain("twilio");
       expect(activePlatforms.length).toBe(2);
+    });
+  });
+
+  describe("User-scoped connection selection", () => {
+    it("should prefer user-owned connections before shared org connections", () => {
+      const connections: OAuthConnection[] = [
+        createMockConnection("active", "shared", {
+          linkedAt: new Date("2026-01-01T00:00:00Z"),
+        }),
+        createMockConnection("active", "owned", {
+          userId: "user-1",
+          linkedAt: new Date("2025-01-01T00:00:00Z"),
+        }),
+        createMockConnection("active", "other-user", {
+          userId: "user-2",
+          linkedAt: new Date("2027-01-01T00:00:00Z"),
+        }),
+      ];
+
+      const preferred = getPreferredActiveConnection(connections, "user-1");
+
+      expect(preferred?.id).toBe("owned");
+    });
+
+    it("should exclude other users while still exposing shared connections", () => {
+      const connections: OAuthConnection[] = [
+        createMockConnection("active", "shared", {
+          linkedAt: new Date("2026-01-01T00:00:00Z"),
+        }),
+        createMockConnection("active", "owned", {
+          userId: "user-1",
+          linkedAt: new Date("2025-01-01T00:00:00Z"),
+        }),
+        createMockConnection("active", "other-user", {
+          userId: "user-2",
+          linkedAt: new Date("2027-01-01T00:00:00Z"),
+        }),
+      ];
+
+      const scoped = scopeConnectionsForUser(connections, "user-1");
+
+      expect(scoped.map((connection: OAuthConnection) => connection.id)).toEqual([
+        "owned",
+        "shared",
+      ]);
     });
   });
 });

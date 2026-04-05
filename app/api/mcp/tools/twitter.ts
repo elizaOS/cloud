@@ -34,6 +34,7 @@ async function getTwitterClient(): Promise<TwitterApi> {
   try {
     result = await oauthService.getValidTokenByPlatform({
       organizationId: user.organization_id,
+      userId: user.id,
       platform: "twitter",
     });
   } catch (error) {
@@ -303,6 +304,7 @@ export function registerTwitterTools(server: McpServer): void {
         const { user } = getAuthContext();
         const connections = await oauthService.listConnections({
           organizationId: user.organization_id,
+          userId: user.id,
           platform: "twitter",
         });
         const active = connections.find((c) => c.status === "active");

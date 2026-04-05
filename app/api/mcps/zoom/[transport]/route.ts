@@ -40,7 +40,12 @@ async function getZoomMcpHandler() {
   const { z } = await import("zod3");
 
   async function getZoomToken(organizationId: string): Promise<string> {
-    const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "zoom" });
+    const user = getAuthUser();
+    const result = await oauthService.getValidTokenByPlatform({
+      organizationId,
+      userId: user.id,
+      platform: "zoom",
+    });
     return result.accessToken;
   }
 
@@ -48,6 +53,12 @@ async function getZoomMcpHandler() {
     const ctx = authContextStorage.getStore();
     if (!ctx) throw new Error("Not authenticated");
     return ctx.user.organization_id;
+  }
+
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
   }
 
   async function zoomFetch(orgId: string, path: string, options: RequestInit = {}) {
@@ -94,6 +105,7 @@ async function getZoomMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "zoom",
           });
           const active = connections.find((c) => c.status === "active");

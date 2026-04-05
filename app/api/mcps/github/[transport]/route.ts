@@ -34,8 +34,10 @@ async function getGitHubMcpHandler() {
   const { z } = await import("zod");
 
   async function getGitHubToken(organizationId: string): Promise<string> {
+    const user = getAuthUser();
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
+      userId: user.id,
       platform: "github",
     });
     return result.accessToken;
@@ -71,6 +73,12 @@ async function getGitHubMcpHandler() {
     return ctx.user.organization_id;
   }
 
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
+  }
+
   function jsonResult(data: object) {
     return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
   }
@@ -98,6 +106,7 @@ async function getGitHubMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "github",
           });
           const active = connections.find((c) => c.status === "active");

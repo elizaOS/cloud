@@ -34,8 +34,10 @@ async function getNotionMcpHandler() {
   const { z } = await import("zod3");
 
   async function getNotionToken(organizationId: string): Promise<string> {
+    const user = getAuthUser();
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
+      userId: user.id,
       platform: "notion",
     });
     return result.accessToken;
@@ -70,6 +72,12 @@ async function getNotionMcpHandler() {
     return ctx.user.organization_id;
   }
 
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
+  }
+
   function jsonResult(data: object) {
     return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
   }
@@ -88,6 +96,7 @@ async function getNotionMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "notion",
           });
           const active = connections.find((c) => c.status === "active");

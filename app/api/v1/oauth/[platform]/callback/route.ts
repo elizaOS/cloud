@@ -184,7 +184,10 @@ async function handleCallback(
         entitySettingsCache.invalidateUser(result.userId),
         edgeRuntimeCache.bumpMcpVersion(result.organizationId),
         incrementOAuthVersion(result.organizationId, platformLower),
-        connectionEnforcementService.invalidateRequiredConnectionCache(result.organizationId),
+        connectionEnforcementService.invalidateRequiredConnectionCache(
+          result.organizationId,
+          result.userId,
+        ),
       ]);
     } catch (e) {
       logger.warn(`[OAuth ${platform}] Cache invalidation failed`, {

@@ -22,10 +22,14 @@ if (process.env.SKIP_DB_DEPENDENT === "1") {
 } else {
   const shouldPreferLocalDockerDb =
     process.env.CI !== "true" && process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK !== "1";
+  const localDockerDatabaseUrl = getLocalDockerDatabaseUrl({
+    ...process.env,
+    LOCAL_DOCKER_DB_HOST: process.env.LOCAL_DOCKER_DB_HOST || "localhost",
+  });
 
   const testDatabaseUrl =
     process.env.TEST_DATABASE_URL ||
-    (shouldPreferLocalDockerDb ? getLocalDockerDatabaseUrl(process.env) : process.env.DATABASE_URL);
+    (shouldPreferLocalDockerDb ? localDockerDatabaseUrl : process.env.DATABASE_URL);
 
   if (testDatabaseUrl) {
     process.env.TEST_DATABASE_URL = testDatabaseUrl;

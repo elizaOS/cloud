@@ -44,8 +44,10 @@ async function getLinkedInMcpHandler() {
   const { z } = await import("zod3");
 
   async function getLinkedInToken(organizationId: string): Promise<string> {
+    const user = getAuthUser();
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
+      userId: user.id,
       platform: "linkedin",
     });
     return result.accessToken;
@@ -55,6 +57,12 @@ async function getLinkedInMcpHandler() {
     const ctx = authContextStorage.getStore();
     if (!ctx) throw new Error("Not authenticated");
     return ctx.user.organization_id;
+  }
+
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
   }
 
   async function linkedinFetch(orgId: string, path: string, options: RequestInit = {}) {
@@ -115,6 +123,7 @@ async function getLinkedInMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "linkedin",
           });
           const active = connections.find((c) => c.status === "active");

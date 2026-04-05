@@ -11,6 +11,7 @@
 import { stringToUuid, type UUID } from "@elizaos/core";
 import { v4 as uuidv4 } from "uuid";
 import type { DebugRenderView, DebugTrace } from "../../lib/debug";
+import { AgentMode } from "../../lib/eliza/agent-mode-types";
 
 // Import server check - this must complete before tests run
 import { serverReady } from "../e2e/setup-server";
@@ -31,7 +32,6 @@ export {
   listDebugTraces,
   renderDebugTrace,
 } from "../../lib/debug";
-export { AgentMode } from "../../lib/eliza/agent-mode-types";
 // Re-export the production RuntimeFactory directly
 export {
   _testing,
@@ -43,8 +43,8 @@ export {
 } from "../../lib/eliza/runtime-factory";
 // Re-export types from the production code
 export type { UserContext } from "../../lib/eliza/user-context";
+export { AgentMode };
 
-import type { AgentMode } from "../../lib/eliza/agent-mode-types";
 // Import for type inference
 import type { runtimeFactory as RuntimeFactoryType } from "../../lib/eliza/runtime-factory";
 import type { UserContext } from "../../lib/eliza/user-context";
@@ -210,7 +210,7 @@ export function buildUserContext(
     );
   }
 
-  const mode = options.agentMode || ("ASSISTANT" as AgentMode);
+  const mode = options.agentMode || AgentMode.ASSISTANT;
 
   return {
     userId: testData.user.id,

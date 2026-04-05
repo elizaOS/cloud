@@ -307,6 +307,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
 
     const hasRequiredConnection = await connectionEnforcementService.hasRequiredConnection(
       organization.id,
+      userWithOrg.id,
     );
     if (!hasRequiredConnection) {
       const nudgeText = await connectionEnforcementService.generateNudgeResponse({

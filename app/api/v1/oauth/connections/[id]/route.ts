@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { ApiError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { Errors, internalErrorResponse, OAuthError, oauthService } from "@/lib/services/oauth";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
@@ -13,17 +14,20 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: connectionId } = await params;
-
-  logger.debug("[API] GET /api/v1/oauth/connections/:id", {
-    organizationId: user.organization_id,
-    connectionId,
-  });
+  let organizationId: string | undefined;
 
   try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    organizationId = user.organization_id;
+
+    logger.debug("[API] GET /api/v1/oauth/connections/:id", {
+      organizationId,
+      connectionId,
+    });
+
     const connection = await oauthService.getConnection({
-      organizationId: user.organization_id,
+      organizationId,
       connectionId,
     });
 
@@ -41,10 +45,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
   } catch (error) {
     logger.error("[API] GET /api/v1/oauth/connections/:id error", {
-      organizationId: user.organization_id,
+      organizationId,
       connectionId,
       error: error instanceof Error ? error.message : String(error),
     });
+
+    if (error instanceof ApiError) {
+      return NextResponse.json(error.toJSON(), { status: error.status });
+    }
 
     if (error instanceof OAuthError) {
       return NextResponse.json(error.toResponse(), { status: error.httpStatus });
@@ -58,29 +66,38 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: connectionId } = await params;
-
-  logger.info("[API] DELETE /api/v1/oauth/connections/:id", {
-    organizationId: user.organization_id,
-    connectionId,
-  });
+  let organizationId: string | undefined;
+  let userId: string | undefined;
 
   try {
-    await oauthService.revokeConnection({
-      organizationId: user.organization_id,
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    organizationId = user.organization_id;
+    userId = user.id;
+
+    logger.info("[API] DELETE /api/v1/oauth/connections/:id", {
+      organizationId,
       connectionId,
     });
 
-    await invalidateOAuthState(user.organization_id, "oauth", user.id, { skipVersionBump: true });
+    await oauthService.revokeConnection({
+      organizationId,
+      connectionId,
+    });
+
+    await invalidateOAuthState(organizationId, "oauth", userId, { skipVersionBump: true });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("[API] DELETE /api/v1/oauth/connections/:id error", {
-      organizationId: user.organization_id,
+      organizationId,
       connectionId,
       error: error instanceof Error ? error.message : String(error),
     });
+
+    if (error instanceof ApiError) {
+      return NextResponse.json(error.toJSON(), { status: error.status });
+    }
 
     if (error instanceof OAuthError) {
       return NextResponse.json(error.toResponse(), { status: error.httpStatus });

@@ -173,6 +173,7 @@ async function handleMessage(message: Message): Promise<void> {
 
     const hasRequiredConnection = await connectionEnforcementService.hasRequiredConnection(
       organization.id,
+      userWithOrg.id,
     );
     if (!hasRequiredConnection) {
       const nudgeText = await connectionEnforcementService.generateNudgeResponse({
@@ -393,6 +394,7 @@ async function handleCommand(message: Message & { text: string }): Promise<void>
           const creditBalance = user.organization.credit_balance || "0.00";
           const hasRequiredConnection = await connectionEnforcementService.hasRequiredConnection(
             user.organization.id,
+            user.id,
           );
           const connectionStatus = hasRequiredConnection
             ? "✅ Data integration connected"

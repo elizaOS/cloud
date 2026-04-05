@@ -47,8 +47,10 @@ async function getSalesforceMcpHandler() {
   const { z } = await import("zod3");
 
   async function getSalesforceToken(organizationId: string): Promise<string> {
+    const user = getAuthUser();
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
+      userId: user.id,
       platform: "salesforce",
     });
     return result.accessToken;
@@ -127,6 +129,12 @@ async function getSalesforceMcpHandler() {
     return ctx.user.organization_id;
   }
 
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
+  }
+
   function jsonResult(data: object) {
     return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
   }
@@ -146,6 +154,7 @@ async function getSalesforceMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "salesforce",
           });
           const active = connections.find((c) => c.status === "active");

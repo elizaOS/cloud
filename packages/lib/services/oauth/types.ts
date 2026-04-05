@@ -35,6 +35,8 @@ export interface OAuthProviderInfo {
 export interface OAuthConnection {
   /** Unique connection identifier */
   id: string;
+  /** Cloud user that owns the connection when user-scoped */
+  userId?: string;
   /** Platform identifier (e.g., 'google', 'twitter') */
   platform: string;
   /** User ID on the platform */
@@ -113,6 +115,8 @@ export interface InitiateAuthResult {
 export interface ListConnectionsParams {
   /** Organization to list connections for */
   organizationId: string;
+  /** Optional user scope within the organization */
+  userId?: string;
   /** Optional platform filter */
   platform?: string;
 }
@@ -133,6 +137,8 @@ export interface GetTokenParams {
 export interface GetTokenByPlatformParams {
   /** Organization owning the connection */
   organizationId: string;
+  /** Optional user scope within the organization */
+  userId?: string;
   /** Platform identifier */
   platform: string;
 }

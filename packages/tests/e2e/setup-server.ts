@@ -1,6 +1,8 @@
 import type { Subprocess } from "bun";
 
-const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const TEST_SERVER_PORT = process.env.TEST_SERVER_PORT || "3000";
+const SERVER_URL = process.env.TEST_BASE_URL || `http://localhost:${TEST_SERVER_PORT}`;
+const TEST_SERVER_DIST_DIR = process.env.TEST_SERVER_DIST_DIR || `.next-test-${TEST_SERVER_PORT}`;
 const HEALTH_ENDPOINT = `${SERVER_URL}/api/health`;
 // Cold Next.js webpack boots can take noticeably longer after large test suites
 // or when the first request has to compile the health route.
@@ -20,6 +22,7 @@ let serverProcess: Subprocess | null = null;
 let startedServer = false;
 let serverStartupPromise: Promise<void> | null = null;
 let serverExitError: Error | null = null;
+let detectedPeerServerStartup = false;
 
 async function isServerRunning(): Promise<boolean> {
   const controller = new AbortController();
@@ -73,6 +76,12 @@ function pipeServerLogs(
             text.includes("Local:") ||
             text.includes("Error"))
         ) {
+          if (
+            label === "stderr" &&
+            (text.includes("Unable to acquire lock") || text.includes("EADDRINUSE"))
+          ) {
+            detectedPeerServerStartup = true;
+          }
           console.log(`[E2E Server:${label}] ${text}`);
         }
       }
@@ -86,7 +95,7 @@ function pipeServerLogs(
 }
 
 function watchServerExit(process: Subprocess): void {
-  void process.exited.then((code) => {
+  void process.exited.then(async (code) => {
     if (serverProcess !== process) {
       return;
     }
@@ -97,6 +106,11 @@ function watchServerExit(process: Subprocess): void {
     }
 
     if (code !== 0 && code !== 15) {
+      await Bun.sleep(250);
+      if (detectedPeerServerStartup || (await isServerRunning())) {
+        console.warn("[E2E Server] Detected another worker-owned dev server; waiting for health");
+        return;
+      }
       serverExitError = new Error(`E2E server exited with code ${code}`);
       console.error(`[E2E Server] ${serverExitError.message}`);
     }
@@ -122,6 +136,7 @@ async function stopServer(): Promise<void> {
   startedServer = false;
   serverStartupPromise = null;
   serverExitError = null;
+  detectedPeerServerStartup = false;
 
   if (proc) {
     // Kill the entire process group so child processes (webpack, etc.) also die
@@ -146,7 +161,7 @@ async function stopServer(): Promise<void> {
 
   // Always wait for the port to be released, even without a process —
   // something else may still hold the port.
-  await waitForPortRelease(3000);
+  await waitForPortRelease(Number(TEST_SERVER_PORT));
 }
 
 export async function ensureServer(): Promise<void> {
@@ -173,17 +188,19 @@ export async function ensureServer(): Promise<void> {
     }
 
     // Ensure the port is free before spawning.
-    await waitForPortRelease(3000);
+    await waitForPortRelease(Number(TEST_SERVER_PORT));
 
     startedServer = true;
     serverExitError = null;
+    detectedPeerServerStartup = false;
     serverProcess = Bun.spawn(["bun", "run", TEST_SERVER_SCRIPT], {
       cwd: process.cwd(),
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
         NODE_ENV: "development",
-        PORT: "3000",
+        NEXT_DIST_DIR: TEST_SERVER_DIST_DIR,
+        PORT: TEST_SERVER_PORT,
       },
     });
 

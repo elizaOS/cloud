@@ -1006,13 +1006,13 @@ export class RuntimeFactory {
   }
 }
 
+export const runtimeFactory = RuntimeFactory.getInstance();
+
 export function getRuntimeCacheStats(): {
   runtime: { size: number; maxSize: number };
 } {
   return runtimeFactory.getCacheStats();
 }
-
-export const runtimeFactory = RuntimeFactory.getInstance();
 
 export async function invalidateRuntime(agentId: string): Promise<boolean> {
   return runtimeFactory.invalidateRuntime(agentId);

@@ -43,7 +43,12 @@ async function getJiraMcpHandler() {
   const { z } = await import("zod3");
 
   async function getJiraToken(organizationId: string): Promise<string> {
-    const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "jira" });
+    const user = getAuthUser();
+    const result = await oauthService.getValidTokenByPlatform({
+      organizationId,
+      userId: user.id,
+      platform: "jira",
+    });
     return result.accessToken;
   }
 
@@ -147,6 +152,12 @@ async function getJiraMcpHandler() {
     return ctx.user.organization_id;
   }
 
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
+  }
+
   function jsonResult(data: object) {
     return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
   }
@@ -165,6 +176,7 @@ async function getJiraMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "jira",
           });
           const active = connections.find((c) => c.status === "active");

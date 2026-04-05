@@ -53,10 +53,18 @@ async function getGoogleMcpHandler() {
     return ctx.user.organization_id;
   }
 
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
+  }
+
   async function getGoogleToken(organizationId: string): Promise<string> {
     try {
+      const user = getAuthUser();
       const result = await oauthService.getValidTokenByPlatform({
         organizationId,
+        userId: user.id,
         platform: "google",
       });
       return result.accessToken;
@@ -106,6 +114,7 @@ async function getGoogleMcpHandler() {
             const orgId = getOrgId();
             const connections = await oauthService.listConnections({
               organizationId: orgId,
+              userId: getAuthUser().id,
               platform: "google",
             });
             const active = connections.find((c) => c.status === "active");

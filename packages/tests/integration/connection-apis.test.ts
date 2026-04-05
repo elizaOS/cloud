@@ -7,6 +7,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { Client } from "pg";
+import { apiKeysService } from "@/lib/services/api-keys";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import {
@@ -361,17 +362,21 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
     });
 
     it("should handle expired API key", async () => {
-      // Create an expired API key
-      const expiredKeyId = await client.query(
-        `INSERT INTO api_keys (id, name, key, key_hash, key_prefix, organization_id, user_id, is_active, expires_at)
-         VALUES ($1, 'Expired Key', 'ek_expired_123', 'hash123', 'ek_expired_', $2, $3, true, NOW() - INTERVAL '1 day')
-         RETURNING key`,
-        ["00000000-0000-0000-0000-000000000001", testData.organization.id, testData.user.id],
+      const { apiKey: expiredKey, plainKey: expiredKeyValue } = await apiKeysService.create({
+        name: `Expired Key ${crypto.randomUUID()}`,
+        organization_id: testData.organization.id,
+        user_id: testData.user.id,
+        is_active: true,
+      });
+
+      await client.query(
+        `UPDATE api_keys SET expires_at = NOW() - INTERVAL '1 day' WHERE id = $1`,
+        [expiredKey.id],
       );
 
       const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
         headers: {
-          Authorization: `Bearer ${expiredKeyId.rows[0].key}`,
+          Authorization: `Bearer ${expiredKeyValue}`,
         },
       });
 
@@ -379,9 +384,7 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
       expect([401, 403]).toContain(response.status);
 
       // Cleanup
-      await client.query(`DELETE FROM api_keys WHERE id = $1`, [
-        "00000000-0000-0000-0000-000000000001",
-      ]);
+      await client.query(`DELETE FROM api_keys WHERE id = $1`, [expiredKey.id]);
     });
 
     it("should handle empty request body for connect endpoints", async () => {

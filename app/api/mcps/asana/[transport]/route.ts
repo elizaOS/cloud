@@ -46,8 +46,10 @@ async function getAsanaMcpHandler() {
   const API_BASE = "https://app.asana.com/api/1.0";
 
   async function getAsanaToken(organizationId: string): Promise<string> {
+    const user = getAuthUser();
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
+      userId: user.id,
       platform: "asana",
     });
     return result.accessToken;
@@ -94,6 +96,12 @@ async function getAsanaMcpHandler() {
     return ctx.user.organization_id;
   }
 
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
+  }
+
   function jsonResult(data: object) {
     return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
   }
@@ -113,6 +121,7 @@ async function getAsanaMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "asana",
           });
           const active = connections.find((c) => c.status === "active");

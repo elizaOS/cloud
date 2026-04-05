@@ -16,6 +16,7 @@ async function getGitHubToken(): Promise<string> {
   try {
     const result = await oauthService.getValidTokenByPlatform({
       organizationId: user.organization_id,
+      userId: user.id,
       platform: "github",
     });
     return result.accessToken;
@@ -77,6 +78,7 @@ export function registerGitHubTools(server: McpServer): void {
         const { user } = getAuthContext();
         const connections = await oauthService.listConnections({
           organizationId: user.organization_id,
+          userId: user.id,
           platform: "github",
         });
         const active = connections.find((c) => c.status === "active");

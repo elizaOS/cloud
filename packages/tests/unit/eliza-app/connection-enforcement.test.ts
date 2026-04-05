@@ -87,14 +87,21 @@ describe("connection enforcement", () => {
   test("caches required connection checks and invalidates them after OAuth", async () => {
     mockGetConnectedPlatforms.mockResolvedValueOnce(["google"]).mockResolvedValueOnce([]);
 
-    await expect(connectionEnforcementService.hasRequiredConnection("org-1")).resolves.toBe(true);
-    await expect(connectionEnforcementService.hasRequiredConnection("org-1")).resolves.toBe(true);
+    await expect(
+      connectionEnforcementService.hasRequiredConnection("org-1", "user-1"),
+    ).resolves.toBe(true);
+    await expect(
+      connectionEnforcementService.hasRequiredConnection("org-1", "user-1"),
+    ).resolves.toBe(true);
 
     expect(mockGetConnectedPlatforms).toHaveBeenCalledTimes(1);
+    expect(mockGetConnectedPlatforms).toHaveBeenCalledWith("org-1", "user-1");
 
-    await connectionEnforcementService.invalidateRequiredConnectionCache("org-1");
+    await connectionEnforcementService.invalidateRequiredConnectionCache("org-1", "user-1");
 
-    await expect(connectionEnforcementService.hasRequiredConnection("org-1")).resolves.toBe(false);
+    await expect(
+      connectionEnforcementService.hasRequiredConnection("org-1", "user-1"),
+    ).resolves.toBe(false);
     expect(mockGetConnectedPlatforms).toHaveBeenCalledTimes(2);
   });
 
@@ -152,7 +159,7 @@ describe("connection enforcement", () => {
     });
 
     const storedConversation = Array.from(cacheStore.entries()).find(([key]) =>
-      key.includes("connection-enforcement:conversation:org-3"),
+      key.includes("connection-enforcement:conversation:org-3:user-3"),
     )?.[1] as
       | {
           messages: Array<{ role: "user" | "assistant"; content: string }>;
