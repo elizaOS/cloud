@@ -50,7 +50,12 @@ interface AISdkRequest {
       | Array<{
           type: string;
           text?: string;
-          image_url?: { url: string };
+          image_url?: { url: string } | string;
+          image?: string;
+          file_data?: string;
+          file_url?: string;
+          file_id?: string;
+          filename?: string;
         }>;
     name?: string;
     tool_calls?: Array<{
@@ -122,11 +127,58 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
               return { ...part, type: "text" };
             }
             // Also handle "input_image" -> "image_url" if needed
-            if (part.type === "input_image" && "image" in part && typeof part.image === "string") {
+            if (
+              part.type === "input_image" &&
+              (("image_url" in part &&
+                ((typeof part.image_url === "string" && part.image_url) ||
+                  (typeof part.image_url === "object" &&
+                    part.image_url !== null &&
+                    typeof part.image_url.url === "string" &&
+                    part.image_url.url))) ||
+                ("image" in part && typeof part.image === "string"))
+            ) {
               return {
                 type: "image_url",
-                image_url: { url: part.image },
+                image_url: {
+                  url:
+                    (typeof part.image_url === "string"
+                      ? part.image_url
+                      : typeof part.image_url === "object" &&
+                          part.image_url !== null &&
+                          typeof part.image_url.url === "string"
+                        ? part.image_url.url
+                        : undefined) ?? (typeof part.image === "string" ? part.image : ""),
+                },
               };
+            }
+            if (part.type === "input_file") {
+              if (typeof part.file_data === "string") {
+                return {
+                  type: "file",
+                  file: {
+                    ...(part.filename ? { filename: part.filename } : {}),
+                    file_data: part.file_data,
+                  },
+                };
+              }
+              if (typeof part.file_url === "string") {
+                return {
+                  type: "file",
+                  file: {
+                    ...(part.filename ? { filename: part.filename } : {}),
+                    file_data: part.file_url,
+                  },
+                };
+              }
+              if (typeof part.file_id === "string") {
+                return {
+                  type: "file",
+                  file: {
+                    ...(part.filename ? { filename: part.filename } : {}),
+                    file_id: part.file_id,
+                  },
+                };
+              }
             }
           }
           return part;

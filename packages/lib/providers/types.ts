@@ -9,7 +9,14 @@ import type { CloudMergedProviderOptions } from "@/lib/providers/cloud-provider-
  */
 export interface OpenAIChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  content:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+        image_url?: { url: string } | string;
+        file?: { filename?: string; file_data?: string; file_id?: string };
+      }>;
   name?: string;
   tool_calls?: Array<{
     id: string;

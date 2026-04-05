@@ -68,7 +68,14 @@ function computeEffectiveMaxTokens(
 
 interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  content:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+        image_url?: { url: string } | string;
+        file?: { filename?: string; file_data?: string; file_id?: string };
+      }>;
   name?: string;
   tool_calls?: Array<{
     id: string;
@@ -141,6 +148,31 @@ function inferImageMediaType(url: string): string {
   return "image/jpeg";
 }
 
+function getImageUrl(imageUrl: { url: string } | string): string | null {
+  if (typeof imageUrl === "string") {
+    return imageUrl || null;
+  }
+  return imageUrl.url || null;
+}
+
+function inferFileMediaType(fileData: string | undefined, filename: string | undefined): string {
+  const dataUrlMatch = fileData?.match(/^data:([^;,]+)[;,]/i);
+  if (dataUrlMatch?.[1]) {
+    return dataUrlMatch[1];
+  }
+
+  const lowerFilename = filename?.toLowerCase() ?? "";
+  if (lowerFilename.endsWith(".pdf")) return "application/pdf";
+  if (lowerFilename.endsWith(".png")) return "image/png";
+  if (lowerFilename.endsWith(".gif")) return "image/gif";
+  if (lowerFilename.endsWith(".webp")) return "image/webp";
+  if (lowerFilename.endsWith(".jpg") || lowerFilename.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+
+  return "application/octet-stream";
+}
+
 function convertToUIMessages(messages: ChatMessage[]): UIMessage[] {
   return messages.map((msg) => {
     // Handle simple string content
@@ -156,10 +188,34 @@ function convertToUIMessages(messages: ChatMessage[]): UIMessage[] {
     const parts = msg.content
       .map((part) => {
         if (part.image_url) {
+          const imageUrl = getImageUrl(part.image_url);
+          if (!imageUrl) {
+            logger.warn("[chat/completions] Ignoring image part without url", {
+              role: msg.role,
+            });
+            return null;
+          }
           return {
             type: "file" as const,
-            url: part.image_url.url,
-            mediaType: inferImageMediaType(part.image_url.url),
+            url: imageUrl,
+            mediaType: inferImageMediaType(imageUrl),
+          };
+        }
+        if (part.file) {
+          const fileUrl = part.file.file_data;
+          if (!fileUrl) {
+            logger.warn("[chat/completions] Ignoring file part without file_data", {
+              role: msg.role,
+              filename: part.file.filename,
+              hasFileId: typeof part.file.file_id === "string",
+            });
+            return null;
+          }
+          return {
+            type: "file" as const,
+            url: fileUrl,
+            filename: part.file.filename,
+            mediaType: inferFileMediaType(fileUrl, part.file.filename),
           };
         }
         if (part.text) {

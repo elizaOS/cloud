@@ -193,4 +193,95 @@ describe("/api/v1/responses", () => {
       2048,
     );
   });
+
+  test("normalizes input_image strings and input_file URLs before forwarding", async () => {
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-4o-mini",
+        input: [
+          {
+            role: "user",
+            content: [
+              { type: "input_text", text: "see attached" },
+              { type: "input_image", image_url: "https://example.com/image.png" },
+              {
+                type: "input_file",
+                filename: "brief.pdf",
+                file_url: "https://example.com/brief.pdf",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockChatCompletions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          expect.objectContaining({
+            content: [
+              { type: "text", text: "see attached" },
+              {
+                type: "image_url",
+                image_url: { url: "https://example.com/image.png" },
+              },
+              {
+                type: "file",
+                file: {
+                  filename: "brief.pdf",
+                  file_data: "https://example.com/brief.pdf",
+                },
+              },
+            ],
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        timeoutMs: expect.any(Number),
+      }),
+    );
+  });
+
+  test("preserves input_file file ids when forwarding", async () => {
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-4o-mini",
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_file",
+                filename: "spec.pdf",
+                file_id: "file-123",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockChatCompletions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          expect.objectContaining({
+            content: [
+              {
+                type: "file",
+                file: {
+                  filename: "spec.pdf",
+                  file_id: "file-123",
+                },
+              },
+            ],
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        timeoutMs: expect.any(Number),
+      }),
+    );
+  });
 });
