@@ -1,5 +1,14 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import type { OAuthConnection } from "@/lib/services/oauth/types";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  disconnectManagedGoogleConnection,
+  fetchManagedGoogleCalendarFeed,
+  fetchManagedGoogleGmailTriage,
+  getManagedGoogleConnectorStatus,
+  initiateManagedGoogleConnection,
+  managedGoogleConnectorDeps,
+  sendManagedGoogleReply,
+} from "../../lib/services/milady-google-connector";
+import type { OAuthConnection } from "../../lib/services/oauth/types";
 
 const mockListConnections = mock();
 const mockGetValidTokenByPlatformWithConnectionId = mock();
@@ -15,62 +24,8 @@ let savedProviderEnv: Record<(typeof providerEnvKeys)[number], string | undefine
   GOOGLE_CLIENT_ID: undefined,
   GOOGLE_CLIENT_SECRET: undefined,
 };
-
-mock.module("drizzle-orm", () => ({
-  and: (...args: unknown[]) => args,
-  eq: (left: unknown, right: unknown) => ({ left, right }),
-}));
-
-mock.module("@/db/client", () => ({
-  dbRead: {
-    select: mockDbSelect,
-  },
-}));
-
-mock.module("@/db/schemas/platform-credentials", () => ({
-  platformCredentials: {
-    organization_id: "organization_id",
-    id: "id",
-  },
-}));
-
-mock.module("@/lib/services/oauth", () => ({
-  oauthService: {
-    listConnections: mockListConnections,
-    getValidTokenByPlatformWithConnectionId: mockGetValidTokenByPlatformWithConnectionId,
-    initiateAuth: mockInitiateAuth,
-    revokeConnection: mockRevokeConnection,
-  },
-}));
-
-let disconnectManagedGoogleConnection: typeof import("@/lib/services/milady-google-connector").disconnectManagedGoogleConnection;
-let fetchManagedGoogleCalendarFeed: typeof import("@/lib/services/milady-google-connector").fetchManagedGoogleCalendarFeed;
-let fetchManagedGoogleGmailTriage: typeof import("@/lib/services/milady-google-connector").fetchManagedGoogleGmailTriage;
-let getManagedGoogleConnectorStatus: typeof import("@/lib/services/milady-google-connector").getManagedGoogleConnectorStatus;
-let initiateManagedGoogleConnection: typeof import("@/lib/services/milady-google-connector").initiateManagedGoogleConnection;
-let sendManagedGoogleReply: typeof import("@/lib/services/milady-google-connector").sendManagedGoogleReply;
-
-async function restoreActualModule(specifier: string, relativePath: string) {
-  const actualModule = await import(new URL(relativePath, import.meta.url).href);
-  mock.module(specifier, () => actualModule);
-}
-
-beforeAll(async () => {
-  ({
-    disconnectManagedGoogleConnection,
-    fetchManagedGoogleCalendarFeed,
-    fetchManagedGoogleGmailTriage,
-    getManagedGoogleConnectorStatus,
-    initiateManagedGoogleConnection,
-    sendManagedGoogleReply,
-  } = await import("@/lib/services/milady-google-connector"));
-  await restoreActualModule("@/lib/services/oauth", "../../lib/services/oauth/index.ts");
-  await restoreActualModule("@/db/client", "../../db/client.ts");
-  await restoreActualModule(
-    "@/db/schemas/platform-credentials",
-    "../../db/schemas/platform-credentials.ts",
-  );
-});
+const originalDbRead = managedGoogleConnectorDeps.dbRead;
+const originalOauthService = managedGoogleConnectorDeps.oauthService;
 
 function saveProviderEnv() {
   savedProviderEnv = {
@@ -123,6 +78,15 @@ describe("milady Google connector service", () => {
     saveProviderEnv();
     process.env.GOOGLE_CLIENT_ID = "google-client-id";
     process.env.GOOGLE_CLIENT_SECRET = "google-client-secret";
+    managedGoogleConnectorDeps.dbRead = {
+      select: mockDbSelect,
+    };
+    managedGoogleConnectorDeps.oauthService = {
+      listConnections: mockListConnections,
+      getValidTokenByPlatformWithConnectionId: mockGetValidTokenByPlatformWithConnectionId,
+      initiateAuth: mockInitiateAuth,
+      revokeConnection: mockRevokeConnection,
+    };
     mockListConnections.mockReset();
     mockGetValidTokenByPlatformWithConnectionId.mockReset();
     mockInitiateAuth.mockReset();
@@ -147,6 +111,8 @@ describe("milady Google connector service", () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    managedGoogleConnectorDeps.dbRead = originalDbRead;
+    managedGoogleConnectorDeps.oauthService = originalOauthService;
     restoreProviderEnv();
   });
 

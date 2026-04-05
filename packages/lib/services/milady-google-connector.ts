@@ -178,6 +178,23 @@ type GoogleGmailListResponse = {
   }>;
 };
 
+type ManagedGoogleConnectorDeps = {
+  dbRead: {
+    select: (...args: unknown[]) => any;
+  };
+  oauthService: {
+    listConnections: typeof oauthService.listConnections;
+    getValidTokenByPlatformWithConnectionId: typeof oauthService.getValidTokenByPlatformWithConnectionId;
+    initiateAuth: typeof oauthService.initiateAuth;
+    revokeConnection: typeof oauthService.revokeConnection;
+  };
+};
+
+export const managedGoogleConnectorDeps: ManagedGoogleConnectorDeps = {
+  dbRead,
+  oauthService,
+};
+
 function fail(status: number, message: string): never {
   throw new MiladyGoogleConnectorError(status, message);
 }
@@ -256,7 +273,7 @@ async function getConnectionRow(
   organizationId: string,
   connectionId: string,
 ): Promise<GoogleConnectionRow | null> {
-  const [row] = await dbRead
+  const [row] = await managedGoogleConnectorDeps.dbRead
     .select()
     .from(platformCredentials)
     .where(
@@ -274,7 +291,7 @@ async function getScopedGoogleConnections(args: {
   userId: string;
   side: OAuthConnectionRole;
 }) {
-  return oauthService.listConnections({
+  return managedGoogleConnectorDeps.oauthService.listConnections({
     organizationId: args.organizationId,
     userId: args.userId,
     platform: "google",
@@ -313,7 +330,7 @@ async function getGoogleAccessToken(args: {
   side: OAuthConnectionRole;
 }): Promise<{ accessToken: string; connectionId: string }> {
   try {
-    return await oauthService
+    return await managedGoogleConnectorDeps.oauthService
       .getValidTokenByPlatformWithConnectionId({
         organizationId: args.organizationId,
         userId: args.userId,
@@ -753,7 +770,7 @@ export async function initiateManagedGoogleConnection(args: {
   capabilities?: MiladyGoogleCapability[];
 }) {
   const requestedCapabilities = normalizeCapabilities(args.capabilities);
-  const auth = await oauthService.initiateAuth({
+  const auth = await managedGoogleConnectorDeps.oauthService.initiateAuth({
     organizationId: args.organizationId,
     userId: args.userId,
     platform: "google",
@@ -787,7 +804,7 @@ export async function disconnectManagedGoogleConnection(args: {
   if (!activeConnection) {
     return;
   }
-  await oauthService.revokeConnection({
+  await managedGoogleConnectorDeps.oauthService.revokeConnection({
     organizationId: args.organizationId,
     connectionId: activeConnection.id,
   });
