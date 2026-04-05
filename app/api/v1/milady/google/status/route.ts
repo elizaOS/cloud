@@ -1,0 +1,30 @@
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import {
+  getManagedGoogleConnectorStatus,
+  MiladyGoogleConnectorError,
+} from "@/lib/services/milady-google-connector";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+export async function GET(request: NextRequest) {
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    return NextResponse.json(
+      await getManagedGoogleConnectorStatus({
+        organizationId: user.organization_id,
+        userId: user.id,
+      }),
+    );
+  } catch (error) {
+    if (error instanceof MiladyGoogleConnectorError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to resolve Google status." },
+      { status: 500 },
+    );
+  }
+}
