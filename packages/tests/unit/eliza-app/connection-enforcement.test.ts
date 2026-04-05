@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockGenerateText = mock();
 const mockGetConnectedPlatforms = mock();
@@ -44,12 +44,13 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import {
-  connectionEnforcementService,
-  detectProviderFromMessage,
-} from "@/lib/services/eliza-app/connection-enforcement";
+let connectionEnforcementService: typeof import("@/lib/services/eliza-app/connection-enforcement").connectionEnforcementService;
+let detectProviderFromMessage: typeof import("@/lib/services/eliza-app/connection-enforcement").detectProviderFromMessage;
 
-afterEach(() => {
+beforeAll(async () => {
+  ({ connectionEnforcementService, detectProviderFromMessage } = await import(
+    "@/lib/services/eliza-app/connection-enforcement"
+  ));
   mock.restore();
 });
 

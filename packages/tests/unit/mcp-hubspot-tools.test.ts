@@ -9,7 +9,7 @@
  * - Network error handling
  */
 
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
 import type {
   GetTokenByPlatformParams,
@@ -95,6 +95,8 @@ mock.module("@/lib/services/oauth", () => ({
   oauthService: mockOAuthService,
 }));
 
+let registerHubSpotTools: typeof import("@/app/api/mcp/tools/hubspot").registerHubSpotTools;
+
 // Create mock auth context
 function createMockAuth(orgId: string = "test-org-123") {
   return {
@@ -106,11 +108,12 @@ function createMockAuth(orgId: string = "test-org-123") {
   } as any;
 }
 
-describe("HubSpot MCP Tools", () => {
-  afterAll(() => {
-    mock.restore();
-  });
+beforeAll(async () => {
+  ({ registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot"));
+  mock.restore();
+});
 
+describe("HubSpot MCP Tools", () => {
   beforeEach(() => {
     setupMockFetch();
     mockOAuthService.getValidTokenByPlatform.mockReset();
@@ -127,14 +130,11 @@ describe("HubSpot MCP Tools", () => {
 
   describe("Module Registration", () => {
     test("registerHubSpotTools is exported", async () => {
-      const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
       expect(registerHubSpotTools).toBeDefined();
       expect(typeof registerHubSpotTools).toBe("function");
     });
 
     test("registers all expected tools", async () => {
-      const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
-
       const registeredTools: string[] = [];
       const mockServer = {
         registerTool: (name: string, _schema: any, _handler: any) => {

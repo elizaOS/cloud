@@ -5,7 +5,7 @@
  * Real: all handler logic, helpers, mappers, error formatting.
  */
 
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
 import type { ListConnectionsParams, OAuthConnection } from "@/lib/services/oauth/types";
 
@@ -73,6 +73,8 @@ const mockOAuth = {
 
 mock.module("@/lib/services/oauth", () => ({ oauthService: mockOAuth }));
 
+let registerGoogleTools: typeof import("@/app/api/mcp/tools/google").registerGoogleTools;
+
 // ── Test helpers ────────────────────────────────────────────────────────────
 
 type AnyFn = (...args: unknown[]) => unknown;
@@ -97,7 +99,6 @@ async function callTool(
   args: Record<string, unknown> = {},
   orgId = "org-1",
 ): Promise<GoogleToolHandlerResult> {
-  const { registerGoogleTools } = await import("@/app/api/mcp/tools/google");
   let handler: AnyFn | undefined;
   const mockServer = {
     registerTool: (n: string, _s: unknown, h: AnyFn) => {
@@ -116,11 +117,12 @@ function parse(result: GoogleToolHandlerResult) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe("Google MCP Tools", () => {
-  afterAll(() => {
-    mock.restore();
-  });
+beforeAll(async () => {
+  ({ registerGoogleTools } = await import("@/app/api/mcp/tools/google"));
+  mock.restore();
+});
 
+describe("Google MCP Tools", () => {
   beforeEach(() => {
     setupMockFetch();
     mockOAuth.getValidTokenByPlatform.mockReset();
@@ -146,8 +148,7 @@ describe("Google MCP Tools", () => {
 
   describe("Registration", () => {
     test("exports registerGoogleTools", async () => {
-      const mod = await import("@/app/api/mcp/tools/google");
-      expect(typeof mod.registerGoogleTools).toBe("function");
+      expect(typeof registerGoogleTools).toBe("function");
     });
 
     test("registers all expected tools", async () => {

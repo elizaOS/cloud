@@ -5,13 +5,9 @@
  * Real: all handler logic, helpers, mappers, error formatting.
  */
 
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
 import type { OAuthConnection } from "@/lib/services/oauth/types";
-
-afterAll(() => {
-  mock.restore();
-});
 
 function twitterOAuthFixture(
   o: Partial<OAuthConnection> & Pick<OAuthConnection, "id" | "status">,
@@ -226,6 +222,8 @@ const mockOAuth = {
 
 mock.module("@/lib/services/oauth", () => ({ oauthService: mockOAuth }));
 
+let registerTwitterTools: typeof import("@/app/api/mcp/tools/twitter").registerTwitterTools;
+
 // ── Test helpers ─────────────────────────────────────────────────────────────
 
 type AnyFn = (...args: unknown[]) => unknown;
@@ -250,7 +248,6 @@ async function callTool(
   args: Record<string, unknown> = {},
   orgId = "org-1",
 ): Promise<TwitterToolHandlerResult> {
-  const { registerTwitterTools } = await import("@/app/api/mcp/tools/twitter");
   let handler: AnyFn | undefined;
   const mockServer = {
     registerTool: (n: string, _s: unknown, h: AnyFn) => {
@@ -268,6 +265,11 @@ function parse(result: TwitterToolHandlerResult) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+
+beforeAll(async () => {
+  ({ registerTwitterTools } = await import("@/app/api/mcp/tools/twitter"));
+  mock.restore();
+});
 
 describe("Twitter MCP Tools", () => {
   beforeEach(() => {

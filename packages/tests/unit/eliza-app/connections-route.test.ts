@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 const mockValidateAuthHeader = mock();
@@ -30,11 +30,16 @@ mock.module("@/lib/services/oauth/provider-registry", () => ({
   getProvider: mockGetProvider,
 }));
 
-describe("Eliza App connections routes", () => {
-  afterAll(() => {
-    mock.restore();
-  });
+let GET: typeof import("@/app/api/eliza-app/connections/route").GET;
+let POST: typeof import("@/app/api/eliza-app/connections/[platform]/initiate/route").POST;
 
+beforeAll(async () => {
+  ({ GET } = await import("@/app/api/eliza-app/connections/route"));
+  ({ POST } = await import("@/app/api/eliza-app/connections/[platform]/initiate/route"));
+  mock.restore();
+});
+
+describe("Eliza App connections routes", () => {
   beforeEach(() => {
     mockValidateAuthHeader.mockReset();
     mockListConnections.mockReset();
@@ -48,8 +53,6 @@ describe("Eliza App connections routes", () => {
   });
 
   test("returns user-scoped Google connection status", async () => {
-    const { GET } = await import("@/app/api/eliza-app/connections/route");
-
     mockListConnections.mockResolvedValue([
       {
         id: "conn-1",
@@ -85,8 +88,6 @@ describe("Eliza App connections routes", () => {
   });
 
   test("initiates Google OAuth with Eliza App callback bridge", async () => {
-    const { POST } = await import("@/app/api/eliza-app/connections/[platform]/initiate/route");
-
     mockInitiateAuth.mockResolvedValue({
       authUrl: "https://accounts.google.com/o/oauth2/v2/auth?state=test-state",
       state: "test-state",
