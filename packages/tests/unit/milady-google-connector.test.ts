@@ -209,7 +209,7 @@ describe("milady Google connector service", () => {
     mockListConnections.mockResolvedValue([
       createConnection({
         id: "conn-google-agent",
-        userId: null,
+        userId: undefined,
         connectionRole: "agent",
         email: "milady-agent@example.com",
         username: "milady-agent",
@@ -392,7 +392,13 @@ describe("milady Google connector service", () => {
   });
 
   test("sends Gmail replies with sanitized RFC822 headers", async () => {
-    const fetchMock = mock(async () => new Response(null, { status: 200 }));
+    let sentUrl: string | undefined;
+    let sentBody: string | undefined;
+    const fetchMock = mock(async (url: string | URL | Request, options?: RequestInit) => {
+      sentUrl = url.toString();
+      sentBody = typeof options?.body === "string" ? options.body : undefined;
+      return new Response(null, { status: 200 });
+    });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await sendManagedGoogleReply({
@@ -408,9 +414,8 @@ describe("milady Google connector service", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchMock.mock.calls[0] as [string, { body?: string }];
-    expect(url).toBe("https://gmail.googleapis.com/gmail/v1/users/me/messages/send");
-    const payload = JSON.parse(String(options.body)) as { raw: string };
+    expect(sentUrl).toBe("https://gmail.googleapis.com/gmail/v1/users/me/messages/send");
+    const payload = JSON.parse(String(sentBody)) as { raw: string };
     const decoded = Buffer.from(payload.raw, "base64url").toString("utf-8");
     expect(decoded).toContain("To: founder@example.com");
     expect(decoded).toContain("Cc: ops@example.com");
@@ -424,7 +429,7 @@ describe("milady Google connector service", () => {
     mockListConnections.mockResolvedValue([
       createConnection({
         id: "conn-google-agent",
-        userId: null,
+        userId: undefined,
         connectionRole: "agent",
       }),
       createConnection({

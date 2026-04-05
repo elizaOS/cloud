@@ -4,14 +4,6 @@ import { NextRequest } from "next/server";
 const mockValidateAuthHeader = mock();
 const mockListConnections = mock();
 const mockInitiateAuth = mock();
-const mockGetProvider = mock((platform: string) =>
-  platform === "google"
-    ? {
-        id: "google",
-        name: "Google",
-      }
-    : null,
-);
 
 mock.module("@/lib/services/eliza-app", () => ({
   elizaAppSessionService: {
@@ -24,10 +16,6 @@ mock.module("@/lib/services/oauth", () => ({
     listConnections: mockListConnections,
     initiateAuth: mockInitiateAuth,
   },
-}));
-
-mock.module("@/lib/services/oauth/provider-registry", () => ({
-  getProvider: mockGetProvider,
 }));
 
 let GET: typeof import("@/app/api/eliza-app/connections/route").GET;
@@ -44,7 +32,6 @@ describe("Eliza App connections routes", () => {
     mockValidateAuthHeader.mockReset();
     mockListConnections.mockReset();
     mockInitiateAuth.mockReset();
-    mockGetProvider.mockClear();
 
     mockValidateAuthHeader.mockResolvedValue({
       userId: "user-1",

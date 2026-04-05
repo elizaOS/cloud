@@ -12,6 +12,9 @@
 
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
+type BlooioAutomationService =
+  typeof import("@/lib/services/blooio-automation")["blooioAutomationService"];
+
 // Mock external dependencies
 const _mockSecretsService = {
   create: mock(() => Promise.resolve()),
@@ -28,9 +31,12 @@ const _mockValidateBlooioChatId = mock(() => true);
 
 const shouldRunBlooioTests =
   Boolean(process.env.DATABASE_URL) && process.env.SKIP_DB_DEPENDENT !== "1";
-const blooioAutomationService = shouldRunBlooioTests
-  ? (await import("@/lib/services/blooio-automation")).blooioAutomationService
-  : null;
+// `describe.skipIf` ensures these tests never execute when the service is unavailable.
+const blooioAutomationService = (
+  shouldRunBlooioTests
+    ? (await import("@/lib/services/blooio-automation")).blooioAutomationService
+    : undefined
+) as BlooioAutomationService;
 
 describe.skipIf(!shouldRunBlooioTests)("BlooioAutomationService", () => {
   const testOrgId = "11111111-1111-1111-1111-111111111111";

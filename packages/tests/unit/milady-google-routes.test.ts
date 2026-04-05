@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { jsonRequest } from "./api/route-test-helpers";
 
@@ -34,18 +34,26 @@ mock.module("@/lib/services/milady-google-connector", () => ({
   },
 }));
 
-import { POST as postCalendarEvent } from "@/app/api/v1/milady/google/calendar/events/route";
-import { GET as getCalendarFeed } from "@/app/api/v1/milady/google/calendar/feed/route";
-import { POST as postConnectInitiate } from "@/app/api/v1/milady/google/connect/initiate/route";
-import { POST as postDisconnect } from "@/app/api/v1/milady/google/disconnect/route";
+let postCalendarEvent: typeof import("@/app/api/v1/milady/google/calendar/events/route").POST;
+let getCalendarFeed: typeof import("@/app/api/v1/milady/google/calendar/feed/route").GET;
+let postConnectInitiate: typeof import("@/app/api/v1/milady/google/connect/initiate/route").POST;
+let postDisconnect: typeof import("@/app/api/v1/milady/google/disconnect/route").POST;
+let postReplySend: typeof import("@/app/api/v1/milady/google/gmail/reply-send/route").POST;
+let getGmailTriage: typeof import("@/app/api/v1/milady/google/gmail/triage/route").GET;
+let getStatus: typeof import("@/app/api/v1/milady/google/status/route").GET;
 
-afterAll(() => {
+beforeAll(async () => {
+  ({ POST: postCalendarEvent } = await import("@/app/api/v1/milady/google/calendar/events/route"));
+  ({ GET: getCalendarFeed } = await import("@/app/api/v1/milady/google/calendar/feed/route"));
+  ({ POST: postConnectInitiate } = await import(
+    "@/app/api/v1/milady/google/connect/initiate/route"
+  ));
+  ({ POST: postDisconnect } = await import("@/app/api/v1/milady/google/disconnect/route"));
+  ({ POST: postReplySend } = await import("@/app/api/v1/milady/google/gmail/reply-send/route"));
+  ({ GET: getGmailTriage } = await import("@/app/api/v1/milady/google/gmail/triage/route"));
+  ({ GET: getStatus } = await import("@/app/api/v1/milady/google/status/route"));
   mock.restore();
 });
-
-import { POST as postReplySend } from "@/app/api/v1/milady/google/gmail/reply-send/route";
-import { GET as getGmailTriage } from "@/app/api/v1/milady/google/gmail/triage/route";
-import { GET as getStatus } from "@/app/api/v1/milady/google/status/route";
 
 describe("Milady managed Google routes", () => {
   beforeEach(() => {
