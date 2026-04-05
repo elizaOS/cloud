@@ -12,7 +12,11 @@ export const maxDuration = 30;
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const rawSide = request.nextUrl.searchParams.get("side");
     const rawMaxResults = request.nextUrl.searchParams.get("maxResults");
+    if (rawSide !== null && rawSide !== "owner" && rawSide !== "agent") {
+      return NextResponse.json({ error: "side must be owner or agent." }, { status: 400 });
+    }
     const maxResults =
       rawMaxResults && rawMaxResults.trim().length > 0 ? Number.parseInt(rawMaxResults, 10) : 12;
     if (!Number.isFinite(maxResults) || maxResults <= 0) {
@@ -26,6 +30,7 @@ export async function GET(request: NextRequest) {
       await fetchManagedGoogleGmailTriage({
         organizationId: user.organization_id,
         userId: user.id,
+        side: rawSide === "agent" ? "agent" : "owner",
         maxResults,
       }),
     );

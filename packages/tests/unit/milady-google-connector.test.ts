@@ -1,5 +1,9 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { OAuthConnection } from "@/lib/services/oauth/types";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockListConnections = mock();
 const mockGetValidTokenByPlatformWithConnectionId = mock();
@@ -41,9 +45,21 @@ mock.module("@/lib/services/oauth", () => ({
 }));
 
 mock.module("@/lib/services/oauth/oauth-service", () => ({
-  getPreferredActiveConnection: (connections: OAuthConnection[], userId?: string) =>
+  getPreferredActiveConnection: (
+    connections: OAuthConnection[],
+    userId?: string,
+    connectionRole?: "owner" | "agent",
+  ) =>
     connections.find(
-      (connection) => connection.status === "active" && (!userId || connection.userId === userId),
+      (connection) =>
+        connection.status === "active" &&
+        (!userId || connection.userId === userId) &&
+        (!connectionRole || connection.connectionRole === connectionRole),
+    ) ??
+    connections.find(
+      (connection) =>
+        connection.status === "active" &&
+        (!connectionRole || connection.connectionRole === connectionRole),
     ) ??
     connections.find((connection) => connection.status === "active") ??
     null,
@@ -74,6 +90,7 @@ function createConnection(overrides: Partial<OAuthConnection> = {}): OAuthConnec
   return {
     id: "conn-google-1",
     userId: "user-1",
+    connectionRole: "owner",
     platform: "google",
     platformUserId: "google-user-1",
     email: "founder@example.com",
@@ -127,16 +144,18 @@ describe("milady Google connector service", () => {
     });
   });
 
-  test("reports managed Google connector status from the active user-scoped connection", async () => {
+  test("reports managed Google connector status from the active owner connection", async () => {
     mockListConnections.mockResolvedValue([createConnection()]);
 
     const status = await getManagedGoogleConnectorStatus({
       organizationId: "org-1",
       userId: "user-1",
+      side: "owner",
     });
 
     expect(status).toEqual({
       provider: "google",
+      side: "owner",
       mode: "cloud_managed",
       configured: true,
       connected: true,
@@ -167,6 +186,46 @@ describe("milady Google connector service", () => {
       linkedAt: "2026-04-04T15:00:00.000Z",
       lastUsedAt: "2026-04-04T16:00:00.000Z",
     });
+    expect(mockListConnections).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+      platform: "google",
+      connectionRole: "owner",
+    });
+  });
+
+  test("reports managed Google connector status from the agent-side connection", async () => {
+    mockListConnections.mockResolvedValue([
+      createConnection({
+        id: "conn-google-agent",
+        userId: null,
+        connectionRole: "agent",
+        email: "milady-agent@example.com",
+        username: "milady-agent",
+        displayName: "Milady Agent",
+      }),
+    ]);
+
+    const status = await getManagedGoogleConnectorStatus({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "agent",
+    });
+
+    expect(status.side).toBe("agent");
+    expect(status.connectionId).toBe("conn-google-agent");
+    expect(status.identity).toEqual({
+      id: "google-user-1",
+      email: "milady-agent@example.com",
+      name: "Milady Agent",
+      avatarUrl: "https://example.com/avatar.png",
+    });
+    expect(mockListConnections).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+      platform: "google",
+      connectionRole: "agent",
+    });
   });
 
   test("initiates managed Google auth with the requested Milady capability scopes", async () => {
@@ -177,6 +236,7 @@ describe("milady Google connector service", () => {
     const result = await initiateManagedGoogleConnection({
       organizationId: "org-1",
       userId: "user-1",
+      side: "agent",
       redirectUrl: "https://www.elizacloud.ai/auth/success?platform=google",
       capabilities: ["google.calendar.read", "google.gmail.triage", "google.gmail.send"],
     });
@@ -194,7 +254,9 @@ describe("milady Google connector service", () => {
         "https://www.googleapis.com/auth/gmail.metadata",
         "https://www.googleapis.com/auth/gmail.send",
       ],
+      connectionRole: "agent",
     });
+    expect(result.side).toBe("agent");
     expect(result.mode).toBe("cloud_managed");
     expect(result.requestedCapabilities).toEqual([
       "google.basic_identity",
@@ -244,6 +306,7 @@ describe("milady Google connector service", () => {
     const feed = await fetchManagedGoogleCalendarFeed({
       organizationId: "org-1",
       userId: "user-1",
+      side: "owner",
       calendarId: "primary",
       timeMin: "2026-04-04T00:00:00.000Z",
       timeMax: "2026-04-05T00:00:00.000Z",
@@ -298,6 +361,7 @@ describe("milady Google connector service", () => {
     const triage = await fetchManagedGoogleGmailTriage({
       organizationId: "org-1",
       userId: "user-1",
+      side: "owner",
       maxResults: 5,
     });
 
@@ -321,6 +385,7 @@ describe("milady Google connector service", () => {
     await sendManagedGoogleReply({
       organizationId: "org-1",
       userId: "user-1",
+      side: "owner",
       to: ["founder@example.com"],
       cc: ["ops@example.com"],
       subject: "Project sync",
@@ -346,11 +411,16 @@ describe("milady Google connector service", () => {
     expect(decoded).toContain("Reviewing it now.");
   });
 
-  test("disconnects the preferred active Google connection for the user", async () => {
+  test("disconnects the preferred active Google connection for the requested side", async () => {
     mockListConnections.mockResolvedValue([
-      createConnection({ id: "conn-google-1" }),
+      createConnection({
+        id: "conn-google-agent",
+        userId: null,
+        connectionRole: "agent",
+      }),
       createConnection({
         id: "conn-google-2",
+        connectionRole: "owner",
         status: "revoked",
         linkedAt: new Date("2026-04-03T15:00:00.000Z"),
       }),
@@ -359,11 +429,12 @@ describe("milady Google connector service", () => {
     await disconnectManagedGoogleConnection({
       organizationId: "org-1",
       userId: "user-1",
+      side: "agent",
     });
 
     expect(mockRevokeConnection).toHaveBeenCalledWith({
       organizationId: "org-1",
-      connectionId: "conn-google-1",
+      connectionId: "conn-google-agent",
     });
   });
 });

@@ -20,6 +20,7 @@ import type {
   InitiateAuthResult,
   ListConnectionsParams,
   OAuthConnection,
+  OAuthConnectionRole,
   OAuthProviderInfo,
   TokenResult,
 } from "./types";
@@ -50,36 +51,44 @@ export function getMostRecentActiveConnection(
 export function getPreferredActiveConnection(
   connections: OAuthConnection[],
   userId?: string,
+  connectionRole?: OAuthConnectionRole,
 ): OAuthConnection | null {
+  const scopedByRole = connectionRole
+    ? connections.filter((connection) => connection.connectionRole === connectionRole)
+    : connections;
   if (!userId) {
-    return getMostRecentActiveConnection(connections);
+    return getMostRecentActiveConnection(scopedByRole);
   }
 
   const ownedConnection = getMostRecentActiveConnection(
-    connections.filter((connection) => connection.userId === userId),
+    scopedByRole.filter((connection) => connection.userId === userId),
   );
   if (ownedConnection) {
     return ownedConnection;
   }
 
   return getMostRecentActiveConnection(
-    connections.filter((connection) => connection.userId === undefined),
+    scopedByRole.filter((connection) => connection.userId === undefined),
   );
 }
 
 export function scopeConnectionsForUser(
   connections: OAuthConnection[],
   userId?: string,
+  connectionRole?: OAuthConnectionRole,
 ): OAuthConnection[] {
+  const scopedByRole = connectionRole
+    ? connections.filter((connection) => connection.connectionRole === connectionRole)
+    : connections;
   if (!userId) {
-    return sortConnectionsByRecency(connections);
+    return sortConnectionsByRecency(scopedByRole);
   }
 
   const ownedConnections = sortConnectionsByRecency(
-    connections.filter((connection) => connection.userId === userId),
+    scopedByRole.filter((connection) => connection.userId === userId),
   );
   const sharedConnections = sortConnectionsByRecency(
-    connections.filter((connection) => connection.userId === undefined),
+    scopedByRole.filter((connection) => connection.userId === undefined),
   );
 
   if (ownedConnections.length > 0) {
@@ -104,7 +113,7 @@ class OAuthService {
 
   /** Initiate OAuth flow for a platform */
   async initiateAuth(params: InitiateAuthParams): Promise<InitiateAuthResult> {
-    const { organizationId, userId, platform, redirectUrl, scopes } = params;
+    const { organizationId, userId, platform, redirectUrl, scopes, connectionRole } = params;
 
     const provider = getProvider(platform);
     if (!provider) throw Errors.platformNotSupported(platform);
@@ -122,6 +131,7 @@ class OAuthService {
         userId,
         redirectUrl,
         scopes,
+        connectionRole,
       });
       return { authUrl: result.authUrl, state: result.state };
     }
@@ -163,7 +173,7 @@ class OAuthService {
 
   /** List all OAuth connections for an organization */
   async listConnections(params: ListConnectionsParams): Promise<OAuthConnection[]> {
-    const { organizationId, platform, userId } = params;
+    const { organizationId, platform, userId, connectionRole } = params;
     const adapters = platform ? [getAdapter(platform)].filter(Boolean) : getAllAdapters();
     const results = await Promise.allSettled(
       adapters.map((a) => a!.listConnections(organizationId)),
@@ -177,7 +187,7 @@ class OAuthService {
       return [];
     });
 
-    return scopeConnectionsForUser(connections, userId);
+    return scopeConnectionsForUser(connections, userId, connectionRole);
   }
 
   /** Get a single connection by ID */
@@ -243,13 +253,13 @@ class OAuthService {
   async getValidTokenByPlatformWithConnectionId(
     params: GetTokenByPlatformParams,
   ): Promise<{ token: TokenResult; connectionId: string }> {
-    const { organizationId, platform, userId } = params;
+    const { organizationId, platform, userId, connectionRole } = params;
 
     const adapter = getAdapter(platform);
     if (!adapter) throw Errors.platformNotSupported(platform);
 
     const connections = await adapter.listConnections(organizationId);
-    const activeConnection = getPreferredActiveConnection(connections, userId);
+    const activeConnection = getPreferredActiveConnection(connections, userId, connectionRole);
     if (!activeConnection) throw Errors.platformNotConnected(platform);
 
     const token = await this.getValidToken({
@@ -265,12 +275,13 @@ class OAuthService {
     organizationId: string,
     platform: string,
     userId?: string,
+    connectionRole?: OAuthConnectionRole,
   ): Promise<boolean> {
     const adapter = getAdapter(platform);
     if (!adapter) return false;
 
     const connections = await adapter.listConnections(organizationId);
-    return getPreferredActiveConnection(connections, userId) !== null;
+    return getPreferredActiveConnection(connections, userId, connectionRole) !== null;
   }
 
   /** Get all platforms with active connections */

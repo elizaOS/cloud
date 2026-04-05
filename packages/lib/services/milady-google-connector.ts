@@ -4,6 +4,7 @@ import { platformCredentials } from "@/db/schemas/platform-credentials";
 import { oauthService } from "@/lib/services/oauth";
 import { getPreferredActiveConnection } from "@/lib/services/oauth/oauth-service";
 import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
+import type { OAuthConnectionRole } from "@/lib/services/oauth/types";
 import {
   applyTimeZone,
   googleFetchWithToken,
@@ -40,6 +41,7 @@ export type MiladyGoogleCapability =
 
 export interface ManagedGoogleConnectorStatus {
   provider: "google";
+  side: OAuthConnectionRole;
   mode: "cloud_managed";
   configured: boolean;
   connected: boolean;
@@ -267,17 +269,26 @@ async function getConnectionRow(
   return row ?? null;
 }
 
-async function getScopedGoogleConnections(args: { organizationId: string; userId: string }) {
+async function getScopedGoogleConnections(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+}) {
   return oauthService.listConnections({
     organizationId: args.organizationId,
     userId: args.userId,
     platform: "google",
+    connectionRole: args.side,
   });
 }
 
-async function getActiveGoogleConnectionRecord(args: { organizationId: string; userId: string }) {
+async function getActiveGoogleConnectionRecord(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+}) {
   const connections = await getScopedGoogleConnections(args);
-  const activeConnection = getPreferredActiveConnection(connections, args.userId);
+  const activeConnection = getPreferredActiveConnection(connections, args.userId, args.side);
   const latestConnection = connections[0] ?? null;
   const activeRow = activeConnection
     ? await getConnectionRow(args.organizationId, activeConnection.id)
@@ -299,6 +310,7 @@ async function getActiveGoogleConnectionRecord(args: { organizationId: string; u
 async function getGoogleAccessToken(args: {
   organizationId: string;
   userId: string;
+  side: OAuthConnectionRole;
 }): Promise<{ accessToken: string; connectionId: string }> {
   try {
     return await oauthService
@@ -306,6 +318,7 @@ async function getGoogleAccessToken(args: {
         organizationId: args.organizationId,
         userId: args.userId,
         platform: "google",
+        connectionRole: args.side,
       })
       .then((result) => ({
         accessToken: result.token.accessToken,
@@ -320,6 +333,7 @@ async function getGoogleAccessToken(args: {
 async function googleFetch(args: {
   organizationId: string;
   userId: string;
+  side: OAuthConnectionRole;
   url: string;
   options?: RequestInit;
 }): Promise<Response> {
@@ -653,6 +667,7 @@ function normalizeReplySubject(subject: string): string {
 export async function getManagedGoogleConnectorStatus(args: {
   organizationId: string;
   userId: string;
+  side: OAuthConnectionRole;
 }): Promise<ManagedGoogleConnectorStatus> {
   const provider = getProvider("google");
   const configured = provider ? isProviderConfigured(provider) : false;
@@ -660,6 +675,7 @@ export async function getManagedGoogleConnectorStatus(args: {
   if (!configured) {
     return {
       provider: "google",
+      side: args.side,
       mode: "cloud_managed",
       configured: false,
       connected: false,
@@ -683,6 +699,7 @@ export async function getManagedGoogleConnectorStatus(args: {
   if (!currentConnection) {
     return {
       provider: "google",
+      side: args.side,
       mode: "cloud_managed",
       configured: true,
       connected: false,
@@ -707,6 +724,7 @@ export async function getManagedGoogleConnectorStatus(args: {
 
   return {
     provider: "google",
+    side: args.side,
     mode: "cloud_managed",
     configured: true,
     connected,
@@ -730,6 +748,7 @@ export async function getManagedGoogleConnectorStatus(args: {
 export async function initiateManagedGoogleConnection(args: {
   organizationId: string;
   userId: string;
+  side: OAuthConnectionRole;
   redirectUrl?: string;
   capabilities?: MiladyGoogleCapability[];
 }) {
@@ -740,9 +759,11 @@ export async function initiateManagedGoogleConnection(args: {
     platform: "google",
     redirectUrl: args.redirectUrl,
     scopes: capabilitiesToScopes(requestedCapabilities),
+    connectionRole: args.side,
   });
   return {
     provider: "google" as const,
+    side: args.side,
     mode: "cloud_managed" as const,
     requestedCapabilities,
     redirectUri: args.redirectUrl ?? "/auth/success?platform=google",
@@ -753,13 +774,14 @@ export async function initiateManagedGoogleConnection(args: {
 export async function disconnectManagedGoogleConnection(args: {
   organizationId: string;
   userId: string;
+  side: OAuthConnectionRole;
   connectionId?: string | null;
 }): Promise<void> {
   const connections = await getScopedGoogleConnections(args);
   const activeConnection =
     (args.connectionId
       ? connections.find((connection) => connection.id === args.connectionId)
-      : getPreferredActiveConnection(connections, args.userId)) ??
+      : getPreferredActiveConnection(connections, args.userId, args.side)) ??
     connections[0] ??
     null;
   if (!activeConnection) {
@@ -774,6 +796,7 @@ export async function disconnectManagedGoogleConnection(args: {
 export async function fetchManagedGoogleCalendarFeed(args: {
   organizationId: string;
   userId: string;
+  side: OAuthConnectionRole;
   calendarId: string;
   timeMin: string;
   timeMax: string;
@@ -794,6 +817,7 @@ export async function fetchManagedGoogleCalendarFeed(args: {
   const response = await googleFetch({
     organizationId: args.organizationId,
     userId: args.userId,
+    side: args.side,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events?${params.toString()}`,
   });
   const parsed = (await response.json()) as { items?: GoogleCalendarApiEvent[] };
@@ -809,6 +833,7 @@ export async function fetchManagedGoogleCalendarFeed(args: {
 export async function createManagedGoogleCalendarEvent(args: {
   organizationId: string;
   userId: string;
+  side: OAuthConnectionRole;
   calendarId: string;
   title: string;
   description?: string;
@@ -825,6 +850,7 @@ export async function createManagedGoogleCalendarEvent(args: {
   const response = await googleFetch({
     organizationId: args.organizationId,
     userId: args.userId,
+    side: args.side,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events?conferenceDataVersion=1`,
     options: {
       method: "POST",
@@ -850,12 +876,14 @@ export async function createManagedGoogleCalendarEvent(args: {
 export async function fetchManagedGoogleGmailTriage(args: {
   organizationId: string;
   userId: string;
+  side: OAuthConnectionRole;
   maxResults: number;
 }): Promise<{ messages: ManagedGoogleGmailMessage[]; syncedAt: string }> {
   const maxResults = Math.min(Math.max(args.maxResults, 1), 50);
   const connectorStatus = await getManagedGoogleConnectorStatus({
     organizationId: args.organizationId,
     userId: args.userId,
+    side: args.side,
   });
   const selfEmail =
     connectorStatus.identity && typeof connectorStatus.identity.email === "string"
@@ -870,6 +898,7 @@ export async function fetchManagedGoogleGmailTriage(args: {
   const listResponse = await googleFetch({
     organizationId: args.organizationId,
     userId: args.userId,
+    side: args.side,
     url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}?${listParams.toString()}`,
   });
   const listed = (await listResponse.json()) as GoogleGmailListResponse;
@@ -885,6 +914,7 @@ export async function fetchManagedGoogleGmailTriage(args: {
       const response = await googleFetch({
         organizationId: args.organizationId,
         userId: args.userId,
+        side: args.side,
         url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(messageId)}?${params.toString()}`,
       });
       const parsed = (await response.json()) as GoogleGmailMetadataResponse;
@@ -907,6 +937,7 @@ export async function fetchManagedGoogleGmailTriage(args: {
 export async function sendManagedGoogleReply(args: {
   organizationId: string;
   userId: string;
+  side: OAuthConnectionRole;
   to: string[];
   cc?: string[];
   subject: string;
@@ -930,6 +961,7 @@ export async function sendManagedGoogleReply(args: {
   await googleFetch({
     organizationId: args.organizationId,
     userId: args.userId,
+    side: args.side,
     url: GOOGLE_GMAIL_SEND_ENDPOINT,
     options: {
       method: "POST",

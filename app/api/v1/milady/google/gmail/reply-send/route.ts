@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 const requestSchema = z.object({
+  side: z.enum(["owner", "agent"]).optional(),
   to: z.array(z.string().email()).min(1),
   cc: z.array(z.string().email()).optional(),
   subject: z.string().trim().min(1),
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
     await sendManagedGoogleReply({
       organizationId: user.organization_id,
       userId: user.id,
+      side: parsed.data.side ?? "owner",
       to: parsed.data.to,
       cc: parsed.data.cc,
       subject: parsed.data.subject,

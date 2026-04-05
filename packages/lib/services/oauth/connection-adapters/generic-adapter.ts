@@ -109,6 +109,12 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
         return credentials.map((cred) => ({
           id: cred.id,
           userId: cred.user_id || undefined,
+          connectionRole:
+            cred.source_context &&
+            typeof cred.source_context === "object" &&
+            (cred.source_context as Record<string, unknown>).miladyGoogleSide === "agent"
+              ? "agent"
+              : "owner",
           platform,
           platformUserId: cred.platform_user_id,
           email: cred.platform_email || undefined,

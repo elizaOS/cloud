@@ -14,6 +14,7 @@ import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import type { OAuthProviderConfig, UserInfoMapping } from "../provider-registry";
 import { getCallbackUrl, getClientId, getClientSecret, getNestedValue } from "../provider-registry";
+import type { OAuthConnectionRole } from "../types";
 
 const STATE_TTL_SECONDS = 600; // 10 minutes
 
@@ -26,6 +27,7 @@ interface OAuth2State {
   providerId: string;
   redirectUrl: string;
   scopes: string[];
+  connectionRole?: OAuthConnectionRole;
   createdAt: number;
   codeVerifier?: string;
 }
@@ -103,6 +105,7 @@ export async function initiateOAuth2(
     userId: string;
     redirectUrl?: string;
     scopes?: string[];
+    connectionRole?: OAuthConnectionRole;
   },
 ): Promise<InitiateOAuth2Result> {
   const clientId = getClientId(provider);
@@ -138,6 +141,7 @@ export async function initiateOAuth2(
     providerId: provider.id,
     redirectUrl,
     scopes,
+    connectionRole: params.connectionRole,
     createdAt: Date.now(),
     codeVerifier,
   };
@@ -207,6 +211,7 @@ export async function handleOAuth2Callback(
   await cache.del(stateKey);
 
   const { organizationId, userId, redirectUrl, scopes, codeVerifier } = stateData;
+  const connectionRole = stateData.connectionRole ?? "owner";
 
   // Exchange code for tokens
   const tokens = await exchangeCodeForTokens(provider, code, codeVerifier);
@@ -226,6 +231,7 @@ export async function handleOAuth2Callback(
     provider,
     organizationId,
     userId,
+    connectionRole,
     tokens,
     userInfo,
     scopes,
@@ -562,10 +568,12 @@ async function storeConnection(
   provider: OAuthProviderConfig,
   organizationId: string,
   userId: string,
+  connectionRole: OAuthConnectionRole,
   tokens: TokenResponse,
   userInfo: ExtractedUserInfo,
   scopes: string[],
 ): Promise<string> {
+  const connectionUserId = connectionRole === "agent" ? null : userId;
   const audit = {
     actorType: "user" as const,
     actorId: userId,
@@ -752,11 +760,18 @@ async function storeConnection(
     })
     .from(platformCredentials)
     .where(
-      and(
-        eq(platformCredentials.organization_id, organizationId),
-        eq(platformCredentials.user_id, userId),
-        eq(platformCredentials.platform, providerPlatform),
-      ),
+      connectionUserId
+        ? and(
+            eq(platformCredentials.organization_id, organizationId),
+            eq(platformCredentials.user_id, connectionUserId),
+            eq(platformCredentials.platform, providerPlatform),
+          )
+        : and(
+            eq(platformCredentials.organization_id, organizationId),
+            sql`${platformCredentials.user_id} IS NULL`,
+            eq(platformCredentials.platform, providerPlatform),
+            sql`COALESCE(${platformCredentials.source_context}->>'miladyGoogleSide', 'owner') = ${connectionRole}`,
+          ),
     )
     .orderBy(
       desc(
@@ -947,7 +962,7 @@ async function storeConnection(
         .insert(platformCredentials)
         .values({
           organization_id: organizationId,
-          user_id: userId,
+          user_id: connectionUserId,
           platform: providerPlatform,
           platform_user_id: userInfo.id,
           platform_username: userInfo.username || undefined,
@@ -961,6 +976,9 @@ async function storeConnection(
           scopes,
           profile_data: userInfo.raw,
           source_type: "web",
+          source_context: {
+            miladyGoogleSide: connectionRole,
+          },
           linked_at: new Date(),
         })
         .onConflictDoUpdate({
@@ -971,7 +989,7 @@ async function storeConnection(
           ],
           setWhere: sql`${platformCredentials.user_id} IS NULL OR ${platformCredentials.user_id} = ${userId}`,
           set: {
-            user_id: userId,
+            user_id: connectionUserId,
             platform_username: userInfo.username || undefined,
             platform_display_name: userInfo.displayName || undefined,
             platform_avatar_url: userInfo.avatarUrl || undefined,
@@ -982,6 +1000,9 @@ async function storeConnection(
             token_expires_at: tokenExpiresAt,
             scopes,
             profile_data: userInfo.raw,
+            source_context: {
+              miladyGoogleSide: connectionRole,
+            },
             linked_at: new Date(),
             updated_at: new Date(),
           },

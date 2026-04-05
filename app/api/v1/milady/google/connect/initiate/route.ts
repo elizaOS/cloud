@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 const requestSchema = z.object({
+  side: z.enum(["owner", "agent"]).optional(),
   redirectUrl: z.string().trim().min(1).optional(),
   capabilities: z
     .array(
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
       await initiateManagedGoogleConnection({
         organizationId: user.organization_id,
         userId: user.id,
+        side: parsed.data.side ?? "owner",
         redirectUrl: parsed.data.redirectUrl,
         capabilities: parsed.data.capabilities,
       }),

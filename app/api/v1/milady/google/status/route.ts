@@ -12,10 +12,15 @@ export const maxDuration = 30;
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const rawSide = request.nextUrl.searchParams.get("side");
+    if (rawSide !== null && rawSide !== "owner" && rawSide !== "agent") {
+      return NextResponse.json({ error: "side must be owner or agent." }, { status: 400 });
+    }
     return NextResponse.json(
       await getManagedGoogleConnectorStatus({
         organizationId: user.organization_id,
         userId: user.id,
+        side: rawSide === "agent" ? "agent" : "owner",
       }),
     );
   } catch (error) {

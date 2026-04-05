@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { jsonRequest } from "./api/route-test-helpers";
 
@@ -38,6 +38,11 @@ import { POST as postCalendarEvent } from "@/app/api/v1/milady/google/calendar/e
 import { GET as getCalendarFeed } from "@/app/api/v1/milady/google/calendar/feed/route";
 import { POST as postConnectInitiate } from "@/app/api/v1/milady/google/connect/initiate/route";
 import { POST as postDisconnect } from "@/app/api/v1/milady/google/disconnect/route";
+
+afterAll(() => {
+  mock.restore();
+});
+
 import { POST as postReplySend } from "@/app/api/v1/milady/google/gmail/reply-send/route";
 import { GET as getGmailTriage } from "@/app/api/v1/milady/google/gmail/triage/route";
 import { GET as getStatus } from "@/app/api/v1/milady/google/status/route";
@@ -64,6 +69,7 @@ describe("Milady managed Google routes", () => {
   test("GET /api/v1/milady/google/status returns the managed connector status", async () => {
     mockGetStatus.mockResolvedValue({
       provider: "google",
+      side: "owner",
       mode: "cloud_managed",
       configured: true,
       connected: true,
@@ -85,9 +91,40 @@ describe("Milady managed Google routes", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       provider: "google",
+      side: "owner",
       mode: "cloud_managed",
       connected: true,
       connectionId: "conn-1",
+    });
+  });
+
+  test("GET /api/v1/milady/google/status forwards an explicit side", async () => {
+    mockGetStatus.mockResolvedValue({
+      provider: "google",
+      side: "agent",
+      mode: "cloud_managed",
+      configured: true,
+      connected: false,
+      reason: "disconnected",
+      identity: null,
+      grantedCapabilities: [],
+      grantedScopes: [],
+      expiresAt: null,
+      hasRefreshToken: false,
+      connectionId: null,
+      linkedAt: null,
+      lastUsedAt: null,
+    });
+
+    const response = await getStatus(
+      new NextRequest("https://example.com/api/v1/milady/google/status?side=agent"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockGetStatus).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "agent",
     });
   });
 
@@ -111,6 +148,7 @@ describe("Milady managed Google routes", () => {
     expect(mockInitiateConnection).toHaveBeenCalledWith({
       organizationId: "org-1",
       userId: "user-1",
+      side: "owner",
       redirectUrl: "https://www.elizacloud.ai/auth/success?platform=google",
       capabilities: ["google.calendar.read"],
     });
@@ -161,6 +199,7 @@ describe("Milady managed Google routes", () => {
     expect(mockCreateCalendarEvent).toHaveBeenCalledWith({
       organizationId: "org-1",
       userId: "user-1",
+      side: "owner",
       calendarId: "primary",
       title: "Founder sync",
       description: undefined,
@@ -199,6 +238,7 @@ describe("Milady managed Google routes", () => {
     expect(mockSendReply).toHaveBeenCalledWith({
       organizationId: "org-1",
       userId: "user-1",
+      side: "owner",
       to: ["founder@example.com"],
       cc: undefined,
       subject: "Project sync",
@@ -220,6 +260,7 @@ describe("Milady managed Google routes", () => {
     expect(mockDisconnectConnection).toHaveBeenCalledWith({
       organizationId: "org-1",
       userId: "user-1",
+      side: "owner",
       connectionId: null,
     });
   });
