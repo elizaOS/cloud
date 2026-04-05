@@ -43,6 +43,27 @@ mock.module("@/lib/services/oauth", () => ({
   },
 }));
 
+mock.module("@/lib/services/oauth/oauth-service", () => ({
+  getPreferredActiveConnection: (
+    connections: OAuthConnection[],
+    userId?: string,
+    connectionRole?: "owner" | "agent",
+  ) =>
+    connections.find(
+      (connection) =>
+        connection.status === "active" &&
+        (!userId || connection.userId === userId) &&
+        (!connectionRole || connection.connectionRole === connectionRole),
+    ) ??
+    connections.find(
+      (connection) =>
+        connection.status === "active" &&
+        (!connectionRole || connection.connectionRole === connectionRole),
+    ) ??
+    connections.find((connection) => connection.status === "active") ??
+    null,
+}));
+
 import {
   disconnectManagedGoogleConnection,
   fetchManagedGoogleCalendarFeed,
