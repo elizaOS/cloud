@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { OAuthConnection } from "@/lib/services/oauth/types";
 
 const mockListConnections = mock();
@@ -43,39 +43,34 @@ mock.module("@/lib/services/oauth", () => ({
   },
 }));
 
-mock.module("@/lib/services/oauth/oauth-service", () => ({
-  getPreferredActiveConnection: (
-    connections: OAuthConnection[],
-    userId?: string,
-    connectionRole?: "owner" | "agent",
-  ) =>
-    connections.find(
-      (connection) =>
-        connection.status === "active" &&
-        (!userId || connection.userId === userId) &&
-        (!connectionRole || connection.connectionRole === connectionRole),
-    ) ??
-    connections.find(
-      (connection) =>
-        connection.status === "active" &&
-        (!connectionRole || connection.connectionRole === connectionRole),
-    ) ??
-    connections.find((connection) => connection.status === "active") ??
-    null,
-}));
+let disconnectManagedGoogleConnection: typeof import("@/lib/services/milady-google-connector").disconnectManagedGoogleConnection;
+let fetchManagedGoogleCalendarFeed: typeof import("@/lib/services/milady-google-connector").fetchManagedGoogleCalendarFeed;
+let fetchManagedGoogleGmailTriage: typeof import("@/lib/services/milady-google-connector").fetchManagedGoogleGmailTriage;
+let getManagedGoogleConnectorStatus: typeof import("@/lib/services/milady-google-connector").getManagedGoogleConnectorStatus;
+let initiateManagedGoogleConnection: typeof import("@/lib/services/milady-google-connector").initiateManagedGoogleConnection;
+let sendManagedGoogleReply: typeof import("@/lib/services/milady-google-connector").sendManagedGoogleReply;
 
-import {
-  disconnectManagedGoogleConnection,
-  fetchManagedGoogleCalendarFeed,
-  fetchManagedGoogleGmailTriage,
-  getManagedGoogleConnectorStatus,
-  initiateManagedGoogleConnection,
-  sendManagedGoogleReply,
-} from "@/lib/services/milady-google-connector";
+async function restoreActualModule(specifier: string, relativePath: string) {
+  const actualModule = await import(new URL(relativePath, import.meta.url).href);
+  mock.module(specifier, () => actualModule);
+}
 
-// Drop the top-level module mocks after importing the service under test so
-// they don't leak into later test files loaded by the same Bun process.
-mock.restore();
+beforeAll(async () => {
+  ({
+    disconnectManagedGoogleConnection,
+    fetchManagedGoogleCalendarFeed,
+    fetchManagedGoogleGmailTriage,
+    getManagedGoogleConnectorStatus,
+    initiateManagedGoogleConnection,
+    sendManagedGoogleReply,
+  } = await import("@/lib/services/milady-google-connector"));
+  await restoreActualModule("@/lib/services/oauth", "../../lib/services/oauth/index.ts");
+  await restoreActualModule("@/db/client", "../../db/client.ts");
+  await restoreActualModule(
+    "@/db/schemas/platform-credentials",
+    "../../db/schemas/platform-credentials.ts",
+  );
+});
 
 function saveProviderEnv() {
   savedProviderEnv = {
