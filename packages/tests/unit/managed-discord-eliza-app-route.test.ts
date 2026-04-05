@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 const mockFindByManagedDiscordGuildId = mock();
 const mockBridge = mock();
 const originalEnv = { ...process.env };
+const mutableEnv = process.env as Record<string, string | undefined>;
 let POST: typeof import("@/app/api/internal/discord/eliza-app/messages/route").POST;
 
 mock.module("@/db/repositories/milady-sandboxes", () => ({
@@ -47,10 +48,10 @@ async function createInternalAuthHeader(): Promise<string> {
 
 describe("managed Discord Eliza App routing route", () => {
   beforeAll(async () => {
-    process.env.JWT_SIGNING_PRIVATE_KEY = Buffer.from(TEST_PRIVATE_KEY).toString("base64");
-    process.env.JWT_SIGNING_PUBLIC_KEY = Buffer.from(TEST_PUBLIC_KEY).toString("base64");
-    process.env.JWT_SIGNING_KEY_ID = "test-key-id";
-    process.env.NODE_ENV = "test";
+    mutableEnv.JWT_SIGNING_PRIVATE_KEY = Buffer.from(TEST_PRIVATE_KEY).toString("base64");
+    mutableEnv.JWT_SIGNING_PUBLIC_KEY = Buffer.from(TEST_PUBLIC_KEY).toString("base64");
+    mutableEnv.JWT_SIGNING_KEY_ID = "test-key-id";
+    mutableEnv.NODE_ENV = "test";
     ({ POST } = await import("@/app/api/internal/discord/eliza-app/messages/route"));
   });
 
