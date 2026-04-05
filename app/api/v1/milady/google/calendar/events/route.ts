@@ -1,11 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  createManagedGoogleCalendarEvent,
-  MiladyGoogleConnectorError,
-} from "@/lib/services/milady-google-connector";
+import { miladyGoogleRouteDeps } from "@/lib/services/milady-google-route-deps";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -30,7 +26,7 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json(
@@ -40,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      await createManagedGoogleCalendarEvent({
+      await miladyGoogleRouteDeps.createManagedGoogleCalendarEvent({
         organizationId: user.organization_id,
         userId: user.id,
         side: parsed.data.side ?? "owner",
@@ -56,7 +52,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    if (error instanceof MiladyGoogleConnectorError) {
+    if (error instanceof miladyGoogleRouteDeps.MiladyGoogleConnectorError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(

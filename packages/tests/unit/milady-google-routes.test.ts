@@ -1,5 +1,13 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import { POST as postCalendarEvent } from "@/app/api/v1/milady/google/calendar/events/route";
+import { GET as getCalendarFeed } from "@/app/api/v1/milady/google/calendar/feed/route";
+import { POST as postConnectInitiate } from "@/app/api/v1/milady/google/connect/initiate/route";
+import { POST as postDisconnect } from "@/app/api/v1/milady/google/disconnect/route";
+import { POST as postReplySend } from "@/app/api/v1/milady/google/gmail/reply-send/route";
+import { GET as getGmailTriage } from "@/app/api/v1/milady/google/gmail/triage/route";
+import { GET as getStatus } from "@/app/api/v1/milady/google/status/route";
+import { miladyGoogleRouteDeps } from "../../lib/services/milady-google-route-deps";
 import { jsonRequest } from "./api/route-test-helpers";
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
@@ -10,46 +18,18 @@ const mockFetchCalendarFeed = mock();
 const mockCreateCalendarEvent = mock();
 const mockFetchGmailTriage = mock();
 const mockSendReply = mock();
-
-mock.module("@/lib/auth", () => ({
-  requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
-}));
-
-mock.module("@/lib/services/milady-google-connector", () => ({
-  getManagedGoogleConnectorStatus: mockGetStatus,
-  initiateManagedGoogleConnection: mockInitiateConnection,
-  disconnectManagedGoogleConnection: mockDisconnectConnection,
-  fetchManagedGoogleCalendarFeed: mockFetchCalendarFeed,
-  createManagedGoogleCalendarEvent: mockCreateCalendarEvent,
-  fetchManagedGoogleGmailTriage: mockFetchGmailTriage,
-  sendManagedGoogleReply: mockSendReply,
-  MiladyGoogleConnectorError: class MiladyGoogleConnectorError extends Error {
-    constructor(
-      public readonly status: number,
-      message: string,
-    ) {
-      super(message);
-      this.name = "MiladyGoogleConnectorError";
-    }
-  },
-}));
-
-const { POST: postCalendarEvent } = await import(
-  "@/app/api/v1/milady/google/calendar/events/route"
-);
-const { GET: getCalendarFeed } = await import("@/app/api/v1/milady/google/calendar/feed/route");
-const { POST: postConnectInitiate } = await import(
-  "@/app/api/v1/milady/google/connect/initiate/route"
-);
-const { POST: postDisconnect } = await import("@/app/api/v1/milady/google/disconnect/route");
-const { POST: postReplySend } = await import("@/app/api/v1/milady/google/gmail/reply-send/route");
-const { GET: getGmailTriage } = await import("@/app/api/v1/milady/google/gmail/triage/route");
-const { GET: getStatus } = await import("@/app/api/v1/milady/google/status/route");
-
-mock.restore();
+const originalRouteDeps = { ...miladyGoogleRouteDeps };
 
 describe("Milady managed Google routes", () => {
   beforeEach(() => {
+    miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg = mockRequireAuthOrApiKeyWithOrg;
+    miladyGoogleRouteDeps.getManagedGoogleConnectorStatus = mockGetStatus;
+    miladyGoogleRouteDeps.initiateManagedGoogleConnection = mockInitiateConnection;
+    miladyGoogleRouteDeps.disconnectManagedGoogleConnection = mockDisconnectConnection;
+    miladyGoogleRouteDeps.fetchManagedGoogleCalendarFeed = mockFetchCalendarFeed;
+    miladyGoogleRouteDeps.createManagedGoogleCalendarEvent = mockCreateCalendarEvent;
+    miladyGoogleRouteDeps.fetchManagedGoogleGmailTriage = mockFetchGmailTriage;
+    miladyGoogleRouteDeps.sendManagedGoogleReply = mockSendReply;
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockGetStatus.mockReset();
     mockInitiateConnection.mockReset();
@@ -65,6 +45,10 @@ describe("Milady managed Google routes", () => {
         organization_id: "org-1",
       },
     });
+  });
+
+  afterEach(() => {
+    Object.assign(miladyGoogleRouteDeps, originalRouteDeps);
   });
 
   test("GET /api/v1/milady/google/status returns the managed connector status", async () => {
