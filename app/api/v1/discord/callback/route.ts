@@ -64,16 +64,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   // Parse state for return URL (do this early for error redirects)
-  let decodedState:
-    | {
-        returnUrl?: string;
-        flow?: "organization-install" | "milady-managed";
-        agentId?: string;
-        organizationId?: string;
-        userId?: string;
-        botNickname?: string;
-      }
-    | null = null;
+  let decodedState: {
+    returnUrl?: string;
+    flow?: "organization-install" | "milady-managed";
+    agentId?: string;
+    organizationId?: string;
+    userId?: string;
+    botNickname?: string;
+  } | null = null;
   let returnTarget = resolveOAuthReturnTarget(baseUrl, undefined, false);
   if (state) {
     try {

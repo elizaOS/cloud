@@ -1,4 +1,5 @@
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
 import {
   type ManagedMiladyDiscordBinding,
@@ -6,7 +7,6 @@ import {
   withManagedMiladyDiscordBinding,
   withoutManagedMiladyDiscordBinding,
 } from "./milady-agent-config";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
 
 const ROLES_PLUGIN_ID = "@miladyai/plugin-roles";
 export const DISCORD_DEVELOPER_PORTAL_URL = "https://discord.com/developers/applications";

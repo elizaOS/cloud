@@ -1836,8 +1836,7 @@ export class GatewayManager {
             sender: {
               id: message.author.id,
               username: message.author.username,
-              displayName:
-                message.member?.displayName ?? message.author.globalName ?? undefined,
+              displayName: message.member?.displayName ?? message.author.globalName ?? undefined,
               avatar: message.author.displayAvatarURL() || null,
             },
           }),

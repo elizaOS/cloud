@@ -51,11 +51,11 @@ mock.module("@/lib/utils/logger", () => ({
 }));
 
 import { GET as discordCallbackGet } from "@/app/api/v1/discord/callback/route";
+import { POST as postManagedDiscordOauth } from "@/app/api/v1/milady/agents/[agentId]/discord/oauth/route";
 import {
   DELETE as deleteManagedDiscord,
   GET as getManagedDiscord,
 } from "@/app/api/v1/milady/agents/[agentId]/discord/route";
-import { POST as postManagedDiscordOauth } from "@/app/api/v1/milady/agents/[agentId]/discord/oauth/route";
 
 describe("managed Milady Discord routes", () => {
   beforeEach(() => {
@@ -190,9 +190,7 @@ describe("managed Milady Discord routes", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toContain(
-      "http://127.0.0.1:31337/cloud?tab=agents",
-    );
+    expect(response.headers.get("location")).toContain("http://127.0.0.1:31337/cloud?tab=agents");
     expect(response.headers.get("location")).toContain("managed=1");
     expect(response.headers.get("location")).toContain("agentId=agent-1");
     expect(response.headers.get("location")).toContain("guildId=guild-1");
