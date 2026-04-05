@@ -177,6 +177,9 @@ jobs:
             # Restart the Next.js service
             sudo systemctl restart eliza-cloud
             
+            # Restart the provisioning worker (VPS owns container lifecycle)
+            sudo systemctl restart milady-provisioning-worker
+            
             echo "=== Deploy complete ==="
 
       - name: Health Check

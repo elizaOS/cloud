@@ -48,7 +48,7 @@ npx drizzle-kit generate --custom --name=descriptive_name
 
 **`bun run check-types` has many pre-existing errors across the codebase (db/, lib/services/, app/).** Don't try to fix them all — only verify your changed files have no new errors. Filter output:
 ```bash
-bun run check-types 2>&1 | grep -E "(your-file\.ts|your-other-file\.ts)"
+bun run check-types 2>&1 | grep -E "(your-file\\.ts|your-other-file\\.ts)"
 ```
 If the grep returns empty, your changes are clean. `bun run build` also fails on unrelated env vars (`ELIZA_APP_DISCORD_BOT_TOKEN`). Use `check-types` filtered to your files instead.
 
@@ -63,4 +63,3 @@ db/
 components/    # React components
 scripts/       # CLI utilities
 ```
-

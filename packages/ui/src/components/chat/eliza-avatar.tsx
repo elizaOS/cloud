@@ -41,7 +41,7 @@ export const ElizaAvatar = memo(function ElizaAvatar({
   animate = false,
   priority = false,
 }: ElizaAvatarProps) {
-  const resolvedAvatarUrl = ensureAvatarUrl(avatarUrl);
+  const resolvedAvatarUrl = ensureAvatarUrl(avatarUrl, name);
 
   return (
     <div className={cn("relative flex shrink-0 overflow-hidden rounded-full", className)}>

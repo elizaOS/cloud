@@ -14,9 +14,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { dbRead } from "@/db/helpers";
 import { type MiladySandboxStatus, miladySandboxes } from "@/db/schemas/milady-sandboxes";
 import { requireAdmin } from "@/lib/auth";
+import { getStewardAgent } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
+
+const STEWARD_ENRICHMENT_CONCURRENCY = 5;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex++;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }
+
+  const workerCount = Math.min(limit, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
 
 // ---------------------------------------------------------------------------
 // GET — List all Docker containers across all nodes
@@ -97,10 +120,41 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(miladySandboxes.created_at))
       .limit(limit);
 
+    // Enrich containers with wallet info from Steward (best-effort, parallel)
+    const enrichedContainers = await mapWithConcurrency(
+      containers,
+      STEWARD_ENRICHMENT_CONCURRENCY,
+      async (c) => {
+        let walletAddress: string | null = null;
+        let walletProvider: "steward" | "privy" | null = null;
+
+        // All Docker-node containers use Steward wallets
+        if (c.nodeId) {
+          try {
+            const stewardAgent = await getStewardAgent(c.id);
+            if (stewardAgent?.walletAddress) {
+              walletAddress = stewardAgent.walletAddress;
+              walletProvider = "steward";
+            } else {
+              walletProvider = "steward"; // registered but wallet pending
+            }
+          } catch {
+            // Steward unreachable — leave as null
+          }
+        }
+
+        return {
+          ...c,
+          walletAddress,
+          walletProvider,
+        };
+      },
+    );
+
     return NextResponse.json({
       success: true,
       data: {
-        containers,
+        containers: enrichedContainers,
         total: totalCount, // actual total matching filters
         returned: containers.length, // number returned in this page
         filters: {

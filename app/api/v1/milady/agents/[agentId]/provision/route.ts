@@ -66,7 +66,11 @@ export async function POST(
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
-    const sync = request.nextUrl.searchParams.get("sync") === "true";
+    const syncRequested = request.nextUrl.searchParams.get("sync") === "true";
+    const sync =
+      syncRequested &&
+      (process.env.NODE_ENV !== "production" ||
+        process.env.ALLOW_MILADY_SYNC_PROVISIONING === "true");
 
     logger.info("[milady-api] Provision requested", {
       agentId,
@@ -122,7 +126,7 @@ export async function POST(
       );
     }
 
-    // ── Sync fallback (legacy) ────────────────────────────────────────
+    // ── Sync fallback (legacy / local-only) ───────────────────────────
     if (sync) {
       const result = await miladySandboxService.provision(agentId, user.organization_id!);
 

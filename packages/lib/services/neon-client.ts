@@ -146,6 +146,81 @@ export class NeonClient {
   }
 
   /**
+   * Create a new branch within an existing Neon project.
+   * Each branch is an isolated copy-on-write fork with its own connection URI.
+   *
+   * @param projectId Parent project ID to branch from
+   * @param branchName Human-readable branch name
+   * @returns Branch details including connection URI
+   * @throws NeonClientError on API failure
+   */
+  async createBranch(projectId: string, branchName: string): Promise<NeonProjectResult> {
+    logger.info("Creating Neon branch", { projectId, branchName });
+
+    const response = await this.fetchWithRetry(`/projects/${projectId}/branches`, {
+      method: "POST",
+      body: JSON.stringify({
+        branch: { name: branchName },
+        endpoints: [{ type: "read_write" }],
+      }),
+    });
+
+    const data = await response.json();
+    const branch = data.branch;
+    const connectionUri = data.connection_uris?.[0]?.connection_uri;
+
+    if (!connectionUri) {
+      throw new NeonClientError(
+        "No connection URI in Neon branch response",
+        "MISSING_CONNECTION_URI",
+      );
+    }
+
+    let host: string;
+    try {
+      const uriWithoutProtocol = connectionUri.replace("postgres://", "");
+      const afterAt = uriWithoutProtocol.split("@")[1];
+      host = afterAt.split("/")[0];
+    } catch {
+      host = "unknown";
+    }
+
+    const result: NeonProjectResult = {
+      projectId,
+      branchId: branch.id,
+      connectionUri,
+      host,
+      database: "neondb",
+      region: "aws-us-east-1",
+    };
+
+    logger.info("Neon branch created", {
+      projectId,
+      branchId: result.branchId,
+      host: result.host,
+    });
+
+    return result;
+  }
+
+  /**
+   * Delete a branch from a Neon project.
+   *
+   * @param projectId Parent project ID
+   * @param branchId Branch ID to delete
+   * @throws NeonClientError on API failure
+   */
+  async deleteBranch(projectId: string, branchId: string): Promise<void> {
+    logger.info("Deleting Neon branch", { projectId, branchId });
+
+    await this.fetchWithRetry(`/projects/${projectId}/branches/${branchId}`, {
+      method: "DELETE",
+    });
+
+    logger.info("Neon branch deleted", { projectId, branchId });
+  }
+
+  /**
    * Delete a Neon project and all its data.
    *
    * @param projectId Neon project ID

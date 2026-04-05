@@ -15,10 +15,9 @@ import { useJobPoller } from "@/lib/hooks/use-job-poller";
 interface MiladyAgentActionsProps {
   agentId: string;
   status: string;
-  webUiUrl: string | null;
 }
 
-export function MiladyAgentActions({ agentId, status, webUiUrl }: MiladyAgentActionsProps) {
+export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -126,7 +125,7 @@ export function MiladyAgentActions({ agentId, status, webUiUrl }: MiladyAgentAct
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex flex-wrap gap-3">
-            {isRunning && webUiUrl && (
+            {isRunning && (
               <BrandButton
                 variant="primary"
                 size="sm"

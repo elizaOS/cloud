@@ -1,11 +1,15 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { db } from "@/db/client";
 import { userCharactersRepository } from "@/db/repositories/characters";
+import { agentServerWallets } from "@/db/schemas/agent-server-wallets";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-config";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
+import { getStewardAgent } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +74,42 @@ export async function GET(
       tokenTicker = typeof cfg?.tokenTicker === "string" ? cfg.tokenTicker : null;
     }
 
+    // Resolve wallet info — Docker agents use Steward, others use Privy
+    let walletAddress: string | null = null;
+    let walletProvider: "steward" | "privy" | null = null;
+    let walletStatus: "active" | "pending" | "none" | "error" = "none";
+
+    const isDockerAgent = !!agent.node_id;
+
+    if (isDockerAgent) {
+      // Steward-backed agent — query Steward for wallet address
+      try {
+        const stewardAgent = await getStewardAgent(agentId);
+        if (stewardAgent?.walletAddress) {
+          walletAddress = stewardAgent.walletAddress;
+          walletProvider = "steward";
+          walletStatus = "active";
+        } else if (stewardAgent) {
+          walletProvider = "steward";
+          walletStatus = "pending";
+        }
+      } catch (err) {
+        logger.warn(`[milady-api] Steward wallet lookup failed for ${agentId}`, { err });
+      }
+    }
+
+    // Fallback: check for Privy server wallet via character_id
+    if (!walletAddress && agent.character_id) {
+      const walletRecord = await db.query.agentServerWallets.findFirst({
+        where: eq(agentServerWallets.character_id, agent.character_id),
+      });
+      if (walletRecord) {
+        walletAddress = walletRecord.address;
+        walletProvider = "privy";
+        walletStatus = "active";
+      }
+    }
+
     return applyCorsHeaders(
       NextResponse.json({
         success: true,
@@ -90,6 +130,10 @@ export async function GET(
           token_chain: tokenChain,
           token_name: tokenName,
           token_ticker: tokenTicker,
+          // Wallet info
+          walletAddress,
+          walletProvider,
+          walletStatus,
         },
       }),
       CORS_METHODS,

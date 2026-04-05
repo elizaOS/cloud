@@ -31,6 +31,7 @@ mock.module("@/db/repositories/jobs", () => ({
 }));
 
 mock.module("@/db/helpers", () => ({
+  writeTransaction: async (fn: (tx: unknown) => unknown) => fn({}),
   dbWrite: {
     transaction: (...args: unknown[]) => mockTransaction(...args),
   },

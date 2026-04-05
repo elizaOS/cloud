@@ -11,6 +11,28 @@ import { logger } from "@/lib/utils/logger";
 import { fieldEncryption } from "./field-encryption";
 import { getNeonClient, NeonClientError } from "./neon-client";
 
+const NEON_PARENT_PROJECT_ID = process.env.NEON_PARENT_PROJECT_ID ?? "";
+const MAX_NEON_RESOURCE_NAME_LENGTH = 63;
+
+function sanitizeNeonResourceName(value: string, fallback: string): string {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+
+  return normalized || fallback;
+}
+
+function buildUserDatabaseResourceName(appName: string, appId: string): string {
+  const prefix = sanitizeNeonResourceName(appName, "app");
+  const suffix = appId.substring(0, 8).toLowerCase();
+  const maxPrefixLength = MAX_NEON_RESOURCE_NAME_LENGTH - suffix.length - 1;
+  const trimmedPrefix = prefix.slice(0, Math.max(1, maxPrefixLength)).replace(/-+$/g, "") || "app";
+
+  return `${trimmedPrefix}-${suffix}`;
+}
+
 /**
  * Result from provisioning a user database.
  */
@@ -59,16 +81,15 @@ export interface DatabaseStatus {
 
 export class UserDatabaseService {
   /**
-   * Provision a new database for an app.
+   * Provision a database for an app.
    *
-   * Flow:
-   * 1. Check if app already has a database
-   * 2. Update app status to "provisioning"
-   * 3. Create Neon project
-   * 4. Store credentials and update status to "ready"
+   * Prefers creating an isolated branch on NEON_PARENT_PROJECT_ID when that
+   * shared parent project is configured. Otherwise falls back to creating a
+   * dedicated Neon project, which preserves compatibility for environments
+   * that have not set up branch-based isolation yet.
    *
    * @param appId App ID
-   * @param appName App name (used for Neon project name)
+   * @param appName App name (used for logging)
    * @param region Optional AWS region
    * @returns Provision result with connection URI
    */
@@ -134,25 +155,24 @@ export class UserDatabaseService {
       };
     }
 
-    // Track created project for cleanup if subsequent operations fail
     let createdProjectId: string | null = null;
+    let createdBranchId: string | null = null;
 
     try {
-      // Create Neon project
       const neonClient = getNeonClient();
-      const projectName = `${appName.substring(0, 30)}-${appId.substring(0, 8)}`;
-      const result = await neonClient.createProject({
-        name: projectName,
-        region,
-      });
+      const resourceName = buildUserDatabaseResourceName(appName, appId);
+      const result = NEON_PARENT_PROJECT_ID
+        ? await neonClient.createBranch(NEON_PARENT_PROJECT_ID, resourceName)
+        : await neonClient.createProject({
+            name: resourceName,
+            region,
+          });
 
-      // Track the project ID for potential cleanup
       createdProjectId = result.projectId;
+      createdBranchId = result.branchId;
 
-      // Encrypt the connection URI before storing
       const encryptedUri = await fieldEncryption.encrypt(app.organization_id, result.connectionUri);
 
-      // Store credentials (URI is now encrypted)
       await appsRepository.update(appId, {
         user_database_uri: encryptedUri,
         user_database_project_id: result.projectId,
@@ -164,6 +184,7 @@ export class UserDatabaseService {
       logger.info("Database provisioned successfully", {
         appId,
         projectId: result.projectId,
+        branchId: result.branchId,
       });
 
       return {
@@ -171,7 +192,7 @@ export class UserDatabaseService {
         connectionUri: result.connectionUri,
         projectId: result.projectId,
         branchId: result.branchId,
-        region,
+        region: result.region || region,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -193,26 +214,29 @@ export class UserDatabaseService {
         errorCode,
       });
 
-      // Clean up orphaned Neon project if it was created but subsequent operations failed
       if (createdProjectId) {
         try {
           const neonClient = getNeonClient();
-          await neonClient.deleteProject(createdProjectId);
-          logger.info("Cleaned up orphaned Neon project after failure", {
+          if (createdProjectId === NEON_PARENT_PROJECT_ID && createdBranchId) {
+            await neonClient.deleteBranch(createdProjectId, createdBranchId);
+          } else if (createdProjectId !== NEON_PARENT_PROJECT_ID) {
+            await neonClient.deleteProject(createdProjectId);
+          }
+          logger.info("Cleaned up orphaned Neon resource after failure", {
             appId,
             projectId: createdProjectId,
+            branchId: createdBranchId,
           });
         } catch (cleanupError) {
-          // Log but don't fail - the main error is more important
-          logger.error("Failed to clean up orphaned Neon project", {
+          logger.error("Failed to clean up orphaned Neon resource", {
             appId,
             projectId: createdProjectId,
+            branchId: createdBranchId,
             error: cleanupError instanceof Error ? cleanupError.message : "Unknown",
           });
         }
       }
 
-      // Update status to error
       await appsRepository.update(appId, {
         user_database_status: "error",
         user_database_error: errorMessage,
@@ -242,16 +266,30 @@ export class UserDatabaseService {
 
     try {
       const neonClient = getNeonClient();
-      await neonClient.deleteProject(app.user_database_project_id);
+      if (app.user_database_project_id === NEON_PARENT_PROJECT_ID) {
+        if (app.user_database_branch_id) {
+          await neonClient.deleteBranch(app.user_database_project_id, app.user_database_branch_id);
+        } else {
+          logger.warn("Skipping Neon cleanup for shared parent project without branch id", {
+            appId,
+            projectId: app.user_database_project_id,
+          });
+          return;
+        }
+      } else {
+        await neonClient.deleteProject(app.user_database_project_id);
+      }
       logger.info("Database cleaned up successfully", {
         appId,
         projectId: app.user_database_project_id,
+        branchId: app.user_database_branch_id,
       });
     } catch (error) {
       // Log but don't fail - database might already be deleted
       logger.warn("Failed to delete Neon project (may already be deleted)", {
         appId,
         projectId: app.user_database_project_id,
+        branchId: app.user_database_branch_id,
         error: error instanceof Error ? error.message : "Unknown",
       });
     }

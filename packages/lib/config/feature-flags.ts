@@ -122,3 +122,5 @@ export function getFeatureForRoute(pathname: string): FeatureFlag | null {
   }
   return null;
 }
+
+// Steward wallet migration flags live in wallet-provider-flags.ts

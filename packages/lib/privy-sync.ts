@@ -7,7 +7,8 @@
  * 2. Just-in-time sync (fallback for race conditions)
  */
 
-import { organizationInvitesRepository, usersRepository } from "@/db/repositories";
+import { organizationInvitesRepository } from "@/db/repositories/organization-invites";
+import { usersRepository } from "@/db/repositories/users";
 import { abuseDetectionService, type SignupContext } from "@/lib/services/abuse-detection";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { charactersService } from "@/lib/services/characters/characters";

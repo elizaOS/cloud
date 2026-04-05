@@ -47,10 +47,7 @@ export function MiladyPricingBanner({
             <div className="flex items-center justify-center w-7 h-7 bg-[#FF5800]/10 border border-[#FF5800]/20">
               <DollarSign className="h-3.5 w-3.5 text-[#FF5800]" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-white">Usage & Pricing</p>
-              <p className="text-[11px] text-white/40">Milady hosted agents</p>
-            </div>
+            <p className="text-sm font-medium text-white">Usage & Rates</p>
           </div>
           {isLowBalance && hasAgents && (
             <Badge
@@ -127,8 +124,8 @@ export function MiladyPricingBanner({
 
         {/* Minimum deposit note */}
         <p className="text-[10px] text-white/25 mt-3 font-mono">
-          Min. deposit {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)} · Agents auto-suspend at{" "}
-          {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)} balance
+          Min. {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)} · Suspends at{" "}
+          {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)}
         </p>
       </div>
     </BrandCard>
