@@ -284,6 +284,51 @@ describe("/api/v1/responses", () => {
       }),
     );
   });
+
+  test("normalizes flat Responses-API tools before forwarding to chat completions", async () => {
+    // End-to-end check that mirrors what Codex CLI sends: flat Responses-API
+    // tools should be normalized to nested Chat Completions format by the
+    // time the downstream chat completions adapter is invoked.
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5",
+        input: [{ role: "user", content: "run it" }],
+        tools: [
+          {
+            type: "function",
+            name: "shell",
+            description: "Run a shell command",
+            parameters: {
+              type: "object",
+              properties: { command: { type: "string" } },
+              required: ["command"],
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockChatCompletions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "shell",
+              description: "Run a shell command",
+              parameters: {
+                type: "object",
+                properties: { command: { type: "string" } },
+                required: ["command"],
+              },
+            },
+          },
+        ],
+      }),
+      expect.anything(),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -306,12 +351,10 @@ describe("transformAISdkToOpenAI tool normalization", () => {
       "@/app/api/v1/responses/route"
     );
 
-    // biome-ignore lint/suspicious/noExplicitAny: test fixture
     const result = transformAISdkToOpenAI({
       model: "gpt-5",
       input: [{ role: "user", content: "ls" }],
       tools: [
-        // biome-ignore lint/suspicious/noExplicitAny: flat Responses format
         {
           type: "function",
           name: "shell",
@@ -321,9 +364,9 @@ describe("transformAISdkToOpenAI tool normalization", () => {
             properties: { command: { type: "string" } },
             required: ["command"],
           },
-        } as any,
+        },
       ],
-    } as any);
+    });
 
     expect(result.tools).toEqual([
       {
@@ -355,12 +398,11 @@ describe("transformAISdkToOpenAI tool normalization", () => {
       },
     };
 
-    // biome-ignore lint/suspicious/noExplicitAny: test fixture
     const result = transformAISdkToOpenAI({
       model: "gpt-4o",
       input: [{ role: "user", content: "find me a thing" }],
       tools: [nestedTool],
-    } as any);
+    });
 
     expect(result.tools).toEqual([nestedTool]);
   });
@@ -370,13 +412,11 @@ describe("transformAISdkToOpenAI tool normalization", () => {
       "@/app/api/v1/responses/route"
     );
 
-    // biome-ignore lint/suspicious/noExplicitAny: test fixture
     const result = transformAISdkToOpenAI({
       model: "gpt-5",
       input: [{ role: "user", content: "hi" }],
-      // biome-ignore lint/suspicious/noExplicitAny: minimal flat tool
-      tools: [{ type: "function", name: "ping" } as any],
-    } as any);
+      tools: [{ type: "function", name: "ping" }],
+    });
 
     expect(result.tools).toEqual([
       {
@@ -391,11 +431,10 @@ describe("transformAISdkToOpenAI tool normalization", () => {
       "@/app/api/v1/responses/route"
     );
 
-    // biome-ignore lint/suspicious/noExplicitAny: test fixture
     const result = transformAISdkToOpenAI({
       model: "gpt-4o",
       input: [{ role: "user", content: "hi" }],
-    } as any);
+    });
 
     expect(result.tools).toBeUndefined();
   });

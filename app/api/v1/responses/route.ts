@@ -40,6 +40,65 @@ import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
 
+// ---------------------------------------------------------------------------
+// Tool format types
+// ---------------------------------------------------------------------------
+//
+// OpenAI exposes two distinct tool formats depending on which API surface
+// the client is talking to:
+//
+//   1. Chat Completions API tools (NESTED):
+//        { type: "function", function: { name, description?, parameters? } }
+//
+//   2. Responses API tools (FLAT):
+//        { type: "function", name, description?, parameters? }
+//
+// gpt-5.x models and clients built around the Responses API (Codex CLI,
+// the AI SDK Responses transport, etc.) send the flat shape. Older clients
+// and the Chat Completions API itself use the nested shape. Our `/v1/responses`
+// endpoint accepts requests from either kind of client and forwards
+// downstream to a Chat Completions call, so it has to accept both shapes
+// on input and emit the nested shape on output.
+//
+// We model this as a discriminated union so the normalization logic can
+// branch on the presence of `function` vs `name` without unsafe casts.
+
+interface ResponsesFlatTool {
+  type: "function";
+  name: string;
+  description?: string;
+  parameters?: Record<string, unknown>;
+}
+
+interface ChatCompletionsNestedTool {
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+type AISdkInputTool = ResponsesFlatTool | ChatCompletionsNestedTool;
+
+// Type guard: is this tool already in nested Chat Completions form?
+function isNestedTool(tool: AISdkInputTool): tool is ChatCompletionsNestedTool {
+  return (
+    "function" in tool &&
+    typeof (tool as ChatCompletionsNestedTool).function === "object" &&
+    (tool as ChatCompletionsNestedTool).function !== null
+  );
+}
+
+// Type guard: is this tool in flat Responses-API form?
+function isFlatTool(tool: AISdkInputTool): tool is ResponsesFlatTool {
+  return (
+    !isNestedTool(tool) &&
+    tool.type === "function" &&
+    typeof (tool as ResponsesFlatTool).name === "string"
+  );
+}
+
 // AI SDK request format (different from OpenAI)
 interface AISdkRequest {
   model: string;
@@ -79,14 +138,7 @@ interface AISdkRequest {
   presence_penalty?: number;
   stop?: string | string[];
   user?: string;
-  tools?: Array<{
-    type: "function";
-    function: {
-      name: string;
-      description?: string;
-      parameters?: Record<string, unknown>;
-    };
-  }>;
+  tools?: Array<AISdkInputTool>;
   tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
   stream?: boolean;
   // ... other AI SDK specific fields
@@ -232,35 +284,47 @@ export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRe
     return msg;
   });
 
-  // Normalize tools from OpenAI Responses API format (flat:
-  // `{type, name, parameters}`) to Chat Completions format (nested:
-  // `{type, function: {name, parameters}}`). The downstream call uses Chat
-  // Completions, so flat-format tools coming from Codex/gpt-5.x clients
-  // would otherwise fail validation with "tools.0.function: undefined".
+  // Normalize tools to OpenAI Chat Completions format. Clients built around
+  // the Responses API (Codex, gpt-5.x) send tools in the flat shape
+  // `{type, name, parameters}`; the downstream call expects the nested
+  // shape `{type, function: {name, parameters}}` and would otherwise
+  // reject the request with "tools.0.function: undefined".
   // Already-nested tools pass through unchanged.
-  const normalizedTools = tools?.map((tool) => {
-    const t = tool as unknown as Record<string, unknown>;
-    if (t.function && typeof t.function === "object") {
-      // Already in Chat Completions format
-      return tool;
-    }
-    if (t.type === "function" && typeof t.name === "string") {
-      // Responses API flat format → wrap into nested function object
-      return {
-        type: "function" as const,
-        function: {
-          name: t.name as string,
-          ...(typeof t.description === "string"
-            ? { description: t.description }
-            : {}),
-          ...(t.parameters && typeof t.parameters === "object"
-            ? { parameters: t.parameters as Record<string, unknown> }
-            : {}),
+  const normalizedTools: ChatCompletionsNestedTool[] | undefined = tools?.map(
+    (tool): ChatCompletionsNestedTool => {
+      if (isNestedTool(tool)) {
+        return tool;
+      }
+      if (isFlatTool(tool)) {
+        return {
+          type: "function",
+          function: {
+            name: tool.name,
+            ...(tool.description !== undefined
+              ? { description: tool.description }
+              : {}),
+            ...(tool.parameters !== undefined
+              ? { parameters: tool.parameters }
+              : {}),
+          },
+        };
+      }
+      // Unknown shape — log a warning so future tool variants surface
+      // a clear diagnostic instead of an opaque downstream validation error.
+      logger.warn(
+        "[Responses API] Unrecognized tool shape, passing through unchanged",
+        {
+          // biome-ignore lint/suspicious/noExplicitAny: diagnostic logging only
+          toolType: (tool as any)?.type,
+          // biome-ignore lint/suspicious/noExplicitAny: diagnostic logging only
+          hasFunction: Boolean((tool as any)?.function),
+          // biome-ignore lint/suspicious/noExplicitAny: diagnostic logging only
+          hasName: Boolean((tool as any)?.name),
         },
-      };
-    }
-    return tool;
-  });
+      );
+      return tool as ChatCompletionsNestedTool;
+    },
+  );
 
   // Transform to OpenAI format
   const openAIRequest: OpenAIChatRequest = {
