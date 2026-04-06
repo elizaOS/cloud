@@ -285,3 +285,118 @@ describe("/api/v1/responses", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// transformAISdkToOpenAI tool normalization
+// ---------------------------------------------------------------------------
+//
+// OpenAI's Responses API uses a flat tool format:
+//   { type: "function", name, description, parameters }
+//
+// while Chat Completions uses a nested format:
+//   { type: "function", function: { name, description, parameters } }
+//
+// Our /v1/responses endpoint forwards to a Chat Completions call downstream,
+// so flat-format tools coming from gpt-5.x clients (Codex CLI, etc.) need to
+// be normalized to the nested form. These tests verify that.
+
+describe("transformAISdkToOpenAI tool normalization", () => {
+  test("normalizes flat Responses-API tools to nested Chat-Completions tools", async () => {
+    const { transformAISdkToOpenAI } = await import(
+      "@/app/api/v1/responses/route"
+    );
+
+    // biome-ignore lint/suspicious/noExplicitAny: test fixture
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "ls" }],
+      tools: [
+        // biome-ignore lint/suspicious/noExplicitAny: flat Responses format
+        {
+          type: "function",
+          name: "shell",
+          description: "Run a shell command",
+          parameters: {
+            type: "object",
+            properties: { command: { type: "string" } },
+            required: ["command"],
+          },
+        } as any,
+      ],
+    } as any);
+
+    expect(result.tools).toEqual([
+      {
+        type: "function",
+        function: {
+          name: "shell",
+          description: "Run a shell command",
+          parameters: {
+            type: "object",
+            properties: { command: { type: "string" } },
+            required: ["command"],
+          },
+        },
+      },
+    ]);
+  });
+
+  test("passes already-nested Chat-Completions tools through unchanged", async () => {
+    const { transformAISdkToOpenAI } = await import(
+      "@/app/api/v1/responses/route"
+    );
+
+    const nestedTool = {
+      type: "function" as const,
+      function: {
+        name: "search",
+        description: "Search the web",
+        parameters: { type: "object", properties: {} },
+      },
+    };
+
+    // biome-ignore lint/suspicious/noExplicitAny: test fixture
+    const result = transformAISdkToOpenAI({
+      model: "gpt-4o",
+      input: [{ role: "user", content: "find me a thing" }],
+      tools: [nestedTool],
+    } as any);
+
+    expect(result.tools).toEqual([nestedTool]);
+  });
+
+  test("handles missing description and parameters in flat format", async () => {
+    const { transformAISdkToOpenAI } = await import(
+      "@/app/api/v1/responses/route"
+    );
+
+    // biome-ignore lint/suspicious/noExplicitAny: test fixture
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "hi" }],
+      // biome-ignore lint/suspicious/noExplicitAny: minimal flat tool
+      tools: [{ type: "function", name: "ping" } as any],
+    } as any);
+
+    expect(result.tools).toEqual([
+      {
+        type: "function",
+        function: { name: "ping" },
+      },
+    ]);
+  });
+
+  test("returns undefined tools when none provided", async () => {
+    const { transformAISdkToOpenAI } = await import(
+      "@/app/api/v1/responses/route"
+    );
+
+    // biome-ignore lint/suspicious/noExplicitAny: test fixture
+    const result = transformAISdkToOpenAI({
+      model: "gpt-4o",
+      input: [{ role: "user", content: "hi" }],
+    } as any);
+
+    expect(result.tools).toBeUndefined();
+  });
+});

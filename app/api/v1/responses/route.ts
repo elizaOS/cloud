@@ -95,10 +95,12 @@ interface AISdkRequest {
 /**
  * Transforms AI SDK request format to OpenAI format.
  *
+ * Exported for unit testing.
+ *
  * @param aiSdkRequest - AI SDK format request.
  * @returns OpenAI format request.
  */
-function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
+export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
   const {
     model,
     input, // 🔑 AI SDK uses 'input'
@@ -230,6 +232,36 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
     return msg;
   });
 
+  // Normalize tools from OpenAI Responses API format (flat:
+  // `{type, name, parameters}`) to Chat Completions format (nested:
+  // `{type, function: {name, parameters}}`). The downstream call uses Chat
+  // Completions, so flat-format tools coming from Codex/gpt-5.x clients
+  // would otherwise fail validation with "tools.0.function: undefined".
+  // Already-nested tools pass through unchanged.
+  const normalizedTools = tools?.map((tool) => {
+    const t = tool as unknown as Record<string, unknown>;
+    if (t.function && typeof t.function === "object") {
+      // Already in Chat Completions format
+      return tool;
+    }
+    if (t.type === "function" && typeof t.name === "string") {
+      // Responses API flat format → wrap into nested function object
+      return {
+        type: "function" as const,
+        function: {
+          name: t.name as string,
+          ...(typeof t.description === "string"
+            ? { description: t.description }
+            : {}),
+          ...(t.parameters && typeof t.parameters === "object"
+            ? { parameters: t.parameters as Record<string, unknown> }
+            : {}),
+        },
+      };
+    }
+    return tool;
+  });
+
   // Transform to OpenAI format
   const openAIRequest: OpenAIChatRequest = {
     model,
@@ -241,7 +273,7 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
     presence_penalty,
     stop,
     user,
-    tools,
+    tools: normalizedTools,
     tool_choice,
     stream,
   };
