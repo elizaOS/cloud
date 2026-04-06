@@ -2,6 +2,7 @@ export const MILADY_INTERNAL_CONFIG_PREFIX = "__milady";
 export const MILADY_CHARACTER_OWNERSHIP_KEY = "__miladyCharacterOwnership";
 export const MILADY_REUSE_EXISTING_CHARACTER = "reuse-existing";
 export const MILADY_MANAGED_DISCORD_KEY = "__miladyManagedDiscord";
+export const MILADY_MANAGED_GITHUB_KEY = "__miladyManagedGithub";
 
 export interface ManagedMiladyDiscordBinding {
   mode: "cloud-managed";
@@ -125,5 +126,88 @@ export function withoutManagedMiladyDiscordBinding(
 ): Record<string, unknown> {
   const next = cloneAgentConfig(agentConfig);
   delete next[MILADY_MANAGED_DISCORD_KEY];
+  return next;
+}
+
+// --- GitHub managed binding ---
+
+export interface ManagedMiladyGithubBinding {
+  mode: "cloud-managed";
+  connectionId: string;
+  githubUserId: string;
+  githubUsername: string;
+  githubDisplayName?: string;
+  githubAvatarUrl?: string;
+  githubEmail?: string;
+  scopes: string[];
+  adminElizaUserId: string;
+  connectedAt: string;
+}
+
+export function readManagedMiladyGithubBinding(
+  agentConfig?: Record<string, unknown> | null,
+): ManagedMiladyGithubBinding | null {
+  const binding = asRecord(agentConfig?.[MILADY_MANAGED_GITHUB_KEY]);
+  if (!binding) {
+    return null;
+  }
+
+  const connectionId = typeof binding.connectionId === "string" ? binding.connectionId.trim() : "";
+  const githubUserId = typeof binding.githubUserId === "string" ? binding.githubUserId.trim() : "";
+  const githubUsername =
+    typeof binding.githubUsername === "string" ? binding.githubUsername.trim() : "";
+  const adminElizaUserId =
+    typeof binding.adminElizaUserId === "string" ? binding.adminElizaUserId.trim() : "";
+  const connectedAt = typeof binding.connectedAt === "string" ? binding.connectedAt.trim() : "";
+
+  if (!connectionId || !githubUserId || !githubUsername || !adminElizaUserId) {
+    return null;
+  }
+
+  return {
+    mode: "cloud-managed",
+    connectionId,
+    githubUserId,
+    githubUsername,
+    adminElizaUserId,
+    connectedAt: connectedAt || new Date(0).toISOString(),
+    scopes: Array.isArray(binding.scopes) ? binding.scopes : [],
+    ...(typeof binding.githubDisplayName === "string" && binding.githubDisplayName.trim()
+      ? { githubDisplayName: binding.githubDisplayName.trim() }
+      : {}),
+    ...(typeof binding.githubAvatarUrl === "string" && binding.githubAvatarUrl.trim()
+      ? { githubAvatarUrl: binding.githubAvatarUrl.trim() }
+      : {}),
+    ...(typeof binding.githubEmail === "string" && binding.githubEmail.trim()
+      ? { githubEmail: binding.githubEmail.trim() }
+      : {}),
+  };
+}
+
+export function withManagedMiladyGithubBinding(
+  agentConfig: Record<string, unknown> | null | undefined,
+  binding: ManagedMiladyGithubBinding,
+): Record<string, unknown> {
+  const next = cloneAgentConfig(agentConfig);
+  next[MILADY_MANAGED_GITHUB_KEY] = {
+    mode: "cloud-managed",
+    connectionId: binding.connectionId,
+    githubUserId: binding.githubUserId,
+    githubUsername: binding.githubUsername,
+    adminElizaUserId: binding.adminElizaUserId,
+    connectedAt: binding.connectedAt,
+    scopes: binding.scopes,
+    ...(binding.githubDisplayName ? { githubDisplayName: binding.githubDisplayName } : {}),
+    ...(binding.githubAvatarUrl ? { githubAvatarUrl: binding.githubAvatarUrl } : {}),
+    ...(binding.githubEmail ? { githubEmail: binding.githubEmail } : {}),
+  };
+  return next;
+}
+
+export function withoutManagedMiladyGithubBinding(
+  agentConfig: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const next = cloneAgentConfig(agentConfig);
+  delete next[MILADY_MANAGED_GITHUB_KEY];
   return next;
 }

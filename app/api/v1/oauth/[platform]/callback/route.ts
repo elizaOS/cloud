@@ -36,6 +36,7 @@ const ALLOWED_REDIRECT_PATHS = [
   "/settings",
   "/auth/success", // For chat-based OAuth flows (Telegram, iMessage, etc.)
   "/api/eliza-app/auth/connection-success",
+  "/api/v1/milady/github-oauth-complete", // Auto-links GitHub connections to agents
 ];
 
 /**
