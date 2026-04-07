@@ -18,7 +18,7 @@ async function handleDELETE(
   context?: { params: Promise<{ inviteId: string }> },
 ) {
   try {
-    const { user } = await requireAuthWithOrg(request);
+    const user = await requireAuthWithOrg(request);
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
