@@ -430,4 +430,79 @@ describe("transformAISdkToOpenAI tool normalization", () => {
 
     expect(result.tools).toBeUndefined();
   });
+
+  test("normalizes a mixed array of flat and nested tools", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "go" }],
+      tools: [
+        {
+          type: "function",
+          name: "shell",
+          parameters: { type: "object", properties: {} },
+        },
+        {
+          type: "function",
+          function: {
+            name: "search",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ],
+    });
+
+    expect(result.tools).toEqual([
+      {
+        type: "function",
+        function: {
+          name: "shell",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "search",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    ]);
+  });
+
+  test("forwards unknown-shape tools unchanged (best-effort fallback)", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    // type: "function" but neither nested `function` nor a string `name`.
+    // This exercises the logger.warn fallback branch — invalid shapes are
+    // forwarded best-effort rather than dropped, so the downstream provider
+    // surfaces the original validation error.
+    const weirdTool = { type: "function", description: "no name here" } as unknown as {
+      type: "function";
+      name: string;
+    };
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "hi" }],
+      tools: [weirdTool],
+    });
+
+    expect(result.tools).toEqual([weirdTool as never]);
+  });
+
+  test("preserves an empty tools array", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    // Empty arrays are preserved (not stripped). The downstream provider
+    // decides how to handle `tools: []` — most treat it as "no tools".
+    const result = transformAISdkToOpenAI({
+      model: "gpt-4o",
+      input: [{ role: "user", content: "hi" }],
+      tools: [],
+    });
+
+    expect(result.tools).toEqual([]);
+  });
 });

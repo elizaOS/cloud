@@ -91,6 +91,12 @@ function isNestedTool(tool: AISdkInputTool): tool is ChatCompletionsNestedTool {
 }
 
 // Type guard: is this tool in flat Responses-API form?
+//
+// Strictly redundant given the discriminated union (after isNestedTool
+// returns false the only remaining member is ResponsesFlatTool), but kept
+// as a runtime safety net: malformed requests where `name` is missing or
+// non-string fall through to the unknown-shape branch and get a diagnostic
+// log instead of being silently coerced.
 function isFlatTool(tool: AISdkInputTool): tool is ResponsesFlatTool {
   return (
     !isNestedTool(tool) &&
@@ -315,6 +321,10 @@ export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRe
         hasFunction: Boolean(unknownTool?.function),
         hasName: Boolean(unknownTool?.name),
       });
+      // Intentional best-effort: forward the malformed tool unchanged so
+      // the downstream provider surfaces the original validation error
+      // rather than silently dropping the tool. The cast is a lie that
+      // satisfies the return type — the warning above is the real signal.
       return tool as ChatCompletionsNestedTool;
     },
   );
