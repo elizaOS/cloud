@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { createApiKeySchema } from "./schemas";
@@ -14,7 +14,7 @@ import { createApiKeySchema } from "./schemas";
  */
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { user } = await requireAuthWithOrg(request);
 
     const keys = await apiKeysService.listByOrganization(user.organization_id!);
 
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { user } = await requireAuthWithOrg(request);
 
     const body = await request.json();
     const { name, description, permissions, rate_limit, expires_at } =
