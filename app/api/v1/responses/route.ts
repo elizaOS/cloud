@@ -29,7 +29,12 @@ import {
 } from "@/lib/pricing";
 import { getProviderForModel } from "@/lib/providers";
 import { mergeGatewayGroqPreferenceWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
-import type { OpenAIChatRequest, OpenAIChatResponse } from "@/lib/providers/types";
+import type {
+  ChatCompletionsTool,
+  ChatCompletionsToolChoice,
+  OpenAIChatRequest,
+  OpenAIChatResponse,
+} from "@/lib/providers/types";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
@@ -70,23 +75,24 @@ interface ResponsesFlatTool {
   parameters?: Record<string, unknown>;
 }
 
-interface ChatCompletionsNestedTool {
+type AISdkInputTool = ResponsesFlatTool | ChatCompletionsTool;
+
+// Flat Responses-API tool_choice variant. The nested Chat Completions
+// shape `{type: "function", function: {name}}` is already covered by
+// ChatCompletionsToolChoice.
+interface ResponsesFlatToolChoice {
   type: "function";
-  function: {
-    name: string;
-    description?: string;
-    parameters?: Record<string, unknown>;
-  };
+  name: string;
 }
 
-type AISdkInputTool = ResponsesFlatTool | ChatCompletionsNestedTool;
+type AISdkInputToolChoice = ChatCompletionsToolChoice | ResponsesFlatToolChoice;
 
 // Type guard: is this tool already in nested Chat Completions form?
-function isNestedTool(tool: AISdkInputTool): tool is ChatCompletionsNestedTool {
+function isNestedTool(tool: AISdkInputTool): tool is ChatCompletionsTool {
   return (
     "function" in tool &&
-    typeof (tool as ChatCompletionsNestedTool).function === "object" &&
-    (tool as ChatCompletionsNestedTool).function !== null
+    typeof (tool as ChatCompletionsTool).function === "object" &&
+    (tool as ChatCompletionsTool).function !== null
   );
 }
 
@@ -103,6 +109,45 @@ function isFlatTool(tool: AISdkInputTool): tool is ResponsesFlatTool {
     tool.type === "function" &&
     typeof (tool as ResponsesFlatTool).name === "string"
   );
+}
+
+/**
+ * Normalize tool_choice from either flat (Responses API) or nested
+ * (Chat Completions) form into the nested form expected downstream.
+ *
+ * String literals ("auto", "none", "required") and already-nested
+ * objects pass through unchanged. A flat `{type: "function", name}` is
+ * rewrapped to `{type: "function", function: {name}}`. Unknown shapes
+ * are forwarded best-effort with a warning, mirroring the tools[] policy.
+ */
+function normalizeToolChoice(
+  toolChoice: AISdkInputToolChoice | undefined,
+): ChatCompletionsToolChoice | undefined {
+  if (toolChoice === undefined) return undefined;
+  if (typeof toolChoice === "string") return toolChoice;
+  if (
+    "function" in toolChoice &&
+    typeof toolChoice.function === "object" &&
+    toolChoice.function !== null
+  ) {
+    return toolChoice;
+  }
+  if (
+    toolChoice.type === "function" &&
+    typeof (toolChoice as ResponsesFlatToolChoice).name === "string"
+  ) {
+    return {
+      type: "function",
+      function: { name: (toolChoice as ResponsesFlatToolChoice).name },
+    };
+  }
+  const unknownChoice = toolChoice as unknown as Record<string, unknown>;
+  logger.warn("[Responses API] Unrecognized tool_choice shape, passing through unchanged", {
+    choiceType: unknownChoice?.type,
+    hasFunction: Boolean(unknownChoice?.function),
+    hasName: Boolean(unknownChoice?.name),
+  });
+  return toolChoice as ChatCompletionsToolChoice;
 }
 
 // AI SDK request format (different from OpenAI)
@@ -145,7 +190,7 @@ interface AISdkRequest {
   stop?: string | string[];
   user?: string;
   tools?: Array<AISdkInputTool>;
-  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  tool_choice?: AISdkInputToolChoice;
   stream?: boolean;
   // ... other AI SDK specific fields
 }
@@ -296,8 +341,8 @@ export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRe
   // shape `{type, function: {name, parameters}}` and would otherwise
   // reject the request with "tools.0.function: undefined".
   // Already-nested tools pass through unchanged.
-  const normalizedTools: ChatCompletionsNestedTool[] | undefined = tools?.map(
-    (tool): ChatCompletionsNestedTool => {
+  const normalizedTools: ChatCompletionsTool[] | undefined = tools?.map(
+    (tool): ChatCompletionsTool => {
       if (isNestedTool(tool)) {
         return tool;
       }
@@ -325,9 +370,11 @@ export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRe
       // the downstream provider surfaces the original validation error
       // rather than silently dropping the tool. The cast is a lie that
       // satisfies the return type — the warning above is the real signal.
-      return tool as ChatCompletionsNestedTool;
+      return tool as ChatCompletionsTool;
     },
   );
+
+  const normalizedToolChoice = normalizeToolChoice(tool_choice);
 
   // Transform to OpenAI format
   const openAIRequest: OpenAIChatRequest = {
@@ -341,7 +388,7 @@ export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRe
     stop,
     user,
     tools: normalizedTools,
-    tool_choice,
+    tool_choice: normalizedToolChoice,
     stream,
   };
 

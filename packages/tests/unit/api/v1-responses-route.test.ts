@@ -492,6 +492,72 @@ describe("transformAISdkToOpenAI tool normalization", () => {
     expect(result.tools).toEqual([weirdTool as never]);
   });
 
+  test("normalizes flat tool_choice to nested form", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "go" }],
+      tool_choice: { type: "function", name: "shell" } as never,
+    });
+
+    expect(result.tool_choice).toEqual({
+      type: "function",
+      function: { name: "shell" },
+    });
+  });
+
+  test("passes already-nested tool_choice through unchanged", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-4o",
+      input: [{ role: "user", content: "go" }],
+      tool_choice: { type: "function", function: { name: "search" } },
+    });
+
+    expect(result.tool_choice).toEqual({
+      type: "function",
+      function: { name: "search" },
+    });
+  });
+
+  test("passes string tool_choice literals through unchanged", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    for (const choice of ["auto", "none", "required"] as const) {
+      const result = transformAISdkToOpenAI({
+        model: "gpt-4o",
+        input: [{ role: "user", content: "go" }],
+        tool_choice: choice as never,
+      });
+      expect(result.tool_choice).toBe(choice);
+    }
+  });
+
+  test("logs a warning when an unknown-shape tool is forwarded", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+    const { logger } = await import("@/lib/utils/logger");
+    const warnSpy = mock();
+    const originalWarn = logger.warn;
+    (logger as { warn: typeof logger.warn }).warn = warnSpy as never;
+
+    try {
+      transformAISdkToOpenAI({
+        model: "gpt-5",
+        input: [{ role: "user", content: "hi" }],
+        tools: [{ type: "function", description: "no name" } as never],
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[Responses API] Unrecognized tool shape, passing through unchanged",
+        expect.objectContaining({ toolType: "function" }),
+      );
+    } finally {
+      (logger as { warn: typeof logger.warn }).warn = originalWarn;
+    }
+  });
+
   test("preserves an empty tools array", async () => {
     const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
 

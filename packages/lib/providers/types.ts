@@ -27,6 +27,31 @@ export interface OpenAIChatMessage {
 }
 
 /**
+ * OpenAI Chat Completions tool definition (nested form).
+ *
+ * The Responses API uses a flat shape `{type, name, parameters}`; the
+ * Chat Completions API uses this nested shape. The `/v1/responses` route
+ * normalizes flat tools to this shape before forwarding downstream.
+ */
+export interface ChatCompletionsTool {
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+/**
+ * OpenAI Chat Completions tool_choice (nested form).
+ */
+export type ChatCompletionsToolChoice =
+  | "auto"
+  | "none"
+  | "required"
+  | { type: "function"; function: { name: string } };
+
+/**
  * OpenAI-compatible chat completion request.
  */
 export interface OpenAIChatRequest {
@@ -41,15 +66,8 @@ export interface OpenAIChatRequest {
   stop?: string | string[];
   n?: number;
   user?: string;
-  tools?: Array<{
-    type: "function";
-    function: {
-      name: string;
-      description?: string;
-      parameters?: Record<string, unknown>;
-    };
-  }>;
-  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  tools?: ChatCompletionsTool[];
+  tool_choice?: ChatCompletionsToolChoice;
   response_format?: { type: "json_object" | "text" };
   seed?: number;
   logprobs?: boolean;
