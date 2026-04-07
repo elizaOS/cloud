@@ -79,10 +79,7 @@ export const llmTrajectories = pgTable(
       table.organization_id,
       table.created_at,
     ),
-    org_model_idx: index("llm_trajectories_org_model_idx").on(
-      table.organization_id,
-      table.model,
-    ),
+    org_model_idx: index("llm_trajectories_org_model_idx").on(table.organization_id, table.model),
     purpose_idx: index("llm_trajectories_purpose_idx").on(table.purpose),
     org_purpose_created_idx: index("llm_trajectories_org_purpose_created_idx").on(
       table.organization_id,

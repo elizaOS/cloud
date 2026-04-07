@@ -40,7 +40,9 @@ describe("Eliza App connections routes", () => {
 
     const cacheKey = Date.now();
     ({ GET } = await import(`@/app/api/eliza-app/connections/route?t=${cacheKey}`));
-    ({ POST } = await import(`@/app/api/eliza-app/connections/[platform]/initiate/route?t=${cacheKey}`));
+    ({ POST } = await import(
+      `@/app/api/eliza-app/connections/[platform]/initiate/route?t=${cacheKey}`
+    ));
 
     mockValidateAuthHeader.mockReset();
     mockListConnections.mockReset();

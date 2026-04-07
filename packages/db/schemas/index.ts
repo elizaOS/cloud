@@ -43,6 +43,7 @@ export * from "./generations";
 export * from "./idempotency-keys";
 export * from "./invoices";
 export * from "./jobs";
+export * from "./llm-trajectories";
 export * from "./managed-domains";
 export * from "./milady-pairing-tokens";
 export * from "./milady-sandboxes";

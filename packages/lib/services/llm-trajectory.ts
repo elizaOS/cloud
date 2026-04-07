@@ -10,9 +10,9 @@
  *   const jsonl = await llmTrajectoryService.exportAsTrainingJSONL(orgId, {...})
  */
 
-import { db } from "@repo/db";
-import { llmTrajectories, type NewLlmTrajectory } from "@repo/db/schemas/llm-trajectories";
-import { desc, eq, and, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { db } from "@/db/client";
+import { llmTrajectories, type NewLlmTrajectory } from "@/db/schemas/llm-trajectories";
 
 export interface LogCallParams {
   organizationId: string;
@@ -95,10 +95,7 @@ class LlmTrajectoryService {
   /**
    * List trajectories for an organization.
    */
-  async listByOrganization(
-    organizationId: string,
-    filters: TrajectoryFilters = {},
-  ) {
+  async listByOrganization(organizationId: string, filters: TrajectoryFilters = {}) {
     const conditions = [eq(llmTrajectories.organization_id, organizationId)];
 
     if (filters.model) {
@@ -182,11 +179,11 @@ class LlmTrajectoryService {
       avgLatencyMs: Math.round(Number(result?.avgLatencyMs ?? 0)),
       successCount: Number(result?.successCount ?? 0),
       failureCount: Number(result?.failureCount ?? 0),
-      byPurpose: byPurpose.map((r) => ({
+      byPurpose: byPurpose.map((r: { purpose: string | null; count: unknown }) => ({
         purpose: r.purpose,
         count: Number(r.count),
       })),
-      byModel: byModel.map((r) => ({
+      byModel: byModel.map((r: { model: string; count: unknown }) => ({
         model: r.model,
         count: Number(r.count),
       })),

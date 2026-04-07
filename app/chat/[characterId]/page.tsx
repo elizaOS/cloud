@@ -11,6 +11,27 @@ import { logger } from "@/lib/utils/logger";
 import { ChatInterface } from "@/packages/ui/src/components/chat/chat-interface";
 
 export const dynamic = "force-dynamic";
+const CHARACTER_LOOKUP_TIMEOUT_MS = 1500;
+
+function withFallbackTimeout<T>(promise: Promise<T>, fallback: T, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      logger.warn(`[Chat Page] ${label} timed out after ${CHARACTER_LOOKUP_TIMEOUT_MS}ms`);
+      resolve(fallback);
+    }, CHARACTER_LOOKUP_TIMEOUT_MS);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 interface ChatPageProps {
   params: Promise<{
@@ -36,7 +57,11 @@ async function resolveCharacter(characterIdParam: string): Promise<UserCharacter
     const username = characterIdParam.slice(1); // Remove @ prefix
     logger.debug(`[Chat Page] Resolving character by username: @${username}`);
 
-    const character = await charactersService.getByUsername(username);
+    const character = await withFallbackTimeout(
+      charactersService.getByUsername(username),
+      undefined,
+      "username character lookup",
+    );
     if (character) {
       logger.debug(`[Chat Page] Resolved @${username} to character ID: ${character.id}`);
     }
@@ -45,7 +70,11 @@ async function resolveCharacter(characterIdParam: string): Promise<UserCharacter
 
   // Otherwise, treat as UUID
   logger.debug(`[Chat Page] Looking up character by ID: ${characterIdParam}`);
-  const character = await charactersService.getById(characterIdParam);
+  const character = await withFallbackTimeout(
+    charactersService.getById(characterIdParam),
+    undefined,
+    "character lookup",
+  );
   return character || null;
 }
 

@@ -6169,6 +6169,20 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ---
 
+## April 2026
+
+### Apr 6, 2026
+
+**Auth API consistency — API keys, sessions, and clearer errors**
+
+- **Programmatic access** — Many dashboard and org APIs (apps/domains, ElevenLabs voices, API key CRUD except Explorer, profile, crypto payment **list/status** `GET`, org members and invites **management**) now accept the same **API keys** you use for chat, so CI and backends do not need a browser cookie. **Why:** One credential model for automation; avoids “request reached the server but auth failed” confusion when only cookies worked before.
+- **Session-only endpoints** — Some flows stay **browser session only** (e.g. accepting an invite, redeeming a signup code, Stripe checkout, CLI web **completion** after login). If you send `X-API-Key` or `Bearer eliza_…` there, the edge returns **`401`** with code **`session_auth_required`**. **Why:** Clear signal that the URL expects a logged-in user in the product, not a script key; reduces abuse on one-time or redirect flows.
+- **CLI login paths** — Creating a CLI session and polling status stay easy for the terminal; completing login in the browser follows normal API auth rules. **Why:** Completion issues API key material and must align with cookie session semantics.
+
+Docs: [API authentication](../../docs/api-authentication.md) (mechanics), [Auth consistency — WHY](../../docs/auth-api-consistency.md). Engineering: [CHANGELOG.md](../../CHANGELOG.md).
+
+---
+
 ## March 2026
 
 ### Mar 30, 2026

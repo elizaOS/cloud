@@ -73,10 +73,9 @@ describe("managed Milady GitHub routes", () => {
     ({ POST: postManagedGithubOauth } = await import(
       `@/app/api/v1/milady/agents/[agentId]/github/oauth/route?t=${cacheKey}`
     ));
-    ({
-      DELETE: deleteManagedGithub,
-      GET: getManagedGithub,
-    } = await import(`@/app/api/v1/milady/agents/[agentId]/github/route?t=${cacheKey}`));
+    ({ DELETE: deleteManagedGithub, GET: getManagedGithub } = await import(
+      `@/app/api/v1/milady/agents/[agentId]/github/route?t=${cacheKey}`
+    ));
     ({ GET: getGithubToken } = await import(
       `@/app/api/v1/milady/agents/[agentId]/github/token/route?t=${cacheKey}`
     ));

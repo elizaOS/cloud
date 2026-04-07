@@ -568,7 +568,7 @@ async function handleStreamingRequest(
             type: "chat",
             content: text,
             systemPrompt,
-            prompt: messages.map((m) => `[${m.role}] ${typeof m.content === "string" ? m.content : ""}`).join("\n"),
+            prompt: request.messages.map((m) => `[${m.role}] ${getMessageContent(m)}`).join("\n"),
             latencyMs: Date.now() - startTime,
           },
         );
@@ -746,7 +746,7 @@ async function handleNonStreamingRequest(
         type: "chat",
         content: result.text,
         systemPrompt,
-        prompt: messages.map((m) => `[${m.role}] ${typeof m.content === "string" ? m.content : ""}`).join("\n"),
+        prompt: request.messages.map((m) => `[${m.role}] ${getMessageContent(m)}`).join("\n"),
         latencyMs: Date.now() - startTime,
       },
     );

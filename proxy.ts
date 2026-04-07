@@ -307,7 +307,10 @@ const protectedPaths = [
 const sessionOnlyPaths = [
   "/api/auth/migrate-anonymous",
   "/api/invites/accept",
+  "/api/organizations/invites",
+  "/api/organizations/members",
   "/api/signup-code/redeem",
+  "/api/v1/api-keys",
   "/api/v1/api-keys/explorer",
   "/api/v1/generate-prompts",
   "/api/v1/character-assistant",

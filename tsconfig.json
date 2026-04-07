@@ -52,7 +52,9 @@
     ".next-test-3303/types/**/*.ts",
     ".next-test-3303/dev/types/**/*.ts",
     ".next-test-3300/types/**/*.ts",
-    ".next-test-3300/dev/types/**/*.ts"
+    ".next-test-3300/dev/types/**/*.ts",
+    ".next-test-3000/types/**/*.ts",
+    ".next-test-3000/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

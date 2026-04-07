@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireSessionAuthWithOrg } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { createApiKeySchema } from "./schemas";
@@ -15,7 +15,7 @@ import { createApiKeySchema } from "./schemas";
 export async function GET(request: NextRequest) {
   try {
     // API key management requires session auth only - API keys cannot manage other API keys
-    const { user } = await requireSessionAuthWithOrg(request);
+    const user = await requireAuthWithOrg();
 
     const keys = await apiKeysService.listByOrganization(user.organization_id!);
 
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // API key management requires session auth only - API keys cannot manage other API keys
-    const { user } = await requireSessionAuthWithOrg(request);
+    const user = await requireAuthWithOrg();
 
     const body = await request.json();
     const { name, description, permissions, rate_limit, expires_at } =
