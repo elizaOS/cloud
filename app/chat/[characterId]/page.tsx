@@ -51,6 +51,8 @@ interface ChatPageProps {
  * @param characterIdParam - The URL parameter (UUID or @username), already URL-decoded
  * @returns The character if found, or null
  */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function resolveCharacter(characterIdParam: string): Promise<UserCharacter | null> {
   // Check if this is a username (starts with @)
   if (characterIdParam.startsWith("@")) {
@@ -66,6 +68,13 @@ async function resolveCharacter(characterIdParam: string): Promise<UserCharacter
       logger.debug(`[Chat Page] Resolved @${username} to character ID: ${character.id}`);
     }
     return character || null;
+  }
+
+  // Validate UUID format before querying — prevents DB errors when Next.js
+  // dynamic routing matches non-character paths like /chat/completions
+  if (!UUID_REGEX.test(characterIdParam)) {
+    logger.debug(`[Chat Page] Invalid character ID format (not UUID): ${characterIdParam}`);
+    return null;
   }
 
   // Otherwise, treat as UUID
