@@ -535,7 +535,10 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
  */
 function isNativeResponsesPayload(body: Record<string, unknown>): boolean {
   if (typeof body.instructions === "string") return true;
-  if (typeof body.model === "string" && /^gpt-5\./.test(body.model)) return true;
+  // gpt-5 and gpt-5.x (gpt-5, gpt-5-mini, gpt-5.1, gpt-5.2, gpt-5.3,
+  // gpt-5.4, gpt-5.x-codex, ...). Any model whose id starts with "gpt-5"
+  // uses the Responses API natively.
+  if (typeof body.model === "string" && /^gpt-5(\b|[-.])/.test(body.model)) return true;
   if (Array.isArray(body.tools)) {
     for (const tool of body.tools) {
       if (tool && typeof tool === "object") {
@@ -545,6 +548,29 @@ function isNativeResponsesPayload(body: Record<string, unknown>): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Normalize a model id for Vercel AI Gateway's Responses API passthrough.
+ *
+ * Vercel AI Gateway requires `provider/model` format at `/v1/responses`
+ * (e.g. `openai/gpt-5.4`, `anthropic/claude-sonnet-4.6`). Clients built
+ * around OpenAI's native Responses API (Codex CLI, the AI SDK v5
+ * Responses transport) send bare model ids like `gpt-5.4`, so we must
+ * rewrite them.
+ *
+ * Rule: if the model id already contains `/`, leave it alone (respect
+ * the caller's choice of provider). Otherwise, infer the provider from
+ * a well-known prefix (openai/, anthropic/, google/) and default to
+ * `openai/` as the fallback since that is the API shape we are in.
+ */
+function normalizeGatewayModelId(model: string): string {
+  if (model.includes("/")) return model;
+  if (/^claude/i.test(model)) return `anthropic/${model}`;
+  if (/^gemini/i.test(model)) return `google/${model}`;
+  // Default for the Responses API is OpenAI (Codex, gpt-5.x, gpt-4.x,
+  // o1, o3, etc.).
+  return `openai/${model}`;
 }
 
 /**
@@ -579,6 +605,19 @@ async function handleNativeResponsesPassthrough(
       },
       { status: 400 },
     );
+  }
+
+  // Rewrite `model` to Vercel AI Gateway's `provider/model` format if
+  // the client sent a bare id. We build a shallow clone rather than
+  // mutating the caller's body.
+  const gatewayModel = normalizeGatewayModelId(model);
+  const bodyForUpstream: Record<string, unknown> =
+    gatewayModel === model ? body : { ...body, model: gatewayModel };
+  if (gatewayModel !== model) {
+    logger.debug("[Responses API passthrough] rewrote model id for gateway", {
+      original: model,
+      gateway: gatewayModel,
+    });
   }
 
   // Moderation: mirror the Chat Completions path. Extract the last user
@@ -718,7 +757,7 @@ async function handleNativeResponsesPassthrough(
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await providerInstance.responses(body, {
+    upstreamResponse = await providerInstance.responses(bodyForUpstream, {
       signal: req.signal,
       timeoutMs: routeTimeoutMs,
     });

@@ -353,6 +353,205 @@ describe("/api/v1/responses", () => {
     expect(mockChatCompletions).not.toHaveBeenCalled();
   });
 
+  test("rewrites bare model ids to provider/model format for the gateway", async () => {
+    // Codex sends `model: "gpt-5.4"` (bare). Vercel AI Gateway's
+    // /responses endpoint requires `provider/model` format, so the
+    // passthrough must rewrite this to `openai/gpt-5.4`. The ORIGINAL
+    // caller body must not be mutated.
+    const callerBody = {
+      model: "gpt-5.4",
+      instructions: "hi",
+      input: [{ role: "user", content: "test" }],
+    };
+
+    await responsesPost(jsonRequest("http://localhost:3000/api/v1/responses", "POST", callerBody));
+
+    expect(mockResponsesPassthrough).toHaveBeenCalledTimes(1);
+    const [forwarded] = mockResponsesPassthrough.mock.calls[0];
+    expect(forwarded.model).toBe("openai/gpt-5.4");
+    // Caller's original object should be untouched.
+    expect(callerBody.model).toBe("gpt-5.4");
+  });
+
+  test("preserves already-prefixed model ids", async () => {
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "anthropic/claude-sonnet-4.6",
+        instructions: "hi",
+        input: [{ role: "user", content: "test" }],
+      }),
+    );
+
+    const [forwarded] = mockResponsesPassthrough.mock.calls[0];
+    expect(forwarded.model).toBe("anthropic/claude-sonnet-4.6");
+  });
+
+  test("infers provider prefix for claude/gemini bare ids", async () => {
+    // claude-* → anthropic/, gemini-* → google/
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "claude-sonnet-4.6",
+        instructions: "hi",
+        input: [{ role: "user", content: "x" }],
+      }),
+    );
+    expect(mockResponsesPassthrough.mock.calls[0][0].model).toBe("anthropic/claude-sonnet-4.6");
+
+    mockResponsesPassthrough.mockClear();
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gemini-2.5-pro",
+        instructions: "hi",
+        input: [{ role: "user", content: "x" }],
+      }),
+    );
+    expect(mockResponsesPassthrough.mock.calls[0][0].model).toBe("google/gemini-2.5-pro");
+  });
+
+  test("detects bare gpt-5 (no suffix) as native Responses", async () => {
+    // The regex must match `gpt-5` and `gpt-5-mini`, not only `gpt-5.x`.
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5-mini",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+    expect(mockResponsesPassthrough).toHaveBeenCalledTimes(1);
+    expect(mockChatCompletions).not.toHaveBeenCalled();
+  });
+
+  test("forwards upstream 4xx errors verbatim and refunds credits", async () => {
+    mockResponsesPassthrough.mockResolvedValueOnce(
+      Response.json(
+        { error: { message: "model not found", type: "invalid_request_error" } },
+        { status: 404 },
+      ),
+    );
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    // Refund on error: reconcile should be called with actualCost = 0.
+    expect(mockReconcileCredits).toHaveBeenCalledWith(expect.objectContaining({ actualCost: 0 }));
+  });
+
+  test("returns 402 when passthrough credit reservation fails", async () => {
+    mockReserveAndDeductCredits.mockResolvedValueOnce({
+      success: false,
+      required: 5,
+    });
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(402);
+    // Upstream must not be touched when reservation fails.
+    expect(mockResponsesPassthrough).not.toHaveBeenCalled();
+  });
+
+  test("returns 400 when provider has no responses() method", async () => {
+    mockGetProviderForModel.mockReturnValueOnce({
+      chatCompletions: mockChatCompletions,
+      // no responses method
+    });
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.code).toBe("unsupported_provider");
+  });
+
+  test("anonymous users skip credit reservation in passthrough", async () => {
+    mockRequireAuthOrApiKey.mockRejectedValueOnce(new Error("unauth"));
+    mockGetAnonymousUser.mockResolvedValueOnce({
+      user: { id: "anon-1", organization_id: null },
+    });
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockReserveAndDeductCredits).not.toHaveBeenCalled();
+    expect(mockReconcileCredits).not.toHaveBeenCalled();
+    expect(mockResponsesPassthrough).toHaveBeenCalledTimes(1);
+  });
+
+  test("reconciles passthrough reservation to reserved amount on success", async () => {
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    // Background settle runs in the next microtask; flush.
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockReconcileCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reservedAmount: expect.any(Number),
+        actualCost: expect.any(Number),
+      }),
+    );
+  });
+
+  test("forwards custom and web_search tools verbatim in passthrough body", async () => {
+    // Regression guard: the passthrough must not strip Responses-API-only
+    // tool types. Codex relies on apply_patch (type:"custom") and
+    // web_search to work end-to-end.
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+        tools: [
+          {
+            type: "custom",
+            name: "apply_patch",
+            format: { type: "grammar", syntax: "lark", definition: "start: ..." },
+          },
+          { type: "web_search", external_web_access: false },
+          { type: "local_shell" },
+        ],
+      }),
+    );
+
+    const [forwarded] = mockResponsesPassthrough.mock.calls[0];
+    expect(forwarded.tools).toEqual([
+      {
+        type: "custom",
+        name: "apply_patch",
+        format: { type: "grammar", syntax: "lark", definition: "start: ..." },
+      },
+      { type: "web_search", external_web_access: false },
+      { type: "local_shell" },
+    ]);
+  });
+
   test("routes Chat Completions-compatible requests to the normal transform path", async () => {
     // No instructions, no custom tools, gpt-4o → normal path.
     const response = await responsesPost(
@@ -374,12 +573,14 @@ describe("/api/v1/responses", () => {
   });
 
   test("normalizes flat Responses-API tools before forwarding to chat completions", async () => {
-    // End-to-end check that mirrors what Codex CLI sends: flat Responses-API
-    // tools should be normalized to nested Chat Completions format by the
-    // time the downstream chat completions adapter is invoked.
+    // End-to-end check: for non-passthrough models (e.g. gpt-4o), flat
+    // Responses-API tools should be normalized to nested Chat Completions
+    // format by the time the downstream chat completions adapter is
+    // invoked. gpt-5.x would trigger the native passthrough and skip
+    // this path entirely.
     const response = await responsesPost(
       jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
-        model: "gpt-5",
+        model: "gpt-4o",
         input: [{ role: "user", content: "run it" }],
         tools: [
           {
