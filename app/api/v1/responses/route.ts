@@ -788,14 +788,16 @@ async function handlePOST(req: NextRequest) {
     const clientMessage = status >= 500 ? "Internal server error" : getSafeErrorMessage(error);
     const code =
       status === 402
-        ? "insufficient_credits"
-        : status === 403
-          ? "forbidden"
-          : status === 404
-            ? "not_found"
-            : status === 429
-              ? "rate_limit_exceeded"
-              : "internal_server_error";
+        code:
+                        status === 402
+                          ? "insufficient_credits"
+                          : status === 403
+                            ? "forbidden"
+                            : status === 404
+                              ? "not_found"
+                              : status === 429
+                                ? "rate_limit_exceeded"
+                                : "internal_server_error",
 
     return Response.json(
       {
