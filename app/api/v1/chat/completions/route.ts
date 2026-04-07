@@ -458,7 +458,10 @@ async function handlePOST(req: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Chat Completions] Error", { error: errorMessage });
 
-    const status = getErrorStatusCode(error);
+    // Check for insufficient credits by message since InsufficientCreditsError may not set .name
+    const isInsufficientCredits =
+      errorMessage.includes("Insufficient") || errorMessage.includes("credits");
+    const status = isInsufficientCredits ? 402 : getErrorStatusCode(error);
     let errorType = "api_error";
     if (status === 401) {
       errorType = "authentication_error";
