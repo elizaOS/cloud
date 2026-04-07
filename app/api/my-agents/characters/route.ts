@@ -21,6 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/my-agents";
@@ -145,15 +146,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[My Agents API] Error searching characters:", error);
-
-    const status = error instanceof Error && error.message.includes("auth") ? 401 : 500;
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to search characters",
-      },
-      { status },
-    );
+    return nextJsonFromCaughtError(error);
   }
 }

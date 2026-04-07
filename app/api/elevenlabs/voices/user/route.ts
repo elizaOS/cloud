@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
@@ -33,7 +33,7 @@ const userVoicesQuerySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     // Parse query parameters with bounds validation
     const { searchParams } = new URL(request.url);

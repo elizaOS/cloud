@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 
@@ -13,10 +14,13 @@ import { logger } from "@/lib/utils/logger";
  * @param params - Route parameters containing the API key ID.
  * @returns New API key details including the plain key (only shown once).
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: NextRequest, context?: { params: Promise<{ id: string }> }) {
+  if (!context) {
+    return NextResponse.json({ error: "Missing route parameters" }, { status: 400 });
+  }
   try {
-    const user = await requireAuthWithOrg();
-    const { id } = await params;
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { id } = await context.params;
 
     const existingKey = await apiKeysService.getById(id);
 
@@ -68,3 +72,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);

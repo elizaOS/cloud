@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { dbWrite } from "@/db/client";
 import { appSandboxSessions } from "@/db/schemas/app-sandboxes";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { appsService } from "@/lib/services/apps";
@@ -143,19 +144,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       message: commitMessage,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Failed to commit changes";
-    const status =
-      errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")
-        ? 401
-        : errorMessage.includes("Access denied") || errorMessage.includes("don't own")
-          ? 403
-          : errorMessage.includes("not found")
-            ? 404
-            : 500;
-
-    logger.error("Manual commit error", { error: errorMessage });
-
-    return NextResponse.json({ success: false, error: errorMessage }, { status });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("Manual commit error", {
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+    return nextJsonFromCaughtError(error);
   }
 }
 
@@ -208,18 +202,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       lastSavedCommitSha: session.last_commit_sha,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Failed to get git status";
-    const status =
-      errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")
-        ? 401
-        : errorMessage.includes("Access denied") || errorMessage.includes("don't own")
-          ? 403
-          : errorMessage.includes("not found")
-            ? 404
-            : 500;
-
-    logger.error("Get commit status error", { error: errorMessage });
-
-    return NextResponse.json({ success: false, error: errorMessage }, { status });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("Get commit status error", {
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+    return nextJsonFromCaughtError(error);
   }
 }

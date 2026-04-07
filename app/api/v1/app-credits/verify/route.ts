@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { requireStripe } from "@/lib/stripe";
@@ -165,34 +166,9 @@ export async function GET(request: NextRequest) {
       { headers: corsHeaders },
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Verification failed";
-    const isAuthError =
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication required") ||
-      errorMessage.includes("Invalid or expired token") ||
-      errorMessage.includes("Invalid or expired API key") ||
-      errorMessage.includes("Invalid wallet signature") ||
-      errorMessage.includes("Wallet authentication failed") ||
-      errorMessage.includes("Forbidden: This feature requires a full account") ||
-      errorMessage.includes("Organization is inactive");
-
-    if (isAuthError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Unauthorized",
-        },
-        { status: 401, headers: getCorsHeaders() },
-      );
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("Failed to verify purchase:", error);
     }
-
-    logger.error("Failed to verify purchase:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage,
-      },
-      { status: 500, headers: getCorsHeaders() },
-    );
+    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
   }
 }

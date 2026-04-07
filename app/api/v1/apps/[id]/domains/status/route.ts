@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { vercelDomainsService } from "@/lib/services/vercel-domains";
 
@@ -28,7 +28,7 @@ interface RouteParams {
  * Check the DNS status of a domain
  */
 export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
-  const user = await requireAuthWithOrg();
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);

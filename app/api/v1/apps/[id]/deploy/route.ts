@@ -14,7 +14,8 @@ import { z } from "zod";
 import { dbWrite } from "@/db/client";
 import type { AppDeploymentStatus } from "@/db/schemas";
 import { apps } from "@/db/schemas";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { appsService } from "@/lib/services/apps";
 import { vercelDeploymentsService } from "@/lib/services/vercel-deployments";
 import { logger } from "@/lib/utils/logger";
@@ -40,9 +41,18 @@ const DeploySchema = z.object({
  * @param request - Request body with optional branch, target, and commitSha
  * @returns Deployment result with deployment ID and URL
  */
-export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
-  const user = await requireAuthWithOrg();
-  const { id: appId } = await params;
+async function handleDeployPOST(
+  request: NextRequest,
+  context?: RouteParams,
+): Promise<NextResponse> {
+  if (!context) {
+    return NextResponse.json(
+      { success: false, error: "Missing route parameters" },
+      { status: 400 },
+    );
+  }
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+  const { id: appId } = await context.params;
 
   // Verify app ownership
   const app = await appsService.getById(appId);
@@ -149,6 +159,8 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
   });
 }
 
+export const POST = withRateLimit(handleDeployPOST, RateLimitPresets.STANDARD);
+
 /**
  * GET /api/v1/apps/:id/deploy
  *
@@ -157,7 +169,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
  * @returns Deployment information including production URL and recent deployments
  */
 export async function GET(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
-  const user = await requireAuthWithOrg();
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   // Verify app ownership

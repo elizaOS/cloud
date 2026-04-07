@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { validateServiceKey } from "@/lib/auth/service-key";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
@@ -75,15 +76,9 @@ export async function GET(
             },
     });
   } catch (error) {
-    logger.error("[Jobs API] Error fetching job:", error);
-
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch job";
-    const isAuthError =
-      errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication required");
-
-    return NextResponse.json(
-      { success: false, error: isAuthError ? "Unauthorized" : errorMessage },
-      { status: isAuthError ? 401 : 500 },
-    );
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Jobs API] Error fetching job:", error);
+    }
+    return nextJsonFromCaughtError(error);
   }
 }

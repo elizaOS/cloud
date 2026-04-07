@@ -10,6 +10,8 @@
 import { PrivyClient } from "@privy-io/server-auth";
 import { Redis } from "@upstash/redis";
 import type { NextRequest } from "next/server";
+import { jsonError } from "@/lib/api/errors";
+import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS, CORS_MAX_AGE } from "@/lib/cors-constants";
 
 // Helper to create "next" response (continue to route handler)
 // Uses internal Next.js header that NextResponse.next() sets
@@ -200,12 +202,8 @@ function handleTokenFailure(
 ): Response {
   if (pathname.startsWith("/api/")) {
     const errorMessage = reason === "expired" ? "Token expired" : "Invalid authentication token";
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 401,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Proxy-Time": `${Date.now() - startTime}ms`,
-      },
+    return jsonError(errorMessage, 401, "authentication_required", {
+      "X-Proxy-Time": `${Date.now() - startTime}ms`,
     });
   }
 
@@ -230,7 +228,6 @@ const publicPaths = [
   "/api/public",
   "/auth/error",
   "/auth/cli-login",
-  "/api/auth/cli-session",
   "/api/auth/pair", // Milady agent pairing (validates its own one-time tokens)
   "/api/auth/siwe", // SIWE nonce + verify (EIP-4361)
   "/api/set-anonymous-session",
@@ -283,6 +280,8 @@ const publicPathPatterns = [
   /^\/api\/v1\/apps\/[^/]+\/public$/,
   /^\/api\/characters\/[^/]+\/public$/,
   /^\/api\/v1\/oauth\/[^/]+\/callback$/, // Generic OAuth callbacks (redirects from providers)
+  /^\/api\/auth\/cli-session\/?$/, // POST create session (not /complete — that needs session auth at edge)
+  /^\/api\/auth\/cli-session\/[^/]+$/, // GET poll session status (CLI); excludes .../sessionId/complete
 ];
 
 const protectedPaths = [
@@ -295,6 +294,40 @@ const protectedPaths = [
   "/api/v1/containers",
 ];
 
+/**
+ * Cookie-session-only paths for API-key-shaped credentials (`X-API-Key`, `Bearer eliza_*`).
+ *
+ * Why: The block below skips Privy when those headers are present so handlers can validate keys.
+ * Cookie-only handlers would then return a generic 401. Failing here with `session_auth_required`
+ * tells integrators this URL expects a browser session, not automation keys.
+ *
+ * Wallet passthrough uses a separate branch and is not treated as programmatic auth.
+ * See docs/auth-api-consistency.md.
+ */
+const sessionOnlyPaths = [
+  "/api/auth/migrate-anonymous",
+  "/api/invites/accept",
+  "/api/signup-code/redeem",
+  "/api/v1/api-keys/explorer",
+  "/api/v1/generate-prompts",
+  "/api/v1/character-assistant",
+  "/api/stripe/create-checkout-session",
+  "/api/my-agents/claim-affiliate-characters",
+];
+
+const sessionOnlyPathPatterns = [
+  /^\/api\/auth\/cli-session\/[^/]+\/complete$/,
+  /^\/api\/my-agents\/characters\/[^/]+\/track-interaction$/,
+  /^\/api\/crypto\/payments\/[^/]+\/confirm$/,
+];
+
+function isSessionOnlyPath(pathname: string): boolean {
+  return (
+    sessionOnlyPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
+    sessionOnlyPathPatterns.some((pattern) => pattern.test(pathname))
+  );
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const startTime = Date.now();
@@ -305,10 +338,9 @@ export async function proxy(request: NextRequest) {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Gateway-Secret, X-Wallet-Address, X-Timestamp, X-Wallet-Signature",
-        "Access-Control-Max-Age": "86400",
+        "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
+        "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
+        "Access-Control-Max-Age": CORS_MAX_AGE,
         "X-Proxy-Time": `${Date.now() - startTime}ms`,
       },
     });
@@ -340,11 +372,19 @@ export async function proxy(request: NextRequest) {
     const walletSig = request.headers.get("X-Wallet-Signature");
     const allowWalletPassthrough =
       pathname.startsWith("/api/v1/topup") || pathname.startsWith("/api/v1/user/wallets");
-    if (
-      apiKey ||
-      (walletSig && allowWalletPassthrough) ||
-      (bearerToken && bearerToken.startsWith("eliza_"))
-    ) {
+    const hasElizaBearer = Boolean(bearerToken && bearerToken.startsWith("eliza_"));
+    const programmaticAuth = Boolean(apiKey || hasElizaBearer);
+    // Keys are verified in route handlers (DB), not in middleware — we only avoid burning Privy work.
+    if (programmaticAuth || (walletSig && allowWalletPassthrough)) {
+      // Align edge with cookie-only handlers: reject key/bearer early on session-only URLs.
+      if (programmaticAuth && isSessionOnlyPath(pathname)) {
+        return jsonError(
+          "This endpoint requires session authentication. API keys and Bearer tokens are not accepted.",
+          401,
+          "session_auth_required",
+          { "X-Proxy-Time": `${Date.now() - startTime}ms` },
+        );
+      }
       return middlewareNext({
         headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
       });
@@ -355,12 +395,8 @@ export async function proxy(request: NextRequest) {
 
     if (!token) {
       if (pathname.startsWith("/api/")) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: {
-            "Content-Type": "application/json",
-            "X-Proxy-Time": `${Date.now() - startTime}ms`,
-          },
+        return jsonError("Unauthorized", 401, "authentication_required", {
+          "X-Proxy-Time": `${Date.now() - startTime}ms`,
         });
       }
       return middlewareRedirect(buildLoginRedirectUrl(request), {
@@ -460,9 +496,8 @@ export async function proxy(request: NextRequest) {
   } catch (error) {
     console.error("Proxy auth error:", error);
     if (pathname.startsWith("/api/")) {
-      return new Response(JSON.stringify({ error: "Authentication failed" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
+      return jsonError("Authentication failed", 401, "authentication_required", {
+        "X-Proxy-Time": `${Date.now() - startTime}ms`,
       });
     }
     const url = request.nextUrl.clone();

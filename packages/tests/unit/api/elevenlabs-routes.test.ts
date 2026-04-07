@@ -238,7 +238,9 @@ afterEach(() => {
 
 describe("Voice listing APIs", () => {
   test("public voice listing filters out cloned voices", async () => {
-    const response = await listPublicVoices();
+    const response = await listPublicVoices(
+      jsonRequest("http://localhost:3000/api/elevenlabs/voices", "GET"),
+    );
     expect(response.status).toBe(200);
 
     const body = await response.json();

@@ -65,7 +65,11 @@ describe("proxy auth handling", () => {
     );
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ error: "Invalid authentication token" });
+    expect(await response.json()).toEqual({
+      success: false,
+      error: "Invalid authentication token",
+      code: "authentication_required",
+    });
     expect(mockVerifyAuthToken).not.toHaveBeenCalled();
     expect(mockRedisSetex).toHaveBeenCalledTimes(1);
   });
@@ -86,7 +90,11 @@ describe("proxy auth handling", () => {
     );
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ error: "Invalid authentication token" });
+    expect(await response.json()).toEqual({
+      success: false,
+      error: "Invalid authentication token",
+      code: "authentication_required",
+    });
     expect(mockVerifyAuthToken).not.toHaveBeenCalled();
   });
 

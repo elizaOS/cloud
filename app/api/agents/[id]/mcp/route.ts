@@ -22,6 +22,8 @@ import { streamText } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS } from "@/lib/cors-constants";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
 import {
   mergeAnthropicCotProviderOptions,
@@ -61,7 +63,10 @@ const MCPRequestSchema = z.object({
  * GET /api/agents/{id}/mcp
  * Returns MCP server metadata
  */
-export async function GET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handleGET(request: NextRequest, ctx?: { params: Promise<{ id: string }> }) {
+  if (!ctx) {
+    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
+  }
   const { id } = await ctx.params;
 
   const character = await charactersService.getById(id);
@@ -139,7 +144,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
  * POST /api/agents/{id}/mcp
  * MCP protocol handler
  */
-export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: NextRequest, ctx?: { params: Promise<{ id: string }> }) {
+  if (!ctx) {
+    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
+  }
   const { id } = await ctx.params;
 
   const character = await charactersService.getById(id);
@@ -481,6 +489,9 @@ async function handleToolCall(
   });
 }
 
+export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+
 /**
  * OPTIONS handler for CORS
  */
@@ -489,8 +500,8 @@ export async function OPTIONS() {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
+      "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
+      "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
     },
   });
 }

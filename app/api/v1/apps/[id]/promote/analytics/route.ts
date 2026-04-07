@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { advertisingService } from "@/lib/services/advertising";
 import { appsService } from "@/lib/services/apps";
@@ -81,13 +82,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Internal error";
-    let status = 500;
-    if (message.includes("Authentication") || message.includes("Unauthorized")) {
-      status = 401;
-    } else if (message.includes("Forbidden") || message.includes("Access denied")) {
-      status = 403;
-    }
-    return NextResponse.json({ error: message }, { status });
+    return nextJsonFromCaughtError(error);
   }
 }

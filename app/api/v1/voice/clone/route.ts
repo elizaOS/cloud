@@ -24,6 +24,7 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { VOICE_CLONE_INSTANT_COST, VOICE_CLONE_PROFESSIONAL_COST } from "@/lib/pricing-constants";
 import {
@@ -310,15 +311,9 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    logger.error("[Voice Clone API] Unexpected error:", error);
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Voice Clone API] Unexpected error:", error);
     }
-
-    return NextResponse.json(
-      { error: "An unexpected error occurred. Please try again." },
-      { status: 500 },
-    );
+    return nextJsonFromCaughtError(error);
   }
 }

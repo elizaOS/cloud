@@ -1481,6 +1481,11 @@ Documented management endpoints support multiple authentication methods:
 3. **SIWE**: Get nonce from `GET /api/auth/siwe/nonce`, sign EIP-4361 message, `POST /api/auth/siwe/verify` to receive an API key
 4. **Wallet header**: `X-Wallet-Address`, `X-Timestamp`, `X-Wallet-Signature` (per-request signature; first request can create account)
 
+**Policy and rationale:** Some routes accept **only** a browser session (edge returns `session_auth_required` if you send an API key). Others accept **session or API key** depending on the handler. **Why:** automation should work where it is safe and expected; human-only flows (e.g. certain checkouts, invite accept, promo redeem) stay session-bound to reduce scripted abuse and confusing semantics.
+
+- **Mechanics:** [docs/api-authentication.md](docs/api-authentication.md) (CORS, rate limits, error shape, route lists)
+- **Design / WHY:** [docs/auth-api-consistency.md](docs/auth-api-consistency.md)
+
 ### Base URL
 
 - Development: `http://localhost:3000`
@@ -1998,6 +2003,13 @@ Container deployments are billed **daily**:
 ---
 
 ## 📚 Additional Resources
+
+### Platform documentation (this repo)
+
+- [docs/api-authentication.md](docs/api-authentication.md) — Auth headers, CORS, rate limits, errors
+- [docs/auth-api-consistency.md](docs/auth-api-consistency.md) — **Why** session vs API key vs edge behavior
+- [CHANGELOG.md](CHANGELOG.md) — Engineering changelog
+- [docs/ROADMAP.md](docs/ROADMAP.md) — Direction and follow-ups
 
 ### Core Framework
 

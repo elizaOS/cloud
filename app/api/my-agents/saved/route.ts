@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
@@ -40,15 +41,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[Saved Agents API] Error fetching saved agents:", error);
-
-    const status = error instanceof Error && error.message.includes("auth") ? 401 : 500;
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch saved agents",
-      },
-      { status },
-    );
+    return nextJsonFromCaughtError(error);
   }
 }

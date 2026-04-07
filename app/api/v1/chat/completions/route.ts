@@ -11,6 +11,7 @@
 
 import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
 import type { NextRequest } from "next/server";
+import { getErrorStatusCode } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { createPreflightResponse } from "@/lib/middleware/cors-apps";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -457,17 +458,18 @@ async function handlePOST(req: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Chat Completions] Error", { error: errorMessage });
 
-    // Determine appropriate status code based on error
-    let status = 500;
+    let status = getErrorStatusCode(error);
     let errorType = "api_error";
-
-    if (errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")) {
-      status = 401;
+    if (status === 401) {
       errorType = "authentication_error";
-    } else if (errorMessage.includes("Insufficient") || errorMessage.includes("credits")) {
-      status = 402;
+    } else if (status === 402) {
       errorType = "insufficient_quota";
-    } else if (errorMessage.includes("Invalid") || errorMessage.includes("validation")) {
+    } else if (status === 400) {
+      errorType = "invalid_request_error";
+    } else if (
+      status === 500 &&
+      (errorMessage.includes("Invalid") || errorMessage.includes("validation"))
+    ) {
       status = 400;
       errorType = "invalid_request_error";
     }

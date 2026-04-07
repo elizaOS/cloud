@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { VOICE_CLONE_INSTANT_COST, VOICE_CLONE_PROFESSIONAL_COST } from "@/lib/pricing-constants";
 import {
   type CreditReservation,
@@ -31,7 +32,7 @@ const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
  * @param request - FormData with voice configuration and audio files.
  * @returns Created voice details, job information, and credit deduction confirmation.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     // Authenticate user (supports both session and API key)
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
@@ -293,3 +294,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);

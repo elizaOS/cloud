@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
 
@@ -70,7 +71,7 @@ function isValidTokenFormat(token: string): boolean {
  * - Validates token format before database query
  * - Hashes tokens for logging (prevents exposure)
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
@@ -143,3 +144,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to get session data" }, { status: 500 });
   }
 }
+
+export const GET = withRateLimit(handleGET, RateLimitPresets.AGGRESSIVE);

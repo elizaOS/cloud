@@ -5,8 +5,8 @@
  * GET /api/v1/dashboard
  */
 
-import { NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { type NextRequest, NextResponse } from "next/server";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -22,8 +22,8 @@ export const dynamic = "force-dynamic";
 const CACHE_MAX_AGE = 30; // seconds
 const STALE_WHILE_REVALIDATE = 60; // serve stale for 60s while revalidating
 
-export async function GET() {
-  const user = await requireAuthWithOrg();
+export async function GET(request: NextRequest) {
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const organizationId = user.organization_id!;
 
   // PERFORMANCE: Parallelized all data fetches including 24h usage stats

@@ -1,4 +1,6 @@
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
@@ -9,7 +11,7 @@ import { logger } from "@/lib/utils/logger";
  *
  * @returns Array of active credit packs with pricing and credit amounts.
  */
-export async function GET() {
+async function handleGET(_request: NextRequest) {
   try {
     const creditPacks = await creditsService.listActiveCreditPacks();
     return NextResponse.json({ creditPacks }, { status: 200 });
@@ -18,3 +20,5 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch credit packs" }, { status: 500 });
   }
 }
+
+export const GET = withRateLimit(handleGET, RateLimitPresets.RELAXED);

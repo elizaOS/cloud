@@ -1,9 +1,9 @@
 import {
   AgentRuntime,
   ChannelType,
-  createCharacter,
   createMessageMemory,
   type IAgentRuntime,
+  mergeCharacterDefaults,
   type Plugin,
   stringToUuid,
 } from "@elizaos/core";
@@ -122,7 +122,7 @@ export class AgentManager {
     });
 
     try {
-      const character = createCharacter({
+      const character = mergeCharacterDefaults({
         name: characterRef.toLowerCase(),
         secrets: {
           POSTGRES_URL: process.env.POSTGRES_URL || "",
@@ -137,7 +137,14 @@ export class AgentManager {
         const elizacloudPlugin = await import("@elizaos/plugin-elizacloud");
         plugins.push(elizacloudPlugin.default as Plugin);
       } else if (process.env.OPENAI_API_KEY) {
-        const { openaiPlugin } = await import("@elizaos/plugin-openai");
+        const openaiMod = (await import("@elizaos/plugin-openai")) as {
+          openaiPlugin?: Plugin;
+          default?: Plugin;
+        };
+        const openaiPlugin = openaiMod.openaiPlugin ?? openaiMod.default;
+        if (!openaiPlugin) {
+          throw new Error("@elizaos/plugin-openai: expected openaiPlugin or default export");
+        }
         plugins.push(openaiPlugin);
       }
 

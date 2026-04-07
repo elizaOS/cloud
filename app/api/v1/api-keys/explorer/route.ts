@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getErrorStatusCode } from "@/lib/api/errors";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
@@ -76,22 +77,21 @@ export async function GET() {
       { status: 201 },
     );
   } catch (error) {
-    logger.error("Error getting/creating explorer API key:", error);
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
+    const status = getErrorStatusCode(error);
+    if (status === 401) {
       return NextResponse.json(
         { error: "Please sign in to use the API Explorer" },
         { status: 401 },
       );
     }
-
-    if (error instanceof Error && error.message.includes("Forbidden")) {
+    if (status === 403) {
       return NextResponse.json(
         { error: "Please complete your account setup to use the API Explorer" },
         { status: 403 },
       );
     }
 
+    logger.error("Error getting/creating explorer API key:", error);
     return NextResponse.json({ error: "Failed to get API key for explorer" }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { type NextRequest, NextResponse } from "next/server";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { userSessionsService } from "@/lib/services/user-sessions";
 import { logger } from "@/lib/utils/logger";
@@ -11,9 +11,9 @@ import { logger } from "@/lib/utils/logger";
  *
  * @returns JSON response with session statistics.
  */
-async function handleGET() {
+async function handleGET(request: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     const stats = await userSessionsService.getCurrentSessionStats(user.id);
 

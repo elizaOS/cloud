@@ -7,6 +7,10 @@
 - **Deployment**: Vercel Serverless
 - **UI**: React + Tailwind CSS
 
+## API auth, CORS, and errors
+
+See [docs/api-authentication.md](docs/api-authentication.md) for cookie vs API key vs Bearer vs wallet auth, CORS sources, rate-limit presets, and the canonical JSON error shape. For **why** session-only vs programmatic routes are split (edge + handlers), see [docs/auth-api-consistency.md](docs/auth-api-consistency.md).
+
 ## Commands
 ```bash
 bun install          # Install dependencies

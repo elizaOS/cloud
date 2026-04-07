@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { appEarningsService } from "@/lib/services/app-earnings";
@@ -156,17 +157,13 @@ async function handlePOST(request: NextRequest, context?: RouteContext) {
       newBalance: updatedSummary?.withdrawableBalance ?? 0,
     });
   } catch (error) {
-    logger.error("[Withdrawal] Unexpected error", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    // Check for auth errors (they have specific status codes)
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Withdrawal] Unexpected error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     }
-
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    return nextJsonFromCaughtError(error);
   }
 }
 

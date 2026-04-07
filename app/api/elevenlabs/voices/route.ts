@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthOrApiKey } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
 
@@ -11,10 +11,9 @@ import { logger } from "@/lib/utils/logger";
  *
  * @returns Array of public voice objects.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const user = await requireAuth();
+    const { user } = await requireAuthOrApiKey(request);
 
     logger.info(`[Voices API] Fetching public voices for user ${user.id}`);
 

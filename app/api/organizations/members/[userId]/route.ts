@@ -1,7 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
@@ -26,7 +26,7 @@ async function handlePATCH(
   context?: { params: Promise<{ userId: string }> },
 ) {
   try {
-    const currentUser = await requireAuth();
+    const { user: currentUser } = await requireAuthOrApiKeyWithOrg(request);
 
     if (currentUser.role !== "owner") {
       return NextResponse.json(
@@ -154,7 +154,7 @@ async function handleDELETE(
   context?: { params: Promise<{ userId: string }> },
 ) {
   try {
-    const currentUser = await requireAuth();
+    const { user: currentUser } = await requireAuthOrApiKeyWithOrg(request);
 
     if (currentUser.role !== "owner" && currentUser.role !== "admin") {
       return NextResponse.json(

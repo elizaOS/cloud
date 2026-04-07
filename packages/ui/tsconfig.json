@@ -24,6 +24,6 @@
       "@/packages/ui/src/*": ["./src/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "../types/**/*.d.ts"],
   "exclude": ["node_modules", "dist", "**/*.stories.ts", "**/*.stories.tsx"]
 }

@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { CORS_ALLOW_HEADERS, CORS_MAX_AGE } from "@/lib/cors-constants";
 import { logger } from "@/lib/utils/logger";
 
 export interface CorsValidationResult {
@@ -42,12 +43,9 @@ export function addCorsHeaders(
   // Use wildcard for maximum compatibility - security is via auth tokens
   response.headers.set("Access-Control-Allow-Origin", "*");
   response.headers.set("Access-Control-Allow-Methods", methods.join(", "));
-  response.headers.set(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie",
-  );
+  response.headers.set("Access-Control-Allow-Headers", CORS_ALLOW_HEADERS);
   // Note: credentials cannot be used with wildcard, but we use auth tokens instead
-  response.headers.set("Access-Control-Max-Age", "86400");
+  response.headers.set("Access-Control-Max-Age", CORS_MAX_AGE);
 
   return response;
 }

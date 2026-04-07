@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "packages/services/*",
+    "services/agent-server"
   ],
   "scripts": {
     "postinstall": "find node_modules -path '*/thread-stream/test' -type d -exec rm -rf {} + 2>/dev/null || true; find node_modules -path '*/thread-stream/bench.js' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/LICENSE' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/README.md' -delete 2>/dev/null || true",
@@ -24,8 +26,8 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "check-types": "bun run packages/scripts/check-types-split.ts",
-    "check-types:full": "tsc --noEmit",
-    "check-types:tests": "tsc --noEmit --project tsconfig.test.json",
+    "check-types:full": "bun ./node_modules/typescript/lib/tsc.js --noEmit",
+    "check-types:tests": "bun ./node_modules/typescript/lib/tsc.js --noEmit --project tsconfig.test.json",
     "check-types:ui": "bun run --cwd packages/ui typecheck",
     "check-types:agent-server": "bun run --cwd services/agent-server typecheck",
     "check-types:gateway-discord": "bun run --cwd packages/services/gateway-discord typecheck",
@@ -98,6 +100,7 @@
     "@fal-ai/server-proxy": "^1.1.2",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.52.2",
     "@neondatabase/serverless": "^1.0.2",
     "@octokit/rest": "^22.0.1",
     "@privy-io/react-auth": "^3.11.0",
@@ -290,6 +293,9 @@
     "tar": "7.5.10",
     "undici": "6.23.0",
     "underscore": "1.13.8"
+  },
+  "overrides": {
+    "cpu-features": "empty-npm-package@1.0.0"
   },
   "patchedDependencies": {
     "x402@1.1.0": "patches/x402@1.1.0.patch"
