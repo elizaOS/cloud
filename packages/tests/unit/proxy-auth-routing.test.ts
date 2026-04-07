@@ -93,4 +93,18 @@ describe("proxy auth routing", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
     expect(mockVerifyAuthToken).not.toHaveBeenCalled();
   });
+
+  test("rejects API key auth on session-only paths with session_auth_required", async () => {
+    const request = new NextRequest("https://example.com/api/v1/api-keys", {
+      headers: {
+        "X-API-Key": "test-api-key-12345",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body.code).toBe("session_auth_required");
+  });
 });
