@@ -13,7 +13,7 @@ import { logger } from "@/lib/utils/logger";
  */
 async function handleGET(request: NextRequest) {
   try {
-    const { user } = await requireAuthWithOrg(request);
+    const user = await requireAuthWithOrg();
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
