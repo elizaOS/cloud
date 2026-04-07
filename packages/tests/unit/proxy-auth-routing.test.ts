@@ -107,4 +107,35 @@ describe("proxy auth routing", () => {
     const body = await response.json();
     expect(body.code).toBe("session_auth_required");
   });
+
+  test("rejects API key auth on organization invite session-only path", async () => {
+    const request = new NextRequest("https://example.com/api/organizations/invites", {
+      method: "POST",
+      headers: {
+        "X-API-Key": "test-api-key-12345",
+        "Content-Type": "application/json",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body.code).toBe("session_auth_required");
+  });
+
+  test("rejects API key auth on api-keys regenerate session-only path", async () => {
+    const request = new NextRequest("https://example.com/api/v1/api-keys/key-123/regenerate", {
+      method: "POST",
+      headers: {
+        "X-API-Key": "test-api-key-12345",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body.code).toBe("session_auth_required");
+  });
 });
