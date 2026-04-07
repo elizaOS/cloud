@@ -138,4 +138,19 @@ describe("proxy auth routing", () => {
     const body = await response.json();
     expect(body.code).toBe("session_auth_required");
   });
+
+  test("rejects X-API-Key on organization members session-only path", async () => {
+    const request = new NextRequest("https://example.com/api/organizations/members", {
+      method: "GET",
+      headers: {
+        "X-API-Key": "test-api-key-12345",
+      },
+    });
+
+    const response = await proxy(request);
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body.code).toBe("session_auth_required");
+  });
 });
