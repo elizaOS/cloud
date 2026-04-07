@@ -22,7 +22,7 @@ const createInviteSchema = z.object({
  */
 async function handlePOST(request: NextRequest) {
   try {
-    const { user } = await requireAuthWithOrg(request);
+    const user = await requireAuthWithOrg();
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
@@ -93,9 +93,9 @@ async function handlePOST(request: NextRequest) {
  *
  * @returns Array of invitations with inviter details.
  */
-async function handleGET(request: NextRequest) {
+async function handleGET(_request: NextRequest) {
   try {
-    const { user } = await requireAuthWithOrg(request);
+    const user = await requireAuthWithOrg();
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
