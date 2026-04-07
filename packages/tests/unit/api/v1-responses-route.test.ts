@@ -542,7 +542,7 @@ describe("/api/v1/responses", () => {
   });
 
   test("reconciles passthrough reservation to reserved amount on success", async () => {
-    await responsesPost(
+    const response = await responsesPost(
       jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
         model: "gpt-5.4",
         instructions: "x",
@@ -550,7 +550,10 @@ describe("/api/v1/responses", () => {
       }),
     );
 
-    // Background settle runs in the next microtask; flush.
+    // Stream reconciliation only fires once the wrapped body is fully
+    // drained — the wrapper uses pull-based semantics so the callback
+    // is gated on the reader reaching the end of the upstream.
+    await response.text();
     await new Promise((r) => setTimeout(r, 0));
 
     expect(mockReconcileCredits).toHaveBeenCalledWith(
@@ -567,13 +570,14 @@ describe("/api/v1/responses", () => {
     // gap. Both reserveAndDeductCredits and reconcile must receive
     // the api_key_id so credits can be traced back to the key that
     // paid for them.
-    await responsesPost(
+    const response = await responsesPost(
       jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
         model: "gpt-5.4",
         instructions: "x",
         input: [{ role: "user", content: "hi" }],
       }),
     );
+    await response.text();
     await new Promise((r) => setTimeout(r, 0));
 
     expect(mockReserveAndDeductCredits).toHaveBeenCalledWith(
@@ -584,6 +588,136 @@ describe("/api/v1/responses", () => {
     expect(mockReconcileCredits).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({ api_key_id: "api-key-1" }),
+      }),
+    );
+  });
+
+  test("reconciles to actual cost when response.completed reports usage", async () => {
+    // Stream wrapper extracts `response.usage.input_tokens` and
+    // `output_tokens` from the terminal SSE event, calls calculateCost
+    // to convert to dollars, and settles the reservation to the
+    // actual cost (capped at the reservation as an upper bound).
+    mockResponsesPassthrough.mockResolvedValueOnce(
+      new Response(
+        `data: ${JSON.stringify({
+          type: "response.completed",
+          response: {
+            id: "resp_1",
+            status: "completed",
+            usage: {
+              input_tokens: 120,
+              output_tokens: 480,
+              total_tokens: 600,
+            },
+          },
+        })}\n\n`,
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      ),
+    );
+    mockCalculateCost.mockResolvedValueOnce({
+      inputCost: 0.001,
+      outputCost: 0.008,
+      totalCost: 0.009,
+    });
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+    await response.text();
+    await new Promise((r) => setTimeout(r, 0));
+
+    // calculateCost should have been called with the parsed usage
+    expect(mockCalculateCost).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      120,
+      480,
+    );
+    // And reconcile should use the returned actual cost (capped at
+    // reservedAmount which is the 1.23 estimate from our default mock).
+    expect(mockReconcileCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actualCost: 0.009,
+      }),
+    );
+  });
+
+  test("caps actual cost at the reserved amount when upstream over-runs", async () => {
+    // If the model somehow used more tokens than our estimate covered,
+    // we still only settle up to the reservation. Over-runs beyond
+    // that are out of scope for this path (would need a separate
+    // post-hoc ledger entry).
+    mockResponsesPassthrough.mockResolvedValueOnce(
+      new Response(
+        `data: ${JSON.stringify({
+          type: "response.completed",
+          response: {
+            usage: { input_tokens: 99_999, output_tokens: 99_999 },
+          },
+        })}\n\n`,
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      ),
+    );
+    // calculateCost returns something way higher than the reservation
+    mockCalculateCost.mockResolvedValueOnce({
+      inputCost: 50,
+      outputCost: 100,
+      totalCost: 150,
+    });
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+    await response.text();
+    await new Promise((r) => setTimeout(r, 0));
+
+    // actualCost is clamped to reservedAmount (1.23 from the default
+    // mockEstimateRequestCost)
+    expect(mockReconcileCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actualCost: 1.23,
+        reservedAmount: 1.23,
+      }),
+    );
+  });
+
+  test("falls back to reserved amount when no response.completed event appears", async () => {
+    // Upstream streamed some data but was cut off before the terminal
+    // event. Without usage we can't compute actual cost, so we settle
+    // to the reserved estimate (the 50% safety buffer stays as the
+    // upper bound, same as pre-stream-wrap behavior).
+    mockResponsesPassthrough.mockResolvedValueOnce(
+      new Response('data: {"type":"response.output_text.delta","delta":"partial"}\n\n', {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+    await response.text();
+    await new Promise((r) => setTimeout(r, 0));
+
+    // calculateCost was NOT called (no usage to compute from)
+    expect(mockCalculateCost).not.toHaveBeenCalled();
+    // Reconcile settles to reserved == actual == 1.23
+    expect(mockReconcileCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reservedAmount: 1.23,
+        actualCost: 1.23,
       }),
     );
   });
