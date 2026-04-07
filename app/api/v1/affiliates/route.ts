@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { affiliatesService } from "@/lib/services/affiliates";
@@ -7,16 +8,6 @@ import { getCorsHeaders } from "@/lib/utils/cors";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
-
-function isAuthError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const msg = error.message;
-  return (
-    msg.includes("Unauthorized") ||
-    msg.includes("Invalid wallet signature") ||
-    msg.includes("Wallet authentication failed")
-  );
-}
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -41,15 +32,10 @@ async function handleGET(request: NextRequest) {
 
     return NextResponse.json({ code: code ?? null }, { headers: corsHeaders });
   } catch (error) {
-    if (isAuthError(error)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Affiliates API] Error getting code:", error);
     }
-
-    logger.error("[Affiliates API] Error getting code:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: corsHeaders },
-    );
+    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
   }
 }
 
@@ -84,21 +70,16 @@ async function handlePUT(request: NextRequest) {
 
     return NextResponse.json({ code }, { headers: corsHeaders });
   } catch (error) {
-    if (isAuthError(error)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
-    }
     if (error instanceof Error && error.message.includes("Affiliate code not found")) {
       return NextResponse.json(
         { error: "No affiliate code. Create one with POST first." },
         { status: 404, headers: corsHeaders },
       );
     }
-
-    logger.error("[Affiliates API] Error updating markup:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: corsHeaders },
-    );
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Affiliates API] Error updating markup:", error);
+    }
+    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
   }
 }
 
@@ -129,15 +110,10 @@ async function handlePOST(request: NextRequest) {
 
     return NextResponse.json({ code }, { headers: corsHeaders });
   } catch (error) {
-    if (isAuthError(error)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Affiliates API] Error creating affiliate code:", error);
     }
-
-    logger.error("[Affiliates API] Error creating affiliate code:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: corsHeaders },
-    );
+    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
   }
 }
 

@@ -20,6 +20,7 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
@@ -93,15 +94,9 @@ export async function GET(request: NextRequest) {
       hasMore: offset + limit < allVoices.length,
     });
   } catch (error) {
-    logger.error("[Voice List API] Error:", error);
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Voice List API] Error:", error);
     }
-
-    return NextResponse.json(
-      { error: "Failed to fetch voices. Please try again." },
-      { status: 500 },
-    );
+    return nextJsonFromCaughtError(error);
   }
 }

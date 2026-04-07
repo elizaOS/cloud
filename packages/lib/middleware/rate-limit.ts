@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { checkRateLimitRedis } from "./rate-limit-redis";
+import { checkRateLimitRedis, type RateLimitResult } from "./rate-limit-redis";
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -235,6 +235,90 @@ export async function checkRateLimitAsync(
 }
 
 /**
+ * 100 requests / 60s per org — shared numeric policy for MCP integration routes, core MCP, and A2A org limits.
+ * Keys are still namespaced per surface (`mcp:ratelimit:…`, `a2a:…`) so limits do not collide.
+ */
+export const ORGANIZATION_SERVICE_BURST_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 100,
+} as const;
+
+export function rateLimitExceededPayload(
+  result: RateLimitResult,
+  maxRequests: number,
+  windowMs: number,
+  policy: "redis" | "in-memory",
+): {
+  body: {
+    success: false;
+    error: string;
+    code: "rate_limit_exceeded";
+    message: string;
+    retryAfter?: number;
+  };
+  headers: Record<string, string>;
+} {
+  const body = {
+    success: false as const,
+    error: "Too many requests",
+    code: "rate_limit_exceeded" as const,
+    message: `Rate limit exceeded. Maximum ${maxRequests} requests per ${Math.ceil(windowMs / 1000)} seconds.`,
+    retryAfter: result.retryAfter,
+  };
+  const headers: Record<string, string> = {
+    "X-RateLimit-Limit": maxRequests.toString(),
+    "X-RateLimit-Remaining": result.remaining.toString(),
+    "X-RateLimit-Reset": new Date(result.resetAt).toISOString(),
+    "X-RateLimit-Policy": policy,
+    "Retry-After": result.retryAfter?.toString() || "60",
+  };
+  return { body, headers };
+}
+
+export function rateLimitExceededNextResponse(
+  result: RateLimitResult,
+  maxRequests: number,
+  windowMs: number,
+  policy: "redis" | "in-memory",
+): NextResponse {
+  const { body, headers } = rateLimitExceededPayload(result, maxRequests, windowMs, policy);
+  return NextResponse.json(body, { status: 429, headers });
+}
+
+/** Native `Response` for handlers that avoid `NextResponse` (e.g. MCP / undici polyfill pitfalls). */
+export function rateLimitExceededResponse(
+  result: RateLimitResult,
+  maxRequests: number,
+  windowMs: number,
+  policy: "redis" | "in-memory",
+): Response {
+  const { body, headers } = rateLimitExceededPayload(result, maxRequests, windowMs, policy);
+  const h = new Headers(headers);
+  h.set("Content-Type", "application/json");
+  return new Response(JSON.stringify(body), { status: 429, headers: h });
+}
+
+export function mcpOrgRateLimitRedisKey(organizationId: string, integrationSlug?: string): string {
+  return integrationSlug
+    ? `mcp:ratelimit:${integrationSlug}:${organizationId}`
+    : `mcp:ratelimit:${organizationId}`;
+}
+
+/**
+ * Redis org burst limit for MCP surfaces. Returns a 429 `Response` when denied, or `null` when allowed.
+ */
+export async function enforceMcpOrganizationRateLimit(
+  organizationId: string,
+  integrationSlug?: string,
+): Promise<Response | null> {
+  const { windowMs, maxRequests } = ORGANIZATION_SERVICE_BURST_LIMIT;
+  const key = mcpOrgRateLimitRedisKey(organizationId, integrationSlug);
+  const result = await checkRateLimitRedis(key, windowMs, maxRequests);
+  if (result.allowed) return null;
+  return rateLimitExceededResponse(result, maxRequests, windowMs, "redis");
+}
+
+/**
  * Rate limit middleware wrapper for API routes
  * Compatible with Next.js 15 where params is a Promise
  * Supports both NextResponse and Response return types
@@ -277,21 +361,8 @@ export function withRateLimit<T = Record<string, string>>(
         `[Rate Limit] Request blocked for key=${maskKeyForLogging(key)}, limit=${config.maxRequests}, window=${config.windowMs}ms`,
       );
 
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Too many requests",
-          message: `Rate limit exceeded. Maximum ${config.maxRequests} requests per ${Math.ceil(config.windowMs / 1000)} seconds.`,
-          retryAfter: result.retryAfter,
-        },
-        {
-          status: 429,
-          headers: {
-            ...headers,
-            "Retry-After": result.retryAfter?.toString() || "60",
-          },
-        },
-      );
+      const policy: "redis" | "in-memory" = useRedis ? "redis" : "in-memory";
+      return rateLimitExceededNextResponse(result, config.maxRequests, config.windowMs, policy);
     }
 
     // Call the actual handler

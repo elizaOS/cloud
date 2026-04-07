@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
 
@@ -12,10 +13,13 @@ export const maxDuration = 120;
  * Service-to-service: shutdown then re-provision an agent.
  * Auth: X-Service-Key header.
  */
-export async function POST(
+async function handlePOST(
   request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> },
+  context?: { params: Promise<{ agentId: string }> },
 ) {
+  if (!context) {
+    return NextResponse.json({ error: "Missing route parameters" }, { status: 400 });
+  }
   let identity;
   try {
     identity = requireServiceKey(request);
@@ -26,7 +30,7 @@ export async function POST(
     return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
   }
 
-  const { agentId } = await params;
+  const { agentId } = await context.params;
 
   logger.info("[service-api] Restarting agent", { agentId });
 
@@ -51,3 +55,5 @@ export async function POST(
 
   return NextResponse.json({ success: true });
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);

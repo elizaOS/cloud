@@ -15,6 +15,7 @@
  */
 
 import type { NextRequest } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -899,19 +900,26 @@ async function handlePOST(req: NextRequest) {
     }
   } catch (error) {
     await settleReservation?.(0);
-    logger.error("[Responses API] Error:", error);
 
-    // Check if it's an authentication error
-    if (
-      error instanceof Error &&
-      (error.message.includes("Unauthorized") ||
-        error.message.includes("Invalid or expired API key") ||
-        error.message.includes("API key"))
-    ) {
+    interface GatewayError {
+      status: number;
+      error: { message: string; type?: string; code?: string };
+    }
+
+    if (error && typeof error === "object" && "error" in error && "status" in error) {
+      const gatewayStatus = (error as { status: unknown }).status;
+      if (typeof gatewayStatus === "number") {
+        const gatewayError = error as GatewayError;
+        return Response.json({ error: gatewayError.error }, { status: gatewayError.status });
+      }
+    }
+
+    if (getErrorStatusCode(error) === 401) {
+      const message = error instanceof Error ? error.message : "Unauthorized";
       return Response.json(
         {
           error: {
-            message: error.message,
+            message,
             type: "authentication_error",
             code: "unauthorized",
           },
@@ -920,30 +928,30 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    // Check if error is a structured gateway error
-    interface GatewayError {
-      status: number;
-      error: { message: string; type?: string; code?: string };
-    }
+    logger.error("[Responses API] Error:", error);
 
-    if (error && typeof error === "object" && "error" in error && "status" in error) {
-      const status = (error as { status: unknown }).status;
-      if (typeof status === "number") {
-        const gatewayError = error as GatewayError;
-        return Response.json({ error: gatewayError.error }, { status: gatewayError.status });
-      }
-    }
+    const status = getErrorStatusCode(error);
+    const clientMessage = status >= 500 ? "Internal server error" : getSafeErrorMessage(error);
+    const code =
+      status === 402
+        ? "insufficient_credits"
+        : status === 403
+          ? "forbidden"
+          : status === 404
+            ? "not_found"
+            : status === 429
+              ? "rate_limit_exceeded"
+              : "internal_server_error";
 
-    // Fallback to generic error
     return Response.json(
       {
         error: {
-          message: error instanceof Error ? error.message : "Internal server error",
+          message: clientMessage,
           type: "api_error",
-          code: "internal_server_error",
+          code,
         },
       },
-      { status: 500 },
+      { status },
     );
   }
 }

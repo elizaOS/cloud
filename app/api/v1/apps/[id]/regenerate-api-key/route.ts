@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 
@@ -12,10 +13,16 @@ import { logger } from "@/lib/utils/logger";
  * @param params - Route parameters containing the app ID.
  * @returns New API key (only shown once).
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: NextRequest, context?: { params: Promise<{ id: string }> }) {
+  if (!context) {
+    return NextResponse.json(
+      { success: false, error: "Missing route parameters" },
+      { status: 400 },
+    );
+  }
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id } = await params;
+    const { id } = await context.params;
 
     // Verify the app exists and belongs to the user's organization
     const existingApp = await appsService.getById(id);
@@ -65,3 +72,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);

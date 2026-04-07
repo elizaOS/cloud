@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
+import { apiFailureResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { enforceMcpOrganizationRateLimit } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 import { authContextStorage } from "./lib/context";
 
 export const maxDuration = 60;
@@ -145,16 +147,8 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
 
-    // Rate limiting
-    const rateLimitKey = `mcp:ratelimit:${authResult.user.organization_id}`;
-    const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
-
-    if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
-        status: 429,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+    const rateLimited = await enforceMcpOrganizationRateLimit(authResult.user.organization_id!);
+    if (rateLimited) return rateLimited;
 
     // Call MCP handler with auth context (lazy-loaded)
     const handler = await getMcpHandler();
@@ -190,24 +184,8 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
       headers,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    const isAuthError =
-      errorMessage.includes("API key") ||
-      errorMessage.includes("auth") ||
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication");
-
-    // Use native Response - polyfill breaks NextResponse instanceof checks
-    // See: https://github.com/vercel/next.js/issues/58611
-    return new Response(
-      JSON.stringify({
-        error: isAuthError ? "authentication_failed" : "internal_error",
-        error_description: errorMessage,
-      }),
-      {
-        status: isAuthError ? 401 : 500,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    logger.error("[MCP] Request failed:", error);
+    // Native Response — polyfill breaks NextResponse instanceof checks (see Next.js #58611)
+    return apiFailureResponse(error);
   }
 }

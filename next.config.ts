@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 import nextra from "nextra";
 import path from "path";
 import { shouldBlockUnsafeWebhookSkip } from "./packages/lib/config/deployment-environment";
+import {
+  CORS_ALLOW_HEADERS,
+  CORS_ALLOW_METHODS,
+  CORS_MAX_AGE,
+} from "./packages/lib/cors-constants";
 
 // =============================================================================
 // CRITICAL SECURITY VALIDATION
@@ -215,13 +220,13 @@ const nextConfig: NextConfig = {
           { key: "Access-Control-Allow-Origin", value: "*" },
           {
             key: "Access-Control-Allow-Methods",
-            value: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            value: CORS_ALLOW_METHODS,
           },
           {
             key: "Access-Control-Allow-Headers",
-            value: "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie",
+            value: CORS_ALLOW_HEADERS,
           },
-          { key: "Access-Control-Max-Age", value: "86400" },
+          { key: "Access-Control-Max-Age", value: CORS_MAX_AGE },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },

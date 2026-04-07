@@ -22,6 +22,7 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
@@ -102,20 +103,13 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       voice,
     });
   } catch (error) {
-    logger.error("[Voice API] Error:", error);
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     if (isInvalidVoiceIdError(error)) {
       return createInvalidVoiceIdResponse();
     }
-
-    return NextResponse.json(
-      { error: "Failed to fetch voice. Please try again." },
-      { status: 500 },
-    );
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Voice API] Error:", error);
+    }
+    return nextJsonFromCaughtError(error);
   }
 }
 
@@ -151,8 +145,6 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       message: "Voice deleted successfully",
     });
   } catch (error) {
-    logger.error("[Voice API] Delete error:", error);
-
     if (error instanceof Error) {
       if (error.message.includes("not found")) {
         return NextResponse.json(
@@ -165,19 +157,14 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
         );
       }
 
-      if (error.message.includes("Unauthorized")) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-
       if (isInvalidVoiceIdError(error)) {
         return createInvalidVoiceIdResponse();
       }
     }
-
-    return NextResponse.json(
-      { error: "Failed to delete voice. Please try again." },
-      { status: 500 },
-    );
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Voice API] Delete error:", error);
+    }
+    return nextJsonFromCaughtError(error);
   }
 }
 
@@ -227,25 +214,18 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       voice: updatedVoice,
     });
   } catch (error) {
-    logger.error("[Voice API] Update error:", error);
-
     if (error instanceof Error) {
       if (error.message.includes("not found")) {
         return NextResponse.json({ error: "Voice not found" }, { status: 404 });
-      }
-
-      if (error.message.includes("Unauthorized")) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       if (isInvalidVoiceIdError(error)) {
         return createInvalidVoiceIdResponse();
       }
     }
-
-    return NextResponse.json(
-      { error: "Failed to update voice. Please try again." },
-      { status: 500 },
-    );
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Voice API] Update error:", error);
+    }
+    return nextJsonFromCaughtError(error);
   }
 }

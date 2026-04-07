@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { referralsService } from "@/lib/services/referrals";
@@ -7,18 +8,6 @@ import { getCorsHeaders } from "@/lib/utils/cors";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
-
-function isAuthError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  return (
-    error.message.includes("Unauthorized") ||
-    error.message.includes("Authentication required") ||
-    error.message.includes("Invalid or expired token") ||
-    error.message.includes("Invalid or expired API key") ||
-    error.message.includes("Invalid wallet signature") ||
-    error.message.includes("Wallet authentication failed")
-  );
-}
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -73,18 +62,12 @@ async function handlePOST(request: NextRequest) {
 
     return NextResponse.json(result, { headers: corsHeaders });
   } catch (error) {
-    if (isAuthError(error)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Referral Apply] Error applying referral code", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
-
-    logger.error("[Referral Apply] Error applying referral code", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    return NextResponse.json(
-      { error: "Failed to apply referral code" },
-      { status: 500, headers: corsHeaders },
-    );
+    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
   }
 }
 

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { ERRORS as AFFILIATE_ERRORS, affiliatesService } from "@/lib/services/affiliates";
@@ -7,18 +8,6 @@ import { getCorsHeaders } from "@/lib/utils/cors";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
-
-function isAuthError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  return (
-    error.message.includes("Unauthorized") ||
-    error.message.includes("Authentication required") ||
-    error.message.includes("Invalid or expired token") ||
-    error.message.includes("Invalid or expired API key") ||
-    error.message.includes("Invalid wallet signature") ||
-    error.message.includes("Wallet authentication failed")
-  );
-}
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -56,16 +45,6 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, link }, { headers: corsHeaders });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    logger.error("[Affiliates Link] Error linking user to affiliate code", {
-      error: errorMessage,
-    });
-
-    if (isAuthError(error)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
-    }
-
     if (error instanceof Error) {
       if (
         error.message === AFFILIATE_ERRORS.INVALID_CODE ||
@@ -83,9 +62,11 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      { error: "Failed to link affiliate code" },
-      { status: 500, headers: corsHeaders },
-    );
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Affiliates Link] Error linking user to affiliate code", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
   }
 }, RateLimitPresets.STRICT);

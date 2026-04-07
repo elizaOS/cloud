@@ -4,6 +4,7 @@ import { dbRead } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { calculateTTSCost } from "@/lib/pricing";
 import { CUSTOM_VOICE_TTS_MARKUP } from "@/lib/pricing-constants";
 import {
@@ -27,7 +28,7 @@ const MAX_TEXT_LENGTH = 5000;
  * @param request - Request body with text, voiceId, and optional modelId.
  * @returns Streaming audio response (audio/mpeg).
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let reservation: CreditReservation | undefined;
 
   try {
@@ -241,3 +242,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);

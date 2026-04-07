@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { uploadBase64Image } from "@/lib/blob";
 import { logger } from "@/lib/utils/logger";
@@ -91,16 +92,12 @@ export async function POST(request: NextRequest) {
       images: results,
     });
   } catch (error) {
-    logger.error("Error in image upload", { error });
-    const message = error instanceof Error ? error.message : "Internal error";
-
-    let status = 500;
-    if (message.includes("Authentication") || message.includes("Unauthorized")) {
-      status = 401;
-    } else if (message.includes("Invalid")) {
-      status = 400;
+    if (error instanceof Error && error.message.includes("Invalid")) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
-
-    return NextResponse.json({ success: false, error: message }, { status });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("Error in image upload", { error });
+    }
+    return nextJsonFromCaughtError(error);
   }
 }

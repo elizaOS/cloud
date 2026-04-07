@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { caughtErrorJson } from "@/lib/api/errors";
 import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
@@ -102,21 +103,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return new Response(stream.readable, { headers: SSE_HEADERS });
   } catch (error) {
-    logger.error("Error in session resume stream", { error });
-    const message = error instanceof Error ? error.message : "Internal error";
-
-    let status = 500;
-    if (message.includes("Authentication") || message.includes("Unauthorized")) {
-      status = 401;
-    } else if (message.includes("Access denied") || message.includes("don't own")) {
-      status = 403;
-    } else if (message.includes("not found")) {
-      status = 404;
-    } else if (message.includes("cannot be resumed")) {
-      status = 400;
+    if (error instanceof Error && error.message.includes("cannot be resumed")) {
+      return new Response(JSON.stringify({ success: false, error: error.message }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
-
-    return new Response(JSON.stringify({ success: false, error: message }), {
+    const { status, body } = caughtErrorJson(error);
+    if (status >= 500) {
+      logger.error("Error in session resume stream", { error });
+    }
+    return new Response(JSON.stringify(body), {
       status,
       headers: { "Content-Type": "application/json" },
     });

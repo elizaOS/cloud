@@ -13,8 +13,9 @@
 
 import type { NextRequest } from "next/server";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { apiFailureResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { enforceMcpOrganizationRateLimit } from "@/lib/middleware/rate-limit";
 import { oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 
@@ -527,14 +528,11 @@ async function handleRequest(
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
 
-    const rateLimitKey = `mcp:ratelimit:jira:${authResult.user.organization_id}`;
-    const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
-    if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
-        status: 429,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+    const rateLimited = await enforceMcpOrganizationRateLimit(
+      authResult.user.organization_id!,
+      "jira",
+    );
+    if (rateLimited) return rateLimited;
 
     const handler = await getJiraMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
@@ -554,16 +552,8 @@ async function handleRequest(
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    logger.error(`[JiraMCP] ${msg}`);
-    const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(
-      JSON.stringify({
-        error: isAuth ? "authentication_required" : "internal_error",
-        message: msg,
-      }),
-      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
-    );
+    logger.error("[JiraMCP]", error);
+    return apiFailureResponse(error);
   }
 }
 

@@ -1798,7 +1798,9 @@ export class GatewayManager {
       return;
     }
 
-    const mentionedOtherUser = message.mentions.users.some((user) => user.id !== botUserId);
+    const mentionedOtherUser = message.mentions.users.some(
+      (user: { id: string }) => user.id !== botUserId,
+    );
     const repliedUserId = message.mentions.repliedUser?.id;
     const repliedToAnotherUser = Boolean(repliedUserId && repliedUserId !== botUserId);
     if (mentionedOtherUser || message.mentions.everyone || repliedToAnotherUser) {

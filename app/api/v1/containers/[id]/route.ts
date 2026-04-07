@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { calculateDeploymentCost } from "@/lib/constants/pricing";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { dbPriorityManager } from "@/lib/services/alb-priority-manager";
 import { cloudFormationService } from "@/lib/services/cloudformation";
 import {
@@ -67,10 +68,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
  * - Refunds remaining credits (prorated)
  * - Cleans up database records
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+async function handleDELETE(request: NextRequest, context?: { params: Promise<{ id: string }> }) {
+  if (!context) {
+    return NextResponse.json(
+      { success: false, error: "Missing route parameters" },
+      { status: 400 },
+    );
+  }
+  const { params } = context;
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: containerId } = await params;
@@ -214,6 +219,8 @@ export async function DELETE(
     );
   }
 }
+
+export const DELETE = withRateLimit(handleDELETE, RateLimitPresets.STANDARD);
 
 /**
  * PATCH /api/v1/containers/[id]

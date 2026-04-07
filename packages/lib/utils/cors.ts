@@ -1,3 +1,5 @@
+import { CORS_ALLOW_HEADERS } from "@/lib/cors-constants";
+
 const ALLOWED_ORIGINS = [
   process.env.NEXT_PUBLIC_APP_URL,
   "https://app.milady.ai",
@@ -14,8 +16,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
 
   const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, X-Wallet-Address, X-Timestamp, X-Wallet-Signature",
+    "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
     "Access-Control-Max-Age": "86400",
   };
 

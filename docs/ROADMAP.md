@@ -6,6 +6,12 @@ High-level direction and rationale. Dates are targets, not commitments.
 
 ## Done
 
+### Auth API consistency — programmatic keys vs session-only (Apr 2026)
+
+- **What:** Handlers for dashboard, apps/domains, ElevenLabs voices, `/api/v1/api-keys` (except explorer), `/api/v1/user`, sessions, crypto payment **GET**s, org members/invites (manage + list; not invite **accept**) use `requireAuthOrApiKey*` where appropriate. `proxy.ts` enforces **session-only** at the edge for paths that must not use API-key bypass (`session_auth_required`). CLI login: public edge patterns only for session **create** and **poll**; **`.../complete`** goes through normal API auth so session-only logic applies.
+- **Why:** Eliminate “passes edge, fails handler” for API-key clients; give a clear error when an endpoint is intentionally browser-session-only; keep abuse-sensitive flows (e.g. signup redeem, invite accept, explorer key, `POST` crypto create) on cookies unless product explicitly expands them.
+- **Docs:** [auth-api-consistency.md](./auth-api-consistency.md), [api-authentication.md](./api-authentication.md)
+
 ### Referral invite links — GET `/api/v1/referrals` + dashboard UX (Mar 2026)
 
 - **What:** Authenticated users can copy a referral invite URL (`/login?ref=…`) from the header **Invite** button and from an **Invite friends** card on `/dashboard/affiliates`; `GET /api/v1/referrals` ensures a `referral_codes` row exists and returns flat JSON; inactive codes block copy in the header and show a clear state on the Affiliates page; `403` returned for `ForbiddenError` (e.g. missing org).
@@ -49,6 +55,12 @@ High-level direction and rationale. Dates are targets, not commitments.
 
 - **Consistent error envelope** — Align OpenAI-style endpoints with a shared `{ type, code, message }` shape where possible. *Why: one client-side error handler for all Cloud APIs.*
 - **OpenAPI tags** — Tag Messages and Chat in OpenAPI so generators produce separate clients. *Why: clearer SDKs and docs.*
+- **Optional: scoped API keys** — e.g. keys that cannot call `/api/v1/api-keys` or org-admin routes. *Why: blast-radius reduction for leaked CI keys; needs product rules and migration.*
+
+### Auth (follow-ups)
+
+- **Audit remaining `requireAuth*` routes** — Any new cookie-only handler under non-public `/api/*` should be classified (programmatic vs session-only) and documented. *Why: prevents regressing the edge/handler contract.*
+- **Integration tests** — Matrix: session-only path + `X-API-Key` → `session_auth_required`; upgraded path + valid key → 200. *Why: proxy logic is easy to break with public path edits.*
 
 ---
 

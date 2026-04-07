@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
@@ -71,29 +72,14 @@ export async function GET(req: NextRequest) {
       },
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch balance";
-
-    // Return 401 for authentication errors
-    const isAuthError =
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication required") ||
-      errorMessage.includes("Forbidden");
-
-    const status = isAuthError ? 401 : 500;
-    const body = isAuthError ? { error: "Unauthorized" } : { error: errorMessage };
-
-    if (!isAuthError) {
+    if (getErrorStatusCode(error) >= 500) {
       logger.error("[Balance API] Error:", error);
     }
-
-    return NextResponse.json(body, {
-      status,
-      headers: {
-        ...corsHeaders,
-        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
+    return nextJsonFromCaughtErrorWithHeaders(error, {
+      ...corsHeaders,
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0",
     });
   }
 }

@@ -1,34 +1,47 @@
-import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 
 const mockValidateAuthHeader = mock();
 const mockListConnections = mock();
 const mockInitiateAuth = mock();
 
-mock.module("@/lib/services/eliza-app", () => ({
-  elizaAppSessionService: {
-    validateAuthHeader: mockValidateAuthHeader,
-  },
-}));
-
-mock.module("@/lib/services/oauth", () => ({
-  oauthService: {
-    listConnections: mockListConnections,
-    initiateAuth: mockInitiateAuth,
-  },
-}));
-
 let GET: typeof import("@/app/api/eliza-app/connections/route").GET;
 let POST: typeof import("@/app/api/eliza-app/connections/[platform]/initiate/route").POST;
 
-beforeAll(async () => {
-  ({ GET } = await import("@/app/api/eliza-app/connections/route"));
-  ({ POST } = await import("@/app/api/eliza-app/connections/[platform]/initiate/route"));
-  mock.restore();
-});
-
 describe("Eliza App connections routes", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    const reg = await import(`@/lib/services/oauth/provider-registry?t=${Date.now()}`);
+    mock.module("@/lib/services/oauth/provider-registry", () => ({
+      OAUTH_PROVIDERS: reg.OAUTH_PROVIDERS,
+      getProvider: reg.getProvider,
+      isProviderConfigured: reg.isProviderConfigured,
+      getConfiguredProviders: reg.getConfiguredProviders,
+      getConfiguredOAuthProviders: reg.getConfiguredOAuthProviders,
+      getAllProviderIds: reg.getAllProviderIds,
+      isValidProvider: reg.isValidProvider,
+      getClientId: reg.getClientId,
+      getClientSecret: reg.getClientSecret,
+      getCallbackUrl: reg.getCallbackUrl,
+      getNestedValue: reg.getNestedValue,
+    }));
+
+    mock.module("@/lib/services/eliza-app", () => ({
+      elizaAppSessionService: {
+        validateAuthHeader: mockValidateAuthHeader,
+      },
+    }));
+
+    mock.module("@/lib/services/oauth", () => ({
+      oauthService: {
+        listConnections: mockListConnections,
+        initiateAuth: mockInitiateAuth,
+      },
+    }));
+
+    const cacheKey = Date.now();
+    ({ GET } = await import(`@/app/api/eliza-app/connections/route?t=${cacheKey}`));
+    ({ POST } = await import(`@/app/api/eliza-app/connections/[platform]/initiate/route?t=${cacheKey}`));
+
     mockValidateAuthHeader.mockReset();
     mockListConnections.mockReset();
     mockInitiateAuth.mockReset();

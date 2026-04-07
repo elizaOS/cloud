@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isAddress } from "viem";
 import { z } from "zod";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { provisionServerWallet } from "@/lib/services/server-wallets";
@@ -62,8 +63,6 @@ async function handlePOST(request: NextRequest) {
       },
     });
   } catch (error) {
-    logger.error("Error provisioning server wallet:", error);
-
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Validation error", details: error.issues },
@@ -71,23 +70,10 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    const errorMessage = error instanceof Error ? error.message : "Failed to provision wallet";
-    const isAuthError =
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication required") ||
-      errorMessage.includes("Invalid or expired token") ||
-      errorMessage.includes("Invalid or expired API key") ||
-      errorMessage.includes("Invalid wallet signature") ||
-      errorMessage.includes("Wallet authentication failed");
-
-    if (isAuthError) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("Error provisioning server wallet:", error);
     }
-
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status: errorMessage.includes("Forbidden") ? 403 : 500 },
-    );
+    return nextJsonFromCaughtError(error);
   }
 }
 

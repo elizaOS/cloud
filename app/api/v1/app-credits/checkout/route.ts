@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   assertAllowedAbsoluteRedirectUrl,
@@ -152,26 +153,8 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Failed to create checkout";
-    const isAuthError =
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication required") ||
-      errorMessage.includes("Invalid or expired token") ||
-      errorMessage.includes("Invalid or expired API key") ||
-      errorMessage.includes("Invalid wallet signature") ||
-      errorMessage.includes("Wallet authentication failed") ||
-      errorMessage.includes("Forbidden");
     const isValidationError =
       errorMessage.includes("Invalid success_url") || errorMessage.includes("Invalid cancel_url");
-
-    if (isAuthError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Unauthorized",
-        },
-        { status: 401, headers: getCorsHeaders() },
-      );
-    }
 
     if (isValidationError) {
       return NextResponse.json(
@@ -179,17 +162,13 @@ export async function POST(request: NextRequest) {
           success: false,
           error: errorMessage,
         },
-        { status: 400, headers: getCorsHeaders() },
+        { status: 400, headers: corsHeaders },
       );
     }
 
-    logger.error("Failed to create checkout session:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage,
-      },
-      { status: 500, headers: getCorsHeaders() },
-    );
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("Failed to create checkout session:", error);
+    }
+    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
   }
 }

@@ -21,6 +21,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS } from "@/lib/cors-constants";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { affiliatesService } from "@/lib/services/affiliates";
 import { containersService } from "@/lib/services/containers";
@@ -293,8 +294,8 @@ export async function OPTIONS() {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
+      "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
+      "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
     },
   });
 }

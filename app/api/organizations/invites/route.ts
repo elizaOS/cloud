@@ -93,7 +93,7 @@ async function handlePOST(request: NextRequest) {
  *
  * @returns Array of invitations with inviter details.
  */
-async function handleGET() {
+async function handleGET(_request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
 

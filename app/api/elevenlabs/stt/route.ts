@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { calculateSTTCost } from "@/lib/pricing";
 import {
   type CreditReservation,
@@ -71,7 +72,7 @@ function estimateAudioDurationMinutes(fileSizeBytes: number, mimeType: string): 
  * @param request - Form data with audio file and optional languageCode.
  * @returns Transcript and processing duration.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let reservation: CreditReservation | undefined;
 
   try {
@@ -297,3 +298,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);

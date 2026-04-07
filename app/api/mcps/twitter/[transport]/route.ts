@@ -12,8 +12,9 @@
 
 import type { NextRequest } from "next/server";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { apiFailureResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { enforceMcpOrganizationRateLimit } from "@/lib/middleware/rate-limit";
 import { oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 
@@ -24,8 +25,6 @@ const TWITTER_API_SECRET_KEY = process.env.TWITTER_API_SECRET_KEY || "";
 
 const USER_ID_CACHE_TTL_MS = 5 * 60 * 1000;
 const USER_ID_CACHE_MAX_SIZE = 100;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 100;
 
 interface McpHandlerResponse {
   status: number;
@@ -663,18 +662,11 @@ async function handleRequest(
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
 
-    const rateLimitKey = `mcp:ratelimit:twitter:${authResult.user.organization_id}`;
-    const rateLimit = await checkRateLimitRedis(
-      rateLimitKey,
-      RATE_LIMIT_WINDOW_MS,
-      RATE_LIMIT_MAX_REQUESTS,
+    const rateLimited = await enforceMcpOrganizationRateLimit(
+      authResult.user.organization_id!,
+      "twitter",
     );
-    if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
-        status: 429,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+    if (rateLimited) return rateLimited;
 
     const handler = await getTwitterMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
@@ -694,16 +686,8 @@ async function handleRequest(
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    logger.error(`[TwitterMCP] ${msg}`);
-    const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(
-      JSON.stringify({
-        error: isAuth ? "authentication_required" : "internal_error",
-        message: msg,
-      }),
-      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
-    );
+    logger.error("[TwitterMCP]", error);
+    return apiFailureResponse(error);
   }
 }
 

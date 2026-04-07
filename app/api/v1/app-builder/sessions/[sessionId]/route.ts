@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 
@@ -19,17 +20,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ success: true, session });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to get session";
-    const status =
-      message.includes("Unauthorized") || message.includes("Authentication")
-        ? 401
-        : message.includes("Access denied") || message.includes("don't own")
-          ? 403
-          : message.includes("not found")
-            ? 404
-            : 500;
-
-    return NextResponse.json({ success: false, error: message }, { status });
+    return nextJsonFromCaughtError(error);
   }
 }
 
@@ -68,17 +59,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       expiresAt: result.expiresAt.toISOString(),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to extend session";
-    const status =
-      message.includes("Unauthorized") || message.includes("Authentication")
-        ? 401
-        : message.includes("Access denied") || message.includes("don't own")
-          ? 403
-          : message.includes("not found")
-            ? 404
-            : 500;
-
-    return NextResponse.json({ success: false, error: message }, { status });
+    return nextJsonFromCaughtError(error);
   }
 }
 
@@ -94,16 +75,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: "Session stopped successfully",
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to stop session";
-    const status =
-      message.includes("Unauthorized") || message.includes("Authentication")
-        ? 401
-        : message.includes("Access denied") || message.includes("don't own")
-          ? 403
-          : message.includes("not found")
-            ? 404
-            : 500;
-
-    return NextResponse.json({ success: false, error: message }, { status });
+    return nextJsonFromCaughtError(error);
   }
 }

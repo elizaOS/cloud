@@ -1,10 +1,6 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { jsonRequest, routeParams } from "./api/route-test-helpers";
-
-afterAll(() => {
-  mock.restore();
-});
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockGetAgent = mock();
@@ -18,59 +14,78 @@ const mockInitiateOAuth2 = mock();
 const mockGetConnection = mock();
 const mockRevokeConnection = mock();
 
-mock.module("@/lib/auth", () => ({
-  requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
-}));
-
-mock.module("@/lib/services/milady-sandbox", () => ({
-  miladySandboxService: {
-    getAgent: mockGetAgent,
-  },
-}));
-
-mock.module("@/lib/services/milady-managed-github", () => ({
-  managedMiladyGithubService: {
-    getStatus: mockGetStatus,
-    disconnectAgent: mockDisconnectAgent,
-    connectAgent: mockConnectAgent,
-    getAgentToken: mockGetAgentToken,
-  },
-}));
-
-mock.module("@/lib/services/oauth/provider-registry", () => ({
-  getProvider: mockGetProvider,
-  isProviderConfigured: mockIsProviderConfigured,
-}));
-
-mock.module("@/lib/services/oauth/providers", () => ({
-  initiateOAuth2: mockInitiateOAuth2,
-}));
-
-mock.module("@/lib/services/oauth", () => ({
-  oauthService: {
-    getConnection: mockGetConnection,
-    revokeConnection: mockRevokeConnection,
-  },
-}));
-
-mock.module("@/lib/utils/logger", () => ({
-  logger: {
-    info: mock(),
-    warn: mock(),
-    error: mock(),
-    debug: mock(),
-  },
-}));
-
-import { POST as postLinkGithub } from "@/app/api/v1/milady/agents/[agentId]/github/link/route";
-import { POST as postManagedGithubOauth } from "@/app/api/v1/milady/agents/[agentId]/github/oauth/route";
-import {
-  DELETE as deleteManagedGithub,
-  GET as getManagedGithub,
-} from "@/app/api/v1/milady/agents/[agentId]/github/route";
-import { GET as getGithubToken } from "@/app/api/v1/milady/agents/[agentId]/github/token/route";
+let postLinkGithub: typeof import("@/app/api/v1/milady/agents/[agentId]/github/link/route").POST;
+let postManagedGithubOauth: typeof import("@/app/api/v1/milady/agents/[agentId]/github/oauth/route").POST;
+let getManagedGithub: typeof import("@/app/api/v1/milady/agents/[agentId]/github/route").GET;
+let deleteManagedGithub: typeof import("@/app/api/v1/milady/agents/[agentId]/github/route").DELETE;
+let getGithubToken: typeof import("@/app/api/v1/milady/agents/[agentId]/github/token/route").GET;
 
 describe("managed Milady GitHub routes", () => {
+  beforeAll(async () => {
+    mock.module("@/lib/auth", () => ({
+      requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
+    }));
+
+    mock.module("@/lib/services/milady-sandbox", () => ({
+      miladySandboxService: {
+        getAgent: mockGetAgent,
+      },
+    }));
+
+    mock.module("@/lib/services/milady-managed-github", () => ({
+      managedMiladyGithubService: {
+        getStatus: mockGetStatus,
+        disconnectAgent: mockDisconnectAgent,
+        connectAgent: mockConnectAgent,
+        getAgentToken: mockGetAgentToken,
+      },
+    }));
+
+    mock.module("@/lib/services/oauth/provider-registry", () => ({
+      getProvider: mockGetProvider,
+      isProviderConfigured: mockIsProviderConfigured,
+    }));
+
+    mock.module("@/lib/services/oauth/providers", () => ({
+      initiateOAuth2: mockInitiateOAuth2,
+    }));
+
+    mock.module("@/lib/services/oauth", () => ({
+      oauthService: {
+        getConnection: mockGetConnection,
+        revokeConnection: mockRevokeConnection,
+      },
+    }));
+
+    mock.module("@/lib/utils/logger", () => ({
+      logger: {
+        info: mock(),
+        warn: mock(),
+        error: mock(),
+        debug: mock(),
+      },
+    }));
+
+    const cacheKey = Date.now();
+    ({ POST: postLinkGithub } = await import(
+      `@/app/api/v1/milady/agents/[agentId]/github/link/route?t=${cacheKey}`
+    ));
+    ({ POST: postManagedGithubOauth } = await import(
+      `@/app/api/v1/milady/agents/[agentId]/github/oauth/route?t=${cacheKey}`
+    ));
+    ({
+      DELETE: deleteManagedGithub,
+      GET: getManagedGithub,
+    } = await import(`@/app/api/v1/milady/agents/[agentId]/github/route?t=${cacheKey}`));
+    ({ GET: getGithubToken } = await import(
+      `@/app/api/v1/milady/agents/[agentId]/github/token/route?t=${cacheKey}`
+    ));
+  });
+
+  afterAll(() => {
+    mock.restore();
+  });
+
   beforeEach(() => {
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockGetAgent.mockReset();

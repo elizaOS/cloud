@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
+import { nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
@@ -49,16 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
   } catch (error) {
     logger.error("[Saved Agents API] Error getting saved agent:", error);
-
-    const status = error instanceof Error && error.message.includes("auth") ? 401 : 500;
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to get saved agent",
-      },
-      { status },
-    );
+    return nextJsonFromCaughtError(error);
   }
 }
 
@@ -118,15 +110,6 @@ export async function DELETE(
     });
   } catch (error) {
     logger.error("[Saved Agents API] Error removing saved agent:", error);
-
-    const status = error instanceof Error && error.message.includes("auth") ? 401 : 500;
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to remove saved agent",
-      },
-      { status },
-    );
+    return nextJsonFromCaughtError(error);
   }
 }
