@@ -565,7 +565,13 @@ async function handleStreamingRequest(
             provider,
           },
           billing,
-          { type: "chat", content: text },
+          {
+            type: "chat",
+            content: text,
+            systemPrompt,
+            prompt: messages.map((m) => `[${m.role}] ${typeof m.content === "string" ? m.content : ""}`).join("\n"),
+            latencyMs: Date.now() - startTime,
+          },
         );
 
         logger.info("[Chat Completions] Streaming complete", {
@@ -737,7 +743,13 @@ async function handleNonStreamingRequest(
         provider,
       },
       billing,
-      { type: "chat", content: result.text },
+      {
+        type: "chat",
+        content: result.text,
+        systemPrompt,
+        prompt: messages.map((m) => `[${m.role}] ${typeof m.content === "string" ? m.content : ""}`).join("\n"),
+        latencyMs: Date.now() - startTime,
+      },
     );
 
     logger.info("[Chat Completions] Non-streaming complete", {

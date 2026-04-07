@@ -253,6 +253,12 @@ export async function recordUsageAnalytics(
     errorMessage?: string;
     content?: string;
     prompt?: string;
+    /** System prompt for trajectory logging */
+    systemPrompt?: string;
+    /** Purpose/step for trajectory logging (e.g., "should_respond", "planner") */
+    purpose?: string;
+    /** Latency in ms for trajectory logging */
+    latencyMs?: number;
   } = {},
 ): Promise<void> {
   const { type = "chat", isSuccessful = true, errorMessage, content, prompt } = options;
@@ -297,6 +303,34 @@ export async function recordUsageAnalytics(
           outputTokens: billing.outputTokens,
           totalTokens: billing.totalTokens,
         },
+      });
+    }
+
+    // Log LLM call trajectory for training data collection
+    try {
+      const { llmTrajectoryService } = await import("./llm-trajectory");
+      await llmTrajectoryService.logCall({
+        organizationId: context.organizationId,
+        userId: context.userId,
+        apiKeyId: context.apiKeyId,
+        model: normalizeModelName(context.model),
+        provider,
+        purpose: options.purpose ?? type,
+        systemPrompt: options.systemPrompt,
+        userPrompt: prompt,
+        responseText: content,
+        inputTokens: billing.inputTokens,
+        outputTokens: billing.outputTokens,
+        inputCost: billing.inputCost,
+        outputCost: billing.outputCost,
+        latencyMs: options.latencyMs,
+        isSuccessful,
+        errorMessage,
+      });
+    } catch (trajError) {
+      // Trajectory logging is non-critical — never block the request
+      logger.warn("[AI Billing] Failed to log trajectory", {
+        error: trajError instanceof Error ? trajError.message : String(trajError),
       });
     }
   } catch (error) {
