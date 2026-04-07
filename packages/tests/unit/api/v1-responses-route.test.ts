@@ -284,4 +284,291 @@ describe("/api/v1/responses", () => {
       }),
     );
   });
+
+  test("normalizes flat Responses-API tools before forwarding to chat completions", async () => {
+    // End-to-end check that mirrors what Codex CLI sends: flat Responses-API
+    // tools should be normalized to nested Chat Completions format by the
+    // time the downstream chat completions adapter is invoked.
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5",
+        input: [{ role: "user", content: "run it" }],
+        tools: [
+          {
+            type: "function",
+            name: "shell",
+            description: "Run a shell command",
+            parameters: {
+              type: "object",
+              properties: { command: { type: "string" } },
+              required: ["command"],
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockChatCompletions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "shell",
+              description: "Run a shell command",
+              parameters: {
+                type: "object",
+                properties: { command: { type: "string" } },
+                required: ["command"],
+              },
+            },
+          },
+        ],
+      }),
+      expect.anything(),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// transformAISdkToOpenAI tool normalization
+// ---------------------------------------------------------------------------
+//
+// OpenAI's Responses API uses a flat tool format:
+//   { type: "function", name, description, parameters }
+//
+// while Chat Completions uses a nested format:
+//   { type: "function", function: { name, description, parameters } }
+//
+// Our /v1/responses endpoint forwards to a Chat Completions call downstream,
+// so flat-format tools coming from gpt-5.x clients (Codex CLI, etc.) need to
+// be normalized to the nested form. These tests verify that.
+
+describe("transformAISdkToOpenAI tool normalization", () => {
+  test("normalizes flat Responses-API tools to nested Chat-Completions tools", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "ls" }],
+      tools: [
+        {
+          type: "function",
+          name: "shell",
+          description: "Run a shell command",
+          parameters: {
+            type: "object",
+            properties: { command: { type: "string" } },
+            required: ["command"],
+          },
+        },
+      ],
+    });
+
+    expect(result.tools).toEqual([
+      {
+        type: "function",
+        function: {
+          name: "shell",
+          description: "Run a shell command",
+          parameters: {
+            type: "object",
+            properties: { command: { type: "string" } },
+            required: ["command"],
+          },
+        },
+      },
+    ]);
+  });
+
+  test("passes already-nested Chat-Completions tools through unchanged", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const nestedTool = {
+      type: "function" as const,
+      function: {
+        name: "search",
+        description: "Search the web",
+        parameters: { type: "object", properties: {} },
+      },
+    };
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-4o",
+      input: [{ role: "user", content: "find me a thing" }],
+      tools: [nestedTool],
+    });
+
+    expect(result.tools).toEqual([nestedTool]);
+  });
+
+  test("handles missing description and parameters in flat format", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "hi" }],
+      tools: [{ type: "function", name: "ping" }],
+    });
+
+    expect(result.tools).toEqual([
+      {
+        type: "function",
+        function: { name: "ping" },
+      },
+    ]);
+  });
+
+  test("returns undefined tools when none provided", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-4o",
+      input: [{ role: "user", content: "hi" }],
+    });
+
+    expect(result.tools).toBeUndefined();
+  });
+
+  test("normalizes a mixed array of flat and nested tools", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "go" }],
+      tools: [
+        {
+          type: "function",
+          name: "shell",
+          parameters: { type: "object", properties: {} },
+        },
+        {
+          type: "function",
+          function: {
+            name: "search",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ],
+    });
+
+    expect(result.tools).toEqual([
+      {
+        type: "function",
+        function: {
+          name: "shell",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "search",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    ]);
+  });
+
+  test("forwards unknown-shape tools unchanged (best-effort fallback)", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    // type: "function" but neither nested `function` nor a string `name`.
+    // This exercises the logger.warn fallback branch — invalid shapes are
+    // forwarded best-effort rather than dropped, so the downstream provider
+    // surfaces the original validation error.
+    const weirdTool = { type: "function", description: "no name here" } as unknown as {
+      type: "function";
+      name: string;
+    };
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "hi" }],
+      tools: [weirdTool],
+    });
+
+    expect(result.tools).toEqual([weirdTool as never]);
+  });
+
+  test("normalizes flat tool_choice to nested form", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-5",
+      input: [{ role: "user", content: "go" }],
+      tool_choice: { type: "function", name: "shell" } as never,
+    });
+
+    expect(result.tool_choice).toEqual({
+      type: "function",
+      function: { name: "shell" },
+    });
+  });
+
+  test("passes already-nested tool_choice through unchanged", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    const result = transformAISdkToOpenAI({
+      model: "gpt-4o",
+      input: [{ role: "user", content: "go" }],
+      tool_choice: { type: "function", function: { name: "search" } },
+    });
+
+    expect(result.tool_choice).toEqual({
+      type: "function",
+      function: { name: "search" },
+    });
+  });
+
+  test("passes string tool_choice literals through unchanged", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    for (const choice of ["auto", "none", "required"] as const) {
+      const result = transformAISdkToOpenAI({
+        model: "gpt-4o",
+        input: [{ role: "user", content: "go" }],
+        tool_choice: choice as never,
+      });
+      expect(result.tool_choice).toBe(choice);
+    }
+  });
+
+  test("logs a warning when an unknown-shape tool is forwarded", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+    const { logger } = await import("@/lib/utils/logger");
+    const warnSpy = mock();
+    const originalWarn = logger.warn;
+    (logger as { warn: typeof logger.warn }).warn = warnSpy as never;
+
+    try {
+      transformAISdkToOpenAI({
+        model: "gpt-5",
+        input: [{ role: "user", content: "hi" }],
+        tools: [{ type: "function", description: "no name" } as never],
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[Responses API] Unrecognized tool shape, passing through unchanged",
+        expect.objectContaining({ toolType: "function" }),
+      );
+    } finally {
+      (logger as { warn: typeof logger.warn }).warn = originalWarn;
+    }
+  });
+
+  test("preserves an empty tools array", async () => {
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
+
+    // Empty arrays are preserved (not stripped). The downstream provider
+    // decides how to handle `tools: []` — most treat it as "no tools".
+    const result = transformAISdkToOpenAI({
+      model: "gpt-4o",
+      input: [{ role: "user", content: "hi" }],
+      tools: [],
+    });
+
+    expect(result.tools).toEqual([]);
+  });
 });
