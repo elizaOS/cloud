@@ -15,6 +15,7 @@ export const CORS_ALLOW_HEADERS = [
   "X-API-Key",
   "X-App-Id",
   "X-Request-ID",
+  // Note: Cookie is ineffective with wildcard origin but listed for non-wildcard CORS flows
   "Cookie",
   "X-Miniapp-Token",
   "X-Anonymous-Session",
