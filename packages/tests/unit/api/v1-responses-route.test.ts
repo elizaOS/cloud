@@ -347,9 +347,7 @@ describe("/api/v1/responses", () => {
 
 describe("transformAISdkToOpenAI tool normalization", () => {
   test("normalizes flat Responses-API tools to nested Chat-Completions tools", async () => {
-    const { transformAISdkToOpenAI } = await import(
-      "@/app/api/v1/responses/route"
-    );
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
 
     const result = transformAISdkToOpenAI({
       model: "gpt-5",
@@ -385,9 +383,7 @@ describe("transformAISdkToOpenAI tool normalization", () => {
   });
 
   test("passes already-nested Chat-Completions tools through unchanged", async () => {
-    const { transformAISdkToOpenAI } = await import(
-      "@/app/api/v1/responses/route"
-    );
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
 
     const nestedTool = {
       type: "function" as const,
@@ -408,9 +404,7 @@ describe("transformAISdkToOpenAI tool normalization", () => {
   });
 
   test("handles missing description and parameters in flat format", async () => {
-    const { transformAISdkToOpenAI } = await import(
-      "@/app/api/v1/responses/route"
-    );
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
 
     const result = transformAISdkToOpenAI({
       model: "gpt-5",
@@ -427,9 +421,7 @@ describe("transformAISdkToOpenAI tool normalization", () => {
   });
 
   test("returns undefined tools when none provided", async () => {
-    const { transformAISdkToOpenAI } = await import(
-      "@/app/api/v1/responses/route"
-    );
+    const { transformAISdkToOpenAI } = await import("@/app/api/v1/responses/route");
 
     const result = transformAISdkToOpenAI({
       model: "gpt-4o",

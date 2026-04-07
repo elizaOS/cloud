@@ -300,28 +300,21 @@ export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRe
           type: "function",
           function: {
             name: tool.name,
-            ...(tool.description !== undefined
-              ? { description: tool.description }
-              : {}),
-            ...(tool.parameters !== undefined
-              ? { parameters: tool.parameters }
-              : {}),
+            ...(tool.description !== undefined ? { description: tool.description } : {}),
+            ...(tool.parameters !== undefined ? { parameters: tool.parameters } : {}),
           },
         };
       }
       // Unknown shape — log a warning so future tool variants surface
       // a clear diagnostic instead of an opaque downstream validation error.
-      logger.warn(
-        "[Responses API] Unrecognized tool shape, passing through unchanged",
-        {
-          // biome-ignore lint/suspicious/noExplicitAny: diagnostic logging only
-          toolType: (tool as any)?.type,
-          // biome-ignore lint/suspicious/noExplicitAny: diagnostic logging only
-          hasFunction: Boolean((tool as any)?.function),
-          // biome-ignore lint/suspicious/noExplicitAny: diagnostic logging only
-          hasName: Boolean((tool as any)?.name),
-        },
-      );
+      // The `tool` value here is `never` per the discriminated union, but we
+      // narrow back to a record for diagnostic field extraction.
+      const unknownTool = tool as unknown as Record<string, unknown>;
+      logger.warn("[Responses API] Unrecognized tool shape, passing through unchanged", {
+        toolType: unknownTool?.type,
+        hasFunction: Boolean(unknownTool?.function),
+        hasName: Boolean(unknownTool?.name),
+      });
       return tool as ChatCompletionsNestedTool;
     },
   );
