@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { invitesService } from "@/lib/services/invites";
 import { logger } from "@/lib/utils/logger";
@@ -22,7 +22,7 @@ const createInviteSchema = z.object({
  */
 async function handlePOST(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { user } = await requireAuthWithOrg(request);
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
@@ -95,7 +95,7 @@ async function handlePOST(request: NextRequest) {
  */
 async function handleGET(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { user } = await requireAuthWithOrg(request);
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
