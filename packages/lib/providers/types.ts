@@ -177,7 +177,11 @@ export interface AIProvider {
    * transport) that require the flat-tools / custom-tool / web_search
    * shapes which the Chat Completions API does not support.
    *
-   * Providers that cannot proxy Responses API should throw.
+   * This is an OPTIONAL method. Providers that cannot proxy Responses
+   * API should omit it entirely. Callers (e.g. the `/v1/responses`
+   * route) must check for its presence before invoking it and return
+   * an `unsupported_provider` error when absent — the route does this
+   * explicitly rather than relying on a throwing implementation.
    */
   responses?(body: unknown, options?: ProviderRequestOptions): Promise<Response>;
   embeddings(request: OpenAIEmbeddingsRequest): Promise<Response>;

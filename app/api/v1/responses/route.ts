@@ -589,7 +589,7 @@ async function handleNativeResponsesPassthrough(
   user: UserWithOrganization,
   apiKey: { id: string } | null,
   isAnonymous: boolean,
-  _startTime: number,
+  startTime: number,
   routeTimeoutMs: number,
 ): Promise<Response> {
   const model = typeof body.model === "string" ? body.model : undefined;
@@ -694,7 +694,15 @@ async function handleNativeResponsesPassthrough(
       );
     } catch (err) {
       logger.warn("[Responses API passthrough] estimateRequestCost failed", { err });
-      estimatedCost = 0.01;
+      // Safety floor: when estimation fails we reserve a non-trivial
+      // amount so an uncharged runaway session can't drain credits.
+      // The Chat Completions path benefits from `estimateRequestCost`'s
+      // 50% safety buffer, which we're bypassing here, so we set a
+      // higher floor than the cheapest possible turn to compensate.
+      // Real cost is reconciled against the reserved amount on stream
+      // close (see settleReservation below); over-reservation refunds
+      // automatically if the actual ends up lower.
+      estimatedCost = 0.1;
     }
 
     reservedAmount = estimatedCost;
@@ -702,7 +710,13 @@ async function handleNativeResponsesPassthrough(
       organizationId: user.organization_id,
       amount: reservedAmount,
       description: `Responses API native passthrough (reserved): ${model}`,
-      metadata: { user_id: user.id, type: "reservation", estimated: true, passthrough: true },
+      metadata: {
+        user_id: user.id,
+        api_key_id: apiKey?.id ?? null,
+        type: "reservation",
+        estimated: true,
+        passthrough: true,
+      },
     });
 
     if (!reservationResult.success) {
@@ -723,6 +737,7 @@ async function handleNativeResponsesPassthrough(
     }
 
     const organizationId = user.organization_id;
+    const apiKeyId = apiKey?.id ?? null;
     settleReservation = async (actualCost: number) => {
       try {
         await creditsService.reconcile({
@@ -730,7 +745,11 @@ async function handleNativeResponsesPassthrough(
           reservedAmount,
           actualCost,
           description: `Responses API native passthrough (reconciled): ${model}`,
-          metadata: { user_id: user.id, passthrough: true },
+          metadata: {
+            user_id: user.id,
+            api_key_id: apiKeyId,
+            passthrough: true,
+          },
         });
       } catch (err) {
         logger.error("[Responses API passthrough] reconcile failed", { err });
@@ -792,19 +811,26 @@ async function handleNativeResponsesPassthrough(
     });
   }
 
-  // TODO: parse `response.completed` SSE event to reconcile actual cost
-  // from upstream usage. For now we settle to the reserved estimate in
-  // the background once the stream closes.
+  // Background settlement of the credit reservation.
+  //
+  // Known trade-off (documented for PR #427 review): this fires
+  // immediately after returning the Response, NOT after the client
+  // finishes reading the stream body. For large streamed responses
+  // or user-cancelled turns (e.g. Codex CLI Ctrl-C), we still charge
+  // the full reserved estimate. The 50% safety buffer in
+  // `estimateRequestCost` keeps this from being a massive overcharge,
+  // but it is an overcharge.
+  //
+  // Proper fix (follow-up PR): tee the upstream stream, parse the
+  // `response.completed` SSE event to extract actual usage, and
+  // reconcile to the real cost on stream close / abort. Doing that
+  // correctly requires wrapping the ReadableStream and is big enough
+  // to split from this PR.
   if (settleReservation) {
     const settle = settleReservation;
     const reserved = reservedAmount;
-    // Fire-and-forget reconciliation to the reserved amount (no refund,
-    // no extra charge) once streaming finishes. This preserves the 50%
-    // safety buffer behavior of estimateRequestCost as an upper bound.
     void (async () => {
       try {
-        // Give streaming consumer time to read; reservation settles on
-        // any event loop turn — no need to await the body.
         await settle(reserved);
       } catch (err) {
         logger.warn("[Responses API passthrough] background settle failed", { err });
@@ -812,20 +838,48 @@ async function handleNativeResponsesPassthrough(
     })();
   }
 
-  // Strip hop-by-hop / gateway-specific headers that would confuse the
-  // client when forwarded verbatim.
+  // Build the client-visible response headers. Start from the upstream
+  // headers and strip:
+  //   (a) hop-by-hop headers that would confuse the client because the
+  //       bytes have been re-emitted into a new HTTP response,
+  //   (b) gateway-internal headers that leak infrastructure details
+  //       (Vercel AI Gateway, Cloudflare) without being useful to the
+  //       end client.
+  //
+  // We intentionally DO forward `x-ratelimit-*` headers so clients can
+  // observe their remaining budget upstream — that is the whole point
+  // of passthrough transparency.
   const outHeaders = new Headers(upstreamResponse.headers);
-  for (const h of ["content-encoding", "content-length", "transfer-encoding", "connection"]) {
+  const STRIP_HEADERS = [
+    // Hop-by-hop
+    "content-encoding",
+    "content-length",
+    "transfer-encoding",
+    "connection",
+    "keep-alive",
+    // Gateway/infra internals that shouldn't leak to clients
+    "cf-ray",
+    "cf-cache-status",
+    "server",
+    "via",
+    "x-vercel-cache",
+    "x-vercel-id",
+    "x-vercel-execution-region",
+  ];
+  for (const h of STRIP_HEADERS) {
     outHeaders.delete(h);
   }
   // Mark passthrough so we can correlate in logs.
   outHeaders.set("x-eliza-responses-passthrough", "1");
 
+  const durationMs = Date.now() - startTime;
   logger.info("[Responses API passthrough] forwarded upstream response", {
     model,
     status: upstreamResponse.status,
     userId: user.id,
+    apiKeyId: apiKey?.id ?? null,
     anonymous: isAnonymous,
+    durationMs,
   });
 
   return new Response(upstreamResponse.body, {

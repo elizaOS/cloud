@@ -519,6 +519,107 @@ describe("/api/v1/responses", () => {
     );
   });
 
+  test("threads api_key_id into credit reservation + reconcile metadata", async () => {
+    // Regression guard for the PR #427 review finding: the `apiKey`
+    // parameter was accepted but never used, creating an audit-trail
+    // gap. Both reserveAndDeductCredits and reconcile must receive
+    // the api_key_id so credits can be traced back to the key that
+    // paid for them.
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockReserveAndDeductCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ api_key_id: "api-key-1" }),
+      }),
+    );
+    expect(mockReconcileCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ api_key_id: "api-key-1" }),
+      }),
+    );
+  });
+
+  test("strips gateway-internal headers from passthrough response", async () => {
+    // x-vercel-*, cf-ray, server, via, etc. must NOT leak to clients.
+    // x-ratelimit-* DOES forward (transparency for client budgets).
+    mockResponsesPassthrough.mockResolvedValueOnce(
+      new Response('data: {"type":"response.completed"}\n\n', {
+        status: 200,
+        headers: {
+          "content-type": "text/event-stream",
+          "x-vercel-cache": "MISS",
+          "x-vercel-id": "pdx1::iad1::abc",
+          "x-vercel-execution-region": "iad1",
+          "cf-ray": "abc123-ORD",
+          "cf-cache-status": "DYNAMIC",
+          via: "1.1 vercel",
+          server: "Vercel",
+          "x-ratelimit-remaining-requests": "99",
+          "x-ratelimit-remaining-tokens": "9999",
+        },
+      }),
+    );
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+
+    // Stripped
+    for (const header of [
+      "x-vercel-cache",
+      "x-vercel-id",
+      "x-vercel-execution-region",
+      "cf-ray",
+      "cf-cache-status",
+      "via",
+      "server",
+    ]) {
+      expect(response.headers.get(header)).toBeNull();
+    }
+
+    // Forwarded (client transparency)
+    expect(response.headers.get("x-ratelimit-remaining-requests")).toBe("99");
+    expect(response.headers.get("x-ratelimit-remaining-tokens")).toBe("9999");
+
+    // Always set
+    expect(response.headers.get("x-eliza-responses-passthrough")).toBe("1");
+  });
+
+  test("uses a safe fallback reservation floor when estimateRequestCost throws", async () => {
+    // PR #427 review finding: the original $0.01 floor was too small.
+    // When estimation fails we should reserve a non-trivial amount so
+    // an uncharged runaway session can't drain credits. Real cost is
+    // reconciled on stream close.
+    mockEstimateRequestCost.mockRejectedValueOnce(new Error("estimate boom"));
+
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    // Reserved amount should be the documented floor (0.10), not the
+    // previous 0.01 and not zero.
+    expect(mockReserveAndDeductCredits).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 0.1 }),
+    );
+  });
+
   test("forwards custom and web_search tools verbatim in passthrough body", async () => {
     // Regression guard: the passthrough must not strip Responses-API-only
     // tool types. Codex relies on apply_patch (type:"custom") and
