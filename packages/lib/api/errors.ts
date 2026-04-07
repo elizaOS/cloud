@@ -12,7 +12,6 @@ export type ApiErrorCode =
   | "session_auth_required"
   | "invalid_credentials"
   | "access_denied"
-  | "forbidden"
   | "resource_not_found"
   | "rate_limit_exceeded"
   | "validation_error"
@@ -267,7 +266,23 @@ export function getSafeErrorMessage(error: unknown): string {
   }
 
   if (error instanceof Error) {
-    // Allow certain error messages through
+    const message = error.message.toLowerCase();
+
+    // Never leak DB/auth backend details even if they contain "safe" keywords
+    const denyPatterns = [
+      "password authentication failed",
+      "authentication failed for user",
+      "connection refused",
+      "ECONNREFUSED",
+      "database",
+      "postgres",
+      "redis",
+    ];
+    if (denyPatterns.some((pattern) => message.includes(pattern.toLowerCase()))) {
+      return "An unexpected error occurred";
+    }
+
+    // Allow certain error messages through for non-500 errors
     const safePatterns = [
       "not found",
       "access denied",
@@ -278,11 +293,12 @@ export function getSafeErrorMessage(error: unknown): string {
       "insufficient",
     ];
 
-    const message = error.message.toLowerCase();
     if (message.includes("organization") && message.includes("inactive")) {
       return error.message;
     }
-    if (safePatterns.some((pattern) => message.includes(pattern))) {
+    // Only apply safePatterns for client errors (< 500), not internal failures
+    const status = getErrorStatusCode(error);
+    if (status < 500 && safePatterns.some((pattern) => message.includes(pattern))) {
       return error.message;
     }
   }
