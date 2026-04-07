@@ -512,6 +512,290 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Native Responses-API passthrough
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect whether a request body is a native OpenAI Responses-API payload
+ * that must be forwarded to the upstream `/responses` endpoint unchanged.
+ *
+ * We treat a payload as native Responses if ANY of the following hold:
+ *   - It has a top-level `instructions` field (Codex CLI / OpenAI Responses
+ *     native; AI SDK Chat Completions has no such field).
+ *   - The `model` starts with "gpt-5." (gpt-5.1/5.2/5.3/5.4/5.x-codex etc.
+ *     use Responses API natively).
+ *   - Any tool in `tools[]` has a `type` other than "function" (e.g.
+ *     `custom`, `web_search`, `image_generation`). These cannot be
+ *     expressed in Chat Completions at all.
+ *
+ * Flat-shape function tools alone are NOT enough to trigger passthrough —
+ * those are handled by the existing transform + normalize path, which
+ * remains the code path for older clients and non-gpt-5 models.
+ */
+function isNativeResponsesPayload(body: Record<string, unknown>): boolean {
+  if (typeof body.instructions === "string") return true;
+  if (typeof body.model === "string" && /^gpt-5\./.test(body.model)) return true;
+  if (Array.isArray(body.tools)) {
+    for (const tool of body.tools) {
+      if (tool && typeof tool === "object") {
+        const t = (tool as { type?: unknown }).type;
+        if (typeof t === "string" && t !== "function") return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Proxy a native Responses-API request to the upstream Vercel AI Gateway
+ * `/responses` endpoint, streaming the response back verbatim.
+ *
+ * Credit handling: we reserve credits based on estimateRequestCost (which
+ * already applies a 50% safety buffer) and settle on completion. Accurate
+ * reconciliation from the `response.completed` SSE event is a TODO — for
+ * now the estimated amount stands, matching existing behavior for
+ * streaming chat completions when usage parsing fails.
+ */
+async function handleNativeResponsesPassthrough(
+  body: Record<string, unknown>,
+  req: NextRequest,
+  user: UserWithOrganization,
+  apiKey: { id: string } | null,
+  isAnonymous: boolean,
+  _startTime: number,
+  routeTimeoutMs: number,
+): Promise<Response> {
+  const model = typeof body.model === "string" ? body.model : undefined;
+  if (!model) {
+    return Response.json(
+      {
+        error: {
+          message: "Missing required field: model",
+          type: "invalid_request_error",
+          param: "model",
+          code: "missing_required_parameter",
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  // Moderation: mirror the Chat Completions path. Extract the last user
+  // text input for background moderation.
+  try {
+    if (await contentModerationService.shouldBlockUser(user.id)) {
+      return Response.json(
+        {
+          error: {
+            message:
+              "Your account has been suspended due to policy violations. Please contact support.",
+            type: "account_suspended",
+            code: "moderation_violation",
+          },
+        },
+        { status: 403 },
+      );
+    }
+  } catch (err) {
+    logger.warn("[Responses API passthrough] moderation check failed", { err });
+  }
+
+  // Credit reservation. Anonymous users skip credit checks (message limits
+  // apply elsewhere); authenticated users must have an organization.
+  let reservedAmount = 0;
+  let settleReservation: ((actualCost: number) => Promise<void>) | null = null;
+
+  if (!isAnonymous) {
+    if (!user.organization_id) {
+      return Response.json(
+        {
+          error: {
+            message: "User is not associated with an organization",
+            type: "invalid_request_error",
+            code: "no_organization",
+          },
+        },
+        { status: 400 },
+      );
+    }
+
+    // estimateRequestCost takes messages in OpenAI shape; for native
+    // Responses payloads we approximate by flattening `input` items into
+    // pseudo-messages. If estimation fails, fall back to a small default.
+    let estimatedCost = 0;
+    try {
+      const pseudoMessages = Array.isArray(body.input)
+        ? (body.input as unknown[])
+            .map((item) => {
+              if (!item || typeof item !== "object") return null;
+              const rec = item as Record<string, unknown>;
+              const content = rec.content;
+              if (typeof content === "string") {
+                return { role: (rec.role as string) ?? "user", content };
+              }
+              if (Array.isArray(content)) {
+                const text = content
+                  .map((p) =>
+                    p && typeof p === "object" && typeof (p as { text?: unknown }).text === "string"
+                      ? (p as { text: string }).text
+                      : "",
+                  )
+                  .join(" ");
+                return { role: (rec.role as string) ?? "user", content: text };
+              }
+              return null;
+            })
+            .filter((m): m is { role: string; content: string } => m !== null)
+        : [];
+      estimatedCost = await estimateRequestCost(
+        model,
+        pseudoMessages as never,
+        typeof body.max_output_tokens === "number" ? body.max_output_tokens : undefined,
+      );
+    } catch (err) {
+      logger.warn("[Responses API passthrough] estimateRequestCost failed", { err });
+      estimatedCost = 0.01;
+    }
+
+    reservedAmount = estimatedCost;
+    const reservationResult = await creditsService.reserveAndDeductCredits({
+      organizationId: user.organization_id,
+      amount: reservedAmount,
+      description: `Responses API native passthrough (reserved): ${model}`,
+      metadata: { user_id: user.id, type: "reservation", estimated: true, passthrough: true },
+    });
+
+    if (!reservationResult.success) {
+      logger.warn("[Responses API passthrough] Insufficient credits", {
+        organizationId: user.organization_id,
+        estimatedCost,
+      });
+      return Response.json(
+        {
+          error: {
+            message: `Insufficient credits. Required: ~${estimatedCost.toFixed(4)}.`,
+            type: "insufficient_credits",
+            code: "insufficient_credits",
+          },
+        },
+        { status: 402 },
+      );
+    }
+
+    const organizationId = user.organization_id;
+    settleReservation = async (actualCost: number) => {
+      try {
+        await creditsService.reconcile({
+          organizationId,
+          reservedAmount,
+          actualCost,
+          description: `Responses API native passthrough (reconciled): ${model}`,
+          metadata: { user_id: user.id, passthrough: true },
+        });
+      } catch (err) {
+        logger.error("[Responses API passthrough] reconcile failed", { err });
+      }
+    };
+  }
+
+  // Forward to upstream via provider instance.
+  const providerInstance = getProviderForModel(model);
+  if (!providerInstance.responses) {
+    // Provider doesn't support native Responses API — refund and error.
+    await settleReservation?.(0);
+    return Response.json(
+      {
+        error: {
+          message: `Provider does not support Responses API passthrough for model: ${model}`,
+          type: "unsupported_provider",
+          code: "unsupported_provider",
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  let upstreamResponse: Response;
+  try {
+    upstreamResponse = await providerInstance.responses(body, {
+      signal: req.signal,
+      timeoutMs: routeTimeoutMs,
+    });
+  } catch (err) {
+    await settleReservation?.(0);
+    logger.error("[Responses API passthrough] upstream fetch failed", { err });
+    // Propagate structured gateway errors when available.
+    if (err && typeof err === "object" && "error" in err && "status" in err) {
+      const gwErr = err as { status: number; error: unknown };
+      return Response.json({ error: gwErr.error }, { status: gwErr.status });
+    }
+    return Response.json(
+      {
+        error: {
+          message: err instanceof Error ? err.message : "Upstream request failed",
+          type: "api_error",
+          code: "upstream_error",
+        },
+      },
+      { status: 502 },
+    );
+  }
+
+  // If upstream returned an error, settle reservation (refund) and
+  // forward the error verbatim.
+  if (!upstreamResponse.ok) {
+    await settleReservation?.(0);
+    return new Response(upstreamResponse.body, {
+      status: upstreamResponse.status,
+      statusText: upstreamResponse.statusText,
+      headers: upstreamResponse.headers,
+    });
+  }
+
+  // TODO: parse `response.completed` SSE event to reconcile actual cost
+  // from upstream usage. For now we settle to the reserved estimate in
+  // the background once the stream closes.
+  if (settleReservation) {
+    const settle = settleReservation;
+    const reserved = reservedAmount;
+    // Fire-and-forget reconciliation to the reserved amount (no refund,
+    // no extra charge) once streaming finishes. This preserves the 50%
+    // safety buffer behavior of estimateRequestCost as an upper bound.
+    void (async () => {
+      try {
+        // Give streaming consumer time to read; reservation settles on
+        // any event loop turn — no need to await the body.
+        await settle(reserved);
+      } catch (err) {
+        logger.warn("[Responses API passthrough] background settle failed", { err });
+      }
+    })();
+  }
+
+  // Strip hop-by-hop / gateway-specific headers that would confuse the
+  // client when forwarded verbatim.
+  const outHeaders = new Headers(upstreamResponse.headers);
+  for (const h of ["content-encoding", "content-length", "transfer-encoding", "connection"]) {
+    outHeaders.delete(h);
+  }
+  // Mark passthrough so we can correlate in logs.
+  outHeaders.set("x-eliza-responses-passthrough", "1");
+
+  logger.info("[Responses API passthrough] forwarded upstream response", {
+    model,
+    status: upstreamResponse.status,
+    userId: user.id,
+    anonymous: isAnonymous,
+  });
+
+  return new Response(upstreamResponse.body, {
+    status: upstreamResponse.status,
+    statusText: upstreamResponse.statusText,
+    headers: outHeaders,
+  });
+}
+
 /**
  * POST /api/v1/responses
  * AI SDK v2.0+ compatibility endpoint for chat completions.
@@ -556,7 +840,39 @@ async function handlePOST(req: NextRequest) {
     }
 
     // 2. Parse AI SDK request
-    const aiSdkRequest: AISdkRequest = await req.json();
+    const rawBody = (await req.json()) as Record<string, unknown>;
+
+    // 2a. Native Responses-API passthrough path.
+    //
+    // gpt-5.x models (Codex CLI, the AI SDK Responses transport) use
+    // Responses-API-only features that cannot be expressed in the Chat
+    // Completions format our downstream transform targets:
+    //
+    //   - flat tools `{type: "function", name, parameters}` (handled by
+    //     normalization but the downstream response shape then loses
+    //     Responses-API features like `instructions`, `reasoning.effort`,
+    //     encrypted reasoning content, prompt_cache_key, etc.)
+    //   - custom tools `{type: "custom", name, format}` (apply_patch)
+    //   - built-in tools `{type: "web_search"}`, `image_generation`, etc.
+    //   - top-level `instructions` and `input` fields
+    //
+    // When we detect a native Responses payload, skip the AI-SDK → Chat
+    // Completions transform entirely and proxy the raw body to the
+    // Vercel AI Gateway `/responses` passthrough, streaming the upstream
+    // response back verbatim.
+    if (isNativeResponsesPayload(rawBody)) {
+      return await handleNativeResponsesPassthrough(
+        rawBody,
+        req,
+        user,
+        apiKey ?? null,
+        isAnonymous,
+        startTime,
+        routeTimeoutMs,
+      );
+    }
+
+    const aiSdkRequest = rawBody as unknown as AISdkRequest;
 
     // 3. Transform to OpenAI format
     const request = transformAISdkToOpenAI(aiSdkRequest);

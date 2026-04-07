@@ -22,6 +22,7 @@ const mockNormalizeModelName = mock();
 const mockIsReasoningModel = mock();
 const mockGetProviderForModel = mock();
 const mockChatCompletions = mock();
+const mockResponsesPassthrough = mock();
 const mockShouldBlockUser = mock();
 const mockModerateInBackground = mock();
 const mockReserveAndDeductCredits = mock();
@@ -140,7 +141,15 @@ beforeEach(() => {
   mockIsReasoningModel.mockReturnValue(false);
   mockGetProviderForModel.mockReturnValue({
     chatCompletions: mockChatCompletions,
+    responses: mockResponsesPassthrough,
   });
+  mockResponsesPassthrough.mockReset();
+  mockResponsesPassthrough.mockResolvedValue(
+    new Response('data: {"type":"response.completed"}\n\n', {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    }),
+  );
   mockShouldBlockUser.mockResolvedValue(false);
   mockReserveAndDeductCredits.mockResolvedValue({ success: true });
   mockReconcileCredits.mockResolvedValue(undefined);
@@ -283,6 +292,85 @@ describe("/api/v1/responses", () => {
         timeoutMs: expect.any(Number),
       }),
     );
+  });
+
+  test("routes gpt-5.x native Responses-API payload to passthrough", async () => {
+    // Codex CLI sends `instructions` + a `custom` tool. This shape is
+    // not representable in Chat Completions format, so the route must
+    // detect it and call the provider's native responses() passthrough.
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "You are Codex.",
+        input: [{ role: "user", content: "hello" }],
+        tools: [
+          {
+            type: "function",
+            name: "exec_command",
+            parameters: { type: "object", properties: {} },
+          },
+          {
+            type: "custom",
+            name: "apply_patch",
+            format: { type: "grammar", syntax: "lark", definition: "" },
+          },
+          { type: "web_search", external_web_access: false },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-eliza-responses-passthrough")).toBe("1");
+    expect(mockResponsesPassthrough).toHaveBeenCalledTimes(1);
+    // Chat completions must NOT be called when passthrough runs.
+    expect(mockChatCompletions).not.toHaveBeenCalled();
+
+    // The raw body (including flat tools, custom tools, web_search, and
+    // `instructions`) must be forwarded verbatim to the provider.
+    const [passthroughBody] = mockResponsesPassthrough.mock.calls[0];
+    expect(passthroughBody.instructions).toBe("You are Codex.");
+    expect(passthroughBody.tools).toHaveLength(3);
+    expect(passthroughBody.tools[0]).toEqual({
+      type: "function",
+      name: "exec_command",
+      parameters: { type: "object", properties: {} },
+    });
+    expect(passthroughBody.tools[1].type).toBe("custom");
+    expect(passthroughBody.tools[2].type).toBe("web_search");
+  });
+
+  test("routes requests with custom tools to passthrough even without instructions", async () => {
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-4o",
+        input: [{ role: "user", content: "go" }],
+        tools: [{ type: "web_search" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockResponsesPassthrough).toHaveBeenCalledTimes(1);
+    expect(mockChatCompletions).not.toHaveBeenCalled();
+  });
+
+  test("routes Chat Completions-compatible requests to the normal transform path", async () => {
+    // No instructions, no custom tools, gpt-4o → normal path.
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-4o-mini",
+        input: [{ role: "user", content: "hi" }],
+        tools: [
+          {
+            type: "function",
+            function: { name: "search", parameters: { type: "object", properties: {} } },
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockResponsesPassthrough).not.toHaveBeenCalled();
+    expect(mockChatCompletions).toHaveBeenCalledTimes(1);
   });
 
   test("normalizes flat Responses-API tools before forwarding to chat completions", async () => {
