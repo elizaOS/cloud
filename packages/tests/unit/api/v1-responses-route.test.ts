@@ -420,6 +420,20 @@ describe("/api/v1/responses", () => {
     expect(mockChatCompletions).not.toHaveBeenCalled();
   });
 
+  test("detects plain `gpt-5` (no dash, no dot) as native Responses", async () => {
+    // Explicit regression guard: the regex uses `/^gpt-5(\b|[-.])/`
+    // which must also match the bare `gpt-5` string via the `\b`
+    // anchor at end-of-input. Requested by review on #427.
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+    expect(mockResponsesPassthrough).toHaveBeenCalledTimes(1);
+    expect(mockChatCompletions).not.toHaveBeenCalled();
+  });
+
   test("forwards upstream 4xx errors verbatim and refunds credits", async () => {
     mockResponsesPassthrough.mockResolvedValueOnce(
       Response.json(
@@ -477,6 +491,33 @@ describe("/api/v1/responses", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.error.code).toBe("unsupported_provider");
+  });
+
+  test("provider check runs BEFORE credit reservation (no reserve/refund roundtrip)", async () => {
+    // Regression guard for the PR #427 review finding: previously the
+    // provider existence check happened after reserveAndDeductCredits,
+    // so an unsupported provider caused a reserve → refund round-trip
+    // that touched the ledger for no reason. Now the check happens up
+    // front and the credits service must never be called.
+    mockGetProviderForModel.mockReturnValueOnce({
+      chatCompletions: mockChatCompletions,
+      // no responses method
+    });
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    // Credits ledger must not have been touched at all.
+    expect(mockReserveAndDeductCredits).not.toHaveBeenCalled();
+    expect(mockReconcileCredits).not.toHaveBeenCalled();
+    // And the upstream must not have been called either.
+    expect(mockResponsesPassthrough).not.toHaveBeenCalled();
   });
 
   test("anonymous users skip credit reservation in passthrough", async () => {
@@ -596,6 +637,83 @@ describe("/api/v1/responses", () => {
 
     // Always set
     expect(response.headers.get("x-eliza-responses-passthrough")).toBe("1");
+  });
+
+  test("strips set-cookie headers from passthrough response", async () => {
+    // Review finding on #427: forwarding upstream cookies through a
+    // proxy breaks cookie domain/path semantics and leaks upstream
+    // session state to clients. Must be stripped regardless of what
+    // the upstream sends.
+    mockResponsesPassthrough.mockResolvedValueOnce(
+      new Response('data: {"type":"response.completed"}\n\n', {
+        status: 200,
+        headers: {
+          "content-type": "text/event-stream",
+          "set-cookie": "upstream_session=abc123; Path=/; HttpOnly; Secure; SameSite=Strict",
+        },
+      }),
+    );
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
+
+  test("rejects request bodies over the 4 MiB cap with 413", async () => {
+    // Review finding on #427: the passthrough forwards bodies verbatim
+    // upstream, so we need an explicit size guard. Clients that set
+    // Content-Length above the cap should be rejected early before any
+    // credit reservation or upstream fetch.
+    const request = jsonRequest(
+      "http://localhost:3000/api/v1/responses",
+      "POST",
+      {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      },
+      // Content-Length header claiming 5 MiB — the actual body JSON
+      // is tiny but the guard trusts the declared header for early
+      // rejection.
+      { "content-length": String(5 * 1024 * 1024) },
+    );
+
+    const response = await responsesPost(request);
+
+    expect(response.status).toBe(413);
+    const body = await response.json();
+    expect(body.error.code).toBe("request_too_large");
+    // Nothing downstream should have been touched.
+    expect(mockReserveAndDeductCredits).not.toHaveBeenCalled();
+    expect(mockResponsesPassthrough).not.toHaveBeenCalled();
+    expect(mockChatCompletions).not.toHaveBeenCalled();
+  });
+
+  test("accepts requests well under the 4 MiB cap", async () => {
+    // Positive control — a normal-sized request with an explicit
+    // Content-Length header should pass the guard unchanged.
+    const request = jsonRequest(
+      "http://localhost:3000/api/v1/responses",
+      "POST",
+      {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      },
+      { "content-length": String(2048) },
+    );
+
+    const response = await responsesPost(request);
+
+    expect(response.status).toBe(200);
+    expect(mockResponsesPassthrough).toHaveBeenCalledTimes(1);
   });
 
   test("uses a safe fallback reservation floor when estimateRequestCost throws", async () => {

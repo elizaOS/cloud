@@ -611,13 +611,35 @@ async function handleNativeResponsesPassthrough(
   // the client sent a bare id. We build a shallow clone rather than
   // mutating the caller's body.
   const gatewayModel = normalizeGatewayModelId(model);
-  const bodyForUpstream: Record<string, unknown> =
-    gatewayModel === model ? body : { ...body, model: gatewayModel };
-  if (gatewayModel !== model) {
+  const needsModelRewrite = gatewayModel !== model;
+  const bodyForUpstream: Record<string, unknown> = needsModelRewrite
+    ? { ...body, model: gatewayModel }
+    : body;
+  if (needsModelRewrite) {
     logger.debug("[Responses API passthrough] rewrote model id for gateway", {
       original: model,
       gateway: gatewayModel,
     });
+  }
+
+  // Resolve the provider BEFORE reserving credits. If the provider
+  // can't proxy Responses API we want to bail out cleanly without
+  // touching the credits ledger — this avoids a reserve → refund
+  // round-trip on every unsupported-provider request, and removes the
+  // failure mode where a reservation could leak if the refund path
+  // throws.
+  const providerInstance = getProviderForModel(model);
+  if (!providerInstance.responses) {
+    return Response.json(
+      {
+        error: {
+          message: `Provider does not support Responses API passthrough for model: ${model}`,
+          type: "unsupported_provider",
+          code: "unsupported_provider",
+        },
+      },
+      { status: 400 },
+    );
   }
 
   // Moderation: mirror the Chat Completions path. Extract the last user
@@ -664,14 +686,17 @@ async function handleNativeResponsesPassthrough(
     // pseudo-messages. If estimation fails, fall back to a small default.
     let estimatedCost = 0;
     try {
-      const pseudoMessages = Array.isArray(body.input)
+      const pseudoMessages: Array<{ role: string; content: string }> = Array.isArray(body.input)
         ? (body.input as unknown[])
             .map((item) => {
               if (!item || typeof item !== "object") return null;
               const rec = item as Record<string, unknown>;
               const content = rec.content;
               if (typeof content === "string") {
-                return { role: (rec.role as string) ?? "user", content };
+                return {
+                  role: (rec.role as string) ?? "user",
+                  content,
+                };
               }
               if (Array.isArray(content)) {
                 const text = content
@@ -681,15 +706,22 @@ async function handleNativeResponsesPassthrough(
                       : "",
                   )
                   .join(" ");
-                return { role: (rec.role as string) ?? "user", content: text };
+                return {
+                  role: (rec.role as string) ?? "user",
+                  content: text,
+                };
               }
               return null;
             })
             .filter((m): m is { role: string; content: string } => m !== null)
         : [];
+      // pseudoMessages satisfies the looser
+      // `Array<{ role: string; content: string | object }>` shape
+      // estimateRequestCost expects — TypeScript widens `content` to
+      // `string | object` implicitly at the call site.
       estimatedCost = await estimateRequestCost(
         model,
-        pseudoMessages as never,
+        pseudoMessages,
         typeof body.max_output_tokens === "number" ? body.max_output_tokens : undefined,
       );
     } catch (err) {
@@ -757,26 +789,31 @@ async function handleNativeResponsesPassthrough(
     };
   }
 
-  // Forward to upstream via provider instance.
-  const providerInstance = getProviderForModel(model);
-  if (!providerInstance.responses) {
-    // Provider doesn't support native Responses API — refund and error.
+  // Forward to upstream. Provider existence was verified at the top of
+  // the handler before we touched the credits ledger — capture a local
+  // reference there and reuse it here, both to avoid a redundant second
+  // check and to keep the narrowed (non-null) type across the
+  // intervening credit reservation block.
+  const providerResponses = providerInstance.responses;
+  if (!providerResponses) {
+    // Unreachable at runtime — the early check returned 400 before we
+    // got here. This guard is load-bearing only for the type system.
     await settleReservation?.(0);
     return Response.json(
       {
         error: {
-          message: `Provider does not support Responses API passthrough for model: ${model}`,
-          type: "unsupported_provider",
-          code: "unsupported_provider",
+          message: "Provider responses method disappeared between check and call",
+          type: "internal_server_error",
+          code: "internal_server_error",
         },
       },
-      { status: 400 },
+      { status: 500 },
     );
   }
 
   let upstreamResponse: Response;
   try {
-    upstreamResponse = await providerInstance.responses(bodyForUpstream, {
+    upstreamResponse = await providerResponses(bodyForUpstream, {
       signal: req.signal,
       timeoutMs: routeTimeoutMs,
     });
@@ -857,6 +894,10 @@ async function handleNativeResponsesPassthrough(
     "transfer-encoding",
     "connection",
     "keep-alive",
+    // Session-bearing headers: forwarding upstream cookies through a
+    // proxy almost always breaks cookie domain/path semantics and
+    // leaks upstream session state to our clients. Strip aggressively.
+    "set-cookie",
     // Gateway/infra internals that shouldn't leak to clients
     "cf-ray",
     "cf-cache-status",
@@ -898,12 +939,52 @@ async function handleNativeResponsesPassthrough(
  * @param req - AI SDK format request with input messages and max_output_tokens.
  * @returns Streaming or non-streaming chat completion response in AI SDK format.
  */
+/**
+ * Hard cap on request body size for the /v1/responses route.
+ *
+ * 4 MiB is generous enough for a gpt-5.x Codex session including a
+ * multi-kilobyte `apply_patch` grammar definition, custom tools with
+ * full JSON schemas, and ~30 prior turns of conversation history, but
+ * small enough to stop an abusive client from streaming unbounded
+ * payloads through the proxy. Chat Completions is currently
+ * unguarded; this adds explicit protection on the passthrough route
+ * where we are most exposed because we forward bodies upstream
+ * verbatim.
+ */
+const MAX_RESPONSES_BODY_BYTES = 4 * 1024 * 1024;
+
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
   const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
   let settleReservation: ((actualCost: number) => Promise<void>) | null = null;
 
   try {
+    // Body size guard. The `Content-Length` header is a hint rather
+    // than a guarantee (clients can lie, chunked encoding omits it),
+    // but most legitimate clients do set it and rejecting early here
+    // means we don't burn a credit reservation or an upstream fetch
+    // on requests that will obviously be too big.
+    const contentLengthHeader = req.headers.get("content-length");
+    if (contentLengthHeader) {
+      const contentLength = Number.parseInt(contentLengthHeader, 10);
+      if (Number.isFinite(contentLength) && contentLength > MAX_RESPONSES_BODY_BYTES) {
+        logger.warn("[Responses API] rejecting oversized request body", {
+          contentLength,
+          limit: MAX_RESPONSES_BODY_BYTES,
+        });
+        return Response.json(
+          {
+            error: {
+              message: `Request body exceeds ${MAX_RESPONSES_BODY_BYTES} bytes`,
+              type: "invalid_request_error",
+              code: "request_too_large",
+            },
+          },
+          { status: 413 },
+        );
+      }
+    }
+
     // 1. Authenticate - Support both authenticated and anonymous users
     let user: UserWithOrganization;
     let apiKey;
