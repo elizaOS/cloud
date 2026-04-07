@@ -458,19 +458,13 @@ async function handlePOST(req: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Chat Completions] Error", { error: errorMessage });
 
-    let status = getErrorStatusCode(error);
+    const status = getErrorStatusCode(error);
     let errorType = "api_error";
     if (status === 401) {
       errorType = "authentication_error";
     } else if (status === 402) {
       errorType = "insufficient_quota";
     } else if (status === 400) {
-      errorType = "invalid_request_error";
-    } else if (
-      status === 500 &&
-      (errorMessage.includes("Invalid") || errorMessage.includes("validation"))
-    ) {
-      status = 400;
       errorType = "invalid_request_error";
     }
 
