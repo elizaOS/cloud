@@ -277,6 +277,12 @@ export function getSafeErrorMessage(error: unknown): string {
       "database",
       "postgres",
       "redis",
+      "SASL",
+      "socket",
+      "timeout expired",
+      "connect ETIMEDOUT",
+      "getaddrinfo",
+      "ENOTFOUND",
     ];
     if (denyPatterns.some((pattern) => message.includes(pattern.toLowerCase()))) {
       return "An unexpected error occurred";
