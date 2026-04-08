@@ -39,6 +39,7 @@ import type {
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
+import { llmTrajectoryService } from "@/lib/services/llm-trajectory";
 import { usageService } from "@/lib/services/usage";
 import type { UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
@@ -49,6 +50,15 @@ import {
 } from "@/lib/utils/responses-stream-reconcile";
 
 export const maxDuration = 800;
+
+interface ResponsesTrajectoryContext {
+  purpose?: string;
+  modelType?: string;
+  requestId?: string;
+  systemPrompt?: string;
+  userPrompt?: string;
+  metadata: Record<string, unknown>;
+}
 
 // ---------------------------------------------------------------------------
 // Tool format types
@@ -514,6 +524,121 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
       ? { provider_metadata: openAIResponse.provider_metadata }
       : {}),
   };
+}
+
+function stringifyMessageContent(
+  content: OpenAIChatRequest["messages"][number]["content"] | undefined,
+): string {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .map((part) => {
+      if (typeof part === "string") {
+        return part;
+      }
+
+      if (part && typeof part === "object") {
+        if ("text" in part && typeof part.text === "string") {
+          return part.text;
+        }
+        if (
+          "image_url" in part &&
+          typeof part.image_url === "object" &&
+          part.image_url !== null &&
+          "url" in part.image_url &&
+          typeof part.image_url.url === "string"
+        ) {
+          return `[image:${part.image_url.url}]`;
+        }
+        if ("file" in part && part.file && typeof part.file === "object") {
+          const filePart = part.file as { filename?: string; file_id?: string; file_data?: string };
+          return `[file:${filePart.filename ?? filePart.file_id ?? filePart.file_data ?? "attachment"}]`;
+        }
+      }
+
+      return "";
+    })
+    .filter((value) => value.length > 0)
+    .join("\n");
+}
+
+function buildTrajectoryContext(
+  req: NextRequest,
+  request: OpenAIChatRequest,
+): ResponsesTrajectoryContext {
+  const systemPrompt = request.messages
+    .filter((message) => message.role === "system")
+    .map((message) => stringifyMessageContent(message.content))
+    .filter((value) => value.length > 0)
+    .join("\n\n");
+
+  const transcript = request.messages
+    .filter((message) => message.role !== "system")
+    .map((message) => `${message.role}: ${stringifyMessageContent(message.content)}`)
+    .filter((value) => value.length > 0)
+    .join("\n\n");
+
+  return {
+    purpose: req.headers.get("x-eliza-llm-purpose") ?? undefined,
+    modelType: req.headers.get("x-eliza-model-type") ?? undefined,
+    requestId: req.headers.get("x-request-id") ?? undefined,
+    systemPrompt: systemPrompt || undefined,
+    userPrompt: transcript || undefined,
+    metadata: {
+      route: "responses",
+      transport: "chat-completions-transform",
+      messageCount: request.messages.length,
+      stream: request.stream ?? false,
+      hasTools: Array.isArray(request.tools) && request.tools.length > 0,
+    },
+  };
+}
+
+async function logResponsesTrajectory(params: {
+  user: { organization_id: string | null; id: string };
+  apiKey: { id: string } | null;
+  model: string;
+  provider: string;
+  startTime: number;
+  inputTokens: number;
+  outputTokens: number;
+  inputCost: number;
+  outputCost: number;
+  responseText: string;
+  context: ResponsesTrajectoryContext;
+}): Promise<void> {
+  if (!params.user.organization_id) {
+    return;
+  }
+
+  await llmTrajectoryService.logCall({
+    organizationId: params.user.organization_id,
+    userId: params.user.id,
+    apiKeyId: params.apiKey?.id ?? null,
+    model: params.model,
+    provider: params.provider,
+    purpose: params.context.purpose,
+    requestId: params.context.requestId,
+    systemPrompt: params.context.systemPrompt,
+    userPrompt: params.context.userPrompt,
+    responseText: params.responseText,
+    inputTokens: params.inputTokens,
+    outputTokens: params.outputTokens,
+    inputCost: params.inputCost,
+    outputCost: params.outputCost,
+    latencyMs: Date.now() - params.startTime,
+    isSuccessful: true,
+    metadata: {
+      ...params.context.metadata,
+      modelType: params.context.modelType,
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1420,6 +1545,7 @@ async function handlePOST(req: NextRequest) {
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
+    const trajectoryContext = buildTrajectoryContext(req, request);
 
     // 5. DEDUCT credits BEFORE making API call (prevents TOCTOU race condition)
     // Skip for anonymous users - they use message limits instead
@@ -1551,6 +1677,7 @@ async function handlePOST(req: NextRequest) {
         normalizedModel,
         provider,
         startTime,
+        trajectoryContext,
         request.messages,
         reservedAmount,
         settleReservation,
@@ -1563,6 +1690,7 @@ async function handlePOST(req: NextRequest) {
         normalizedModel,
         provider,
         startTime,
+        trajectoryContext,
         reservedAmount,
         settleReservation,
       );
@@ -1633,6 +1761,7 @@ async function handleNonStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
+  trajectoryContext: ResponsesTrajectoryContext,
   reservedAmount?: number,
   settleReservation?: (actualCost: number) => Promise<void>,
 ) {
@@ -1700,6 +1829,20 @@ async function handleNonStreamingResponse(
           });
         }
 
+        await logResponsesTrajectory({
+          user,
+          apiKey,
+          model,
+          provider,
+          startTime,
+          inputTokens: usage.prompt_tokens,
+          outputTokens: usage.completion_tokens,
+          inputCost,
+          outputCost,
+          responseText: content,
+          context: trajectoryContext,
+        });
+
         logger.info("[Responses API] Chat completion completed", {
           durationMs: Date.now() - startTime,
           tokens: usage.total_tokens,
@@ -1727,6 +1870,7 @@ function handleStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
+  trajectoryContext: ResponsesTrajectoryContext,
   messages: Array<{ role: string; content: string | object }>,
   reservedAmount?: number,
   settleReservation?: (actualCost: number) => Promise<void>,
@@ -2008,6 +2152,20 @@ function handleStreamingResponse(
               },
             });
           }
+
+          await logResponsesTrajectory({
+            user,
+            apiKey,
+            model,
+            provider,
+            startTime,
+            inputTokens,
+            outputTokens,
+            inputCost,
+            outputCost,
+            responseText: fullContent,
+            context: trajectoryContext,
+          });
 
           logger.info("[Responses API] Streaming chat completed", {
             durationMs: Date.now() - startTime,

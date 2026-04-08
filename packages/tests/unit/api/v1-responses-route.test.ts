@@ -30,6 +30,7 @@ const mockReserveAndDeductCredits = mock();
 const mockReconcileCredits = mock();
 const mockCreateGeneration = mock();
 const mockCreateUsage = mock();
+const mockLogTrajectory = mock();
 const mockIsGroqNativeModel = mock();
 
 mock.module("@/lib/auth", () => ({
@@ -93,6 +94,12 @@ mock.module("@/lib/services/usage", () => ({
   },
 }));
 
+mock.module("@/lib/services/llm-trajectory", () => ({
+  llmTrajectoryService: {
+    logCall: mockLogTrajectory,
+  },
+}));
+
 mock.module("@/lib/utils/logger", () => ({
   logger: {
     info: () => {},
@@ -122,6 +129,7 @@ beforeEach(() => {
   mockReconcileCredits.mockReset();
   mockCreateGeneration.mockReset();
   mockCreateUsage.mockReset();
+  mockLogTrajectory.mockReset();
   mockIsGroqNativeModel.mockReset();
 
   mockRequireAuthOrApiKey.mockResolvedValue({
@@ -156,6 +164,7 @@ beforeEach(() => {
   mockReconcileCredits.mockResolvedValue(undefined);
   mockCreateGeneration.mockResolvedValue(undefined);
   mockCreateUsage.mockResolvedValue({ id: "usage-1" });
+  mockLogTrajectory.mockResolvedValue(undefined);
   mockIsGroqNativeModel.mockReturnValue(false);
   mockChatCompletions.mockResolvedValue(
     Response.json({
@@ -201,6 +210,36 @@ describe("/api/v1/responses", () => {
       "gpt-4o-mini",
       [{ role: "user", content: "hello there" }],
       2048,
+    );
+    expect(mockLogTrajectory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purpose: undefined,
+        model: "gpt-4o-mini",
+        provider: "openai",
+        responseText: "ok",
+      }),
+    );
+  });
+
+  test("propagates Eliza routing headers into trajectory metadata", async () => {
+    const request = jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+      model: "gpt-4o-mini",
+      input: [{ role: "user", content: "hello there" }],
+    });
+    request.headers.set("X-Eliza-Llm-Purpose", "should_respond");
+    request.headers.set("X-Eliza-Model-Type", "RESPONSE_HANDLER");
+
+    const response = await responsesPost(request);
+
+    expect(response.status).toBe(200);
+    expect(mockLogTrajectory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purpose: "should_respond",
+        metadata: expect.objectContaining({
+          modelType: "RESPONSE_HANDLER",
+          route: "responses",
+        }),
+      }),
     );
   });
 
