@@ -567,6 +567,34 @@ function sanitizeGatewayError(raw: unknown): {
   return sanitized;
 }
 
+const PASSTHROUGH_STRIP_HEADERS = [
+  // Hop-by-hop
+  "content-encoding",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+  "keep-alive",
+  // Session-bearing headers
+  "set-cookie",
+  // Gateway/infra internals
+  "cf-ray",
+  "cf-cache-status",
+  "server",
+  "via",
+  "x-vercel-cache",
+  "x-vercel-id",
+  "x-vercel-execution-region",
+] as const;
+
+function buildPassthroughResponseHeaders(headers: HeadersInit): Headers {
+  const outHeaders = new Headers(headers);
+  for (const header of PASSTHROUGH_STRIP_HEADERS) {
+    outHeaders.delete(header);
+  }
+  outHeaders.set("x-eliza-responses-passthrough", "1");
+  return outHeaders;
+}
+
 /**
  * Detect whether a request body is a native OpenAI Responses-API payload
  * that must be forwarded to the upstream `/responses` endpoint unchanged.
@@ -891,7 +919,7 @@ async function handleNativeResponsesPassthrough(
     return new Response(upstreamResponse.body, {
       status: upstreamResponse.status,
       statusText: upstreamResponse.statusText,
-      headers: upstreamResponse.headers,
+      headers: buildPassthroughResponseHeaders(upstreamResponse.headers),
     });
   }
 
@@ -918,8 +946,7 @@ async function handleNativeResponsesPassthrough(
   //   - NO BODY (headers-only upstream response, edge case): also
   //     synchronously settle to reserved so the reservation isn't
   //     stranded.
-  const upstreamContentType =
-    upstreamResponse.headers.get("content-type") ?? "";
+  const upstreamContentType = upstreamResponse.headers.get("content-type") ?? "";
   const isStreamingResponse = upstreamContentType.includes("text/event-stream");
 
   let reconciledBody: ReadableStream<Uint8Array> | null = null;
@@ -927,18 +954,13 @@ async function handleNativeResponsesPassthrough(
     // Streaming path: stream wrapper handles its own reconciliation
     // via the runReconciliation callback below.
     const providerName = getProviderFromModel(model);
-    const runReconciliation = async (
-      usage: ResponsesUsage | null,
-    ): Promise<void> => {
+    const runReconciliation = async (usage: ResponsesUsage | null): Promise<void> => {
       if (!settleReservation) return;
       if (!usage) {
         try {
           await settleReservation(reservedAmount);
         } catch (err) {
-          logger.warn(
-            "[Responses API passthrough] fallback settle failed",
-            { err },
-          );
+          logger.warn("[Responses API passthrough] fallback settle failed", { err });
         }
         return;
       }
@@ -957,47 +979,34 @@ async function handleNativeResponsesPassthrough(
         const actualCost = Math.min(totalCost, reservedAmount);
         await settleReservation(actualCost);
       } catch (err) {
-        logger.warn(
-          "[Responses API passthrough] cost calculation failed, settling to reserved",
-          { err },
-        );
+        logger.warn("[Responses API passthrough] cost calculation failed, settling to reserved", {
+          err,
+        });
         try {
           await settleReservation(reservedAmount);
         } catch (innerErr) {
-          logger.warn(
-            "[Responses API passthrough] fallback settle also failed",
-            { err: innerErr },
-          );
+          logger.warn("[Responses API passthrough] fallback settle also failed", { err: innerErr });
         }
       }
     };
 
-    reconciledBody = wrapWithUsageExtraction(
-      upstreamResponse.body,
-      (usage, reason) => {
-        logger.debug(
-          "[Responses API passthrough] stream terminated",
-          {
-            userId: user.id,
-            reason,
-            sawUsage: usage !== null,
-            inputTokens: usage?.inputTokens,
-            outputTokens: usage?.outputTokens,
-          },
-        );
-        void runReconciliation(usage);
-      },
-    );
+    reconciledBody = wrapWithUsageExtraction(upstreamResponse.body, (usage, reason) => {
+      logger.debug("[Responses API passthrough] stream terminated", {
+        userId: user.id,
+        reason,
+        sawUsage: usage !== null,
+        inputTokens: usage?.inputTokens,
+        outputTokens: usage?.outputTokens,
+      });
+      void runReconciliation(usage);
+    });
   } else if (settleReservation) {
     // Non-streaming OR no-body path: settle synchronously so a
     // serverless function freeze can't strand the reservation.
     try {
       await settleReservation(reservedAmount);
     } catch (err) {
-      logger.warn(
-        "[Responses API passthrough] synchronous settle failed",
-        { err },
-      );
+      logger.warn("[Responses API passthrough] synchronous settle failed", { err });
     }
   }
 
@@ -1012,32 +1021,7 @@ async function handleNativeResponsesPassthrough(
   // We intentionally DO forward `x-ratelimit-*` headers so clients can
   // observe their remaining budget upstream — that is the whole point
   // of passthrough transparency.
-  const outHeaders = new Headers(upstreamResponse.headers);
-  const STRIP_HEADERS = [
-    // Hop-by-hop
-    "content-encoding",
-    "content-length",
-    "transfer-encoding",
-    "connection",
-    "keep-alive",
-    // Session-bearing headers: forwarding upstream cookies through a
-    // proxy almost always breaks cookie domain/path semantics and
-    // leaks upstream session state to our clients. Strip aggressively.
-    "set-cookie",
-    // Gateway/infra internals that shouldn't leak to clients
-    "cf-ray",
-    "cf-cache-status",
-    "server",
-    "via",
-    "x-vercel-cache",
-    "x-vercel-id",
-    "x-vercel-execution-region",
-  ];
-  for (const h of STRIP_HEADERS) {
-    outHeaders.delete(h);
-  }
-  // Mark passthrough so we can correlate in logs.
-  outHeaders.set("x-eliza-responses-passthrough", "1");
+  const outHeaders = buildPassthroughResponseHeaders(upstreamResponse.headers);
 
   const durationMs = Date.now() - startTime;
   logger.info("[Responses API passthrough] forwarded upstream response", {
@@ -1148,9 +1132,10 @@ async function handlePOST(req: NextRequest) {
     let rawBody: Record<string, unknown>;
     try {
       const bodyText = await req.text();
-      if (bodyText.length > MAX_RESPONSES_BODY_BYTES) {
+      const actualBodyBytes = Buffer.byteLength(bodyText, "utf8");
+      if (actualBodyBytes > MAX_RESPONSES_BODY_BYTES) {
         logger.warn("[Responses API] rejecting oversized request body (post-read)", {
-          actualBytes: bodyText.length,
+          actualBytes: actualBodyBytes,
           limit: MAX_RESPONSES_BODY_BYTES,
         });
         return Response.json(
@@ -1165,7 +1150,20 @@ async function handlePOST(req: NextRequest) {
         );
       }
       try {
-        rawBody = JSON.parse(bodyText) as Record<string, unknown>;
+        const parsedBody: unknown = JSON.parse(bodyText);
+        if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+          return Response.json(
+            {
+              error: {
+                message: "Request body must be a JSON object",
+                type: "invalid_request_error",
+                code: "invalid_json",
+              },
+            },
+            { status: 400 },
+          );
+        }
+        rawBody = parsedBody as Record<string, unknown>;
       } catch (parseErr) {
         logger.warn("[Responses API] malformed JSON request body", {
           err: parseErr instanceof Error ? parseErr.message : String(parseErr),

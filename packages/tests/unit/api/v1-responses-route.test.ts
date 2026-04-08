@@ -801,6 +801,47 @@ describe("/api/v1/responses", () => {
     expect(response.headers.get("set-cookie")).toBeNull();
   });
 
+  test("strips gateway-internal headers from non-ok passthrough responses too", async () => {
+    mockResponsesPassthrough.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            message: "rate limited",
+            type: "rate_limit_error",
+            code: "rate_limit_exceeded",
+          },
+        }),
+        {
+          status: 429,
+          headers: {
+            "content-type": "application/json",
+            "x-vercel-id": "pdx1::iad1::raw",
+            "cf-ray": "abc123-ORD",
+            "set-cookie": "gateway=secret; Path=/; HttpOnly",
+            "x-ratelimit-remaining-requests": "0",
+          },
+        },
+      ),
+    );
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("x-vercel-id")).toBeNull();
+    expect(response.headers.get("cf-ray")).toBeNull();
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(response.headers.get("x-ratelimit-remaining-requests")).toBe("0");
+    expect(response.headers.get("x-eliza-responses-passthrough")).toBe("1");
+    const body = await response.json();
+    expect(body.error.code).toBe("rate_limit_exceeded");
+  });
+
   test("rejects request bodies over the 4 MiB cap with 413", async () => {
     // Review finding on #427: the passthrough forwards bodies verbatim
     // upstream, so we need an explicit size guard. Clients that set
@@ -898,6 +939,23 @@ describe("/api/v1/responses", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.error.code).toBe("invalid_json");
+    expect(mockReserveAndDeductCredits).not.toHaveBeenCalled();
+    expect(mockResponsesPassthrough).not.toHaveBeenCalled();
+  });
+
+  test("returns 400 when JSON parses but is not an object", async () => {
+    const response = await responsesPost(
+      new NextRequest("http://localhost:3000/api/v1/responses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "null",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.code).toBe("invalid_json");
+    expect(body.error.message).toBe("Request body must be a JSON object");
     expect(mockReserveAndDeductCredits).not.toHaveBeenCalled();
     expect(mockResponsesPassthrough).not.toHaveBeenCalled();
   });
