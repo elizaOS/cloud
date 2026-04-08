@@ -393,6 +393,13 @@
       "when": 1774800000000,
       "tag": "0058_add_steward_wallet_provider",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1775644290084,
+      "tag": "0059_add_vertex_tuning_registry",
+      "breakpoints": true
     }
   ]
 }

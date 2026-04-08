@@ -42,6 +42,14 @@ export interface TuningJob {
   error?: { code: number; message: string };
 }
 
+export interface CreatedTuningJobResult {
+  job: TuningJob;
+  region: string;
+  sourceModel: string;
+  trainingDatasetUri: string;
+  validationDatasetUri?: string;
+}
+
 export interface VertexModelPreferencePatch {
   scope: VertexTuningScope;
   slot: VertexTuningSlot;
@@ -68,6 +76,10 @@ export interface VertexTuningOrchestrationResult {
   scope: VertexTuningScope;
   recommendedModelId: string;
   modelPreferencePatch: VertexModelPreferencePatch;
+  trainingDatasetUri: string;
+  validationDatasetUri?: string;
+  region: string;
+  sourceModel: string;
 }
 
 async function getAccessToken(providedToken?: string): Promise<string> {
@@ -174,7 +186,7 @@ export async function uploadToGCS(
   return `gs://${bucket}/${objectName}`;
 }
 
-export async function createTuningJob(config: VertexTuningConfig): Promise<TuningJob> {
+export async function createTuningJob(config: VertexTuningConfig): Promise<CreatedTuningJobResult> {
   const region = config.region ?? "us-central1";
   const accessToken = await getAccessToken(config.accessToken);
   const timestamp = Date.now();
@@ -231,7 +243,15 @@ export async function createTuningJob(config: VertexTuningConfig): Promise<Tunin
     );
   }
 
-  return (await response.json()) as TuningJob;
+  const job = (await response.json()) as TuningJob;
+
+  return {
+    job,
+    region,
+    sourceModel,
+    trainingDatasetUri: trainingGcsUri,
+    validationDatasetUri: validationGcsUri,
+  };
 }
 
 export async function listTuningJobs(
@@ -276,10 +296,11 @@ export async function orchestrateVertexTuning(
 ): Promise<VertexTuningOrchestrationResult> {
   const slot = config.slot ?? "should_respond";
   const scope = config.scope ?? "global";
-  const job = await createTuningJob({
+  const createdJob = await createTuningJob({
     ...config,
     baseModel: normalizeVertexBaseModel(config.baseModel, slot),
   });
+  const job = createdJob.job;
 
   const recommendedModelId =
     job.tunedModelEndpointName?.trim() || job.tunedModelDisplayName?.trim() || config.displayName;
@@ -295,5 +316,9 @@ export async function orchestrateVertexTuning(
       scope,
       ownerId: config.ownerId,
     }),
+    trainingDatasetUri: createdJob.trainingDatasetUri,
+    validationDatasetUri: createdJob.validationDatasetUri,
+    region: createdJob.region,
+    sourceModel: createdJob.sourceModel,
   };
 }

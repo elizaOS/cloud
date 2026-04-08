@@ -1,6 +1,7 @@
 /**
  * Runtime Factory - Creates configured elizaOS runtimes per user/agent context.
  */
+import { createHash } from "node:crypto";
 import {
   AgentRuntime,
   type Character,
@@ -29,6 +30,23 @@ import {
 } from "@/lib/cache/edge-runtime-cache";
 
 const adapterEmbeddingDimensions = new Map<string, number>();
+
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+    return `{${entries
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableSerialize(entryValue)}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
 
 /**
  * Default agent ID used when no specific character/agent is specified.
@@ -217,6 +235,15 @@ class RuntimeCache {
     this.cache.delete(agentId);
     elizaLogger.info(`[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`);
     return true;
+  }
+
+  async removeByAgentId(agentId: string): Promise<number> {
+    const keys = Array.from(this.cache.keys()).filter(
+      (key) => key === agentId || key.startsWith(`${agentId}:`),
+    );
+
+    await Promise.all(keys.map((key) => this.remove(key)));
+    return keys.length;
   }
 
   /** Delete runtime and close completely. Use only for full shutdown. */
@@ -445,9 +472,8 @@ export class RuntimeFactory {
 
   async invalidateRuntime(agentId: string): Promise<boolean> {
     // Don't close adapter - it shares a global connection pool with all agents
-    const wasInMemoryBase = await runtimeCache.remove(agentId);
-    const wasInMemoryWs = await runtimeCache.remove(`${agentId}:ws`);
-    const wasInMemory = wasInMemoryBase || wasInMemoryWs;
+    const removedCount = await runtimeCache.removeByAgentId(agentId);
+    const wasInMemory = removedCount > 0;
 
     // Just remove from our tracking - DON'T close the adapter
     dbAdapterPool.removeAdapter(agentId);
@@ -464,7 +490,7 @@ export class RuntimeFactory {
     }
 
     elizaLogger.info(
-      `[RuntimeFactory] Invalidated runtime for agent: ${agentId} (base: ${wasInMemoryBase}, ws: ${wasInMemoryWs})`,
+      `[RuntimeFactory] Invalidated runtime for agent: ${agentId} (entries: ${removedCount})`,
     );
 
     return wasInMemory;
@@ -513,8 +539,10 @@ export class RuntimeFactory {
     const connectedMcp = this.getConnectedPlatforms(context);
     const mcpPlatforms = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connectedMcp.has(p));
     const mcpSuffix = mcpPlatforms.length > 0 ? `:mcp=${mcpPlatforms.sort().join(",")}` : "";
+    const directContextSignature = this.buildDirectAccessContextSignature(context);
+    const contextSuffix = directContextSignature ? `:ctx=${directContextSignature}` : "";
     // Include organizationId to prevent cross-org API key pollution
-    const cacheKey = `${agentId}:${context.organizationId}${webSearchSuffix}${mcpSuffix}`;
+    const cacheKey = `${agentId}:${context.organizationId}${webSearchSuffix}${mcpSuffix}${contextSuffix}`;
 
     // Check cross-instance MCP config version (non-blocking fetch, falls back to 0)
     const currentMcpVersion = await edgeRuntimeCache
@@ -645,7 +673,9 @@ export class RuntimeFactory {
   private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
     const charSettings = (runtime.character.settings || {}) as RuntimeSettings;
 
-    // Model preferences - accessed directly, not via getSetting()
+    // Model preferences - accessed directly, not via getSetting().
+    // The cache key includes a signature of these direct-access settings, so a
+    // cache hit here only re-applies the same effective values.
     if (context.modelPreferences) {
       charSettings.ELIZAOS_CLOUD_NANO_MODEL =
         context.modelPreferences.nanoModel || charSettings.ELIZAOS_CLOUD_NANO_MODEL;
@@ -786,6 +816,24 @@ export class RuntimeFactory {
 
   private filterPlugins(plugins: Plugin[]): Plugin[] {
     return plugins.filter((p) => p.name !== "@elizaos/plugin-sql") as Plugin[];
+  }
+
+  private buildDirectAccessContextSignature(context: UserContext): string {
+    const signatureSource = {
+      modelPreferences: context.modelPreferences ?? null,
+      imageModel: context.imageModel ?? null,
+      appPromptConfig: context.appPromptConfig ?? null,
+    };
+
+    if (
+      !signatureSource.modelPreferences &&
+      !signatureSource.imageModel &&
+      !signatureSource.appPromptConfig
+    ) {
+      return "";
+    }
+
+    return createHash("sha1").update(stableSerialize(signatureSource)).digest("hex").slice(0, 16);
   }
 
   private buildSettings(
@@ -1147,18 +1195,19 @@ export const _testing = {
   stopRuntimeServices,
 
   async forceEvictRuntime(agentId: string): Promise<void> {
-    const entry = runtimeCache["cache"].get(agentId);
-    if (entry) {
-      await stopRuntimeServices(entry.runtime, agentId, "TestForceEvict");
-      runtimeCache["cache"].delete(agentId);
-    }
+    await runtimeCache.removeByAgentId(agentId);
   },
 
   async forceEvictRuntimeOld(agentId: string): Promise<void> {
-    const entry = runtimeCache["cache"].get(agentId);
-    if (entry) {
-      await safeClose(entry.runtime, "TestForceEvictOld", agentId);
-      runtimeCache["cache"].delete(agentId);
+    const keys = Array.from(runtimeCache["cache"].keys()).filter(
+      (key) => key === agentId || key.startsWith(`${agentId}:`),
+    );
+    for (const key of keys) {
+      const entry = runtimeCache["cache"].get(key);
+      if (entry) {
+        await safeClose(entry.runtime, "TestForceEvictOld", key);
+        runtimeCache["cache"].delete(key);
+      }
     }
   },
 

@@ -2,8 +2,9 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { NextRequest } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { requireAdmin, requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { llmTrajectoryService } from "@/lib/services/llm-trajectory";
+import { vertexModelRegistryService } from "@/lib/services/vertex-model-registry";
 import { normalizeVertexBaseModel, orchestrateVertexTuning } from "@/lib/services/vertex-tuning";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,23 @@ export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+    const scope =
+      typeof body.scope === "string" &&
+      (body.scope === "global" || body.scope === "organization" || body.scope === "user")
+        ? body.scope
+        : "organization";
+
+    if (scope === "global") {
+      const admin = await requireAdmin(request);
+      if (admin.role !== "super_admin") {
+        return Response.json(
+          {
+            error: "Global tuned-model jobs require super-admin access.",
+          },
+          { status: 403 },
+        );
+      }
+    }
 
     const projectId =
       (typeof body.projectId === "string" && body.projectId) || process.env.GOOGLE_CLOUD_PROJECT;
@@ -46,6 +64,9 @@ export async function POST(request: NextRequest) {
     }
 
     const slot = (typeof body.slot === "string" && body.slot) || "should_respond";
+    const displayName =
+      (typeof body.displayName === "string" && body.displayName) ||
+      `eliza-cloud-${slot.replace(/_/g, "-")}-${Date.now()}`;
     let trainingDataPath =
       typeof body.trainingDataPath === "string" ? body.trainingDataPath : undefined;
     const validationDataPath =
@@ -87,16 +108,36 @@ export async function POST(request: NextRequest) {
       trainingDataPath,
       validationDataPath,
       epochs: typeof body.epochs === "number" ? body.epochs : 3,
-      displayName:
-        (typeof body.displayName === "string" && body.displayName) ||
-        `eliza-cloud-${slot.replace(/_/g, "-")}-${Date.now()}`,
+      displayName,
       slot: slot as any,
-      scope: (typeof body.scope === "string" &&
-      (body.scope === "global" || body.scope === "organization" || body.scope === "user")
-        ? body.scope
-        : "organization") as any,
-      ownerId: typeof body.ownerId === "string" ? body.ownerId : user.organization_id,
+      scope: scope as any,
+      ownerId: scope === "user" ? user.id : scope === "organization" ? user.organization_id : undefined,
       accessToken: typeof body.accessToken === "string" ? body.accessToken : undefined,
+    });
+
+    const persisted = await vertexModelRegistryService.recordSubmittedJob({
+      vertexJobName: result.job.name,
+      projectId,
+      region: result.region,
+      displayName,
+      baseModel: normalizeVertexBaseModel(
+        typeof body.baseModel === "string" ? body.baseModel : undefined,
+        slot as any,
+      ),
+      slot: slot as any,
+      scope,
+      organizationId: scope === "global" ? undefined : user.organization_id,
+      userId: scope === "user" ? user.id : undefined,
+      createdByUserId: user.id,
+      trainingDataPath,
+      validationDataPath,
+      trainingDataUri: result.trainingDatasetUri,
+      validationDataUri: result.validationDatasetUri,
+      recommendedModelId: result.recommendedModelId,
+      remoteJob: result.job,
+      metadata: {
+        generatedFromTrajectories,
+      },
     });
 
     return Response.json(
@@ -104,6 +145,8 @@ export async function POST(request: NextRequest) {
         ...result,
         organizationId: user.organization_id,
         generatedFromTrajectories,
+        jobRecord: persisted.job,
+        tunedModelRecord: persisted.tunedModel,
       },
       { status: 201 },
     );

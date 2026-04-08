@@ -16,6 +16,7 @@ import { withInternalAuth } from "@/lib/auth/internal-api";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { mergeModelPreferences } from "@/lib/eliza/model-preferences";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
 import { roomsService } from "@/lib/services/agents/rooms";
@@ -384,7 +385,10 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
       });
       userContext.characterId = DEFAULT_AGENT_ID;
       userContext.webSearchEnabled = true;
-      userContext.modelPreferences = elizaAppConfig.modelPreferences;
+      userContext.modelPreferences = mergeModelPreferences(
+        userContext.modelPreferences,
+        elizaAppConfig.modelPreferences,
+      );
 
       logger.info("[ElizaApp DiscordWebhook] Processing message", {
         userId: entityId,

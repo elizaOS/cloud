@@ -4,10 +4,13 @@
  */
 
 import type { AnonymousSession } from "@/db/schemas";
+import type { ModelPreferences } from "@/lib/eliza/model-preferences";
+import { vertexModelRegistryService } from "@/lib/services/vertex-model-registry";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { oauthService } from "@/lib/services/oauth";
 import type { ApiKey, UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
+import { isValidUUID } from "@/lib/utils/validation";
 import type { AgentMode } from "./agent-mode-types";
 import type { PromptConfig } from "./prompt-presets";
 
@@ -27,19 +30,7 @@ export interface UserContext {
 
   // Runtime configuration
   apiKey: string;
-  modelPreferences?: {
-    nanoModel?: string;
-    miniModel?: string;
-    smallModel?: string;
-    largeModel?: string;
-    megaModel?: string;
-    responseHandlerModel?: string;
-    shouldRespondModel?: string;
-    actionPlannerModel?: string;
-    plannerModel?: string;
-    responseModel?: string;
-    mediaDescriptionModel?: string;
-  };
+  modelPreferences?: ModelPreferences;
 
   // Character overrides
   characterId?: string;
@@ -110,9 +101,13 @@ export class UserContextService {
     }
 
     // Fetch API key and OAuth connections in parallel for efficiency
-    const [apiKey, oauthConnections] = await Promise.all([
+    const [apiKey, oauthConnections, resolvedModels] = await Promise.all([
       this.getUserApiKey(authResult.user.id, authResult.user.organization_id),
       this.getOAuthConnections(authResult.user.organization_id),
+      vertexModelRegistryService.resolveModelPreferences({
+        organizationId: authResult.user.organization_id,
+        userId: authResult.user.id,
+      }),
     ]);
 
     if (!apiKey) {
@@ -133,6 +128,7 @@ export class UserContextService {
       privyUserId: authResult.user.privy_user_id ?? undefined,
       agentMode: authResult.agentMode,
       apiKey,
+      modelPreferences: resolvedModels.modelPreferences,
       isAnonymous: false,
       name: authResult.user.name ?? undefined,
       email: authResult.user.email ?? undefined,
@@ -191,14 +187,21 @@ export class UserContextService {
    * Build context for anonymous users
    * Uses a shared runtime with limited capabilities
    */
-  private buildAnonymousContext(
+  private async buildAnonymousContext(
     user: UserWithOrganization,
     session: AnonymousSession,
     agentMode: AgentMode,
     appId?: string,
     appPromptConfig?: PromptConfig,
-  ): UserContext {
+  ): Promise<UserContext> {
     const entityId = session.id || user.id;
+    const resolvedModels = await vertexModelRegistryService.resolveModelPreferences({
+      organizationId:
+        typeof user.organization_id === "string" && isValidUUID(user.organization_id)
+          ? user.organization_id
+          : undefined,
+      userId: typeof user.id === "string" && isValidUUID(user.id) ? user.id : undefined,
+    });
 
     logger.info(
       `[UserContext] Built anonymous context for session ${session.session_token} (mode: ${agentMode})`,
@@ -210,6 +213,7 @@ export class UserContextService {
       organizationId: user.organization_id || "public",
       agentMode,
       apiKey: process.env.SHARED_ELIZAOS_API_KEY || "",
+      modelPreferences: resolvedModels.modelPreferences,
       isAnonymous: true,
       sessionToken: session.session_token,
       name: user.name || "Anonymous",

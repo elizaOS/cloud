@@ -10,6 +10,10 @@ import {
 } from "@/lib/auth-anonymous";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
+import {
+  mergeModelPreferences,
+  sanitizeModelPreferences,
+} from "@/lib/eliza/model-preferences";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { DEFAULT_AGENT_ID_STRING, runtimeFactory } from "@/lib/eliza/runtime-factory";
 import {
@@ -31,38 +35,6 @@ import { createPerfTrace } from "@/lib/utils/perf-trace";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 180; // 3 minutes for image generation support
-
-const MODEL_PREFERENCE_KEYS = [
-  "nanoModel",
-  "miniModel",
-  "smallModel",
-  "largeModel",
-  "megaModel",
-  "responseHandlerModel",
-  "shouldRespondModel",
-  "actionPlannerModel",
-  "plannerModel",
-  "responseModel",
-  "mediaDescriptionModel",
-] as const;
-
-function sanitizeModelPreferences(value: unknown): UserContext["modelPreferences"] | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-
-  const source = value as Record<string, unknown>;
-  const next: NonNullable<UserContext["modelPreferences"]> = {};
-
-  for (const key of MODEL_PREFERENCE_KEYS) {
-    const raw = source[key];
-    if (typeof raw === "string" && raw.trim()) {
-      next[key] = raw.trim();
-    }
-  }
-
-  return Object.keys(next).length > 0 ? next : undefined;
-}
 
 /**
  * POST /api/eliza/rooms/[roomId]/messages/stream
@@ -389,16 +361,16 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     const requestModelPreferences = sanitizeModelPreferences(bodyModelPreferences);
 
     if (model || requestModelPreferences) {
-      userContext.modelPreferences = {
-        ...(userContext.modelPreferences ?? {}),
-        ...(model
+      userContext.modelPreferences = mergeModelPreferences(
+        userContext.modelPreferences,
+        model
           ? {
               smallModel: model,
               largeModel: model,
             }
-          : {}),
-        ...(requestModelPreferences ?? {}),
-      };
+          : undefined,
+        requestModelPreferences,
+      );
     }
 
     if (model) {

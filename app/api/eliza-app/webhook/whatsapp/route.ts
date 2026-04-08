@@ -17,6 +17,7 @@ import { ZodError } from "zod";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { mergeModelPreferences } from "@/lib/eliza/model-preferences";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -186,7 +187,10 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
       });
       userContext.characterId = getDefaultAgentId();
       userContext.webSearchEnabled = true;
-      userContext.modelPreferences = elizaAppConfig.modelPreferences;
+      userContext.modelPreferences = mergeModelPreferences(
+        userContext.modelPreferences,
+        elizaAppConfig.modelPreferences,
+      );
 
       logger.info("[ElizaApp WhatsAppWebhook] Processing message", {
         userId: entityId,

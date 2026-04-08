@@ -74,4 +74,7 @@ export * from "./user-preferences";
 export * from "./user-sessions";
 export * from "./user-voices";
 export * from "./users";
+export * from "./vertex-model-assignments";
+export * from "./vertex-tuned-models";
+export * from "./vertex-tuning-jobs";
 export * from "./webhook-events";

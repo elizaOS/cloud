@@ -14,6 +14,7 @@ import type { Message, Update } from "telegraf/types";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { mergeModelPreferences } from "@/lib/eliza/model-preferences";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -257,7 +258,10 @@ async function handleMessage(message: Message): Promise<void> {
       });
       userContext.characterId = defaultAgentId;
       userContext.webSearchEnabled = true;
-      userContext.modelPreferences = elizaAppConfig.modelPreferences;
+      userContext.modelPreferences = mergeModelPreferences(
+        userContext.modelPreferences,
+        elizaAppConfig.modelPreferences,
+      );
 
       const { name, description, ...promptConfig } = elizaAppConfig.promptPreset;
       userContext.appPromptConfig = promptConfig;
