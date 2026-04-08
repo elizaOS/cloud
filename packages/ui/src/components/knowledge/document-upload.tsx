@@ -29,7 +29,7 @@ interface DocumentUploadProps {
   characterId: string | null;
 }
 
-// Helper function to get correct MIME type based on file extension (from plugin-knowledge)
+// Helper function to get the correct MIME type based on file extension.
 const getCorrectMimeType = (file: File): string => {
   const filename = file.name.toLowerCase();
   const ext = filename.split(".").pop() || "";
