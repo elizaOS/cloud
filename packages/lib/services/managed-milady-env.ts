@@ -143,7 +143,7 @@ export async function prepareManagedMiladyEnvironment(params: {
     ELIZAOS_API_KEY: userApiKey,
     ELIZAOS_CLOUD_API_KEY: userApiKey,
     ELIZAOS_CLOUD_ENABLED: "true",
-    ELIZAOS_CLOUD_BASE_URL: resolveCloudPublicUrl(),
+    ELIZAOS_CLOUD_BASE_URL: `${resolveCloudPublicUrl()}/api/v1`,
   };
 
   // Steward env vars — Docker-backed agents need these to talk to the wallet vault.
