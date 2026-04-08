@@ -1,4 +1,5 @@
 import type { Subprocess } from "bun";
+import { delimiter } from "node:path";
 
 const TEST_SERVER_PORT = process.env.TEST_SERVER_PORT || "3000";
 const SERVER_URL = process.env.TEST_BASE_URL || `http://localhost:${TEST_SERVER_PORT}`;
@@ -23,6 +24,33 @@ let startedServer = false;
 let serverStartupPromise: Promise<void> | null = null;
 let serverExitError: Error | null = null;
 let detectedPeerServerStartup = false;
+
+function getBunExecutable(): string {
+  const execPath = process.execPath?.trim();
+  if (execPath && execPath.length > 0) {
+    return execPath;
+  }
+
+  throw new Error("Bun executable path is unavailable in the current test runtime");
+}
+
+function extendPathWithExecutableDirectory(envPath: string | undefined, executablePath: string): string {
+  const executableDir = executablePath.slice(0, Math.max(executablePath.lastIndexOf("/"), 0));
+  if (executableDir.length === 0) {
+    return envPath ?? "";
+  }
+
+  if (!envPath || envPath.length === 0) {
+    return executableDir;
+  }
+
+  const segments = envPath.split(delimiter);
+  if (segments.includes(executableDir)) {
+    return envPath;
+  }
+
+  return `${executableDir}${delimiter}${envPath}`;
+}
 
 async function isServerRunning(): Promise<boolean> {
   const controller = new AbortController();
@@ -193,7 +221,8 @@ export async function ensureServer(): Promise<void> {
     startedServer = true;
     serverExitError = null;
     detectedPeerServerStartup = false;
-    serverProcess = Bun.spawn(["bun", "run", TEST_SERVER_SCRIPT], {
+    const bunExecutable = getBunExecutable();
+    serverProcess = Bun.spawn([bunExecutable, "run", TEST_SERVER_SCRIPT], {
       cwd: process.cwd(),
       stdio: ["ignore", "pipe", "pipe"],
       env: {
@@ -201,6 +230,7 @@ export async function ensureServer(): Promise<void> {
         NODE_ENV: "development",
         NEXT_DIST_DIR: TEST_SERVER_DIST_DIR,
         PORT: TEST_SERVER_PORT,
+        PATH: extendPathWithExecutableDirectory(process.env.PATH, bunExecutable),
       },
     });
 
