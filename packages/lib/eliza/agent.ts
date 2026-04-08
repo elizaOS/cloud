@@ -15,8 +15,38 @@ const character: Character = {
     DATABASE_URL: process.env.DATABASE_URL!,
     // elizaOS Cloud Configuration (replaces OpenAI)
     ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
+    ELIZAOS_CLOUD_NANO_MODEL:
+      process.env.ELIZAOS_CLOUD_NANO_MODEL || process.env.ELIZAOS_CLOUD_SMALL_MODEL || getDefaultModels().small,
+    ELIZAOS_CLOUD_MINI_MODEL:
+      process.env.ELIZAOS_CLOUD_MINI_MODEL || process.env.ELIZAOS_CLOUD_SMALL_MODEL || getDefaultModels().small,
     ELIZAOS_CLOUD_SMALL_MODEL: getDefaultModels().small,
     ELIZAOS_CLOUD_LARGE_MODEL: getDefaultModels().large,
+    ELIZAOS_CLOUD_MEGA_MODEL:
+      process.env.ELIZAOS_CLOUD_MEGA_MODEL || process.env.ELIZAOS_CLOUD_LARGE_MODEL || getDefaultModels().large,
+    ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL:
+      process.env.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL ||
+      process.env.ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL ||
+      process.env.ELIZAOS_CLOUD_MINI_MODEL ||
+      getDefaultModels().small,
+    ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL:
+      process.env.ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL ||
+      process.env.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL ||
+      process.env.ELIZAOS_CLOUD_MINI_MODEL ||
+      getDefaultModels().small,
+    ELIZAOS_CLOUD_ACTION_PLANNER_MODEL:
+      process.env.ELIZAOS_CLOUD_ACTION_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
+      getDefaultModels().small,
+    ELIZAOS_CLOUD_PLANNER_MODEL:
+      process.env.ELIZAOS_CLOUD_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_ACTION_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
+      getDefaultModels().small,
+    ELIZAOS_CLOUD_RESPONSE_MODEL:
+      process.env.ELIZAOS_CLOUD_RESPONSE_MODEL ||
+      process.env.ELIZAOS_CLOUD_LARGE_MODEL ||
+      getDefaultModels().large,
     // Note: ELIZAOS_API_KEY will be set at runtime with user's auto-generated key
     // ElevenLabs Voice Configuration
     // n8n Workflow Configuration

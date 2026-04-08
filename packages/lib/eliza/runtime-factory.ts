@@ -64,8 +64,17 @@ interface RuntimeSettings {
   ENTITY_ID?: string;
   ORGANIZATION_ID?: string;
   IS_ANONYMOUS?: boolean;
+  ELIZAOS_CLOUD_NANO_MODEL?: string;
+  ELIZAOS_CLOUD_MINI_MODEL?: string;
   ELIZAOS_CLOUD_SMALL_MODEL?: string;
   ELIZAOS_CLOUD_LARGE_MODEL?: string;
+  ELIZAOS_CLOUD_MEGA_MODEL?: string;
+  ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL?: string;
+  ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL?: string;
+  ELIZAOS_CLOUD_ACTION_PLANNER_MODEL?: string;
+  ELIZAOS_CLOUD_PLANNER_MODEL?: string;
+  ELIZAOS_CLOUD_RESPONSE_MODEL?: string;
+  ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL?: string;
   ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL?: string;
   appPromptConfig?: unknown;
   [key: string]: unknown;
@@ -638,10 +647,37 @@ export class RuntimeFactory {
 
     // Model preferences - accessed directly, not via getSetting()
     if (context.modelPreferences) {
+      charSettings.ELIZAOS_CLOUD_NANO_MODEL =
+        context.modelPreferences.nanoModel || charSettings.ELIZAOS_CLOUD_NANO_MODEL;
+      charSettings.ELIZAOS_CLOUD_MINI_MODEL =
+        context.modelPreferences.miniModel || charSettings.ELIZAOS_CLOUD_MINI_MODEL;
       charSettings.ELIZAOS_CLOUD_SMALL_MODEL =
         context.modelPreferences.smallModel || charSettings.ELIZAOS_CLOUD_SMALL_MODEL;
       charSettings.ELIZAOS_CLOUD_LARGE_MODEL =
         context.modelPreferences.largeModel || charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
+      charSettings.ELIZAOS_CLOUD_MEGA_MODEL =
+        context.modelPreferences.megaModel || charSettings.ELIZAOS_CLOUD_MEGA_MODEL;
+      charSettings.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL =
+        context.modelPreferences.responseHandlerModel ||
+        context.modelPreferences.shouldRespondModel ||
+        charSettings.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL;
+      charSettings.ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL =
+        context.modelPreferences.shouldRespondModel ||
+        context.modelPreferences.responseHandlerModel ||
+        charSettings.ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL;
+      charSettings.ELIZAOS_CLOUD_ACTION_PLANNER_MODEL =
+        context.modelPreferences.actionPlannerModel ||
+        context.modelPreferences.plannerModel ||
+        charSettings.ELIZAOS_CLOUD_ACTION_PLANNER_MODEL;
+      charSettings.ELIZAOS_CLOUD_PLANNER_MODEL =
+        context.modelPreferences.plannerModel ||
+        context.modelPreferences.actionPlannerModel ||
+        charSettings.ELIZAOS_CLOUD_PLANNER_MODEL;
+      charSettings.ELIZAOS_CLOUD_RESPONSE_MODEL =
+        context.modelPreferences.responseModel || charSettings.ELIZAOS_CLOUD_RESPONSE_MODEL;
+      charSettings.ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL =
+        context.modelPreferences.mediaDescriptionModel ||
+        charSettings.ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL;
     }
 
     // Image model - accessed directly
@@ -785,12 +821,86 @@ export class RuntimeFactory {
       DATABASE_URL: process.env.DATABASE_URL!,
       EMBEDDING_DIMENSION: String(embeddingDimension),
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
+      ELIZAOS_CLOUD_NANO_MODEL:
+        context.modelPreferences?.nanoModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_NANO_MODEL",
+          getSetting("ELIZAOS_CLOUD_SMALL_MODEL", getDefaultModels().small),
+        ),
+      ELIZAOS_CLOUD_MINI_MODEL:
+        context.modelPreferences?.miniModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_MINI_MODEL",
+          getSetting("ELIZAOS_CLOUD_SMALL_MODEL", getDefaultModels().small),
+        ),
       ELIZAOS_CLOUD_SMALL_MODEL:
         context.modelPreferences?.smallModel ||
         getSetting("ELIZAOS_CLOUD_SMALL_MODEL", getDefaultModels().small),
       ELIZAOS_CLOUD_LARGE_MODEL:
         context.modelPreferences?.largeModel ||
         getSetting("ELIZAOS_CLOUD_LARGE_MODEL", getDefaultModels().large),
+      ELIZAOS_CLOUD_MEGA_MODEL:
+        context.modelPreferences?.megaModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_MEGA_MODEL",
+          getSetting("ELIZAOS_CLOUD_LARGE_MODEL", getDefaultModels().large),
+        ),
+      ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL:
+        context.modelPreferences?.responseHandlerModel ||
+        context.modelPreferences?.shouldRespondModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL",
+          getSetting(
+            "ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL",
+            context.modelPreferences?.miniModel ||
+              context.modelPreferences?.smallModel ||
+              getSetting("ELIZAOS_CLOUD_MINI_MODEL", getDefaultModels().small),
+          ),
+        ),
+      ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL:
+        context.modelPreferences?.shouldRespondModel ||
+        context.modelPreferences?.responseHandlerModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL",
+          getSetting(
+            "ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL",
+            context.modelPreferences?.miniModel ||
+              context.modelPreferences?.smallModel ||
+              getSetting("ELIZAOS_CLOUD_MINI_MODEL", getDefaultModels().small),
+          ),
+        ),
+      ELIZAOS_CLOUD_ACTION_PLANNER_MODEL:
+        context.modelPreferences?.actionPlannerModel ||
+        context.modelPreferences?.plannerModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_ACTION_PLANNER_MODEL",
+          getSetting(
+            "ELIZAOS_CLOUD_PLANNER_MODEL",
+            context.modelPreferences?.smallModel ||
+              getSetting("ELIZAOS_CLOUD_SMALL_MODEL", getDefaultModels().small),
+          ),
+        ),
+      ELIZAOS_CLOUD_PLANNER_MODEL:
+        context.modelPreferences?.plannerModel ||
+        context.modelPreferences?.actionPlannerModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_PLANNER_MODEL",
+          getSetting(
+            "ELIZAOS_CLOUD_ACTION_PLANNER_MODEL",
+            context.modelPreferences?.smallModel ||
+              getSetting("ELIZAOS_CLOUD_SMALL_MODEL", getDefaultModels().small),
+          ),
+        ),
+      ELIZAOS_CLOUD_RESPONSE_MODEL:
+        context.modelPreferences?.responseModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_RESPONSE_MODEL",
+          context.modelPreferences?.largeModel ||
+            getSetting("ELIZAOS_CLOUD_LARGE_MODEL", getDefaultModels().large),
+        ),
+      ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL:
+        context.modelPreferences?.mediaDescriptionModel ||
+        getSetting("ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL", "google/gemini-2.5-flash-lite"),
       ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL:
         context.imageModel ||
         getSetting("ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL", DEFAULT_IMAGE_MODEL.modelId),

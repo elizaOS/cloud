@@ -28,8 +28,17 @@ export interface UserContext {
   // Runtime configuration
   apiKey: string;
   modelPreferences?: {
+    nanoModel?: string;
+    miniModel?: string;
     smallModel?: string;
     largeModel?: string;
+    megaModel?: string;
+    responseHandlerModel?: string;
+    shouldRespondModel?: string;
+    actionPlannerModel?: string;
+    plannerModel?: string;
+    responseModel?: string;
+    mediaDescriptionModel?: string;
   };
 
   // Character overrides

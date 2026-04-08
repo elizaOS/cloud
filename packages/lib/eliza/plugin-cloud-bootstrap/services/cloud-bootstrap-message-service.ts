@@ -9,6 +9,7 @@ import {
   composePromptFromState,
   createUniqueUuid,
   EventType,
+  getRequestContext,
   type HandlerCallback,
   type IAgentRuntime,
   type IMessageService,
@@ -51,6 +52,130 @@ const RETRY_CONFIG = {
 } as const;
 
 const EMPTY_STATE: State = { values: {}, data: {}, text: "" } as State;
+
+type ScopedSettingOverride = {
+  key: string;
+  value: string;
+};
+
+function readTrimmedSetting(runtime: IAgentRuntime, key: string): string | undefined {
+  const value = runtime.getSetting(key);
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resolveNanoModel(runtime: IAgentRuntime): string | undefined {
+  return readTrimmedSetting(runtime, "ELIZAOS_CLOUD_NANO_MODEL");
+}
+
+function resolveMiniModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_MINI_MODEL") ||
+    resolveNanoModel(runtime) ||
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_SMALL_MODEL") ||
+    readTrimmedSetting(runtime, "SMALL_MODEL")
+  );
+}
+
+function resolveSmallModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_SMALL_MODEL") ||
+    readTrimmedSetting(runtime, "SMALL_MODEL")
+  );
+}
+
+function resolveLargeModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_LARGE_MODEL") ||
+    readTrimmedSetting(runtime, "LARGE_MODEL")
+  );
+}
+
+function resolveShouldRespondStepModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL") ||
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL") ||
+    resolveMiniModel(runtime) ||
+    resolveSmallModel(runtime)
+  );
+}
+
+function resolveActionPlannerStepModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_ACTION_PLANNER_MODEL") ||
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_PLANNER_MODEL") ||
+    resolveSmallModel(runtime)
+  );
+}
+
+function resolveResponseStepModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_RESPONSE_MODEL") ||
+    resolveLargeModel(runtime)
+  );
+}
+
+async function withScopedSettings<T>(
+  overrides: ScopedSettingOverride[],
+  operation: () => Promise<T>,
+): Promise<T> {
+  const requestContext = getRequestContext();
+  if (!requestContext || overrides.length === 0) {
+    return await operation();
+  }
+
+  const previousValues = new Map<string, { hadValue: boolean; value: string | boolean | number | null | undefined }>();
+
+  for (const override of overrides) {
+    previousValues.set(override.key, {
+      hadValue: requestContext.entitySettings.has(override.key),
+      value: requestContext.entitySettings.get(override.key),
+    });
+    requestContext.entitySettings.set(override.key, override.value);
+  }
+
+  try {
+    return await operation();
+  } finally {
+    for (const override of overrides) {
+      const previous = previousValues.get(override.key);
+      if (!previous) {
+        continue;
+      }
+      if (previous.hadValue) {
+        requestContext.entitySettings.set(override.key, previous.value ?? null);
+      } else {
+        requestContext.entitySettings.delete(override.key);
+      }
+    }
+  }
+}
+
+async function withScopedTextModel<T>(
+  size: "small" | "large",
+  model: string | undefined,
+  operation: () => Promise<T>,
+): Promise<T> {
+  if (!model) {
+    return await operation();
+  }
+
+  const overrides =
+    size === "small"
+      ? [
+          { key: "ELIZAOS_CLOUD_SMALL_MODEL", value: model },
+          { key: "SMALL_MODEL", value: model },
+        ]
+      : [
+          { key: "ELIZAOS_CLOUD_LARGE_MODEL", value: model },
+          { key: "LARGE_MODEL", value: model },
+        ];
+
+  return await withScopedSettings(overrides, operation);
+}
 
 const SINGLE_SHOT_TEMPLATE = `<task>Generate a response for the character {{agentName}}.</task>
 
@@ -380,9 +505,14 @@ export class CloudBootstrapMessageService implements IMessageService {
       logger.info(`[LLM:shouldRespond] User Prompt:\n${shouldRespondPrompt}`);
       logger.info("==============================================");
 
-      const response = await runtime.useModel(ModelType.TEXT_SMALL, {
-        prompt: shouldRespondPrompt,
-      });
+      const response = await withScopedTextModel(
+        "small",
+        resolveShouldRespondStepModel(runtime),
+        async () =>
+          await runtime.useModel(ModelType.TEXT_SMALL, {
+            prompt: shouldRespondPrompt,
+          }),
+      );
 
       logger.info(`[LLM:shouldRespond] Response:\n${response}`);
 
@@ -697,9 +827,14 @@ export class CloudBootstrapMessageService implements IMessageService {
               `[MultiStep] Decision model call attempt ${parseAttempt}/${maxParseRetries}`,
             );
 
-            stepResultRaw = await runtime.useModel(ModelType.TEXT_LARGE, {
-              prompt,
-            });
+            stepResultRaw = await withScopedTextModel(
+              "small",
+              resolveActionPlannerStepModel(runtime),
+              async () =>
+                await runtime.useModel(ModelType.TEXT_SMALL, {
+                  prompt,
+                }),
+            );
 
             logger.info(
               `[LLM:multiStepDecision] Response (attempt ${parseAttempt}):\n${stepResultRaw}`,
@@ -1069,9 +1204,14 @@ export class CloudBootstrapMessageService implements IMessageService {
       for (let summaryAttempt = 1; summaryAttempt <= maxSummaryRetries; summaryAttempt++) {
         try {
           logger.debug(`[MultiStep] Summary generation attempt ${summaryAttempt}`);
-          finalOutput = await runtime.useModel(ModelType.TEXT_LARGE, {
-            prompt: summaryPrompt,
-          });
+          finalOutput = await withScopedTextModel(
+            "large",
+            resolveResponseStepModel(runtime),
+            async () =>
+              await runtime.useModel(ModelType.TEXT_LARGE, {
+                prompt: summaryPrompt,
+              }),
+          );
 
           logger.info(
             `[LLM:multiStepSummary] Response (attempt ${summaryAttempt}):\n${finalOutput}`,
@@ -1193,7 +1333,16 @@ export class CloudBootstrapMessageService implements IMessageService {
       const maxRetries = options?.maxRetries ?? 3;
       const parsedResponse = await withRetry(
         async () => {
-          const response = String(await runtime.useModel(ModelType.TEXT_LARGE, { prompt }));
+          const response = String(
+            await withScopedTextModel(
+              "small",
+              resolveActionPlannerStepModel(runtime),
+              async () =>
+                await runtime.useModel(ModelType.TEXT_SMALL, {
+                  prompt,
+                }),
+            ),
+          );
           logger.info(`[LLM:singleShot] Response:\n${response}`);
           return parseKeyValueXml(response);
         },

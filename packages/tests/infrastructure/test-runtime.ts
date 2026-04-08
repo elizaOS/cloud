@@ -83,7 +83,19 @@ export interface CreateTestRuntimeOptions {
   /** Enable web search (defaults to false for tests) */
   webSearchEnabled?: boolean;
   /** Model preferences */
-  modelPreferences?: { smallModel?: string; largeModel?: string };
+  modelPreferences?: {
+    nanoModel?: string;
+    miniModel?: string;
+    smallModel?: string;
+    largeModel?: string;
+    megaModel?: string;
+    responseHandlerModel?: string;
+    shouldRespondModel?: string;
+    actionPlannerModel?: string;
+    plannerModel?: string;
+    responseModel?: string;
+    mediaDescriptionModel?: string;
+  };
 }
 
 /**
@@ -196,7 +208,19 @@ export function buildUserContext(
     agentMode?: AgentMode;
     characterId?: string;
     webSearchEnabled?: boolean;
-    modelPreferences?: { smallModel?: string; largeModel?: string };
+    modelPreferences?: {
+      nanoModel?: string;
+      miniModel?: string;
+      smallModel?: string;
+      largeModel?: string;
+      megaModel?: string;
+      responseHandlerModel?: string;
+      shouldRespondModel?: string;
+      actionPlannerModel?: string;
+      plannerModel?: string;
+      responseModel?: string;
+      mediaDescriptionModel?: string;
+    };
     appId?: string;
     appPromptConfig?: Record<string, unknown>;
     oauthConnections?: Array<{ platform: string }>;

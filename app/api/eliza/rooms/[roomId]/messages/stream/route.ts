@@ -17,7 +17,7 @@ import {
   validateAppId,
   validateAppPromptConfig,
 } from "@/lib/eliza/stream-validation";
-import { userContextService } from "@/lib/eliza/user-context";
+import { type UserContext, userContextService } from "@/lib/eliza/user-context";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -31,6 +31,40 @@ import { createPerfTrace } from "@/lib/utils/perf-trace";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 180; // 3 minutes for image generation support
+
+const MODEL_PREFERENCE_KEYS = [
+  "nanoModel",
+  "miniModel",
+  "smallModel",
+  "largeModel",
+  "megaModel",
+  "responseHandlerModel",
+  "shouldRespondModel",
+  "actionPlannerModel",
+  "plannerModel",
+  "responseModel",
+  "mediaDescriptionModel",
+] as const;
+
+function sanitizeModelPreferences(
+  value: unknown,
+): UserContext["modelPreferences"] | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const source = value as Record<string, unknown>;
+  const next: NonNullable<UserContext["modelPreferences"]> = {};
+
+  for (const key of MODEL_PREFERENCE_KEYS) {
+    const raw = source[key];
+    if (typeof raw === "string" && raw.trim()) {
+      next[key] = raw.trim();
+    }
+  }
+
+  return Object.keys(next).length > 0 ? next : undefined;
+}
 
 /**
  * POST /api/eliza/rooms/[roomId]/messages/stream
@@ -57,6 +91,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     const {
       text,
       model,
+      modelPreferences: bodyModelPreferences,
       agentMode,
       sessionToken,
       attachments,
@@ -353,12 +388,29 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     );
 
     // Step 5: Apply model preferences if provided
-    if (model) {
+    const requestModelPreferences = sanitizeModelPreferences(bodyModelPreferences);
+
+    if (model || requestModelPreferences) {
       userContext.modelPreferences = {
-        smallModel: model,
-        largeModel: model,
+        ...(userContext.modelPreferences ?? {}),
+        ...(model
+          ? {
+              smallModel: model,
+              largeModel: model,
+            }
+          : {}),
+        ...(requestModelPreferences ?? {}),
       };
-      logger.info(`[Stream] User selected model: ${model}`);
+    }
+
+    if (model) {
+      logger.info(`[Stream] User selected shorthand model: ${model}`);
+    }
+
+    if (requestModelPreferences) {
+      logger.info(
+        `[Stream] Applied request model preferences: ${Object.keys(requestModelPreferences).join(", ")}`,
+      );
     } else if (userContext.modelPreferences) {
       logger.info(
         `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`,

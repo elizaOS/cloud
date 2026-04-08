@@ -42,8 +42,17 @@ export async function handleMessage(
     userId?: string;
     apiKey?: string;
     modelPreferences?: {
+      nanoModel?: string;
+      miniModel?: string;
       smallModel?: string;
       largeModel?: string;
+      megaModel?: string;
+      responseHandlerModel?: string;
+      shouldRespondModel?: string;
+      actionPlannerModel?: string;
+      plannerModel?: string;
+      responseModel?: string;
+      mediaDescriptionModel?: string;
     };
   },
 ): Promise<MessageResult> {

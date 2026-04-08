@@ -37,6 +37,11 @@ function optionalRuntimeEnv(name: string, fallback = ""): string {
   return process.env[name] || (!isProduction ? fallback : "");
 }
 
+const ELIZA_APP_SMALL_MODEL =
+  process.env.ELIZA_APP_SMALL_MODEL || "minimax/minimax-m2.7";
+const ELIZA_APP_LARGE_MODEL =
+  process.env.ELIZA_APP_LARGE_MODEL || "anthropic/claude-sonnet-4.6";
+
 export const elizaAppConfig = {
   // Frontend URL (the consumer-facing app, e.g. eliza.app)
   appUrl: process.env.ELIZA_APP_URL || "https://eliza.app",
@@ -46,8 +51,33 @@ export const elizaAppConfig = {
 
   // Model preferences for webhook channels (Telegram, iMessage)
   modelPreferences: {
-    smallModel: "minimax/minimax-m2.7",
-    largeModel: "anthropic/claude-sonnet-4.6",
+    nanoModel: process.env.ELIZA_APP_NANO_MODEL || ELIZA_APP_SMALL_MODEL,
+    miniModel: process.env.ELIZA_APP_MINI_MODEL || ELIZA_APP_SMALL_MODEL,
+    smallModel: ELIZA_APP_SMALL_MODEL,
+    largeModel: ELIZA_APP_LARGE_MODEL,
+    megaModel: process.env.ELIZA_APP_MEGA_MODEL || ELIZA_APP_LARGE_MODEL,
+    responseHandlerModel:
+      process.env.ELIZA_APP_RESPONSE_HANDLER_MODEL ||
+      process.env.ELIZA_APP_MINI_MODEL ||
+      ELIZA_APP_SMALL_MODEL,
+    shouldRespondModel:
+      process.env.ELIZA_APP_SHOULD_RESPOND_MODEL ||
+      process.env.ELIZA_APP_RESPONSE_HANDLER_MODEL ||
+      process.env.ELIZA_APP_MINI_MODEL ||
+      ELIZA_APP_SMALL_MODEL,
+    actionPlannerModel:
+      process.env.ELIZA_APP_ACTION_PLANNER_MODEL ||
+      process.env.ELIZA_APP_SMALL_MODEL ||
+      ELIZA_APP_SMALL_MODEL,
+    plannerModel:
+      process.env.ELIZA_APP_PLANNER_MODEL ||
+      process.env.ELIZA_APP_ACTION_PLANNER_MODEL ||
+      ELIZA_APP_SMALL_MODEL,
+    responseModel:
+      process.env.ELIZA_APP_RESPONSE_MODEL || ELIZA_APP_LARGE_MODEL,
+    mediaDescriptionModel:
+      process.env.ELIZA_APP_MEDIA_DESCRIPTION_MODEL ||
+      "google/gemini-2.5-flash-lite",
   },
 
   // Prompt preset for eliza-app channels (engaging, conversation-continuing behavior)
