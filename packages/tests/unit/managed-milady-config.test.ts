@@ -54,12 +54,12 @@ mock.module("@/lib/services/milady-sandbox", () => ({
 import {
   prepareManagedMiladyBaseEnvironment,
   resolveManagedAllowedOrigins,
-} from "@/lib/services/managed-milady-config";
-import { prepareManagedMiladyEnvironment as prepareDockerManagedMiladyEnvironment } from "@/lib/services/managed-milady-env";
+} from "../../lib/services/managed-milady-config";
+import { prepareManagedMiladyEnvironment as prepareDockerManagedMiladyEnvironment } from "../../lib/services/managed-milady-env";
 import {
   prepareManagedMiladyEnvironment as prepareLaunchManagedMiladyEnvironment,
   resolveMiladyLaunchAllowedOrigins,
-} from "@/lib/services/milady-managed-launch";
+} from "../../lib/services/milady-managed-launch";
 
 const ORIGINAL_ENV = { ...process.env };
 
