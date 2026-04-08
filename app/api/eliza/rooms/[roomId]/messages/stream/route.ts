@@ -46,9 +46,7 @@ const MODEL_PREFERENCE_KEYS = [
   "mediaDescriptionModel",
 ] as const;
 
-function sanitizeModelPreferences(
-  value: unknown,
-): UserContext["modelPreferences"] | undefined {
+function sanitizeModelPreferences(value: unknown): UserContext["modelPreferences"] | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }

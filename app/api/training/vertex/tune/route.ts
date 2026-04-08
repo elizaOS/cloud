@@ -4,10 +4,7 @@ import path from "node:path";
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { llmTrajectoryService } from "@/lib/services/llm-trajectory";
-import {
-  normalizeVertexBaseModel,
-  orchestrateVertexTuning,
-} from "@/lib/services/vertex-tuning";
+import { normalizeVertexBaseModel, orchestrateVertexTuning } from "@/lib/services/vertex-tuning";
 
 export const dynamic = "force-dynamic";
 
@@ -30,14 +27,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<
-      string,
-      unknown
-    >;
+    const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
 
     const projectId =
-      (typeof body.projectId === "string" && body.projectId) ||
-      process.env.GOOGLE_CLOUD_PROJECT;
+      (typeof body.projectId === "string" && body.projectId) || process.env.GOOGLE_CLOUD_PROJECT;
     const gcsBucket =
       (typeof body.gcsBucket === "string" && body.gcsBucket) ||
       process.env.GOOGLE_CLOUD_TUNING_BUCKET;
@@ -52,28 +45,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const slot =
-      (typeof body.slot === "string" && body.slot) || "should_respond";
+    const slot = (typeof body.slot === "string" && body.slot) || "should_respond";
     let trainingDataPath =
       typeof body.trainingDataPath === "string" ? body.trainingDataPath : undefined;
     const validationDataPath =
-      typeof body.validationDataPath === "string"
-        ? body.validationDataPath
-        : undefined;
+      typeof body.validationDataPath === "string" ? body.validationDataPath : undefined;
 
     let generatedFromTrajectories = false;
     if (!trainingDataPath) {
-      const jsonl = await llmTrajectoryService.exportAsTrainingJSONL(
-        user.organization_id,
-        {
-          purpose:
-            typeof body.purpose === "string"
-              ? body.purpose
-              : defaultPurposeForSlot(slot),
-          model: typeof body.modelFilter === "string" ? body.modelFilter : undefined,
-          limit: typeof body.limit === "number" ? body.limit : 5000,
-        },
-      );
+      const jsonl = await llmTrajectoryService.exportAsTrainingJSONL(user.organization_id, {
+        purpose: typeof body.purpose === "string" ? body.purpose : defaultPurposeForSlot(slot),
+        model: typeof body.modelFilter === "string" ? body.modelFilter : undefined,
+        limit: typeof body.limit === "number" ? body.limit : 5000,
+      });
 
       if (!jsonl.trim()) {
         return Response.json(
@@ -94,8 +78,7 @@ export async function POST(request: NextRequest) {
 
     const result = await orchestrateVertexTuning({
       projectId,
-      region:
-        (typeof body.region === "string" && body.region) || "us-central1",
+      region: (typeof body.region === "string" && body.region) || "us-central1",
       gcsBucket,
       baseModel: normalizeVertexBaseModel(
         typeof body.baseModel === "string" ? body.baseModel : undefined,
@@ -108,17 +91,12 @@ export async function POST(request: NextRequest) {
         (typeof body.displayName === "string" && body.displayName) ||
         `eliza-cloud-${slot.replace(/_/g, "-")}-${Date.now()}`,
       slot: slot as any,
-      scope:
-        (typeof body.scope === "string" &&
-          (body.scope === "global" ||
-            body.scope === "organization" ||
-            body.scope === "user")
-          ? body.scope
-          : "organization") as any,
-      ownerId:
-        typeof body.ownerId === "string" ? body.ownerId : user.organization_id,
-      accessToken:
-        typeof body.accessToken === "string" ? body.accessToken : undefined,
+      scope: (typeof body.scope === "string" &&
+      (body.scope === "global" || body.scope === "organization" || body.scope === "user")
+        ? body.scope
+        : "organization") as any,
+      ownerId: typeof body.ownerId === "string" ? body.ownerId : user.organization_id,
+      accessToken: typeof body.accessToken === "string" ? body.accessToken : undefined,
     });
 
     return Response.json(
@@ -137,8 +115,6 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   } finally {
-    await Promise.all(
-      tempDirs.map((tempDir) => rm(tempDir, { recursive: true, force: true })),
-    );
+    await Promise.all(tempDirs.map((tempDir) => rm(tempDir, { recursive: true, force: true })));
   }
 }

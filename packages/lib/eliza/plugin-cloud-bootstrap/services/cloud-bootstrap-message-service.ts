@@ -112,10 +112,7 @@ function resolveActionPlannerStepModel(runtime: IAgentRuntime): string | undefin
 }
 
 function resolveResponseStepModel(runtime: IAgentRuntime): string | undefined {
-  return (
-    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_RESPONSE_MODEL") ||
-    resolveLargeModel(runtime)
-  );
+  return readTrimmedSetting(runtime, "ELIZAOS_CLOUD_RESPONSE_MODEL") || resolveLargeModel(runtime);
 }
 
 async function withScopedSettings<T>(
@@ -127,7 +124,10 @@ async function withScopedSettings<T>(
     return await operation();
   }
 
-  const previousValues = new Map<string, { hadValue: boolean; value: string | boolean | number | null | undefined }>();
+  const previousValues = new Map<
+    string,
+    { hadValue: boolean; value: string | boolean | number | null | undefined }
+  >();
 
   for (const override of overrides) {
     previousValues.set(override.key, {

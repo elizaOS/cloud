@@ -37,10 +37,8 @@ function optionalRuntimeEnv(name: string, fallback = ""): string {
   return process.env[name] || (!isProduction ? fallback : "");
 }
 
-const ELIZA_APP_SMALL_MODEL =
-  process.env.ELIZA_APP_SMALL_MODEL || "minimax/minimax-m2.7";
-const ELIZA_APP_LARGE_MODEL =
-  process.env.ELIZA_APP_LARGE_MODEL || "anthropic/claude-sonnet-4.6";
+const ELIZA_APP_SMALL_MODEL = process.env.ELIZA_APP_SMALL_MODEL || "minimax/minimax-m2.7";
+const ELIZA_APP_LARGE_MODEL = process.env.ELIZA_APP_LARGE_MODEL || "anthropic/claude-sonnet-4.6";
 
 export const elizaAppConfig = {
   // Frontend URL (the consumer-facing app, e.g. eliza.app)
@@ -73,11 +71,9 @@ export const elizaAppConfig = {
       process.env.ELIZA_APP_PLANNER_MODEL ||
       process.env.ELIZA_APP_ACTION_PLANNER_MODEL ||
       ELIZA_APP_SMALL_MODEL,
-    responseModel:
-      process.env.ELIZA_APP_RESPONSE_MODEL || ELIZA_APP_LARGE_MODEL,
+    responseModel: process.env.ELIZA_APP_RESPONSE_MODEL || ELIZA_APP_LARGE_MODEL,
     mediaDescriptionModel:
-      process.env.ELIZA_APP_MEDIA_DESCRIPTION_MODEL ||
-      "google/gemini-2.5-flash-lite",
+      process.env.ELIZA_APP_MEDIA_DESCRIPTION_MODEL || "google/gemini-2.5-flash-lite",
   },
 
   // Prompt preset for eliza-app channels (engaging, conversation-continuing behavior)

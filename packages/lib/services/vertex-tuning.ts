@@ -77,10 +77,7 @@ async function getAccessToken(providedToken?: string): Promise<string> {
   }
 
   try {
-    const { stdout } = await execFileAsync("gcloud", [
-      "auth",
-      "print-access-token",
-    ]);
+    const { stdout } = await execFileAsync("gcloud", ["auth", "print-access-token"]);
     const token = stdout.trim();
     if (token) return token;
   } catch {
@@ -171,17 +168,13 @@ export async function uploadToGCS(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `GCS upload failed: ${response.status} ${await response.text()}`,
-    );
+    throw new Error(`GCS upload failed: ${response.status} ${await response.text()}`);
   }
 
   return `gs://${bucket}/${objectName}`;
 }
 
-export async function createTuningJob(
-  config: VertexTuningConfig,
-): Promise<TuningJob> {
+export async function createTuningJob(config: VertexTuningConfig): Promise<TuningJob> {
   const region = config.region ?? "us-central1";
   const accessToken = await getAccessToken(config.accessToken);
   const timestamp = Date.now();
@@ -207,8 +200,7 @@ export async function createTuningJob(
     "gemini-2.5-flash-lite": "gemini-2.5-flash-lite-preview-06-17",
     "gemini-2.5-flash": "gemini-2.5-flash-preview-04-17",
   };
-  const sourceModel =
-    `publishers/google/models/${modelMap[config.baseModel] ?? config.baseModel}`;
+  const sourceModel = `publishers/google/models/${modelMap[config.baseModel] ?? config.baseModel}`;
 
   const response = await fetch(
     `https://${region}-aiplatform.googleapis.com/v1/projects/${config.projectId}/locations/${region}/tuningJobs`,
@@ -222,9 +214,7 @@ export async function createTuningJob(
         baseModel: sourceModel,
         supervisedTuningSpec: {
           trainingDatasetUri: trainingGcsUri,
-          ...(validationGcsUri
-            ? { validationDatasetUri: validationGcsUri }
-            : {}),
+          ...(validationGcsUri ? { validationDatasetUri: validationGcsUri } : {}),
           hyperParameters: {
             epochCount: config.epochs ?? 3,
             learningRateMultiplier: config.learningRateMultiplier ?? 1,
@@ -258,9 +248,7 @@ export async function listTuningJobs(
   );
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to list tuning jobs: ${response.status} ${await response.text()}`,
-    );
+    throw new Error(`Failed to list tuning jobs: ${response.status} ${await response.text()}`);
   }
 
   const data = (await response.json()) as { tuningJobs?: TuningJob[] };
@@ -277,9 +265,7 @@ export async function getTuningJobStatus(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to get tuning job status: ${response.status} ${await response.text()}`,
-    );
+    throw new Error(`Failed to get tuning job status: ${response.status} ${await response.text()}`);
   }
 
   return (await response.json()) as TuningJob;
@@ -296,9 +282,7 @@ export async function orchestrateVertexTuning(
   });
 
   const recommendedModelId =
-    job.tunedModelEndpointName?.trim() ||
-    job.tunedModelDisplayName?.trim() ||
-    config.displayName;
+    job.tunedModelEndpointName?.trim() || job.tunedModelDisplayName?.trim() || config.displayName;
 
   return {
     job,

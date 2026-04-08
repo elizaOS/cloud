@@ -16,13 +16,19 @@ const character: Character = {
     // elizaOS Cloud Configuration (replaces OpenAI)
     ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
     ELIZAOS_CLOUD_NANO_MODEL:
-      process.env.ELIZAOS_CLOUD_NANO_MODEL || process.env.ELIZAOS_CLOUD_SMALL_MODEL || getDefaultModels().small,
+      process.env.ELIZAOS_CLOUD_NANO_MODEL ||
+      process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
+      getDefaultModels().small,
     ELIZAOS_CLOUD_MINI_MODEL:
-      process.env.ELIZAOS_CLOUD_MINI_MODEL || process.env.ELIZAOS_CLOUD_SMALL_MODEL || getDefaultModels().small,
+      process.env.ELIZAOS_CLOUD_MINI_MODEL ||
+      process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
+      getDefaultModels().small,
     ELIZAOS_CLOUD_SMALL_MODEL: getDefaultModels().small,
     ELIZAOS_CLOUD_LARGE_MODEL: getDefaultModels().large,
     ELIZAOS_CLOUD_MEGA_MODEL:
-      process.env.ELIZAOS_CLOUD_MEGA_MODEL || process.env.ELIZAOS_CLOUD_LARGE_MODEL || getDefaultModels().large,
+      process.env.ELIZAOS_CLOUD_MEGA_MODEL ||
+      process.env.ELIZAOS_CLOUD_LARGE_MODEL ||
+      getDefaultModels().large,
     ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL:
       process.env.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL ||
       process.env.ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL ||

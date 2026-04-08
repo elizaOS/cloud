@@ -1,9 +1,6 @@
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  getTuningJobStatus,
-  listTuningJobs,
-} from "@/lib/services/vertex-tuning";
+import { getTuningJobStatus, listTuningJobs } from "@/lib/services/vertex-tuning";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     await requireAuthOrApiKeyWithOrg(request);
     const { searchParams } = new URL(request.url);
-    const projectId =
-      searchParams.get("projectId") || process.env.GOOGLE_CLOUD_PROJECT;
+    const projectId = searchParams.get("projectId") || process.env.GOOGLE_CLOUD_PROJECT;
     const region = searchParams.get("region") || "us-central1";
     const jobName = searchParams.get("name");
 
