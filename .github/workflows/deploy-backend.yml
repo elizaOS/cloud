@@ -4,13 +4,28 @@ on:
   push:
     branches: [dev, main]
     paths:
+      - '.github/workflows/deploy-backend.yml'
+      - 'app/**'
+      - 'content/**'
+      - 'packages/config/**'
+      - 'packages/content/**'
       - 'packages/lib/**'
       - 'packages/db/**'
       - 'packages/scripts/**'
       - 'packages/services/**'
-      - 'app/api/**'
+      - 'packages/types/**'
+      - 'packages/ui/**'
+      - 'public/**'
+      - 'scripts/**'
+      - 'services/**'
+      - 'drizzle.config.ts'
+      - 'mdx-components.tsx'
+      - 'next.config.ts'
       - 'package.json'
+      - 'postcss.config.mjs'
+      - 'proxy.ts'
       - 'bun.lock'
+      - 'vercel.json'
   workflow_dispatch:
     inputs:
       environment:
