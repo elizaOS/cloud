@@ -205,6 +205,11 @@ const nextConfig: NextConfig = {
     "@redis/search",
     "@redis/time-series",
     "@redis/bloom",
+    // elizaOS core and plugin-memory perform runtime-only dynamic imports for
+    // hook handlers. Keep them external so Turbopack does not try to resolve
+    // cache-busted file URLs like import(`${handlerUrl}?t=...`) at build time.
+    "@elizaos/core",
+    "@elizaos/plugin-memory",
     // NOTE: pino and thread-stream are NOT external - they get bundled with
     // the thread-stream alias to our synchronous stub, preventing dynamic
     // worker module loading (pino-28069d5257187539) that fails in serverless
