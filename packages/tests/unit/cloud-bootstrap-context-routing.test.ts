@@ -3,6 +3,7 @@ import {
   attachAvailableContexts,
   filterActionsByRouting,
   getContextRoutingFromMessage,
+  parseContextList,
   parseContextRoutingMetadata,
   setContextRoutingMetadata,
 } from "@/lib/eliza/plugin-cloud-bootstrap/utils/context-routing";
@@ -71,5 +72,67 @@ describe("cloud bootstrap context routing", () => {
     );
 
     expect(filtered.map((action) => action.name)).toEqual(["SEND_TOKEN", "WEB_SEARCH"]);
+  });
+
+  test("parses mixed context list inputs and ignores invalid entries", () => {
+    expect(
+      parseContextList([
+        "wallet;automation",
+        "Knowledge",
+        "wallet",
+        "not-a-context",
+        123,
+      ]),
+    ).toEqual(["wallet", "automation", "knowledge"]);
+  });
+
+  test("returns all actions when routing stays in the general context", () => {
+    const filtered = filterActionsByRouting(
+      [
+        { name: "SEND_TOKEN" },
+        { name: "WEB_SEARCH" },
+        { name: "MANAGE_PLUGINS" },
+      ] as never,
+      {},
+    );
+
+    expect(filtered.map((action) => action.name)).toEqual([
+      "SEND_TOKEN",
+      "WEB_SEARCH",
+      "MANAGE_PLUGINS",
+    ]);
+  });
+
+  test("prefers declared action contexts over catalog fallbacks", () => {
+    const filtered = filterActionsByRouting(
+      [
+        { name: "SEND_TOKEN", contexts: ["knowledge"] },
+        { name: "WEB_SEARCH" },
+      ] as never,
+      {
+        primaryContext: "wallet",
+      },
+    );
+
+    expect(filtered.map((action) => action.name)).toEqual([]);
+  });
+
+  test("attaches sorted contexts without discarding existing state values", () => {
+    const nextState = attachAvailableContexts(
+      {
+        values: { retained: "yes" },
+        data: {},
+        text: "",
+      } as never,
+      {
+        actions: [{ name: "WEB_SEARCH" }, { name: "SEND_TOKEN" }] as never,
+        providers: [{ name: "knowledge" }] as never,
+      },
+    );
+
+    expect(nextState.values.retained).toBe("yes");
+    expect(nextState.values.availableContexts).toBe(
+      "browser, general, knowledge, wallet",
+    );
   });
 });

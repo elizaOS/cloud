@@ -237,4 +237,130 @@ describe("training vertex routes", () => {
     expect(response.status).toBe(403);
     expect(mockActivateAssignment).not.toHaveBeenCalled();
   });
+
+  test("rejects global tuning jobs for non-super-admin users", async () => {
+    mockRequireAdmin.mockResolvedValueOnce({
+      role: "viewer",
+      user: {
+        id: "00000000-0000-0000-0000-000000000222",
+      },
+    });
+
+    const { POST } = await import("@/app/api/training/vertex/tune/route");
+    const response = await POST(
+      jsonRequest("http://localhost:3000/api/training/vertex/tune", "POST", {
+        scope: "global",
+        slot: "should_respond",
+        projectId: "demo",
+        gcsBucket: "demo-bucket",
+      }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload.error).toContain("super-admin");
+    expect(mockOrchestrateVertexTuning).not.toHaveBeenCalled();
+  });
+
+  test("returns 400 when no trajectories are available for generated Cloud training data", async () => {
+    mockExportAsTrainingJSONL.mockResolvedValueOnce("");
+
+    const { POST } = await import("@/app/api/training/vertex/tune/route");
+    const response = await POST(
+      jsonRequest("http://localhost:3000/api/training/vertex/tune", "POST", {
+        slot: "response_handler",
+        projectId: "demo",
+        gcsBucket: "demo-bucket",
+      }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toContain("No matching Cloud trajectories were found");
+    expect(mockOrchestrateVertexTuning).not.toHaveBeenCalled();
+  });
+
+  test("returns persisted jobs without calling Vertex when persisted=true", async () => {
+    const { GET } = await import("@/app/api/training/vertex/jobs/route");
+
+    const response = await GET(
+      jsonRequest(
+        "http://localhost:3000/api/training/vertex/jobs?persisted=true",
+        "GET",
+      ),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.persistedJobs).toEqual([{ id: "local-job-1" }]);
+    expect(mockListTuningJobs).not.toHaveBeenCalled();
+  });
+
+  test("returns remote status for an explicit Vertex job name", async () => {
+    const { GET } = await import("@/app/api/training/vertex/jobs/route");
+
+    const response = await GET(
+      jsonRequest(
+        "http://localhost:3000/api/training/vertex/jobs?name=projects/demo/locations/us-central1/tuningJobs/job-1",
+        "GET",
+      ),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(mockGetTuningJobStatus).toHaveBeenCalledWith(
+      "projects/demo/locations/us-central1/tuningJobs/job-1",
+    );
+    expect(mockSyncJobStatus).toHaveBeenCalledWith({
+      vertexJobName: "projects/demo/locations/us-central1/tuningJobs/job-1",
+    });
+    expect(payload.job.state).toBe("JOB_STATE_RUNNING");
+  });
+
+  test("lists assignments with explicit scope and inactive filter overrides", async () => {
+    const { GET } = await import("@/app/api/training/vertex/assignments/route");
+
+    const response = await GET(
+      jsonRequest(
+        "http://localhost:3000/api/training/vertex/assignments?scope=user&slot=should_respond&active=false",
+        "GET",
+      ),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(mockListVisibleAssignments).toHaveBeenCalledWith(
+      {
+        organizationId: "00000000-0000-0000-0000-000000000111",
+        userId: "00000000-0000-0000-0000-000000000222",
+      },
+      {
+        scope: "user",
+        slot: "should_respond",
+        activeOnly: false,
+      },
+    );
+    expect(payload.assignments).toHaveLength(1);
+  });
+
+  test("deactivates the authenticated user's assignment for user scope", async () => {
+    const { DELETE } = await import("@/app/api/training/vertex/assignments/route");
+
+    const response = await DELETE(
+      jsonRequest("http://localhost:3000/api/training/vertex/assignments", "DELETE", {
+        scope: "user",
+        slot: "response_handler",
+      }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(mockDeactivateAssignment).toHaveBeenCalledWith({
+      scope: "user",
+      slot: "response_handler",
+      organizationId: "00000000-0000-0000-0000-000000000111",
+      userId: "00000000-0000-0000-0000-000000000222",
+    });
+    expect(payload.deactivatedCount).toBe(1);
+  });
 });
