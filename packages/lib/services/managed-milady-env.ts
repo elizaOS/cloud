@@ -1,7 +1,7 @@
 import { resolveStewardContainerUrl } from "@/lib/services/docker-sandbox-utils";
 import {
   type ManagedMiladyEnvironmentResult,
-  prepareManagedMiladyBaseEnvironment,
+  prepareManagedMiladySharedEnvironment,
 } from "@/lib/services/managed-milady-config";
 
 export type { ManagedMiladyEnvironmentResult } from "@/lib/services/managed-milady-config";
@@ -14,13 +14,13 @@ export async function prepareManagedMiladyEnvironment(params: {
   sandboxId?: string;
 }): Promise<ManagedMiladyEnvironmentResult> {
   const existingEnv = { ...(params.existingEnv ?? {}) };
-  const baseEnvironment = await prepareManagedMiladyBaseEnvironment({
+  const sharedEnvironment = await prepareManagedMiladySharedEnvironment({
     existingEnv,
     organizationId: params.organizationId,
     userId: params.userId,
   });
   const environmentVars: Record<string, string> = {
-    ...baseEnvironment.environmentVars,
+    ...sharedEnvironment.environmentVars,
   };
 
   // Steward env vars — Docker-backed agents need these to talk to the wallet vault.
@@ -45,6 +45,6 @@ export async function prepareManagedMiladyEnvironment(params: {
     apiToken: environmentVars.MILADY_API_TOKEN,
     changed,
     environmentVars,
-    userApiKey: baseEnvironment.userApiKey,
+    userApiKey: sharedEnvironment.userApiKey,
   };
 }

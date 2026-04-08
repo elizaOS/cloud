@@ -53,13 +53,10 @@ mock.module("@/lib/services/milady-sandbox", () => ({
 
 import {
   prepareManagedMiladyBaseEnvironment,
+  prepareManagedMiladySharedEnvironment,
   resolveManagedAllowedOrigins,
 } from "../../lib/services/managed-milady-config";
 import { prepareManagedMiladyEnvironment as prepareDockerManagedMiladyEnvironment } from "../../lib/services/managed-milady-env";
-import {
-  prepareManagedMiladyEnvironment as prepareLaunchManagedMiladyEnvironment,
-  resolveMiladyLaunchAllowedOrigins,
-} from "../../lib/services/milady-managed-launch";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -139,8 +136,8 @@ describe("managed Milady environment configuration", () => {
     expect(result.environmentVars.STEWARD_AGENT_ID).toBe("sandbox-123");
   });
 
-  test("launch-time managed env reuses the shared base env contract", async () => {
-    const result = await prepareLaunchManagedMiladyEnvironment({
+  test("shared managed env helper reuses the shared base env contract", async () => {
+    const result = await prepareManagedMiladySharedEnvironment({
       existingEnv: {
         MILADY_API_TOKEN: "milady_launch_token",
         MILADY_ALLOWED_ORIGINS: "https://existing.example.com",
@@ -153,9 +150,6 @@ describe("managed Milady environment configuration", () => {
     expect(result.environmentVars.ELIZAOS_CLOUD_BASE_URL).toBe("https://cloud.example.com/api/v1");
     expect(result.environmentVars.MILADY_ALLOWED_ORIGINS.split(",").sort()).toEqual(
       resolveManagedAllowedOrigins().concat("https://existing.example.com").sort(),
-    );
-    expect(resolveMiladyLaunchAllowedOrigins().sort()).toEqual(
-      resolveManagedAllowedOrigins().sort(),
     );
   });
 });

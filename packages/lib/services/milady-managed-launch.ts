@@ -3,7 +3,7 @@ import type { MiladySandbox } from "@/db/schemas/milady-sandboxes";
 import { cache } from "@/lib/cache/client";
 import {
   type ManagedMiladyEnvironmentResult,
-  prepareManagedMiladyBaseEnvironment,
+  prepareManagedMiladySharedEnvironment,
   resolveCloudPublicUrl,
   resolveManagedAllowedOrigins,
   resolveMiladyAppUrl,
@@ -157,24 +157,7 @@ export async function prepareManagedMiladyEnvironment(params: {
   organizationId: string;
   userId: string;
 }): Promise<ManagedMiladyEnvironmentResult> {
-  const existingEnv = { ...(params.existingEnv ?? {}) };
-  const baseEnvironment = await prepareManagedMiladyBaseEnvironment({
-    existingEnv,
-    organizationId: params.organizationId,
-    userId: params.userId,
-  });
-  const environmentVars: Record<string, string> = {
-    ...baseEnvironment.environmentVars,
-  };
-
-  const changed = JSON.stringify(existingEnv) !== JSON.stringify(environmentVars);
-
-  return {
-    apiToken: environmentVars.MILADY_API_TOKEN,
-    changed,
-    environmentVars,
-    userApiKey: baseEnvironment.userApiKey,
-  };
+  return prepareManagedMiladySharedEnvironment(params);
 }
 
 export function resolveLaunchSessionCacheKey(sessionId: string): string {

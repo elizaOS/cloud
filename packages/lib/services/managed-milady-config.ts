@@ -23,6 +23,12 @@ export interface ManagedMiladyBaseEnvironmentResult {
   userApiKey: string;
 }
 
+export interface PrepareManagedMiladySharedEnvironmentParams {
+  existingEnv?: Record<string, string> | null;
+  organizationId: string;
+  userId: string;
+}
+
 export function normalizeBaseUrl(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
 }
@@ -155,5 +161,26 @@ export async function prepareManagedMiladyBaseEnvironment(params: {
       ELIZAOS_CLOUD_ENABLED: "true",
       ELIZAOS_CLOUD_BASE_URL: resolveCloudApiBaseUrl(),
     },
+  };
+}
+
+export async function prepareManagedMiladySharedEnvironment(
+  params: PrepareManagedMiladySharedEnvironmentParams,
+): Promise<ManagedMiladyEnvironmentResult> {
+  const existingEnv = { ...(params.existingEnv ?? {}) };
+  const baseEnvironment = await prepareManagedMiladyBaseEnvironment({
+    existingEnv,
+    organizationId: params.organizationId,
+    userId: params.userId,
+  });
+  const environmentVars: Record<string, string> = {
+    ...baseEnvironment.environmentVars,
+  };
+
+  return {
+    apiToken: environmentVars.MILADY_API_TOKEN,
+    changed: JSON.stringify(existingEnv) !== JSON.stringify(environmentVars),
+    environmentVars,
+    userApiKey: baseEnvironment.userApiKey,
   };
 }
