@@ -3,7 +3,7 @@
  */
 
 import type { AgentRuntime } from "@elizaos/core";
-import type { KnowledgeService as KnowledgeServiceType } from "@elizaos/plugin-knowledge";
+import type { KnowledgeService as KnowledgeServiceType } from "@elizaos/core";
 
 const MAX_RETRIES = 5;
 const INITIAL_DELAY_MS = 50; // Start low, increases exponentially

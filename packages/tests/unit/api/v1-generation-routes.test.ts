@@ -546,7 +546,7 @@ describe("Chat API", () => {
     expect(response.status).toBe(402);
   });
 
-  test.skip("streams responses and persists usage metadata after completion", async () => {
+  test("streams responses and persists usage metadata after completion", async () => {
     const reservation = reservationFactory();
     mockCreditsReserve.mockResolvedValue(reservation);
 

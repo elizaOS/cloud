@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { jsonRequest } from "./route-test-helpers";
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
+const mockRequireAuth = mock();
+const mockRequireAuthOrApiKey = mock();
 const mockRequireAdmin = mock();
 const mockExportAsTrainingJSONL = mock();
 const mockRecordSubmittedJob = mock();
@@ -19,6 +21,8 @@ const mockGetTuningJobStatus = mock();
 const mockListTuningJobs = mock();
 
 mock.module("@/lib/auth", () => ({
+  requireAuth: mockRequireAuth,
+  requireAuthOrApiKey: mockRequireAuthOrApiKey,
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
   requireAdmin: mockRequireAdmin,
 }));
@@ -51,6 +55,8 @@ mock.module("@/lib/services/vertex-tuning", () => ({
 
 beforeEach(() => {
   mockRequireAuthOrApiKeyWithOrg.mockReset();
+  mockRequireAuth.mockReset();
+  mockRequireAuthOrApiKey.mockReset();
   mockRequireAdmin.mockReset();
   mockExportAsTrainingJSONL.mockReset();
   mockRecordSubmittedJob.mockReset();
@@ -67,6 +73,16 @@ beforeEach(() => {
   mockListTuningJobs.mockReset();
 
   mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
+    user: {
+      id: "00000000-0000-0000-0000-000000000222",
+      organization_id: "00000000-0000-0000-0000-000000000111",
+    },
+  });
+  mockRequireAuth.mockResolvedValue({
+    id: "00000000-0000-0000-0000-000000000222",
+    organization_id: "00000000-0000-0000-0000-000000000111",
+  });
+  mockRequireAuthOrApiKey.mockResolvedValue({
     user: {
       id: "00000000-0000-0000-0000-000000000222",
       organization_id: "00000000-0000-0000-0000-000000000111",

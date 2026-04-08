@@ -118,7 +118,7 @@ async function getKnowledgePlugin(): Promise<Plugin> {
   if (_knowledgePlugin) return _knowledgePlugin;
 
   // Fallback to dynamic import if preload hasn't completed
-  const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
+  const { knowledgePluginCore } = await import("@elizaos/core");
   _knowledgePlugin = asPlugin(knowledgePluginCore);
   return _knowledgePlugin;
 }
@@ -274,12 +274,12 @@ export class AgentLoader {
     // Only load knowledge plugin when documents actually exist
     // Upload capability is handled separately — no need to init the full plugin
     if (options?.hasKnowledge) {
-      allPluginNames.push("@elizaos/plugin-knowledge");
-      logger.info("[AgentLoader] Loading knowledge plugin - documents found");
+      allPluginNames.push("knowledge");
+      logger.info("[AgentLoader] Loading native knowledge plugin - documents found");
     }
 
     for (const pluginName of allPluginNames) {
-      if (pluginName === "@elizaos/plugin-knowledge") {
+      if (pluginName === "knowledge") {
         const knowledgePlugin = await getKnowledgePlugin();
         if (!plugins.includes(knowledgePlugin)) plugins.push(knowledgePlugin);
         continue;
