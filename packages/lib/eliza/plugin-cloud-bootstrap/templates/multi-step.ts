@@ -168,19 +168,33 @@ IMPORTANT: If the user asks about your capabilities, tools, or available operati
 </response>
 </output>`;
 
-export const shouldRespondTemplate = `<task>Decide on behalf of {{agentName}} whether they should respond to the message.</task>
+export const shouldRespondTemplate = `<task>Decide whether {{agentName}} should respond, ignore, or stop.</task>
 
 <providers>
 {{providers}}
 </providers>
 
-<instructions>Decide if {{agentName}} should respond to the conversation.
+<available_contexts>
+{{availableContexts}}
+</available_contexts>
 
+<instructions>
 RULES:
-- If YOUR name ({{agentName}}) is directly mentioned → RESPOND
-- If you're in a conversation and the message continues that thread → RESPOND
-- If someone tells you to stop or be quiet → STOP
-- Otherwise → IGNORE
+- direct mention of {{agentName}} -> RESPOND
+- different assistant name -> IGNORE
+- continuing an active thread with {{agentName}} -> RESPOND
+- request to stop or be quiet -> STOP
+- talking to someone else -> IGNORE
+- if unsure, prefer IGNORE over hallucinating relevance
+
+CONTEXT ROUTING:
+- primaryContext: choose one context from available_contexts, or "general" if none apply
+- secondaryContexts: optional comma-separated list of additional relevant contexts
+- evidenceTurnIds: optional comma-separated message IDs supporting the decision
+
+DECISION NOTE:
+- talking TO {{agentName}} means name mention, reply chain, or direct continuation
+- talking ABOUT {{agentName}} is not enough
 </instructions>
 
 <output>
@@ -189,5 +203,8 @@ Respond using XML format:
   <name>{{agentName}}</name>
   <reasoning>Your reasoning here</reasoning>
   <action>RESPOND | IGNORE | STOP</action>
+  <primaryContext>general</primaryContext>
+  <secondaryContexts></secondaryContexts>
+  <evidenceTurnIds></evidenceTurnIds>
 </response>
 </output>`;

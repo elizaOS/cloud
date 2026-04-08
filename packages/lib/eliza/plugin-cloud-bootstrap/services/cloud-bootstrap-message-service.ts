@@ -41,6 +41,12 @@ import {
   type StrategyResult,
   TRANSPARENT_META_ACTIONS,
 } from "../types";
+import {
+  attachAvailableContexts,
+  parseContextRoutingMetadata,
+  setContextRoutingMetadata,
+  type ContextRoutingDecision,
+} from "../utils/context-routing";
 import { getActionResultsFromCache, refreshStateAfterAction } from "../utils/state";
 
 const latestResponseIds = new Map<string, Map<string, string>>();
@@ -267,6 +273,49 @@ interface ResponseDecision {
 }
 
 export class CloudBootstrapMessageService implements IMessageService {
+  private async evaluateShouldRespond(
+    runtime: IAgentRuntime,
+    message: Memory,
+  ): Promise<{
+    responseObject: Record<string, unknown> | null;
+    routing: ContextRoutingDecision;
+  }> {
+    let evalState = await runtime.composeState(
+      message,
+      ["RECENT_MESSAGES", "CHARACTER", "ENTITIES"],
+      true,
+    );
+    evalState = attachAvailableContexts(evalState, runtime as never);
+
+    const shouldRespondPrompt = composePromptFromState({
+      state: evalState,
+      template: runtime.character.templates?.shouldRespondTemplate || shouldRespondTemplate,
+    });
+
+    logger.info("========== LLM CALL: shouldRespond ==========");
+    logger.info(`[LLM:shouldRespond] System Prompt:\n${runtime.character.system || "(none)"}`);
+    logger.info(`[LLM:shouldRespond] User Prompt:\n${shouldRespondPrompt}`);
+    logger.info("==============================================");
+
+    const response = await withScopedTextModel(
+      "small",
+      resolveShouldRespondStepModel(runtime),
+      async () =>
+        await runtime.useModel(ModelType.TEXT_SMALL, {
+          prompt: shouldRespondPrompt,
+        }),
+    );
+
+    logger.info(`[LLM:shouldRespond] Response:\n${response}`);
+
+    const responseObject = parseKeyValueXml(String(response)) as Record<string, unknown> | null;
+
+    return {
+      responseObject,
+      routing: parseContextRoutingMetadata(responseObject),
+    };
+  }
+
   async handleMessage(
     runtime: IAgentRuntime,
     message: Memory,
@@ -484,39 +533,19 @@ export class CloudBootstrapMessageService implements IMessageService {
     // Determine if we should respond, using LLM evaluation if needed
     let shouldRespondToMessage = true;
 
+    let routedDecision: ContextRoutingDecision | null = null;
+
     if (respondDecision.skipEvaluation) {
       shouldRespondToMessage = respondDecision.shouldRespond;
+      if (respondDecision.shouldRespond) {
+        const evaluated = await this.evaluateShouldRespond(runtime, message);
+        routedDecision = evaluated.routing;
+        setContextRoutingMetadata(message, routedDecision);
+      }
     } else {
-      // Need LLM evaluation
-      const evalState = await runtime.composeState(
-        message,
-        ["RECENT_MESSAGES", "CHARACTER", "ENTITIES"],
-        true,
-      );
-
-      const shouldRespondPrompt = composePromptFromState({
-        state: evalState,
-        template: runtime.character.templates?.shouldRespondTemplate || shouldRespondTemplate,
-      });
-
-      // === LLM CALL LOG: shouldRespond ===
-      logger.info("========== LLM CALL: shouldRespond ==========");
-      logger.info(`[LLM:shouldRespond] System Prompt:\n${runtime.character.system || "(none)"}`);
-      logger.info(`[LLM:shouldRespond] User Prompt:\n${shouldRespondPrompt}`);
-      logger.info("==============================================");
-
-      const response = await withScopedTextModel(
-        "small",
-        resolveShouldRespondStepModel(runtime),
-        async () =>
-          await runtime.useModel(ModelType.TEXT_SMALL, {
-            prompt: shouldRespondPrompt,
-          }),
-      );
-
-      logger.info(`[LLM:shouldRespond] Response:\n${response}`);
-
-      const responseObject = parseKeyValueXml(String(response));
+      const { responseObject, routing } = await this.evaluateShouldRespond(runtime, message);
+      routedDecision = routing;
+      setContextRoutingMetadata(message, routedDecision);
       const nonResponseActions = ["IGNORE", "NONE", "STOP"];
       const actionValue = responseObject?.action;
 
@@ -546,6 +575,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     // at the start of its decision loop. runSingleShotCore fetches them before prompt
     // composition. This avoids double-fetching in the multi-step path.
     let state = await runtime.composeState(message, ["ENTITIES", "CHARACTER"], true);
+    state = attachAvailableContexts(state, runtime as never);
 
     // Determine processing mode - default to multi-step for cloud
     const useMultiStep =
