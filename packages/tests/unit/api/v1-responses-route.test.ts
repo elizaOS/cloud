@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { NextRequest } from "next/server";
 import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
 import { jsonRequest } from "./route-test-helpers";
@@ -714,6 +715,184 @@ describe("/api/v1/responses", () => {
 
     expect(response.status).toBe(200);
     expect(mockResponsesPassthrough).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects bodies over the cap even when Content-Length is missing/lying", async () => {
+    // Review finding: clients using chunked transfer encoding omit
+    // Content-Length entirely, so the header check is bypassable. The
+    // post-read text-length check is the real enforcement. Build a
+    // request that has NO content-length header but a body larger
+    // than the cap.
+    const oversizedPayload = {
+      model: "gpt-5.4",
+      instructions: "x",
+      // 5 MiB of filler in the input content
+      input: [{ role: "user", content: "x".repeat(5 * 1024 * 1024) }],
+    };
+    const request = new NextRequest("http://localhost:3000/api/v1/responses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(oversizedPayload),
+      // Note: no Content-Length header set explicitly. NextRequest
+      // may compute one from the body, but the test guarantees the
+      // post-read length check is what actually enforces the limit
+      // by setting the actual JSON to >4MiB.
+    });
+
+    const response = await responsesPost(request);
+
+    expect(response.status).toBe(413);
+    const body = await response.json();
+    expect(body.error.code).toBe("request_too_large");
+    expect(mockReserveAndDeductCredits).not.toHaveBeenCalled();
+    expect(mockResponsesPassthrough).not.toHaveBeenCalled();
+  });
+
+  test("returns 400 with invalid_json code on malformed JSON body", async () => {
+    // Previously a non-JSON body would throw inside the route's outer
+    // try/catch and return a generic error. Now we catch JSON parse
+    // failures explicitly and return a clean 400 with a specific
+    // error code so clients can distinguish from other 400s.
+    const request = new NextRequest("http://localhost:3000/api/v1/responses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "this is not json {",
+    });
+
+    const response = await responsesPost(request);
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.code).toBe("invalid_json");
+    expect(mockReserveAndDeductCredits).not.toHaveBeenCalled();
+    expect(mockResponsesPassthrough).not.toHaveBeenCalled();
+  });
+
+  test("settles synchronously for non-streaming passthrough responses", async () => {
+    // Review finding: for non-streaming responses (JSON, etc.) the
+    // background settle was at risk of never completing on serverless
+    // platforms because the function can be frozen once the Response
+    // is returned. The body is already materialized at that point,
+    // so we should await the settle synchronously instead.
+    mockResponsesPassthrough.mockResolvedValueOnce(
+      Response.json(
+        { id: "resp_1", status: "completed" },
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    // No setTimeout flush needed — synchronous settle path means
+    // reconcile is called by the time responsesPost returns.
+    expect(mockReconcileCredits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reservedAmount: expect.any(Number),
+        actualCost: expect.any(Number),
+      }),
+    );
+  });
+
+  test("non-streaming JSON passthrough responses are forwarded unchanged", async () => {
+    // Positive control for the non-streaming path. A JSON response
+    // body should pass through with the right content-type and an
+    // intact body.
+    mockResponsesPassthrough.mockResolvedValueOnce(
+      Response.json(
+        {
+          id: "resp_42",
+          object: "response",
+          status: "completed",
+          output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }],
+        },
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/json");
+    const body = await response.json();
+    expect(body.id).toBe("resp_42");
+    expect(body.status).toBe("completed");
+  });
+
+  test("sanitizes upstream gateway error payloads (no leaked internals)", async () => {
+    // Review finding: the upstream error object was forwarded
+    // verbatim. If the gateway ever included a stack trace or
+    // infrastructure details in its error envelope, those would leak
+    // to the client. The sanitizer pulls only the well-known
+    // OpenAI-compatible fields and discards everything else.
+    mockResponsesPassthrough.mockRejectedValueOnce({
+      status: 500,
+      error: {
+        message: "Internal model error",
+        type: "server_error",
+        code: "internal_error",
+        // Hostile payload — should NOT survive sanitization:
+        stack:
+          "Error: Internal at /var/task/node_modules/openai/some-internal-path.js:42:7\n  at ...",
+        infrastructure: { region: "iad1", host: "secret-internal-host" },
+        nested: { deep: { secret: "do not leak" } },
+      },
+    });
+
+    const response = await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-5.4",
+        instructions: "x",
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    // Whitelisted fields kept
+    expect(body.error.message).toBe("Internal model error");
+    expect(body.error.type).toBe("server_error");
+    expect(body.error.code).toBe("internal_error");
+    // Hostile fields stripped
+    expect(body.error).not.toHaveProperty("stack");
+    expect(body.error).not.toHaveProperty("infrastructure");
+    expect(body.error).not.toHaveProperty("nested");
+  });
+
+  test("treats non-string `instructions` as a native Responses payload", async () => {
+    // Review finding: previously `typeof body.instructions === "string"`
+    // would fall through to Chat Completions for malformed payloads
+    // like `instructions: 42`, which then choke on the unexpected
+    // field. Widening to `!= null` routes any presence of the field
+    // through the passthrough so the upstream returns a coherent
+    // validation error.
+    await responsesPost(
+      jsonRequest("http://localhost:3000/api/v1/responses", "POST", {
+        model: "gpt-4o-mini",
+        instructions: 42 as never, // intentionally malformed
+        input: [{ role: "user", content: "hi" }],
+      }),
+    );
+
+    expect(mockResponsesPassthrough).toHaveBeenCalledTimes(1);
+    expect(mockChatCompletions).not.toHaveBeenCalled();
   });
 
   test("uses a safe fallback reservation floor when estimateRequestCost throws", async () => {

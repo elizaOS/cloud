@@ -517,6 +517,53 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
 // ---------------------------------------------------------------------------
 
 /**
+ * Pull a safe error envelope out of an unknown gateway error payload.
+ *
+ * Upstream gateway errors come back as unknown JSON. We want to forward
+ * the user-facing message + type + code, but we must NOT forward
+ * arbitrary nested objects, stack traces, or infrastructure details a
+ * misconfigured gateway might include. This pulls only the well-known
+ * OpenAI-compatible fields and stringifies values to keep the shape
+ * predictable for clients.
+ */
+function sanitizeGatewayError(raw: unknown): {
+  message: string;
+  type: string;
+  code: string;
+  param?: string;
+} {
+  const fallback = {
+    message: "Upstream gateway error",
+    type: "api_error",
+    code: "upstream_error",
+  };
+  if (!raw || typeof raw !== "object") return fallback;
+  const obj = raw as Record<string, unknown>;
+  // The gateway often nests an `error` object inside `error` — peel it
+  // once if we see that shape.
+  const inner =
+    obj.error && typeof obj.error === "object" ? (obj.error as Record<string, unknown>) : obj;
+  const sanitized: ReturnType<typeof sanitizeGatewayError> = {
+    message:
+      typeof inner.message === "string" && inner.message.length > 0
+        ? inner.message.slice(0, 1000)
+        : fallback.message,
+    type:
+      typeof inner.type === "string" && inner.type.length > 0
+        ? inner.type.slice(0, 100)
+        : fallback.type,
+    code:
+      typeof inner.code === "string" && inner.code.length > 0
+        ? inner.code.slice(0, 100)
+        : fallback.code,
+  };
+  if (typeof inner.param === "string" && inner.param.length > 0) {
+    sanitized.param = inner.param.slice(0, 200);
+  }
+  return sanitized;
+}
+
+/**
  * Detect whether a request body is a native OpenAI Responses-API payload
  * that must be forwarded to the upstream `/responses` endpoint unchanged.
  *
@@ -534,7 +581,14 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
  * remains the code path for older clients and non-gpt-5 models.
  */
 function isNativeResponsesPayload(body: Record<string, unknown>): boolean {
-  if (typeof body.instructions === "string") return true;
+  // `instructions` is a Responses-API-only field. We treat ANY presence
+  // of it (string or otherwise) as a signal that the client targets the
+  // native Responses API — even malformed payloads (e.g.
+  // `instructions: 42`) should route through the passthrough so the
+  // upstream returns a coherent validation error rather than falling
+  // through to the Chat Completions transform path which would choke
+  // on the field entirely.
+  if (body.instructions !== undefined && body.instructions !== null) return true;
   // gpt-5 and gpt-5.x (gpt-5, gpt-5-mini, gpt-5.1, gpt-5.2, gpt-5.3,
   // gpt-5.4, gpt-5.x-codex, ...). Any model whose id starts with "gpt-5"
   // uses the Responses API natively.
@@ -628,8 +682,14 @@ async function handleNativeResponsesPassthrough(
   // round-trip on every unsupported-provider request, and removes the
   // failure mode where a reservation could leak if the refund path
   // throws.
+  //
+  // We capture `providerResponses` here as a non-null local so the
+  // narrowed type survives across the intervening credit reservation
+  // block. This avoids both a redundant second null check before the
+  // forward call and the `!` non-null assertion biome flagged.
   const providerInstance = getProviderForModel(model);
-  if (!providerInstance.responses) {
+  const providerResponses = providerInstance.responses;
+  if (!providerResponses) {
     return Response.json(
       {
         error: {
@@ -789,28 +849,8 @@ async function handleNativeResponsesPassthrough(
     };
   }
 
-  // Forward to upstream. Provider existence was verified at the top of
-  // the handler before we touched the credits ledger — capture a local
-  // reference there and reuse it here, both to avoid a redundant second
-  // check and to keep the narrowed (non-null) type across the
-  // intervening credit reservation block.
-  const providerResponses = providerInstance.responses;
-  if (!providerResponses) {
-    // Unreachable at runtime — the early check returned 400 before we
-    // got here. This guard is load-bearing only for the type system.
-    await settleReservation?.(0);
-    return Response.json(
-      {
-        error: {
-          message: "Provider responses method disappeared between check and call",
-          type: "internal_server_error",
-          code: "internal_server_error",
-        },
-      },
-      { status: 500 },
-    );
-  }
-
+  // `providerResponses` is the non-null local captured at the top of
+  // the handler — see the early-bail check above for the rationale.
   let upstreamResponse: Response;
   try {
     upstreamResponse = await providerResponses(bodyForUpstream, {
@@ -820,10 +860,13 @@ async function handleNativeResponsesPassthrough(
   } catch (err) {
     await settleReservation?.(0);
     logger.error("[Responses API passthrough] upstream fetch failed", { err });
-    // Propagate structured gateway errors when available.
+    // Propagate structured gateway errors when available — but
+    // sanitize the payload before forwarding so we don't leak gateway
+    // internals (stack traces, infrastructure host names, etc.) to
+    // end clients.
     if (err && typeof err === "object" && "error" in err && "status" in err) {
       const gwErr = err as { status: number; error: unknown };
-      return Response.json({ error: gwErr.error }, { status: gwErr.status });
+      return Response.json({ error: sanitizeGatewayError(gwErr.error) }, { status: gwErr.status });
     }
     return Response.json(
       {
@@ -848,31 +891,44 @@ async function handleNativeResponsesPassthrough(
     });
   }
 
-  // Background settlement of the credit reservation.
+  // Settlement of the credit reservation.
   //
-  // Known trade-off (documented for PR #427 review): this fires
-  // immediately after returning the Response, NOT after the client
-  // finishes reading the stream body. For large streamed responses
-  // or user-cancelled turns (e.g. Codex CLI Ctrl-C), we still charge
-  // the full reserved estimate. The 50% safety buffer in
-  // `estimateRequestCost` keeps this from being a massive overcharge,
-  // but it is an overcharge.
+  // For STREAMING responses (text/event-stream): we fire-and-forget
+  // the settle in the background so the client can start reading the
+  // stream immediately. The known trade-off is that on serverless
+  // platforms (Vercel) the function may be frozen once the Response
+  // is returned — the proper fix (#428, stacked) wraps the upstream
+  // stream so settlement is gated on the client actually consuming
+  // the body, including the terminal `response.completed` SSE event
+  // for accurate reconciliation.
   //
-  // Proper fix (follow-up PR): tee the upstream stream, parse the
-  // `response.completed` SSE event to extract actual usage, and
-  // reconcile to the real cost on stream close / abort. Doing that
-  // correctly requires wrapping the ReadableStream and is big enough
-  // to split from this PR.
+  // For NON-STREAMING responses (JSON, etc.): the body is already
+  // fully materialized at this point, so there is no value in
+  // deferring settlement — and on serverless the background promise
+  // would be at risk of never completing. We `await` the settle
+  // synchronously before returning the Response. This is the safer
+  // path now and stays correct after #428 lands.
+  const upstreamContentType = upstreamResponse.headers.get("content-type") ?? "";
+  const isStreamingResponse = upstreamContentType.includes("text/event-stream");
+
   if (settleReservation) {
     const settle = settleReservation;
     const reserved = reservedAmount;
-    void (async () => {
+    if (isStreamingResponse) {
+      void (async () => {
+        try {
+          await settle(reserved);
+        } catch (err) {
+          logger.warn("[Responses API passthrough] background settle failed", { err });
+        }
+      })();
+    } else {
       try {
         await settle(reserved);
       } catch (err) {
-        logger.warn("[Responses API passthrough] background settle failed", { err });
+        logger.warn("[Responses API passthrough] synchronous settle failed", { err });
       }
-    })();
+    }
   }
 
   // Build the client-visible response headers. Start from the upstream
@@ -1013,8 +1069,63 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
-    // 2. Parse AI SDK request
-    const rawBody = (await req.json()) as Record<string, unknown>;
+    // 2. Read the body as text first so we can enforce the actual size
+    // limit AFTER buffering — `Content-Length` is a hint clients can
+    // omit (chunked transfer encoding) or lie about. The text-based
+    // check is the real enforcement; the header check above is just
+    // an early fast path to reject obvious oversize requests before
+    // we burn time reading them.
+    let rawBody: Record<string, unknown>;
+    try {
+      const bodyText = await req.text();
+      if (bodyText.length > MAX_RESPONSES_BODY_BYTES) {
+        logger.warn("[Responses API] rejecting oversized request body (post-read)", {
+          actualBytes: bodyText.length,
+          limit: MAX_RESPONSES_BODY_BYTES,
+        });
+        return Response.json(
+          {
+            error: {
+              message: `Request body exceeds ${MAX_RESPONSES_BODY_BYTES} bytes`,
+              type: "invalid_request_error",
+              code: "request_too_large",
+            },
+          },
+          { status: 413 },
+        );
+      }
+      try {
+        rawBody = JSON.parse(bodyText) as Record<string, unknown>;
+      } catch (parseErr) {
+        logger.warn("[Responses API] malformed JSON request body", {
+          err: parseErr instanceof Error ? parseErr.message : String(parseErr),
+        });
+        return Response.json(
+          {
+            error: {
+              message: "Request body is not valid JSON",
+              type: "invalid_request_error",
+              code: "invalid_json",
+            },
+          },
+          { status: 400 },
+        );
+      }
+    } catch (readErr) {
+      logger.warn("[Responses API] failed to read request body", {
+        err: readErr instanceof Error ? readErr.message : String(readErr),
+      });
+      return Response.json(
+        {
+          error: {
+            message: "Failed to read request body",
+            type: "invalid_request_error",
+            code: "body_read_failed",
+          },
+        },
+        { status: 400 },
+      );
+    }
 
     // 2a. Native Responses-API passthrough path.
     //
