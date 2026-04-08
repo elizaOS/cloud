@@ -42,7 +42,7 @@ export async function prepareManagedMiladyEnvironment(params: {
   const changed = JSON.stringify(existingEnv) !== JSON.stringify(environmentVars);
 
   return {
-    apiToken: baseEnvironment.apiToken,
+    apiToken: environmentVars.MILADY_API_TOKEN,
     changed,
     environmentVars,
     userApiKey: baseEnvironment.userApiKey,
