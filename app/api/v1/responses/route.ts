@@ -43,6 +43,10 @@ import { usageService } from "@/lib/services/usage";
 import type { UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
+import {
+  type ResponsesUsage,
+  wrapWithUsageExtraction,
+} from "@/lib/utils/responses-stream-reconcile";
 
 export const maxDuration = 800;
 
@@ -891,43 +895,109 @@ async function handleNativeResponsesPassthrough(
     });
   }
 
-  // Settlement of the credit reservation.
+  // Credit reservation settlement, dispatched on response shape:
   //
-  // For STREAMING responses (text/event-stream): we fire-and-forget
-  // the settle in the background so the client can start reading the
-  // stream immediately. The known trade-off is that on serverless
-  // platforms (Vercel) the function may be frozen once the Response
-  // is returned — the proper fix (#428, stacked) wraps the upstream
-  // stream so settlement is gated on the client actually consuming
-  // the body, including the terminal `response.completed` SSE event
-  // for accurate reconciliation.
+  //   - STREAMING responses (text/event-stream): we wrap the upstream
+  //     ReadableStream with `wrapWithUsageExtraction` so bytes flow to
+  //     the client unchanged AND the wrapper extracts `response.usage`
+  //     from the terminal `response.completed` SSE event. Settlement
+  //     fires when the stream actually ends (or is cancelled / errors)
+  //     so we reconcile to actual cost rather than the reservation
+  //     upper bound. Exactly one terminal callback is guaranteed.
   //
-  // For NON-STREAMING responses (JSON, etc.): the body is already
-  // fully materialized at this point, so there is no value in
-  // deferring settlement — and on serverless the background promise
-  // would be at risk of never completing. We `await` the settle
-  // synchronously before returning the Response. This is the safer
-  // path now and stays correct after #428 lands.
-  const upstreamContentType = upstreamResponse.headers.get("content-type") ?? "";
+  //   - NON-STREAMING responses (JSON, etc.): the body is already
+  //     fully materialized, so there is no value in deferring
+  //     settlement. We `await` it synchronously before returning the
+  //     Response so the reservation can't be stranded by a serverless
+  //     function freeze (Vercel can terminate the invocation once the
+  //     Response is sent, which would orphan a background promise).
+  //     For non-streaming we don't have an SSE stream to parse, so
+  //     we settle to the reserved estimate; the 50% safety buffer in
+  //     `estimateRequestCost` is the upper bound.
+  //
+  //   - NO BODY (headers-only upstream response, edge case): also
+  //     synchronously settle to reserved so the reservation isn't
+  //     stranded.
+  const upstreamContentType =
+    upstreamResponse.headers.get("content-type") ?? "";
   const isStreamingResponse = upstreamContentType.includes("text/event-stream");
 
-  if (settleReservation) {
-    const settle = settleReservation;
-    const reserved = reservedAmount;
-    if (isStreamingResponse) {
-      void (async () => {
+  let reconciledBody: ReadableStream<Uint8Array> | null = null;
+  if (isStreamingResponse && upstreamResponse.body) {
+    // Streaming path: stream wrapper handles its own reconciliation
+    // via the runReconciliation callback below.
+    const providerName = getProviderFromModel(model);
+    const runReconciliation = async (
+      usage: ResponsesUsage | null,
+    ): Promise<void> => {
+      if (!settleReservation) return;
+      if (!usage) {
         try {
-          await settle(reserved);
+          await settleReservation(reservedAmount);
         } catch (err) {
-          logger.warn("[Responses API passthrough] background settle failed", { err });
+          logger.warn(
+            "[Responses API passthrough] fallback settle failed",
+            { err },
+          );
         }
-      })();
-    } else {
-      try {
-        await settle(reserved);
-      } catch (err) {
-        logger.warn("[Responses API passthrough] synchronous settle failed", { err });
+        return;
       }
+      try {
+        const { totalCost } = await calculateCost(
+          normalizeModelName(model),
+          providerName,
+          usage.inputTokens,
+          usage.outputTokens,
+        );
+        // Cap actual cost at the reservation. If the model somehow
+        // ran hotter than we reserved we can't retroactively collect
+        // more from the user via this path — any shortfall would
+        // need a separate post-hoc ledger entry, which is out of
+        // scope here.
+        const actualCost = Math.min(totalCost, reservedAmount);
+        await settleReservation(actualCost);
+      } catch (err) {
+        logger.warn(
+          "[Responses API passthrough] cost calculation failed, settling to reserved",
+          { err },
+        );
+        try {
+          await settleReservation(reservedAmount);
+        } catch (innerErr) {
+          logger.warn(
+            "[Responses API passthrough] fallback settle also failed",
+            { err: innerErr },
+          );
+        }
+      }
+    };
+
+    reconciledBody = wrapWithUsageExtraction(
+      upstreamResponse.body,
+      (usage, reason) => {
+        logger.debug(
+          "[Responses API passthrough] stream terminated",
+          {
+            userId: user.id,
+            reason,
+            sawUsage: usage !== null,
+            inputTokens: usage?.inputTokens,
+            outputTokens: usage?.outputTokens,
+          },
+        );
+        void runReconciliation(usage);
+      },
+    );
+  } else if (settleReservation) {
+    // Non-streaming OR no-body path: settle synchronously so a
+    // serverless function freeze can't strand the reservation.
+    try {
+      await settleReservation(reservedAmount);
+    } catch (err) {
+      logger.warn(
+        "[Responses API passthrough] synchronous settle failed",
+        { err },
+      );
     }
   }
 
@@ -979,7 +1049,7 @@ async function handleNativeResponsesPassthrough(
     durationMs,
   });
 
-  return new Response(upstreamResponse.body, {
+  return new Response(reconciledBody ?? upstreamResponse.body, {
     status: upstreamResponse.status,
     statusText: upstreamResponse.statusText,
     headers: outHeaders,
