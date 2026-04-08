@@ -59,6 +59,7 @@ import {
 import { prepareManagedMiladyEnvironment as prepareDockerManagedMiladyEnvironment } from "../../lib/services/managed-milady-env";
 
 const ORIGINAL_ENV = { ...process.env };
+const mutableEnv = process.env as Record<string, string | undefined>;
 
 describe("managed Milady environment configuration", () => {
   beforeEach(() => {
@@ -76,10 +77,10 @@ describe("managed Milady environment configuration", () => {
       delete process.env[key];
     }
     Object.assign(process.env, ORIGINAL_ENV);
-    process.env.NODE_ENV = "production";
-    process.env.NEXT_PUBLIC_APP_URL = "https://cloud.example.com/";
-    process.env.NEXT_PUBLIC_MILADY_APP_URL = "https://app.example.com/";
-    process.env.MILADY_MANAGED_ALLOWED_ORIGINS =
+    mutableEnv.NODE_ENV = "production";
+    mutableEnv.NEXT_PUBLIC_APP_URL = "https://cloud.example.com/";
+    mutableEnv.NEXT_PUBLIC_MILADY_APP_URL = "https://app.example.com/";
+    mutableEnv.MILADY_MANAGED_ALLOWED_ORIGINS =
       "https://extra.example.com/path, not-a-url, https://extra-two.example.com";
 
     mockListByOrganization.mockResolvedValue([
