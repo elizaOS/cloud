@@ -118,7 +118,7 @@ async function getKnowledgePlugin(): Promise<Plugin> {
   if (_knowledgePlugin) return _knowledgePlugin;
 
   // Fallback to dynamic import if preload hasn't completed
-  const { knowledgePluginCore } = await import("@elizaos/core");
+  const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
   _knowledgePlugin = asPlugin(knowledgePluginCore);
   return _knowledgePlugin;
 }

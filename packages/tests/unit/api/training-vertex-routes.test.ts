@@ -198,10 +198,7 @@ describe("training vertex routes", () => {
     const { GET } = await import("@/app/api/training/vertex/jobs/route");
 
     const response = await GET(
-      jsonRequest(
-        "http://localhost:3000/api/training/vertex/jobs?jobId=local-job-1",
-        "GET",
-      ),
+      jsonRequest("http://localhost:3000/api/training/vertex/jobs?jobId=local-job-1", "GET"),
     );
     const payload = await response.json();
 
@@ -300,10 +297,7 @@ describe("training vertex routes", () => {
     const { GET } = await import("@/app/api/training/vertex/jobs/route");
 
     const response = await GET(
-      jsonRequest(
-        "http://localhost:3000/api/training/vertex/jobs?persisted=true",
-        "GET",
-      ),
+      jsonRequest("http://localhost:3000/api/training/vertex/jobs?persisted=true", "GET"),
     );
     const payload = await response.json();
 

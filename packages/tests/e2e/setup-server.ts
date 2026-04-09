@@ -1,5 +1,5 @@
-import type { Subprocess } from "bun";
 import { delimiter } from "node:path";
+import type { Subprocess } from "bun";
 
 const TEST_SERVER_PORT = process.env.TEST_SERVER_PORT || "3000";
 const SERVER_URL = process.env.TEST_BASE_URL || `http://localhost:${TEST_SERVER_PORT}`;
@@ -34,7 +34,10 @@ function getBunExecutable(): string {
   throw new Error("Bun executable path is unavailable in the current test runtime");
 }
 
-function extendPathWithExecutableDirectory(envPath: string | undefined, executablePath: string): string {
+function extendPathWithExecutableDirectory(
+  envPath: string | undefined,
+  executablePath: string,
+): string {
   const executableDir = executablePath.slice(0, Math.max(executablePath.lastIndexOf("/"), 0));
   if (executableDir.length === 0) {
     return envPath ?? "";

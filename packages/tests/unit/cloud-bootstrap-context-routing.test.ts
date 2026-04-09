@@ -44,13 +44,10 @@ describe("cloud bootstrap context routing", () => {
   });
 
   test("derives available contexts from action and provider catalog fallbacks", () => {
-    const nextState = attachAvailableContexts(
-      { values: {}, data: {}, text: "" } as never,
-      {
-        actions: [{ name: "SEND_TOKEN" }, { name: "WEB_SEARCH" }] as never,
-        providers: [{ name: "walletBalance" }, { name: "knowledge" }] as never,
-      },
-    );
+    const nextState = attachAvailableContexts({ values: {}, data: {}, text: "" } as never, {
+      actions: [{ name: "SEND_TOKEN" }, { name: "WEB_SEARCH" }] as never,
+      providers: [{ name: "walletBalance" }, { name: "knowledge" }] as never,
+    });
 
     expect(nextState.values.availableContexts).toContain("general");
     expect(nextState.values.availableContexts).toContain("wallet");
@@ -60,11 +57,7 @@ describe("cloud bootstrap context routing", () => {
 
   test("filters actions to the active routed contexts", () => {
     const filtered = filterActionsByRouting(
-      [
-        { name: "SEND_TOKEN" },
-        { name: "WEB_SEARCH" },
-        { name: "MANAGE_PLUGINS" },
-      ] as never,
+      [{ name: "SEND_TOKEN" }, { name: "WEB_SEARCH" }, { name: "MANAGE_PLUGINS" }] as never,
       {
         primaryContext: "wallet",
         secondaryContexts: ["knowledge"],
@@ -76,23 +69,13 @@ describe("cloud bootstrap context routing", () => {
 
   test("parses mixed context list inputs and ignores invalid entries", () => {
     expect(
-      parseContextList([
-        "wallet;automation",
-        "Knowledge",
-        "wallet",
-        "not-a-context",
-        123,
-      ]),
+      parseContextList(["wallet;automation", "Knowledge", "wallet", "not-a-context", 123]),
     ).toEqual(["wallet", "automation", "knowledge"]);
   });
 
   test("returns all actions when routing stays in the general context", () => {
     const filtered = filterActionsByRouting(
-      [
-        { name: "SEND_TOKEN" },
-        { name: "WEB_SEARCH" },
-        { name: "MANAGE_PLUGINS" },
-      ] as never,
+      [{ name: "SEND_TOKEN" }, { name: "WEB_SEARCH" }, { name: "MANAGE_PLUGINS" }] as never,
       {},
     );
 
@@ -105,10 +88,7 @@ describe("cloud bootstrap context routing", () => {
 
   test("prefers declared action contexts over catalog fallbacks", () => {
     const filtered = filterActionsByRouting(
-      [
-        { name: "SEND_TOKEN", contexts: ["knowledge"] },
-        { name: "WEB_SEARCH" },
-      ] as never,
+      [{ name: "SEND_TOKEN", contexts: ["knowledge"] }, { name: "WEB_SEARCH" }] as never,
       {
         primaryContext: "wallet",
       },
@@ -131,8 +111,6 @@ describe("cloud bootstrap context routing", () => {
     );
 
     expect(nextState.values.retained).toBe("yes");
-    expect(nextState.values.availableContexts).toBe(
-      "browser, general, knowledge, wallet",
-    );
+    expect(nextState.values.availableContexts).toBe("browser, general, knowledge, wallet");
   });
 });

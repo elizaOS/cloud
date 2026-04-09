@@ -10,13 +10,13 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { organizations } from "./organizations";
+import { users } from "./users";
 import {
   vertexTuningJobs,
   vertexTuningScopeEnum,
   vertexTuningSlotEnum,
 } from "./vertex-tuning-jobs";
-import { organizations } from "./organizations";
-import { users } from "./users";
 
 export const vertexTunedModels = pgTable(
   "vertex_tuned_models",

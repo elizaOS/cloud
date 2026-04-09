@@ -11,9 +11,9 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
+import { users } from "./users";
 import { vertexTunedModels } from "./vertex-tuned-models";
 import { vertexTuningScopeEnum, vertexTuningSlotEnum } from "./vertex-tuning-jobs";
-import { users } from "./users";
 
 export const vertexModelAssignments = pgTable(
   "vertex_model_assignments",

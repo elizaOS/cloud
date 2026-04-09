@@ -10,18 +10,15 @@ import {
 } from "@/lib/auth-anonymous";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
-import {
-  mergeModelPreferences,
-  sanitizeModelPreferences,
-} from "@/lib/eliza/model-preferences";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { mergeModelPreferences, sanitizeModelPreferences } from "@/lib/eliza/model-preferences";
 import { DEFAULT_AGENT_ID_STRING, runtimeFactory } from "@/lib/eliza/runtime-factory";
 import {
   clientCharacterStateSchema,
   validateAppId,
   validateAppPromptConfig,
 } from "@/lib/eliza/stream-validation";
-import { type UserContext, userContextService } from "@/lib/eliza/user-context";
+import { userContextService } from "@/lib/eliza/user-context";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { charactersService } from "@/lib/services/characters/characters";

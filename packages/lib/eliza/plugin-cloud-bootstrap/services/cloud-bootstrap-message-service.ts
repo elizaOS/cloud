@@ -43,9 +43,9 @@ import {
 } from "../types";
 import {
   attachAvailableContexts,
+  type ContextRoutingDecision,
   parseContextRoutingMetadata,
   setContextRoutingMetadata,
-  type ContextRoutingDecision,
 } from "../utils/context-routing";
 import { getActionResultsFromCache, refreshStateAfterAction } from "../utils/state";
 

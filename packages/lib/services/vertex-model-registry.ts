@@ -1,11 +1,11 @@
-import { and, desc, eq, or, sql } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import {
   type VertexModelAssignmentRecord,
-  vertexModelAssignments,
   type VertexTunedModelRecord,
-  vertexTunedModels,
   type VertexTuningJobRecord,
+  vertexModelAssignments,
+  vertexTunedModels,
   vertexTuningJobs,
 } from "@/db/schemas";
 import type { ModelPreferenceKey, ModelPreferences } from "@/lib/eliza/model-preferences";
@@ -136,7 +136,10 @@ function buildModelVisibilityCondition(viewer: ViewerScope) {
 
   if (viewer.userId && isValidUUID(viewer.userId)) {
     clauses.push(
-      and(eq(vertexTunedModels.source_scope, "user"), eq(vertexTunedModels.user_id, viewer.userId))!,
+      and(
+        eq(vertexTunedModels.source_scope, "user"),
+        eq(vertexTunedModels.user_id, viewer.userId),
+      )!,
     );
   }
 
@@ -427,12 +430,14 @@ export class VertexModelRegistryService {
     return rows;
   }
 
-  async activateAssignment(params: AssignmentScopeOwner & {
-    slot: VertexTuningSlot;
-    tunedModelId: string;
-    assignedByUserId?: string;
-    metadata?: Record<string, unknown>;
-  }): Promise<VertexModelAssignmentWithModel> {
+  async activateAssignment(
+    params: AssignmentScopeOwner & {
+      slot: VertexTuningSlot;
+      tunedModelId: string;
+      assignedByUserId?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<VertexModelAssignmentWithModel> {
     const owner = normalizeScopeOwner(params);
 
     return dbWrite.transaction(async (tx) => {
@@ -507,7 +512,9 @@ export class VertexModelRegistryService {
     });
   }
 
-  async deactivateAssignment(params: AssignmentScopeOwner & { slot: VertexTuningSlot }): Promise<number> {
+  async deactivateAssignment(
+    params: AssignmentScopeOwner & { slot: VertexTuningSlot },
+  ): Promise<number> {
     const owner = normalizeScopeOwner(params);
     const now = new Date();
 
@@ -576,7 +583,9 @@ export class VertexModelRegistryService {
       }
 
       merged = mergeModelPreferences(merged, normalized);
-      for (const [key, value] of Object.entries(normalized) as Array<[ModelPreferenceKey, string]>) {
+      for (const [key, value] of Object.entries(normalized) as Array<
+        [ModelPreferenceKey, string]
+      >) {
         if (value) {
           sources[key] = assignment;
         }

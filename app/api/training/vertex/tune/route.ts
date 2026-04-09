@@ -111,7 +111,8 @@ export async function POST(request: NextRequest) {
       displayName,
       slot: slot as any,
       scope: scope as any,
-      ownerId: scope === "user" ? user.id : scope === "organization" ? user.organization_id : undefined,
+      ownerId:
+        scope === "user" ? user.id : scope === "organization" ? user.organization_id : undefined,
       accessToken: typeof body.accessToken === "string" ? body.accessToken : undefined,
     });
 

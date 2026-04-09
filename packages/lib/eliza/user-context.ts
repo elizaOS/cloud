@@ -5,9 +5,9 @@
 
 import type { AnonymousSession } from "@/db/schemas";
 import type { ModelPreferences } from "@/lib/eliza/model-preferences";
-import { vertexModelRegistryService } from "@/lib/services/vertex-model-registry";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { oauthService } from "@/lib/services/oauth";
+import { vertexModelRegistryService } from "@/lib/services/vertex-model-registry";
 import type { ApiKey, UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 import { isValidUUID } from "@/lib/utils/validation";
