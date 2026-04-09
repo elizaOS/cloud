@@ -2,11 +2,7 @@ import type { Redis } from "@upstash/redis";
 import { z } from "zod";
 import { validateInternalSecret } from "./internal-auth";
 import { logger } from "./logger";
-import {
-  forwardEventToServer,
-  refreshKedaActivity,
-  resolveAgentServer,
-} from "./server-router";
+import { forwardEventToServer, refreshKedaActivity, resolveAgentServer } from "./server-router";
 
 /**
  * Zod schema for the internal event request body.
@@ -53,10 +49,7 @@ export async function handleInternalEvent(
     logger.warn("Internal event rejected: schema validation failed", {
       issues: parsed.error.issues,
     });
-    return jsonResponse(
-      { error: "invalid request body", details: parsed.error.issues },
-      400,
-    );
+    return jsonResponse({ error: "invalid request body", details: parsed.error.issues }, 400);
   }
 
   const event = parsed.data;
@@ -77,10 +70,7 @@ export async function handleInternalEvent(
  * Background processing for an internal event: resolve agent server,
  * refresh KEDA activity, and forward the event to the agent pod.
  */
-async function processInternalEvent(
-  event: InternalEvent,
-  deps: InternalEventDeps,
-): Promise<void> {
+async function processInternalEvent(event: InternalEvent, deps: InternalEventDeps): Promise<void> {
   const { redis } = deps;
 
   const server = await resolveAgentServer(redis, event.agentId);
