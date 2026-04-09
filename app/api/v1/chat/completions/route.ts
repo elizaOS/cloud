@@ -119,15 +119,33 @@ interface ChatRequest {
  * Anthropic models get native server-side web search (no extra API key needed).
  * Returns empty object if search is disabled or provider doesn't support it.
  */
+/** Models that support Anthropic server-side web search. */
+const ANTHROPIC_WEB_SEARCH_MODELS = new Set([
+  "claude-sonnet-4-5",
+  "claude-sonnet-4-6",
+  "claude-opus-4-5",
+  "claude-opus-4-6",
+  "claude-sonnet-4",
+  "claude-opus-4",
+  "claude-3-5-sonnet",
+  "claude-3-5-sonnet-latest",
+]);
+
+function supportsAnthropicWebSearch(model: string): boolean {
+  const normalized = normalizeModelName(model).toLowerCase();
+  return Array.from(ANTHROPIC_WEB_SEARCH_MODELS).some((m) => normalized.includes(m));
+}
+
 function getSearchToolsParam(
   provider: string,
+  model: string,
   webSearchEnabled: boolean,
 ):
   | { tools: Record<string, ReturnType<typeof anthropicProvider.tools.webSearch_20260209>> }
   | Record<string, never> {
   if (!webSearchEnabled) return {};
 
-  if (provider === "anthropic") {
+  if (provider === "anthropic" && supportsAnthropicWebSearch(model)) {
     return {
       tools: {
         web_search: anthropicProvider.tools.webSearch_20260209({
@@ -137,7 +155,7 @@ function getSearchToolsParam(
     };
   }
 
-  // Other providers: no native search yet (Phase 2: add gateway search)
+  // Unsupported model or provider: no search tools
   return {};
 }
 
@@ -557,7 +575,7 @@ async function handleStreamingRequest(
     model: getLanguageModel(model),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
-    ...getSearchToolsParam(provider, request.webSearchEnabled !== false),
+    ...getSearchToolsParam(provider, model, request.webSearchEnabled !== false),
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
@@ -735,7 +753,7 @@ async function handleNonStreamingRequest(
       model: getLanguageModel(model),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
-      ...getSearchToolsParam(provider, request.webSearchEnabled !== false),
+      ...getSearchToolsParam(provider, model, request.webSearchEnabled !== false),
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
