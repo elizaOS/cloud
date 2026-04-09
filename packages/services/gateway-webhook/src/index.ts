@@ -143,6 +143,12 @@ async function start() {
     fetch: app.fetch,
   });
 
+  if (!process.env.GATEWAY_INTERNAL_SECRET) {
+    logger.warn(
+      "GATEWAY_INTERNAL_SECRET is not configured — POST /internal/event will reject all requests",
+    );
+  }
+
   logger.info("Webhook gateway listening", { port: PORT });
 }
 
