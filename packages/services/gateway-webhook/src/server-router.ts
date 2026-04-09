@@ -197,7 +197,7 @@ export async function forwardEventToServer(
   serverName: string,
   agentId: string,
   userId: string,
-  type: string,
+  type: "cron" | "notification" | "system",
   payload: Record<string, unknown>,
 ): Promise<string> {
   return forwardWithRetry(
