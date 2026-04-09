@@ -10,6 +10,7 @@
  */
 
 import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
+import { anthropic as anthropicProvider } from "@ai-sdk/anthropic";
 import type { NextRequest } from "next/server";
 import { getErrorStatusCode } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
@@ -105,6 +106,35 @@ interface ChatRequest {
     };
   }>;
   tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  /** Enable provider-native web search. Defaults to true for Anthropic models. */
+  webSearchEnabled?: boolean;
+}
+
+// ============================================================================
+// Web Search Tools
+// ============================================================================
+
+/**
+ * Build provider-native web search tools based on model provider.
+ * Anthropic models get native server-side web search (no extra API key needed).
+ * Returns empty object if search is disabled or provider doesn't support it.
+ */
+function buildSearchTools(
+  provider: string,
+  webSearchEnabled: boolean,
+): Record<string, unknown> {
+  if (!webSearchEnabled) return {};
+
+  if (provider === "anthropic") {
+    return {
+      web_search: anthropicProvider.tools.webSearch_20260209({
+        maxUses: 5,
+      }),
+    };
+  }
+
+  // Other providers: no native search yet (Phase 2: add gateway search)
+  return {};
 }
 
 // ============================================================================
@@ -519,10 +549,14 @@ async function handleStreamingRequest(
       : undefined,
   });
 
+  // Build provider-native search tools (enabled by default)
+  const searchTools = buildSearchTools(provider, request.webSearchEnabled !== false);
+
   const result = streamText({
     model: getLanguageModel(model),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
+    ...(Object.keys(searchTools).length > 0 && { tools: searchTools }),
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
@@ -696,10 +730,14 @@ async function handleNonStreamingRequest(
   });
 
   try {
+    // Build provider-native search tools (enabled by default)
+    const searchToolsNonStream = buildSearchTools(provider, request.webSearchEnabled !== false);
+
     const result = await generateText({
       model: getLanguageModel(model),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
+      ...(Object.keys(searchToolsNonStream).length > 0 && { tools: searchToolsNonStream }),
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
