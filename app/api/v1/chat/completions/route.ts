@@ -9,8 +9,8 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
 import { anthropic as anthropicProvider } from "@ai-sdk/anthropic";
+import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
 import type { NextRequest } from "next/server";
 import { getErrorStatusCode } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
