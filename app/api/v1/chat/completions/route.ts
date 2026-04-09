@@ -419,7 +419,7 @@ async function handlePOST(req: NextRequest) {
 
     // 8. Handle streaming vs non-streaming
     if (request.stream) {
-      return handleStreamingRequest(
+      return await handleStreamingRequest(
         model,
         systemPrompt,
         uiMessages,
@@ -436,7 +436,7 @@ async function handlePOST(req: NextRequest) {
         effectiveMaxTokens,
       );
     } else {
-      return handleNonStreamingRequest(
+      return await handleNonStreamingRequest(
         model,
         systemPrompt,
         uiMessages,
