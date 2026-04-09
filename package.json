@@ -90,6 +90,7 @@
     "@elizaos/core": "1.7.3-alpha.2",
     "@elizaos/plugin-elevenlabs": "^1.6.0",
     "@elizaos/plugin-elizacloud": "^1.7.5",
+    "@elizaos/plugin-knowledge": "^1.6.1",
     "@elizaos/plugin-mcp": "1.8.2",
     "@elizaos/plugin-memory": "1.1.2",
     "@elizaos/plugin-n8n-workflow": "1.2.3",
