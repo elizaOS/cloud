@@ -8,6 +8,8 @@ import {
   stringToUuid,
 } from "@elizaos/core";
 import sqlPlugin from "@elizaos/plugin-sql";
+import { type DispatchResult, dispatchEvent } from "./handlers/event";
+import { logger } from "./logger";
 import { getRedis } from "./redis";
 
 interface AgentEntry {
@@ -24,17 +26,28 @@ const REDIS_STATE_TTL_SECONDS = Math.max(
 const REDIS_REFRESH_INTERVAL_MS = 30_000;
 const AGENT_ROUTING_TTL_SECONDS = 30 * 24 * 3600;
 
+/**
+ * Manages the lifecycle of agent runtimes within this pod.
+ *
+ * Responsibilities:
+ *   - Maintains an in-memory Map of loaded agents and their runtimes
+ *   - Tracks in-flight request count for graceful SIGTERM drain
+ *   - Publishes server/agent state to Redis for gateway routing
+ *   - Provides handleMessage() and handleEvent() entry points
+ */
 export class AgentManager {
   private agents = new Map<string, AgentEntry>();
   private _draining = false;
   private inFlight = 0;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
+  /** Returns the internal K8s service URL for this pod. */
   private getServerUrl(): string {
     const namespace = process.env.POD_NAMESPACE || "eliza-agents";
     return `http://${process.env.SERVER_NAME}.${namespace}.svc:3000`;
   }
 
+  /** Publishes server status, URL, and agent→server mappings to Redis with TTLs. */
   private async refreshRedisState(status = this._draining ? "draining" : "running") {
     const redis = getRedis();
     const multi = redis.multi();
@@ -50,6 +63,7 @@ export class AgentManager {
     await multi.exec();
   }
 
+  /** Starts the periodic Redis state refresh timer. */
   private startHeartbeat() {
     if (this.heartbeatTimer) {
       return;
@@ -57,7 +71,9 @@ export class AgentManager {
 
     this.heartbeatTimer = setInterval(() => {
       void this.refreshRedisState().catch((err) => {
-        console.error("Failed to refresh agent-server Redis state:", err);
+        logger.error("Failed to refresh agent-server Redis state", {
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
     }, REDIS_REFRESH_INTERVAL_MS);
 
@@ -66,6 +82,7 @@ export class AgentManager {
     }
   }
 
+  /** Stops the periodic Redis state refresh timer. */
   private stopHeartbeat() {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
@@ -73,15 +90,18 @@ export class AgentManager {
     }
   }
 
+  /** Initializes Redis state and starts the heartbeat. Must be called before accepting traffic. */
   async initialize() {
     await this.refreshRedisState("running");
     this.startHeartbeat();
   }
 
+  /** Returns true when SIGTERM has been received and the server is draining. */
   isDraining(): boolean {
     return this._draining;
   }
 
+  /** Returns a snapshot of server and agent state for the /status endpoint. */
   getStatus() {
     return {
       serverName: process.env.SERVER_NAME,
@@ -98,6 +118,11 @@ export class AgentManager {
     };
   }
 
+  /**
+   * Returns the IAgentRuntime for a loaded, running agent.
+   * @throws {Error} "Agent not found" if the agent is not loaded on this pod
+   * @throws {Error} "Agent not running" if the agent is in a stopped state
+   */
   getRuntime(agentId: string): IAgentRuntime {
     const entry = this.agents.get(agentId);
     if (!entry) throw new Error("Agent not found");
@@ -105,6 +130,12 @@ export class AgentManager {
     return entry.runtime;
   }
 
+  /**
+   * Starts a new agent runtime on this pod.
+   * Reserves capacity immediately, then initializes the runtime asynchronously.
+   * @throws {Error} "At capacity" if no slots are available
+   * @throws {Error} "Agent already exists" if the agent is already loaded
+   */
   async startAgent(agentId: string, characterRef: string) {
     if (this.agents.size >= Number(process.env.CAPACITY)) {
       throw new Error("At capacity");
@@ -165,6 +196,7 @@ export class AgentManager {
     }
   }
 
+  /** Stops a running agent's runtime, transitioning it to "stopped" state. */
   async stopAgent(id: string) {
     const entry = this.agents.get(id);
     if (!entry) throw new Error("Agent not found");
@@ -174,6 +206,7 @@ export class AgentManager {
     await this.refreshRedisState();
   }
 
+  /** Stops and removes an agent, cleaning up its Redis routing key. */
   async deleteAgent(id: string) {
     const entry = this.agents.get(id);
     if (!entry) throw new Error("Agent not found");
@@ -183,6 +216,31 @@ export class AgentManager {
     await this.refreshRedisState();
   }
 
+  /**
+   * Handles a structured event delivered by the gateway's forwardEventToServer().
+   *
+   * Tracks in-flight count so drain() waits for event processing to complete
+   * before stopping runtimes on SIGTERM. Delegates dispatch to handlers/event.ts.
+   */
+  async handleEvent(
+    agentId: string,
+    userId: string,
+    type: "cron" | "notification" | "system",
+    payload: Record<string, unknown>,
+  ): Promise<DispatchResult> {
+    this.inFlight++;
+    try {
+      const rt = this.getRuntime(agentId);
+      return await dispatchEvent(rt, agentId, userId, type, payload);
+    } finally {
+      this.inFlight--;
+    }
+  }
+
+  /**
+   * Handles a user message by routing it through the agent's message pipeline.
+   * Tracks in-flight count for graceful drain during SIGTERM.
+   */
   async handleMessage(agentId: string, userId: string, text: string) {
     this.inFlight++;
     try {
@@ -223,6 +281,10 @@ export class AgentManager {
     }
   }
 
+  /**
+   * Initiates graceful drain: marks the server as draining, waits up to 50s
+   * for in-flight requests (messages + events) to complete, then stops all runtimes.
+   */
   async drain() {
     this._draining = true;
     await this.refreshRedisState("draining");
@@ -242,6 +304,7 @@ export class AgentManager {
     }
   }
 
+  /** Removes this server's status/url keys from Redis during shutdown. */
   async cleanupRedis() {
     this.stopHeartbeat();
     const redis = getRedis();
