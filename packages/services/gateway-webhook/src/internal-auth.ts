@@ -12,8 +12,11 @@ import { logger } from "./logger";
  * Returns false (and logs at warn level) when:
  * - GATEWAY_INTERNAL_SECRET env var is not configured
  * - Header is missing from the request
- * - Header length does not match the secret length
  * - Header value does not match the secret
+ *
+ * Post-header-present rejections share a single generic log message
+ * so that log access does not reveal whether the attacker guessed the
+ * correct secret length.
  */
 export function validateInternalSecret(request: Request): boolean {
   const secret = process.env.GATEWAY_INTERNAL_SECRET ?? "";
@@ -32,12 +35,7 @@ export function validateInternalSecret(request: Request): boolean {
   const a = Buffer.from(header);
   const b = Buffer.from(secret);
 
-  if (a.length !== b.length) {
-    logger.warn("Internal auth rejected: secret length mismatch");
-    return false;
-  }
-
-  if (!timingSafeEqual(a, b)) {
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
     logger.warn("Internal auth rejected: invalid secret");
     return false;
   }
