@@ -31,6 +31,25 @@ import { logger } from "../logger";
  */
 export const MAX_EVENT_BODY_BYTES = 64 * 1024;
 
+type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export interface JsonObject {
+  [key: string]: JsonValue;
+}
+
+const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(JsonValueSchema),
+    z.record(z.string(), JsonValueSchema),
+  ]),
+);
+const JsonObjectSchema: z.ZodType<JsonObject> = z.record(z.string(), JsonValueSchema);
+export type AgentEventType = "cron" | "notification" | "system";
+
 /**
  * Zod schema for the event request body.
  *
@@ -46,8 +65,8 @@ export const EventBodySchema = z.object({
     .min(1)
     .max(256)
     .regex(/^[a-zA-Z0-9_@.-]+$/),
-  type: z.enum(["cron", "notification", "system"]),
-  payload: z.record(z.unknown()),
+  type: z.enum(["cron", "notification", "system"] as const),
+  payload: JsonObjectSchema,
 });
 
 export type AgentEvent = z.infer<typeof EventBodySchema>;
@@ -58,7 +77,7 @@ export type AgentEvent = z.infer<typeof EventBodySchema>;
  */
 export interface DispatchResult {
   response?: string;
-  [key: string]: unknown;
+  [key: string]: JsonValue | undefined;
 }
 
 /**
@@ -77,8 +96,8 @@ export async function dispatchEvent(
   runtime: IAgentRuntime,
   agentId: string,
   userId: string,
-  type: "cron" | "notification" | "system",
-  payload: Record<string, unknown>,
+  type: AgentEventType,
+  payload: JsonObject,
 ): Promise<DispatchResult> {
   switch (type) {
     case "cron":
@@ -103,10 +122,10 @@ export async function dispatchEvent(
 async function handleCronEvent(
   runtime: IAgentRuntime,
   userId: string,
-  payload: Record<string, unknown>,
+  payload: JsonObject,
 ): Promise<DispatchResult> {
   logger.debug("Dispatching cron event", { userId });
-  const eventPayload: EventPayload & { userId: string; payload: Record<string, unknown> } = {
+  const eventPayload: EventPayload & { userId: string; payload: JsonObject } = {
     runtime,
     source: "agent-server",
     userId,
@@ -129,7 +148,7 @@ async function handleNotificationEvent(
   runtime: IAgentRuntime,
   agentId: string,
   userId: string,
-  payload: Record<string, unknown>,
+  payload: JsonObject,
 ): Promise<DispatchResult> {
   const text =
     typeof payload.text === "string"
@@ -164,8 +183,12 @@ async function handleNotificationEvent(
     },
   });
 
+  if (!runtime.messageService) {
+    throw new Error("Message service unavailable");
+  }
+
   let response = "";
-  await runtime.messageService?.handleMessage(runtime, mem, async (content) => {
+  await runtime.messageService.handleMessage(runtime, mem, async (content) => {
     if (content?.text) response += content.text;
     return [];
   });
@@ -184,7 +207,7 @@ async function handleNotificationEvent(
 async function handleSystemEvent(
   _runtime: IAgentRuntime,
   agentId: string,
-  payload: Record<string, unknown>,
+  payload: JsonObject,
 ): Promise<DispatchResult> {
   const action = typeof payload.action === "string" ? payload.action : "unknown";
   logger.info("Dispatching system event", { agentId, action });

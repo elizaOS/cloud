@@ -63,8 +63,7 @@ describe("logger", () => {
   });
 
   test("debug messages are suppressed at default (info) log level", async () => {
-    // LOG_LEVEL is captured at module load time; default is "info"
-    // so debug calls should be suppressed
+    delete process.env.LOG_LEVEL;
     const { logger } = await import("../../src/logger");
     logger.debug("should be suppressed", { agentId: "a1" });
 

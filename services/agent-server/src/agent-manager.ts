@@ -8,7 +8,7 @@ import {
   stringToUuid,
 } from "@elizaos/core";
 import sqlPlugin from "@elizaos/plugin-sql";
-import { type DispatchResult, dispatchEvent } from "./handlers/event";
+import { type DispatchResult, dispatchEvent, type JsonObject } from "./handlers/event";
 import { logger } from "./logger";
 import { getRedis } from "./redis";
 
@@ -226,7 +226,7 @@ export class AgentManager {
     agentId: string,
     userId: string,
     type: "cron" | "notification" | "system",
-    payload: Record<string, unknown>,
+    payload: JsonObject,
   ): Promise<DispatchResult> {
     this.inFlight++;
     try {

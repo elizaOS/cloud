@@ -1,16 +1,18 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { IAgentRuntime } from "@elizaos/core";
 
 // ── Mock @elizaos/core ──────────────────────────────────────────
 
+type MessageContent = { text: string };
+type MessageCallback = (content: MessageContent) => Promise<object[]>;
+
 const mockEmitEvent = mock(() => Promise.resolve());
-const mockHandleMessage = mock(
-  (_rt: unknown, _mem: unknown, callback: (content: { text: string }) => Promise<unknown[]>) => {
-    return callback({ text: "agent-response" });
-  },
+const mockHandleMessage = mock((_rt: object, _mem: object, callback: MessageCallback) =>
+  callback({ text: "agent-response" }),
 );
 const mockEnsureConnection = mock(() => Promise.resolve());
 
-function createMockRuntime() {
+function createMockRuntime(): IAgentRuntime {
   return {
     emitEvent: mockEmitEvent,
     ensureConnection: mockEnsureConnection,
@@ -18,7 +20,7 @@ function createMockRuntime() {
       handleMessage: mockHandleMessage,
     },
     getService: mock(() => null),
-  };
+  } as IAgentRuntime;
 }
 
 let mockRuntime = createMockRuntime();
@@ -42,14 +44,20 @@ mock.module("../../src/redis", () => ({
 
 // ── Import after mocks ──────────────────────────────────────────
 
-import { dispatchEvent, EventBodySchema, MAX_EVENT_BODY_BYTES } from "../../src/handlers/event";
+import {
+  type AgentEvent,
+  type DispatchResult,
+  dispatchEvent,
+  EventBodySchema,
+  MAX_EVENT_BODY_BYTES,
+} from "../../src/handlers/event";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
 const AGENT_ID = "agent-001";
 const USER_ID = "user-001";
 
-function validEventBody(overrides: Record<string, unknown> = {}) {
+function validEventBody(overrides: Partial<AgentEvent> = {}): AgentEvent {
   return {
     userId: USER_ID,
     type: "cron",
@@ -163,15 +171,20 @@ describe("dispatchEvent — cron", () => {
   });
 
   test("calls runtime.emitEvent with cron type", async () => {
-    const result = await dispatchEvent(mockRuntime as any, AGENT_ID, USER_ID, "cron", {
+    const result = await dispatchEvent(mockRuntime, AGENT_ID, USER_ID, "cron", {
       cronId: "daily",
     });
     expect(mockRuntime.emitEvent).toHaveBeenCalledTimes(1);
     const callArgs = mockRuntime.emitEvent.mock.calls[0];
+    const payload = callArgs[1] as DispatchResult & {
+      userId: string;
+      payload: AgentEvent["payload"];
+      source: string;
+    };
     expect(callArgs[0]).toBe("cron");
-    expect((callArgs[1] as any).userId).toBe(USER_ID);
-    expect((callArgs[1] as any).payload).toEqual({ cronId: "daily" });
-    expect((callArgs[1] as any).source).toBe("agent-server");
+    expect(payload.userId).toBe(USER_ID);
+    expect(payload.payload).toEqual({ cronId: "daily" });
+    expect(payload.source).toBe("agent-server");
     expect(result).toEqual({});
   });
 });
@@ -184,7 +197,7 @@ describe("dispatchEvent — notification", () => {
   });
 
   test("calls ensureConnection and messageService.handleMessage", async () => {
-    const result = await dispatchEvent(mockRuntime as any, AGENT_ID, USER_ID, "notification", {
+    const result = await dispatchEvent(mockRuntime, AGENT_ID, USER_ID, "notification", {
       text: "Hello agent",
     });
     expect(mockRuntime.ensureConnection).toHaveBeenCalledTimes(1);
@@ -193,15 +206,24 @@ describe("dispatchEvent — notification", () => {
   });
 
   test("uses payload.message when payload.text is absent", async () => {
-    await dispatchEvent(mockRuntime as any, AGENT_ID, USER_ID, "notification", {
+    await dispatchEvent(mockRuntime, AGENT_ID, USER_ID, "notification", {
       message: "Msg from payload.message",
     });
     expect(mockRuntime.messageService.handleMessage).toHaveBeenCalledTimes(1);
   });
 
   test("JSON-stringifies payload when neither text nor message present", async () => {
-    await dispatchEvent(mockRuntime as any, AGENT_ID, USER_ID, "notification", { custom: "data" });
+    await dispatchEvent(mockRuntime, AGENT_ID, USER_ID, "notification", { custom: "data" });
     expect(mockRuntime.messageService.handleMessage).toHaveBeenCalledTimes(1);
+  });
+
+  test("throws when runtime.messageService is unavailable", async () => {
+    const errRuntime = createMockRuntime();
+    errRuntime.messageService = undefined;
+
+    await expect(
+      dispatchEvent(errRuntime, AGENT_ID, USER_ID, "notification", { text: "hi" }),
+    ).rejects.toThrow("Message service unavailable");
   });
 });
 
@@ -211,28 +233,28 @@ describe("dispatchEvent — system", () => {
   });
 
   test("health action returns agent status", async () => {
-    const result = await dispatchEvent(mockRuntime as any, AGENT_ID, USER_ID, "system", {
+    const result = await dispatchEvent(mockRuntime, AGENT_ID, USER_ID, "system", {
       action: "health",
     });
     expect(result).toEqual({ status: "running", agentId: AGENT_ID });
   });
 
   test("config-reload action returns placeholder", async () => {
-    const result = await dispatchEvent(mockRuntime as any, AGENT_ID, USER_ID, "system", {
+    const result = await dispatchEvent(mockRuntime, AGENT_ID, USER_ID, "system", {
       action: "config-reload",
     });
     expect(result).toEqual({ reloaded: false, reason: "not yet implemented" });
   });
 
   test("unknown action returns empty result", async () => {
-    const result = await dispatchEvent(mockRuntime as any, AGENT_ID, USER_ID, "system", {
+    const result = await dispatchEvent(mockRuntime, AGENT_ID, USER_ID, "system", {
       action: "unknown",
     });
     expect(result).toEqual({});
   });
 
   test("missing action field returns empty result", async () => {
-    const result = await dispatchEvent(mockRuntime as any, AGENT_ID, USER_ID, "system", {});
+    const result = await dispatchEvent(mockRuntime, AGENT_ID, USER_ID, "system", {});
     expect(result).toEqual({});
   });
 });
@@ -242,7 +264,7 @@ describe("dispatchEvent — error handling", () => {
     const errRuntime = createMockRuntime();
     errRuntime.emitEvent = mock(() => Promise.reject(new Error("emit failed")));
 
-    await expect(dispatchEvent(errRuntime as any, AGENT_ID, USER_ID, "cron", {})).rejects.toThrow(
+    await expect(dispatchEvent(errRuntime, AGENT_ID, USER_ID, "cron", {})).rejects.toThrow(
       "emit failed",
     );
   });
@@ -254,7 +276,7 @@ describe("dispatchEvent — error handling", () => {
     );
 
     await expect(
-      dispatchEvent(errRuntime as any, AGENT_ID, USER_ID, "notification", { text: "hi" }),
+      dispatchEvent(errRuntime, AGENT_ID, USER_ID, "notification", { text: "hi" }),
     ).rejects.toThrow("message failed");
   });
 });

@@ -2,11 +2,23 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 // ── Mock @elizaos/core (must be before any import that uses it) ──
 
+type MessageCallback = (content: { text: string }) => Promise<object[]>;
+type TestJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | TestJsonValue[]
+  | { [key: string]: TestJsonValue };
+type EventRequestBody = {
+  userId?: string;
+  type?: string;
+  payload?: { [key: string]: TestJsonValue };
+};
+
 const mockEmitEvent = mock(() => Promise.resolve());
-const mockHandleMessage = mock(
-  (_rt: unknown, _mem: unknown, callback: (content: { text: string }) => Promise<unknown[]>) => {
-    return callback({ text: "integration-response" });
-  },
+const mockHandleMessage = mock((_rt: object, _mem: object, callback: MessageCallback) =>
+  callback({ text: "integration-response" }),
 );
 const mockEnsureConnection = mock(() => Promise.resolve());
 
@@ -52,6 +64,15 @@ import { Elysia } from "elysia";
 import { AgentManager } from "../../src/agent-manager";
 import { createRoutes } from "../../src/routes";
 
+interface TestAgentEntry {
+  agentId: string;
+  characterRef: string;
+  runtime: ReturnType<typeof createMockRuntime>;
+  state: "running" | "stopped";
+}
+
+type AgentManagerWithTestState = AgentManager & { agents: Map<string, TestAgentEntry> };
+
 // ── Helpers ─────────────────────────────────────────────────────
 
 const TEST_SECRET = "integration-test-secret";
@@ -63,7 +84,7 @@ function buildApp(manager: AgentManager) {
 
 function eventRequest(
   agentId: string,
-  body: unknown,
+  body: EventRequestBody,
   headers: Record<string, string> = {},
 ): Request {
   return new Request(`http://localhost/agents/${agentId}/event`, {
@@ -90,7 +111,7 @@ describe("POST /agents/:id/event integration (Elysia app)", () => {
 
     manager = new AgentManager();
     // Inject a mock agent directly into the manager's private agents map
-    const agents = (manager as any).agents as Map<string, any>;
+    const agents = (manager as AgentManagerWithTestState).agents;
     agents.set(AGENT_ID, {
       agentId: AGENT_ID,
       characterRef: "test-char",
@@ -180,7 +201,7 @@ describe("POST /agents/:id/event integration (Elysia app)", () => {
   });
 
   test("returns 404 for agent in stopped state", async () => {
-    const agents = (manager as any).agents as Map<string, any>;
+    const agents = (manager as AgentManagerWithTestState).agents;
     agents.set("stopped-agent", {
       agentId: "stopped-agent",
       characterRef: "test-char",
@@ -197,7 +218,7 @@ describe("POST /agents/:id/event integration (Elysia app)", () => {
   });
 
   test("inFlight counter increments and decrements around event handling", async () => {
-    expect((manager as any).inFlight).toBe(0);
+    expect(manager.getStatus().inFlight).toBe(0);
 
     const res = await app.handle(
       eventRequest(AGENT_ID, { userId: "u1", type: "system", payload: { action: "health" } }),
@@ -205,7 +226,19 @@ describe("POST /agents/:id/event integration (Elysia app)", () => {
     expect(res.status).toBe(200);
 
     // After completion, inFlight should be back to 0
-    expect((manager as any).inFlight).toBe(0);
+    expect(manager.getStatus().inFlight).toBe(0);
+  });
+
+  test("returns 503 for new events while draining", async () => {
+    await manager.drain();
+
+    const res = await app.handle(
+      eventRequest(AGENT_ID, { userId: "u1", type: "cron", payload: {} }),
+    );
+
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toBe("Server is draining");
   });
 });
 
@@ -233,7 +266,7 @@ describe("Non-interference with existing routes", () => {
   });
 
   test("POST /agents/:id/message still routes correctly", async () => {
-    const agents = (manager as any).agents as Map<string, any>;
+    const agents = (manager as AgentManagerWithTestState).agents;
     agents.set("msg-agent", {
       agentId: "msg-agent",
       characterRef: "test",

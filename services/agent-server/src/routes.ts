@@ -160,6 +160,11 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
         return denial;
       }
 
+      if (manager.isDraining()) {
+        set.status = 503;
+        return { error: "Server is draining" };
+      }
+
       const parsed = EventBodySchema.safeParse(body);
       if (!parsed.success) {
         logger.warn("Event rejected: schema validation failed", {

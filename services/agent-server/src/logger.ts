@@ -8,21 +8,26 @@
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
-const LOG_LEVEL = (process.env.LOG_LEVEL ?? "info") as LogLevel;
 const LOG_LEVELS: Record<LogLevel, number> = {
   debug: 0,
   info: 1,
   warn: 2,
   error: 3,
 };
+const LOG_LEVEL_VALUES = ["debug", "info", "warn", "error"] as const;
+
+function getCurrentLogLevel(): LogLevel {
+  const envLevel = process.env.LOG_LEVEL;
+  return LOG_LEVEL_VALUES.find((level) => level === envLevel) ?? "info";
+}
 
 function shouldLog(level: LogLevel): boolean {
-  return LOG_LEVELS[level] >= LOG_LEVELS[LOG_LEVEL];
+  return LOG_LEVELS[level] >= LOG_LEVELS[getCurrentLogLevel()];
 }
 
 function formatMessage(level: LogLevel, message: string, meta?: Record<string, unknown>): string {
   const timestamp = new Date().toISOString();
-  const base = { timestamp, level, message, ...meta };
+  const base = { ...meta, timestamp, level, message };
   return JSON.stringify(base);
 }
 
