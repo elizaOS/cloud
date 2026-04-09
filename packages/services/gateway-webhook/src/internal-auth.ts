@@ -40,7 +40,9 @@ export function validateInternalSecret(request: Request): boolean {
   a.copy(aPadded);
   b.copy(bPadded);
 
-  if (a.length !== b.length || !timingSafeEqual(aPadded, bPadded)) {
+  const lengthMatch = a.length === b.length;
+  const valueMatch = timingSafeEqual(aPadded, bPadded);
+  if (!lengthMatch || !valueMatch) {
     logger.warn("Internal auth rejected: invalid secret");
     return false;
   }
