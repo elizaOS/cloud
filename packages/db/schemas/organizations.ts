@@ -46,6 +46,11 @@ export const organizations = pgTable(
     auto_top_up_threshold: numeric("auto_top_up_threshold", { precision: 10, scale: 2 }),
     auto_top_up_amount: numeric("auto_top_up_amount", { precision: 10, scale: 2 }),
 
+    // Steward auth tenant credentials for this organization.
+    // Populated when an org is onboarded onto Steward-backed auth.
+    steward_tenant_id: text("steward_tenant_id").unique(),
+    steward_tenant_api_key: text("steward_tenant_api_key"),
+
     is_active: boolean("is_active").default(true).notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
@@ -63,3 +68,9 @@ export const organizations = pgTable(
 // Type inference
 export type Organization = InferSelectModel<typeof organizations>;
 export type NewOrganization = InferInsertModel<typeof organizations>;
+
+// Steward tenant credential shape (returned after provisioning)
+export interface StewardTenantCredentials {
+  tenantId: string;
+  apiKey: string;
+}

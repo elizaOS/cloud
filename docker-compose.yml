@@ -11,7 +11,8 @@ services:
       POSTGRES_DB: eliza_dev
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      - ./packages/scripts/init-db.sh:/docker-entrypoint-initdb.d/10-init-db.sh
+      - ./packages/scripts/init-steward-db.sh:/docker-entrypoint-initdb.d/20-steward.sh
     healthcheck:
       test:
         - CMD-SHELL
@@ -42,6 +43,48 @@ services:
       SRH_CONNECTION_STRING: redis://redis:6379
     depends_on:
       - redis
+
+  steward:
+    # Steward auth service — agent wallet infrastructure + multi-tenant auth
+    # Source: https://github.com/Steward-Fi/steward (sibling repo)
+    # In production this is hosted on ElizaCloud's own infrastructure.
+    # For local dev, build from source if ../steward exists, otherwise skip.
+    build:
+      context: ../steward
+      dockerfile: Dockerfile
+    container_name: eliza-steward
+    restart: unless-stopped
+    ports:
+      - "3200:3200"
+    environment:
+      PORT: 3200
+      NODE_ENV: development
+      STEWARD_MASTER_PASSWORD: ${STEWARD_MASTER_PASSWORD:-dev-master-password-change-in-prod}
+      STEWARD_JWT_SECRET: ${STEWARD_JWT_SECRET:-dev-jwt-secret-change-in-prod}
+      STEWARD_SESSION_SECRET: ${STEWARD_JWT_SECRET:-dev-jwt-secret-change-in-prod}
+      DATABASE_URL: "postgresql://eliza_dev:local_dev_password@postgres:5432/steward"
+      STEWARD_PLATFORM_KEYS: ${STEWARD_PLATFORM_KEYS:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-login@elizacloud.ai}
+      APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      PASSKEY_RP_NAME: ElizaCloud
+      PASSKEY_RP_ID: localhost
+      PASSKEY_ORIGIN: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      TWITTER_CLIENT_ID: ${TWITTER_CLIENT_ID:-}
+      TWITTER_CLIENT_SECRET: ${TWITTER_CLIENT_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3200/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
 
 volumes:
   postgres_data:
