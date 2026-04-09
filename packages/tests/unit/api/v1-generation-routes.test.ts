@@ -71,6 +71,14 @@ mock.module("@ai-sdk/openai", () => ({
   }),
 }));
 
+mock.module("@ai-sdk/anthropic", () => ({
+  anthropic: Object.assign((model: string) => `anthropic:${model}`, {
+    tools: {
+      webSearch_20260209: (opts?: unknown) => "web-search-tool",
+    },
+  }),
+}));
+
 mock.module("@ai-sdk/gateway", () => ({
   gateway: {
     languageModel: (model: string) => `gateway:${model}`,

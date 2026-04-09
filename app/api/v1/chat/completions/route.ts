@@ -9,6 +9,7 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
+import { anthropic as anthropicProvider } from "@ai-sdk/anthropic";
 import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
 import type { NextRequest } from "next/server";
 import { getErrorStatusCode } from "@/lib/api/errors";
@@ -105,6 +106,51 @@ interface ChatRequest {
     };
   }>;
   tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  /** Enable provider-native web search. Defaults to true for Anthropic models. */
+  webSearchEnabled?: boolean;
+}
+
+// ============================================================================
+// Web Search Tools
+// ============================================================================
+
+/**
+ * Build provider-native web search tools based on model provider.
+ * Anthropic models get native server-side web search (no extra API key needed).
+ * Returns empty object if search is disabled or provider doesn't support it.
+ */
+/** Models that support Anthropic server-side web search. */
+const ANTHROPIC_WEB_SEARCH_MODELS = new Set([
+  "claude-sonnet-4-6",
+  "claude-opus-4-6",
+]);
+
+function supportsAnthropicWebSearch(model: string): boolean {
+  const normalized = normalizeModelName(model).toLowerCase();
+  return Array.from(ANTHROPIC_WEB_SEARCH_MODELS).some((m) => normalized.includes(m));
+}
+
+function getSearchToolsParam(
+  provider: string,
+  model: string,
+  webSearchEnabled: boolean,
+):
+  | { tools: Record<string, ReturnType<typeof anthropicProvider.tools.webSearch_20260209>> }
+  | Record<string, never> {
+  if (!webSearchEnabled) return {};
+
+  if (provider === "anthropic" && supportsAnthropicWebSearch(model)) {
+    return {
+      tools: {
+        web_search: anthropicProvider.tools.webSearch_20260209({
+          maxUses: 5,
+        }),
+      },
+    };
+  }
+
+  // Unsupported model or provider: no search tools
+  return {};
 }
 
 // ============================================================================
@@ -523,6 +569,7 @@ async function handleStreamingRequest(
     model: getLanguageModel(model),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
+    ...getSearchToolsParam(provider, model, request.webSearchEnabled !== false),
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
@@ -700,6 +747,7 @@ async function handleNonStreamingRequest(
       model: getLanguageModel(model),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
+      ...getSearchToolsParam(provider, model, request.webSearchEnabled !== false),
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
