@@ -4,6 +4,8 @@ import { validateInternalSecret } from "./internal-auth";
 import { logger } from "./logger";
 import { forwardEventToServer, refreshKedaActivity, resolveAgentServer } from "./server-router";
 
+const MAX_BODY_BYTES = 64 * 1024;
+
 /**
  * Zod schema for the internal event request body.
  * K8s services (CronJobs, matcher, notifier) send events matching this shape.
@@ -36,9 +38,24 @@ export async function handleInternalEvent(
     return jsonResponse({ error: "unauthorized" }, 401);
   }
 
+  let rawText: string;
+  try {
+    rawText = await request.text();
+  } catch {
+    logger.warn("Internal event rejected: unreadable body");
+    return jsonResponse({ error: "invalid request" }, 400);
+  }
+
+  if (Buffer.byteLength(rawText) > MAX_BODY_BYTES) {
+    logger.warn("Internal event rejected: payload too large", {
+      bytes: Buffer.byteLength(rawText),
+    });
+    return jsonResponse({ error: "payload too large" }, 413);
+  }
+
   let rawBody: unknown;
   try {
-    rawBody = await request.json();
+    rawBody = JSON.parse(rawText);
   } catch {
     logger.warn("Internal event rejected: malformed JSON body");
     return jsonResponse({ error: "invalid JSON" }, 400);
@@ -84,6 +101,10 @@ async function processInternalEvent(event: InternalEvent, deps: InternalEventDep
     return;
   }
 
+  // refreshKedaActivity writes to the `keda:{serverName}:activity` trigger list
+  // (used by KEDA ScaledObject to decide replica count). It is fully independent
+  // of hash-ring routing, which resolves pod IPs via headless service DNS.
+  // Safe to detach — a failure here does not affect event forwarding.
   refreshKedaActivity(redis, server.serverName).catch((err) => {
     logger.warn("refreshKedaActivity failed", {
       serverName: server.serverName,
