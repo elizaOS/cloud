@@ -121,6 +121,51 @@ spec:
               echo "$RESPONSE" | grep -q '"response"' || { echo "FAIL: no response field"; exit 1; }
               echo "PASS: message forwarded through Redis-resolved route and agent responded"
 
+    - name: Forward internal event via POST /internal/event
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              # Read the GATEWAY_INTERNAL_SECRET from the gateway-webhook secrets
+              SECRET=$(kubectl get secret gateway-webhook-secrets -n gateway-webhook \
+                -o jsonpath='{.data.gateway-internal-secret}' | base64 -d)
+
+              [ -n "$SECRET" ] || { echo "FAIL: GATEWAY_INTERNAL_SECRET not found in gateway-webhook-secrets"; exit 1; }
+
+              # POST to the gateway's internal event route
+              GW_URL="http://gateway-webhook.gateway-webhook.svc:3000"
+              RESPONSE=$(kubectl run cs-internal-$RANDOM --rm -i --restart=Never -n gateway-webhook \
+                --image=curlimages/curl:latest --quiet -- \
+                curl -s -w "\n%{http_code}" -X POST "${GW_URL}/internal/event" \
+                  -H "Content-Type: application/json" \
+                  -H "X-Internal-Secret: $SECRET" \
+                  -d '{"agentId":"eliza","userId":"e2e-test","type":"system","payload":{"test":true}}' 2>/dev/null)
+
+              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+              BODY=$(echo "$RESPONSE" | head -1)
+              echo "Status: $HTTP_CODE Body: $BODY"
+              [ "$HTTP_CODE" = "200" ] || { echo "FAIL: expected 200, got $HTTP_CODE"; exit 1; }
+              echo "$BODY" | grep -q '"queued":true' || { echo "FAIL: missing queued:true"; exit 1; }
+              echo "PASS: internal event accepted and queued"
+
+    - name: Verify internal event auth rejection
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              # POST without X-Internal-Secret — should get 401
+              GW_URL="http://gateway-webhook.gateway-webhook.svc:3000"
+              RESPONSE=$(kubectl run cs-noauth-$RANDOM --rm -i --restart=Never -n gateway-webhook \
+                --image=curlimages/curl:latest --quiet -- \
+                curl -s -w "\n%{http_code}" -X POST "${GW_URL}/internal/event" \
+                  -H "Content-Type: application/json" \
+                  -d '{"agentId":"eliza","userId":"e2e-test","type":"system","payload":{}}' 2>/dev/null)
+
+              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+              echo "Status without secret: $HTTP_CODE"
+              [ "$HTTP_CODE" = "401" ] || { echo "FAIL: expected 401, got $HTTP_CODE"; exit 1; }
+              echo "PASS: internal event correctly rejected without secret"
+
     - name: Verify KEDA activity
       try:
         - script:
