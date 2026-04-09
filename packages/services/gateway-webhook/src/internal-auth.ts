@@ -14,27 +14,28 @@ import { logger } from "./logger";
  * - Header is missing from the request
  * - Header value does not match the secret
  *
- * Both buffers are padded to equal length so that timingSafeEqual
- * always runs regardless of input length, closing the timing oracle
- * that would otherwise let an attacker binary-search the secret length.
+ * The constant-time comparison always runs, even when the secret or
+ * header is empty, to prevent timing oracles from revealing whether
+ * the env var is configured. Both buffers are padded to equal length
+ * (minimum 1 byte) so timingSafeEqual never receives zero-length
+ * inputs and always runs for the same duration.
  */
 export function validateInternalSecret(request: Request): boolean {
   const secret = process.env.GATEWAY_INTERNAL_SECRET ?? "";
   const header = request.headers.get("X-Internal-Secret") ?? "";
 
-  if (!secret) {
-    logger.warn("Internal auth rejected: GATEWAY_INTERNAL_SECRET not configured");
-    return false;
-  }
+  const secretMissing = !secret;
+  const headerMissing = !header;
 
-  if (!header) {
+  if (secretMissing) {
+    logger.warn("Internal auth rejected: GATEWAY_INTERNAL_SECRET not configured");
+  } else if (headerMissing) {
     logger.warn("Internal auth rejected: missing X-Internal-Secret header");
-    return false;
   }
 
   const a = Buffer.from(header);
   const b = Buffer.from(secret);
-  const maxLen = Math.max(a.length, b.length);
+  const maxLen = Math.max(a.length, b.length, 1);
   const aPadded = Buffer.alloc(maxLen);
   const bPadded = Buffer.alloc(maxLen);
   a.copy(aPadded);
@@ -44,8 +45,11 @@ export function validateInternalSecret(request: Request): boolean {
   // and timingSafeEqual always executes regardless of length match.
   const lengthMatch = a.length === b.length;
   const valueMatch = timingSafeEqual(aPadded, bPadded);
-  if (!lengthMatch || !valueMatch) {
-    logger.warn("Internal auth rejected: invalid secret");
+
+  if (secretMissing || headerMissing || !lengthMatch || !valueMatch) {
+    if (!secretMissing && !headerMissing) {
+      logger.warn("Internal auth rejected: invalid secret");
+    }
     return false;
   }
 

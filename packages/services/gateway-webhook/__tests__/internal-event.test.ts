@@ -207,6 +207,21 @@ describe("handleInternalEvent", () => {
     expect(body.error).toBe("payload too large");
   });
 
+  test("accepts small body when Content-Length is non-numeric", async () => {
+    const req = new Request("http://localhost/internal/event", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": TEST_SECRET,
+        "Content-Length": "notanumber",
+      },
+      body: JSON.stringify({ agentId: "a1", userId: "u1", type: "cron", payload: {} }),
+    });
+    const redis = createFakeRedis();
+    const res = await handleInternalEvent(req, { redis: redis as any });
+    expect(res.status).toBe(200);
+  });
+
   test("returns 400 for malformed JSON body", async () => {
     const req = new Request("http://localhost/internal/event", {
       method: "POST",

@@ -47,8 +47,9 @@ export async function handleInternalEvent(
     return jsonResponse({ error: "unauthorized" }, 401);
   }
 
-  const contentLength = request.headers.get("content-length");
-  if (contentLength && Number.parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+  const clHeader = request.headers.get("content-length");
+  const contentLength = clHeader !== null ? Number(clHeader) : null;
+  if (contentLength !== null && Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
     logger.warn("Internal event rejected: payload too large (content-length)", {
       contentLength,
     });
