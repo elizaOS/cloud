@@ -29,10 +29,10 @@ spec:
               value: redis://redis-master.eliza-infra.svc:6379
           resources:
             requests:
-              memory: 256Mi
+              memory: 64Mi
               cpu: 50m
             limits:
-              memory: 2Gi
+              memory: 128Mi
 ---
 apiVersion: v1
 kind: Service

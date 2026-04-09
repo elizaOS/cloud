@@ -86,11 +86,10 @@ info "Installing KEDA..."
 helm repo add kedacore https://kedacore.github.io/charts 2>/dev/null || true
 helm repo update kedacore > /dev/null 2>&1
 
-if helm status keda -n keda 2>/dev/null | grep -q "STATUS: deployed"; then
+if helm status keda -n keda > /dev/null 2>&1; then
   info "  KEDA already installed"
 else
-  helm uninstall keda -n keda 2>/dev/null || true
-  helm install keda kedacore/keda --namespace keda --create-namespace --wait --timeout 300s
+  helm install keda kedacore/keda --namespace keda --create-namespace --wait --timeout 120s
 fi
 pass "KEDA installed"
 
@@ -99,14 +98,13 @@ info "Installing metrics-server..."
 helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/ 2>/dev/null || true
 helm repo update metrics-server > /dev/null 2>&1
 
-if helm status metrics-server -n kube-system 2>/dev/null | grep -q "STATUS: deployed"; then
+if helm status metrics-server -n kube-system > /dev/null 2>&1; then
   info "  metrics-server already installed"
 else
-  helm uninstall metrics-server -n kube-system 2>/dev/null || true
   helm install metrics-server metrics-server/metrics-server \
     --namespace kube-system \
     --set args[0]=--kubelet-insecure-tls \
-    --wait --timeout 120s
+    --wait --timeout 60s
 fi
 pass "metrics-server installed"
 
@@ -115,11 +113,10 @@ info "Installing CloudNativePG operator..."
 helm repo add cnpg https://cloudnative-pg.github.io/charts 2>/dev/null || true
 helm repo update cnpg > /dev/null 2>&1
 
-if helm status cnpg -n cnpg-system 2>/dev/null | grep -q "STATUS: deployed"; then
+if helm status cnpg -n cnpg-system > /dev/null 2>&1; then
   info "  CNPG operator already installed"
 else
-  helm uninstall cnpg -n cnpg-system 2>/dev/null || true
-  helm install cnpg cnpg/cloudnative-pg --namespace cnpg-system --create-namespace --wait --timeout 300s
+  helm install cnpg cnpg/cloudnative-pg --namespace cnpg-system --create-namespace --wait --timeout 120s
 fi
 pass "CloudNativePG operator installed"
 
@@ -157,7 +154,7 @@ pass "Redis installed (Bitnami Helm)"
 # 12e. Deploy redis-rest proxy (Upstash-compatible HTTP proxy for gateways)
 info "Deploying redis-rest proxy..."
 kubectl apply -f "$SCRIPT_DIR/manifests/redis-rest.yaml"
-kubectl rollout status deployment/redis-rest -n eliza-infra --timeout=120s
+kubectl rollout status deployment/redis-rest -n eliza-infra --timeout=60s
 pass "redis-rest proxy deployed"
 
 # 13. Create K8s Secret for agent-server env
@@ -213,7 +210,7 @@ kubectl annotate namespace pepr-system meta.helm.sh/release-name=eliza-operator 
 kubectl annotate namespace pepr-system meta.helm.sh/release-namespace=pepr-system --overwrite > /dev/null 2>&1
 helm upgrade --install eliza-operator \
   "$CLOUD_V2_DIR/services/operator/dist/eliza-operator-chart/" \
-  --namespace pepr-system --wait --timeout 300s
+  --namespace pepr-system --wait --timeout 120s
 
 kubectl rollout status deployment/pepr-eliza-operator-watcher -n pepr-system --timeout=60s > /dev/null 2>&1
 pass "Operator deployed"
@@ -268,11 +265,11 @@ pass "Secret gateway-discord-secrets created from .env.gateway"
 # 18. Deploy gateway-discord via Helm chart
 info "Deploying gateway-discord via Helm..."
 helm upgrade --install gateway-discord \
-  "$CLOUD_V2_DIR/infra/charts/gateway-discord" \
+  "$CLOUD_V2_DIR/packages/infra/charts/gateway-discord" \
   --namespace eliza-infra \
   --values "$SCRIPT_DIR/values-gateway.yaml" \
-  --timeout 120s
-pass "Gateway-discord deployed via Helm (will become healthy once Eliza Cloud is running on host)"
+  --wait --timeout 120s
+pass "Gateway-discord deployed via Helm"
 
 # 19. Build & push gateway-webhook image
 info "Building gateway-webhook image..."
@@ -324,8 +321,8 @@ helm upgrade --install gateway-webhook \
   "$CLOUD_V2_DIR/infra/charts/gateway-webhook" \
   --namespace eliza-infra \
   --values "$SCRIPT_DIR/values-gateway-webhook.yaml" \
-  --timeout 120s
-pass "Gateway-webhook deployed via Helm (will become healthy once Eliza Cloud is running on host)"
+  --wait --timeout 120s
+pass "Gateway-webhook deployed via Helm"
 
 # 22. Apply Server CRs
 info "Applying Server CRs..."
