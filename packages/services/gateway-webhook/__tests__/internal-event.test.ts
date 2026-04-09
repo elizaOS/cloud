@@ -163,7 +163,12 @@ describe("handleInternalEvent", () => {
   // ── Body validation ───────────────────────────────────────────
 
   test("returns 413 for payload exceeding 64KB", async () => {
-    const largePayload = { agentId: "a1", userId: "u1", type: "cron", payload: { data: "x".repeat(70_000) } };
+    const largePayload = {
+      agentId: "a1",
+      userId: "u1",
+      type: "cron",
+      payload: { data: "x".repeat(70_000) },
+    };
     const req = new Request("http://localhost/internal/event", {
       method: "POST",
       headers: {
