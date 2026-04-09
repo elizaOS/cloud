@@ -246,6 +246,34 @@ describe("handleInternalEvent", () => {
     expect(res.status).toBe(400);
   });
 
+  test("returns 400 for agentId with path traversal characters", async () => {
+    const redis = createFakeRedis();
+    const res = await handleInternalEvent(
+      makeValidRequest({
+        agentId: "../etc/passwd",
+        userId: "u1",
+        type: "cron",
+        payload: {},
+      }),
+      { redis: redis as any },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test("returns 400 for userId with path traversal characters", async () => {
+    const redis = createFakeRedis();
+    const res = await handleInternalEvent(
+      makeValidRequest({
+        agentId: "a1",
+        userId: "../../secret",
+        type: "cron",
+        payload: {},
+      }),
+      { redis: redis as any },
+    );
+    expect(res.status).toBe(400);
+  });
+
   // ── Happy path ────────────────────────────────────────────────
 
   test("returns 200 { queued: true } on valid request", async () => {

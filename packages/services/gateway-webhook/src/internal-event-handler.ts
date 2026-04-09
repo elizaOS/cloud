@@ -11,8 +11,16 @@ const MAX_BODY_BYTES = 64 * 1024;
  * K8s services (CronJobs, matcher, notifier) send events matching this shape.
  */
 const InternalEventSchema = z.object({
-  agentId: z.string().min(1),
-  userId: z.string().min(1),
+  agentId: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[a-zA-Z0-9_-]+$/),
+  userId: z
+    .string()
+    .min(1)
+    .max(256)
+    .regex(/^[a-zA-Z0-9_@.-]+$/),
   type: z.enum(["cron", "notification", "system"]),
   payload: z.record(z.unknown()),
 });
