@@ -122,7 +122,9 @@ interface ChatRequest {
 function getSearchToolsParam(
   provider: string,
   webSearchEnabled: boolean,
-): { tools: Record<string, ReturnType<typeof anthropicProvider.tools.webSearch_20260209>> } | Record<string, never> {
+):
+  | { tools: Record<string, ReturnType<typeof anthropicProvider.tools.webSearch_20260209>> }
+  | Record<string, never> {
   if (!webSearchEnabled) return {};
 
   if (provider === "anthropic") {
