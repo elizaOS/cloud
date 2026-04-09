@@ -6,6 +6,7 @@ import { twilioAdapter } from "./adapters/twilio";
 import type { Platform, PlatformAdapter } from "./adapters/types";
 import { whatsappAdapter } from "./adapters/whatsapp";
 import { getAuthHeader, initAuth, shutdownAuth } from "./auth";
+import { handleInternalEvent } from "./internal-event-handler";
 import { logger } from "./logger";
 import { initProjectConfig, shutdownProjectConfig } from "./project-config";
 import { getSharedWhatsAppVerifyToken, resolveWebhookConfig } from "./webhook-config";
@@ -42,6 +43,14 @@ app.post("/drain", (c) => {
   logger.info("Drain requested");
   return c.json({ status: "draining" });
 });
+
+// ── Internal event delivery (K8s CronJobs, matcher, notifier) ──
+
+app.post("/internal/event", async (c) => {
+  return handleInternalEvent(c.req.raw, { redis });
+});
+
+// ── Platform webhooks ──
 
 app.get("/webhook/:project/whatsapp", async (c) => {
   const mode = c.req.query("hub.mode");

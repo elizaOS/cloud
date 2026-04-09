@@ -72,6 +72,7 @@ secrets:
     elizaAppWhatsappVerifyToken: "eliza-app-whatsapp-verify-token"
     elizaAppWhatsappPhoneNumber: "eliza-app-whatsapp-phone-number"
     elizaAppDefaultAgentId: "eliza-app-default-agent-id"
+    gatewayInternalSecret: "gateway-internal-secret"
 
 # Graceful shutdown configuration (shorter than discord — no persistent connections)
 terminationGracePeriodSeconds: 30
