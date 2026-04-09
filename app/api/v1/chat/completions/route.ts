@@ -119,17 +119,19 @@ interface ChatRequest {
  * Anthropic models get native server-side web search (no extra API key needed).
  * Returns empty object if search is disabled or provider doesn't support it.
  */
-function buildSearchTools(
+function getSearchToolsParam(
   provider: string,
   webSearchEnabled: boolean,
-): Record<string, unknown> {
+): { tools: Record<string, ReturnType<typeof anthropicProvider.tools.webSearch_20260209>> } | Record<string, never> {
   if (!webSearchEnabled) return {};
 
   if (provider === "anthropic") {
     return {
-      web_search: anthropicProvider.tools.webSearch_20260209({
-        maxUses: 5,
-      }),
+      tools: {
+        web_search: anthropicProvider.tools.webSearch_20260209({
+          maxUses: 5,
+        }),
+      },
     };
   }
 
@@ -549,14 +551,11 @@ async function handleStreamingRequest(
       : undefined,
   });
 
-  // Build provider-native search tools (enabled by default)
-  const searchTools = buildSearchTools(provider, request.webSearchEnabled !== false);
-
   const result = streamText({
     model: getLanguageModel(model),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
-    ...(Object.keys(searchTools).length > 0 && { tools: searchTools }),
+    ...getSearchToolsParam(provider, request.webSearchEnabled !== false),
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
@@ -730,14 +729,11 @@ async function handleNonStreamingRequest(
   });
 
   try {
-    // Build provider-native search tools (enabled by default)
-    const searchToolsNonStream = buildSearchTools(provider, request.webSearchEnabled !== false);
-
     const result = await generateText({
       model: getLanguageModel(model),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
-      ...(Object.keys(searchToolsNonStream).length > 0 && { tools: searchToolsNonStream }),
+      ...getSearchToolsParam(provider, request.webSearchEnabled !== false),
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
