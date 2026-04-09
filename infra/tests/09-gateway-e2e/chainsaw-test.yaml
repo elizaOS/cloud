@@ -200,6 +200,11 @@ spec:
               echo "$BODY" | grep -q '"handled":true' || { echo "FAIL: missing handled:true"; exit 1; }
               echo "$BODY" | grep -q '"type":"system"' || { echo "FAIL: missing type:system"; exit 1; }
               echo "PASS: agent-server handled event directly"
+      catch:
+        - script:
+            content: |
+              kubectl delete pods -n eliza-infra -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
+              kubectl delete pods -n eliza-agents -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
 
     - name: Agent-server rejects event for unknown agent
       try:
@@ -227,6 +232,11 @@ spec:
               echo "Status: $HTTP_CODE"
               [ "$HTTP_CODE" = "404" ] || { echo "FAIL: expected 404, got $HTTP_CODE"; exit 1; }
               echo "PASS: agent-server correctly returned 404 for unknown agent"
+      catch:
+        - script:
+            content: |
+              kubectl delete pods -n eliza-infra -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
+              kubectl delete pods -n eliza-agents -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
 
     - name: Agent-server rejects event without auth
       try:
@@ -251,6 +261,11 @@ spec:
               echo "Status without auth: $HTTP_CODE"
               [ "$HTTP_CODE" = "401" ] || { echo "FAIL: expected 401, got $HTTP_CODE"; exit 1; }
               echo "PASS: agent-server correctly rejected event without auth"
+      catch:
+        - script:
+            content: |
+              kubectl delete pods -n eliza-infra -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
+              kubectl delete pods -n eliza-agents -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
 
     - name: Verify KEDA activity
       try:
