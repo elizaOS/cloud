@@ -104,7 +104,7 @@ function makeValidRequest(body?: unknown): Request {
   });
 }
 
-const flush = () => new Promise((r) => setTimeout(r, 10));
+const flush = () => new Promise((r) => setTimeout(r, 100));
 
 // ── Unit tests ───────────────────────────────────────────────────
 
@@ -162,6 +162,23 @@ describe("handleInternalEvent", () => {
 
   // ── Body validation ───────────────────────────────────────────
 
+  test("returns 413 for payload exceeding 64KB", async () => {
+    const largePayload = { agentId: "a1", userId: "u1", type: "cron", payload: { data: "x".repeat(70_000) } };
+    const req = new Request("http://localhost/internal/event", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": TEST_SECRET,
+      },
+      body: JSON.stringify(largePayload),
+    });
+    const redis = createFakeRedis();
+    const res = await handleInternalEvent(req, { redis: redis as any });
+    expect(res.status).toBe(413);
+    const body = await res.json();
+    expect(body.error).toBe("payload too large");
+  });
+
   test("returns 400 for malformed JSON body", async () => {
     const req = new Request("http://localhost/internal/event", {
       method: "POST",
@@ -210,6 +227,15 @@ describe("handleInternalEvent", () => {
     const redis = createFakeRedis();
     const res = await handleInternalEvent(
       makeValidRequest({ agentId: "", userId: "u1", type: "cron", payload: {} }),
+      { redis: redis as any },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test("returns 400 for empty userId", async () => {
+    const redis = createFakeRedis();
+    const res = await handleInternalEvent(
+      makeValidRequest({ agentId: "a1", userId: "", type: "cron", payload: {} }),
       { redis: redis as any },
     );
     expect(res.status).toBe(400);
