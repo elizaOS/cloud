@@ -69,6 +69,11 @@ export async function handleInternalEvent(
 /**
  * Background processing for an internal event: resolve agent server,
  * refresh KEDA activity, and forward the event to the agent pod.
+ *
+ * There is no dead-letter queue: if the agent server cannot be resolved
+ * or forwarding fails after retries, the event is logged and dropped.
+ * Monitor the "No server found for agent" and "Forward event to server
+ * failed" error log lines as the primary signal for missed deliveries.
  */
 async function processInternalEvent(event: InternalEvent, deps: InternalEventDeps): Promise<void> {
   const { redis } = deps;
