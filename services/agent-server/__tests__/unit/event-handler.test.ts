@@ -128,6 +128,26 @@ describe("EventBodySchema validation", () => {
     const result = EventBodySchema.safeParse(validEventBody({ payload: {} }));
     expect(result.success).toBe(true);
   });
+
+  test("rejects payload that is an array", () => {
+    const result = EventBodySchema.safeParse(validEventBody({ payload: [1, 2, 3] }));
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects payload that is a string", () => {
+    const result = EventBodySchema.safeParse(validEventBody({ payload: "not-an-object" }));
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects payload that is null", () => {
+    const result = EventBodySchema.safeParse(validEventBody({ payload: null }));
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects payload that is a number", () => {
+    const result = EventBodySchema.safeParse(validEventBody({ payload: 42 }));
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("MAX_EVENT_BODY_BYTES", () => {
