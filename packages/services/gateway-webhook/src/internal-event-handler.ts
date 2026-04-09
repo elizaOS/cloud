@@ -16,6 +16,7 @@ const InternalEventSchema = z.object({
     .min(1)
     .max(128)
     .regex(/^[a-zA-Z0-9_-]+$/),
+  // Allows periods and @ for email-format userIds (e.g. user@domain.com)
   userId: z
     .string()
     .min(1)
@@ -44,6 +45,14 @@ export async function handleInternalEvent(
 ): Promise<Response> {
   if (!validateInternalSecret(request)) {
     return jsonResponse({ error: "unauthorized" }, 401);
+  }
+
+  const contentLength = request.headers.get("content-length");
+  if (contentLength && Number.parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+    logger.warn("Internal event rejected: payload too large (content-length)", {
+      contentLength,
+    });
+    return jsonResponse({ error: "payload too large" }, 413);
   }
 
   let rawText: string;

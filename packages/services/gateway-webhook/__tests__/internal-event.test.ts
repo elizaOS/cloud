@@ -104,7 +104,13 @@ function makeValidRequest(body?: unknown): Request {
   });
 }
 
-const flush = () => new Promise((r) => setTimeout(r, 100));
+async function waitFor(predicate: () => boolean, timeoutMs = 200, intervalMs = 20): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
 
 // ── Unit tests ───────────────────────────────────────────────────
 
@@ -176,6 +182,23 @@ describe("handleInternalEvent", () => {
         "X-Internal-Secret": TEST_SECRET,
       },
       body: JSON.stringify(largePayload),
+    });
+    const redis = createFakeRedis();
+    const res = await handleInternalEvent(req, { redis: redis as any });
+    expect(res.status).toBe(413);
+    const body = await res.json();
+    expect(body.error).toBe("payload too large");
+  });
+
+  test("returns 413 via Content-Length fast-path without buffering", async () => {
+    const req = new Request("http://localhost/internal/event", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": TEST_SECRET,
+        "Content-Length": "999999",
+      },
+      body: JSON.stringify({ agentId: "a1", userId: "u1", type: "cron", payload: {} }),
     });
     const redis = createFakeRedis();
     const res = await handleInternalEvent(req, { redis: redis as any });
@@ -287,21 +310,21 @@ describe("handleInternalEvent", () => {
   test("calls resolveAgentServer with correct agentId", async () => {
     const redis = createFakeRedis();
     await handleInternalEvent(makeValidRequest(), { redis: redis as any });
-    await flush();
+    await waitFor(() => mockResolveAgentServerCalls.length > 0);
     expect(mockResolveAgentServerCalls).toContain("agent-001");
   });
 
   test("calls refreshKedaActivity with correct serverName", async () => {
     const redis = createFakeRedis();
     await handleInternalEvent(makeValidRequest(), { redis: redis as any });
-    await flush();
+    await waitFor(() => mockRefreshKedaCalls.length > 0);
     expect(mockRefreshKedaCalls).toContain("eliza-server-1");
   });
 
   test("calls forwardEventToServer with correct params", async () => {
     const redis = createFakeRedis();
     await handleInternalEvent(makeValidRequest(), { redis: redis as any });
-    await flush();
+    await waitFor(() => mockForwardCalls.length > 0);
     expect(mockForwardCalls.length).toBe(1);
     expect(mockForwardCalls[0]).toEqual({
       serverUrl: "http://eliza-server-1.default.svc:3000",
@@ -350,7 +373,7 @@ describe("handleInternalEvent", () => {
     const redis = createFakeRedis();
     const res = await handleInternalEvent(makeValidRequest(), { redis: redis as any });
     expect(res.status).toBe(200);
-    await flush();
+    await waitFor(() => mockResolveAgentServerCalls.length > 0);
     expect(mockForwardCalls.length).toBe(0);
   });
 
@@ -359,7 +382,7 @@ describe("handleInternalEvent", () => {
     const redis = createFakeRedis();
     const res = await handleInternalEvent(makeValidRequest(), { redis: redis as any });
     expect(res.status).toBe(200);
-    await flush();
+    await waitFor(() => mockForwardCalls.length > 0);
   });
 
   // ── No cross-contamination with webhook routes ────────────────
