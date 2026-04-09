@@ -121,14 +121,8 @@ interface ChatRequest {
  */
 /** Models that support Anthropic server-side web search. */
 const ANTHROPIC_WEB_SEARCH_MODELS = new Set([
-  "claude-sonnet-4-5",
   "claude-sonnet-4-6",
-  "claude-opus-4-5",
   "claude-opus-4-6",
-  "claude-sonnet-4",
-  "claude-opus-4",
-  "claude-3-5-sonnet",
-  "claude-3-5-sonnet-latest",
 ]);
 
 function supportsAnthropicWebSearch(model: string): boolean {
