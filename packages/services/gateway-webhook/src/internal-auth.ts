@@ -40,6 +40,8 @@ export function validateInternalSecret(request: Request): boolean {
   a.copy(aPadded);
   b.copy(bPadded);
 
+  // Pre-compute both conditions so the || does not short-circuit
+  // and timingSafeEqual always executes regardless of length match.
   const lengthMatch = a.length === b.length;
   const valueMatch = timingSafeEqual(aPadded, bPadded);
   if (!lengthMatch || !valueMatch) {
