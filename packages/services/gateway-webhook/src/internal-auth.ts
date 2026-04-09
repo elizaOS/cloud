@@ -24,9 +24,14 @@ export function validateInternalSecret(request: Request): boolean {
   const secret = process.env.GATEWAY_INTERNAL_SECRET ?? "";
   const header = request.headers.get("X-Internal-Secret") ?? "";
 
+  // Extract boolean flags before any buffer work so the constant-time
+  // comparison always runs regardless of empty inputs.
   const secretMissing = !secret;
   const headerMissing = !header;
 
+  // Logging here is intentional for operational visibility: operators need
+  // to know why requests are being rejected. The timing oracle concern is
+  // mitigated because timingSafeEqual always runs below (no early return).
   if (secretMissing) {
     logger.warn("Internal auth rejected: GATEWAY_INTERNAL_SECRET not configured");
   } else if (headerMissing) {

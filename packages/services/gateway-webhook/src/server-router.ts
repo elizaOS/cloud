@@ -165,7 +165,8 @@ export async function wakeServer(serverName: string, serverUrl: string): Promise
 
 /**
  * Forwards a chat message to the correct agent-server pod via hash-ring routing.
- * Thin wrapper around forwardWithRetry targeting the /message endpoint.
+ * Parses the agent-server response to extract the `.response` field expected
+ * by platform adapters (e.g. Telegram, WhatsApp sendReply).
  */
 export async function forwardToServer(
   serverUrl: string,
@@ -174,13 +175,15 @@ export async function forwardToServer(
   userId: string,
   text: string,
 ): Promise<string> {
-  return forwardWithRetry(
+  const raw = await forwardWithRetry(
     serverUrl,
     serverName,
     userId,
     `/agents/${agentId}/message`,
     JSON.stringify({ userId, text }),
   );
+  const data = JSON.parse(raw) as { response: string };
+  return data.response;
 }
 
 /**
@@ -294,8 +297,8 @@ async function tryTarget(
     });
 
     if (res.ok) {
-      const data = (await res.json()) as { response: string };
-      return { ok: true, response: data.response };
+      const text = await res.text();
+      return { ok: true, response: text };
     }
 
     return {

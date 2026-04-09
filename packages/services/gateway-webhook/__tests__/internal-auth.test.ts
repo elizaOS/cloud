@@ -51,6 +51,12 @@ describe("validateInternalSecret", () => {
     expect(validateInternalSecret(makeRequest("this-is-a-much-longer-secret-value"))).toBe(false);
   });
 
+  test("returns false for multi-byte UTF-8 secret with different encoding", () => {
+    process.env.GATEWAY_INTERNAL_SECRET = "café";
+    expect(validateInternalSecret(makeRequest("café"))).toBe(true);
+    expect(validateInternalSecret(makeRequest("cafe"))).toBe(false);
+  });
+
   test("returns true when header matches GATEWAY_INTERNAL_SECRET", () => {
     expect(validateInternalSecret(makeRequest("test-k8s-secret"))).toBe(true);
   });

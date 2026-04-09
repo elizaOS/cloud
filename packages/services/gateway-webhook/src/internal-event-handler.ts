@@ -23,6 +23,9 @@ const InternalEventSchema = z.object({
     .max(256)
     .regex(/^[a-zA-Z0-9_@.-]+$/),
   type: z.enum(["cron", "notification", "system"]),
+  // Depth/fan-out is not validated — callers are trusted K8s-internal services
+  // (CronJobs, matcher, notifier) that have already passed X-Internal-Secret auth.
+  // The 64KB byte-length guard bounds total size.
   payload: z.record(z.unknown()),
 });
 
@@ -107,15 +110,17 @@ export async function handleInternalEvent(
  *
  * There is no dead-letter queue: if the agent server cannot be resolved
  * or forwarding fails after retries, the event is logged and dropped.
- * Monitor the "No server found for agent" and "Forward event to server
- * failed" error log lines as the primary signal for missed deliveries.
+ * Monitor the "No server found for agent" (warn) and "Forward event
+ * to server failed" (error) log lines as the primary signal for
+ * missed deliveries.
  */
 async function processInternalEvent(event: InternalEvent, deps: InternalEventDeps): Promise<void> {
   const { redis } = deps;
 
   const server = await resolveAgentServer(redis, event.agentId);
   if (!server) {
-    logger.error("No server found for agent", { agentId: event.agentId });
+    // warn, not error: expected during rolling updates or for unregistered agents
+    logger.warn("No server found for agent", { agentId: event.agentId });
     return;
   }
 
