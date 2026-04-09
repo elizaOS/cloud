@@ -14,9 +14,9 @@ import { logger } from "./logger";
  * - Header is missing from the request
  * - Header value does not match the secret
  *
- * Post-header-present rejections share a single generic log message
- * so that log access does not reveal whether the attacker guessed the
- * correct secret length.
+ * Both buffers are padded to equal length so that timingSafeEqual
+ * always runs regardless of input length, closing the timing oracle
+ * that would otherwise let an attacker binary-search the secret length.
  */
 export function validateInternalSecret(request: Request): boolean {
   const secret = process.env.GATEWAY_INTERNAL_SECRET ?? "";
@@ -34,8 +34,13 @@ export function validateInternalSecret(request: Request): boolean {
 
   const a = Buffer.from(header);
   const b = Buffer.from(secret);
+  const maxLen = Math.max(a.length, b.length);
+  const aPadded = Buffer.alloc(maxLen);
+  const bPadded = Buffer.alloc(maxLen);
+  a.copy(aPadded);
+  b.copy(bPadded);
 
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+  if (a.length !== b.length || !timingSafeEqual(aPadded, bPadded)) {
     logger.warn("Internal auth rejected: invalid secret");
     return false;
   }
