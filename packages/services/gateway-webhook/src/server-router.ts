@@ -186,6 +186,11 @@ export async function forwardToServer(
 /**
  * Forwards an internal event to the correct agent-server pod via hash-ring routing.
  * Uses the same retry, wake, and fallback logic as message forwarding.
+ *
+ * Hash key is `userId` (not `agentId`) to maintain session affinity: the same
+ * user's messages and events land on the same pod, keeping the conversation
+ * context hot. For system-initiated events (e.g. cron) the caller supplies a
+ * deterministic userId so that affinity still distributes across the ring.
  */
 export async function forwardEventToServer(
   serverUrl: string,
