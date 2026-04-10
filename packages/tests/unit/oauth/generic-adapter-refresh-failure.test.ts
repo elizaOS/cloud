@@ -53,6 +53,7 @@ mock.module("@/lib/utils/logger", () => ({
     error: () => {},
     info: () => {},
     warn: () => {},
+    debug: () => {},
   },
 }));
 

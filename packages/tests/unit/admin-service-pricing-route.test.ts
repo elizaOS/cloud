@@ -25,6 +25,7 @@ const mockLogger = {
   info: mock(() => undefined),
   warn: mock(() => undefined),
   error: mock(() => undefined),
+  debug: mock(() => undefined),
 };
 
 mock.module("@/lib/api/admin-auth", () => ({
