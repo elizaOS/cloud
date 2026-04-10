@@ -23,6 +23,7 @@ export const maxDuration = 30;
 interface InitiateRequestBody {
   redirectUrl?: string;
   scopes?: string[];
+  connectionRole?: "owner" | "agent";
 }
 
 interface RouteParams {
@@ -101,11 +102,26 @@ async function handleInitiate(request: NextRequest, context?: RouteParams): Prom
 
     const redirectUrl = body.redirectUrl || "/dashboard/settings?tab=connections";
     const scopes = body.scopes || provider.defaultScopes || [];
+    const connectionRole =
+      body.connectionRole === "owner" || body.connectionRole === "agent"
+        ? body.connectionRole
+        : undefined;
+
+    if (body.connectionRole && !connectionRole) {
+      return NextResponse.json(
+        {
+          error: "INVALID_CONNECTION_ROLE",
+          message: "connectionRole must be 'owner' or 'agent'",
+        },
+        { status: 400 },
+      );
+    }
 
     logger.info(`[OAuth ${platform}] Initiating auth`, {
       organizationId,
       userId: user.id,
       scopeCount: scopes.length,
+      connectionRole,
     });
 
     const result = await initiateOAuth2(provider, {
@@ -113,6 +129,7 @@ async function handleInitiate(request: NextRequest, context?: RouteParams): Prom
       userId: user.id,
       redirectUrl,
       scopes,
+      connectionRole,
     });
 
     return NextResponse.json({

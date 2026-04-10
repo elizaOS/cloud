@@ -22,12 +22,14 @@ const TWILIO_AUTH_TOKEN = "test_token";
 const BLOOIO_WEBHOOK_SECRET = "webhook_secret_123";
 const TWILIO_SECRET_NAMES = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"];
 const BLOOIO_SECRET_NAMES = ["BLOOIO_API_KEY", "BLOOIO_WEBHOOK_SECRET", "BLOOIO_FROM_NUMBER"];
+const WEBHOOK_RATE_LIMIT_IP = "198.51.100.250";
 const encryptionService = createEncryptionService();
 const forwardOriginalFetchPreconnect: NonNullable<typeof originalFetch.preconnect> = (...args) => {
   if (typeof originalFetch.preconnect === "function") {
     originalFetch.preconnect(...args);
   }
 };
+let webhookRequestCounter = 0;
 
 async function deleteSecrets(
   client: Client,
@@ -108,6 +110,19 @@ function createBlooioSignature(rawBody: string, timestamp: number): string {
   return `t=${timestamp},v1=${signature}`;
 }
 
+function withWebhookIpHeaders(headers: Headers, ip?: string): void {
+  webhookRequestCounter += 1;
+  const requestIp = ip ?? `198.51.100.${(webhookRequestCounter % 200) + 1}`;
+
+  if (!headers.has("x-forwarded-for")) {
+    headers.set("x-forwarded-for", requestIp);
+  }
+
+  if (!headers.has("x-real-ip")) {
+    headers.set("x-real-ip", requestIp);
+  }
+}
+
 const signedWebhookFetch: typeof fetch = Object.assign(
   (input: RequestInfo | URL, init?: RequestInit) => {
     const url = getRequestUrl(input);
@@ -122,6 +137,15 @@ const signedWebhookFetch: typeof fetch = Object.assign(
     const headers = new Headers(
       init?.headers ?? (input instanceof Request ? input.headers : undefined),
     );
+    const isWebhookRequest =
+      url.includes("/api/webhooks/twilio/") || url.includes("/api/webhooks/blooio/");
+
+    if (isWebhookRequest) {
+      const fixedIp =
+        headers.get("X-Test-Rate-Limit-IP") === "true" ? WEBHOOK_RATE_LIMIT_IP : undefined;
+      headers.delete("X-Test-Rate-Limit-IP");
+      withWebhookIpHeaders(headers, fixedIp);
+    }
 
     if (headers.get("X-Test-Skip-Signature") === "true") {
       headers.delete("X-Test-Skip-Signature");
@@ -261,6 +285,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
             method: "POST",
             headers: {
               "Content-Type": "application/x-www-form-urlencoded",
+              "X-Test-Rate-Limit-IP": "true",
             },
             body: formData,
           },

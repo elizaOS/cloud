@@ -1,3 +1,4 @@
+import { rmSync } from "node:fs";
 import { delimiter } from "node:path";
 import type { Subprocess } from "bun";
 
@@ -24,6 +25,15 @@ let startedServer = false;
 let serverStartupPromise: Promise<void> | null = null;
 let serverExitError: Error | null = null;
 let detectedPeerServerStartup = false;
+
+function cleanupTestServerDistDir(): void {
+  try {
+    rmSync(TEST_SERVER_DIST_DIR, { force: true, recursive: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[E2E Server] Failed to clean ${TEST_SERVER_DIST_DIR}: ${message}`);
+  }
+}
 
 function getBunExecutable(): string {
   const execPath = process.execPath?.trim();
@@ -193,6 +203,7 @@ async function stopServer(): Promise<void> {
   // Always wait for the port to be released, even without a process —
   // something else may still hold the port.
   await waitForPortRelease(Number(TEST_SERVER_PORT));
+  cleanupTestServerDistDir();
 }
 
 export async function ensureServer(): Promise<void> {
@@ -220,6 +231,7 @@ export async function ensureServer(): Promise<void> {
 
     // Ensure the port is free before spawning.
     await waitForPortRelease(Number(TEST_SERVER_PORT));
+    cleanupTestServerDistDir();
 
     startedServer = true;
     serverExitError = null;
@@ -339,6 +351,7 @@ process.on("exit", () => {
       /* already dead */
     }
   }
+  cleanupTestServerDistDir();
 });
 process.on("SIGINT", () => {
   void stopServer().finally(() => process.exit(0));

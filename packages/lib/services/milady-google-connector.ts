@@ -110,6 +110,11 @@ export interface ManagedGoogleGmailReadResult {
   bodyText: string;
 }
 
+export interface ManagedGoogleGmailSearchResult {
+  messages: ManagedGoogleGmailMessage[];
+  syncedAt: string;
+}
+
 export class MiladyGoogleConnectorError extends Error {
   constructor(
     public readonly status: number,
@@ -941,27 +946,25 @@ export async function createManagedGoogleCalendarEvent(args: {
   return { event };
 }
 
-export async function fetchManagedGoogleGmailTriage(args: {
+async function fetchManagedGoogleGmailMessages(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
   maxResults: number;
-}): Promise<{ messages: ManagedGoogleGmailMessage[]; syncedAt: string }> {
-  const maxResults = Math.min(Math.max(args.maxResults, 1), 50);
-  const connectorStatus = await getManagedGoogleConnectorStatus({
-    organizationId: args.organizationId,
-    userId: args.userId,
-    side: args.side,
-  });
-  const selfEmail =
-    connectorStatus.identity && typeof connectorStatus.identity.email === "string"
-      ? connectorStatus.identity.email
-      : null;
+  selfEmail: string | null;
+  query?: string;
+  labelIds?: string[];
+}): Promise<ManagedGoogleGmailMessage[]> {
   const listParams = new URLSearchParams({
-    maxResults: String(maxResults),
+    maxResults: String(Math.min(Math.max(args.maxResults, 1), 50)),
     includeSpamTrash: "false",
   });
-  listParams.append("labelIds", "INBOX");
+  for (const labelId of args.labelIds ?? []) {
+    listParams.append("labelIds", labelId);
+  }
+  if (args.query?.trim()) {
+    listParams.set("q", args.query.trim());
+  }
 
   const listResponse = await googleFetch({
     organizationId: args.organizationId,
@@ -986,18 +989,44 @@ export async function fetchManagedGoogleGmailTriage(args: {
         url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(messageId)}?${params.toString()}`,
       });
       const parsed = (await response.json()) as GoogleGmailMetadataResponse;
-      return normalizeGoogleGmailMessage(parsed, selfEmail);
+      return normalizeGoogleGmailMessage(parsed, args.selfEmail);
     }),
   );
 
+  return messages.filter((message): message is ManagedGoogleGmailMessage => message !== null);
+}
+
+export async function fetchManagedGoogleGmailTriage(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  maxResults: number;
+}): Promise<ManagedGoogleGmailSearchResult> {
+  const maxResults = Math.min(Math.max(args.maxResults, 1), 50);
+  const connectorStatus = await getManagedGoogleConnectorStatus({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+  });
+  const selfEmail =
+    connectorStatus.identity && typeof connectorStatus.identity.email === "string"
+      ? connectorStatus.identity.email
+      : null;
+  const messages = await fetchManagedGoogleGmailMessages({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    maxResults,
+    selfEmail,
+    labelIds: ["INBOX"],
+  });
+
   return {
-    messages: messages
-      .filter((message): message is ManagedGoogleGmailMessage => message !== null)
-      .sort((left, right) => {
-        const scoreDelta = right.triageScore - left.triageScore;
-        if (scoreDelta !== 0) return scoreDelta;
-        return Date.parse(right.receivedAt) - Date.parse(left.receivedAt);
-      }),
+    messages: messages.sort((left, right) => {
+      const scoreDelta = right.triageScore - left.triageScore;
+      if (scoreDelta !== 0) return scoreDelta;
+      return Date.parse(right.receivedAt) - Date.parse(left.receivedAt);
+    }),
     syncedAt: new Date().toISOString(),
   };
 }
@@ -1009,6 +1038,48 @@ function hasGmailBodyReadScope(scopes: readonly string[]): boolean {
     granted.has("https://www.googleapis.com/auth/gmail.modify") ||
     granted.has("https://mail.google.com/")
   );
+}
+
+export async function fetchManagedGoogleGmailSearch(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  query: string;
+  maxResults: number;
+}): Promise<ManagedGoogleGmailSearchResult> {
+  const maxResults = Math.min(Math.max(args.maxResults, 1), 50);
+  const query = args.query.trim();
+  if (query.length === 0) {
+    fail(400, "query is required.");
+  }
+
+  const connectorStatus = await getManagedGoogleConnectorStatus({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+  });
+  if (!hasGmailBodyReadScope(connectorStatus.grantedScopes)) {
+    fail(
+      409,
+      "This Google connection only has Gmail metadata access. Reconnect Google to grant Gmail read access so Milady can search your full mailbox.",
+    );
+  }
+  const selfEmail =
+    connectorStatus.identity && typeof connectorStatus.identity.email === "string"
+      ? connectorStatus.identity.email
+      : null;
+
+  return {
+    messages: await fetchManagedGoogleGmailMessages({
+      organizationId: args.organizationId,
+      userId: args.userId,
+      side: args.side,
+      maxResults,
+      selfEmail,
+      query,
+    }),
+    syncedAt: new Date().toISOString(),
+  };
 }
 
 export async function readManagedGoogleGmailMessage(args: {

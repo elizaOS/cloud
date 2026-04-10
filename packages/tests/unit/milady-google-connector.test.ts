@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   disconnectManagedGoogleConnection,
   fetchManagedGoogleCalendarFeed,
+  fetchManagedGoogleGmailSearch,
   fetchManagedGoogleGmailTriage,
   getManagedGoogleConnectorStatus,
   initiateManagedGoogleConnection,
@@ -351,6 +352,53 @@ describe("milady Google connector service", () => {
       likelyReplyNeeded: true,
     });
     expect(triage.messages[0]?.triageReason).toContain("unread");
+  });
+
+  test("searches Gmail with the query parameter for managed connections", async () => {
+    mockListConnections.mockResolvedValue([createConnection()]);
+    globalThis.fetch = mock(async (url: string | URL | Request) => {
+      const urlString = url.toString();
+      if (urlString.includes("/messages?")) {
+        expect(urlString).toContain("q=from%3Asuran");
+        return new Response(
+          JSON.stringify({
+            messages: [{ id: "msg-suran", threadId: "thread-suran" }],
+          }),
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          id: "msg-suran",
+          threadId: "thread-suran",
+          labelIds: ["INBOX", "UNREAD"],
+          snippet: "Checking in on dinner tonight.",
+          internalDate: "1775327400000",
+          payload: {
+            headers: [
+              { name: "Subject", value: "Dinner tonight" },
+              { name: "From", value: "Suran Lee <suran@example.com>" },
+              { name: "To", value: "founder@example.com" },
+              { name: "Reply-To", value: "suran@example.com" },
+            ],
+          },
+        }),
+      );
+    }) as unknown as typeof fetch;
+
+    const result = await fetchManagedGoogleGmailSearch({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      query: "from:suran",
+      maxResults: 5,
+    });
+
+    expect(result.messages).toEqual([
+      expect.objectContaining({
+        subject: "Dinner tonight",
+        fromEmail: "suran@example.com",
+      }),
+    ]);
   });
 
   test("reads Gmail message bodies through the managed connector", async () => {

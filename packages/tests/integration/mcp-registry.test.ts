@@ -12,7 +12,8 @@
 
 import { test as bunTest, describe, expect } from "bun:test";
 
-const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
+const SERVER_URL =
+  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
 // The registry route pulls in a large dependency graph and can exceed the
 // default request timeout on cold CI webpack compilations.
 const TIMEOUT = 30000;

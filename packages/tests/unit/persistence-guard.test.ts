@@ -4,52 +4,53 @@ import {
   assertPersistentCloudStateConfigured,
 } from "../../lib/utils/persistence-guard";
 
-const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
-const ORIGINAL_VERCEL = process.env.VERCEL;
-const ORIGINAL_VERCEL_ENV = process.env.VERCEL_ENV;
-const ORIGINAL_ENVIRONMENT = process.env.ENVIRONMENT;
-const ORIGINAL_ALLOW_EPHEMERAL = process.env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
+const env = process.env as Record<string, string | undefined>;
+const ORIGINAL_NODE_ENV = env.NODE_ENV;
+const ORIGINAL_VERCEL = env.VERCEL;
+const ORIGINAL_VERCEL_ENV = env.VERCEL_ENV;
+const ORIGINAL_ENVIRONMENT = env.ENVIRONMENT;
+const ORIGINAL_ALLOW_EPHEMERAL = env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
 
 function restoreEnv(): void {
   if (ORIGINAL_NODE_ENV === undefined) {
-    delete process.env.NODE_ENV;
+    delete env.NODE_ENV;
   } else {
-    process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+    env.NODE_ENV = ORIGINAL_NODE_ENV;
   }
 
   if (ORIGINAL_VERCEL === undefined) {
-    delete process.env.VERCEL;
+    delete env.VERCEL;
   } else {
-    process.env.VERCEL = ORIGINAL_VERCEL;
+    env.VERCEL = ORIGINAL_VERCEL;
   }
 
   if (ORIGINAL_VERCEL_ENV === undefined) {
-    delete process.env.VERCEL_ENV;
+    delete env.VERCEL_ENV;
   } else {
-    process.env.VERCEL_ENV = ORIGINAL_VERCEL_ENV;
+    env.VERCEL_ENV = ORIGINAL_VERCEL_ENV;
   }
 
   if (ORIGINAL_ENVIRONMENT === undefined) {
-    delete process.env.ENVIRONMENT;
+    delete env.ENVIRONMENT;
   } else {
-    process.env.ENVIRONMENT = ORIGINAL_ENVIRONMENT;
+    env.ENVIRONMENT = ORIGINAL_ENVIRONMENT;
   }
 
   if (ORIGINAL_ALLOW_EPHEMERAL === undefined) {
-    delete process.env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
+    delete env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
   } else {
-    process.env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE = ORIGINAL_ALLOW_EPHEMERAL;
+    env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE = ORIGINAL_ALLOW_EPHEMERAL;
   }
 }
 
 describe("persistence guard", () => {
   beforeEach(() => {
     restoreEnv();
-    process.env.NODE_ENV = "test";
-    delete process.env.VERCEL;
-    delete process.env.VERCEL_ENV;
-    delete process.env.ENVIRONMENT;
-    delete process.env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
+    env.NODE_ENV = "test";
+    delete env.VERCEL;
+    delete env.VERCEL_ENV;
+    delete env.ENVIRONMENT;
+    delete env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
   });
 
   afterEach(() => {
@@ -62,7 +63,7 @@ describe("persistence guard", () => {
   });
 
   test("rejects ephemeral fallback in production-like environments", () => {
-    process.env.NODE_ENV = "production";
+    env.NODE_ENV = "production";
 
     expect(allowEphemeralCloudStateFallback()).toBe(false);
     expect(() => assertPersistentCloudStateConfigured("test-feature", false)).toThrow(
@@ -71,8 +72,8 @@ describe("persistence guard", () => {
   });
 
   test("allows explicit override in production-like environments", () => {
-    process.env.NODE_ENV = "production";
-    process.env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE = "true";
+    env.NODE_ENV = "production";
+    env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE = "true";
 
     expect(allowEphemeralCloudStateFallback()).toBe(true);
     expect(() => assertPersistentCloudStateConfigured("test-feature", false)).not.toThrow();

@@ -6,6 +6,7 @@ import { POST as postConnectInitiate } from "@/app/api/v1/milady/google/connect/
 import { POST as postDisconnect } from "@/app/api/v1/milady/google/disconnect/route";
 import { GET as getGmailRead } from "@/app/api/v1/milady/google/gmail/read/route";
 import { POST as postReplySend } from "@/app/api/v1/milady/google/gmail/reply-send/route";
+import { GET as getGmailSearch } from "@/app/api/v1/milady/google/gmail/search/route";
 import { GET as getGmailTriage } from "@/app/api/v1/milady/google/gmail/triage/route";
 import { GET as getStatus } from "@/app/api/v1/milady/google/status/route";
 import { miladyGoogleRouteDeps } from "../../lib/services/milady-google-route-deps";
@@ -17,6 +18,7 @@ const mockInitiateConnection = mock();
 const mockDisconnectConnection = mock();
 const mockFetchCalendarFeed = mock();
 const mockCreateCalendarEvent = mock();
+const mockFetchGmailSearch = mock();
 const mockFetchGmailTriage = mock();
 const mockReadGmailMessage = mock();
 const mockSendReply = mock();
@@ -30,6 +32,7 @@ describe("Milady managed Google routes", () => {
     miladyGoogleRouteDeps.disconnectManagedGoogleConnection = mockDisconnectConnection;
     miladyGoogleRouteDeps.fetchManagedGoogleCalendarFeed = mockFetchCalendarFeed;
     miladyGoogleRouteDeps.createManagedGoogleCalendarEvent = mockCreateCalendarEvent;
+    miladyGoogleRouteDeps.fetchManagedGoogleGmailSearch = mockFetchGmailSearch;
     miladyGoogleRouteDeps.fetchManagedGoogleGmailTriage = mockFetchGmailTriage;
     miladyGoogleRouteDeps.readManagedGoogleGmailMessage = mockReadGmailMessage;
     miladyGoogleRouteDeps.sendManagedGoogleReply = mockSendReply;
@@ -39,6 +42,7 @@ describe("Milady managed Google routes", () => {
     mockDisconnectConnection.mockReset();
     mockFetchCalendarFeed.mockReset();
     mockCreateCalendarEvent.mockReset();
+    mockFetchGmailSearch.mockReset();
     mockFetchGmailTriage.mockReset();
     mockReadGmailMessage.mockReset();
     mockSendReply.mockReset();
@@ -208,6 +212,49 @@ describe("Milady managed Google routes", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
       error: "maxResults must be a positive integer.",
+    });
+  });
+
+  test("GET /api/v1/milady/google/gmail/search validates query and delegates to the service", async () => {
+    mockFetchGmailSearch.mockResolvedValue({
+      messages: [
+        {
+          externalId: "msg-1",
+          threadId: "thread-1",
+          subject: "Project sync",
+          from: "Founder Example",
+          fromEmail: "founder@example.com",
+          replyTo: "founder@example.com",
+          to: ["team@example.com"],
+          cc: [],
+          snippet: "Reviewing it now.",
+          receivedAt: "2026-04-04T19:00:00.000Z",
+          isUnread: true,
+          isImportant: true,
+          likelyReplyNeeded: true,
+          triageScore: 90,
+          triageReason: "reply needed",
+          labels: ["INBOX", "UNREAD"],
+          htmlLink: null,
+          metadata: {},
+        },
+      ],
+      syncedAt: "2026-04-04T19:00:00.000Z",
+    });
+
+    const response = await getGmailSearch(
+      new NextRequest(
+        "https://example.com/api/v1/milady/google/gmail/search?side=agent&query=from%3Asuran&maxResults=5",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockFetchGmailSearch).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "agent",
+      query: "from:suran",
+      maxResults: 5,
     });
   });
 
