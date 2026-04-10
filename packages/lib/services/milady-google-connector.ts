@@ -18,6 +18,8 @@ const GOOGLE_GMAIL_SEND_ENDPOINT = `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/send`;
 const DEFAULT_GOOGLE_CONNECTOR_CAPABILITIES = [
   "google.basic_identity",
   "google.calendar.read",
+  "google.gmail.triage",
+  "google.gmail.send",
 ] as const;
 const GMAIL_METADATA_HEADERS = [
   "Subject",
@@ -1000,6 +1002,15 @@ export async function fetchManagedGoogleGmailTriage(args: {
   };
 }
 
+function hasGmailBodyReadScope(scopes: readonly string[]): boolean {
+  const granted = new Set(scopes);
+  return (
+    granted.has("https://www.googleapis.com/auth/gmail.readonly") ||
+    granted.has("https://www.googleapis.com/auth/gmail.modify") ||
+    granted.has("https://mail.google.com/")
+  );
+}
+
 export async function readManagedGoogleGmailMessage(args: {
   organizationId: string;
   userId: string;
@@ -1011,6 +1022,12 @@ export async function readManagedGoogleGmailMessage(args: {
     userId: args.userId,
     side: args.side,
   });
+  if (!hasGmailBodyReadScope(connectorStatus.grantedScopes)) {
+    fail(
+      409,
+      "This Google connection only has Gmail metadata access. Reconnect Google to grant Gmail read access so Milady can read email bodies.",
+    );
+  }
   const selfEmail =
     connectorStatus.identity && typeof connectorStatus.identity.email === "string"
       ? connectorStatus.identity.email
