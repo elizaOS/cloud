@@ -7,6 +7,7 @@ import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider
 import type { OAuthConnectionRole } from "@/lib/services/oauth/types";
 import {
   applyTimeZone,
+  extractBody,
   googleFetchWithToken,
   sanitizeHeaderValue,
 } from "@/lib/utils/google-mcp-shared";
@@ -102,6 +103,11 @@ export interface ManagedGoogleGmailMessage {
   metadata: Record<string, unknown>;
 }
 
+export interface ManagedGoogleGmailReadResult {
+  message: ManagedGoogleGmailMessage;
+  bodyText: string;
+}
+
 export class MiladyGoogleConnectorError extends Error {
   constructor(
     public readonly status: number,
@@ -168,6 +174,11 @@ type GoogleGmailMetadataResponse = {
   sizeEstimate?: number;
   payload?: {
     headers?: GoogleGmailMetadataHeader[];
+    mimeType?: string;
+    body?: {
+      data?: string;
+    };
+    parts?: Array<Record<string, unknown>>;
   };
 };
 
@@ -220,7 +231,7 @@ function capabilitiesToScopes(capabilities: readonly MiladyGoogleCapability[]): 
       scopes.add("https://www.googleapis.com/auth/calendar.events");
     }
     if (capability === "google.gmail.triage") {
-      scopes.add("https://www.googleapis.com/auth/gmail.metadata");
+      scopes.add("https://www.googleapis.com/auth/gmail.readonly");
     }
     if (capability === "google.gmail.send") {
       scopes.add("https://www.googleapis.com/auth/gmail.send");
@@ -528,6 +539,44 @@ function readHeaderValue(
 
 function normalizeSnippet(value: string | undefined): string {
   return value?.replace(/\s+/g, " ").trim() || "";
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+function htmlToPlainText(value: string): string {
+  return decodeHtmlEntities(
+    value
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(?:p|div|section|article|li|tr|table|h[1-6])>/gi, "\n")
+      .replace(/<(?:li)[^>]*>/gi, "- ")
+      .replace(/<[^>]+>/g, " "),
+  )
+    .replace(/\r/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function normalizeManagedGmailBodyText(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/<\/?[a-z][\s\S]*>/i.test(trimmed)) {
+    return htmlToPlainText(trimmed);
+  }
+  return trimmed.replace(/\r\n/g, "\n").trim();
 }
 
 function deriveHtmlLink(threadId: string): string {
@@ -948,6 +997,41 @@ export async function fetchManagedGoogleGmailTriage(args: {
         return Date.parse(right.receivedAt) - Date.parse(left.receivedAt);
       }),
     syncedAt: new Date().toISOString(),
+  };
+}
+
+export async function readManagedGoogleGmailMessage(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  messageId: string;
+}): Promise<ManagedGoogleGmailReadResult> {
+  const connectorStatus = await getManagedGoogleConnectorStatus({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+  });
+  const selfEmail =
+    connectorStatus.identity && typeof connectorStatus.identity.email === "string"
+      ? connectorStatus.identity.email
+      : null;
+  const response = await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(args.messageId)}?format=full`,
+  });
+  const parsed = (await response.json()) as GoogleGmailMetadataResponse;
+  const message = normalizeGoogleGmailMessage(parsed, selfEmail);
+  if (!message) {
+    fail(502, "Google Gmail returned an incomplete message payload.");
+  }
+  const rawBody = parsed.payload
+    ? extractBody(parsed.payload as unknown as Record<string, unknown>)
+    : "";
+  return {
+    message,
+    bodyText: normalizeManagedGmailBodyText(rawBody) || message.snippet,
   };
 }
 

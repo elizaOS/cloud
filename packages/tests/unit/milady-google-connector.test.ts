@@ -6,6 +6,7 @@ import {
   getManagedGoogleConnectorStatus,
   initiateManagedGoogleConnection,
   managedGoogleConnectorDeps,
+  readManagedGoogleGmailMessage,
   sendManagedGoogleReply,
 } from "../../lib/services/milady-google-connector";
 import type { OAuthConnection } from "../../lib/services/oauth/types";
@@ -223,7 +224,7 @@ describe("milady Google connector service", () => {
         "email",
         "profile",
         "https://www.googleapis.com/auth/calendar.readonly",
-        "https://www.googleapis.com/auth/gmail.metadata",
+        "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/gmail.send",
       ],
       connectionRole: "agent",
@@ -350,6 +351,51 @@ describe("milady Google connector service", () => {
       likelyReplyNeeded: true,
     });
     expect(triage.messages[0]?.triageReason).toContain("unread");
+  });
+
+  test("reads Gmail message bodies through the managed connector", async () => {
+    mockListConnections.mockResolvedValue([createConnection()]);
+    globalThis.fetch = mock(async () => {
+      return new Response(
+        JSON.stringify({
+          id: "msg-1",
+          threadId: "thread-1",
+          labelIds: ["INBOX", "UNREAD"],
+          snippet: "Reviewing it now.",
+          internalDate: "1775327400000",
+          payload: {
+            mimeType: "multipart/alternative",
+            headers: [
+              { name: "Subject", value: "Project sync" },
+              { name: "From", value: "CEO Example <ceo@example.com>" },
+              { name: "To", value: "founder@example.com" },
+              { name: "Reply-To", value: "ceo@example.com" },
+            ],
+            parts: [
+              {
+                mimeType: "text/plain",
+                body: {
+                  data: Buffer.from("Reviewing it now.\n\nThanks,\nFounder", "utf-8").toString(
+                    "base64url",
+                  ),
+                },
+              },
+            ],
+          },
+        }),
+      );
+    }) as unknown as typeof fetch;
+
+    const result = await readManagedGoogleGmailMessage({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      messageId: "msg-1",
+    });
+
+    expect(result.message.subject).toBe("Project sync");
+    expect(result.bodyText).toContain("Reviewing it now.");
+    expect(result.bodyText).toContain("Thanks,");
   });
 
   test("sends Gmail replies with sanitized RFC822 headers", async () => {

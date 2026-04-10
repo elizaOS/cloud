@@ -7,6 +7,7 @@ import {
   getManagedGoogleConnectorStatus,
   initiateManagedGoogleConnection,
   MiladyGoogleConnectorError,
+  readManagedGoogleGmailMessage,
   sendManagedGoogleReply,
 } from "@/lib/services/milady-google-connector";
 
@@ -18,6 +19,7 @@ export const miladyGoogleRouteDeps = {
   fetchManagedGoogleCalendarFeed,
   createManagedGoogleCalendarEvent,
   fetchManagedGoogleGmailTriage,
+  readManagedGoogleGmailMessage,
   sendManagedGoogleReply,
   MiladyGoogleConnectorError,
 };

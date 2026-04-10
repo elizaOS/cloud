@@ -4,6 +4,7 @@ import { POST as postCalendarEvent } from "@/app/api/v1/milady/google/calendar/e
 import { GET as getCalendarFeed } from "@/app/api/v1/milady/google/calendar/feed/route";
 import { POST as postConnectInitiate } from "@/app/api/v1/milady/google/connect/initiate/route";
 import { POST as postDisconnect } from "@/app/api/v1/milady/google/disconnect/route";
+import { GET as getGmailRead } from "@/app/api/v1/milady/google/gmail/read/route";
 import { POST as postReplySend } from "@/app/api/v1/milady/google/gmail/reply-send/route";
 import { GET as getGmailTriage } from "@/app/api/v1/milady/google/gmail/triage/route";
 import { GET as getStatus } from "@/app/api/v1/milady/google/status/route";
@@ -17,6 +18,7 @@ const mockDisconnectConnection = mock();
 const mockFetchCalendarFeed = mock();
 const mockCreateCalendarEvent = mock();
 const mockFetchGmailTriage = mock();
+const mockReadGmailMessage = mock();
 const mockSendReply = mock();
 const originalRouteDeps = { ...miladyGoogleRouteDeps };
 
@@ -29,6 +31,7 @@ describe("Milady managed Google routes", () => {
     miladyGoogleRouteDeps.fetchManagedGoogleCalendarFeed = mockFetchCalendarFeed;
     miladyGoogleRouteDeps.createManagedGoogleCalendarEvent = mockCreateCalendarEvent;
     miladyGoogleRouteDeps.fetchManagedGoogleGmailTriage = mockFetchGmailTriage;
+    miladyGoogleRouteDeps.readManagedGoogleGmailMessage = mockReadGmailMessage;
     miladyGoogleRouteDeps.sendManagedGoogleReply = mockSendReply;
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockGetStatus.mockReset();
@@ -37,6 +40,7 @@ describe("Milady managed Google routes", () => {
     mockFetchCalendarFeed.mockReset();
     mockCreateCalendarEvent.mockReset();
     mockFetchGmailTriage.mockReset();
+    mockReadGmailMessage.mockReset();
     mockSendReply.mockReset();
 
     mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
@@ -230,6 +234,44 @@ describe("Milady managed Google routes", () => {
       bodyText: "Reviewing it now.",
       inReplyTo: "<msg-1@example.com>",
       references: null,
+    });
+  });
+
+  test("GET /api/v1/milady/google/gmail/read validates the query and delegates to the service", async () => {
+    mockReadGmailMessage.mockResolvedValue({
+      message: {
+        externalId: "msg-1",
+        threadId: "thread-1",
+        subject: "Project sync",
+        from: "Founder Example",
+        fromEmail: "founder@example.com",
+        replyTo: "founder@example.com",
+        to: ["team@example.com"],
+        cc: [],
+        snippet: "Reviewing it now.",
+        receivedAt: "2026-04-04T19:00:00.000Z",
+        isUnread: true,
+        isImportant: true,
+        likelyReplyNeeded: true,
+        triageScore: 90,
+        triageReason: "reply needed",
+        labels: ["INBOX", "UNREAD"],
+        htmlLink: null,
+        metadata: {},
+      },
+      bodyText: "Reviewing it now.",
+    });
+
+    const response = await getGmailRead(
+      new NextRequest("https://example.com/api/v1/milady/google/gmail/read?messageId=msg-1"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockReadGmailMessage).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      messageId: "msg-1",
     });
   });
 
