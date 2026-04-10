@@ -86,10 +86,9 @@ function resolveNanoModel(runtime: IAgentRuntime): string | undefined {
   return readTrimmedSetting(runtime, "ELIZAOS_CLOUD_NANO_MODEL");
 }
 
-function resolveMiniModel(runtime: IAgentRuntime): string | undefined {
+function resolveMediumModel(runtime: IAgentRuntime): string | undefined {
   return (
-    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_MINI_MODEL") ||
-    resolveNanoModel(runtime) ||
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_MEDIUM_MODEL") ||
     readTrimmedSetting(runtime, "ELIZAOS_CLOUD_SMALL_MODEL") ||
     readTrimmedSetting(runtime, "SMALL_MODEL")
   );
@@ -113,7 +112,7 @@ function resolveShouldRespondStepModel(runtime: IAgentRuntime): string | undefin
   return (
     readTrimmedSetting(runtime, "ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL") ||
     readTrimmedSetting(runtime, "ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL") ||
-    resolveMiniModel(runtime) ||
+    resolveNanoModel(runtime) ||
     resolveSmallModel(runtime)
   );
 }
@@ -122,6 +121,7 @@ function resolveActionPlannerStepModel(runtime: IAgentRuntime): string | undefin
   return (
     readTrimmedSetting(runtime, "ELIZAOS_CLOUD_ACTION_PLANNER_MODEL") ||
     readTrimmedSetting(runtime, "ELIZAOS_CLOUD_PLANNER_MODEL") ||
+    resolveMediumModel(runtime) ||
     resolveSmallModel(runtime)
   );
 }

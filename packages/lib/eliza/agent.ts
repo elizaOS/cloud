@@ -20,8 +20,8 @@ const character: Character = {
       process.env.ELIZAOS_CLOUD_NANO_MODEL ||
       process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
       getDefaultModels().small,
-    ELIZAOS_CLOUD_MINI_MODEL:
-      process.env.ELIZAOS_CLOUD_MINI_MODEL ||
+    ELIZAOS_CLOUD_MEDIUM_MODEL:
+      process.env.ELIZAOS_CLOUD_MEDIUM_MODEL ||
       process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
       getDefaultModels().small,
     ELIZAOS_CLOUD_SMALL_MODEL: getDefaultModels().small,
@@ -33,21 +33,23 @@ const character: Character = {
     ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL:
       process.env.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL ||
       process.env.ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL ||
-      process.env.ELIZAOS_CLOUD_MINI_MODEL ||
+      process.env.ELIZAOS_CLOUD_NANO_MODEL ||
       getDefaultModels().small,
     ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL:
       process.env.ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL ||
       process.env.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL ||
-      process.env.ELIZAOS_CLOUD_MINI_MODEL ||
+      process.env.ELIZAOS_CLOUD_NANO_MODEL ||
       getDefaultModels().small,
     ELIZAOS_CLOUD_ACTION_PLANNER_MODEL:
       process.env.ELIZAOS_CLOUD_ACTION_PLANNER_MODEL ||
       process.env.ELIZAOS_CLOUD_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_MEDIUM_MODEL ||
       process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
       getDefaultModels().small,
     ELIZAOS_CLOUD_PLANNER_MODEL:
       process.env.ELIZAOS_CLOUD_PLANNER_MODEL ||
       process.env.ELIZAOS_CLOUD_ACTION_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_MEDIUM_MODEL ||
       process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
       getDefaultModels().small,
     ELIZAOS_CLOUD_RESPONSE_MODEL:

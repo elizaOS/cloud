@@ -85,8 +85,8 @@ export interface CreateTestRuntimeOptions {
   /** Model preferences */
   modelPreferences?: {
     nanoModel?: string;
-    miniModel?: string;
     smallModel?: string;
+    mediumModel?: string;
     largeModel?: string;
     megaModel?: string;
     responseHandlerModel?: string;
@@ -210,8 +210,8 @@ export function buildUserContext(
     webSearchEnabled?: boolean;
     modelPreferences?: {
       nanoModel?: string;
-      miniModel?: string;
       smallModel?: string;
+      mediumModel?: string;
       largeModel?: string;
       megaModel?: string;
       responseHandlerModel?: string;

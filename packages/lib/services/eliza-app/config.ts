@@ -50,26 +50,27 @@ export const elizaAppConfig = {
   // Model preferences for webhook channels (Telegram, iMessage)
   modelPreferences: {
     nanoModel: process.env.ELIZA_APP_NANO_MODEL || ELIZA_APP_SMALL_MODEL,
-    miniModel: process.env.ELIZA_APP_MINI_MODEL || ELIZA_APP_SMALL_MODEL,
     smallModel: ELIZA_APP_SMALL_MODEL,
+    mediumModel: process.env.ELIZA_APP_MEDIUM_MODEL || ELIZA_APP_SMALL_MODEL,
     largeModel: ELIZA_APP_LARGE_MODEL,
     megaModel: process.env.ELIZA_APP_MEGA_MODEL || ELIZA_APP_LARGE_MODEL,
     responseHandlerModel:
       process.env.ELIZA_APP_RESPONSE_HANDLER_MODEL ||
-      process.env.ELIZA_APP_MINI_MODEL ||
+      process.env.ELIZA_APP_NANO_MODEL ||
       ELIZA_APP_SMALL_MODEL,
     shouldRespondModel:
       process.env.ELIZA_APP_SHOULD_RESPOND_MODEL ||
       process.env.ELIZA_APP_RESPONSE_HANDLER_MODEL ||
-      process.env.ELIZA_APP_MINI_MODEL ||
+      process.env.ELIZA_APP_NANO_MODEL ||
       ELIZA_APP_SMALL_MODEL,
     actionPlannerModel:
       process.env.ELIZA_APP_ACTION_PLANNER_MODEL ||
-      process.env.ELIZA_APP_SMALL_MODEL ||
+      process.env.ELIZA_APP_MEDIUM_MODEL ||
       ELIZA_APP_SMALL_MODEL,
     plannerModel:
       process.env.ELIZA_APP_PLANNER_MODEL ||
       process.env.ELIZA_APP_ACTION_PLANNER_MODEL ||
+      process.env.ELIZA_APP_MEDIUM_MODEL ||
       ELIZA_APP_SMALL_MODEL,
     responseModel: process.env.ELIZA_APP_RESPONSE_MODEL || ELIZA_APP_LARGE_MODEL,
     mediaDescriptionModel:

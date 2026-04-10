@@ -106,8 +106,8 @@ interface RuntimeSettings {
   ORGANIZATION_ID?: string;
   IS_ANONYMOUS?: boolean;
   ELIZAOS_CLOUD_NANO_MODEL?: string;
-  ELIZAOS_CLOUD_MINI_MODEL?: string;
   ELIZAOS_CLOUD_SMALL_MODEL?: string;
+  ELIZAOS_CLOUD_MEDIUM_MODEL?: string;
   ELIZAOS_CLOUD_LARGE_MODEL?: string;
   ELIZAOS_CLOUD_MEGA_MODEL?: string;
   ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL?: string;
@@ -702,10 +702,10 @@ export class RuntimeFactory {
     if (context.modelPreferences) {
       charSettings.ELIZAOS_CLOUD_NANO_MODEL =
         context.modelPreferences.nanoModel || charSettings.ELIZAOS_CLOUD_NANO_MODEL;
-      charSettings.ELIZAOS_CLOUD_MINI_MODEL =
-        context.modelPreferences.miniModel || charSettings.ELIZAOS_CLOUD_MINI_MODEL;
       charSettings.ELIZAOS_CLOUD_SMALL_MODEL =
         context.modelPreferences.smallModel || charSettings.ELIZAOS_CLOUD_SMALL_MODEL;
+      charSettings.ELIZAOS_CLOUD_MEDIUM_MODEL =
+        context.modelPreferences.mediumModel || charSettings.ELIZAOS_CLOUD_MEDIUM_MODEL;
       charSettings.ELIZAOS_CLOUD_LARGE_MODEL =
         context.modelPreferences.largeModel || charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
       charSettings.ELIZAOS_CLOUD_MEGA_MODEL =
@@ -898,10 +898,10 @@ export class RuntimeFactory {
           "ELIZAOS_CLOUD_NANO_MODEL",
           getSetting("ELIZAOS_CLOUD_SMALL_MODEL", getDefaultModels().small),
         ),
-      ELIZAOS_CLOUD_MINI_MODEL:
-        context.modelPreferences?.miniModel ||
+      ELIZAOS_CLOUD_MEDIUM_MODEL:
+        context.modelPreferences?.mediumModel ||
         getSetting(
-          "ELIZAOS_CLOUD_MINI_MODEL",
+          "ELIZAOS_CLOUD_MEDIUM_MODEL",
           getSetting("ELIZAOS_CLOUD_SMALL_MODEL", getDefaultModels().small),
         ),
       ELIZAOS_CLOUD_SMALL_MODEL:
@@ -923,9 +923,9 @@ export class RuntimeFactory {
           "ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL",
           getSetting(
             "ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL",
-            context.modelPreferences?.miniModel ||
+            context.modelPreferences?.nanoModel ||
               context.modelPreferences?.smallModel ||
-              getSetting("ELIZAOS_CLOUD_MINI_MODEL", getDefaultModels().small),
+              getSetting("ELIZAOS_CLOUD_NANO_MODEL", getDefaultModels().small),
           ),
         ),
       ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL:
@@ -935,9 +935,9 @@ export class RuntimeFactory {
           "ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL",
           getSetting(
             "ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL",
-            context.modelPreferences?.miniModel ||
+            context.modelPreferences?.nanoModel ||
               context.modelPreferences?.smallModel ||
-              getSetting("ELIZAOS_CLOUD_MINI_MODEL", getDefaultModels().small),
+              getSetting("ELIZAOS_CLOUD_NANO_MODEL", getDefaultModels().small),
           ),
         ),
       ELIZAOS_CLOUD_ACTION_PLANNER_MODEL:
@@ -947,8 +947,9 @@ export class RuntimeFactory {
           "ELIZAOS_CLOUD_ACTION_PLANNER_MODEL",
           getSetting(
             "ELIZAOS_CLOUD_PLANNER_MODEL",
-            context.modelPreferences?.smallModel ||
-              getSetting("ELIZAOS_CLOUD_SMALL_MODEL", getDefaultModels().small),
+            context.modelPreferences?.mediumModel ||
+              context.modelPreferences?.smallModel ||
+              getSetting("ELIZAOS_CLOUD_MEDIUM_MODEL", getDefaultModels().small),
           ),
         ),
       ELIZAOS_CLOUD_PLANNER_MODEL:
@@ -958,7 +959,8 @@ export class RuntimeFactory {
           "ELIZAOS_CLOUD_PLANNER_MODEL",
           getSetting(
             "ELIZAOS_CLOUD_ACTION_PLANNER_MODEL",
-            context.modelPreferences?.smallModel ||
+            context.modelPreferences?.mediumModel ||
+              context.modelPreferences?.smallModel ||
               getSetting("ELIZAOS_CLOUD_SMALL_MODEL", getDefaultModels().small),
           ),
         ),

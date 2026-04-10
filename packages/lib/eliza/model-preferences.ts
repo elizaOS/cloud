@@ -1,7 +1,7 @@
 export const MODEL_PREFERENCE_KEYS = [
   "nanoModel",
-  "miniModel",
   "smallModel",
+  "mediumModel",
   "largeModel",
   "megaModel",
   "responseHandlerModel",
@@ -16,8 +16,8 @@ export type ModelPreferenceKey = (typeof MODEL_PREFERENCE_KEYS)[number];
 
 export interface ModelPreferences {
   nanoModel?: string;
-  miniModel?: string;
   smallModel?: string;
+  mediumModel?: string;
   largeModel?: string;
   megaModel?: string;
   responseHandlerModel?: string;

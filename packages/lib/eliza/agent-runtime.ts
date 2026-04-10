@@ -43,8 +43,8 @@ export async function handleMessage(
     apiKey?: string;
     modelPreferences?: {
       nanoModel?: string;
-      miniModel?: string;
       smallModel?: string;
+      mediumModel?: string;
       largeModel?: string;
       megaModel?: string;
       responseHandlerModel?: string;
