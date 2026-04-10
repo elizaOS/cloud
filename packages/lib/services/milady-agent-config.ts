@@ -180,8 +180,10 @@ export function withManagedMiladyDiscordGateway(
 
 // --- GitHub managed binding ---
 
+export type ManagedMiladyGithubMode = "cloud-managed" | "shared-owner";
+
 export interface ManagedMiladyGithubBinding {
-  mode: "cloud-managed";
+  mode: ManagedMiladyGithubMode;
   connectionId: string;
   githubUserId: string;
   githubUsername: string;
@@ -191,6 +193,8 @@ export interface ManagedMiladyGithubBinding {
   scopes: string[];
   adminElizaUserId: string;
   connectedAt: string;
+  connectionRole?: "owner" | "agent";
+  source?: "platform_credentials" | "secrets";
 }
 
 export function readManagedMiladyGithubBinding(
@@ -208,19 +212,33 @@ export function readManagedMiladyGithubBinding(
   const adminElizaUserId =
     typeof binding.adminElizaUserId === "string" ? binding.adminElizaUserId.trim() : "";
   const connectedAt = typeof binding.connectedAt === "string" ? binding.connectedAt.trim() : "";
+  const mode =
+    binding.mode === "shared-owner" || binding.mode === "cloud-managed"
+      ? binding.mode
+      : "cloud-managed";
+  const connectionRole =
+    binding.connectionRole === "owner" || binding.connectionRole === "agent"
+      ? binding.connectionRole
+      : undefined;
+  const source =
+    binding.source === "platform_credentials" || binding.source === "secrets"
+      ? binding.source
+      : undefined;
 
   if (!connectionId || !githubUserId || !githubUsername || !adminElizaUserId) {
     return null;
   }
 
   return {
-    mode: "cloud-managed",
+    mode,
     connectionId,
     githubUserId,
     githubUsername,
     adminElizaUserId,
     connectedAt: connectedAt || new Date(0).toISOString(),
     scopes: Array.isArray(binding.scopes) ? binding.scopes : [],
+    ...(connectionRole ? { connectionRole } : {}),
+    ...(source ? { source } : {}),
     ...(typeof binding.githubDisplayName === "string" && binding.githubDisplayName.trim()
       ? { githubDisplayName: binding.githubDisplayName.trim() }
       : {}),
@@ -239,13 +257,15 @@ export function withManagedMiladyGithubBinding(
 ): Record<string, unknown> {
   const next = cloneAgentConfig(agentConfig);
   next[MILADY_MANAGED_GITHUB_KEY] = {
-    mode: "cloud-managed",
+    mode: binding.mode,
     connectionId: binding.connectionId,
     githubUserId: binding.githubUserId,
     githubUsername: binding.githubUsername,
     adminElizaUserId: binding.adminElizaUserId,
     connectedAt: binding.connectedAt,
     scopes: binding.scopes,
+    ...(binding.connectionRole ? { connectionRole: binding.connectionRole } : {}),
+    ...(binding.source ? { source: binding.source } : {}),
     ...(binding.githubDisplayName ? { githubDisplayName: binding.githubDisplayName } : {}),
     ...(binding.githubAvatarUrl ? { githubAvatarUrl: binding.githubAvatarUrl } : {}),
     ...(binding.githubEmail ? { githubEmail: binding.githubEmail } : {}),

@@ -72,8 +72,11 @@ export async function POST(
       agentId,
       organizationId: user.organization_id,
       binding: {
-        mode: "cloud-managed",
+        mode:
+          connection.connectionRole === "owner" ? "shared-owner" : "cloud-managed",
         connectionId,
+        connectionRole: connection.connectionRole,
+        source: connection.source,
         githubUserId: connection.platformUserId || "",
         githubUsername: connection.username || "",
         githubDisplayName: connection.displayName || undefined,

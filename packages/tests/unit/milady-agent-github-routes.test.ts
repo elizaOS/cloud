@@ -153,8 +153,38 @@ describe("managed Milady GitHub routes", () => {
       expect.objectContaining({
         organizationId: "org-1",
         userId: "user-1",
+        redirectUrl:
+          "/api/v1/milady/github-oauth-complete?agent_id=agent-1&org_id=org-1&user_id=user-1",
         connectionRole: "agent",
         scopes: ["repo", "workflow"],
+      }),
+    );
+  });
+
+  test("POST /github/oauth forwards LifeOps callback return options", async () => {
+    mockGetAgent.mockResolvedValue({
+      id: "agent-1",
+      agent_name: "Coder",
+    });
+    mockInitiateOAuth2.mockResolvedValue({
+      authUrl: "https://github.com/login/oauth/authorize?mock=1",
+      state: "state-123",
+    });
+
+    const response = await postManagedGithubOauth(
+      jsonRequest("https://example.com/api/v1/milady/agents/agent-1/github/oauth", "POST", {
+        postMessage: true,
+        returnUrl: "milady://lifeops",
+      }),
+      routeParams({ agentId: "agent-1" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockInitiateOAuth2).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "github" }),
+      expect.objectContaining({
+        redirectUrl:
+          "/api/v1/milady/github-oauth-complete?agent_id=agent-1&org_id=org-1&user_id=user-1&post_message=1&return_url=milady%3A%2F%2Flifeops",
       }),
     );
   });
@@ -227,6 +257,52 @@ describe("managed Milady GitHub routes", () => {
           connectionId: "conn-1",
           githubUserId: "12345",
           githubUsername: "octocat",
+        }),
+      }),
+    );
+  });
+
+  test("POST /github/link uses shared-owner mode for owner connections", async () => {
+    mockGetConnection.mockResolvedValue({
+      id: "conn-1",
+      platform: "github",
+      connectionRole: "owner",
+      source: "platform_credentials",
+      platformUserId: "12345",
+      username: "octocat",
+      displayName: "The Octocat",
+      avatarUrl: "https://avatars.githubusercontent.com/u/12345",
+      email: "octocat@github.com",
+      scopes: ["repo", "read:user"],
+    });
+    mockConnectAgent.mockResolvedValue({
+      restarted: false,
+      status: {
+        configured: true,
+        connected: true,
+        mode: "shared-owner",
+        connectionId: "conn-1",
+        connectionRole: "owner",
+        source: "platform_credentials",
+        githubUsername: "octocat",
+      },
+    });
+
+    const response = await postLinkGithub(
+      jsonRequest("https://example.com/api/v1/milady/agents/agent-1/github/link", "POST", {
+        connectionId: "conn-1",
+      }),
+      routeParams({ agentId: "agent-1" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockConnectAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        binding: expect.objectContaining({
+          mode: "shared-owner",
+          connectionRole: "owner",
+          source: "platform_credentials",
+          connectionId: "conn-1",
         }),
       }),
     );

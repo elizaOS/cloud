@@ -155,6 +155,76 @@ describe("github-oauth-complete endpoint", () => {
     expect(location).toContain("restarted=1");
   });
 
+  test("returns a popup handoff page when post_message is requested", async () => {
+    mockFindByIdAndOrg.mockResolvedValue({
+      id: "agent-1",
+      organization_id: "org-1",
+      agent_config: {},
+      status: "stopped",
+    });
+    mockGetConnection.mockResolvedValue({
+      id: "conn-1",
+      platform: "github",
+      platformUserId: "12345",
+      username: "octocat",
+      scopes: ["repo"],
+    });
+    mockConnectAgent.mockResolvedValue({
+      restarted: false,
+      status: { connected: true },
+    });
+
+    const response = await GET(
+      new NextRequest(
+        completionUrl({
+          ...VALID_PARAMS,
+          post_message: "1",
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    const html = await response.text();
+    expect(html).toContain("milady-lifeops-github-complete");
+    expect(html).toContain("Agent GitHub connected");
+  });
+
+  test("returns a deep-link handoff page when return_url is requested", async () => {
+    mockFindByIdAndOrg.mockResolvedValue({
+      id: "agent-1",
+      organization_id: "org-1",
+      agent_config: {},
+      status: "stopped",
+    });
+    mockGetConnection.mockResolvedValue({
+      id: "conn-1",
+      platform: "github",
+      platformUserId: "12345",
+      username: "octocat",
+      scopes: ["repo"],
+    });
+    mockConnectAgent.mockResolvedValue({
+      restarted: true,
+      status: { connected: true },
+    });
+
+    const response = await GET(
+      new NextRequest(
+        completionUrl({
+          ...VALID_PARAMS,
+          return_url: "milady://lifeops",
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("milady://lifeops");
+    expect(html).toContain("binding_mode=cloud-managed");
+    expect(html).toContain("restarted=1");
+  });
+
   test("idempotency: skips re-linking if connection already bound", async () => {
     mockFindByIdAndOrg.mockResolvedValue({
       id: "agent-1",

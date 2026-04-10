@@ -15,6 +15,8 @@ const CORS_METHODS = "POST, OPTIONS";
 
 const oauthLinkSchema = z.object({
   scopes: z.array(z.string()).optional(),
+  postMessage: z.boolean().optional(),
+  returnUrl: z.string().trim().max(2048).optional(),
 });
 
 export function OPTIONS() {
@@ -30,12 +32,26 @@ export function OPTIONS() {
  * dashboard. This path is whitelisted in the generic callback's
  * ALLOWED_REDIRECT_PATHS.
  */
-function resolveManagedReturnUrl(agentId: string, organizationId: string, userId: string): string {
+function resolveManagedReturnUrl(
+  agentId: string,
+  organizationId: string,
+  userId: string,
+  args?: {
+    postMessage?: boolean;
+    returnUrl?: string;
+  },
+): string {
   const params = new URLSearchParams({
     agent_id: agentId,
     org_id: organizationId,
     user_id: userId,
   });
+  if (args?.postMessage) {
+    params.set("post_message", "1");
+  }
+  if (args?.returnUrl) {
+    params.set("return_url", args.returnUrl);
+  }
   return `/api/v1/milady/github-oauth-complete?${params.toString()}`;
 }
 
@@ -79,7 +95,10 @@ export async function POST(
     }
 
     const scopes = parsed.data.scopes || provider.defaultScopes || [];
-    const redirectUrl = resolveManagedReturnUrl(agentId, user.organization_id, user.id);
+    const redirectUrl = resolveManagedReturnUrl(agentId, user.organization_id, user.id, {
+      postMessage: parsed.data.postMessage,
+      returnUrl: parsed.data.returnUrl,
+    });
 
     const result = await initiateOAuth2(provider, {
       organizationId: user.organization_id,

@@ -93,11 +93,13 @@ describe("ManagedMiladyGithubService", () => {
         id: "agent-1",
         agent_config: {
           __miladyManagedGithub: {
-            mode: "cloud-managed",
+            mode: "shared-owner",
             connectionId: "conn-1",
+            connectionRole: "owner",
             githubUserId: "12345",
             githubUsername: "octocat",
             scopes: ["repo"],
+            source: "platform_credentials",
             adminElizaUserId: "user-1",
             connectedAt: "2026-04-05T12:00:00.000Z",
           },
@@ -111,7 +113,10 @@ describe("ManagedMiladyGithubService", () => {
 
       expect(status).not.toBeNull();
       expect(status!.connected).toBe(true);
+      expect(status!.mode).toBe("shared-owner");
+      expect(status!.connectionRole).toBe("owner");
       expect(status!.githubUsername).toBe("octocat");
+      expect(status!.source).toBe("platform_credentials");
       expect(status!.configured).toBe(true);
     });
 
@@ -314,6 +319,35 @@ describe("ManagedMiladyGithubService", () => {
 
       // Should succeed despite revoke failure
       expect(result.status.connected).toBe(false);
+    });
+
+    test("does not revoke the underlying owner connection for shared-owner mode", async () => {
+      mockFindByIdAndOrg.mockResolvedValue({
+        id: "agent-1",
+        organization_id: "org-1",
+        agent_config: {
+          __miladyManagedGithub: {
+            mode: "shared-owner",
+            connectionId: "conn-1",
+            connectionRole: "owner",
+            githubUserId: "12345",
+            githubUsername: "octocat",
+            scopes: ["repo"],
+            adminElizaUserId: "user-1",
+            connectedAt: "2026-04-05T12:00:00.000Z",
+          },
+        },
+        status: "stopped",
+      });
+      mockUpdate.mockResolvedValue(undefined);
+
+      const result = await service.disconnectAgent({
+        agentId: "agent-1",
+        organizationId: "org-1",
+      });
+
+      expect(result.status.connected).toBe(false);
+      expect(mockRevokeConnection).not.toHaveBeenCalled();
     });
 
     test("throws when agent not found", async () => {

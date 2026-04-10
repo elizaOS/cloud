@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { readManagedMiladyGithubBinding } from "@/lib/services/milady-agent-config";
+import { createLifeOpsGithubReturnResponse } from "@/lib/services/milady-github-return";
 import { managedMiladyGithubService } from "@/lib/services/milady-managed-github";
 import { oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
@@ -34,6 +35,58 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const connectionId = request.nextUrl.searchParams.get("connection_id");
   const githubConnected = request.nextUrl.searchParams.get("github_connected");
   const githubError = request.nextUrl.searchParams.get("github_error");
+  const postMessage = request.nextUrl.searchParams.get("post_message") === "1";
+  const returnUrl = request.nextUrl.searchParams.get("return_url");
+
+  const respond = (args: {
+    status: "connected" | "error";
+    githubUsername?: string | null;
+    message?: string | null;
+    restarted?: boolean;
+    bindingMode?: "cloud-managed" | "shared-owner" | null;
+  }): NextResponse => {
+    if (postMessage || returnUrl) {
+      return createLifeOpsGithubReturnResponse({
+        title:
+          args.status === "connected"
+            ? "Agent GitHub connected"
+            : "Agent GitHub setup did not complete",
+        message:
+          args.status === "connected"
+            ? args.restarted
+              ? "GitHub is linked to this agent and the cloud runtime is restarting."
+              : "GitHub is linked to this agent."
+            : args.message || "GitHub setup did not complete.",
+        detail: {
+          target: "agent",
+          status: args.status,
+          agentId,
+          connectionId,
+          githubUsername: args.githubUsername ?? null,
+          bindingMode: args.bindingMode ?? null,
+          message: args.message ?? null,
+          restarted: args.restarted === true,
+        },
+        postMessage,
+        returnUrl,
+      });
+    }
+    if (args.status === "connected") {
+      const successParams = [
+        "github=connected",
+        "managed=1",
+        `agentId=${encodeURIComponent(agentId ?? "")}`,
+        `githubUsername=${encodeURIComponent(args.githubUsername || "")}`,
+        `restarted=${args.restarted ? "1" : "0"}`,
+      ].join("&");
+      return NextResponse.redirect(`${dashboardUrl}&${successParams}`);
+    }
+    return NextResponse.redirect(
+      `${dashboardUrl}&github_error=${encodeURIComponent(
+        args.message || "GitHub setup did not complete.",
+      )}`,
+    );
+  };
 
   // Handle OAuth errors from the generic callback
   if (githubError) {
@@ -41,7 +94,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       error: githubError,
       agentId,
     });
-    return NextResponse.redirect(`${dashboardUrl}&github_error=${encodeURIComponent(githubError)}`);
+    return respond({
+      status: "error",
+      message: githubError,
+    });
   }
 
   if (!agentId || !organizationId || !userId || !connectionId || githubConnected !== "true") {
@@ -52,9 +108,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       hasConnectionId: !!connectionId,
       githubConnected,
     });
-    return NextResponse.redirect(
-      `${dashboardUrl}&github_error=${encodeURIComponent("Missing parameters for GitHub linking")}`,
-    );
+    return respond({
+      status: "error",
+      message: "Missing parameters for GitHub linking",
+    });
   }
 
   try {
@@ -65,9 +122,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         agentId,
         organizationId,
       });
-      return NextResponse.redirect(
-        `${dashboardUrl}&github_error=${encodeURIComponent("Agent not found")}`,
-      );
+      return respond({
+        status: "error",
+        message: "Agent not found",
+      });
     }
 
     // Idempotency: if agent already has this connection linked, skip re-linking
@@ -79,14 +137,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         agentId,
         connectionId,
       });
-      const params = [
-        "github=connected",
-        "managed=1",
-        `agentId=${encodeURIComponent(agentId)}`,
-        `githubUsername=${encodeURIComponent(existingBinding.githubUsername || "")}`,
-        "restarted=0",
-      ].join("&");
-      return NextResponse.redirect(`${dashboardUrl}&${params}`);
+      return respond({
+        status: "connected",
+        githubUsername: existingBinding.githubUsername || null,
+        bindingMode: existingBinding.mode,
+        restarted: false,
+      });
     }
 
     // Look up the OAuth connection to get GitHub user info
@@ -101,9 +157,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         agentId,
         organizationId,
       });
-      return NextResponse.redirect(
-        `${dashboardUrl}&github_error=${encodeURIComponent("GitHub connection not found")}`,
-      );
+      return respond({
+        status: "error",
+        message: "GitHub connection not found",
+      });
     }
 
     // Link the connection to the agent
@@ -113,6 +170,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       binding: {
         mode: "cloud-managed",
         connectionId,
+        connectionRole: "agent",
+        source: connection.source,
         githubUserId: connection.platformUserId || "",
         githubUsername: connection.username || "",
         githubDisplayName: connection.displayName || undefined,
@@ -131,25 +190,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       restarted: result.restarted,
     });
 
-    const successParams = [
-      "github=connected",
-      "managed=1",
-      `agentId=${encodeURIComponent(agentId)}`,
-      `githubUsername=${encodeURIComponent(connection.username || "")}`,
-      `restarted=${result.restarted ? "1" : "0"}`,
-    ].join("&");
-
-    return NextResponse.redirect(`${dashboardUrl}&${successParams}`);
+    return respond({
+      status: "connected",
+      githubUsername: connection.username || null,
+      bindingMode: "cloud-managed",
+      restarted: result.restarted,
+    });
   } catch (error) {
     logger.error("[managed-github] Failed to auto-link GitHub after OAuth", {
       agentId,
       connectionId,
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.redirect(
-      `${dashboardUrl}&github_error=${encodeURIComponent(
+    return respond({
+      status: "error",
+      message:
         error instanceof Error ? error.message : "Failed to link GitHub to agent",
-      )}`,
-    );
+    });
   }
 }
