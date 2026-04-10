@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { ApiError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { oauthService } from "@/lib/services/oauth";
@@ -16,10 +17,14 @@ type LegacyServiceStatus = {
   error?: string;
 };
 
-async function getGoogleStatus(organizationId: string): Promise<LegacyServiceStatus> {
+async function getGoogleStatus(
+  organizationId: string,
+  userId: string,
+): Promise<LegacyServiceStatus> {
   try {
     const connections = await oauthService.listConnections({
       organizationId,
+      userId,
       platform: "google",
     });
 
@@ -77,11 +82,14 @@ async function getBlooioStatus(organizationId: string): Promise<LegacyServiceSta
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
+  let organizationId: string | undefined;
 
   try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    organizationId = user.organization_id;
+
     const services = await Promise.all([
-      getGoogleStatus(user.organization_id),
+      getGoogleStatus(user.organization_id, user.id),
       getTwilioStatus(user.organization_id),
       getBlooioStatus(user.organization_id),
     ]);
@@ -89,9 +97,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ services });
   } catch (error) {
     logger.error("[OAuth Status] Failed to build legacy status response", {
-      organizationId: user.organization_id,
+      organizationId,
       error: error instanceof Error ? error.message : String(error),
     });
+
+    if (error instanceof ApiError) {
+      return NextResponse.json(error.toJSON(), { status: error.status });
+    }
 
     return NextResponse.json({ error: "Failed to fetch OAuth status" }, { status: 500 });
   }

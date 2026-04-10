@@ -6,14 +6,19 @@
  * never leaked in error messages or logs.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+
+afterAll(() => {
+  mock.restore();
+});
 
 // Import the real `redact` object directly.  Other test files in the batch
 // may call `mock.module("@/lib/utils/logger", ...)` without including `redact`,
 // which poisons the module cache for later dynamic `await import(...)` calls.
 // Importing via the file-system path with a cache-buster query param
 // guarantees we always get the real implementation regardless of mocks.
-import { redact } from "../../lib/utils/logger.ts?_real";
+// @ts-expect-error Bun supports cache-busting query imports in tests.
+import { redact } from "../../lib/utils/logger?v=docker-ssh-test";
 
 // ---------------------------------------------------------------------------
 // Env helpers — save/restore to avoid cross-test pollution

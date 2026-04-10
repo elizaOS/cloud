@@ -121,6 +121,171 @@ spec:
               echo "$RESPONSE" | grep -q '"response"' || { echo "FAIL: no response field"; exit 1; }
               echo "PASS: message forwarded through Redis-resolved route and agent responded"
 
+    - name: Forward internal event via POST /internal/event
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              # Read the GATEWAY_INTERNAL_SECRET from the gateway-webhook secrets
+              SECRET=$(kubectl get secret gateway-webhook-secrets -n gateway-webhook \
+                -o jsonpath='{.data.gateway-internal-secret}' | base64 -d)
+
+              [ -n "$SECRET" ] || { echo "FAIL: GATEWAY_INTERNAL_SECRET not found in gateway-webhook-secrets"; exit 1; }
+
+              # POST to the gateway's internal event route
+              GW_URL="http://gateway-webhook.gateway-webhook.svc:3000"
+              RESPONSE=$(kubectl run cs-internal-$RANDOM --rm -i --restart=Never -n gateway-webhook \
+                --image=curlimages/curl:latest --quiet -- \
+                curl -s -w "\n%{http_code}" -X POST "${GW_URL}/internal/event" \
+                  -H "Content-Type: application/json" \
+                  -H "X-Internal-Secret: $SECRET" \
+                  -d '{"agentId":"eliza","userId":"e2e-test","type":"system","payload":{"test":true}}' 2>/dev/null)
+
+              HTTP_CODE=$(printf "%s\n" "$RESPONSE" | tail -1)
+              BODY=$(printf "%s\n" "$RESPONSE" | sed '$d')
+              echo "Status: $HTTP_CODE Body: $BODY"
+              [ "$HTTP_CODE" = "200" ] || { echo "FAIL: expected 200, got $HTTP_CODE"; exit 1; }
+              echo "$BODY" | grep -q '"queued":true' || { echo "FAIL: missing queued:true"; exit 1; }
+              echo "PASS: internal event accepted and queued"
+
+    - name: Verify internal event auth rejection
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              # POST without X-Internal-Secret — should get 401
+              GW_URL="http://gateway-webhook.gateway-webhook.svc:3000"
+              RESPONSE=$(kubectl run cs-noauth-$RANDOM --rm -i --restart=Never -n gateway-webhook \
+                --image=curlimages/curl:latest --quiet -- \
+                curl -s -w "\n%{http_code}" -X POST "${GW_URL}/internal/event" \
+                  -H "Content-Type: application/json" \
+                  -d '{"agentId":"eliza","userId":"e2e-test","type":"system","payload":{}}' 2>/dev/null)
+
+              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+              echo "Status without secret: $HTTP_CODE"
+              [ "$HTTP_CODE" = "401" ] || { echo "FAIL: expected 401, got $HTTP_CODE"; exit 1; }
+              echo "PASS: internal event correctly rejected without secret"
+
+    # ── Agent-server direct event endpoint tests (ticket #54) ──
+
+    - name: Agent-server handles event directly
+      try:
+        - script:
+            timeout: 60s
+            content: |
+              AGENT_ID="eliza"
+              SECRET=$(kubectl get secret eliza-agent-secrets -n eliza-agents \
+                -o jsonpath='{.data.AGENT_SERVER_SHARED_SECRET}' | base64 -d)
+
+              SERVER_NAME=$(kubectl run cs-resolve-evt-map-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=redis:7-alpine --quiet -- \
+                redis-cli -h redis GET "agent:${AGENT_ID}:server" 2>/dev/null)
+
+              [ -n "$SERVER_NAME" ] || { echo "FAIL: could not resolve server name"; exit 1; }
+
+              SERVER_URL=$(kubectl run cs-resolve-evt-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=redis:7-alpine --quiet -- \
+                redis-cli -h redis GET "server:${SERVER_NAME}:url" 2>/dev/null)
+
+              [ -n "$SERVER_URL" ] || { echo "FAIL: could not resolve server URL"; exit 1; }
+
+              TARGET="${SERVER_URL}/agents/${AGENT_ID}/event"
+              echo "POST $TARGET"
+
+              RESPONSE=$(kubectl run cs-evt-direct-$RANDOM --rm -i --restart=Never -n eliza-agents \
+                --image=curlimages/curl:latest --quiet -- \
+                curl -s -w "\n%{http_code}" -X POST "${TARGET}" \
+                  -H "Content-Type: application/json" \
+                  -H "X-Server-Token: $SECRET" \
+                  -d '{"userId":"e2e-test","type":"system","payload":{"action":"health"}}' 2>/dev/null)
+
+              HTTP_CODE=$(printf "%s\n" "$RESPONSE" | tail -1)
+              BODY=$(printf "%s\n" "$RESPONSE" | sed '$d')
+              echo "Status: $HTTP_CODE Body: $BODY"
+              [ "$HTTP_CODE" = "200" ] || { echo "FAIL: expected 200, got $HTTP_CODE"; exit 1; }
+              echo "$BODY" | grep -q '"handled":true' || { echo "FAIL: missing handled:true"; exit 1; }
+              echo "$BODY" | grep -q '"type":"system"' || { echo "FAIL: missing type:system"; exit 1; }
+              echo "PASS: agent-server handled event directly"
+      catch:
+        - script:
+            content: |
+              kubectl delete pods -n eliza-infra -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
+              kubectl delete pods -n eliza-agents -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
+
+    - name: Agent-server rejects event for unknown agent
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              AGENT_ID="eliza"
+              SECRET=$(kubectl get secret eliza-agent-secrets -n eliza-agents \
+                -o jsonpath='{.data.AGENT_SERVER_SHARED_SECRET}' | base64 -d)
+
+              SERVER_NAME=$(kubectl run cs-resolve-evt2-map-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=redis:7-alpine --quiet -- \
+                redis-cli -h redis GET "agent:${AGENT_ID}:server" 2>/dev/null)
+
+              [ -n "$SERVER_NAME" ] || { echo "FAIL: could not resolve server name"; exit 1; }
+
+              SERVER_URL=$(kubectl run cs-resolve-evt2-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=redis:7-alpine --quiet -- \
+                redis-cli -h redis GET "server:${SERVER_NAME}:url" 2>/dev/null)
+
+              TARGET="${SERVER_URL}/agents/nonexistent-agent-id/event"
+              echo "POST $TARGET"
+
+              RESPONSE=$(kubectl run cs-evt-404-$RANDOM --rm -i --restart=Never -n eliza-agents \
+                --image=curlimages/curl:latest --quiet -- \
+                curl -s -w "\n%{http_code}" -X POST "${TARGET}" \
+                  -H "Content-Type: application/json" \
+                  -H "X-Server-Token: $SECRET" \
+                  -d '{"userId":"e2e-test","type":"system","payload":{"action":"health"}}' 2>/dev/null)
+
+              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+              echo "Status: $HTTP_CODE"
+              [ "$HTTP_CODE" = "404" ] || { echo "FAIL: expected 404, got $HTTP_CODE"; exit 1; }
+              echo "PASS: agent-server correctly returned 404 for unknown agent"
+      catch:
+        - script:
+            content: |
+              kubectl delete pods -n eliza-infra -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
+              kubectl delete pods -n eliza-agents -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
+
+    - name: Agent-server rejects event without auth
+      try:
+        - script:
+            timeout: 30s
+            content: |
+              AGENT_ID="eliza"
+              SERVER_NAME=$(kubectl run cs-resolve-evt3-map-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=redis:7-alpine --quiet -- \
+                redis-cli -h redis GET "agent:${AGENT_ID}:server" 2>/dev/null)
+
+              [ -n "$SERVER_NAME" ] || { echo "FAIL: could not resolve server name"; exit 1; }
+
+              SERVER_URL=$(kubectl run cs-resolve-evt3-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=redis:7-alpine --quiet -- \
+                redis-cli -h redis GET "server:${SERVER_NAME}:url" 2>/dev/null)
+
+              TARGET="${SERVER_URL}/agents/${AGENT_ID}/event"
+              echo "POST $TARGET (no auth)"
+
+              RESPONSE=$(kubectl run cs-evt-noauth-$RANDOM --rm -i --restart=Never -n eliza-agents \
+                --image=curlimages/curl:latest --quiet -- \
+                curl -s -w "\n%{http_code}" -X POST "${TARGET}" \
+                  -H "Content-Type: application/json" \
+                  -d '{"userId":"e2e-test","type":"system","payload":{}}' 2>/dev/null)
+
+              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+              echo "Status without auth: $HTTP_CODE"
+              [ "$HTTP_CODE" = "401" ] || { echo "FAIL: expected 401, got $HTTP_CODE"; exit 1; }
+              echo "PASS: agent-server correctly rejected event without auth"
+      catch:
+        - script:
+            content: |
+              kubectl delete pods -n eliza-infra -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
+              kubectl delete pods -n eliza-agents -l run --field-selector=status.phase=Failed --ignore-not-found 2>/dev/null || true
+
     - name: Verify KEDA activity
       try:
         - script:

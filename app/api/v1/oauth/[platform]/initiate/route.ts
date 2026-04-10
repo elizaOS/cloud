@@ -9,8 +9,10 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { ApiError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
+import { OAuthError } from "@/lib/services/oauth";
 import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
 import { initiateOAuth2 } from "@/lib/services/oauth/providers";
 import { logger } from "@/lib/utils/logger";
@@ -21,6 +23,7 @@ export const maxDuration = 30;
 interface InitiateRequestBody {
   redirectUrl?: string;
   scopes?: string[];
+  connectionRole?: "owner" | "agent";
 }
 
 interface RouteParams {
@@ -35,6 +38,7 @@ async function handleInitiate(request: NextRequest, context?: RouteParams): Prom
   }
   const { platform } = await context.params;
   const platformLower = platform.toLowerCase();
+  let organizationId: string | undefined;
 
   // Get provider configuration
   const provider = getProvider(platformLower);
@@ -85,32 +89,47 @@ async function handleInitiate(request: NextRequest, context?: RouteParams): Prom
     );
   }
 
-  // Authenticate request
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-
-  // Parse request body
-  let body: InitiateRequestBody = {};
   try {
-    body = (await request.json()) as InitiateRequestBody;
-  } catch {
-    // Empty body is fine, use defaults
-  }
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    organizationId = user.organization_id;
 
-  const redirectUrl = body.redirectUrl || "/dashboard/settings?tab=connections";
-  const scopes = body.scopes || provider.defaultScopes || [];
+    let body: InitiateRequestBody = {};
+    try {
+      body = (await request.json()) as InitiateRequestBody;
+    } catch {
+      // Empty body is fine, use defaults
+    }
 
-  logger.info(`[OAuth ${platform}] Initiating auth`, {
-    organizationId: user.organization_id,
-    userId: user.id,
-    scopeCount: scopes.length,
-  });
+    const redirectUrl = body.redirectUrl || "/dashboard/settings?tab=connections";
+    const scopes = body.scopes || provider.defaultScopes || [];
+    const connectionRole =
+      body.connectionRole === "owner" || body.connectionRole === "agent"
+        ? body.connectionRole
+        : undefined;
 
-  try {
+    if (body.connectionRole && !connectionRole) {
+      return NextResponse.json(
+        {
+          error: "INVALID_CONNECTION_ROLE",
+          message: "connectionRole must be 'owner' or 'agent'",
+        },
+        { status: 400 },
+      );
+    }
+
+    logger.info(`[OAuth ${platform}] Initiating auth`, {
+      organizationId,
+      userId: user.id,
+      scopeCount: scopes.length,
+      connectionRole,
+    });
+
     const result = await initiateOAuth2(provider, {
-      organizationId: user.organization_id,
+      organizationId,
       userId: user.id,
       redirectUrl,
       scopes,
+      connectionRole,
     });
 
     return NextResponse.json({
@@ -123,9 +142,17 @@ async function handleInitiate(request: NextRequest, context?: RouteParams): Prom
     });
   } catch (error) {
     logger.error(`[OAuth ${platform}] Failed to initiate auth`, {
-      organizationId: user.organization_id,
+      organizationId,
       error: error instanceof Error ? error.message : String(error),
     });
+
+    if (error instanceof ApiError) {
+      return NextResponse.json(error.toJSON(), { status: error.status });
+    }
+
+    if (error instanceof OAuthError) {
+      return NextResponse.json(error.toResponse(), { status: error.httpStatus });
+    }
 
     return NextResponse.json(
       {

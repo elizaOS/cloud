@@ -150,8 +150,8 @@ async function handlePOST(req: NextRequest) {
       processedContent = Buffer.from(content).toString("base64");
     }
 
-    // Add knowledge document (matching plugin-knowledge pattern exactly)
-    // Use runtime.agentId for roomId, worldId, entityId (same as plugin)
+    // Add a native knowledge document using the runtime-owned knowledge service.
+    // Use runtime.agentId for roomId, worldId, entityId to keep internal ownership stable.
     const result = await knowledgeService.addKnowledge({
       agentId: runtime.agentId,
       clientDocumentId: "" as UUID, // This will be ignored by the service

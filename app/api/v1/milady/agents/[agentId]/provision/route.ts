@@ -126,7 +126,7 @@ export async function POST(
       );
     }
 
-    // ── Sync fallback (legacy / local-only) ───────────────────────────
+    // ── Sync fallback (legacy) ────────────────────────────────────────
     if (sync) {
       const result = await miladySandboxService.provision(agentId, user.organization_id!);
 

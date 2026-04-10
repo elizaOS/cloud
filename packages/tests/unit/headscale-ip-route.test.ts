@@ -1,6 +1,10 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { routeParams } from "./api/route-test-helpers";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockFindById = mock();
 const savedHeadscaleInternalToken = process.env.HEADSCALE_INTERNAL_TOKEN;

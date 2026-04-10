@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
 
 const mockGenerateText = mock();
 const mockGetConnectedPlatforms = mock();
@@ -6,10 +14,12 @@ const mockInitiateAuth = mock();
 const mockCacheGet = mock();
 const mockCacheSet = mock();
 const mockCacheDel = mock();
+const realAiModule = await import("ai");
 
 const cacheStore = new Map<string, unknown>();
 
 mock.module("ai", () => ({
+  ...realAiModule,
   generateText: mockGenerateText,
 }));
 
@@ -20,6 +30,12 @@ mock.module("@ai-sdk/gateway", () => ({
 }));
 
 mock.module("@/lib/services/oauth", () => ({
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
   oauthService: {
     getConnectedPlatforms: mockGetConnectedPlatforms,
     initiateAuth: mockInitiateAuth,
@@ -44,12 +60,13 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
-import {
-  connectionEnforcementService,
-  detectProviderFromMessage,
-} from "@/lib/services/eliza-app/connection-enforcement";
+let connectionEnforcementService: typeof import("@/lib/services/eliza-app/connection-enforcement").connectionEnforcementService;
+let detectProviderFromMessage: typeof import("@/lib/services/eliza-app/connection-enforcement").detectProviderFromMessage;
 
-afterEach(() => {
+beforeAll(async () => {
+  ({ connectionEnforcementService, detectProviderFromMessage } = await import(
+    "@/lib/services/eliza-app/connection-enforcement"
+  ));
   mock.restore();
 });
 
@@ -87,14 +104,21 @@ describe("connection enforcement", () => {
   test("caches required connection checks and invalidates them after OAuth", async () => {
     mockGetConnectedPlatforms.mockResolvedValueOnce(["google"]).mockResolvedValueOnce([]);
 
-    await expect(connectionEnforcementService.hasRequiredConnection("org-1")).resolves.toBe(true);
-    await expect(connectionEnforcementService.hasRequiredConnection("org-1")).resolves.toBe(true);
+    await expect(
+      connectionEnforcementService.hasRequiredConnection("org-1", "user-1"),
+    ).resolves.toBe(true);
+    await expect(
+      connectionEnforcementService.hasRequiredConnection("org-1", "user-1"),
+    ).resolves.toBe(true);
 
     expect(mockGetConnectedPlatforms).toHaveBeenCalledTimes(1);
+    expect(mockGetConnectedPlatforms).toHaveBeenCalledWith("org-1", "user-1");
 
-    await connectionEnforcementService.invalidateRequiredConnectionCache("org-1");
+    await connectionEnforcementService.invalidateRequiredConnectionCache("org-1", "user-1");
 
-    await expect(connectionEnforcementService.hasRequiredConnection("org-1")).resolves.toBe(false);
+    await expect(
+      connectionEnforcementService.hasRequiredConnection("org-1", "user-1"),
+    ).resolves.toBe(false);
     expect(mockGetConnectedPlatforms).toHaveBeenCalledTimes(2);
   });
 
@@ -152,7 +176,7 @@ describe("connection enforcement", () => {
     });
 
     const storedConversation = Array.from(cacheStore.entries()).find(([key]) =>
-      key.includes("connection-enforcement:conversation:org-3"),
+      key.includes("connection-enforcement:conversation:org-3:user-3"),
     )?.[1] as
       | {
           messages: Array<{ role: "user" | "assistant"; content: string }>;

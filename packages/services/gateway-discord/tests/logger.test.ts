@@ -8,6 +8,13 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 
 // Store original env
 const originalEnv = { ...process.env };
+let loggerImportVersion = 0;
+
+async function importLoggerFresh() {
+  loggerImportVersion += 1;
+  // @ts-expect-error Bun supports cache-busting query imports in tests.
+  return import(`../src/logger?test=${loggerImportVersion}`);
+}
 
 describe("logger", () => {
   let consoleLogSpy: ReturnType<typeof spyOn>;
@@ -28,15 +35,12 @@ describe("logger", () => {
     consoleLogSpy.mockRestore();
     consoleWarnSpy.mockRestore();
     consoleErrorSpy.mockRestore();
-    // Clear module cache to reload with new env
-    const modulePath = require.resolve("../src/logger");
-    delete require.cache[modulePath];
   });
 
   describe("log level filtering", () => {
     test("debug level logs all messages", async () => {
       process.env.LOG_LEVEL = "debug";
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.debug("debug message");
       logger.info("info message");
@@ -50,9 +54,7 @@ describe("logger", () => {
 
     test("info level filters debug messages", async () => {
       process.env.LOG_LEVEL = "info";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.debug("debug message");
       logger.info("info message");
@@ -66,9 +68,7 @@ describe("logger", () => {
 
     test("warn level filters debug and info messages", async () => {
       process.env.LOG_LEVEL = "warn";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.debug("debug message");
       logger.info("info message");
@@ -82,9 +82,7 @@ describe("logger", () => {
 
     test("error level only logs errors", async () => {
       process.env.LOG_LEVEL = "error";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.debug("debug message");
       logger.info("info message");
@@ -98,9 +96,7 @@ describe("logger", () => {
 
     test("defaults to info level when LOG_LEVEL not set", async () => {
       delete process.env.LOG_LEVEL;
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.debug("debug message");
       logger.info("info message");
@@ -112,9 +108,7 @@ describe("logger", () => {
   describe("message formatting", () => {
     test("formats message as JSON with timestamp, level, and message", async () => {
       process.env.LOG_LEVEL = "info";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.info("test message");
 
@@ -130,9 +124,7 @@ describe("logger", () => {
 
     test("includes metadata in formatted message", async () => {
       process.env.LOG_LEVEL = "info";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.info("test message", { connectionId: "conn-123", count: 42 });
 
@@ -145,9 +137,7 @@ describe("logger", () => {
 
     test("warn logs to console.warn", async () => {
       process.env.LOG_LEVEL = "warn";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.warn("warning message", { reason: "test" });
 
@@ -161,9 +151,7 @@ describe("logger", () => {
 
     test("error logs to console.error", async () => {
       process.env.LOG_LEVEL = "error";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.error("error message", { error: "something went wrong" });
 
@@ -179,9 +167,7 @@ describe("logger", () => {
   describe("edge cases", () => {
     test("handles undefined metadata", async () => {
       process.env.LOG_LEVEL = "info";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.info("message without meta");
 
@@ -195,9 +181,7 @@ describe("logger", () => {
 
     test("handles empty metadata object", async () => {
       process.env.LOG_LEVEL = "info";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.info("message with empty meta", {});
 
@@ -209,9 +193,7 @@ describe("logger", () => {
 
     test("handles complex nested metadata", async () => {
       process.env.LOG_LEVEL = "info";
-      const modulePath = require.resolve("../src/logger");
-      delete require.cache[modulePath];
-      const { logger } = await import("../src/logger");
+      const { logger } = await importLoggerFresh();
 
       logger.info("complex meta", {
         nested: { deep: { value: true } },

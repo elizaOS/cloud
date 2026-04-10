@@ -1,3 +1,5 @@
+import { CORS_ALLOW_HEADERS, CORS_MAX_AGE } from "@/lib/cors-constants";
+
 /**
  * Shared CORS utilities for proxy services
  *
@@ -16,9 +18,8 @@ export function getCorsHeaders(methods?: string): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": methods || "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-API-Key, X-Service-Key, Cache-Control, X-Milady-Client-Id",
-    "Access-Control-Max-Age": "86400",
+    "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
+    "Access-Control-Max-Age": CORS_MAX_AGE,
   };
 }
 

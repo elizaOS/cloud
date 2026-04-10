@@ -5,11 +5,13 @@
  * error responses and proper HTTP status codes.
  */
 
+import { NextResponse } from "next/server";
+
 export type ApiErrorCode =
   | "authentication_required"
+  | "session_auth_required"
   | "invalid_credentials"
   | "access_denied"
-  | "forbidden"
   | "resource_not_found"
   | "rate_limit_exceeded"
   | "validation_error"
@@ -167,6 +169,9 @@ export function getErrorStatusCode(error: unknown): number {
     const message = error.message.toLowerCase();
 
     // Check error name first (more reliable than message)
+    if (error.name === "InsufficientCreditsError") {
+      return 402;
+    }
     if (error.name === "AuthenticationError" || error.name === "UnauthorizedError") {
       return 401;
     }
@@ -178,6 +183,35 @@ export function getErrorStatusCode(error: unknown): number {
     }
     if (error.name === "RateLimitError") {
       return 429;
+    }
+
+    // DB / internal failures that mention "authentication" must stay 500 (compat routes)
+    if (
+      message.includes("password authentication failed") ||
+      message.includes("authentication failed for user")
+    ) {
+      return 500;
+    }
+
+    // Compat: only these "Invalid …" phrases are auth failures (not blanket "invalid")
+    if (
+      message.includes("invalid api key") ||
+      message.includes("invalid token") ||
+      message.includes("invalid credentials") ||
+      message.includes("invalid service key")
+    ) {
+      return 401;
+    }
+
+    // Compat: narrowed "requires …" for access control (not "table requires migration")
+    if (
+      message.includes("requires authentication") ||
+      message.includes("requires authorization") ||
+      message.includes("requires admin") ||
+      message.includes("requires owner") ||
+      message.includes("requires org membership")
+    ) {
+      return 403;
     }
 
     // Fallback to message matching for legacy errors
@@ -195,6 +229,9 @@ export function getErrorStatusCode(error: unknown): number {
     ) {
       return 403;
     }
+    if (message.includes("organization") && message.includes("inactive")) {
+      return 403;
+    }
     if (message.includes("not found")) {
       return 404;
     }
@@ -209,6 +246,16 @@ export function getErrorStatusCode(error: unknown): number {
   return 500;
 }
 
+function inferApiErrorCodeFromHttpStatus(status: number): ApiErrorCode {
+  if (status === 401) return "authentication_required";
+  if (status === 402) return "insufficient_credits";
+  if (status === 403) return "access_denied";
+  if (status === 404) return "resource_not_found";
+  if (status === 409) return "session_not_ready";
+  if (status === 429) return "rate_limit_exceeded";
+  return "internal_error";
+}
+
 /**
  * Get a safe error message for client response
  * Avoids leaking internal details
@@ -219,7 +266,29 @@ export function getSafeErrorMessage(error: unknown): string {
   }
 
   if (error instanceof Error) {
-    // Allow certain error messages through
+    const message = error.message.toLowerCase();
+
+    // Never leak DB/auth backend details even if they contain "safe" keywords
+    const denyPatterns = [
+      "password authentication failed",
+      "authentication failed for user",
+      "connection refused",
+      "ECONNREFUSED",
+      "database",
+      "postgres",
+      "redis",
+      "SASL",
+      "socket",
+      "timeout expired",
+      "connect ETIMEDOUT",
+      "getaddrinfo",
+      "ENOTFOUND",
+    ];
+    if (denyPatterns.some((pattern) => message.includes(pattern.toLowerCase()))) {
+      return "An unexpected error occurred";
+    }
+
+    // Allow certain error messages through for non-500 errors
     const safePatterns = [
       "not found",
       "access denied",
@@ -230,14 +299,63 @@ export function getSafeErrorMessage(error: unknown): string {
       "insufficient",
     ];
 
-    const message = error.message.toLowerCase();
-    if (safePatterns.some((pattern) => message.includes(pattern))) {
+    if (message.includes("organization") && message.includes("inactive")) {
+      return error.message;
+    }
+    // Only apply safePatterns for client errors (< 500), not internal failures
+    const status = getErrorStatusCode(error);
+    if (status < 500 && safePatterns.some((pattern) => message.includes(pattern))) {
       return error.message;
     }
   }
 
   // Default generic message for unexpected errors
   return "An unexpected error occurred";
+}
+
+/** Shared JSON body + status for caught errors (DRY for `Response` vs `NextResponse` paths). */
+export function caughtErrorJson(error: unknown): {
+  status: number;
+  body: Record<string, unknown>;
+} {
+  const status = getErrorStatusCode(error);
+  if (error instanceof ApiError) {
+    return { status, body: error.toJSON() };
+  }
+  return {
+    status,
+    body: {
+      success: false,
+      error: getSafeErrorMessage(error),
+      code: inferApiErrorCodeFromHttpStatus(status),
+    },
+  };
+}
+
+/**
+ * Native `Response` for route catches that avoid `NextResponse` (e.g. MCP / undici polyfill pitfalls).
+ */
+export function apiFailureResponse(error: unknown): Response {
+  const { status, body } = caughtErrorJson(error);
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/** `NextResponse.json` for App Router handlers — same shape as `apiFailureResponse`. */
+export function nextJsonFromCaughtError(error: unknown): NextResponse {
+  const { status, body } = caughtErrorJson(error);
+  return NextResponse.json(body, { status });
+}
+
+/** Same as `nextJsonFromCaughtError` but merges CORS or cache headers onto the error response. */
+export function nextJsonFromCaughtErrorWithHeaders(
+  error: unknown,
+  headers?: Record<string, string>,
+): NextResponse {
+  const { status, body } = caughtErrorJson(error);
+  return NextResponse.json(body, { status, headers });
 }
 
 /**
@@ -252,5 +370,27 @@ export function errorToResponse(error: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * Minimal JSON error body for edge middleware and non-NextResponse paths.
+ * Shape matches `ApiError.toJSON()` (`success`, `error`, `code`).
+ */
+export function jsonError(
+  message: string,
+  status: number,
+  code: ApiErrorCode,
+  extraHeaders?: Record<string, string>,
+): Response {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  if (extraHeaders) {
+    for (const [key, value] of Object.entries(extraHeaders)) {
+      headers.set(key, value);
+    }
+  }
+  return new Response(JSON.stringify({ success: false, error: message, code }), {
+    status,
+    headers,
   });
 }

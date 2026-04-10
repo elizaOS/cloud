@@ -41,7 +41,7 @@ function makeSandbox(overrides: Partial<MiladySandbox> = {}): MiladySandbox {
     bridge_url: "http://10.0.0.5:18800",
     health_url: "http://10.0.0.5:20100",
     agent_name: "TestAgent",
-    agent_config: { models: { small: "gpt-5-mini" } },
+    agent_config: { models: { small: "gpt-5.4-mini" } },
     neon_project_id: "proj-1",
     neon_branch_id: "br-1",
     database_uri: "postgres://...",
@@ -49,6 +49,7 @@ function makeSandbox(overrides: Partial<MiladySandbox> = {}): MiladySandbox {
     database_error: null,
     snapshot_id: null,
     last_backup_at: null,
+    last_billed_at: null,
     last_heartbeat_at: new Date("2026-03-09T12:00:00Z"),
     error_message: null,
     error_count: 0,
@@ -59,6 +60,11 @@ function makeSandbox(overrides: Partial<MiladySandbox> = {}): MiladySandbox {
     web_ui_port: 20100,
     headscale_ip: "100.64.0.5",
     docker_image: "milady/agent:cloud-full-ui",
+    billing_status: "active",
+    hourly_rate: "0.0100",
+    total_billed: "0.00",
+    shutdown_warning_sent_at: null,
+    scheduled_shutdown_at: null,
     created_at: new Date("2026-03-09T10:00:00Z"),
     updated_at: new Date("2026-03-09T11:00:00Z"),
     ...overrides,
@@ -75,7 +81,7 @@ describe("toCompatAgent", () => {
     expect(agent.headscale_ip).toBe("100.64.0.5");
     expect(agent.bridge_url).toBe("http://10.0.0.5:18800");
     expect(agent.status).toBe("running");
-    expect(agent.agent_config).toEqual({ models: { small: "gpt-5-mini" } });
+    expect(agent.agent_config).toEqual({ models: { small: "gpt-5.4-mini" } });
     expect(agent.created_at).toBe("2026-03-09T10:00:00.000Z");
     expect(agent.updated_at).toBe("2026-03-09T11:00:00.000Z");
     expect(agent.last_heartbeat_at).toBe("2026-03-09T12:00:00.000Z");

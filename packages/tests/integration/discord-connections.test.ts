@@ -12,21 +12,34 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { config } from "dotenv";
 
-const preservedDatabaseUrl = process.env.DATABASE_URL;
-const preservedTestDatabaseUrl = process.env.TEST_DATABASE_URL;
+const preservedHarnessEnv = {
+  CACHE_ENABLED: process.env.CACHE_ENABLED,
+  DATABASE_URL: process.env.DATABASE_URL,
+  DISABLE_LOCAL_DOCKER_DB_FALLBACK: process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK,
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  NODE_ENV: process.env.NODE_ENV,
+  REDIS_URL: process.env.REDIS_URL,
+  SECRETS_MASTER_KEY: process.env.SECRETS_MASTER_KEY,
+  TEST_BASE_URL: process.env.TEST_BASE_URL,
+  TEST_DATABASE_URL: process.env.TEST_DATABASE_URL,
+  TEST_SERVER_PORT: process.env.TEST_SERVER_PORT,
+  TEST_SERVER_URL: process.env.TEST_SERVER_URL,
+} as const;
 
 // Load environment variables
 config({ path: ".env" });
 config({ path: ".env.local", override: true });
 
-if (preservedDatabaseUrl) {
-  process.env.DATABASE_URL = preservedDatabaseUrl;
-}
-if (preservedTestDatabaseUrl) {
-  process.env.TEST_DATABASE_URL = preservedTestDatabaseUrl;
+for (const [key, value] of Object.entries(preservedHarnessEnv)) {
+  if (value === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = value;
+  }
 }
 
-const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
+const SERVER_URL =
+  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
 const TEST_CHARACTER_ID = process.env.TEST_CHARACTER_ID;
 

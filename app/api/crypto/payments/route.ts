@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg, requireAuthWithOrg } from "@/lib/auth";
 import { SUPPORTED_PAY_CURRENCIES } from "@/lib/config/crypto";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { CryptoPaymentError, cryptoPaymentsService } from "@/lib/services/crypto-payments";
@@ -105,7 +105,7 @@ async function handleCreatePayment(req: NextRequest) {
 
 async function handleListPayments(req: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });

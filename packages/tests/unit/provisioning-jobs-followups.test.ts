@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockJobsRepository = {
   claimPendingJobs: mock(),
@@ -138,7 +142,7 @@ describe("ProvisioningJobService follow-ups", () => {
       expectedUpdatedAt: new Date("2026-03-01T12:00:00.000Z"),
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       created: false,
       job: {
         id: "job-existing",

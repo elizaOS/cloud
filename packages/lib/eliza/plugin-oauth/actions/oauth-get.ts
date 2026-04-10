@@ -84,15 +84,19 @@ export const oauthGetAction: ActionWithParams = {
     const userResult = await lookupUser(message.entityId as string, actionName);
     if (isUserLookupError(userResult)) return userResult;
 
-    const { organizationId } = userResult;
+    const { organizationId, user } = userResult;
 
     // Check specific platform
     if (platform) {
-      const isConnected = await oauthService.isPlatformConnected(organizationId, platform);
+      const isConnected = await oauthService.isPlatformConnected(organizationId, platform, user.id);
       const platformName = capitalize(platform);
 
       if (isConnected) {
-        const connections = await oauthService.listConnections({ organizationId, platform });
+        const connections = await oauthService.listConnections({
+          organizationId,
+          userId: user.id,
+          platform,
+        });
         const active = connections.find((c) => c.status === "active");
         const identifier = active ? formatConnectionIdentifier(active) : "";
         const text = identifier
@@ -109,7 +113,7 @@ export const oauthGetAction: ActionWithParams = {
     }
 
     // Check all connections
-    const connections = await oauthService.listConnections({ organizationId });
+    const connections = await oauthService.listConnections({ organizationId, userId: user.id });
     const active = connections.filter((c) => c.status === "active");
 
     if (active.length === 0) {

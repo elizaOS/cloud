@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 /**
  * GET /api/mcp/info
- * Metadata endpoint for MILADY CLOUD MCP server.
+ * Metadata endpoint for the Eliza Cloud MCP server.
  * Returns information about available tools, pricing, and features.
  * This endpoint does not require authentication.
  *
@@ -10,10 +10,10 @@ import { NextResponse } from "next/server";
  */
 export async function GET() {
   return NextResponse.json({
-    name: "MILADY CLOUD MCP",
+    name: "Eliza Cloud MCP",
     version: "1.0.0",
     description:
-      "Full access to MILADY CLOUD features including credits management, AI generation, conversation management, agent operations, and more.",
+      "Full access to Eliza Cloud features including credits management, AI generation, conversation management, agent operations, and more.",
     transport: ["streamable-http"],
     endpoint: "/api/mcp",
     authRequired: true,

@@ -1,47 +1,71 @@
-import { expect, test } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { authenticateBrowserContext, expect, hasApiKey, test } from "../fixtures/auth.fixture";
 
-/**
- * Agent Lifecycle Flow E2E Test
- *
- * Tests dashboard navigation for agent management pages.
- */
+async function waitForFirstVisible(locators: Locator[], timeout = 10_000): Promise<void> {
+  await Promise.any(
+    locators.map(async (locator) => {
+      await locator.waitFor({ state: "visible", timeout });
+    }),
+  );
+}
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+async function expectInstancesPageContent(page: Page): Promise<void> {
+  await expect(page.getByRole("heading", { name: "Instances" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "New Agent" })).toBeVisible();
+  await expect(page.getByPlaceholder("Search agents…")).toBeVisible();
 
-test.describe("Agent Lifecycle Pages", () => {
-  test("my-agents page loads and has content", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/my-agents`);
-    expect(response?.status()).not.toBe(500);
-    expect([200, 302, 304]).toContain(response?.status() ?? 0);
+  await waitForFirstVisible(
+    [
+      page.getByText("No agents yet"),
+      page.getByRole("columnheader", { name: /agent/i }),
+      page.getByRole("link", { name: /Unnamed Agent/i }),
+    ],
+    15_000,
+  );
+}
+
+test.describe("Milady agent lifecycle", () => {
+  test.skip(() => !hasApiKey(), "TEST_API_KEY environment variable required");
+
+  test.beforeEach(async ({ page, request, baseUrl }) => {
+    await authenticateBrowserContext(request, page.context(), baseUrl);
   });
 
-  test("containers page loads and has content", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/containers`);
-    expect(response?.status()).not.toBe(500);
-    expect([200, 302, 304]).toContain(response?.status() ?? 0);
+  test("instances dashboard renders an authenticated Milady session", async ({ page, baseUrl }) => {
+    const response = await page.goto(`${baseUrl}/dashboard/milady`);
+    expect(response?.status()).toBe(200);
+    expect(page.url()).toBe(`${baseUrl}/dashboard/milady`);
+
+    await expectInstancesPageContent(page);
   });
 
-  test("navigate between agent pages without errors", async ({ page }) => {
-    const errors: string[] = [];
-    page.on("pageerror", (err) => errors.push(err.message));
+  test("authenticated dashboard navigation stays inside Milady and agent surfaces", async ({
+    page,
+    baseUrl,
+  }) => {
+    const miladyResponse = await page.goto(`${baseUrl}/dashboard/milady`);
+    expect(miladyResponse?.status()).toBe(200);
+    await expectInstancesPageContent(page);
 
-    // Navigate through agent management pages
-    await page.goto(`${BASE_URL}/dashboard/my-agents`);
-    await page.waitForLoadState("domcontentloaded");
+    const agentsResponse = await page.goto(`${baseUrl}/dashboard/my-agents`);
+    expect(agentsResponse?.status()).toBe(200);
+    await expect(page.getByRole("heading", { name: /My Agents/i })).toBeVisible();
+    expect(page.url()).toBe(`${baseUrl}/dashboard/my-agents`);
 
-    await page.goto(`${BASE_URL}/dashboard/containers`);
-    await page.waitForLoadState("domcontentloaded");
+    const returnResponse = await page.goto(`${baseUrl}/dashboard/milady`);
+    expect(returnResponse?.status()).toBe(200);
+    await expectInstancesPageContent(page);
+  });
 
-    await page.goto(`${BASE_URL}/dashboard/gallery`);
-    await page.waitForLoadState("domcontentloaded");
-
-    const criticalErrors = errors.filter(
-      (e) =>
-        !e.includes("WalletConnect") &&
-        !e.includes("hydration") &&
-        !e.includes("ResizeObserver") &&
-        !e.includes("eth_accounts"),
+  test("Milady agent detail route fails gracefully for unknown agents", async ({
+    page,
+    baseUrl,
+  }) => {
+    const response = await page.goto(
+      `${baseUrl}/dashboard/milady/agents/00000000-0000-4000-8000-000000000000`,
     );
-    expect(criticalErrors).toHaveLength(0);
+
+    expect(response?.status(), `unexpected status for ${page.url()}`).not.toBe(500);
+    expect(page.url()).not.toContain("/login");
   });
 });

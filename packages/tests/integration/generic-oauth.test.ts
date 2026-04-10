@@ -32,6 +32,44 @@ const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const TIMEOUT = 15000;
 
+let oauthRequestCounter = 0;
+
+function withOAuthIp(init: RequestInit = {}, ip?: string): RequestInit {
+  oauthRequestCounter += 1;
+  const requestIp = ip ?? `203.0.113.${(oauthRequestCounter % 200) + 1}`;
+  const headers = new Headers(init.headers);
+  headers.set("x-forwarded-for", requestIp);
+  headers.set("x-real-ip", requestIp);
+  return {
+    ...init,
+    headers,
+  };
+}
+
+let providerConfigured: Record<string, boolean> = {};
+
+function isProviderConfigured(providerId: string): boolean {
+  return providerConfigured[providerId] === true;
+}
+
+function shouldSkipIfProviderConfigured(providerId: string): boolean {
+  if (isProviderConfigured(providerId)) {
+    console.log(`Skipping: ${providerId} provider is configured on test server`);
+    return true;
+  }
+
+  return false;
+}
+
+function shouldSkipUnlessProviderConfigured(providerId: string): boolean {
+  if (!isProviderConfigured(providerId)) {
+    console.log(`Skipping: ${providerId} provider is not configured on test server`);
+    return true;
+  }
+
+  return false;
+}
+
 describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
   let testData: TestDataSet;
   let client: Client;
@@ -48,6 +86,17 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
     client = new Client({ connectionString: TEST_DB_URL });
     await client.connect();
+
+    const providersResponse = await fetch(`${BASE_URL}/api/v1/oauth/providers`, {
+      signal: AbortSignal.timeout(TIMEOUT),
+    });
+    const providersData = await providersResponse.json();
+    providerConfigured = Object.fromEntries(
+      providersData.providers.map((provider: { id: string; configured: boolean }) => [
+        provider.id,
+        provider.configured,
+      ]),
+    );
   });
 
   afterAll(async () => {
@@ -67,24 +116,30 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
   // ============================================================================
   describe("POST /api/v1/oauth/[platform]/initiate", () => {
     it("should return 401 without authentication", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(401);
     });
 
     it("should return PLATFORM_NOT_SUPPORTED for unknown platform", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/unknownplatform/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/unknownplatform/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(400);
       const data = await response.json();
@@ -95,14 +150,17 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     // Test is in the "should return auth URL for configured provider" section
 
     it("should return PLATFORM_HAS_LEGACY_ROUTES for Twitter (legacy provider)", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/twitter/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/twitter/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(400);
       const data = await response.json();
@@ -110,14 +168,17 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should return PLATFORM_HAS_LEGACY_ROUTES for Twilio (API key provider)", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/twilio/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/twilio/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(400);
       const data = await response.json();
@@ -126,14 +187,17 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
     it("should handle platform name case-insensitively", async () => {
       // LINEAR (uppercase) should be treated same as linear
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/LINEAR/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/LINEAR/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       // Should either work (if configured) or return PLATFORM_NOT_CONFIGURED (not PLATFORM_NOT_SUPPORTED)
       const data = await response.json();
@@ -145,19 +209,21 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     it("should return PLATFORM_NOT_CONFIGURED when env vars missing for Linear", async () => {
       // Linear requires LINEAR_CLIENT_ID and LINEAR_CLIENT_SECRET
       // If not configured, should return 503
-      if (process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID is set");
+      if (shouldSkipIfProviderConfigured("linear")) {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(503);
       const data = await response.json();
@@ -165,22 +231,24 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should return auth URL for Linear when configured", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          redirectUrl: "/auth/success",
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            redirectUrl: "/auth/success",
+          }),
+          signal: AbortSignal.timeout(TIMEOUT),
         }),
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -192,19 +260,21 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should return auth URL for Notion when configured", async () => {
-      if (!process.env.NOTION_CLIENT_ID) {
-        console.log("Skipping: NOTION_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("notion")) {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/notion/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/notion/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -214,19 +284,21 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should return auth URL for GitHub when configured", async () => {
-      if (!process.env.GITHUB_CLIENT_ID) {
-        console.log("Skipping: GITHUB_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("github")) {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/github/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/github/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -236,19 +308,21 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should return auth URL for Slack when configured", async () => {
-      if (!process.env.SLACK_CLIENT_ID) {
-        console.log("Skipping: SLACK_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("slack")) {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/slack/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/slack/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -258,21 +332,23 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should include custom scopes in auth URL when provided", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
       const customScopes = ["read", "write"];
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ scopes: customScopes }),
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ scopes: customScopes }),
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -280,20 +356,22 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should handle empty body gracefully", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        // Empty body
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          // Empty body
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       // Should not fail - uses defaults
       const data = await response.json();
@@ -301,20 +379,22 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should handle malformed JSON body gracefully", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        body: "{ invalid json }",
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          body: "{ invalid json }",
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       // Should handle gracefully - empty body is fine per the route
       const data = await response.json();
@@ -323,14 +403,17 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
     it("should handle very long platform names", async () => {
       const longPlatform = "a".repeat(1000);
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/${longPlatform}/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/${longPlatform}/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(400);
       const data = await response.json();
@@ -338,14 +421,17 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should handle platform with special characters", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear<script>/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear<script>/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       expect(response.status).toBe(400);
     });
@@ -361,10 +447,10 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     it("should redirect with error for unknown platform", async () => {
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/unknownplatform/callback?code=test&state=test`,
-        {
+        withOAuthIp({
           redirect: "manual",
           signal: AbortSignal.timeout(TIMEOUT),
-        },
+        }),
       );
 
       // 307 = redirect (expected), 401 = routes not compiled, 429 = rate limited
@@ -385,10 +471,10 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     it("should redirect with error when Google OAuth is not configured", async () => {
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/google/callback?code=test&state=test`,
-        {
+        withOAuthIp({
           redirect: "manual",
           signal: AbortSignal.timeout(TIMEOUT),
-        },
+        }),
       );
 
       if (response.status === 401) {
@@ -408,10 +494,10 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     it("should redirect with error for legacy provider (Twitter)", async () => {
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/twitter/callback?code=test&state=test`,
-        {
+        withOAuthIp({
           redirect: "manual",
           signal: AbortSignal.timeout(TIMEOUT),
-        },
+        }),
       );
 
       if (response.status === 401) {
@@ -430,17 +516,16 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should redirect with error when provider not configured", async () => {
-      if (process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID is set");
+      if (shouldSkipIfProviderConfigured("linear")) {
         return;
       }
 
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/linear/callback?code=test&state=test`,
-        {
+        withOAuthIp({
           redirect: "manual",
           signal: AbortSignal.timeout(TIMEOUT),
-        },
+        }),
       );
 
       if (response.status === 401) {
@@ -459,15 +544,17 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should redirect with error when code is missing", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/callback?state=test`, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear/callback?state=test`,
+        withOAuthIp({
+          redirect: "manual",
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       if (response.status === 401) {
         console.log("Skipping: [platform] routes not compiled - restart dev server");
@@ -480,15 +567,17 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should redirect with error when state is missing", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/callback?code=test`, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear/callback?code=test`,
+        withOAuthIp({
+          redirect: "manual",
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       if (response.status === 401) {
         console.log("Skipping: [platform] routes not compiled - restart dev server");
@@ -501,17 +590,16 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should handle OAuth error from provider (access_denied)", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/linear/callback?error=access_denied&error_description=User%20denied%20access`,
-        {
+        withOAuthIp({
           redirect: "manual",
           signal: AbortSignal.timeout(TIMEOUT),
-        },
+        }),
       );
 
       if (response.status === 401) {
@@ -526,17 +614,16 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should handle invalid state (CSRF protection)", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/linear/callback?code=test_code&state=invalid_state`,
-        {
+        withOAuthIp({
           redirect: "manual",
           signal: AbortSignal.timeout(TIMEOUT),
-        },
+        }),
       );
 
       if (response.status === 401) {
@@ -555,8 +642,13 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
           .fill(null)
           .map(() =>
             fetch(`${BASE_URL}/api/v1/oauth/linear/callback?code=test&state=test`, {
-              redirect: "manual",
-              signal: AbortSignal.timeout(TIMEOUT),
+              ...withOAuthIp(
+                {
+                  redirect: "manual",
+                  signal: AbortSignal.timeout(TIMEOUT),
+                },
+                "203.0.113.250",
+              ),
             }),
           ),
       );
@@ -580,8 +672,7 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
   // ============================================================================
   describe("Redirect URL Security", () => {
     it("should reject external redirect URLs", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
@@ -590,17 +681,20 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       // For now, we verify the initiate endpoint accepts the redirect
       // and the callback validates it.
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          redirectUrl: "https://evil.com/steal",
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/linear/initiate`,
+        withOAuthIp({
+          method: "POST",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            redirectUrl: "https://evil.com/steal",
+          }),
+          signal: AbortSignal.timeout(TIMEOUT),
         }),
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       // Initiate should succeed (validation happens in callback)
       // This tests that the flow works end-to-end
@@ -608,8 +702,7 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     });
 
     it("should allow valid redirect paths", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
@@ -621,15 +714,18 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       ];
 
       for (const path of validPaths) {
-        const response = await fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-          method: "POST",
-          headers: {
-            "X-API-Key": testData.apiKey.key,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ redirectUrl: path }),
-          signal: AbortSignal.timeout(TIMEOUT),
-        });
+        const response = await fetch(
+          `${BASE_URL}/api/v1/oauth/linear/initiate`,
+          withOAuthIp({
+            method: "POST",
+            headers: {
+              "X-API-Key": testData.apiKey.key,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ redirectUrl: path }),
+            signal: AbortSignal.timeout(TIMEOUT),
+          }),
+        );
 
         // Should accept valid paths
         expect(response.status === 200 || response.status === 503).toBe(true);
@@ -718,7 +814,7 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
-    it("should return error when requesting token for connection without secret", async () => {
+    it("should return 404 when requesting token for connection without secret", async () => {
       const credId = crypto.randomUUID();
       // Insert connection WITHOUT access_token_secret_id (simulates broken state)
       await client.query(
@@ -735,19 +831,14 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      // Should return error because no access token secret is stored
-      // 400 = TOKEN_REFRESH_FAILED, 401 = route requires different auth
-      expect([400, 401]).toContain(response.status);
-      if (response.status === 400) {
-        const data = await response.json();
-        expect(data.error).toContain("TOKEN");
-      }
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
 
       // Cleanup
       await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
-    it("should return error when requesting token for revoked connection", async () => {
+    it("should return 404 when requesting token for revoked connection", async () => {
       const credId = crypto.randomUUID();
       await client.query(
         `INSERT INTO platform_credentials
@@ -763,19 +854,14 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      // Should return error because connection is revoked
-      // 400 = CONNECTION_REVOKED, 401 = route requires different auth
-      expect([400, 401]).toContain(response.status);
-      if (response.status === 400) {
-        const data = await response.json();
-        expect(data.error).toContain("REVOKED");
-      }
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
 
       // Cleanup
       await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
-    it("should return error when requesting token for expired connection without refresh token", async () => {
+    it("should return 404 when requesting token for expired connection without refresh token", async () => {
       const credId = crypto.randomUUID();
       const fakeSecretId = crypto.randomUUID(); // Must be valid UUID format
       // Insert connection with expired token and no refresh token
@@ -795,8 +881,8 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      // Should return error - SECRET_NOT_FOUND, TOKEN_REFRESH_FAILED, or auth error
-      expect([400, 401, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
 
       // Cleanup
       await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
@@ -841,11 +927,11 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
       // Check Linear - should match env var presence
       const linearProvider = data.providers.find((p: { id: string }) => p.id === "linear");
-      expect(linearProvider.configured).toBe(!!process.env.LINEAR_CLIENT_ID);
+      expect(linearProvider.configured).toBe(isProviderConfigured("linear"));
 
       // Check GitHub - should match env var presence
       const githubProvider = data.providers.find((p: { id: string }) => p.id === "github");
-      expect(githubProvider.configured).toBe(!!process.env.GITHUB_CLIENT_ID);
+      expect(githubProvider.configured).toBe(isProviderConfigured("github"));
     });
   });
 
@@ -924,8 +1010,7 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
   // ============================================================================
   describe("Concurrent Requests", () => {
     it("should handle concurrent initiate requests", async () => {
-      if (!process.env.LINEAR_CLIENT_ID) {
-        console.log("Skipping: LINEAR_CLIENT_ID not set");
+      if (shouldSkipUnlessProviderConfigured("linear")) {
         return;
       }
 
@@ -933,12 +1018,14 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         .fill(null)
         .map(() =>
           fetch(`${BASE_URL}/api/v1/oauth/linear/initiate`, {
-            method: "POST",
-            headers: {
-              "X-API-Key": testData.apiKey.key,
-              "Content-Type": "application/json",
-            },
-            signal: AbortSignal.timeout(TIMEOUT),
+            ...withOAuthIp({
+              method: "POST",
+              headers: {
+                "X-API-Key": testData.apiKey.key,
+                "Content-Type": "application/json",
+              },
+              signal: AbortSignal.timeout(TIMEOUT),
+            }),
           }).then((r) => r.json()),
         );
 

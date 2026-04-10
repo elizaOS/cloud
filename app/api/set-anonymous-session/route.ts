@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { dbWrite } from "@/db/client";
 import { anonymousSessions, users } from "@/db/schemas";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
@@ -22,7 +23,7 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
  * @param request - Request body with sessionToken.
  * @returns Success status with user and session IDs.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   logger.info("[Set Session] Received request to set anonymous session cookie");
 
   try {
@@ -142,3 +143,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.AGGRESSIVE);

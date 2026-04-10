@@ -5,8 +5,34 @@
  * Real: all handler logic, helpers, mappers, error formatting.
  */
 
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
+import type { ListConnectionsParams, OAuthConnection } from "@/lib/services/oauth/types";
+
+function googleOAuthFixture(
+  o: Partial<OAuthConnection> & Pick<OAuthConnection, "id" | "status">,
+): OAuthConnection {
+  const { id, status, ...rest } = o;
+  return {
+    platform: "google",
+    platformUserId: rest.platformUserId ?? `pu-${id}`,
+    scopes: rest.scopes ?? [],
+    linkedAt: rest.linkedAt ?? new Date("2026-01-01T00:00:00Z"),
+    tokenExpired: rest.tokenExpired ?? false,
+    source: rest.source ?? "platform_credentials",
+    id,
+    status,
+    ...rest,
+  };
+}
 
 // ── Mock fetch ──────────────────────────────────────────────────────────────
 
@@ -31,7 +57,7 @@ function setupMockFetch() {
       status: 404,
       headers: { "Content-Type": "application/json" },
     });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
 }
 
 function resetMockFetch() {
@@ -43,18 +69,27 @@ function resetMockFetch() {
 
 const mockOAuth = {
   getValidTokenByPlatform: mock(async () => ({ accessToken: "test-token" })),
-  listConnections: mock(async () => [
-    {
+  listConnections: mock(async (_params?: ListConnectionsParams) => [
+    googleOAuthFixture({
       id: "c1",
       status: "active",
       email: "user@test.com",
       scopes: ["gmail.send", "calendar.events"],
-      linkedAt: "2026-01-01T00:00:00Z",
-    },
+    }),
   ]),
 };
 
-mock.module("@/lib/services/oauth", () => ({ oauthService: mockOAuth }));
+mock.module("@/lib/services/oauth", () => ({
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+  oauthService: mockOAuth,
+}));
+
+let registerGoogleTools: typeof import("@/app/api/mcp/tools/google").registerGoogleTools;
 
 // ── Test helpers ────────────────────────────────────────────────────────────
 
@@ -70,8 +105,16 @@ function auth(orgId = "org-1") {
   } as any;
 }
 
-async function callTool(name: string, args: Record<string, unknown> = {}, orgId = "org-1") {
-  const { registerGoogleTools } = await import("@/app/api/mcp/tools/google");
+type GoogleToolHandlerResult = {
+  content: Array<{ text: string }>;
+  isError?: boolean;
+};
+
+async function callTool(
+  name: string,
+  args: Record<string, unknown> = {},
+  orgId = "org-1",
+): Promise<GoogleToolHandlerResult> {
   let handler: AnyFn | undefined;
   const mockServer = {
     registerTool: (n: string, _s: unknown, h: AnyFn) => {
@@ -81,14 +124,19 @@ async function callTool(name: string, args: Record<string, unknown> = {}, orgId 
   registerGoogleTools(mockServer);
   if (!handler) throw new Error(`Tool "${name}" not found`);
   const h = handler;
-  return authContextStorage.run(auth(orgId), () => h(args));
+  return authContextStorage.run(auth(orgId), () => h(args)) as Promise<GoogleToolHandlerResult>;
 }
 
-function parse(result: { content: Array<{ text: string }> }) {
+function parse(result: GoogleToolHandlerResult) {
   return JSON.parse(result.content[0].text);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+
+beforeAll(async () => {
+  ({ registerGoogleTools } = await import("@/app/api/mcp/tools/google"));
+  mock.restore();
+});
 
 describe("Google MCP Tools", () => {
   beforeEach(() => {
@@ -98,14 +146,13 @@ describe("Google MCP Tools", () => {
       accessToken: "test-token",
     }));
     mockOAuth.listConnections.mockReset();
-    mockOAuth.listConnections.mockImplementation(async () => [
-      {
+    mockOAuth.listConnections.mockImplementation(async (_params?: ListConnectionsParams) => [
+      googleOAuthFixture({
         id: "c1",
         status: "active",
         email: "user@test.com",
         scopes: ["gmail.send", "calendar.events"],
-        linkedAt: "2026-01-01T00:00:00Z",
-      },
+      }),
     ]);
   });
 
@@ -117,8 +164,7 @@ describe("Google MCP Tools", () => {
 
   describe("Registration", () => {
     test("exports registerGoogleTools", async () => {
-      const mod = await import("@/app/api/mcp/tools/google");
-      expect(typeof mod.registerGoogleTools).toBe("function");
+      expect(typeof registerGoogleTools).toBe("function");
     });
 
     test("registers all expected tools", async () => {
@@ -156,7 +202,12 @@ describe("Google MCP Tools", () => {
       expect(p.connected).toBe(true);
       expect(p.email).toBe("user@test.com");
       expect(p.scopes).toContain("gmail.send");
-      expect(p.linkedAt).toBe("2026-01-01T00:00:00Z");
+      expect(p.linkedAt).toBe("2026-01-01T00:00:00.000Z");
+      expect(mockOAuth.listConnections).toHaveBeenCalledWith({
+        organizationId: "org-1",
+        userId: "u-org-1",
+        platform: "google",
+      });
     });
 
     test("returns connected=false when no active connection", async () => {
@@ -168,8 +219,8 @@ describe("Google MCP Tools", () => {
 
     test("filters out revoked/expired connections", async () => {
       mockOAuth.listConnections.mockImplementation(async () => [
-        { id: "c1", status: "revoked", email: "old@test.com" },
-        { id: "c2", status: "expired", email: "expired@test.com" },
+        googleOAuthFixture({ id: "c1", status: "revoked", email: "old@test.com" }),
+        googleOAuthFixture({ id: "c2", status: "expired", email: "expired@test.com" }),
       ]);
       const p = parse(await callTool("google_status"));
       expect(p.connected).toBe(false);
@@ -204,6 +255,11 @@ describe("Google MCP Tools", () => {
       expect(p.success).toBe(true);
       expect(p.messageId).toBe("msg-123");
       expect(p.threadId).toBe("thread-456");
+      expect(mockOAuth.getValidTokenByPlatform).toHaveBeenCalledWith({
+        organizationId: "org-1",
+        userId: "u-org-1",
+        platform: "google",
+      });
     });
 
     test("handles CC and BCC recipients", async () => {
@@ -214,7 +270,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_send", {
         to: "to@example.com",
@@ -239,7 +295,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_send", {
         to: "to@example.com",
@@ -319,7 +375,7 @@ describe("Google MCP Tools", () => {
           );
         }
         return new Response("{}", { status: 404 });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("gmail_list"));
       expect(p.resultCount).toBe(1);
@@ -338,7 +394,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_list", { pageToken: "next-page-token" });
       expect(capturedUrl).toContain("pageToken=next-page-token");
@@ -352,7 +408,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_list", {
         after: "2026-02-13T00:00:00Z",
@@ -371,7 +427,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_list", {
         query: "from:boss@company.com",
@@ -409,7 +465,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("gmail_list"));
       expect(p.resultCount).toBe(2);
@@ -424,7 +480,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_list", { maxResults: 25 });
       expect(capturedUrl).toContain("maxResults=25");
@@ -438,7 +494,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_list", { labelIds: "INBOX,UNREAD" });
       expect(capturedUrl).toContain("labelIds=INBOX");
@@ -600,7 +656,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_list_events", {
         timeMin: "2026-01-01T00:00:00Z",
@@ -619,7 +675,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_list_events");
       expect(capturedUrl).toContain("timeMin=");
@@ -633,7 +689,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_list_events", {
         timeMax: "2026-03-01T00:00:00Z",
@@ -651,7 +707,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_list_events", { pageToken: "cal-page-2" });
       expect(capturedUrl).toContain("pageToken=cal-page-2");
@@ -716,7 +772,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_list_events", { query: "standup" });
       expect(capturedUrl).toContain("q=standup");
@@ -759,7 +815,7 @@ describe("Google MCP Tools", () => {
             headers: { "Content-Type": "application/json" },
           },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_create_event", {
         summary: "Sync",
@@ -783,7 +839,7 @@ describe("Google MCP Tools", () => {
             headers: { "Content-Type": "application/json" },
           },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_create_event", {
         summary: "Meeting",
@@ -826,7 +882,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(
         await callTool("calendar_update_event", {
@@ -846,7 +902,7 @@ describe("Google MCP Tools", () => {
           status: 404,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const r = await callTool("calendar_update_event", { eventId: "nonexistent" });
       expect(r.isError).toBe(true);
@@ -863,7 +919,7 @@ describe("Google MCP Tools", () => {
           return new Response("", { status: 204 });
         }
         return new Response("", { status: 404 });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("calendar_delete_event", { eventId: "evt-to-delete" }));
       expect(p.success).toBe(true);
@@ -919,7 +975,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("contacts_list", { query: "John" });
       expect(capturedUrl).toContain("searchContacts");
@@ -934,7 +990,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("contacts_list", { pageToken: "ct-page-2" });
       expect(capturedUrl).toContain("pageToken=ct-page-2");
@@ -1002,7 +1058,7 @@ describe("Google MCP Tools", () => {
           status: 500,
           statusText: "Internal Server Error",
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const r = await callTool("gmail_list");
       expect(r.isError).toBe(true);
@@ -1021,7 +1077,7 @@ describe("Google MCP Tools", () => {
     test("handles network timeout", async () => {
       globalThis.fetch = mock(async () => {
         throw new Error("Network request failed");
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
       const r = await callTool("gmail_list");
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("Network request failed");
@@ -1033,16 +1089,20 @@ describe("Google MCP Tools", () => {
   describe("Concurrent request isolation", () => {
     test("handles concurrent requests with different orgs", async () => {
       const orgRequests: string[] = [];
-      mockOAuth.listConnections.mockImplementation(async ({ organizationId }) => {
+      mockOAuth.listConnections.mockImplementation(async (params?: ListConnectionsParams) => {
+        const organizationId = params?.organizationId;
+        if (organizationId === undefined) {
+          throw new Error("listConnections mock: organizationId required");
+        }
         orgRequests.push(organizationId);
         await new Promise((r) => setTimeout(r, Math.random() * 50));
         return [
-          {
+          googleOAuthFixture({
             id: `conn-${organizationId}`,
             status: "active",
             email: `${organizationId}@test.com`,
             scopes: [],
-          },
+          }),
         ];
       });
 
@@ -1072,7 +1132,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_send", {
         to: "safe@example.com",
@@ -1095,7 +1155,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_send", {
         to: "to@example.com",
@@ -1124,7 +1184,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_read", { messageId: "msg+special/chars" });
       expect(capturedUrl).toContain("msg%2Bspecial%2Fchars");
@@ -1152,7 +1212,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_list");
       const metadataUrl = capturedUrls.find((u) => u.includes("id%2Bwith%2Fslash"));
@@ -1184,7 +1244,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const r = await callTool("gmail_list", {
         after: "2026-02-13T00:00:00Z",
@@ -1204,7 +1264,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(
         await callTool("contacts_list", {
@@ -1233,7 +1293,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("contacts_list", { query: "John" }));
       expect(p.note).toBeUndefined();
@@ -1264,7 +1324,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("gmail_list", { maxResults: 1 }));
       expect(listUrl).toContain("maxResults=1");
@@ -1294,7 +1354,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_list_events", { maxResults: 250 });
       expect(capturedUrl).toContain("maxResults=250");
@@ -1308,7 +1368,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_send", {
         to: "test@example.com",
@@ -1336,7 +1396,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("gmail_read", { messageId: "msg-meta", format: "metadata" }));
       expect(capturedUrl).toContain("format=metadata");
@@ -1356,7 +1416,7 @@ describe("Google MCP Tools", () => {
             headers: { "Content-Type": "application/json" },
           },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_create_event", {
         summary: "Minimal",
@@ -1395,7 +1455,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_update_event", {
         eventId: "evt-allday",
@@ -1417,7 +1477,7 @@ describe("Google MCP Tools", () => {
           return new Response("", { status: 204 });
         }
         return new Response("", { status: 404 });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_delete_event", {
         eventId: "evt-1",
@@ -1437,7 +1497,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_list", { after: "2025-12-31T23:59:59Z" });
       const decodedUrl = decodeURIComponent(capturedUrl);
@@ -1452,7 +1512,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("contacts_list", { pageSize: 100 });
       expect(capturedUrl).toContain("pageSize=100");
@@ -1477,7 +1537,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("gmail_list"));
       expect(p.messages[0].id).toBe("msg-nodate");
@@ -1538,7 +1598,7 @@ describe("Google MCP Tools", () => {
           status: 410,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("gmail_list"));
       expect(p.resultCount).toBe(0);
@@ -1572,7 +1632,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(
         await callTool("calendar_update_event", {
@@ -1601,7 +1661,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("contacts_list", { query: "Search" }));
       expect(p.resultCount).toBe(1);
@@ -1618,7 +1678,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_list_events", {
         calendarId: "team@group.calendar.google.com",
@@ -1631,7 +1691,7 @@ describe("Google MCP Tools", () => {
     test("googleFetch treats 204 as success (not an error)", async () => {
       globalThis.fetch = mock(async () => {
         return new Response("", { status: 204 });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const p = parse(await callTool("calendar_delete_event", { eventId: "evt-204" }));
       expect(p.success).toBe(true);
@@ -1668,7 +1728,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_list", {
         query: "is:unread from:ceo@acme.com",
@@ -1718,7 +1778,7 @@ describe("Google MCP Tools", () => {
             headers: { "Content-Type": "application/json" },
           },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("calendar_create_event", {
         summary: "Team Sync",
@@ -1755,7 +1815,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const r = await callTool("calendar_list_events", {
         timeMin: "2026-01-01T00:00:00Z",
@@ -1864,7 +1924,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_send", {
         to: "test@example.com",
@@ -1890,7 +1950,7 @@ describe("Google MCP Tools", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       await callTool("gmail_list");
       expect(receivedSignal).not.toBeNull();
@@ -1901,7 +1961,7 @@ describe("Google MCP Tools", () => {
       globalThis.fetch = mock(async () => {
         const err = new DOMException("The operation was aborted.", "AbortError");
         throw err;
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const result = parse(await callTool("gmail_list"));
       expect(result.error).toContain("timed out");
@@ -1911,7 +1971,7 @@ describe("Google MCP Tools", () => {
     test("non-abort fetch errors propagate normally", async () => {
       globalThis.fetch = mock(async () => {
         throw new TypeError("fetch failed");
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const result = parse(await callTool("gmail_list"));
       expect(result.error).toContain("fetch failed");
@@ -1944,7 +2004,7 @@ describe("Google MCP Tools", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const listResult = parse(await callTool("gmail_list"));
       const msgId = listResult.messages[0].id;
@@ -1974,7 +2034,7 @@ describe("Google MCP Tools", () => {
           return new Response("", { status: 204 });
         }
         return new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } });
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const createResult = parse(
         await callTool("calendar_create_event", {

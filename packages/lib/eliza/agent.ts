@@ -1,8 +1,9 @@
 import type { Character } from "@elizaos/core";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
-import { memoryPlugin } from "@elizaos/plugin-memory";
 import { getDefaultModels, getElizaCloudApiUrl } from "./config";
+import advancedMemoryPlugin from "./plugin-advanced-memory";
+import advancedMemoryStoragePlugin from "./plugin-advanced-memory-storage";
 import { cloudBillingPlugin } from "./plugin-cloud-billing";
 import { cloudBootstrapPlugin } from "./plugin-cloud-bootstrap";
 
@@ -15,8 +16,46 @@ const character: Character = {
     DATABASE_URL: process.env.DATABASE_URL!,
     // elizaOS Cloud Configuration (replaces OpenAI)
     ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
+    ELIZAOS_CLOUD_NANO_MODEL:
+      process.env.ELIZAOS_CLOUD_NANO_MODEL ||
+      process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
+      getDefaultModels().small,
+    ELIZAOS_CLOUD_MEDIUM_MODEL:
+      process.env.ELIZAOS_CLOUD_MEDIUM_MODEL ||
+      process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
+      getDefaultModels().small,
     ELIZAOS_CLOUD_SMALL_MODEL: getDefaultModels().small,
     ELIZAOS_CLOUD_LARGE_MODEL: getDefaultModels().large,
+    ELIZAOS_CLOUD_MEGA_MODEL:
+      process.env.ELIZAOS_CLOUD_MEGA_MODEL ||
+      process.env.ELIZAOS_CLOUD_LARGE_MODEL ||
+      getDefaultModels().large,
+    ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL:
+      process.env.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL ||
+      process.env.ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL ||
+      process.env.ELIZAOS_CLOUD_NANO_MODEL ||
+      getDefaultModels().small,
+    ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL:
+      process.env.ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL ||
+      process.env.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL ||
+      process.env.ELIZAOS_CLOUD_NANO_MODEL ||
+      getDefaultModels().small,
+    ELIZAOS_CLOUD_ACTION_PLANNER_MODEL:
+      process.env.ELIZAOS_CLOUD_ACTION_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_MEDIUM_MODEL ||
+      process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
+      getDefaultModels().small,
+    ELIZAOS_CLOUD_PLANNER_MODEL:
+      process.env.ELIZAOS_CLOUD_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_ACTION_PLANNER_MODEL ||
+      process.env.ELIZAOS_CLOUD_MEDIUM_MODEL ||
+      process.env.ELIZAOS_CLOUD_SMALL_MODEL ||
+      getDefaultModels().small,
+    ELIZAOS_CLOUD_RESPONSE_MODEL:
+      process.env.ELIZAOS_CLOUD_RESPONSE_MODEL ||
+      process.env.ELIZAOS_CLOUD_LARGE_MODEL ||
+      getDefaultModels().large,
     // Note: ELIZAOS_API_KEY will be set at runtime with user's auto-generated key
     // ElevenLabs Voice Configuration
     // n8n Workflow Configuration
@@ -1202,7 +1241,8 @@ const agent = {
     elizaOSCloudPlugin,
     elevenLabsPlugin,
     cloudBootstrapPlugin,
-    memoryPlugin,
+    advancedMemoryStoragePlugin,
+    advancedMemoryPlugin,
     cloudBillingPlugin,
   ],
   providers: [

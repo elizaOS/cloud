@@ -190,9 +190,9 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
   },
   {
     id: "eliza-platform",
-    name: "MILADY CLOUD",
+    name: "Eliza Cloud",
     description:
-      "Access MILADY CLOUD features: credits, usage, generations, conversations, and agent management via MCP. Requires API key authentication.",
+      "Access Eliza Cloud features: credits, usage, generations, conversations, and agent management via MCP. Requires API key authentication.",
     category: "platform",
     endpoint: "/api/mcp",
     type: "streamable-http",

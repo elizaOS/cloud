@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { usersService } from "@/lib/services/users";
@@ -11,7 +11,7 @@ import { logger } from "@/lib/utils/logger";
  *
  * @returns Array of member details with roles and metadata.
  */
-async function handleGET() {
+async function handleGET(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
 

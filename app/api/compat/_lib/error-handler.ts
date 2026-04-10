@@ -1,10 +1,9 @@
 /**
  * Shared error handler for compat routes.
  *
- * Maps well-known error messages to HTTP status codes. Uses
- * instanceof checks rather than brittle string matching where
- * possible; the string fallback handles errors thrown by
- * dependencies that don't export typed error classes.
+ * Maps errors to HTTP status codes via `ApiError` subclasses, then
+ * `getErrorStatusCode` (typed names + conservative message heuristics)
+ * for legacy `Error` throws from dependencies.
  *
  * 500-level responses intentionally return a generic message to
  * avoid leaking internal details (e.g. missing env vars, DB
@@ -13,7 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { errorEnvelope } from "@/lib/api/compat-envelope";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, getErrorStatusCode } from "@/lib/api/errors";
 import { ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { applyCorsHeaders } from "@/lib/services/proxy/cors";
 import { logger } from "@/lib/utils/logger";
@@ -33,41 +32,15 @@ export function handleCompatError(err: unknown, methods = "GET, POST, DELETE, OP
     return compatErrorResponse(err.message, 401, methods);
   }
 
-  // 3. Generic Error — heuristic status from message.
-  //
-  // The "Invalid" keyword was previously treated as a blanket 401 signal,
-  // but many non-auth validation errors (e.g. "Invalid agent config",
-  // "Invalid JSON body") also contain "Invalid". We now restrict the
-  // heuristic to auth-specific phrases only.
+  // 3. Generic Error — map status via `getErrorStatusCode` (typed + message heuristics).
   if (err instanceof Error) {
-    const msg = err.message;
-    const isAuth =
-      msg.includes("Unauthorized") ||
-      msg.includes("Invalid API key") ||
-      msg.includes("Invalid token") ||
-      msg.includes("Invalid credentials") ||
-      msg.includes("Invalid service key");
-    // "requires" was previously a blanket 403 signal, but many non-auth
-    // errors also contain the word (e.g. "Table requires migration",
-    // "Field requires a value"). Restrict to auth/access-specific phrases.
-    const isForbid =
-      msg.includes("Forbidden") ||
-      msg.includes("requires authentication") ||
-      msg.includes("requires authorization") ||
-      msg.includes("requires admin") ||
-      msg.includes("requires owner") ||
-      msg.includes("requires org membership");
-
-    if (isAuth) {
-      return compatErrorResponse(msg, 401, methods);
-    }
-    if (isForbid) {
-      return compatErrorResponse(msg, 403, methods);
+    const status = getErrorStatusCode(err);
+    if (status < 500) {
+      return compatErrorResponse(err.message, status, methods);
     }
 
-    // 500-level: log the real error, return a generic message.
     logger.error("[compat] Unhandled error", {
-      error: msg,
+      error: err.message,
       stack: err.stack,
     });
     return compatErrorResponse("Internal server error", 500, methods);

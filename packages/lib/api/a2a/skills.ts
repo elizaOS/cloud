@@ -3,6 +3,11 @@
  *
  * Core skill implementations for A2A protocol.
  * Only includes skills that are fully tested and working.
+ *
+ * Note: CoT budget uses env-only resolution (no per-character settings) because
+ * A2A skills operate at the protocol level without a resolved character context.
+ * The calling agent's character is not available here — skills are invoked via
+ * the A2A protocol which only provides user/org context, not agent personality.
  */
 
 import { gateway } from "@ai-sdk/gateway";
@@ -13,6 +18,11 @@ import {
   getProviderFromModel,
   IMAGE_GENERATION_COST,
 } from "@/lib/pricing";
+import {
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
+  resolveAnthropicThinkingBudgetTokens,
+} from "@/lib/providers/anthropic-thinking";
 import { agentService } from "@/lib/services/agents/agents";
 import { charactersService } from "@/lib/services/characters/characters";
 import { containersService } from "@/lib/services/containers";
@@ -41,6 +51,8 @@ import type {
   VideoGenerationResult,
 } from "./types";
 
+const MIN_RESPONSE_TOKENS = 4096;
+
 /**
  * Chat completion skill - Generate text with LLMs
  */
@@ -59,8 +71,13 @@ export async function executeSkillChatCompletion(
     maxTokens: dataContent.max_tokens as number | undefined,
   };
 
+  const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+  const effectiveMaxTokens =
+    cotBudget != null
+      ? Math.max(options.maxTokens ?? MIN_RESPONSE_TOKENS, cotBudget + MIN_RESPONSE_TOKENS)
+      : options.maxTokens;
   const provider = getProviderFromModel(model);
-  const estimatedCost = await estimateRequestCost(model, messages);
+  const estimatedCost = await estimateRequestCost(model, messages, effectiveMaxTokens);
 
   // Reserve credits BEFORE the operation (TOCTOU-safe)
   let reservation: CreditReservation;
@@ -88,6 +105,8 @@ export async function executeSkillChatCompletion(
         content: m.content,
       })),
       ...options,
+      ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
+      ...(cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {}),
     });
 
     let fullText = "";
@@ -186,9 +205,10 @@ export async function executeSkillImageGeneration(
       "3:4": "portrait",
     };
 
+    const imageModelId = "google/gemini-2.5-flash-image";
     const result = streamText({
-      model: "google/gemini-2.5-flash-image",
-      providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } },
+      model: imageModelId,
+      ...mergeGoogleImageModalitiesWithAnthropicCot(imageModelId),
       prompt: `Generate an image: ${prompt}, ${aspectDesc[aspectRatio] || "square"} composition`,
     });
 
@@ -299,18 +319,17 @@ export async function executeSkillChatWithAgent(
   const message = (dataContent.message as string) || textContent;
   const roomId = dataContent.roomId as string | undefined;
   const agentId = dataContent.agentId as string | undefined;
-  const entityId = dataContent.entityId as string | undefined;
+  const entityId = ctx.user.id;
 
   if (!message) throw new Error("Message required");
   if (!agentId && !roomId) throw new Error("agentId or roomId required");
 
   // If we have a roomId, use it directly; otherwise create/get a room for the agent
-  const actualRoomId =
-    roomId || (await agentService.getOrCreateRoom(entityId || ctx.user.id, agentId!));
+  const actualRoomId = roomId || (await agentService.getOrCreateRoom(entityId, agentId!));
 
   const response = await agentService.sendMessage({
     roomId: actualRoomId,
-    entityId: entityId || ctx.user.id,
+    entityId,
     message,
     organizationId: ctx.user.organization_id,
     streaming: false,

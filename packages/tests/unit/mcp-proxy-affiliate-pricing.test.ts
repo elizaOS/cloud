@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockGetAffiliateCodeById = mock();
@@ -12,12 +13,15 @@ const mockLoggerError = mock();
 const mockLoggerWarn = mock();
 const mockLoggerInfo = mock();
 const mockLoggerDebug = mock();
+const { AffiliatesRepository } = await import("@/db/repositories/affiliates");
+const realContainersModule = await import("@/lib/services/containers");
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
 }));
 
 mock.module("@/db/repositories/affiliates", () => ({
+  AffiliatesRepository,
   affiliatesRepository: {
     getAffiliateCodeById: mockGetAffiliateCodeById,
     getUserAffiliate: mockGetUserAffiliate,
@@ -32,6 +36,7 @@ mock.module("@/lib/services/user-mcps", () => ({
 }));
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     reserveAndDeductCredits: mockReserveAndDeductCredits,
     refundCredits: mockRefundCredits,
@@ -39,6 +44,7 @@ mock.module("@/lib/services/credits", () => ({
 }));
 
 mock.module("@/lib/services/containers", () => ({
+  ...realContainersModule,
   containersService: {
     getById: mock(),
   },
@@ -114,7 +120,7 @@ describe("MCP proxy affiliate pricing", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         }),
-    ) as typeof globalThis.fetch;
+    ) as unknown as typeof globalThis.fetch;
   });
 
   afterEach(() => {
@@ -177,7 +183,7 @@ describe("MCP proxy affiliate pricing", () => {
         new Response("upstream failure", {
           status: 502,
         }),
-    ) as typeof globalThis.fetch;
+    ) as unknown as typeof globalThis.fetch;
 
     const request = new NextRequest("https://example.com/api/mcp/proxy/mcp-1", {
       method: "POST",

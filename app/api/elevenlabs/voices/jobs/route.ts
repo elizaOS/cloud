@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
@@ -14,7 +15,7 @@ import { logger } from "@/lib/utils/logger";
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     logger.info(`[Voice Jobs API] Fetching jobs for user ${user.id}`);
 
@@ -41,15 +42,9 @@ export async function GET(request: NextRequest) {
       total: activeJobs.length,
     });
   } catch (error) {
-    logger.error("[Voice Jobs API] Error:", error);
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("[Voice Jobs API] Error:", error);
     }
-
-    return NextResponse.json(
-      { error: "Failed to fetch voice jobs. Please try again." },
-      { status: 500 },
-    );
+    return nextJsonFromCaughtError(error);
   }
 }

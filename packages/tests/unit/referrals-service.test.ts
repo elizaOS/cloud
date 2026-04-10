@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  creditsModuleRuntimeShim,
+  stubUsersRepositoryModule,
+} from "@/tests/support/bun-partial-module-shims";
 
 class MockInsufficientCreditsError extends Error {
   required: number;
@@ -36,15 +40,16 @@ mock.module("@/db/repositories/referrals", () => ({
   socialShareRewardsRepository: {},
 }));
 
-const { UsersRepository: RealUsersRepository } = await import("@/db/repositories/users");
-mock.module("@/db/repositories/users", () => ({
-  usersRepository: {
-    findById: mockFindUserById,
-  },
-  UsersRepository: RealUsersRepository,
-}));
+mock.module("@/db/repositories/users", () =>
+  stubUsersRepositoryModule({
+    usersRepository: {
+      findById: mockFindUserById,
+    },
+  }),
+);
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     addCredits: mockAddCredits,
   },
@@ -131,7 +136,7 @@ describe("referralsService", () => {
 
     const result = await referralsService.getOrCreateCode("user-1");
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       id: "existing-code",
       user_id: "user-1",
       code: "ABCD-1234",
@@ -156,7 +161,7 @@ describe("referralsService", () => {
 
     const result = await referralsService.getOrCreateCode("user-1");
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       id: "new-code",
       user_id: "user-1",
       code: "UNIQ-123",

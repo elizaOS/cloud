@@ -99,7 +99,20 @@ describe("server-wallets service", () => {
         address: "0xabc",
       });
       const mockInsertValues = mock().mockReturnValue({
-        returning: mock().mockResolvedValue([{ id: 1, address: "0xabc" }]),
+        returning: mock().mockResolvedValue([
+          {
+            id: "aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee",
+            organization_id: "org1",
+            user_id: "user1",
+            character_id: "char1",
+            privy_wallet_id: "pw_123",
+            address: "0xabc",
+            chain_type: "evm",
+            client_address: "0xClient",
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        ]),
       });
 
       mockGetPrivyClient.mockReturnValue({
@@ -126,7 +139,10 @@ describe("server-wallets service", () => {
           client_address: "0xClient",
         }),
       );
-      expect(result).toEqual({ id: 1, address: "0xabc" });
+      expect(result).toMatchObject({
+        id: "aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee",
+        address: "0xabc",
+      });
     });
   });
 
@@ -173,7 +189,7 @@ describe("server-wallets service", () => {
         }),
       );
 
-      expect(result).toEqual({ method: "eth_sendTransaction", data: "0xres" });
+      expect(result).toMatchObject({ method: "eth_sendTransaction", data: "0xres" });
     });
 
     it("should throw if signature invalid", async () => {

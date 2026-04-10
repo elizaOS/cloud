@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
 class MockInsufficientCreditsError extends Error {
   required: number;
@@ -17,17 +18,30 @@ const mockLoggerInfo = mock();
 const mockLoggerDebug = mock();
 const mockLoggerWarn = mock();
 const originalFetch = globalThis.fetch;
+const forwardFetchPreconnect: NonNullable<typeof originalFetch.preconnect> = (...args) => {
+  if (typeof originalFetch.preconnect === "function") {
+    originalFetch.preconnect(...args);
+  }
+};
+const fetchMock = Object.assign(
+  mock(
+    (..._args: Parameters<typeof fetch>): ReturnType<typeof fetch> =>
+      Promise.reject(new Error("fetchMock not configured")),
+  ),
+  { preconnect: forwardFetchPreconnect },
+);
 
 process.env.ALCHEMY_API_KEY = "test-alchemy-key";
 
-const fetchMock = mock();
-globalThis.fetch = fetchMock as typeof fetch;
+// Note: fetchMock mimics fetch behavior for isolation in unit tests without external calls.
+globalThis.fetch = fetchMock;
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
 }));
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     deductCredits: mockDeductCredits,
   },
@@ -53,7 +67,7 @@ import { POST } from "@/app/api/v1/proxy/evm-rpc/[chain]/route";
 
 describe("EVM RPC proxy route", () => {
   beforeEach(() => {
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock;
 
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockDeductCredits.mockReset();

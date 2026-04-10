@@ -18,11 +18,15 @@
       "@/db/*": ["./packages/db/*"],
       "@/tests/*": ["./packages/tests/*"],
       "@/types/*": ["./packages/types/*"],
+      "@/components/*": ["./packages/ui/src/components/*"],
+      "@elizaos/cloud-ui": ["./packages/ui/src/index.ts"],
+      "@elizaos/cloud-ui/*": ["./packages/ui/src/*"],
       "@/*": ["./*"]
     }
   },
   "include": [
     "types/**/*.d.ts",
+    "./packages/types/**/*.d.ts",
     "./packages/tests/**/*.ts",
     "tests/**/*.tsx",
     "./packages/lib/**/*.ts",
@@ -32,5 +36,14 @@
     "components/**/*.ts",
     "./packages/ui/src/components/**/*.tsx"
   ],
-  "exclude": ["node_modules", ".next", "out", "build", "dist"]
+  "exclude": [
+    "node_modules",
+    ".next",
+    "out",
+    "build",
+    "dist",
+    "./packages/ui/src/components/**/*.stories.tsx",
+    "./packages/ui/src/components/**/*.stories.ts",
+    "./packages/ui/src/components/**/*.test.tsx"
+  ]
 }

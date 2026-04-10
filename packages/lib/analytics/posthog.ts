@@ -454,10 +454,6 @@ function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
 
-function isProduction(): boolean {
-  return process.env.NODE_ENV === "production";
-}
-
 export function initPostHog(): void {
   if (!isBrowser()) return;
 
@@ -466,9 +462,6 @@ export function initPostHog(): void {
 
   // Initialize if key is set (allows staging/preview to opt-in)
   if (!apiKey) {
-    if (isProduction()) {
-      console.warn("[PostHog] NEXT_PUBLIC_POSTHOG_KEY not set, analytics disabled");
-    }
     return;
   }
 

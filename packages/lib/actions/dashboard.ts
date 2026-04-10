@@ -14,7 +14,6 @@ import { roomsService } from "@/lib/services/agents/rooms";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { appsService } from "@/lib/services/apps";
 import { charactersService } from "@/lib/services/characters/characters";
-import { listContainers } from "@/lib/services/containers";
 import { characterDeploymentDiscoveryService } from "@/lib/services/deployments";
 import { generationsService } from "@/lib/services/generations";
 import { usageService } from "@/lib/services/usage";
@@ -103,24 +102,22 @@ async function getCreditBalance(organizationId: string): Promise<number> {
  * Internal function to fetch dashboard data (not cached at React level).
  *
  * @param user - Authenticated user with organization.
- * @returns Dashboard data including stats, agents, and containers.
+ * @returns Dashboard data including stats and agents.
  */
 async function fetchDashboardDataInternal(
   user: Awaited<ReturnType<typeof requireAuthWithOrg>>,
 ): Promise<DashboardData> {
   const organizationId = user.organization_id!;
 
-  // Fetch only the data needed for the new dashboard
-  const [generationStats, userCharacters, containers, apiKeys, userRooms, apps, org] =
-    await Promise.all([
-      generationsService.getStats(organizationId),
-      charactersService.listByUser(user.id),
-      listContainers(organizationId),
-      apiKeysService.listByOrganization(organizationId),
-      roomsService.getRoomsForEntity(user.id),
-      appsService.listByOrganization(organizationId),
-      organizationsRepository.findById(organizationId),
-    ]);
+  // Fetch only the data rendered on the dashboard home.
+  const [generationStats, userCharacters, apiKeys, userRooms, apps, org] = await Promise.all([
+    generationsService.getStats(organizationId),
+    charactersService.listByUser(user.id),
+    apiKeysService.listByOrganization(organizationId),
+    roomsService.getRoomsForEntity(user.id),
+    appsService.listByOrganization(organizationId),
+    organizationsRepository.findById(organizationId),
+  ]);
 
   const chatRoomCount = userRooms.length;
 
@@ -188,21 +185,7 @@ async function fetchDashboardDataInternal(
       isPublic: c.is_public,
       stats: agentStatsMap.get(c.id),
     })),
-    containers: containers.map((c) => ({
-      id: c.id,
-      name: c.name,
-      description: c.description,
-      status: c.status,
-      ecs_service_arn: c.ecs_service_arn,
-      load_balancer_url: c.load_balancer_url,
-      port: c.port,
-      desired_count: c.desired_count,
-      cpu: c.cpu,
-      memory: c.memory,
-      last_deployed_at: c.last_deployed_at,
-      created_at: c.created_at,
-      error_message: c.error_message,
-    })),
+    containers: [],
     apps: apps.map((a) => ({
       id: a.id,
       name: a.name,
@@ -226,7 +209,7 @@ async function fetchDashboardDataInternal(
  *
  * Uses React cache for request deduplication and stale-while-revalidate caching.
  *
- * @returns Dashboard data including stats, agents, and containers.
+ * @returns Dashboard data including stats and agents.
  */
 export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const user = await requireAuthWithOrg();

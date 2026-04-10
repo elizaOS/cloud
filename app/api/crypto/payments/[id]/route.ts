@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { cryptoPaymentsRepository } from "@/db/repositories/crypto-payments";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { logger } from "@/lib/utils/logger";
@@ -11,7 +11,7 @@ interface RouteContext {
 
 async function handleGetPayment(req: NextRequest, context?: RouteContext) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
     if (!context) {
       return NextResponse.json({ error: "Missing route params" }, { status: 400 });
     }

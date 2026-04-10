@@ -1,6 +1,6 @@
 {
-  "name": "elizaOS Platform",
-  "short_name": "elizaOS",
+  "name": "Eliza Cloud",
+  "short_name": "Eliza Cloud",
   "description": "AI Agent Development Platform",
   "start_url": "/",
   "display": "standalone",

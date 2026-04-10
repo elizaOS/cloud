@@ -12,7 +12,7 @@ config({ path: resolve(root, ".env.local") });
 config({ path: resolve(root, ".env.test") });
 
 // Keep all test execution pinned to the local app surface.
-process.env.NODE_ENV = "test";
+(process.env as Record<string, string | undefined>).NODE_ENV = "test";
 process.env.ELIZAOS_CLOUD_BASE_URL = "http://localhost:3000/api/v1";
 process.env.TEST_BLOCK_ANONYMOUS = "true";
 
@@ -22,10 +22,14 @@ if (process.env.SKIP_DB_DEPENDENT === "1") {
 } else {
   const shouldPreferLocalDockerDb =
     process.env.CI !== "true" && process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK !== "1";
+  const localDockerDatabaseUrl = getLocalDockerDatabaseUrl({
+    ...process.env,
+    LOCAL_DOCKER_DB_HOST: process.env.LOCAL_DOCKER_DB_HOST || "localhost",
+  });
 
   const testDatabaseUrl =
     process.env.TEST_DATABASE_URL ||
-    (shouldPreferLocalDockerDb ? getLocalDockerDatabaseUrl(process.env) : process.env.DATABASE_URL);
+    (shouldPreferLocalDockerDb ? localDockerDatabaseUrl : process.env.DATABASE_URL);
 
   if (testDatabaseUrl) {
     process.env.TEST_DATABASE_URL = testDatabaseUrl;

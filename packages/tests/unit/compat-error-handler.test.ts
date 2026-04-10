@@ -9,7 +9,11 @@
  * - Non-Error throws get generic 500
  */
 
-import { describe, expect, mock, test } from "bun:test";
+import { afterAll, describe, expect, mock, test } from "bun:test";
+
+afterAll(() => {
+  mock.restore();
+});
 
 // Mock logger before importing error-handler
 mock.module("@/lib/utils/logger", () => ({

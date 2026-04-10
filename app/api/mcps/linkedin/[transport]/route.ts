@@ -10,8 +10,9 @@
 
 import type { NextRequest } from "next/server";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { apiFailureResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
+import { enforceMcpOrganizationRateLimit } from "@/lib/middleware/rate-limit";
 import { oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 
@@ -44,8 +45,10 @@ async function getLinkedInMcpHandler() {
   const { z } = await import("zod3");
 
   async function getLinkedInToken(organizationId: string): Promise<string> {
+    const user = getAuthUser();
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
+      userId: user.id,
       platform: "linkedin",
     });
     return result.accessToken;
@@ -55,6 +58,12 @@ async function getLinkedInMcpHandler() {
     const ctx = authContextStorage.getStore();
     if (!ctx) throw new Error("Not authenticated");
     return ctx.user.organization_id;
+  }
+
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
   }
 
   async function linkedinFetch(orgId: string, path: string, options: RequestInit = {}) {
@@ -115,6 +124,7 @@ async function getLinkedInMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({
             organizationId: orgId,
+            userId: getAuthUser().id,
             platform: "linkedin",
           });
           const active = connections.find((c) => c.status === "active");
@@ -256,14 +266,11 @@ async function handleRequest(
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
 
-    const rateLimitKey = `mcp:ratelimit:linkedin:${authResult.user.organization_id}`;
-    const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
-    if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), {
-        status: 429,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+    const rateLimited = await enforceMcpOrganizationRateLimit(
+      authResult.user.organization_id!,
+      "linkedin",
+    );
+    if (rateLimited) return rateLimited;
 
     const handler = await getLinkedInMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
@@ -283,16 +290,8 @@ async function handleRequest(
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    logger.error(`[LinkedInMCP] ${msg}`);
-    const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(
-      JSON.stringify({
-        error: isAuth ? "authentication_required" : "internal_error",
-        message: msg,
-      }),
-      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
-    );
+    logger.error("[LinkedInMCP]", error);
+    return apiFailureResponse(error);
   }
 }
 

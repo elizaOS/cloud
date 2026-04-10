@@ -6,74 +6,44 @@
 "use client";
 
 import { Check, Copy, Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { copyApiKeyToClipboard } from "@/lib/client/api-keys";
+import { COPY_FEEDBACK_DURATION_MS } from "@/lib/constants/copy-feedback";
 import { toast } from "@/lib/utils/toast-adapter";
-
-interface ExplorerApiKey {
-  id: string;
-  name: string;
-  description: string | null;
-  key_prefix: string;
-  key: string;
-  created_at: string;
-  is_active: boolean;
-  usage_count: number;
-  last_used_at: string | null;
-}
+import type { ExplorerApiKey } from "./use-explorer-api-key";
 
 interface AuthManagerProps {
   authToken: string;
+  explorerKey: ExplorerApiKey | null;
+  isLoading: boolean;
+  error: string | null;
   onTokenChange: (token: string) => void;
+  onRefresh: () => Promise<void>;
 }
 
-export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
+export function AuthManager({
+  authToken,
+  explorerKey,
+  isLoading,
+  error,
+  onTokenChange,
+  onRefresh,
+}: AuthManagerProps) {
   const [showToken, setShowToken] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [explorerKey, setExplorerKey] = useState<ExplorerApiKey | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const fetchExplorerKey = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/v1/api-keys/explorer");
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Failed to fetch API key");
-        return;
-      }
-
-      setExplorerKey(data.apiKey);
-      onTokenChange(data.apiKey.key);
-
-      if (data.isNew) {
-        toast({
-          message: "API Explorer key created!",
-          mode: "success",
-        });
-      }
-    } catch (err) {
-      console.error("Failed to fetch explorer key:", err);
-      setError("Failed to connect to server");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onTokenChange]);
-
-  useEffect(() => {
-    setTimeout(() => {
-      fetchExplorerKey();
-    }, 0);
-  }, [fetchExplorerKey]);
-
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(authToken);
-    setCopied(true);
-    toast({ message: "API key copied", mode: "success" });
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await copyApiKeyToClipboard(authToken);
+      setCopied(true);
+      toast({ message: "API key copied", mode: "success" });
+      setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
+    } catch (error) {
+      toast({
+        message: error instanceof Error ? error.message : "Failed to copy API key",
+        mode: "error",
+      });
+    }
   };
 
   const isValidKey = authToken && (authToken.startsWith("eliza_") || authToken.startsWith("sk-"));
@@ -94,7 +64,7 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
           <p className="text-xs text-neutral-500">Sign in to get an API key for testing.</p>
         )}
         <button
-          onClick={fetchExplorerKey}
+          onClick={() => void onRefresh()}
           className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
@@ -164,7 +134,7 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
               className="w-full h-9 px-3 rounded-lg border border-white/10 bg-black/40 text-white text-sm placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-[#FF5800]/50"
             />
             <button
-              onClick={fetchExplorerKey}
+              onClick={() => void onRefresh()}
               className="text-neutral-400 hover:text-white transition-colors"
             >
               Reset to default

@@ -15,9 +15,15 @@
     "baseUrl": ".",
     "types": ["node"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/lib/*": ["../lib/*"],
+      "@/db/*": ["../db/*"],
+      "@/types/*": ["../types/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/app/*": ["../../app/*"],
+      "@/packages/ui/src/*": ["./src/*"]
     }
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", "../types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "**/*.stories.ts", "**/*.stories.tsx"]
 }

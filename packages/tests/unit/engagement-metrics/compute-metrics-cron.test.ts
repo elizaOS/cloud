@@ -7,13 +7,17 @@
  * - Error handling
  */
 
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+
+afterAll(() => {
+  mock.restore();
+});
 
 // ─── Mock Setup ──────────────────────────────────────────────────────────────
 
-const mockComputeDailyMetrics = mock(() => Promise.resolve());
-const mockComputeRetentionCohorts = mock(() => Promise.resolve());
+const mockComputeDailyMetrics = mock((_date: Date) => Promise.resolve());
+const mockComputeRetentionCohorts = mock((_date: Date) => Promise.resolve());
 
 mock.module("@/lib/services/user-metrics", () => ({
   userMetricsService: {
@@ -41,10 +45,6 @@ mock.module("@/lib/cache/client", () => ({
   },
 }));
 
-// ─── Import after mocks ──────────────────────────────────────────────────────
-
-import { GET } from "@/app/api/cron/compute-metrics/route";
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function makeRequest(secret?: string): NextRequest {
@@ -56,6 +56,15 @@ function makeRequest(secret?: string): NextRequest {
     method: "GET",
     headers,
   });
+}
+
+async function callRoute(req: NextRequest) {
+  const moduleUrl = new URL(
+    `../../../../app/api/cron/compute-metrics/route.ts?t=${Date.now()}`,
+    import.meta.url,
+  ).href;
+  const { GET } = await import(moduleUrl);
+  return GET(req);
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -78,7 +87,7 @@ describe("Compute Metrics Cron", () => {
   describe("authentication", () => {
     test("rejects request with no authorization header", async () => {
       const req = makeRequest();
-      const res = await GET(req);
+      const res = await callRoute(req);
       expect(res.status).toBe(401);
       const body = await res.json();
       expect(body.error).toBe("Unauthorized");
@@ -86,26 +95,26 @@ describe("Compute Metrics Cron", () => {
 
     test("rejects request with wrong secret", async () => {
       const req = makeRequest("wrong-secret");
-      const res = await GET(req);
+      const res = await callRoute(req);
       expect(res.status).toBe(401);
     });
 
     test("rejects request when CRON_SECRET is not set", async () => {
       delete process.env.CRON_SECRET;
       const req = makeRequest("any-secret");
-      const res = await GET(req);
+      const res = await callRoute(req);
       expect(res.status).toBe(401);
     });
 
     test("rejects request with different-length secret", async () => {
       const req = makeRequest("short");
-      const res = await GET(req);
+      const res = await callRoute(req);
       expect(res.status).toBe(401);
     });
 
     test("accepts request with valid secret", async () => {
       const req = makeRequest(VALID_SECRET);
-      const res = await GET(req);
+      const res = await callRoute(req);
       expect(res.status).toBe(200);
     });
   });
@@ -113,7 +122,7 @@ describe("Compute Metrics Cron", () => {
   describe("computation", () => {
     test("calls computeDailyMetrics with yesterday's date", async () => {
       const req = makeRequest(VALID_SECRET);
-      await GET(req);
+      await callRoute(req);
 
       expect(mockComputeDailyMetrics).toHaveBeenCalledTimes(1);
       const calledWith = mockComputeDailyMetrics.mock.calls[0][0] as Date;
@@ -124,14 +133,14 @@ describe("Compute Metrics Cron", () => {
 
     test("calls computeRetentionCohorts with yesterday's date", async () => {
       const req = makeRequest(VALID_SECRET);
-      await GET(req);
+      await callRoute(req);
 
       expect(mockComputeRetentionCohorts).toHaveBeenCalledTimes(1);
     });
 
     test("returns success response with date and duration", async () => {
       const req = makeRequest(VALID_SECRET);
-      const res = await GET(req);
+      const res = await callRoute(req);
       const body = await res.json();
 
       expect(body.success).toBe(true);
@@ -145,7 +154,7 @@ describe("Compute Metrics Cron", () => {
       mockComputeDailyMetrics.mockRejectedValue(new Error("DB connection failed"));
 
       const req = makeRequest(VALID_SECRET);
-      const res = await GET(req);
+      const res = await callRoute(req);
       expect(res.status).toBe(500);
       const body = await res.json();
       expect(body.success).toBe(false);
@@ -156,7 +165,7 @@ describe("Compute Metrics Cron", () => {
       mockComputeDailyMetrics.mockRejectedValue("unknown error");
 
       const req = makeRequest(VALID_SECRET);
-      const res = await GET(req);
+      const res = await callRoute(req);
       expect(res.status).toBe(500);
       const body = await res.json();
       expect(body.error).toBe("Metrics computation failed");

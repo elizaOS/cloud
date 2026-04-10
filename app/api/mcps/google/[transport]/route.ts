@@ -8,7 +8,9 @@
 
 import type { NextRequest } from "next/server";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { apiFailureResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { enforceMcpOrganizationRateLimit } from "@/lib/middleware/rate-limit";
 import { oauthService } from "@/lib/services/oauth";
 import {
   applyTimeZone,
@@ -53,10 +55,18 @@ async function getGoogleMcpHandler() {
     return ctx.user.organization_id;
   }
 
+  function getAuthUser() {
+    const ctx = authContextStorage.getStore();
+    if (!ctx) throw new Error("Not authenticated");
+    return ctx.user;
+  }
+
   async function getGoogleToken(organizationId: string): Promise<string> {
     try {
+      const user = getAuthUser();
       const result = await oauthService.getValidTokenByPlatform({
         organizationId,
+        userId: user.id,
         platform: "google",
       });
       return result.accessToken;
@@ -106,6 +116,7 @@ async function getGoogleMcpHandler() {
             const orgId = getOrgId();
             const connections = await oauthService.listConnections({
               organizationId: orgId,
+              userId: getAuthUser().id,
               platform: "google",
             });
             const active = connections.find((c) => c.status === "active");
@@ -806,6 +817,12 @@ async function handleRequest(
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
 
+    const rateLimited = await enforceMcpOrganizationRateLimit(
+      authResult.user.organization_id!,
+      "google",
+    );
+    if (rateLimited) return rateLimited;
+
     const handler = await getGoogleMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
@@ -824,16 +841,8 @@ async function handleRequest(
 
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    logger.error(`[GoogleMCP] ${msg}`);
-    const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
-    return new Response(
-      JSON.stringify({
-        error: isAuth ? "authentication_required" : "internal_error",
-        message: msg,
-      }),
-      { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } },
-    );
+    logger.error("[GoogleMCP]", error);
+    return apiFailureResponse(error);
   }
 }
 

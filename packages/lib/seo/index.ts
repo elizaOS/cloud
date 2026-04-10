@@ -1,5 +1,11 @@
 export { ROUTE_METADATA, SEO_CONSTANTS } from "./constants";
 export {
+  generateRobotsFile,
+  getIndexableHosts,
+  getRobotsMetadata,
+  shouldIndexSite,
+} from "./environment";
+export {
   generateCharacterMetadata,
   generateChatMetadata,
   generateContainerMetadata,

@@ -126,6 +126,7 @@ export const platformCredentials = pgTable(
       channel_id?: string;
       message_id?: string;
       referrer?: string;
+      miladyGoogleSide?: "owner" | "agent";
     }>(),
 
     // Raw profile data from OAuth provider

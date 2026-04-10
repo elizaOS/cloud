@@ -5,7 +5,7 @@ import { generatePageMetadata } from "@/lib/seo";
 import { KnowledgePageClient } from "@/packages/ui/src/components/knowledge/knowledge-page-client";
 
 export const metadata: Metadata = generatePageMetadata({
-  title: "File Management - MILADY CLOUD",
+  title: "File Management - Eliza Cloud",
   description:
     "Upload and manage documents for your agents. These files provide context and information for enhanced AI responses.",
   path: "/dashboard/knowledge",

@@ -40,6 +40,11 @@ export class UsersService {
       promises.push(cache.del(CacheKeys.user.byEmail(user.email)));
       promises.push(cache.del(CacheKeys.user.byEmailWithOrg(user.email)));
     }
+    const stewardUserId = user.steward_user_id;
+    if (typeof stewardUserId === "string") {
+      promises.push(cache.del(CacheKeys.user.byStewardId(stewardUserId)));
+      promises.push(cache.del(CacheKeys.user.byStewardIdWithOrg(stewardUserId)));
+    }
     const privyUserId = user.privy_user_id;
     if (typeof privyUserId === "string") {
       promises.push(cache.del(CacheKeys.user.byPrivyId(privyUserId)));
@@ -82,6 +87,42 @@ export class UsersService {
       logger.debug("[UsersService] Cached user data by email");
     }
     return user;
+  }
+
+  async getByStewardId(stewardUserId: string): Promise<UserWithOrganization | undefined> {
+    const cacheKey = CacheKeys.user.byStewardId(stewardUserId);
+    const cached = await cache.get<UserWithOrganization>(cacheKey);
+    if (cached) {
+      logger.debug("[UsersService] Cache hit for user byStewardId");
+      return cached;
+    }
+
+    try {
+      const user = await usersRepository.findByStewardIdWithOrganization(stewardUserId);
+      if (user) {
+        await cache.set(cacheKey, user, CacheTTL.user.byStewardId);
+        logger.debug("[UsersService] Cached user data by stewardId");
+      }
+      return user;
+    } catch (error) {
+      const errorDetails = getErrorDetails(error);
+
+      logger.warn("[UsersService] Read-path Steward lookup failed, retrying on primary", {
+        stewardUserId,
+        ...errorDetails,
+      });
+
+      try {
+        return await this.getByStewardIdForWrite(stewardUserId);
+      } catch (fallbackError) {
+        logger.error("[UsersService] Primary Steward lookup retry failed", {
+          stewardUserId,
+          readError: errorDetails,
+          writeError: getErrorDetails(fallbackError),
+        });
+        throw fallbackError;
+      }
+    }
   }
 
   async getByPrivyId(privyUserId: string): Promise<UserWithOrganization | undefined> {
@@ -140,6 +181,28 @@ export class UsersService {
     privyUserId: string,
   ): Promise<{ user_id: string; privy_user_id: string | null } | undefined> {
     return await usersRepository.findIdentityByPrivyIdForWrite(privyUserId);
+  }
+
+  async getByStewardIdForWrite(stewardUserId: string): Promise<UserWithOrganization | undefined> {
+    const user = await usersRepository.findByStewardIdWithOrganizationForWrite(stewardUserId);
+    if (user) {
+      await Promise.all([
+        cache.set(CacheKeys.user.byStewardId(stewardUserId), user, CacheTTL.user.byStewardId),
+        cache.set(
+          CacheKeys.user.byStewardIdWithOrg(stewardUserId),
+          user,
+          CacheTTL.user.byStewardIdWithOrg,
+        ),
+      ]);
+      logger.debug("[UsersService] Cached user data by stewardId from primary");
+    }
+    return user;
+  }
+
+  async getStewardIdentityForWrite(
+    stewardUserId: string,
+  ): Promise<{ user_id: string; steward_user_id: string | null } | undefined> {
+    return await usersRepository.findIdentityByStewardIdForWrite(stewardUserId);
   }
 
   async getWithOrganization(userId: string): Promise<UserWithOrganization | undefined> {
@@ -253,6 +316,34 @@ export class UsersService {
       cacheDeletes.push(
         cache.del(CacheKeys.user.byPrivyId(existingIdentity.privy_user_id)),
         cache.del(CacheKeys.user.byPrivyIdWithOrg(existingIdentity.privy_user_id)),
+      );
+    }
+
+    await Promise.all(cacheDeletes);
+  }
+
+  async upsertStewardIdentity(userId: string, stewardUserId: string): Promise<void> {
+    const existingIdentity = await usersRepository.findIdentityByUserIdForWrite(userId);
+
+    if (existingIdentity?.steward_user_id === stewardUserId) {
+      await Promise.all([
+        cache.del(CacheKeys.user.byStewardId(stewardUserId)),
+        cache.del(CacheKeys.user.byStewardIdWithOrg(stewardUserId)),
+      ]);
+      return;
+    }
+
+    await usersRepository.upsertStewardIdentity(userId, stewardUserId);
+
+    const cacheDeletes = [
+      cache.del(CacheKeys.user.byStewardId(stewardUserId)),
+      cache.del(CacheKeys.user.byStewardIdWithOrg(stewardUserId)),
+    ];
+
+    if (existingIdentity?.steward_user_id && existingIdentity.steward_user_id !== stewardUserId) {
+      cacheDeletes.push(
+        cache.del(CacheKeys.user.byStewardId(existingIdentity.steward_user_id)),
+        cache.del(CacheKeys.user.byStewardIdWithOrg(existingIdentity.steward_user_id)),
       );
     }
 

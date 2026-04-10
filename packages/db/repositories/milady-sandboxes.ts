@@ -10,6 +10,7 @@ import {
   type NewMiladySandbox,
   type NewMiladySandboxBackup,
 } from "@/db/schemas/milady-sandboxes";
+import { MILADY_MANAGED_DISCORD_KEY } from "@/lib/services/milady-agent-config";
 
 export type {
   MiladyBackupSnapshotType,
@@ -97,6 +98,22 @@ export class MiladySandboxesRepository {
       )
       .limit(1);
     return r;
+  }
+
+  async findByManagedDiscordGuildId(guildId: string): Promise<MiladySandbox[]> {
+    const trimmedGuildId = guildId.trim();
+    if (!trimmedGuildId) {
+      return [];
+    }
+
+    const result = await dbWrite.execute<MiladySandbox>(sql`
+      SELECT *
+      FROM ${miladySandboxes}
+      WHERE (${miladySandboxes.agent_config} -> ${MILADY_MANAGED_DISCORD_KEY} ->> 'guildId') = ${trimmedGuildId}
+      ORDER BY ${miladySandboxes.updated_at} DESC
+    `);
+
+    return result.rows;
   }
 
   // Writes

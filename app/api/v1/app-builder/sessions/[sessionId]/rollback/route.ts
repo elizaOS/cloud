@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { appsService } from "@/lib/services/apps";
@@ -101,18 +102,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       currentSha: rollbackResult.currentSha,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to rollback";
-    const status =
-      message.includes("Unauthorized") || message.includes("Authentication")
-        ? 401
-        : message.includes("Access denied") || message.includes("don't own")
-          ? 403
-          : message.includes("not found")
-            ? 404
-            : 500;
-
-    logger.error("Rollback request failed", { error: message });
-    return NextResponse.json({ success: false, error: message }, { status });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("Rollback request failed", {
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+    return nextJsonFromCaughtError(error);
   }
 }
 

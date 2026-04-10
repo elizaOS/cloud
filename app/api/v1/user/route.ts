@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthOrApiKey } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
@@ -24,9 +24,9 @@ const updateUserSchema = z.object({
  *
  * @returns User profile data including organization details.
  */
-async function handleGET() {
+async function handleGET(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const { user } = await requireAuthOrApiKey(request);
 
     return NextResponse.json({
       success: true,
@@ -79,7 +79,7 @@ async function handleGET() {
  */
 async function handlePATCH(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const { user } = await requireAuthOrApiKey(request);
     const body = await request.json();
 
     // Validate input

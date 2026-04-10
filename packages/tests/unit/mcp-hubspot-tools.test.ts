@@ -9,8 +9,47 @@
  * - Network error handling
  */
 
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
+import type {
+  GetTokenByPlatformParams,
+  ListConnectionsParams,
+  OAuthConnection,
+  TokenResult,
+} from "@/lib/services/oauth/types";
+
+function mockHubspotToken(): TokenResult {
+  return {
+    accessToken: "mock-hubspot-token",
+    refreshed: false,
+    fromCache: false,
+  };
+}
+
+function hubspotOAuthFixture(
+  o: Partial<OAuthConnection> & Pick<OAuthConnection, "id" | "status">,
+): OAuthConnection {
+  const { id, status, ...rest } = o;
+  return {
+    platform: "hubspot",
+    platformUserId: rest.platformUserId ?? `pu-${id}`,
+    scopes: rest.scopes ?? [],
+    linkedAt: rest.linkedAt ?? new Date("2024-01-15T10:00:00Z"),
+    tokenExpired: rest.tokenExpired ?? false,
+    source: rest.source ?? "platform_credentials",
+    id,
+    status,
+    ...rest,
+  };
+}
 
 // Mock fetch globally for API tests
 const originalFetch = globalThis.fetch;
@@ -35,7 +74,7 @@ function setupMockFetch() {
       status: 404,
       headers: { "Content-Type": "application/json" },
     });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
 }
 
 function resetMockFetch() {
@@ -45,29 +84,32 @@ function resetMockFetch() {
 
 // Mock OAuth service
 const mockOAuthService = {
-  getValidTokenByPlatform: mock(
-    async ({ organizationId, platform }: { organizationId: string; platform: string }) => {
-      if (platform !== "hubspot") {
-        throw new Error(`Unknown platform: ${platform}`);
-      }
-      // By default, throw "not connected" - tests can override
-      throw new Error("No active connection found for hubspot");
-    },
-  ),
-  listConnections: mock(
-    async ({ organizationId, platform }: { organizationId: string; platform?: string }) => {
-      return [];
-    },
-  ),
-  isPlatformConnected: mock(async (organizationId: string, platform: string) => {
-    return false;
+  getValidTokenByPlatform: mock(async (params: GetTokenByPlatformParams): Promise<TokenResult> => {
+    if (params.platform !== "hubspot") {
+      throw new Error(`Unknown platform: ${params.platform}`);
+    }
+    throw new Error("No active connection found for hubspot");
   }),
+  listConnections: mock(async (_params: ListConnectionsParams): Promise<OAuthConnection[]> => []),
+  isPlatformConnected: mock(
+    async (_organizationId: string, _platform: string): Promise<boolean> => {
+      return false;
+    },
+  ),
 };
 
 // Mock the oauth service module
 mock.module("@/lib/services/oauth", () => ({
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
   oauthService: mockOAuthService,
 }));
+
+let registerHubSpotTools: typeof import("@/app/api/mcp/tools/hubspot").registerHubSpotTools;
 
 // Create mock auth context
 function createMockAuth(orgId: string = "test-org-123") {
@@ -79,6 +121,11 @@ function createMockAuth(orgId: string = "test-org-123") {
     },
   } as any;
 }
+
+beforeAll(async () => {
+  ({ registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot"));
+  mock.restore();
+});
 
 describe("HubSpot MCP Tools", () => {
   beforeEach(() => {
@@ -97,14 +144,11 @@ describe("HubSpot MCP Tools", () => {
 
   describe("Module Registration", () => {
     test("registerHubSpotTools is exported", async () => {
-      const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
       expect(registerHubSpotTools).toBeDefined();
       expect(typeof registerHubSpotTools).toBe("function");
     });
 
     test("registers all expected tools", async () => {
-      const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
-
       const registeredTools: string[] = [];
       const mockServer = {
         registerTool: (name: string, _schema: any, _handler: any) => {
@@ -164,13 +208,13 @@ describe("HubSpot MCP Tools", () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
       mockOAuthService.listConnections.mockImplementation(async () => [
-        {
+        hubspotOAuthFixture({
           id: "conn-123",
           status: "active",
           email: "user@example.com",
           scopes: ["crm.objects.contacts.read", "crm.objects.contacts.write"],
-          linkedAt: "2024-01-15T10:00:00Z",
-        },
+          linkedAt: new Date("2024-01-15T10:00:00Z"),
+        }),
       ]);
 
       let handler: any;
@@ -219,8 +263,8 @@ describe("HubSpot MCP Tools", () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
       mockOAuthService.listConnections.mockImplementation(async () => [
-        { id: "conn-1", status: "revoked", email: "old@example.com" },
-        { id: "conn-2", status: "expired", email: "expired@example.com" },
+        hubspotOAuthFixture({ id: "conn-1", status: "revoked", email: "old@example.com" }),
+        hubspotOAuthFixture({ id: "conn-2", status: "expired", email: "expired@example.com" }),
       ]);
 
       let handler: any;
@@ -272,9 +316,7 @@ describe("HubSpot MCP Tools", () => {
     test("lists contacts successfully", async () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
-      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => ({
-        accessToken: "mock-hubspot-token",
-      }));
+      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => mockHubspotToken());
 
       mockFetchResponses.set("api.hubapi.com/crm/v3/objects/contacts", {
         status: 200,
@@ -320,9 +362,7 @@ describe("HubSpot MCP Tools", () => {
     test("creates contact successfully", async () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
-      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => ({
-        accessToken: "mock-hubspot-token",
-      }));
+      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => mockHubspotToken());
 
       mockFetchResponses.set("api.hubapi.com/crm/v3/objects/contacts", {
         status: 201,
@@ -357,9 +397,7 @@ describe("HubSpot MCP Tools", () => {
     test("handles HubSpot API errors", async () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
-      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => ({
-        accessToken: "mock-hubspot-token",
-      }));
+      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => mockHubspotToken());
 
       mockFetchResponses.set("api.hubapi.com/crm/v3/objects/contacts", {
         status: 409,
@@ -392,9 +430,7 @@ describe("HubSpot MCP Tools", () => {
     test("lists companies successfully", async () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
-      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => ({
-        accessToken: "mock-hubspot-token",
-      }));
+      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => mockHubspotToken());
 
       mockFetchResponses.set("api.hubapi.com/crm/v3/objects/companies", {
         status: 200,
@@ -438,9 +474,7 @@ describe("HubSpot MCP Tools", () => {
     test("lists deals successfully", async () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
-      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => ({
-        accessToken: "mock-hubspot-token",
-      }));
+      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => mockHubspotToken());
 
       mockFetchResponses.set("api.hubapi.com/crm/v3/objects/deals", {
         status: 200,
@@ -484,9 +518,7 @@ describe("HubSpot MCP Tools", () => {
     test("lists owners successfully", async () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
-      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => ({
-        accessToken: "mock-hubspot-token",
-      }));
+      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => mockHubspotToken());
 
       mockFetchResponses.set("api.hubapi.com/crm/v3/owners", {
         status: 200,
@@ -532,9 +564,7 @@ describe("HubSpot MCP Tools", () => {
     test("creates association between contact and company", async () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
-      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => ({
-        accessToken: "mock-hubspot-token",
-      }));
+      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => mockHubspotToken());
 
       mockFetchResponses.set(
         "api.hubapi.com/crm/v3/objects/contacts/101/associations/companies/301/1",
@@ -575,13 +605,11 @@ describe("HubSpot MCP Tools", () => {
     test("handles network timeout gracefully", async () => {
       const { registerHubSpotTools } = await import("@/app/api/mcp/tools/hubspot");
 
-      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => ({
-        accessToken: "mock-hubspot-token",
-      }));
+      mockOAuthService.getValidTokenByPlatform.mockImplementation(async () => mockHubspotToken());
 
       globalThis.fetch = mock(async () => {
         throw new Error("Network request failed");
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       let handler: any;
       const mockServer = {
@@ -605,16 +633,17 @@ describe("HubSpot MCP Tools", () => {
 
       const orgRequests: string[] = [];
 
-      mockOAuthService.listConnections.mockImplementation(async ({ organizationId }) => {
+      mockOAuthService.listConnections.mockImplementation(async (params: ListConnectionsParams) => {
+        const { organizationId } = params;
         orgRequests.push(organizationId);
         await new Promise((r) => setTimeout(r, Math.random() * 50));
         return [
-          {
+          hubspotOAuthFixture({
             id: `conn-${organizationId}`,
             status: "active",
             email: `user-${organizationId}@example.com`,
             scopes: [],
-          },
+          }),
         ];
       });
 

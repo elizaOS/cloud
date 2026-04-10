@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { appsService } from "@/lib/services/apps";
 import { vercelDomainsService } from "@/lib/services/vercel-domains";
@@ -81,7 +81,7 @@ interface RouteParams {
  * List all domains for an app
  */
 export async function GET(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
-  const user = await requireAuthWithOrg();
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest, { params }: RouteParams): Promis
  * Add a custom domain to an app
  */
 export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
-  const user = await requireAuthWithOrg();
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
  * Remove a custom domain from an app
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
-  const user = await requireAuthWithOrg();
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);

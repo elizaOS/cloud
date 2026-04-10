@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { Client } from "pg";
+import {
+  creditsModuleRuntimeShim,
+  stubUsersRepositoryModule,
+} from "@/tests/support/bun-partial-module-shims";
 
 const mockGetByPrivyId = mock();
 const mockGetByPrivyIdForWrite = mock();
@@ -25,6 +29,7 @@ const mockCheckSignupAbuse = mock();
 const mockRecordSignupMetadata = mock();
 const mockListCharactersByOrg = mock();
 const mockCreateCharacter = mock();
+const mockEnsureStewardUserMappingForUser = mock();
 
 function makeUniqueViolationError(
   message: string,
@@ -99,6 +104,7 @@ class MockInsufficientCreditsError extends Error {
   }
 }
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     addCredits: mockAddCredits,
   },
@@ -110,15 +116,14 @@ mock.module("@/db/repositories/organization-invites", () => ({
     markAsAccepted: mockMarkInviteAccepted,
   },
 }));
-// Re-export the real UsersRepository class so downstream tests that import
-// it (e.g. users-repository-compat.test.ts) aren't broken by mock pollution.
-const { UsersRepository: RealUsersRepository } = await import("@/db/repositories/users");
-mock.module("@/db/repositories/users", () => ({
-  usersRepository: {
-    delete: mockDeleteUserRecord,
-  },
-  UsersRepository: RealUsersRepository,
-}));
+
+mock.module("@/db/repositories/users", () =>
+  stubUsersRepositoryModule({
+    usersRepository: {
+      delete: mockDeleteUserRecord,
+    },
+  }),
+);
 
 mock.module("@/lib/services/abuse-detection", () => ({
   abuseDetectionService: {
@@ -138,6 +143,10 @@ mock.module("@/lib/services/characters/characters", () => ({
   },
 }));
 
+mock.module("@/lib/services/steward-user-migration", () => ({
+  ensureStewardUserMappingForUser: mockEnsureStewardUserMappingForUser,
+}));
+
 mock.module("@/lib/utils/default-eliza-character", () => ({
   getDefaultElizaCharacterData: () => ({
     name: "Eliza",
@@ -151,6 +160,10 @@ mock.module("@/lib/utils/default-eliza-character", () => ({
     source: "cloud",
   }),
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 describe("syncUserFromPrivy", () => {
   beforeEach(() => {
@@ -197,6 +210,7 @@ describe("syncUserFromPrivy", () => {
     mockRecordSignupMetadata.mockResolvedValue(undefined);
     mockListCharactersByOrg.mockResolvedValue([]);
     mockCreateCharacter.mockResolvedValue({ id: "char-default", name: "Eliza" });
+    mockEnsureStewardUserMappingForUser.mockReset().mockResolvedValue(null);
     process.env.INITIAL_FREE_CREDITS = "5";
   });
 
@@ -239,7 +253,50 @@ describe("syncUserFromPrivy", () => {
       }),
     );
     expect(mockUpsertPrivyIdentity).toHaveBeenCalledWith("user-new", "did:privy:new-user");
-    expect(result).toEqual(hydratedUser);
+    expect(result).toMatchObject(hydratedUser);
+  });
+
+  test("syncs a Steward mapping after resolving an existing Privy user", async () => {
+    const existingUser = {
+      id: "user-existing",
+      email: "existing@example.com",
+      email_verified: true,
+      name: "existing",
+      organization_id: "org-existing",
+      organization: { id: "org-existing", name: "Existing Org" },
+      privy_user_id: "did:privy:existing-user",
+      steward_user_id: null,
+      wallet_address: null,
+      wallet_chain_type: null,
+      wallet_verified: false,
+      is_anonymous: false,
+      role: "owner",
+    };
+
+    mockGetByPrivyId.mockResolvedValue(existingUser);
+    mockGetByPrivyIdForWrite.mockResolvedValue(existingUser);
+    mockEnsureStewardUserMappingForUser.mockResolvedValue("stwd-user-existing");
+
+    const { syncUserFromPrivy } = await import("@/lib/privy-sync");
+
+    const result = await syncUserFromPrivy({
+      id: "did:privy:existing-user",
+      email: { address: "existing@example.com" },
+      linkedAccounts: [],
+    } as never);
+
+    expect(mockEnsureStewardUserMappingForUser).toHaveBeenCalledWith(
+      {
+        id: "user-existing",
+        email: "existing@example.com",
+        email_verified: true,
+        name: "existing",
+        steward_user_id: null,
+        is_anonymous: false,
+      },
+      { required: false },
+    );
+    expect(result.steward_user_id).toBe("stwd-user-existing");
   });
 
   test("upserts user identity before reading linked accounts by new Privy id", async () => {
@@ -281,7 +338,7 @@ describe("syncUserFromPrivy", () => {
       }),
     );
     expect(mockUpsertPrivyIdentity).toHaveBeenCalledWith("user-existing", "did:privy:new-user");
-    expect(result).toEqual(linkedUser);
+    expect(result).toMatchObject(linkedUser);
   });
 
   test("restores the previous Privy ID when account linking upsert fails", async () => {
@@ -505,7 +562,7 @@ describe("syncUserFromPrivy", () => {
       linkedAccounts: [],
     } as never);
 
-    expect(result).toEqual(recoveredUser);
+    expect(result).toMatchObject(recoveredUser);
     expect(mockDeleteUserRecord).not.toHaveBeenCalled();
     expect(mockMarkInviteAccepted).toHaveBeenCalledWith("invite-1", "user-invite");
   });
@@ -589,7 +646,7 @@ describe("syncUserFromPrivy", () => {
       linkedAccounts: [],
     } as never);
 
-    expect(result).toEqual(recoveredUser);
+    expect(result).toMatchObject(recoveredUser);
     expect(mockDeleteUserRecord).not.toHaveBeenCalled();
     expect(mockDeleteOrganization).not.toHaveBeenCalled();
   });

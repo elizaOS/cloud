@@ -16,6 +16,7 @@ async function getDropboxToken(): Promise<string> {
   try {
     const result = await oauthService.getValidTokenByPlatform({
       organizationId: user.organization_id,
+      userId: user.id,
       platform: "dropbox",
     });
     return result.accessToken;
@@ -72,6 +73,7 @@ export function registerDropboxTools(server: McpServer): void {
         const { user } = getAuthContext();
         const connections = await oauthService.listConnections({
           organizationId: user.organization_id,
+          userId: user.id,
           platform: "dropbox",
         });
         const active = connections.find((c) => c.status === "active");

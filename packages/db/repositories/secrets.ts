@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
-import { db } from "@/db/client";
+import { dbWrite as db } from "@/db/client";
 import {
   type AppSecretRequirement,
   appSecretRequirements,

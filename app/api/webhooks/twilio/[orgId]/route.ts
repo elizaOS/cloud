@@ -140,7 +140,10 @@ export const POST = withRateLimit(handleTwilioWebhook, RateLimitPresets.AGGRESSI
  * Handle incoming SMS message from Twilio
  */
 async function handleIncomingMessage(orgId: string, event: TwilioWebhookEvent): Promise<void> {
-  const { messageRouterService } = await import("@/lib/services/message-router");
+  const [{ messageRouterService }, { miladyGatewayRouterService }] = await Promise.all([
+    import("@/lib/services/message-router"),
+    import("@/lib/services/milady-gateway-router"),
+  ]);
 
   const from = event.From;
   const to = event.To;
@@ -182,43 +185,36 @@ async function handleIncomingMessage(orgId: string, event: TwilioWebhookEvent): 
     },
   };
 
-  // Route to agent
-  const routeResult = await messageRouterService.routeIncomingMessage(messageContext);
+  const routed = await miladyGatewayRouterService.routePhoneMessage({
+    organizationId: orgId,
+    provider: "twilio",
+    from,
+    to,
+    body: body || "",
+    providerMessageId: event.MessageSid,
+    mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
+    metadata: messageContext.metadata,
+  });
 
-  if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
-    logger.warn("[TwilioWebhook] Failed to route message", {
+  if (!routed.handled) {
+    logger.warn("[TwilioWebhook] Failed to route message to owned Milady", {
       orgId,
       from,
       to,
-      error: routeResult.error,
+      reason: routed.reason,
+      agentId: routed.agentId,
     });
     return;
   }
 
-  // Process the message with the agent
-  const agentResponse = await messageRouterService.processWithAgent(
-    routeResult.agentId,
-    routeResult.organizationId,
-    {
-      from,
-      to,
-      body: body || "",
-      provider: "twilio",
-      providerMessageId: event.MessageSid,
-      mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
-      messageType: mediaUrls.length > 0 ? "mms" : "sms",
-    },
-  );
-
-  if (agentResponse) {
+  if (routed.replyText?.trim()) {
     // Send the response back via Twilio
     const sent = await messageRouterService.sendMessage({
       to: from, // Reply to sender
       from: to, // From our number
-      body: agentResponse.text,
+      body: routed.replyText.trim(),
       provider: "twilio",
-      mediaUrls: agentResponse.mediaUrls,
-      organizationId: routeResult.organizationId,
+      organizationId: orgId,
     });
 
     const responseTime = Date.now() - startTime;

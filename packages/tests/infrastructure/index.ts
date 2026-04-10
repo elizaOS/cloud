@@ -2,6 +2,8 @@
  * Test Infrastructure Exports
  */
 
+// Test runtime - direct access to production RuntimeFactory
+export { AgentMode } from "../../lib/eliza/agent-mode-types";
 // HTTP/SSE test utilities
 export {
   assertStreamingOrder,
@@ -38,11 +40,9 @@ export {
   type TestOrganization,
   type TestUser,
 } from "./test-data-factory";
-// Test runtime - direct access to production RuntimeFactory
 export {
   // Test internals for race condition testing
   _testing,
-  AgentMode,
   buildUserContext,
   // Test helpers
   createTestRuntime,

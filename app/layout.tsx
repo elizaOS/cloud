@@ -9,6 +9,7 @@ import { Toaster } from "sonner";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import { PostHogProvider } from "@/lib/providers/PostHogProvider";
 import PrivyProvider from "@/lib/providers/PrivyProvider";
+import { getRobotsMetadata } from "@/lib/seo";
 
 // DM Mono for landing page
 const dmMono = DM_Mono({
@@ -64,6 +65,7 @@ const baseUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 const shouldEnableVercelAnalytics = process.env.VERCEL === "1";
+const robots = getRobotsMetadata();
 
 export const metadata: Metadata = {
   title: {
@@ -113,17 +115,7 @@ export const metadata: Metadata = {
     description: "Managed hosting, provisioning, billing, and deployment for AI agents",
     images: ["/cloudlogo.png"],
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
+  robots,
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",

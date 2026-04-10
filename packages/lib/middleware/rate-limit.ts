@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { checkRateLimitRedis } from "./rate-limit-redis";
+import { checkRateLimitRedis, type RateLimitResult } from "./rate-limit-redis";
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -41,6 +41,13 @@ function validateRateLimitConfig() {
   if (hasValidatedConfig) return;
   hasValidatedConfig = true;
 
+  // Note: RATE_LIMIT_DISABLED=true skips this startup validation warning only;
+  // actual rate limiting is still enforced. Use RATE_LIMIT_MULTIPLIER=1000 to
+  // effectively bypass limits in development (replaces the old dev-mode behavior).
+  if (process.env.RATE_LIMIT_DISABLED === "true" && process.env.NODE_ENV !== "production") {
+    return;
+  }
+
   if (process.env.NODE_ENV === "production") {
     if (process.env.REDIS_RATE_LIMITING !== "true") {
       // ⚠️  IMPORTANT: On a single-server VPS, in-memory rate limiting is safe
@@ -59,7 +66,9 @@ function validateRateLimitConfig() {
       logger.info("[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)");
     }
   } else {
-    logger.info("[Rate Limit] 🔓 Development mode: Rate limits relaxed (10000 req/window)");
+    logger.info(
+      "[Rate Limit] Development mode: same numeric limits as production; storage is in-memory (set REDIS_RATE_LIMITING=true to use Redis).",
+    );
   }
 }
 
@@ -226,6 +235,90 @@ export async function checkRateLimitAsync(
 }
 
 /**
+ * 100 requests / 60s per org — shared numeric policy for MCP integration routes, core MCP, and A2A org limits.
+ * Keys are still namespaced per surface (`mcp:ratelimit:…`, `a2a:…`) so limits do not collide.
+ */
+export const ORGANIZATION_SERVICE_BURST_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 100,
+} as const;
+
+export function rateLimitExceededPayload(
+  result: RateLimitResult,
+  maxRequests: number,
+  windowMs: number,
+  policy: "redis" | "in-memory",
+): {
+  body: {
+    success: false;
+    error: string;
+    code: "rate_limit_exceeded";
+    message: string;
+    retryAfter?: number;
+  };
+  headers: Record<string, string>;
+} {
+  const body = {
+    success: false as const,
+    error: "Too many requests",
+    code: "rate_limit_exceeded" as const,
+    message: `Rate limit exceeded. Maximum ${maxRequests} requests per ${Math.ceil(windowMs / 1000)} seconds.`,
+    retryAfter: result.retryAfter,
+  };
+  const headers: Record<string, string> = {
+    "X-RateLimit-Limit": maxRequests.toString(),
+    "X-RateLimit-Remaining": result.remaining.toString(),
+    "X-RateLimit-Reset": new Date(result.resetAt).toISOString(),
+    "X-RateLimit-Policy": policy,
+    "Retry-After": result.retryAfter?.toString() || "60",
+  };
+  return { body, headers };
+}
+
+export function rateLimitExceededNextResponse(
+  result: RateLimitResult,
+  maxRequests: number,
+  windowMs: number,
+  policy: "redis" | "in-memory",
+): NextResponse {
+  const { body, headers } = rateLimitExceededPayload(result, maxRequests, windowMs, policy);
+  return NextResponse.json(body, { status: 429, headers });
+}
+
+/** Native `Response` for handlers that avoid `NextResponse` (e.g. MCP / undici polyfill pitfalls). */
+export function rateLimitExceededResponse(
+  result: RateLimitResult,
+  maxRequests: number,
+  windowMs: number,
+  policy: "redis" | "in-memory",
+): Response {
+  const { body, headers } = rateLimitExceededPayload(result, maxRequests, windowMs, policy);
+  const h = new Headers(headers);
+  h.set("Content-Type", "application/json");
+  return new Response(JSON.stringify(body), { status: 429, headers: h });
+}
+
+export function mcpOrgRateLimitRedisKey(organizationId: string, integrationSlug?: string): string {
+  return integrationSlug
+    ? `mcp:ratelimit:${integrationSlug}:${organizationId}`
+    : `mcp:ratelimit:${organizationId}`;
+}
+
+/**
+ * Redis org burst limit for MCP surfaces. Returns a 429 `Response` when denied, or `null` when allowed.
+ */
+export async function enforceMcpOrganizationRateLimit(
+  organizationId: string,
+  integrationSlug?: string,
+): Promise<Response | null> {
+  const { windowMs, maxRequests } = ORGANIZATION_SERVICE_BURST_LIMIT;
+  const key = mcpOrgRateLimitRedisKey(organizationId, integrationSlug);
+  const result = await checkRateLimitRedis(key, windowMs, maxRequests);
+  if (result.allowed) return null;
+  return rateLimitExceededResponse(result, maxRequests, windowMs, "redis");
+}
+
+/**
  * Rate limit middleware wrapper for API routes
  * Compatible with Next.js 15 where params is a Promise
  * Supports both NextResponse and Response return types
@@ -268,21 +361,8 @@ export function withRateLimit<T = Record<string, string>>(
         `[Rate Limit] Request blocked for key=${maskKeyForLogging(key)}, limit=${config.maxRequests}, window=${config.windowMs}ms`,
       );
 
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Too many requests",
-          message: `Rate limit exceeded. Maximum ${config.maxRequests} requests per ${Math.ceil(config.windowMs / 1000)} seconds.`,
-          retryAfter: result.retryAfter,
-        },
-        {
-          status: 429,
-          headers: {
-            ...headers,
-            "Retry-After": result.retryAfter?.toString() || "60",
-          },
-        },
-      );
+      const policy: "redis" | "in-memory" = useRedis ? "redis" : "in-memory";
+      return rateLimitExceededNextResponse(result, config.maxRequests, config.windowMs, policy);
     }
 
     // Call the actual handler
@@ -291,8 +371,8 @@ export function withRateLimit<T = Record<string, string>>(
     // Add rate limit headers to successful responses
     // Create new response with additional headers to preserve immutability
     const newHeaders = new Headers(response.headers);
-    for (const [key, value] of Object.entries(headers)) {
-      newHeaders.set(key, value);
+    for (const [headerKey, value] of Object.entries(headers)) {
+      newHeaders.set(headerKey, value);
     }
 
     return new Response(response.body, {
@@ -304,52 +384,78 @@ export function withRateLimit<T = Record<string, string>>(
 }
 
 /**
- * Preset rate limit configurations
- * DEVELOPMENT: Very high limits to allow rapid testing and iteration
- * PRODUCTION: Strict limits to protect against abuse
+ * Get rate limit multiplier from environment.
+ * Allows local developers to increase limits without code changes.
+ * Set RATE_LIMIT_MULTIPLIER=100 in .env.local to effectively disable limits during dev.
+ * Default is 1 (production-level limits).
+ *
+ * NOTE: Multiplier is ignored in production (NODE_ENV=production) to prevent
+ * accidental rate limit inflation from leftover staging/dev configuration.
  */
-const isDevelopment = process.env.NODE_ENV !== "production";
+function getRateLimitMultiplier(): number {
+  // In production, always enforce strict rate limits (multiplier = 1)
+  if (process.env.NODE_ENV === "production") {
+    return 1;
+  }
+  const multiplier = process.env.RATE_LIMIT_MULTIPLIER;
+  if (!multiplier) return 1;
+  // Use parseInt to match env-validator which only accepts integer strings (/^\d+$/)
+  const parsed = Number.parseInt(multiplier, 10);
+  return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+}
+
+/**
+ * Preset rate limit configurations (same values in dev and production).
+ * Only the backing store differs: Redis when REDIS_RATE_LIMITING=true, else in-memory.
+ *
+ * NOTE FOR LOCAL DEVELOPMENT: These are production-level limits by default.
+ * Set RATE_LIMIT_MULTIPLIER=100 in .env.local to increase limits for local dev/testing.
+ */
+const rateLimitMultiplier = getRateLimitMultiplier();
 
 export const RateLimitPresets = {
-  // Generous limits for general API usage
+  /** 60 requests per minute - standard API endpoints */
   STANDARD: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 60, // Dev: virtually unlimited, Prod: 60/min
+    windowMs: 60000,
+    maxRequests: 60 * rateLimitMultiplier,
   },
 
-  // Strict limits for expensive operations
+  /** 10 requests per minute - sensitive operations */
   STRICT: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 10, // Dev: virtually unlimited, Prod: 10/min
+    windowMs: 60000,
+    maxRequests: 10 * rateLimitMultiplier,
   },
 
-  // Relaxed limits for high-frequency AI endpoints (chat completions, responses)
+  /** 200 requests per minute - high-throughput endpoints */
   RELAXED: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 200, // Dev: virtually unlimited, Prod: 200/min
+    windowMs: 60000,
+    maxRequests: 200 * rateLimitMultiplier,
   },
 
-  // Very strict for critical operations (deployments, payments)
+  /** 5 requests per 5 minutes - critical/expensive operations */
   CRITICAL: {
-    windowMs: 300000, // 5 minutes
-    maxRequests: isDevelopment ? 10000 : 5, // Dev: virtually unlimited, Prod: 5/5min
+    windowMs: 300000,
+    maxRequests: 5 * rateLimitMultiplier,
   },
 
-  // Burst allowance for real-time features
+  /** 10 requests per second - burst protection */
   BURST: {
-    windowMs: 1000, // 1 second
-    maxRequests: isDevelopment ? 1000 : 10, // Dev: 1000/sec, Prod: 10/sec
+    windowMs: 1000,
+    maxRequests: 10 * rateLimitMultiplier,
   },
 
-  // Aggressive limits for webhook endpoints (external services calling us)
-  // Webhooks are server-to-server and should be rate limited per IP
-  // 100/min is reasonable for payment provider callbacks
+  /** 100 requests per minute, keyed by IP - for public endpoints */
   AGGRESSIVE: {
-    windowMs: 60000, // 1 minute
-    maxRequests: isDevelopment ? 10000 : 100, // Dev: virtually unlimited, Prod: 100/min
+    windowMs: 60000,
+    maxRequests: 100 * rateLimitMultiplier,
     keyGenerator: getIpKey,
   },
 } as const;
+
+// Freeze presets to prevent accidental mutation of security-critical thresholds
+// Note: `as const` makes the type readonly; Object.freeze adds runtime immutability for computed values
+Object.freeze(RateLimitPresets);
+Object.values(RateLimitPresets).forEach(Object.freeze);
 
 /**
  * Cost-based rate limiting for expensive operations

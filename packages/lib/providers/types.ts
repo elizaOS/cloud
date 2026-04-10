@@ -2,12 +2,21 @@
  * Type definitions for AI provider interfaces.
  */
 
+import type { CloudMergedProviderOptions } from "@/lib/providers/cloud-provider-options";
+
 /**
  * OpenAI-compatible chat message.
  */
 export interface OpenAIChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  content:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+        image_url?: { url: string } | string;
+        file?: { filename?: string; file_data?: string; file_id?: string };
+      }>;
   name?: string;
   tool_calls?: Array<{
     id: string;
@@ -16,6 +25,31 @@ export interface OpenAIChatMessage {
   }>;
   tool_call_id?: string;
 }
+
+/**
+ * OpenAI Chat Completions tool definition (nested form).
+ *
+ * The Responses API uses a flat shape `{type, name, parameters}`; the
+ * Chat Completions API uses this nested shape. The `/v1/responses` route
+ * normalizes flat tools to this shape before forwarding downstream.
+ */
+export interface ChatCompletionsTool {
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+/**
+ * OpenAI Chat Completions tool_choice (nested form).
+ */
+export type ChatCompletionsToolChoice =
+  | "auto"
+  | "none"
+  | "required"
+  | { type: "function"; function: { name: string } };
 
 /**
  * OpenAI-compatible chat completion request.
@@ -32,24 +66,14 @@ export interface OpenAIChatRequest {
   stop?: string | string[];
   n?: number;
   user?: string;
-  tools?: Array<{
-    type: "function";
-    function: {
-      name: string;
-      description?: string;
-      parameters?: Record<string, unknown>;
-    };
-  }>;
-  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  tools?: ChatCompletionsTool[];
+  tool_choice?: ChatCompletionsToolChoice;
   response_format?: { type: "json_object" | "text" };
   seed?: number;
   logprobs?: boolean;
   top_logprobs?: number;
-  providerOptions?: {
-    gateway?: {
-      order?: string[];
-    };
-  };
+  /** AI Gateway + provider-specific options (matches AI SDK `SharedV3ProviderOptions`). */
+  providerOptions?: CloudMergedProviderOptions;
 }
 
 export interface ProviderRequestOptions {
@@ -145,6 +169,21 @@ export interface OpenAIModelsResponse {
 export interface AIProvider {
   name: string;
   chatCompletions(request: OpenAIChatRequest, options?: ProviderRequestOptions): Promise<Response>;
+  /**
+   * Native OpenAI Responses API passthrough.
+   *
+   * Forwards the raw request body to the upstream `/responses` endpoint
+   * unchanged. Used for gpt-5.x clients (Codex CLI, AI SDK v5 responses
+   * transport) that require the flat-tools / custom-tool / web_search
+   * shapes which the Chat Completions API does not support.
+   *
+   * This is an OPTIONAL method. Providers that cannot proxy Responses
+   * API should omit it entirely. Callers (e.g. the `/v1/responses`
+   * route) must check for its presence before invoking it and return
+   * an `unsupported_provider` error when absent — the route does this
+   * explicitly rather than relying on a throwing implementation.
+   */
+  responses?(body: unknown, options?: ProviderRequestOptions): Promise<Response>;
   embeddings(request: OpenAIEmbeddingsRequest): Promise<Response>;
   listModels(): Promise<Response>;
   getModel(model: string): Promise<Response>;

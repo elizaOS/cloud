@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { appsService } from "@/lib/services/apps";
@@ -60,17 +61,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       lastBackup,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to get snapshot info";
-    const status =
-      message.includes("Unauthorized") || message.includes("Authentication")
-        ? 401
-        : message.includes("Access denied") || message.includes("don't own")
-          ? 403
-          : message.includes("not found")
-            ? 404
-            : 500;
-
-    logger.error("Failed to get session snapshots", { error: message });
-    return NextResponse.json({ success: false, error: message }, { status });
+    if (getErrorStatusCode(error) >= 500) {
+      logger.error("Failed to get session snapshots", {
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+    return nextJsonFromCaughtError(error);
   }
 }

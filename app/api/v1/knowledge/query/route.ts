@@ -1,4 +1,4 @@
-import type { UUID } from "@elizaos/core";
+import type { KnowledgeItem, UUID } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
@@ -83,7 +83,7 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json({
       query,
       results: limitedResults.map(
-        (item): QueryResult => ({
+        (item: KnowledgeItem): QueryResult => ({
           id: item.id,
           content: item.content.text ?? "",
           similarity: (() => {

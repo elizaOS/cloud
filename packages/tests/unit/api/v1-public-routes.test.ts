@@ -1,8 +1,12 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { NextRequest } from "next/server";
 
 import { flushMicrotasks, jsonRequest, routeParams } from "./route-test-helpers";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockRequireAuth = mock();
 const mockRequireAuthWithOrg = mock();
@@ -212,7 +216,7 @@ describe("User API", () => {
   });
 
   test("GET maps auth failures to 401", async () => {
-    mockRequireAuth.mockRejectedValue(new Error("Unauthorized: Authentication required"));
+    mockRequireAuthOrApiKey.mockRejectedValue(new Error("Unauthorized: Authentication required"));
 
     const response = await getUser(new NextRequest("http://localhost:3000/api/v1/user"));
     expect(response.status).toBe(401);
@@ -253,7 +257,7 @@ describe("User API", () => {
 
 describe("API Keys API", () => {
   test("GET lists keys for the organization", async () => {
-    const response = await getApiKeys();
+    const response = await getApiKeys(new NextRequest("http://localhost:3000/api/v1/api-keys"));
     expect(response.status).toBe(200);
 
     const body = await response.json();

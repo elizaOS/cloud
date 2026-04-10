@@ -32,6 +32,7 @@ const sandboxProviderModuleUrl = new URL("../../lib/services/sandbox-provider.ts
 
 function runSandboxProviderFactory(providerEnv?: string) {
   const env = { ...process.env };
+  env.STEWARD_TENANT_API_KEY ??= "test-steward-key";
 
   if (providerEnv === undefined) {
     delete env.MILADY_SANDBOX_PROVIDER;

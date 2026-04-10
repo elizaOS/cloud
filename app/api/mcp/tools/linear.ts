@@ -16,6 +16,7 @@ async function getLinearToken(): Promise<string> {
   try {
     const result = await oauthService.getValidTokenByPlatform({
       organizationId: user.organization_id,
+      userId: user.id,
       platform: "linear",
     });
     return result.accessToken;
@@ -76,6 +77,7 @@ export function registerLinearTools(server: McpServer): void {
         const { user } = getAuthContext();
         const connections = await oauthService.listConnections({
           organizationId: user.organization_id,
+          userId: user.id,
           platform: "linear",
         });
         const active = connections.find((c) => c.status === "active");

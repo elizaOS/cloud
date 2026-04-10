@@ -18,7 +18,8 @@ import {
   type TestDataSet,
 } from "../infrastructure/test-data-factory";
 
-const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
+const SERVER_URL =
+  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const TIMEOUT = 60000;
 
@@ -28,6 +29,20 @@ function getTestAuthHeaders(apiKey: string) {
   return {
     "Content-Type": "application/json",
     "x-api-key": apiKey,
+  };
+}
+
+let oauthRequestCounter = 0;
+
+function withUniqueOAuthIp(init: RequestInit = {}): RequestInit {
+  oauthRequestCounter += 1;
+  const ip = `203.0.113.${(oauthRequestCounter % 200) + 1}`;
+  const headers = new Headers(init.headers);
+  headers.set("x-forwarded-for", ip);
+  headers.set("x-real-ip", ip);
+  return {
+    ...init,
+    headers,
   };
 }
 
@@ -139,11 +154,14 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
   describe("Google OAuth Flow", () => {
     test("initiate endpoint returns auth URL", async () => {
-      const res = await fetch(`${SERVER_URL}/api/v1/oauth/initiate?provider=google`, {
-        method: "GET",
-        headers: getTestAuthHeaders(testData.apiKey.key),
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const res = await fetch(
+        `${SERVER_URL}/api/v1/oauth/initiate?provider=google`,
+        withUniqueOAuthIp({
+          method: "GET",
+          headers: getTestAuthHeaders(testData.apiKey.key),
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       // May return redirect, validation error, or provider-not-configured response
       expect([200, 302, 400, 500, 503]).toContain(res.status);
@@ -160,10 +178,10 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       // Simulate callback with invalid state
       const res = await fetch(
         `${SERVER_URL}/api/v1/oauth/callback?state=invalid_state&code=test_code`,
-        {
+        withUniqueOAuthIp({
           method: "GET",
           signal: AbortSignal.timeout(TIMEOUT),
-        },
+        }),
       );
 
       // Should reject invalid state
@@ -171,10 +189,13 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
     });
 
     test("callback rejects missing code parameter", async () => {
-      const res = await fetch(`${SERVER_URL}/api/v1/oauth/callback?state=some_state`, {
-        method: "GET",
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const res = await fetch(
+        `${SERVER_URL}/api/v1/oauth/callback?state=some_state`,
+        withUniqueOAuthIp({
+          method: "GET",
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       // Should reject missing code
       expect([400, 401, 403, 500]).toContain(res.status);
@@ -452,11 +473,14 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
   describe("Error Handling", () => {
     test("handles invalid provider gracefully", async () => {
-      const res = await fetch(`${SERVER_URL}/api/v1/oauth/initiate?provider=invalid`, {
-        method: "GET",
-        headers: getTestAuthHeaders(testData.apiKey.key),
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const res = await fetch(
+        `${SERVER_URL}/api/v1/oauth/initiate?provider=invalid`,
+        withUniqueOAuthIp({
+          method: "GET",
+          headers: getTestAuthHeaders(testData.apiKey.key),
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      );
 
       // Should return error, not crash
       expect([400, 404, 500]).toContain(res.status);

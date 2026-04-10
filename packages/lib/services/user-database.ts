@@ -9,29 +9,7 @@ import { appsRepository } from "@/db/repositories/apps";
 import type { App, UserDatabaseStatus } from "@/db/schemas/apps";
 import { logger } from "@/lib/utils/logger";
 import { fieldEncryption } from "./field-encryption";
-import { getNeonClient, NeonClientError } from "./neon-client";
-
-const NEON_PARENT_PROJECT_ID = process.env.NEON_PARENT_PROJECT_ID ?? "";
-const MAX_NEON_RESOURCE_NAME_LENGTH = 63;
-
-function sanitizeNeonResourceName(value: string, fallback: string): string {
-  const normalized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
-
-  return normalized || fallback;
-}
-
-function buildUserDatabaseResourceName(appName: string, appId: string): string {
-  const prefix = sanitizeNeonResourceName(appName, "app");
-  const suffix = appId.substring(0, 8).toLowerCase();
-  const maxPrefixLength = MAX_NEON_RESOURCE_NAME_LENGTH - suffix.length - 1;
-  const trimmedPrefix = prefix.slice(0, Math.max(1, maxPrefixLength)).replace(/-+$/g, "") || "app";
-
-  return `${trimmedPrefix}-${suffix}`;
-}
+import { getNeonClient } from "./neon-client";
 
 /**
  * Result from provisioning a user database.
@@ -83,14 +61,17 @@ export class UserDatabaseService {
   /**
    * Provision a database for an app.
    *
-   * Prefers creating an isolated branch on NEON_PARENT_PROJECT_ID when that
-   * shared parent project is configured. Otherwise falls back to creating a
-   * dedicated Neon project, which preserves compatibility for environments
-   * that have not set up branch-based isolation yet.
+   * Uses the shared cloud DATABASE_URL instead of creating per-app Neon
+   * projects. ElizaOS plugin-sql tables scope data by agent/app UUID so
+   * multiple apps safely coexist. This avoids Neon project/branch limits
+   * (BRANCHES_LIMIT_EXCEEDED).
+   *
+   * Legacy per-app Neon projects with existing neon_project_id still get
+   * their credentials returned correctly.
    *
    * @param appId App ID
    * @param appName App name (used for logging)
-   * @param region Optional AWS region
+   * @param region Optional AWS region (ignored in shared-DB mode)
    * @returns Provision result with connection URI
    */
   async provisionDatabase(
@@ -155,87 +136,38 @@ export class UserDatabaseService {
       };
     }
 
-    let createdProjectId: string | null = null;
-    let createdBranchId: string | null = null;
-
     try {
-      const neonClient = getNeonClient();
-      const resourceName = buildUserDatabaseResourceName(appName, appId);
-      const result = NEON_PARENT_PROJECT_ID
-        ? await neonClient.createBranch(NEON_PARENT_PROJECT_ID, resourceName)
-        : await neonClient.createProject({
-            name: resourceName,
-            region,
-          });
+      // Use shared cloud DATABASE_URL instead of per-app Neon projects.
+      // ElizaOS plugin-sql tables scope data by agent/app UUID, so multiple
+      // apps safely coexist. This avoids BRANCHES_LIMIT_EXCEEDED errors.
+      const sharedDbUrl = process.env.DATABASE_URL;
+      if (!sharedDbUrl) {
+        throw new Error("DATABASE_URL not configured in cloud environment");
+      }
 
-      createdProjectId = result.projectId;
-      createdBranchId = result.branchId;
-
-      const encryptedUri = await fieldEncryption.encrypt(app.organization_id, result.connectionUri);
+      // Encrypt the connection URI before storing
+      const encryptedUri = await fieldEncryption.encrypt(app.organization_id, sharedDbUrl);
 
       await appsRepository.update(appId, {
         user_database_uri: encryptedUri,
-        user_database_project_id: result.projectId,
-        user_database_branch_id: result.branchId,
         user_database_status: "ready",
         user_database_error: null,
       });
 
-      logger.info("Database provisioned successfully", {
-        appId,
-        projectId: result.projectId,
-        branchId: result.branchId,
-      });
+      logger.info("Database provisioned successfully (shared DB)", { appId });
 
       return {
         success: true,
-        connectionUri: result.connectionUri,
-        projectId: result.projectId,
-        branchId: result.branchId,
-        region: result.region || region,
+        connectionUri: sharedDbUrl,
+        region,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      let errorCode: ProvisionResult["errorCode"] = "UNKNOWN";
-
-      if (error instanceof NeonClientError) {
-        if (error.statusCode === 429) {
-          errorCode = "RATE_LIMITED";
-        } else if (error.code === "QUOTA_EXCEEDED") {
-          errorCode = "QUOTA_EXCEEDED";
-        } else {
-          errorCode = "API_ERROR";
-        }
-      }
 
       logger.error("Database provisioning failed", {
         appId,
         error: errorMessage,
-        errorCode,
       });
-
-      if (createdProjectId) {
-        try {
-          const neonClient = getNeonClient();
-          if (createdProjectId === NEON_PARENT_PROJECT_ID && createdBranchId) {
-            await neonClient.deleteBranch(createdProjectId, createdBranchId);
-          } else if (createdProjectId !== NEON_PARENT_PROJECT_ID) {
-            await neonClient.deleteProject(createdProjectId);
-          }
-          logger.info("Cleaned up orphaned Neon resource after failure", {
-            appId,
-            projectId: createdProjectId,
-            branchId: createdBranchId,
-          });
-        } catch (cleanupError) {
-          logger.error("Failed to clean up orphaned Neon resource", {
-            appId,
-            projectId: createdProjectId,
-            branchId: createdBranchId,
-            error: cleanupError instanceof Error ? cleanupError.message : "Unknown",
-          });
-        }
-      }
 
       await appsRepository.update(appId, {
         user_database_status: "error",
@@ -245,7 +177,7 @@ export class UserDatabaseService {
       return {
         success: false,
         error: errorMessage,
-        errorCode,
+        errorCode: "UNKNOWN",
       };
     }
   }
@@ -266,30 +198,16 @@ export class UserDatabaseService {
 
     try {
       const neonClient = getNeonClient();
-      if (app.user_database_project_id === NEON_PARENT_PROJECT_ID) {
-        if (app.user_database_branch_id) {
-          await neonClient.deleteBranch(app.user_database_project_id, app.user_database_branch_id);
-        } else {
-          logger.warn("Skipping Neon cleanup for shared parent project without branch id", {
-            appId,
-            projectId: app.user_database_project_id,
-          });
-          return;
-        }
-      } else {
-        await neonClient.deleteProject(app.user_database_project_id);
-      }
+      await neonClient.deleteProject(app.user_database_project_id);
       logger.info("Database cleaned up successfully", {
         appId,
         projectId: app.user_database_project_id,
-        branchId: app.user_database_branch_id,
       });
     } catch (error) {
       // Log but don't fail - database might already be deleted
       logger.warn("Failed to delete Neon project (may already be deleted)", {
         appId,
         projectId: app.user_database_project_id,
-        branchId: app.user_database_branch_id,
         error: error instanceof Error ? error.message : "Unknown",
       });
     }

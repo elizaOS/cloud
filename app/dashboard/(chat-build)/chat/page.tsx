@@ -25,6 +25,27 @@ interface PageProps {
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
+const CHARACTER_LOOKUP_TIMEOUT_MS = 1500;
+
+function withFallbackTimeout<T>(promise: Promise<T>, fallback: T, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      logger.warn(`[Dashboard Chat] ${label} timed out after ${CHARACTER_LOOKUP_TIMEOUT_MS}ms`);
+      resolve(fallback);
+    }, CHARACTER_LOOKUP_TIMEOUT_MS);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 /**
  * Generates metadata for the chat page, optionally including character-specific metadata.
@@ -47,11 +68,11 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   }
 
   // Fetch character for dynamic metadata
-  const [character] = await db
-    .select()
-    .from(userCharacters)
-    .where(eq(userCharacters.id, characterId))
-    .limit(1);
+  const [character] = await withFallbackTimeout(
+    db.select().from(userCharacters).where(eq(userCharacters.id, characterId)).limit(1),
+    [] as Array<typeof userCharacters.$inferSelect>,
+    "metadata character lookup",
+  );
 
   if (character) {
     const bio = Array.isArray(character.bio) ? character.bio[0] : character.bio;
@@ -159,7 +180,11 @@ export default async function ElizaPage({ searchParams }: PageProps) {
     } else {
       // Fetch character data to check access
       try {
-        const character = await charactersService.getById(initialCharacterId);
+        const character = await withFallbackTimeout(
+          charactersService.getById(initialCharacterId),
+          undefined,
+          "character access lookup",
+        );
 
         if (!character || character.source !== "cloud") {
           // Character doesn't exist or wrong source - clear characterId

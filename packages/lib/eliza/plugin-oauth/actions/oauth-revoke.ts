@@ -110,10 +110,14 @@ export const oauthRevokeAction: ActionWithParams = {
     const userResult = await lookupUser(message.entityId as string, actionName);
     if (isUserLookupError(userResult)) return userResult;
 
-    const { organizationId } = userResult;
+    const { organizationId, user } = userResult;
     const platformName = capitalize(platform);
 
-    const connections = await oauthService.listConnections({ organizationId, platform });
+    const connections = await oauthService.listConnections({
+      organizationId,
+      userId: user.id,
+      platform,
+    });
     const activeConnection = connections.find((c) => c.status === "active");
 
     if (!activeConnection) {

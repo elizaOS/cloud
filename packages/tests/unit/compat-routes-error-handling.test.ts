@@ -7,9 +7,13 @@
  * - POST /agents auto-provision warning field (item 4)
  */
 
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
 import { routeParams } from "./api/route-test-helpers";
+
+afterAll(() => {
+  mock.restore();
+});
 
 // ── Mocks ────────────────────────────────────────────────────────────
 const mockRequireServiceKey = mock();

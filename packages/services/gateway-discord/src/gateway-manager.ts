@@ -1,19 +1,25 @@
 import { Redis } from "@upstash/redis";
 import {
+  type Attachment,
   Client,
   type ClientOptions,
+  type Embed,
   Events,
   GatewayIntentBits,
+  type GuildMember,
+  Interaction,
   Message,
+  MessageReaction,
+  type PartialGuildMember,
+  type PartialMessage,
+  type PartialMessageReaction,
   Partials,
+  type PartialUser,
+  Role,
+  type User,
 } from "discord.js";
 import { logger } from "./logger";
-import {
-  forwardToServer,
-  refreshKedaActivity,
-  resolveAgentServer,
-  resolveIdentity,
-} from "./server-router";
+import { forwardToServer, refreshKedaActivity, resolveAgentServer } from "./server-router";
 import { hasVoiceAttachments, VoiceMessageHandler } from "./voice-message-handler";
 
 // ============================================
@@ -746,6 +752,7 @@ export class GatewayManager {
     applicationId: string;
     botToken: string;
     intents: number;
+    characterId: string | null;
   }): Promise<void> {
     logger.info("Connecting bot", {
       connectionId: assignment.connectionId,
@@ -792,7 +799,7 @@ export class GatewayManager {
           });
         }
       };
-      conn.listeners.set(eventName, wrappedHandler as (...args: unknown[]) => void);
+      conn.listeners.set(eventName, wrappedHandler as unknown as (...args: unknown[]) => void);
       return wrappedHandler;
     };
 
@@ -828,29 +835,32 @@ export class GatewayManager {
 
     client.on(
       Events.MessageUpdate,
-      createHandler(Events.MessageUpdate, async (_oldMessage, newMessage) => {
-        conn.eventsReceived++;
-        if (newMessage.partial) return;
-        await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_UPDATE", {
-          id: newMessage.id,
-          channel_id: newMessage.channelId,
-          guild_id: newMessage.guildId,
-          content: newMessage.content,
-          edited_timestamp: newMessage.editedAt?.toISOString(),
-          author: newMessage.author
-            ? {
-                id: newMessage.author.id,
-                username: newMessage.author.username,
-                bot: newMessage.author.bot,
-              }
-            : undefined,
-        });
-      }),
+      createHandler(
+        Events.MessageUpdate,
+        async (_oldMessage: Message | PartialMessage, newMessage: Message | PartialMessage) => {
+          conn.eventsReceived++;
+          if (newMessage.partial) return;
+          await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_UPDATE", {
+            id: newMessage.id,
+            channel_id: newMessage.channelId,
+            guild_id: newMessage.guildId,
+            content: newMessage.content,
+            edited_timestamp: newMessage.editedAt?.toISOString(),
+            author: newMessage.author
+              ? {
+                  id: newMessage.author.id,
+                  username: newMessage.author.username,
+                  bot: newMessage.author.bot,
+                }
+              : undefined,
+          });
+        },
+      ),
     );
 
     client.on(
       Events.MessageDelete,
-      createHandler(Events.MessageDelete, async (message) => {
+      createHandler(Events.MessageDelete, async (message: Message | PartialMessage) => {
         conn.eventsReceived++;
         await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_DELETE", {
           id: message.id,
@@ -862,21 +872,24 @@ export class GatewayManager {
 
     client.on(
       Events.MessageReactionAdd,
-      createHandler(Events.MessageReactionAdd, async (reaction, user) => {
-        conn.eventsReceived++;
-        await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_REACTION_ADD", {
-          message_id: reaction.message.id,
-          channel_id: reaction.message.channelId,
-          guild_id: reaction.message.guildId,
-          emoji: { name: reaction.emoji.name, id: reaction.emoji.id },
-          user_id: user.id,
-        });
-      }),
+      createHandler(
+        Events.MessageReactionAdd,
+        async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
+          conn.eventsReceived++;
+          await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_REACTION_ADD", {
+            message_id: reaction.message.id,
+            channel_id: reaction.message.channelId,
+            guild_id: reaction.message.guildId,
+            emoji: { name: reaction.emoji.name, id: reaction.emoji.id },
+            user_id: user.id,
+          });
+        },
+      ),
     );
 
     client.on(
       Events.GuildMemberAdd,
-      createHandler(Events.GuildMemberAdd, async (member) => {
+      createHandler(Events.GuildMemberAdd, async (member: GuildMember) => {
         conn.eventsReceived++;
         await this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_ADD", {
           guild_id: member.guild.id,
@@ -888,7 +901,7 @@ export class GatewayManager {
             bot: member.user.bot,
           },
           nick: member.nickname,
-          roles: member.roles.cache.map((r) => r.id),
+          roles: member.roles.cache.map((r: Role) => r.id),
           joined_at: member.joinedAt?.toISOString(),
         });
       }),
@@ -896,7 +909,7 @@ export class GatewayManager {
 
     client.on(
       Events.GuildMemberRemove,
-      createHandler(Events.GuildMemberRemove, async (member) => {
+      createHandler(Events.GuildMemberRemove, async (member: GuildMember | PartialGuildMember) => {
         conn.eventsReceived++;
         await this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_REMOVE", {
           guild_id: member.guild.id,
@@ -911,7 +924,7 @@ export class GatewayManager {
 
     client.on(
       Events.InteractionCreate,
-      createHandler(Events.InteractionCreate, async (interaction) => {
+      createHandler(Events.InteractionCreate, async (interaction: Interaction) => {
         conn.eventsReceived++;
         await this.forwardEvent(assignment.connectionId, conn, "INTERACTION_CREATE", {
           id: interaction.id,
@@ -923,13 +936,12 @@ export class GatewayManager {
             username: interaction.user.username,
             bot: interaction.user.bot,
           },
-          data:
-            "commandName" in interaction
-              ? {
-                  name: interaction.commandName,
-                  options: "options" in interaction ? interaction.options.data : undefined,
-                }
-              : undefined,
+          data: interaction.isChatInputCommand()
+            ? {
+                name: interaction.commandName,
+                options: interaction.options.data,
+              }
+            : undefined,
         });
       }),
     );
@@ -1069,25 +1081,25 @@ export class GatewayManager {
       member: message.member
         ? {
             nick: message.member.nickname,
-            roles: message.member.roles.cache.map((r) => r.id),
+            roles: message.member.roles.cache.map((r: Role) => r.id),
           }
         : undefined,
       content: message.content,
       timestamp: message.createdAt.toISOString(),
-      attachments: message.attachments.map((a) => ({
+      attachments: message.attachments.map((a: Attachment) => ({
         id: a.id,
         filename: a.name,
         url: a.url,
         content_type: a.contentType,
         size: a.size,
       })),
-      embeds: message.embeds.map((e) => ({
+      embeds: message.embeds.map((e: Embed) => ({
         title: e.title,
         description: e.description,
         url: e.url,
         color: e.color,
       })),
-      mentions: message.mentions.users.map((u) => ({
+      mentions: message.mentions.users.map((u: User) => ({
         id: u.id,
         username: u.username,
         bot: u.bot,
@@ -1156,7 +1168,10 @@ export class GatewayManager {
 
     try {
       await refreshKedaActivity(this.redis, route.serverName);
-      await message.channel.sendTyping();
+      const { channel } = message;
+      if ("sendTyping" in channel && typeof channel.sendTyping === "function") {
+        await channel.sendTyping();
+      }
 
       const userId = `discord-user-${message.author.id}`;
       const response = await forwardToServer(
@@ -1602,7 +1617,12 @@ export class GatewayManager {
     });
 
     this.elizaAppClient = new Client({
-      intents: [GatewayIntentBits.DirectMessages, GatewayIntentBits.MessageContent],
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.MessageContent,
+      ],
       // Partials required for DM support - DM channels are not cached by default
       partials: [Partials.Channel, Partials.Message],
     });
@@ -1662,91 +1682,132 @@ export class GatewayManager {
 
   /**
    * Handle a message received by the Eliza App bot.
-   * Filters to DM-only and forwards to the Eliza App webhook.
+   * Handles both DM identity routing and managed guild installs.
    */
   private async handleElizaAppMessage(message: Message): Promise<void> {
     if (message.author.bot) return;
-    if (message.guild) return;
-    if (!message.content.trim()) return;
+    if (message.guild) {
+      await this.handleManagedMiladyGuildMessage(message);
+      return;
+    }
+    const trimmedContent = message.content.trim();
+    if (!trimmedContent) return;
+    await this.routeManagedMiladyMessage(message, trimmedContent);
+  }
 
-    if (!this.redis) {
-      logger.warn("No Redis, cannot route Eliza App message");
+  private async handleManagedMiladyGuildMessage(message: Message): Promise<void> {
+    const botUserId = this.elizaAppClient?.user?.id;
+    if (!botUserId || !message.guildId) {
       return;
     }
 
-    // 1. Identity resolution: discord platformId -> userId + agentId (auto-creates if new)
-    let identity;
+    const trimmedContent = message.content.trim();
+    if (!trimmedContent) {
+      return;
+    }
+
+    const botMentionRegex = new RegExp(`<@!?${botUserId}>`, "g");
+    const botMentioned =
+      message.mentions.users.has(botUserId) || botMentionRegex.test(trimmedContent);
+    if (!botMentioned) {
+      return;
+    }
+
+    const mentionedOtherUser = message.mentions.users.some(
+      (user: { id: string }) => user.id !== botUserId,
+    );
+    const repliedUserId = message.mentions.repliedUser?.id;
+    const repliedToAnotherUser = Boolean(repliedUserId && repliedUserId !== botUserId);
+    if (mentionedOtherUser || message.mentions.everyone || repliedToAnotherUser) {
+      logger.debug("Ignoring managed guild message that targets someone else", {
+        guildId: message.guildId,
+        channelId: message.channelId,
+        messageId: message.id,
+      });
+      return;
+    }
+
+    const sanitizedContent = trimmedContent.replace(botMentionRegex, "").trim();
+    if (!sanitizedContent) {
+      return;
+    }
+
+    await this.routeManagedMiladyMessage(message, sanitizedContent);
+  }
+
+  private async routeManagedMiladyMessage(message: Message, content: string): Promise<void> {
     try {
-      identity = await resolveIdentity(
-        this.redis,
-        this.config.elizaCloudUrl,
-        this.getAuthHeader(),
-        "discord",
-        message.author.id,
-        message.author.username,
-      );
-    } catch (error) {
-      logger.error("Identity resolution failed", {
-        podName: this.config.podName,
-        authorId: message.author.id,
-        error: sanitizeError(error),
-      });
-      return;
-    }
-
-    if (!identity) {
-      logger.error("Identity resolution returned null", {
-        authorId: message.author.id,
-      });
-      return;
-    }
-
-    // 3. Resolve agent -> server pod
-    const route = await resolveAgentServer(this.redis, identity.agentId);
-    if (!route) {
-      logger.warn("No server found for agent", {
-        podName: this.config.podName,
-        agentId: identity.agentId,
-        userId: identity.userId,
-        project: this.config.project,
-      });
-      return;
-    }
-
-    // 4. Forward to pod and reply directly
-    try {
-      await refreshKedaActivity(this.redis, route.serverName);
       if ("sendTyping" in message.channel) {
         await message.channel.sendTyping();
       }
 
-      const userId = `discord-user-${message.author.id}`;
-      const response = await forwardToServer(
-        route.serverUrl,
-        route.serverName,
-        identity.agentId,
-        userId,
-        message.content,
+      const response = await fetchWithTimeout(
+        `${this.config.elizaCloudUrl}/api/internal/discord/eliza-app/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...this.getAuthHeader(),
+          },
+          body: JSON.stringify({
+            ...(message.guildId ? { guildId: message.guildId } : {}),
+            channelId: message.channelId,
+            messageId: message.id,
+            content,
+            sender: {
+              id: message.author.id,
+              username: message.author.username,
+              displayName: message.member?.displayName ?? message.author.globalName ?? undefined,
+              avatar: message.author.displayAvatarURL() || null,
+            },
+          }),
+          timeout: EVENT_FORWARD_TIMEOUT_MS,
+        },
       );
 
-      if (response) {
-        const truncated = response.length > 2000 ? response.slice(0, 2000) : response;
-        await message.reply(truncated);
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        logger.warn("Managed Milady Discord routing request failed", {
+          guildId: message.guildId ?? null,
+          channelId: message.channelId,
+          status: response.status,
+          error: errorText.slice(0, 200),
+        });
+        return;
       }
 
-      logger.info("Eliza App message routed to server", {
-        podName: this.config.podName,
-        serverName: route.serverName,
-        agentId: identity.agentId,
-        userId: identity.userId,
-        project: this.config.project,
+      const routed = (await response.json()) as {
+        handled?: boolean;
+        replyText?: string | null;
+        reason?: string;
+        agentId?: string;
+      };
+
+      if (!routed.handled) {
+        logger.debug("Managed Milady Discord message was not handled", {
+          guildId: message.guildId ?? null,
+          channelId: message.channelId,
+          reason: routed.reason,
+          agentId: routed.agentId,
+        });
+        return;
+      }
+
+      if (!routed.replyText?.trim()) {
+        return;
+      }
+
+      const replyText = routed.replyText.trim();
+      const truncated = replyText.length > 2000 ? replyText.slice(0, 2000) : replyText;
+      await message.reply({
+        content: truncated,
+        allowedMentions: { repliedUser: false },
       });
     } catch (error) {
-      logger.error("Failed to route Eliza App message", {
-        podName: this.config.podName,
-        agentId: identity.agentId,
-        serverName: route.serverName,
-        project: this.config.project,
+      logger.error("Failed to route managed Milady Discord message", {
+        guildId: message.guildId ?? null,
+        channelId: message.channelId,
+        messageId: message.id,
         error: sanitizeError(error),
       });
     }

@@ -7,6 +7,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { Client } from "pg";
+import { apiKeysService } from "@/lib/services/api-keys";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import {
@@ -19,6 +20,20 @@ const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const TWILIO_SECRET_NAMES = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"];
 const BLOOIO_SECRET_NAMES = ["BLOOIO_API_KEY", "BLOOIO_WEBHOOK_SECRET", "BLOOIO_FROM_NUMBER"];
+
+let oauthRequestCounter = 0;
+
+function withUniqueOAuthIp(init: RequestInit = {}): RequestInit {
+  oauthRequestCounter += 1;
+  const ip = `203.0.113.${(oauthRequestCounter % 200) + 1}`;
+  const headers = new Headers(init.headers);
+  headers.set("x-forwarded-for", ip);
+  headers.set("x-real-ip", ip);
+  return {
+    ...init,
+    headers,
+  };
+}
 
 async function deleteSecrets(
   client: Client,
@@ -89,27 +104,33 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
 
     describe("POST /api/v1/oauth/google/initiate", () => {
       it("should initiate OAuth flow", async () => {
-        const response = await fetch(`${BASE_URL}/api/v1/oauth/google/initiate`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${testData.apiKey.key}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({}),
-        });
+        const response = await fetch(
+          `${BASE_URL}/api/v1/oauth/google/initiate`,
+          withUniqueOAuthIp({
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${testData.apiKey.key}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({}),
+          }),
+        );
 
         // Will return 503 if GOOGLE_CLIENT_ID/SECRET are not configured, which is expected
         expect([200, 400, 503]).toContain(response.status);
       });
 
       it("should return 401 without authentication", async () => {
-        const response = await fetch(`${BASE_URL}/api/v1/oauth/google/initiate`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({}),
-        });
+        const response = await fetch(
+          `${BASE_URL}/api/v1/oauth/google/initiate`,
+          withUniqueOAuthIp({
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({}),
+          }),
+        );
 
         expect(response.status).toBe(401);
       });
@@ -361,17 +382,21 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
     });
 
     it("should handle expired API key", async () => {
-      // Create an expired API key
-      const expiredKeyId = await client.query(
-        `INSERT INTO api_keys (id, name, key, key_hash, key_prefix, organization_id, user_id, is_active, expires_at)
-         VALUES ($1, 'Expired Key', 'ek_expired_123', 'hash123', 'ek_expired_', $2, $3, true, NOW() - INTERVAL '1 day')
-         RETURNING key`,
-        ["00000000-0000-0000-0000-000000000001", testData.organization.id, testData.user.id],
+      const { apiKey: expiredKey, plainKey: expiredKeyValue } = await apiKeysService.create({
+        name: `Expired Key ${crypto.randomUUID()}`,
+        organization_id: testData.organization.id,
+        user_id: testData.user.id,
+        is_active: true,
+      });
+
+      await client.query(
+        `UPDATE api_keys SET expires_at = NOW() - INTERVAL '1 day' WHERE id = $1`,
+        [expiredKey.id],
       );
 
       const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
         headers: {
-          Authorization: `Bearer ${expiredKeyId.rows[0].key}`,
+          Authorization: `Bearer ${expiredKeyValue}`,
         },
       });
 
@@ -379,9 +404,7 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
       expect([401, 403]).toContain(response.status);
 
       // Cleanup
-      await client.query(`DELETE FROM api_keys WHERE id = $1`, [
-        "00000000-0000-0000-0000-000000000001",
-      ]);
+      await client.query(`DELETE FROM api_keys WHERE id = $1`, [expiredKey.id]);
     });
 
     it("should handle empty request body for connect endpoints", async () => {
@@ -417,20 +440,26 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
 
   describe("Google OAuth Callback Edge Cases (via generic route)", () => {
     it("should reject callback with missing code parameter", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/google/callback?state=test_state`, {
-        method: "GET",
-        redirect: "manual",
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/google/callback?state=test_state`,
+        withUniqueOAuthIp({
+          method: "GET",
+          redirect: "manual",
+        }),
+      );
 
       // Should redirect with error or return error
       expect([302, 307, 400, 429]).toContain(response.status);
     });
 
     it("should reject callback with missing state parameter", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/google/callback?code=test_code`, {
-        method: "GET",
-        redirect: "manual",
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/google/callback?code=test_code`,
+        withUniqueOAuthIp({
+          method: "GET",
+          redirect: "manual",
+        }),
+      );
 
       // Should redirect with error or return error
       expect([302, 307, 400, 429]).toContain(response.status);
@@ -439,10 +468,10 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
     it("should reject callback with invalid state parameter", async () => {
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/google/callback?code=test_code&state=invalid_state_token`,
-        {
+        withUniqueOAuthIp({
           method: "GET",
           redirect: "manual",
-        },
+        }),
       );
 
       // Should redirect with error
@@ -452,10 +481,10 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
     it("should handle error parameter in callback", async () => {
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/google/callback?error=access_denied&error_description=User%20denied%20access`,
-        {
+        withUniqueOAuthIp({
           method: "GET",
           redirect: "manual",
-        },
+        }),
       );
 
       // Should redirect with error

@@ -9,6 +9,7 @@ import {
   composePromptFromState,
   createUniqueUuid,
   EventType,
+  getRequestContext,
   type HandlerCallback,
   type IAgentRuntime,
   type IMessageService,
@@ -40,9 +41,24 @@ import {
   type StrategyResult,
   TRANSPARENT_META_ACTIONS,
 } from "../types";
+import {
+  attachAvailableContexts,
+  type ContextRoutingDecision,
+  parseContextRoutingMetadata,
+  setContextRoutingMetadata,
+} from "../utils/context-routing";
+import {
+  getAvailableActionNames,
+  type ValidatedMultiStepDecision,
+  validateMultiStepDecision,
+} from "../utils/multi-step-guards";
+import {
+  cleanupLatestResponseId,
+  getLatestResponseId,
+  isLatestResponseId,
+  setLatestResponseId,
+} from "../utils/race-tracking";
 import { getActionResultsFromCache, refreshStateAfterAction } from "../utils/state";
-
-const latestResponseIds = new Map<string, Map<string, string>>();
 
 const RETRY_CONFIG = {
   baseDelayMs: 200,
@@ -51,6 +67,130 @@ const RETRY_CONFIG = {
 } as const;
 
 const EMPTY_STATE: State = { values: {}, data: {}, text: "" } as State;
+
+type ScopedSettingOverride = {
+  key: string;
+  value: string;
+};
+
+function readTrimmedSetting(runtime: IAgentRuntime, key: string): string | undefined {
+  const value = runtime.getSetting(key);
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resolveNanoModel(runtime: IAgentRuntime): string | undefined {
+  return readTrimmedSetting(runtime, "ELIZAOS_CLOUD_NANO_MODEL");
+}
+
+function resolveMediumModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_MEDIUM_MODEL") ||
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_SMALL_MODEL") ||
+    readTrimmedSetting(runtime, "SMALL_MODEL")
+  );
+}
+
+function resolveSmallModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_SMALL_MODEL") ||
+    readTrimmedSetting(runtime, "SMALL_MODEL")
+  );
+}
+
+function resolveLargeModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_LARGE_MODEL") ||
+    readTrimmedSetting(runtime, "LARGE_MODEL")
+  );
+}
+
+function resolveShouldRespondStepModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL") ||
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_SHOULD_RESPOND_MODEL") ||
+    resolveNanoModel(runtime) ||
+    resolveSmallModel(runtime)
+  );
+}
+
+function resolveActionPlannerStepModel(runtime: IAgentRuntime): string | undefined {
+  return (
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_ACTION_PLANNER_MODEL") ||
+    readTrimmedSetting(runtime, "ELIZAOS_CLOUD_PLANNER_MODEL") ||
+    resolveMediumModel(runtime) ||
+    resolveSmallModel(runtime)
+  );
+}
+
+function resolveResponseStepModel(runtime: IAgentRuntime): string | undefined {
+  return readTrimmedSetting(runtime, "ELIZAOS_CLOUD_RESPONSE_MODEL") || resolveLargeModel(runtime);
+}
+
+async function withScopedSettings<T>(
+  overrides: ScopedSettingOverride[],
+  operation: () => Promise<T>,
+): Promise<T> {
+  const requestContext = getRequestContext();
+  if (!requestContext || overrides.length === 0) {
+    return await operation();
+  }
+
+  const previousValues = new Map<
+    string,
+    { hadValue: boolean; value: string | boolean | number | null | undefined }
+  >();
+
+  for (const override of overrides) {
+    previousValues.set(override.key, {
+      hadValue: requestContext.entitySettings.has(override.key),
+      value: requestContext.entitySettings.get(override.key),
+    });
+    requestContext.entitySettings.set(override.key, override.value);
+  }
+
+  try {
+    return await operation();
+  } finally {
+    for (const override of overrides) {
+      const previous = previousValues.get(override.key);
+      if (!previous) {
+        continue;
+      }
+      if (previous.hadValue) {
+        requestContext.entitySettings.set(override.key, previous.value ?? null);
+      } else {
+        requestContext.entitySettings.delete(override.key);
+      }
+    }
+  }
+}
+
+async function withScopedTextModel<T>(
+  size: "small" | "large",
+  model: string | undefined,
+  operation: () => Promise<T>,
+): Promise<T> {
+  if (!model) {
+    return await operation();
+  }
+
+  const overrides =
+    size === "small"
+      ? [
+          { key: "ELIZAOS_CLOUD_SMALL_MODEL", value: model },
+          { key: "SMALL_MODEL", value: model },
+        ]
+      : [
+          { key: "ELIZAOS_CLOUD_LARGE_MODEL", value: model },
+          { key: "LARGE_MODEL", value: model },
+        ];
+
+  return await withScopedSettings(overrides, operation);
+}
 
 const SINGLE_SHOT_TEMPLATE = `<task>Generate a response for the character {{agentName}}.</task>
 
@@ -75,29 +215,6 @@ Respond using XML format:
 function getRetryDelay(attempt: number): number {
   const delay = RETRY_CONFIG.baseDelayMs * RETRY_CONFIG.backoffMultiplier ** (attempt - 1);
   return Math.min(delay, RETRY_CONFIG.maxDelayMs);
-}
-
-/**
- * Clean up race tracking entry, but only if it still belongs to the given responseId.
- * This prevents a completed message A from deleting the tracking entry of a newer message B.
- */
-function cleanupRaceTracking(agentId: string, roomId: string, responseId?: string): void {
-  const agentResponses = latestResponseIds.get(agentId);
-  if (!agentResponses) return;
-
-  // If responseId provided, only delete if it still matches (ownership check)
-  if (responseId) {
-    const currentResponseId = agentResponses.get(roomId);
-    if (currentResponseId !== responseId) {
-      // A newer message has taken over - don't delete their entry
-      return;
-    }
-  }
-
-  agentResponses.delete(roomId);
-  if (agentResponses.size === 0) {
-    latestResponseIds.delete(agentId);
-  }
 }
 
 async function withRetry<T>(
@@ -142,6 +259,49 @@ interface ResponseDecision {
 }
 
 export class CloudBootstrapMessageService implements IMessageService {
+  private async evaluateShouldRespond(
+    runtime: IAgentRuntime,
+    message: Memory,
+  ): Promise<{
+    responseObject: Record<string, unknown> | null;
+    routing: ContextRoutingDecision;
+  }> {
+    let evalState = await runtime.composeState(
+      message,
+      ["RECENT_MESSAGES", "CHARACTER", "ENTITIES"],
+      true,
+    );
+    evalState = attachAvailableContexts(evalState, runtime as never);
+
+    const shouldRespondPrompt = composePromptFromState({
+      state: evalState,
+      template: runtime.character.templates?.shouldRespondTemplate || shouldRespondTemplate,
+    });
+
+    logger.info("========== LLM CALL: shouldRespond ==========");
+    logger.info(`[LLM:shouldRespond] System Prompt:\n${runtime.character.system || "(none)"}`);
+    logger.info(`[LLM:shouldRespond] User Prompt:\n${shouldRespondPrompt}`);
+    logger.info("==============================================");
+
+    const response = await withScopedTextModel(
+      "small",
+      resolveShouldRespondStepModel(runtime),
+      async () =>
+        await runtime.useModel(ModelType.TEXT_SMALL, {
+          prompt: shouldRespondPrompt,
+        }),
+    );
+
+    logger.info(`[LLM:shouldRespond] Response:\n${response}`);
+
+    const responseObject = parseKeyValueXml(String(response)) as Record<string, unknown> | null;
+
+    return {
+      responseObject,
+      routing: parseContextRoutingMetadata(responseObject),
+    };
+  }
+
   async handleMessage(
     runtime: IAgentRuntime,
     message: Memory,
@@ -161,15 +321,11 @@ export class CloudBootstrapMessageService implements IMessageService {
       );
 
       // Set up response tracking
-      if (!latestResponseIds.has(runtime.agentId)) {
-        latestResponseIds.set(runtime.agentId, new Map<string, string>());
-      }
-      const agentResponses = latestResponseIds.get(runtime.agentId)!;
-      const previousResponseId = agentResponses.get(message.roomId);
+      const previousResponseId = await getLatestResponseId(runtime.agentId, message.roomId);
       if (previousResponseId) {
         logger.debug(`[CloudBootstrap] Updating response ID for room ${message.roomId}`);
       }
-      agentResponses.set(message.roomId, responseId);
+      await setLatestResponseId(runtime.agentId, message.roomId, responseId);
 
       // Start run tracking
       runId = runtime.startRun(message.roomId) as UUID;
@@ -220,7 +376,7 @@ export class CloudBootstrapMessageService implements IMessageService {
       clearTimeout(timeoutId);
       return result;
     } catch (error) {
-      cleanupRaceTracking(runtime.agentId, message.roomId, responseId);
+      await cleanupLatestResponseId(runtime.agentId, message.roomId, responseId);
 
       // Emit RUN_ENDED event on error so tracking is complete
       if (runId && startTime) {
@@ -257,8 +413,6 @@ export class CloudBootstrapMessageService implements IMessageService {
     // PERF: Granular timing for message processing phases
     const perfTrace = createPerfTrace("cloud-bootstrap-message");
     perfTrace.mark("init");
-
-    const agentResponses = latestResponseIds.get(runtime.agentId)!;
 
     // Skip messages from self
     if (message.entityId === runtime.agentId) {
@@ -359,34 +513,19 @@ export class CloudBootstrapMessageService implements IMessageService {
     // Determine if we should respond, using LLM evaluation if needed
     let shouldRespondToMessage = true;
 
+    let routedDecision: ContextRoutingDecision | null = null;
+
     if (respondDecision.skipEvaluation) {
       shouldRespondToMessage = respondDecision.shouldRespond;
+      if (respondDecision.shouldRespond) {
+        const evaluated = await this.evaluateShouldRespond(runtime, message);
+        routedDecision = evaluated.routing;
+        setContextRoutingMetadata(message, routedDecision);
+      }
     } else {
-      // Need LLM evaluation
-      const evalState = await runtime.composeState(
-        message,
-        ["RECENT_MESSAGES", "CHARACTER", "ENTITIES"],
-        true,
-      );
-
-      const shouldRespondPrompt = composePromptFromState({
-        state: evalState,
-        template: runtime.character.templates?.shouldRespondTemplate || shouldRespondTemplate,
-      });
-
-      // === LLM CALL LOG: shouldRespond ===
-      logger.info("========== LLM CALL: shouldRespond ==========");
-      logger.info(`[LLM:shouldRespond] System Prompt:\n${runtime.character.system || "(none)"}`);
-      logger.info(`[LLM:shouldRespond] User Prompt:\n${shouldRespondPrompt}`);
-      logger.info("==============================================");
-
-      const response = await runtime.useModel(ModelType.TEXT_SMALL, {
-        prompt: shouldRespondPrompt,
-      });
-
-      logger.info(`[LLM:shouldRespond] Response:\n${response}`);
-
-      const responseObject = parseKeyValueXml(String(response));
+      const { responseObject, routing } = await this.evaluateShouldRespond(runtime, message);
+      routedDecision = routing;
+      setContextRoutingMetadata(message, routedDecision);
       const nonResponseActions = ["IGNORE", "NONE", "STOP"];
       const actionValue = responseObject?.action;
 
@@ -416,6 +555,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     // at the start of its decision loop. runSingleShotCore fetches them before prompt
     // composition. This avoids double-fetching in the multi-step path.
     let state = await runtime.composeState(message, ["ENTITIES", "CHARACTER"], true);
+    state = attachAvailableContexts(state, runtime as never);
 
     // Determine processing mode - default to multi-step for cloud
     const useMultiStep =
@@ -427,7 +567,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     let result: StrategyResult;
     if (useMultiStep) {
       logger.debug("[CloudBootstrap] Using multi-step processing");
-      result = await this.runMultiStepCore(runtime, message, state, callback, options);
+      result = await this.runMultiStepCore(runtime, message, state, responseId, callback, options);
     } else {
       logger.debug("[CloudBootstrap] Using single-shot processing");
       result = await this.runSingleShotCore(runtime, message, state, callback, options);
@@ -438,7 +578,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     state = result.state;
 
     // Race check before sending response
-    if (agentResponses.get(message.roomId) !== responseId) {
+    if (!(await isLatestResponseId(runtime.agentId, message.roomId, responseId))) {
       logger.info(`[CloudBootstrap] Response discarded - newer message being processed`);
       await this.emitRunEnded(runtime, runId, message, startTime, "race-discarded");
       return {
@@ -475,7 +615,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     }
 
     // Clean up response ID tracking (only if we still own it)
-    cleanupRaceTracking(runtime.agentId, message.roomId, responseId);
+    await cleanupLatestResponseId(runtime.agentId, message.roomId, responseId);
 
     // Run evaluators
     await runtime.evaluate(
@@ -529,6 +669,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     runtime: IAgentRuntime,
     message: Memory,
     state: State,
+    responseId: string,
     callback?: HandlerCallback,
     options?: CloudMessageOptions,
   ): Promise<StrategyResult> {
@@ -553,7 +694,13 @@ export class CloudBootstrapMessageService implements IMessageService {
     const maxIterations =
       options?.maxMultiStepIterations ??
       parseInt(String(runtime.getSetting("MAX_MULTISTEP_ITERATIONS") ?? "6"));
+    const maxConsecutiveFailures = parseInt(
+      String(runtime.getSetting("MULTISTEP_MAX_CONSECUTIVE_FAILURES") ?? "2"),
+    );
     let iterationCount = 0;
+    let consecutiveFailures = 0;
+    let incompleteReason: string | null = null;
+    let wasCancelled = false;
 
     try {
       // ASSUMPTION: MCP service init already completed during runtime creation
@@ -621,6 +768,12 @@ export class CloudBootstrapMessageService implements IMessageService {
       };
 
       while (iterationCount < maxIterations) {
+        if (!(await isLatestResponseId(runtime.agentId, message.roomId, responseId))) {
+          logger.info("[MultiStep] Newer message detected, cancelling stale execution");
+          wasCancelled = true;
+          break;
+        }
+
         iterationCount++;
         logger.debug(`[MultiStep] Starting iteration ${iterationCount}/${maxIterations}`);
 
@@ -689,7 +842,7 @@ export class CloudBootstrapMessageService implements IMessageService {
           String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "2"),
         );
         let stepResultRaw = "";
-        let parsedStep: ParsedMultiStepDecision | null = null;
+        let parsedStep: ValidatedMultiStepDecision | null = null;
 
         for (let parseAttempt = 1; parseAttempt <= maxParseRetries; parseAttempt++) {
           try {
@@ -697,14 +850,36 @@ export class CloudBootstrapMessageService implements IMessageService {
               `[MultiStep] Decision model call attempt ${parseAttempt}/${maxParseRetries}`,
             );
 
-            stepResultRaw = await runtime.useModel(ModelType.TEXT_LARGE, {
-              prompt,
-            });
+            stepResultRaw = await withScopedTextModel(
+              "small",
+              resolveActionPlannerStepModel(runtime),
+              async () =>
+                await runtime.useModel(ModelType.TEXT_SMALL, {
+                  prompt,
+                }),
+            );
 
             logger.info(
               `[LLM:multiStepDecision] Response (attempt ${parseAttempt}):\n${stepResultRaw}`,
             );
-            parsedStep = parseKeyValueXml(stepResultRaw) as ParsedMultiStepDecision | null;
+            const rawParsedStep = parseKeyValueXml(stepResultRaw) as ParsedMultiStepDecision | null;
+            if (rawParsedStep) {
+              const validation = validateMultiStepDecision(
+                rawParsedStep,
+                getAvailableActionNames(accumulatedState.data.actionsData),
+              );
+              if (validation.error) {
+                logger.warn(
+                  `[MultiStep] Invalid planner output on attempt ${parseAttempt}/${maxParseRetries}: ${validation.error}`,
+                );
+                if (parseAttempt < maxParseRetries) {
+                  const delay = getRetryDelay(parseAttempt);
+                  await new Promise((resolve) => setTimeout(resolve, delay));
+                }
+                continue;
+              }
+              parsedStep = validation.decision || null;
+            }
 
             if (parsedStep) {
               logger.debug(`[MultiStep] Successfully parsed on attempt ${parseAttempt}`);
@@ -738,11 +913,13 @@ export class CloudBootstrapMessageService implements IMessageService {
 
         if (!parsedStep) {
           logger.warn(`[MultiStep] Failed to parse step result after ${maxParseRetries} attempts`);
+          incompleteReason = `The planner produced invalid output ${maxParseRetries} time(s) in a row.`;
           traceActionResult.push({
             data: { actionName: "parse_error" },
             success: false,
             error: `Failed to parse step result after ${maxParseRetries} attempts`,
           });
+          consecutiveFailures++;
           break;
         }
 
@@ -751,9 +928,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         // Dedup guard: detect identical consecutive calls
         // Sort keys for deterministic comparison (key order varies across LLM outputs)
         const canonicalParams = (() => {
-          if (!parameters || typeof parameters !== "object")
-            return JSON.stringify(parameters || {});
-          const obj = parameters as Record<string, unknown>;
+          const obj = parameters || {};
           const sorted: Record<string, unknown> = {};
           for (const k of Object.keys(obj).sort()) sorted[k] = obj[k];
           return JSON.stringify(sorted);
@@ -774,7 +949,7 @@ export class CloudBootstrapMessageService implements IMessageService {
 
         if (!action) {
           // Deprecated fallback: isFinish without an action
-          if (isFinish === "true" || isFinish === true) {
+          if (isFinish) {
             logger.info(`[MultiStep] Task complete (isFinish) at iteration ${iterationCount}`);
             await streamThinking("response", "\n--- Completing task ---\n");
 
@@ -786,18 +961,7 @@ export class CloudBootstrapMessageService implements IMessageService {
 
         // Handle FINISH action — extract response param, skip normal action execution
         if (action === "FINISH") {
-          let actionParams: Record<string, unknown> = {};
-          if (parameters) {
-            if (typeof parameters === "string") {
-              try {
-                actionParams = JSON.parse(parameters);
-              } catch {
-                /* ignore */
-              }
-            } else if (typeof parameters === "object") {
-              actionParams = parameters;
-            }
-          }
+          const actionParams = parameters || {};
           finishResponse = (actionParams.response as string) || "";
           logger.info(
             `[MultiStep] FINISH called at iteration ${iterationCount}, response length: ${finishResponse.length}`,
@@ -807,21 +971,18 @@ export class CloudBootstrapMessageService implements IMessageService {
         }
 
         try {
+          if (!(await isLatestResponseId(runtime.agentId, message.roomId, responseId))) {
+            logger.info("[MultiStep] Newer message detected before action execution, cancelling");
+            wasCancelled = true;
+            break;
+          }
+
           if (!accumulatedState.data) accumulatedState.data = {};
           if (!accumulatedState.data.workingMemory) accumulatedState.data.workingMemory = {};
 
-          let actionParams: Record<string, unknown> = {};
-          if (parameters) {
-            if (typeof parameters === "string") {
-              try {
-                actionParams = JSON.parse(parameters);
-                logger.debug(`[MultiStep] Parsed parameters: ${JSON.stringify(actionParams)}`);
-              } catch {
-                logger.warn(`[MultiStep] Failed to parse parameters JSON: ${parameters}`);
-              }
-            } else if (typeof parameters === "object") {
-              actionParams = parameters;
-            }
+          const actionParams = parameters || {};
+          if (Object.keys(actionParams).length > 0) {
+            logger.debug(`[MultiStep] Parsed parameters: ${JSON.stringify(actionParams)}`);
           }
 
           const hasActionParams = Object.keys(actionParams).length > 0;
@@ -910,6 +1071,7 @@ export class CloudBootstrapMessageService implements IMessageService {
             traceActionResult.push(actionResult);
           }
           totalActionsExecuted++;
+          consecutiveFailures = success ? 0 : consecutiveFailures + 1;
 
           // Track newly discovered actions from SEARCH_ACTIONS for explicit visibility
           if (action === "SEARCH_ACTIONS" && actionResult.success && result) {
@@ -954,10 +1116,19 @@ export class CloudBootstrapMessageService implements IMessageService {
           });
 
           await streamThinking("actions", `\nAction ${action} error: ${errorMessage}\n`);
+          consecutiveFailures++;
+        }
+
+        if (consecutiveFailures >= maxConsecutiveFailures) {
+          incompleteReason = `The last ${consecutiveFailures} action attempt(s) failed, so execution was stopped early.`;
+          logger.warn(
+            `[MultiStep] Failure budget exhausted after ${consecutiveFailures} consecutive failures`,
+          );
+          break;
         }
 
         // Deprecated fallback: isFinish flag without FINISH action
-        if (isFinish === "true" || isFinish === true) {
+        if (isFinish) {
           logger.info(
             `[MultiStep] Task complete (isFinish fallback) at iteration ${iterationCount}`,
           );
@@ -967,6 +1138,18 @@ export class CloudBootstrapMessageService implements IMessageService {
 
       if (iterationCount >= maxIterations) {
         logger.warn(`[MultiStep] Reached maximum iterations (${maxIterations})`);
+        if (!finishResponse && !incompleteReason) {
+          incompleteReason = `The task hit the ${maxIterations}-step limit before it finished.`;
+        }
+      }
+
+      if (wasCancelled) {
+        return {
+          responseContent: null,
+          responseMessages: [],
+          state: accumulatedState,
+          mode: "none",
+        };
       }
 
       // If FINISH was called, use its response directly — skip summary LLM call
@@ -1045,6 +1228,8 @@ export class CloudBootstrapMessageService implements IMessageService {
       accumulatedState.totalActionsExecuted = totalActionsExecuted;
       accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
       accumulatedState.values.hasActionResults = traceActionResult.length > 0;
+      accumulatedState.values.executionAborted = Boolean(incompleteReason);
+      accumulatedState.values.incompleteReason = incompleteReason || "";
       accumulatedState.values.discoveredActions =
         discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "";
       accumulatedState.values.currentDateTime = new Date().toISOString();
@@ -1069,9 +1254,14 @@ export class CloudBootstrapMessageService implements IMessageService {
       for (let summaryAttempt = 1; summaryAttempt <= maxSummaryRetries; summaryAttempt++) {
         try {
           logger.debug(`[MultiStep] Summary generation attempt ${summaryAttempt}`);
-          finalOutput = await runtime.useModel(ModelType.TEXT_LARGE, {
-            prompt: summaryPrompt,
-          });
+          finalOutput = await withScopedTextModel(
+            "large",
+            resolveResponseStepModel(runtime),
+            async () =>
+              await runtime.useModel(ModelType.TEXT_LARGE, {
+                prompt: summaryPrompt,
+              }),
+          );
 
           logger.info(
             `[LLM:multiStepSummary] Response (attempt ${summaryAttempt}):\n${finalOutput}`,
@@ -1193,7 +1383,16 @@ export class CloudBootstrapMessageService implements IMessageService {
       const maxRetries = options?.maxRetries ?? 3;
       const parsedResponse = await withRetry(
         async () => {
-          const response = String(await runtime.useModel(ModelType.TEXT_LARGE, { prompt }));
+          const response = String(
+            await withScopedTextModel(
+              "small",
+              resolveActionPlannerStepModel(runtime),
+              async () =>
+                await runtime.useModel(ModelType.TEXT_SMALL, {
+                  prompt,
+                }),
+            ),
+          );
           logger.info(`[LLM:singleShot] Response:\n${response}`);
           return parseKeyValueXml(response);
         },

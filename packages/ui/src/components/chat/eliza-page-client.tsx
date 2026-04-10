@@ -12,13 +12,13 @@
 "use client";
 
 import { useSetPageHeader } from "@elizaos/cloud-ui";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 import { type Character, useChatStore } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import { ElizaChatInterface } from "@/packages/ui/src/components/chat/eliza-chat-interface";
+import { ModelPlayground } from "./model-playground";
 
 interface SharedCharacter {
   id: string;
@@ -59,7 +59,6 @@ export function ElizaPageClient({
   isOwnerOfSelectedCharacter,
   accessError,
 }: ElizaPageClientProps) {
-  const router = useRouter();
   const [anonymousSession, setAnonymousSession] = useState<{
     messageCount: number;
     messagesLimit: number;
@@ -69,8 +68,7 @@ export function ElizaPageClient({
   const errorShownRef = useRef(false);
 
   // Initialize store with characters (must be at top level)
-  const { setRoomId, setAnonymousSessionToken, selectedCharacterId, initializeState } =
-    useChatStore();
+  const { setRoomId, setAnonymousSessionToken, initializeState } = useChatStore();
 
   // Show access error toast when redirected from private character
   useEffect(() => {
@@ -103,24 +101,12 @@ export function ElizaPageClient({
     }
   }, [accessError]);
 
-  // Redirect authenticated users without a selected character to the build page
-  // Chat mode requires an agent - "Create New Agent" mode is only available in build mode
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    // If no character is selected and no initial character ID provided,
-    // redirect to build page - chat requires an existing agent
-    if (!selectedCharacterId && !initialCharacterId && initialCharacters.length === 0) {
-      router.replace("/dashboard/build");
-    }
-  }, [isAuthenticated, selectedCharacterId, initialCharacterId, initialCharacters.length, router]);
-
   // Note: Page header is now handled by ChatHeader component
   // Remove this if you want to completely disable the old header system for chat
   useSetPageHeader({
     title: "Chat",
     description:
-      "Chat with AI agents using the full elizaOS runtime with persistent memory and room-based conversations.",
+      "Chat with AI agents or test raw model behavior with a direct playground and custom system prompts.",
   });
 
   // Memoize transformed characters to prevent unnecessary re-renders
@@ -220,6 +206,12 @@ export function ElizaPageClient({
         </div>
       </div>
     );
+  }
+
+  const shouldShowPlayground = !initialCharacterId && !sharedCharacter;
+
+  if (shouldShowPlayground) {
+    return <ModelPlayground />;
   }
 
   return (

@@ -1,6 +1,10 @@
+import { rmSync } from "node:fs";
+import { delimiter } from "node:path";
 import type { Subprocess } from "bun";
 
-const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const TEST_SERVER_PORT = process.env.TEST_SERVER_PORT || "3000";
+const SERVER_URL = process.env.TEST_BASE_URL || `http://localhost:${TEST_SERVER_PORT}`;
+const TEST_SERVER_DIST_DIR = process.env.TEST_SERVER_DIST_DIR || `.next-test-${TEST_SERVER_PORT}`;
 const HEALTH_ENDPOINT = `${SERVER_URL}/api/health`;
 // Cold Next.js webpack boots can take noticeably longer after large test suites
 // or when the first request has to compile the health route.
@@ -9,12 +13,57 @@ const HEALTHCHECK_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 500;
 const MANAGED_FETCH_RETRIES = 4;
 const TEST_SERVER_SCRIPT = process.env.TEST_SERVER_SCRIPT || "dev";
-const baseFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+const baseFetch: typeof fetch = globalThis.fetch;
+const forwardBasePreconnect: NonNullable<typeof baseFetch.preconnect> = (...args) => {
+  if (typeof baseFetch.preconnect === "function") {
+    baseFetch.preconnect(...args);
+  }
+};
 
 let serverProcess: Subprocess | null = null;
 let startedServer = false;
 let serverStartupPromise: Promise<void> | null = null;
 let serverExitError: Error | null = null;
+let detectedPeerServerStartup = false;
+
+function cleanupTestServerDistDir(): void {
+  try {
+    rmSync(TEST_SERVER_DIST_DIR, { force: true, recursive: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[E2E Server] Failed to clean ${TEST_SERVER_DIST_DIR}: ${message}`);
+  }
+}
+
+function getBunExecutable(): string {
+  const execPath = process.execPath?.trim();
+  if (execPath && execPath.length > 0) {
+    return execPath;
+  }
+
+  throw new Error("Bun executable path is unavailable in the current test runtime");
+}
+
+function extendPathWithExecutableDirectory(
+  envPath: string | undefined,
+  executablePath: string,
+): string {
+  const executableDir = executablePath.slice(0, Math.max(executablePath.lastIndexOf("/"), 0));
+  if (executableDir.length === 0) {
+    return envPath ?? "";
+  }
+
+  if (!envPath || envPath.length === 0) {
+    return executableDir;
+  }
+
+  const segments = envPath.split(delimiter);
+  if (segments.includes(executableDir)) {
+    return envPath;
+  }
+
+  return `${executableDir}${delimiter}${envPath}`;
+}
 
 async function isServerRunning(): Promise<boolean> {
   const controller = new AbortController();
@@ -68,6 +117,12 @@ function pipeServerLogs(
             text.includes("Local:") ||
             text.includes("Error"))
         ) {
+          if (
+            label === "stderr" &&
+            (text.includes("Unable to acquire lock") || text.includes("EADDRINUSE"))
+          ) {
+            detectedPeerServerStartup = true;
+          }
           console.log(`[E2E Server:${label}] ${text}`);
         }
       }
@@ -81,7 +136,7 @@ function pipeServerLogs(
 }
 
 function watchServerExit(process: Subprocess): void {
-  void process.exited.then((code) => {
+  void process.exited.then(async (code) => {
     if (serverProcess !== process) {
       return;
     }
@@ -92,6 +147,11 @@ function watchServerExit(process: Subprocess): void {
     }
 
     if (code !== 0 && code !== 15) {
+      await Bun.sleep(250);
+      if (detectedPeerServerStartup || (await isServerRunning())) {
+        console.warn("[E2E Server] Detected another worker-owned dev server; waiting for health");
+        return;
+      }
       serverExitError = new Error(`E2E server exited with code ${code}`);
       console.error(`[E2E Server] ${serverExitError.message}`);
     }
@@ -117,6 +177,7 @@ async function stopServer(): Promise<void> {
   startedServer = false;
   serverStartupPromise = null;
   serverExitError = null;
+  detectedPeerServerStartup = false;
 
   if (proc) {
     // Kill the entire process group so child processes (webpack, etc.) also die
@@ -141,7 +202,8 @@ async function stopServer(): Promise<void> {
 
   // Always wait for the port to be released, even without a process —
   // something else may still hold the port.
-  await waitForPortRelease(3000);
+  await waitForPortRelease(Number(TEST_SERVER_PORT));
+  cleanupTestServerDistDir();
 }
 
 export async function ensureServer(): Promise<void> {
@@ -168,22 +230,33 @@ export async function ensureServer(): Promise<void> {
     }
 
     // Ensure the port is free before spawning.
-    await waitForPortRelease(3000);
+    await waitForPortRelease(Number(TEST_SERVER_PORT));
+    cleanupTestServerDistDir();
 
     startedServer = true;
     serverExitError = null;
-    serverProcess = Bun.spawn(["bun", "run", TEST_SERVER_SCRIPT], {
+    detectedPeerServerStartup = false;
+    const bunExecutable = getBunExecutable();
+    serverProcess = Bun.spawn([bunExecutable, "run", TEST_SERVER_SCRIPT], {
       cwd: process.cwd(),
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
         NODE_ENV: "development",
-        PORT: "3000",
+        NEXT_DIST_DIR: TEST_SERVER_DIST_DIR,
+        PORT: TEST_SERVER_PORT,
+        PATH: extendPathWithExecutableDirectory(process.env.PATH, bunExecutable),
       },
     });
 
-    pipeServerLogs(serverProcess.stdout, "stdout");
-    pipeServerLogs(serverProcess.stderr, "stderr");
+    pipeServerLogs(
+      serverProcess.stdout instanceof ReadableStream ? serverProcess.stdout : null,
+      "stdout",
+    );
+    pipeServerLogs(
+      serverProcess.stderr instanceof ReadableStream ? serverProcess.stderr : null,
+      "stderr",
+    );
     watchServerExit(serverProcess);
 
     try {
@@ -235,34 +308,37 @@ function isRecoverableServerError(error: unknown): boolean {
   );
 }
 
-const fetchWithServer: typeof fetch = async (input, init) => {
-  const requestUrl = getRequestUrl(input);
-  const isManagedRequest = requestUrl.startsWith(SERVER_URL);
+const fetchWithServer: typeof fetch = Object.assign(
+  async (input: RequestInfo | URL, init?: RequestInit) => {
+    const requestUrl = getRequestUrl(input);
+    const isManagedRequest = requestUrl.startsWith(SERVER_URL);
 
-  if (!isManagedRequest) {
-    return await baseFetch(input, init);
-  }
-
-  const nextRequest = createRequestFactory(input, init);
-
-  for (let attempt = 0; attempt < MANAGED_FETCH_RETRIES; attempt += 1) {
-    try {
-      await ensureServer();
-
-      const [requestInput, requestInit] = nextRequest();
-      return await baseFetch(requestInput, requestInit);
-    } catch (error) {
-      const isLastAttempt = attempt === MANAGED_FETCH_RETRIES - 1;
-      if (!isRecoverableServerError(error) || isLastAttempt) {
-        throw error;
-      }
-
-      await Bun.sleep(POLL_INTERVAL_MS * (attempt + 1));
+    if (!isManagedRequest) {
+      return await baseFetch(input, init);
     }
-  }
 
-  throw new Error("Managed fetch exhausted all retry attempts");
-};
+    const nextRequest = createRequestFactory(input, init);
+
+    for (let attempt = 0; attempt < MANAGED_FETCH_RETRIES; attempt += 1) {
+      try {
+        await ensureServer();
+
+        const [requestInput, requestInit] = nextRequest();
+        return await baseFetch(requestInput, requestInit);
+      } catch (error) {
+        const isLastAttempt = attempt === MANAGED_FETCH_RETRIES - 1;
+        if (!isRecoverableServerError(error) || isLastAttempt) {
+          throw error;
+        }
+
+        await Bun.sleep(POLL_INTERVAL_MS * (attempt + 1));
+      }
+    }
+
+    throw new Error("Managed fetch exhausted all retry attempts");
+  },
+  { preconnect: forwardBasePreconnect },
+);
 
 globalThis.fetch = fetchWithServer;
 
@@ -275,6 +351,7 @@ process.on("exit", () => {
       /* already dead */
     }
   }
+  cleanupTestServerDistDir();
 });
 process.on("SIGINT", () => {
   void stopServer().finally(() => process.exit(0));

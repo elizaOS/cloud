@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "packages/services/*",
+    "services/agent-server"
   ],
   "scripts": {
     "postinstall": "find node_modules -path '*/thread-stream/test' -type d -exec rm -rf {} + 2>/dev/null || true; find node_modules -path '*/thread-stream/bench.js' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/LICENSE' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/README.md' -delete 2>/dev/null || true",
@@ -16,7 +18,8 @@
     "dev:full": "bun run setup:check && bun run dev:quick",
     "generate:llms": "tsx packages/scripts/generate-llms-txt.ts",
     "generate:jwt-keys": "bun run packages/scripts/generate-jwt-keys.ts",
-    "build": "bun run generate:llms && NEXT_DIST_DIR=.next-build LOG_LEVEL=error NODE_NO_WARNINGS=1 next build",
+    "clean:test-next-dirs": "node -e \"const fs=require('node:fs'); const path=require('node:path'); for (const name of fs.readdirSync('.')) { if (/^\\\\.next-test-/.test(name)) { fs.rmSync(path.join('.', name), { recursive: true, force: true }); } }\"",
+    "build": "bun run clean:test-next-dirs && bun run generate:llms && NEXT_DIST_DIR=.next-build LOG_LEVEL=error NODE_NO_WARNINGS=1 next build",
     "build:analyze": "NEXT_DIST_DIR=.next-analyze ANALYZE=true next build",
     "start": "next start",
     "lint": "biome check .",
@@ -24,8 +27,12 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "check-types": "bun run packages/scripts/check-types-split.ts",
-    "check-types:full": "tsc --noEmit",
-    "check-types:tests": "tsc --noEmit --project tsconfig.test.json",
+    "check-types:full": "bun ./node_modules/typescript/lib/tsc.js --noEmit",
+    "check-types:tests": "bun ./node_modules/typescript/lib/tsc.js --noEmit --project tsconfig.test.json",
+    "check-types:ui": "bun run --cwd packages/ui typecheck",
+    "check-types:agent-server": "bun run --cwd services/agent-server typecheck",
+    "check-types:gateway-discord": "bun run --cwd packages/services/gateway-discord typecheck",
+    "check-types:gateway-webhook": "bun run --cwd packages/services/gateway-webhook typecheck",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
@@ -46,13 +53,15 @@
     "cache:clear": "tsx packages/scripts/clear-cache.ts",
     "cache:health": "tsx packages/scripts/cache-health-check.ts",
     "eliza-app:cleanup": "bun run packages/scripts/cleanup-eliza-app-user.ts",
+    "steward:backfill-users": "bun run packages/scripts/backfill-steward-users.ts",
     "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
     "admin:promote": "bun run packages/scripts/promote-admin.ts",
     "admin:list": "bun run packages/scripts/promote-admin.ts --list",
     "admin:revoke": "bun run packages/scripts/promote-admin.ts --revoke",
     "test:unit": "SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts packages/tests/unit",
-    "test:repo-unit:bulk": "SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --max-concurrency=1 --preload ./packages/tests/load-env.ts $(find packages/tests/unit -name '*.test.ts' ! -path 'packages/tests/unit/credits.test.ts' ! -path 'packages/tests/unit/eliza-app/telegram-ux-helpers.test.ts' ! -path 'packages/tests/unit/eliza-app/discord-auth.test.ts' ! -path 'packages/tests/unit/mcp-proxy-affiliate-pricing.test.ts' ! -path 'packages/tests/unit/milady-web-ui.test.ts' ! -path 'packages/tests/unit/mcp-twitter-tools.test.ts' ! -path 'packages/tests/unit/affiliates-service.test.ts' ! -path 'packages/tests/unit/proxy-pricing.test.ts' ! -path 'packages/tests/unit/milady-billing-route.test.ts' | sort) packages/lib/services/gateway-discord/__tests__ packages/services/gateway-discord/tests/gateway-manager.test.ts packages/services/gateway-discord/tests/leader-election.test.ts packages/services/gateway-discord/tests/logger.test.ts packages/services/gateway-discord/tests/voice-message-handler.test.ts",
-    "test:repo-unit:special": "SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts packages/tests/unit/credits.test.ts packages/tests/unit/eliza-app/telegram-ux-helpers.test.ts packages/tests/unit/eliza-app/discord-auth.test.ts packages/tests/unit/mcp-proxy-affiliate-pricing.test.ts packages/tests/unit/milady-web-ui.test.ts packages/tests/unit/mcp-twitter-tools.test.ts packages/tests/unit/affiliates-service.test.ts packages/tests/unit/proxy-pricing.test.ts packages/tests/unit/milady-billing-route.test.ts",
+    "test:repo-unit:bulk": "SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --max-concurrency=1 --preload ./packages/tests/load-env.ts $(find packages/tests/unit -name '*.test.ts' ! -path 'packages/tests/unit/auth-pair-route.test.ts' ! -path 'packages/tests/unit/credits.test.ts' ! -path 'packages/tests/unit/discord-automation-oauth.test.ts' ! -path 'packages/tests/unit/docker-infrastructure.test.ts' ! -path 'packages/tests/unit/eliza-app/telegram-ux-helpers.test.ts' ! -path 'packages/tests/unit/eliza-app/discord-auth.test.ts' ! -path 'packages/tests/unit/mcp-proxy-affiliate-pricing.test.ts' ! -path 'packages/tests/unit/milady-web-ui.test.ts' ! -path 'packages/tests/unit/mcp-twitter-tools.test.ts' ! -path 'packages/tests/unit/oauth/secrets-adapter-utils.test.ts' ! -path 'packages/tests/unit/affiliates-service.test.ts' ! -path 'packages/tests/unit/proxy-pricing.test.ts' ! -path 'packages/tests/unit/steward-user-migration.test.ts' ! -path 'packages/tests/unit/z-milady-billing-route.test.ts' | sort) packages/lib/services/gateway-discord/__tests__ packages/services/gateway-discord/tests/gateway-manager.test.ts packages/services/gateway-discord/tests/leader-election.test.ts packages/services/gateway-discord/tests/logger.test.ts packages/services/gateway-discord/tests/voice-message-handler.test.ts",
+    "test:repo-unit:special": "SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts packages/tests/unit/credits.test.ts packages/tests/unit/eliza-app/telegram-ux-helpers.test.ts packages/tests/unit/eliza-app/discord-auth.test.ts packages/tests/unit/mcp-proxy-affiliate-pricing.test.ts packages/tests/unit/milady-web-ui.test.ts packages/tests/unit/mcp-twitter-tools.test.ts packages/tests/unit/affiliates-service.test.ts packages/tests/unit/proxy-pricing.test.ts packages/tests/unit/z-milady-billing-route.test.ts",
+    "test:repo-unit:isolated": "SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts packages/tests/unit/auth-pair-route.test.ts && SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts packages/tests/unit/steward-user-migration.test.ts && SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts packages/tests/unit/discord-automation-oauth.test.ts && SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts packages/tests/unit/docker-infrastructure.test.ts && SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts packages/tests/unit/oauth/secrets-adapter-utils.test.ts",
     "test:integration": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/integration --timeout 120000",
     "test:services": "bun test --max-concurrency=1 --preload ./packages/tests/load-env.ts packages/tests/integration/services --timeout 120000",
     "test:properties": "bun test --max-concurrency=1 --preload ./packages/tests/load-env.ts packages/tests/properties --timeout 300000",
@@ -61,7 +70,7 @@
     "test:oauth": "bun test --preload ./packages/tests/e2e/preload.ts packages/tests/integration/unified-oauth-api.test.ts --timeout 120000",
     "test:oauth:manual": "./packages/tests/manual/oauth-manual-test.sh",
     "test:e2e:api": "bun test --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/api --timeout 120000",
-    "test": "bun run test:repo-unit:bulk && bun run test:repo-unit:special",
+    "test": "bun run test:repo-unit:bulk && bun run test:repo-unit:special && bun run test:repo-unit:isolated",
     "test:playwright": "playwright test",
     "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test packages/tests/playwright/auth-real.spec.ts --grep @auth-real --headed"
   },
@@ -86,7 +95,6 @@
     "@elizaos/plugin-elizacloud": "^1.7.5",
     "@elizaos/plugin-knowledge": "^1.6.1",
     "@elizaos/plugin-mcp": "1.8.2",
-    "@elizaos/plugin-memory": "1.1.2",
     "@elizaos/plugin-n8n-workflow": "1.2.3",
     "@elizaos/plugin-sql": "1.7.1",
     "@elizaos/plugin-web-search": "^1.0.1",
@@ -94,6 +102,7 @@
     "@fal-ai/server-proxy": "^1.1.2",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.52.2",
     "@neondatabase/serverless": "^1.0.2",
     "@octokit/rest": "^22.0.1",
     "@privy-io/react-auth": "^3.11.0",
@@ -286,6 +295,9 @@
     "tar": "7.5.10",
     "undici": "6.23.0",
     "underscore": "1.13.8"
+  },
+  "overrides": {
+    "cpu-features": "empty-npm-package@1.0.0"
   },
   "patchedDependencies": {
     "x402@1.1.0": "patches/x402@1.1.0.patch"

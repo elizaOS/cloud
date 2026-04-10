@@ -1,7 +1,12 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { NextRequest } from "next/server";
+import { mockMiladyPricingMinimumDepositForRouteTests } from "../helpers/mock-milady-pricing-for-route-tests";
 import { routeParams } from "./api/route-test-helpers";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockAssertSafeOutboundUrl = mock();
@@ -43,9 +48,7 @@ mock.module("@/lib/services/milady-billing-gate", () => ({
   checkMiladyCreditGate: mockCheckMiladyCreditGate,
 }));
 
-mock.module("@/lib/constants/milady-pricing", () => ({
-  MILADY_PRICING: { MINIMUM_DEPOSIT: 5 },
-}));
+mockMiladyPricingMinimumDepositForRouteTests(5);
 
 mock.module("@/lib/utils/logger", () => ({
   logger: {

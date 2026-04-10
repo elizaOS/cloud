@@ -40,6 +40,7 @@ const airtableAdapter = createGenericAdapter("airtable");
 const zoomAdapter = createGenericAdapter("zoom");
 const jiraAdapter = createGenericAdapter("jira");
 const linkedinAdapter = createGenericAdapter("linkedin");
+const hubspotAdapter = createGenericAdapter("hubspot");
 
 // Static adapters for known platforms
 const staticAdapters: Record<string, ConnectionAdapter> = {
@@ -48,6 +49,7 @@ const staticAdapters: Record<string, ConnectionAdapter> = {
   twilio: twilioAdapter,
   blooio: blooioAdapter,
   // Generic OAuth2 providers
+  hubspot: hubspotAdapter,
   asana: asanaAdapter,
   dropbox: dropboxAdapter,
   salesforce: salesforceAdapter,

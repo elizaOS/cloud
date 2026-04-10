@@ -54,27 +54,8 @@ export const sidebarSections: SidebarSection[] = [
       },
     ],
   },
-  // {
-  //   title: "Apps",
-  //   items: [
-  //     {
-  //       id: "app-creator",
-  //       label: "App Creator",
-  //       href: "/dashboard/apps/create",
-  //       icon: Sparkles,
-  //       freeAllowed: false,
-  //     },
-  //     {
-  //       id: "my-apps",
-  //       label: "My Apps",
-  //       href: "/dashboard/apps",
-  //       icon: Grid3x3,
-  //       freeAllowed: false,
-  //     },
-  //   ],
-  // },
   {
-    title: "Milady",
+    title: "Infrastructure",
     items: [
       {
         id: "milady",
@@ -83,6 +64,14 @@ export const sidebarSections: SidebarSection[] = [
         icon: Boxes,
         freeAllowed: false,
         hardNavigate: true,
+      },
+      {
+        id: "mcps",
+        label: "MCPs",
+        href: "/dashboard/mcps",
+        icon: Puzzle,
+        freeAllowed: false,
+        featureFlag: "mcp",
       },
     ],
   },
@@ -144,27 +133,6 @@ export const sidebarSections: SidebarSection[] = [
         icon: LayersIcon,
         freeAllowed: false,
         featureFlag: "gallery",
-      },
-    ],
-  },
-  {
-    title: "Infrastructure",
-    items: [
-      {
-        id: "containers",
-        label: "Containers",
-        href: "/dashboard/containers",
-        icon: Server,
-        freeAllowed: false,
-        featureFlag: "containers",
-      },
-      {
-        id: "mcps",
-        label: "MCPs",
-        href: "/dashboard/mcps",
-        icon: Puzzle,
-        freeAllowed: false,
-        featureFlag: "mcp",
       },
     ],
   },

@@ -5,22 +5,27 @@ const originalX402RecipientAddress = process.env.X402_RECIPIENT_ADDRESS;
 const mockUpdateCreditBalance = mock();
 const mockApplyReferralCode = mock();
 const mockCalculateRevenueSplits = mock();
-let referralsServiceForTest: {
+
+type ReferralsServicePatch = {
   applyReferralCode: typeof mockApplyReferralCode;
   calculateRevenueSplits: typeof mockCalculateRevenueSplits;
-} | null = null;
-let originalApplyReferralCode: unknown;
-let originalCalculateRevenueSplits: unknown;
-let organizationsServiceForTest: {
+};
+type OrganizationsServicePatch = {
   updateCreditBalance: typeof mockUpdateCreditBalance;
-} | null = null;
-let originalUpdateCreditBalance: unknown;
+};
+type RedeemableEarningsServicePatch = {
+  addEarnings: typeof mockAddEarnings;
+};
+
+let referralsServiceForTest: ReferralsServicePatch | null = null;
+let originalApplyReferralCode: ReferralsServicePatch["applyReferralCode"] | null = null;
+let originalCalculateRevenueSplits: ReferralsServicePatch["calculateRevenueSplits"] | null = null;
+let organizationsServiceForTest: OrganizationsServicePatch | null = null;
+let originalUpdateCreditBalance: OrganizationsServicePatch["updateCreditBalance"] | null = null;
 
 const mockAddEarnings = mock().mockResolvedValue(true);
-let redeemableEarningsServiceForTest: {
-  addEarnings: typeof mockAddEarnings;
-} | null = null;
-let originalAddEarnings: unknown;
+let redeemableEarningsServiceForTest: RedeemableEarningsServicePatch | null = null;
+let originalAddEarnings: RedeemableEarningsServicePatch["addEarnings"] | null = null;
 
 // Register mock.module BEFORE any dynamic imports so the mock is in place
 // when topup-handler statically imports wallet-signup
@@ -38,7 +43,7 @@ mock.module("@/lib/services/wallet-signup", () => ({
 }));
 
 mock.module("x402-next", () => ({
-  withX402: (handler: any) => handler,
+  withX402: <T extends (req: NextRequest) => Promise<Response>>(handler: T): T => handler,
 }));
 
 describe("x402 Topup Endpoints", () => {
@@ -50,20 +55,25 @@ describe("x402 Topup Endpoints", () => {
     const actualReferralsModule = await import("@/lib/services/referrals");
     const actualOrganizationsModule = await import("@/lib/services/organizations");
     const actualRedeemableEarningsModule = await import("@/lib/services/redeemable-earnings");
-    referralsServiceForTest =
-      actualReferralsModule.referralsService as typeof referralsServiceForTest;
-    originalApplyReferralCode = referralsServiceForTest.applyReferralCode;
-    originalCalculateRevenueSplits = referralsServiceForTest.calculateRevenueSplits;
-    referralsServiceForTest.applyReferralCode = mockApplyReferralCode;
-    referralsServiceForTest.calculateRevenueSplits = mockCalculateRevenueSplits;
-    organizationsServiceForTest =
-      actualOrganizationsModule.organizationsService as typeof organizationsServiceForTest;
-    originalUpdateCreditBalance = organizationsServiceForTest.updateCreditBalance;
-    organizationsServiceForTest.updateCreditBalance = mockUpdateCreditBalance;
-    redeemableEarningsServiceForTest =
-      actualRedeemableEarningsModule.redeemableEarningsService as typeof redeemableEarningsServiceForTest;
-    originalAddEarnings = redeemableEarningsServiceForTest.addEarnings;
-    redeemableEarningsServiceForTest.addEarnings = mockAddEarnings;
+    const referrals: ReferralsServicePatch =
+      actualReferralsModule.referralsService as unknown as ReferralsServicePatch;
+    referralsServiceForTest = referrals;
+    originalApplyReferralCode = referrals.applyReferralCode;
+    originalCalculateRevenueSplits = referrals.calculateRevenueSplits;
+    referrals.applyReferralCode = mockApplyReferralCode;
+    referrals.calculateRevenueSplits = mockCalculateRevenueSplits;
+
+    const orgs: OrganizationsServicePatch =
+      actualOrganizationsModule.organizationsService as unknown as OrganizationsServicePatch;
+    organizationsServiceForTest = orgs;
+    originalUpdateCreditBalance = orgs.updateCreditBalance;
+    orgs.updateCreditBalance = mockUpdateCreditBalance;
+
+    const redeem: RedeemableEarningsServicePatch =
+      actualRedeemableEarningsModule.redeemableEarningsService as unknown as RedeemableEarningsServicePatch;
+    redeemableEarningsServiceForTest = redeem;
+    originalAddEarnings = redeem.addEarnings;
+    redeem.addEarnings = mockAddEarnings;
   });
 
   beforeEach(() => {
@@ -88,18 +98,22 @@ describe("x402 Topup Endpoints", () => {
   });
 
   afterAll(() => {
-    if (referralsServiceForTest) {
-      referralsServiceForTest.applyReferralCode =
-        originalApplyReferralCode as typeof mockApplyReferralCode;
-      referralsServiceForTest.calculateRevenueSplits =
-        originalCalculateRevenueSplits as typeof mockCalculateRevenueSplits;
+    // Restore referrals service methods if they were patched
+    if (referralsServiceForTest !== null) {
+      if (originalApplyReferralCode !== null) {
+        referralsServiceForTest.applyReferralCode = originalApplyReferralCode;
+      }
+      if (originalCalculateRevenueSplits !== null) {
+        referralsServiceForTest.calculateRevenueSplits = originalCalculateRevenueSplits;
+      }
     }
-    if (organizationsServiceForTest) {
-      organizationsServiceForTest.updateCreditBalance =
-        originalUpdateCreditBalance as typeof mockUpdateCreditBalance;
+    // Restore organizations service methods if they were patched
+    if (organizationsServiceForTest !== null && originalUpdateCreditBalance !== null) {
+      organizationsServiceForTest.updateCreditBalance = originalUpdateCreditBalance;
     }
-    if (redeemableEarningsServiceForTest) {
-      redeemableEarningsServiceForTest.addEarnings = originalAddEarnings as typeof mockAddEarnings;
+    // Restore redeemable earnings service methods if they were patched
+    if (redeemableEarningsServiceForTest !== null && originalAddEarnings !== null) {
+      redeemableEarningsServiceForTest.addEarnings = originalAddEarnings;
     }
     if (originalX402RecipientAddress === undefined) {
       delete process.env.X402_RECIPIENT_ADDRESS;
@@ -116,7 +130,7 @@ describe("x402 Topup Endpoints", () => {
       body: JSON.stringify({ walletAddress: mockWallet }),
     });
 
-    const response = await POST10(req as any);
+    const response = await POST10(req);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -133,7 +147,7 @@ describe("x402 Topup Endpoints", () => {
     });
 
     const { POST: POST50 } = await import("@/app/api/v1/topup/50/route");
-    const response = await POST50(req as any);
+    const response = await POST50(req);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -157,7 +171,7 @@ describe("x402 Topup Endpoints", () => {
       },
     );
 
-    const response = await POST10(req as any);
+    const response = await POST10(req);
 
     expect(response.status).toBe(200);
     expect(mockApplyReferralCode).toHaveBeenCalledWith(mockUserId, mockOrgId, "ABCD-1234", {
@@ -181,7 +195,7 @@ describe("x402 Topup Endpoints", () => {
       body: JSON.stringify({}),
     });
 
-    const response = await POST100(req as any);
+    const response = await POST100(req);
     const data = await response.json();
 
     expect(response.status).toBe(400);

@@ -176,7 +176,10 @@ export const POST = withRateLimit(handleBlooioWebhook, RateLimitPresets.AGGRESSI
  * Handle incoming message from Blooio
  */
 async function handleIncomingMessage(orgId: string, event: BlooioWebhookEvent): Promise<void> {
-  const { messageRouterService } = await import("@/lib/services/message-router");
+  const [{ messageRouterService }, { miladyGatewayRouterService }] = await Promise.all([
+    import("@/lib/services/message-router"),
+    import("@/lib/services/milady-gateway-router"),
+  ]);
 
   const chatId = event.external_id || event.sender;
 
@@ -258,44 +261,35 @@ async function handleIncomingMessage(orgId: string, event: BlooioWebhookEvent): 
     },
   };
 
-  // Route to agent
-  // TODO: Agent routing will be added in next feature
-  // Each user will have RLS isolation with a shared Eliza agent
-  const routeResult = await messageRouterService.routeIncomingMessage(messageContext);
+  const routed = await miladyGatewayRouterService.routePhoneMessage({
+    organizationId: orgId,
+    provider: "blooio",
+    from: sender,
+    to: recipient,
+    body: text || "",
+    providerMessageId: event.message_id ?? undefined,
+    mediaUrls: extractedMediaUrls,
+    metadata: messageContext.metadata,
+  });
 
-  if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
-    logger.info("[BlooioWebhook] Message received (agent routing not configured)", {
+  if (!routed.handled) {
+    logger.info("[BlooioWebhook] Message did not resolve to an owned Milady", {
       orgId,
       from: sender,
-      text: text?.substring(0, 50),
+      reason: routed.reason,
+      agentId: routed.agentId,
     });
     return;
   }
 
-  // Process the message with the agent
-  const agentResponse = await messageRouterService.processWithAgent(
-    routeResult.agentId,
-    routeResult.organizationId,
-    {
-      from: sender,
-      to: recipient,
-      body: text || "",
-      provider: "blooio",
-      providerMessageId: event.message_id ?? undefined,
-      mediaUrls: extractedMediaUrls,
-      messageType: "imessage",
-    },
-  );
-
-  if (agentResponse) {
+  if (routed.replyText?.trim()) {
     // Send the response back via Blooio
     const sent = await messageRouterService.sendMessage({
       to: sender,
       from: recipient,
-      body: agentResponse.text,
+      body: routed.replyText.trim(),
       provider: "blooio",
-      mediaUrls: agentResponse.mediaUrls,
-      organizationId: routeResult.organizationId,
+      organizationId: orgId,
     });
 
     if (sent) {

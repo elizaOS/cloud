@@ -22,6 +22,7 @@ import { logger } from "@/lib/utils/logger";
 // ============================================================================
 
 type ServiceType = "agent" | "mcp" | "a2a" | "app";
+type ServiceSource = "cloud" | "local";
 
 interface ServicePricing {
   type: "free" | "credits" | "x402" | "subscription";
@@ -35,7 +36,7 @@ interface DiscoveredService {
   name: string;
   description: string;
   type: ServiceType;
-  source: "local";
+  source: ServiceSource;
   image?: string;
   category?: string;
   tags: string[];
@@ -60,6 +61,51 @@ interface DiscoveryResponse {
     offset: number;
   };
   cached?: boolean;
+}
+
+function resolveDiscoverySource(baseUrl: string): ServiceSource {
+  try {
+    const host = new URL(baseUrl).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host.endsWith(".local")
+      ? "local"
+      : "cloud";
+  } catch {
+    return "local";
+  }
+}
+
+function getDiscoveryKey(service: DiscoveredService): string {
+  return [
+    service.type,
+    service.slug || service.mcpEndpoint || service.a2aEndpoint,
+    service.name.trim().toLowerCase(),
+    service.description.trim().toLowerCase(),
+  ]
+    .filter(Boolean)
+    .join("::");
+}
+
+function getServiceScore(service: DiscoveredService): number {
+  return (
+    Number(service.active) +
+    Number(Boolean(service.verified)) * 2 +
+    Number(Boolean(service.slug)) +
+    Number(Boolean(service.image))
+  );
+}
+
+function dedupeDiscoveredServices(services: DiscoveredService[]): DiscoveredService[] {
+  const unique = new Map<string, DiscoveredService>();
+
+  for (const service of services) {
+    const key = getDiscoveryKey(service);
+    const existing = unique.get(key);
+    if (!existing || getServiceScore(service) > getServiceScore(existing)) {
+      unique.set(key, service);
+    }
+  }
+
+  return [...unique.values()];
 }
 
 // ============================================================================
@@ -184,6 +230,8 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     filtered = filtered.filter((s) => s.tags.some((tag) => params.tags!.includes(tag)));
   }
 
+  filtered = dedupeDiscoveredServices(filtered);
+
   // Sort by name
   filtered.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -219,6 +267,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
  */
 async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const source = resolveDiscoverySource(baseUrl);
 
   // Get all public characters
   let characters = await charactersService.listPublic();
@@ -252,7 +301,7 @@ async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<Di
       name: char.name,
       description: bio,
       type: "agent",
-      source: "local",
+      source,
       image: char.avatar_url ?? undefined,
       category: char.category ?? undefined,
       tags: char.tags ?? [],
@@ -281,6 +330,7 @@ async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<Di
  */
 async function fetchLocalMcps(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const source = resolveDiscoverySource(baseUrl);
 
   const mcps = await userMcpsService.listPublic({
     category: params.categories?.[0],
@@ -295,7 +345,7 @@ async function fetchLocalMcps(params: z.infer<typeof querySchema>): Promise<Disc
       name: mcp.name,
       description: mcp.description,
       type: "mcp",
-      source: "local",
+      source,
       category: mcp.category,
       tags: mcp.tags ?? [],
       active: mcp.status === "live",

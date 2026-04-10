@@ -12,6 +12,7 @@
  * - API Key (Twilio, Blooio - user provides credentials)
  */
 
+import { Errors } from "./errors";
 import type { OAuthProviderType } from "./types";
 
 /**
@@ -115,6 +116,9 @@ export interface OAuthProviderConfig {
 
   /** Default OAuth scopes to request */
   defaultScopes?: string[];
+
+  /** Superset of scopes this app will allow callers to request for the provider. */
+  allowedScopes?: string[];
 
   /**
    * How to extract user info from the userInfo endpoint response.
@@ -760,6 +764,36 @@ export function getConfiguredProviders(): OAuthProviderConfig[] {
 /** Get configured OAuth providers (oauth2 or oauth1a, not api_key). */
 export function getConfiguredOAuthProviders(): OAuthProviderConfig[] {
   return getConfiguredProviders().filter((p) => p.type === "oauth2" || p.type === "oauth1a");
+}
+
+function normalizeScopes(scopes: string[] | undefined): string[] {
+  if (!scopes) {
+    return [];
+  }
+
+  return [...new Set(scopes.map((scope) => scope.trim()).filter(Boolean))];
+}
+
+export function getAllowedScopes(provider: OAuthProviderConfig): string[] {
+  return normalizeScopes(provider.allowedScopes ?? provider.defaultScopes ?? []);
+}
+
+export function resolveRequestedScopes(
+  provider: OAuthProviderConfig,
+  requestedScopes?: string[],
+): string[] {
+  const normalizedRequested = normalizeScopes(requestedScopes);
+  if (normalizedRequested.length === 0) {
+    return normalizeScopes(provider.defaultScopes);
+  }
+
+  const allowedScopes = getAllowedScopes(provider);
+  const invalidScopes = normalizedRequested.filter((scope) => !allowedScopes.includes(scope));
+  if (invalidScopes.length > 0) {
+    throw Errors.invalidScopeRequest(provider.id, invalidScopes);
+  }
+
+  return normalizedRequested;
 }
 
 /** Get all provider IDs. */

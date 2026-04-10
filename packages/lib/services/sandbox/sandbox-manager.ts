@@ -54,13 +54,51 @@ export interface GetSandboxOptions {
   signal?: AbortSignal;
 }
 
+type SandboxSDK = {
+  list?: (opts: {
+    projectId: string;
+    limit: number;
+    since?: Date | number;
+    until?: Date | number;
+    signal?: AbortSignal;
+  }) => Promise<{
+    json?: {
+      sandboxes?: Array<{
+        id: string;
+        status: SandboxSummary["status"];
+        timeout: number;
+        createdAt?: string | number;
+        requestedAt?: number;
+      }>;
+      pagination?: { next?: unknown };
+    };
+    sandboxes?: Array<{
+      id: string;
+      status: SandboxSummary["status"];
+      timeout: number;
+      createdAt?: string | number;
+      requestedAt?: number;
+    }>;
+    pagination?: { next?: unknown };
+  }>;
+  get?: (opts: { sandboxId: string; signal?: AbortSignal }) => Promise<{
+    stop: (opts?: { signal?: AbortSignal }) => Promise<unknown>;
+  } | null>;
+};
+
 /**
  * Dynamically import the Sandbox SDK to avoid bundling issues
  */
-async function getSandboxSDK() {
+async function getSandboxSDK(): Promise<SandboxSDK> {
   try {
     const sandboxModule = await import("@vercel/sandbox");
-    return sandboxModule.Sandbox || sandboxModule.default;
+    const sdk =
+      "Sandbox" in sandboxModule
+        ? sandboxModule.Sandbox
+        : "default" in sandboxModule
+          ? (sandboxModule as { default?: unknown }).default
+          : undefined;
+    return (sdk ?? {}) as SandboxSDK;
   } catch (error) {
     logger.error("Failed to import @vercel/sandbox", {
       error: error instanceof Error ? error.message : "Unknown",
@@ -92,7 +130,7 @@ export async function listSandboxes(options: ListSandboxesOptions): Promise<List
       until,
       signal,
     });
-    const parsedResult = "json" in result ? result.json : result;
+    const parsedResult = ("json" in result ? result.json : result) ?? {};
     const sandboxes = (parsedResult.sandboxes ?? []) as Array<{
       id: string;
       status: SandboxSummary["status"];

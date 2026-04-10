@@ -5,6 +5,7 @@
 import type { Metadata } from "next";
 import { getAppUrl } from "@/lib/utils/app-url";
 import { SEO_CONSTANTS } from "./constants";
+import { getRobotsMetadata } from "./environment";
 import type { DynamicMetadataOptions, OGImageParams, PageMetadataOptions } from "./types";
 
 /**
@@ -78,12 +79,7 @@ export function generatePageMetadata(options: PageMetadataOptions): Metadata {
     },
   };
 
-  if (options.noIndex) {
-    metadata.robots = {
-      index: false,
-      follow: false,
-    };
-  }
+  metadata.robots = getRobotsMetadata({ noIndex: options.noIndex });
 
   return metadata;
 }

@@ -376,6 +376,36 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
     expect(stats.runtime).toBeDefined();
     console.log(`\n📊 Cache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`);
   });
+
+  it("should separate cached runtimes when direct model preferences differ", async () => {
+    const baseContext = buildUserContext(testData, {
+      agentMode: AgentMode.ASSISTANT,
+      webSearchEnabled: false,
+      modelPreferences: {
+        responseHandlerModel: "google/gemini-2.5-flash-lite",
+      },
+    });
+    const tunedContext = buildUserContext(testData, {
+      agentMode: AgentMode.ASSISTANT,
+      webSearchEnabled: false,
+      modelPreferences: {
+        responseHandlerModel: "projects/demo/locations/us-central1/endpoints/demo-handler",
+      },
+    });
+
+    const runtime1 = await runtimeFactory.createRuntimeForUser(baseContext);
+    const runtime2 = await runtimeFactory.createRuntimeForUser(tunedContext);
+
+    expect(runtime1).not.toBe(runtime2);
+    expect(runtime1.character.settings?.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL).toBe(
+      "google/gemini-2.5-flash-lite",
+    );
+    expect(runtime2.character.settings?.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL).toBe(
+      "projects/demo/locations/us-central1/endpoints/demo-handler",
+    );
+
+    await invalidateRuntime(runtime1.agentId as string);
+  }, 60000);
 });
 
 // ============================================================================

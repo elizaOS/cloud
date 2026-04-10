@@ -1,4 +1,4 @@
-import { servicePricingRepository } from "@/db/repositories";
+import { servicePricingRepository } from "@/db/repositories/service-pricing";
 import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
 import { PROXY_CONFIG } from "./config";

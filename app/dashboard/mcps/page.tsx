@@ -18,9 +18,9 @@ export const dynamic = "force-dynamic";
 const demoMcpServers = [
   {
     id: "eliza-cloud-mcp",
-    name: "MILADY CLOUD MCP",
+    name: "Eliza Cloud MCP",
     description:
-      "Core MILADY CLOUD platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities.",
+      "Core Eliza Cloud platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities.",
     endpoint: "/api/mcp",
     version: "1.0.0",
     category: "platform",

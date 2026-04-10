@@ -9,8 +9,8 @@ import { MiladyPricingBanner } from "@/packages/ui/src/components/containers/mil
 import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/milady-sandboxes-table";
 
 export const metadata: Metadata = {
-  title: "Milady Instances",
-  description: "View, launch, and manage your Milady instances backed by Eliza Cloud containers.",
+  title: "Instances",
+  description: "View, launch, and manage your instances backed by Eliza Cloud.",
 };
 
 export const dynamic = "force-dynamic";
@@ -26,11 +26,16 @@ export default async function MiladyDashboardPage() {
     // Table likely missing — show empty list
   }
 
-  // Compute canonical Web UI URLs server-side so the client table can link them
-  const baseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+  // Compute canonical Web UI URLs server-side so the client table can link them.
+  // Omit baseDomain when env is empty/whitespace so resolution falls through to default domain.
+  const rawAgentBaseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+  const miladyPublicWebUiOptions =
+    rawAgentBaseDomain !== undefined && rawAgentBaseDomain.trim() !== ""
+      ? { baseDomain: rawAgentBaseDomain }
+      : {};
   const sandboxesWithUrls = sandboxes.map((sandbox) => ({
     ...sandbox,
-    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, { baseDomain }),
+    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, miladyPublicWebUiOptions),
   }));
 
   // Count agents by status for pricing banner
@@ -50,7 +55,7 @@ export default async function MiladyDashboardPage() {
               Instances
             </p>
           </div>
-          <h1 className="text-xl font-semibold text-white md:text-2xl">Milady Instances</h1>
+          <h1 className="text-xl font-semibold text-white md:text-2xl">Instances</h1>
         </div>
 
         <MiladyPricingBanner

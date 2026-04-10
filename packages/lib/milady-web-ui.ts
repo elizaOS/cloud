@@ -52,16 +52,35 @@ function applyPath(baseUrl: string, path = "/"): string {
 // Server-only: reads process.env. Do not import in client components.
 // For client use, pass canonical_web_ui_url from the server and call
 // getClientSafeMiladyAgentWebUiUrl instead.
+/**
+ * Public HTTPS URL `{sandbox.id}.{domain}`.
+ *
+ * **Omit `baseDomain` or set it to `undefined`:** resolve from `ELIZA_CLOUD_AGENT_BASE_DOMAIN`,
+ * then the built-in default domain (`waifu.fun`). Empty env is treated like unset (same as
+ * {@link getAgentBaseDomain}).
+ *
+ * **Pass any other `baseDomain` (including `null` or `""`):** use only that value after
+ * normalization. If it does not yield a valid hostname, returns **`null`** — no silent fallback to
+ * the default domain (callers use `null` to mean “no public URL for this override”).
+ */
 export function getMiladyAgentPublicWebUiUrl(
   sandbox: Pick<MiladySandbox, "id" | "headscale_ip">,
   options: MiladyWebUiUrlOptions = {},
 ): string | null {
-  const normalizedDomain = normalizeAgentBaseDomain(
-    options.baseDomain ?? process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN ?? DEFAULT_AGENT_BASE_DOMAIN,
-  );
-  if (!normalizedDomain) {
-    return null;
+  const rawOpt = options.baseDomain;
+  const baseDomainOptionSupplied = Object.hasOwn(options, "baseDomain") && rawOpt !== undefined;
+
+  if (baseDomainOptionSupplied) {
+    const explicit = normalizeAgentBaseDomain(rawOpt);
+    if (explicit === null) {
+      return null;
+    }
+    return applyPath(`https://${sandbox.id}.${explicit}`, options.path);
   }
+
+  const normalizedDomain =
+    normalizeAgentBaseDomain(process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN) ??
+    DEFAULT_AGENT_BASE_DOMAIN;
 
   return applyPath(`https://${sandbox.id}.${normalizedDomain}`, options.path);
 }
@@ -99,5 +118,5 @@ export function getClientSafeMiladyAgentWebUiUrl(
     return applyPath(sandbox.canonicalWebUiUrl, options.path);
   }
 
-  return getMiladyAgentDirectWebUiUrl(sandbox, options);
+  return null;
 }

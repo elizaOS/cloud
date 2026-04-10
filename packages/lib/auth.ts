@@ -14,6 +14,11 @@ import { usersService } from "@/lib/services/users";
 import type { ApiKey, UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 import {
+  isPlaywrightTestAuthEnabled,
+  PLAYWRIGHT_TEST_SESSION_COOKIE_NAME,
+  verifyPlaywrightTestSessionToken,
+} from "./auth/playwright-test-session";
+import {
   getUserById,
   getUserFromIdToken,
   invalidatePrivyTokenCache,
@@ -92,6 +97,39 @@ export type AuthResult = {
   session_token?: string;
 };
 
+async function getPlaywrightTestUser(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+): Promise<UserWithOrganization | null> {
+  if (!isPlaywrightTestAuthEnabled()) {
+    return null;
+  }
+
+  const testSession = cookieStore.get(PLAYWRIGHT_TEST_SESSION_COOKIE_NAME)?.value;
+  if (!testSession) {
+    return null;
+  }
+
+  const claims = verifyPlaywrightTestSessionToken(testSession);
+  if (!claims) {
+    return null;
+  }
+
+  const user = await usersService.getWithOrganization(claims.userId);
+  if (!user || !user.is_active || !user.organization?.is_active) {
+    return null;
+  }
+
+  if (user.organization_id !== claims.organizationId) {
+    logger.warn("[AUTH] Playwright test session organization mismatch", {
+      userId: claims.userId,
+      organizationId: claims.organizationId,
+    });
+    return null;
+  }
+
+  return user;
+}
+
 /**
  * Get the current authenticated user from Privy token
  *
@@ -111,8 +149,13 @@ export type AuthResult = {
  */
 export const getCurrentUser = cache(async (): Promise<UserWithOrganization | null> => {
   try {
-    // Get the auth token from cookies
     const cookieStore = await cookies();
+    const playwrightTestUser = await getPlaywrightTestUser(cookieStore);
+    if (playwrightTestUser) {
+      return playwrightTestUser;
+    }
+
+    // Get the auth token from cookies
     const authToken = cookieStore.get("privy-token");
 
     if (!authToken) {
@@ -292,8 +335,13 @@ export async function requireAuth(): Promise<UserWithOrganization> {
 
 /**
  * Require authenticated user WITH organization (excludes anonymous users).
- * Session-only (no API key). Use for signup-code redeem etc. so scripts cannot brute-force via API key.
- * Use this for all paid features that require credits/billing.
+ *
+ * Cookie session only — does not read `request` headers, so keys sent as `X-API-Key` or `Authorization: Bearer` are not accepted.
+ * Use when the operation must stay human-session-shaped: signup-code redeem (anti-scripting), Stripe
+ * checkout, invite accept, mixed routes where one method stays session-only, etc.
+ *
+ * For programmatic access (CLI, CI, integrations), prefer `requireAuthOrApiKeyWithOrg(request)` on that
+ * route instead. See docs/auth-api-consistency.md for why both patterns exist.
  */
 export async function requireAuthWithOrg(): Promise<
   UserWithOrganization & { organization_id: string; organization: Organization }
@@ -321,6 +369,9 @@ export async function requireAuthWithOrg(): Promise<
     organization: Organization;
   };
 }
+
+/** Same as {@link requireAuthWithOrg} — explicit name for “session + org only” handlers. */
+export const requireSessionAuthWithOrg = requireAuthWithOrg;
 
 /**
  * Require user to belong to a specific organization
@@ -393,9 +444,12 @@ function looksLikeJwt(token: string): boolean {
 }
 
 /**
- * Require authentication via session or API key
- * Supports X-API-Key header and Authorization: Bearer header (API key or JWT)
- * Note: This allows anonymous users. Use requireAuthOrApiKeyWithOrg for paid features.
+ * Resolve the current user from wallet headers, API key, Bearer (JWT or key), or Privy cookie — in that
+ * precedence order when wallet headers are fully present (fail-closed; no fallback — why: avoid bypass
+ * by mixing stale wallet headers with a valid key).
+ *
+ * Allows anonymous users when the resolved user has no org requirement. For org-scoped billing or
+ * resources, use `requireAuthOrApiKeyWithOrg`.
  */
 export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthResult> {
   // Try wallet signature authentication first (if headers present)
@@ -411,7 +465,7 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
       // verifyWalletSignature returns UserWithOrganization or throws when headers are present
       const walletUser = await verifyWalletSignature(request);
       if (!walletUser) {
-        throw new Error("Wallet authentication failed");
+        throw new AuthenticationError("Wallet authentication failed");
       }
       return {
         user: walletUser,
@@ -425,7 +479,7 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
         throw e; // Propagate service outage errors
       }
       // Return 401 and do not fall through to other auth methods
-      throw new Error("Invalid wallet signature");
+      throw new AuthenticationError("Invalid wallet signature");
     }
   }
 
@@ -518,8 +572,14 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
 }
 
 /**
- * Require authentication via session or API key WITH organization
- * Use this for paid features that require credits/billing
+ * Same as `requireAuthOrApiKey` but requires an active organization on the resolved user.
+ *
+ * Why: Credits, deployments, voice pipelines, and org admin APIs must not run for org-less accounts;
+ * throws `ForbiddenError` with a signup-oriented message instead of ambiguous 401s.
+ *
+ * Use on routes that should work from the dashboard (cookies) and from servers (API keys). If the
+ * route must reject keys entirely, use `requireAuthWithOrg()` and list the path under session-only
+ * rules in `proxy.ts` where appropriate.
  */
 export async function requireAuthOrApiKeyWithOrg(request: NextRequest): Promise<
   AuthResult & {

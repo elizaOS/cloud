@@ -7,8 +7,8 @@
  * - GET /api/v1/oauth/connections
  * - GET /api/v1/oauth/connections/:id
  * - DELETE /api/v1/oauth/connections/:id
- * - GET /api/v1/oauth/connections/:id/token
- * - GET /api/v1/oauth/token/:platform
+ * - GET /api/v1/oauth/connections/:id/token (removed, should 404)
+ * - GET /api/v1/oauth/token/:platform (removed, should 404)
  *
  * Test Modes:
  * 1. API Tests (default): Tests API structure, auth, error handling
@@ -39,42 +39,9 @@ const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 // Next dev server that may restart or recompile routes between requests.
 const TIMEOUT = 60000;
 
-function isPlaceholderCredential(value: string | undefined): boolean {
-  if (!value) return false;
-
-  return (
-    value.includes("your-redis.upstash.io") ||
-    value.includes("default:token@your-redis.upstash.io") ||
-    value === "token" ||
-    value === "unset"
-  );
-}
-
-function hasUsableCacheConfig(): boolean {
-  if (process.env.CACHE_ENABLED === "false") {
-    return false;
-  }
-
-  const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
-  const restUrl = process.env.KV_REST_API_URL;
-  const restToken = process.env.KV_REST_API_TOKEN;
-
-  if (redisUrl && !isPlaceholderCredential(redisUrl)) {
-    return true;
-  }
-
-  return Boolean(
-    restUrl &&
-      restToken &&
-      !isPlaceholderCredential(restUrl) &&
-      !isPlaceholderCredential(restToken),
-  );
-}
-
-const CACHE_CONFIGURED = hasUsableCacheConfig();
 const encryptionService = createEncryptionService();
 let secretsClient: Client | null = null;
-const it = (name: string, fn: () => unknown | Promise<unknown>) => bunIt(name, fn, TIMEOUT);
+const it = (name: string, fn: () => void | Promise<void>) => bunIt(name, fn, TIMEOUT);
 
 describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   let testData: TestDataSet;
@@ -1066,7 +1033,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should return 404 for non-existent connection", async () => {
+    it("should return 404 for authenticated requests to removed route", async () => {
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/connections/${crypto.randomUUID()}/token`,
         {
@@ -1078,10 +1045,11 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
 
       expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
     });
 
-    it("should return token for Twitter connection (OAuth 1.0a)", async () => {
-      // Insert mock Twitter secrets
+    it("should return 404 even when a secrets-backed connection exists", async () => {
+      const connectionId = `twitter:${testData.organization.id}`;
       await createTestSecret(
         testData.organization.id,
         testData.user.id,
@@ -1095,7 +1063,6 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         "oauth1_access_secret",
       );
 
-      const connectionId = `twitter:${testData.organization.id}`;
       const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
         headers: {
           "X-API-Key": testData.apiKey.key,
@@ -1103,89 +1070,20 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data).toHaveProperty("accessToken");
-      expect(data).toHaveProperty("accessTokenSecret"); // OAuth 1.0a
-      expect(data.accessToken).toBe("oauth1_access_token");
-      expect(data.accessTokenSecret).toBe("oauth1_access_secret");
-      expect(typeof data.fromCache).toBe("boolean");
-      expect(typeof data.refreshed).toBe("boolean");
-
-      // Cleanup
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
       await client.query(
         `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
         [testData.organization.id],
       );
     });
 
-    it("should return token for Twilio connection (API key)", async () => {
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWILIO_ACCOUNT_SID",
-        "AC1234567890",
-      );
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWILIO_AUTH_TOKEN",
-        "twilio_auth_token",
-      );
-
-      const connectionId = `twilio:${testData.organization.id}`;
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data).toHaveProperty("accessToken");
-      expect(data.accessToken).toBe("AC1234567890");
-      expect(data.accessTokenSecret).toBe("twilio_auth_token");
-
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWILIO_%'`,
-        [testData.organization.id],
-      );
-    });
-
-    it("should return token for Blooio connection (API key)", async () => {
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "BLOOIO_API_KEY",
-        "blooio_api_key_value",
-      );
-
-      const connectionId = `blooio:${testData.organization.id}`;
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data).toHaveProperty("accessToken");
-      expect(data.accessToken).toBe("blooio_api_key_value");
-
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'BLOOIO_%'`,
-        [testData.organization.id],
-      );
-    });
-
-    it("should return 401 for revoked Google connection", async () => {
+    it("should return 404 even when a platform credential exists", async () => {
       const credId = crypto.randomUUID();
       await client.query(
-        `INSERT INTO platform_credentials 
+        `INSERT INTO platform_credentials
          (id, organization_id, platform, platform_user_id, status, scopes, created_at, updated_at)
-         VALUES ($1, $2, 'google', 'revoked-user', 'revoked', '[]', NOW(), NOW())`,
+         VALUES ($1, $2, 'google', 'active-user', 'active', '[]', NOW(), NOW())`,
         [credId, testData.organization.id],
       );
 
@@ -1196,133 +1094,22 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.code).toBe("CONNECTION_REVOKED");
-      expect(data.reconnectRequired).toBe(true);
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
 
       await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
-    it("should return 401 for expired Google connection", async () => {
-      const credId = crypto.randomUUID();
-      await client.query(
-        `INSERT INTO platform_credentials 
-         (id, organization_id, platform, platform_user_id, status, scopes, created_at, updated_at)
-         VALUES ($1, $2, 'google', 'expired-user', 'expired', '[]', NOW(), NOW())`,
-        [credId, testData.organization.id],
-      );
-
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
+    it("should return 404 for malformed connection IDs", async () => {
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/not-a-valid-uuid/token`, {
         headers: {
           "X-API-Key": testData.apiKey.key,
         },
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.reconnectRequired).toBe(true);
-
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
-    });
-
-    it("should return 401 for pending Google connection", async () => {
-      const credId = crypto.randomUUID();
-      await client.query(
-        `INSERT INTO platform_credentials 
-         (id, organization_id, platform, platform_user_id, status, scopes, created_at, updated_at)
-         VALUES ($1, $2, 'google', 'pending-user', 'pending', '[]', NOW(), NOW())`,
-        [credId, testData.organization.id],
-      );
-
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.reconnectRequired).toBe(true);
-
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
-    });
-
-    it("should handle missing required secrets for Twitter", async () => {
-      // Insert only access token, missing access token secret
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN",
-        "partial_token",
-      );
-
-      const connectionId = `twitter:${testData.organization.id}`;
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      // Should still work - accessTokenSecret can be optional
-      expect(response.status).toBe(200);
-
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
-        [testData.organization.id],
-      );
-    });
-
-    it("should handle missing required secrets for Twilio", async () => {
-      // Clean up any existing Twilio secrets and invalidate cache by revoking
-      const connectionId = `twilio:${testData.organization.id}`;
-
-      // First delete any existing secrets
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWILIO_%'`,
-        [testData.organization.id],
-      );
-
-      // Now insert only account SID, missing auth token
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWILIO_ACCOUNT_SID",
-        "ACpartial_missing_auth",
-      );
-
-      // Wait a moment for cache to potentially expire
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      // Note: Due to caching, this might return 200 if a previous test
-      // cached a valid token. In production, the cache would have been
-      // invalidated when the secrets were revoked properly through the API.
-      // For this test, we verify the behavior is either:
-      // - 401 PLATFORM_NOT_CONNECTED (no cached token)
-      // - 200 with accessTokenSecret undefined (cached but missing auth token)
-      const data = await response.json();
-      if (response.status === 401) {
-        expect(data.code).toBe("PLATFORM_NOT_CONNECTED");
-      } else {
-        // If cached, should still work but auth token would be from cache
-        expect(response.status).toBe(200);
-        expect(data.accessToken).toBeDefined();
-      }
-
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWILIO_%'`,
-        [testData.organization.id],
-      );
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
     });
   });
 
@@ -1338,7 +1125,19 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should return error for unsupported platform", async () => {
+    it("should return 404 for supported platforms", async () => {
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/token/google`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
+        },
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
+    });
+
+    it("should return 404 for unsupported platforms", async () => {
       const response = await fetch(`${BASE_URL}/api/v1/oauth/token/unsupported`, {
         headers: {
           "X-API-Key": testData.apiKey.key,
@@ -1346,135 +1145,11 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.code).toBe("PLATFORM_NOT_SUPPORTED");
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
     });
 
-    it("should return 401 when no connection exists", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/token/google`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.code).toBe("PLATFORM_NOT_CONNECTED");
-      expect(data.reconnectRequired).toBe(true);
-    });
-
-    it("should return token and connectionId for connected platform", async () => {
-      // Insert mock Twilio secrets
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWILIO_ACCOUNT_SID",
-        "AC1234567890",
-      );
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWILIO_AUTH_TOKEN",
-        "auth_token_secret",
-      );
-
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/token/twilio`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data).toHaveProperty("accessToken");
-      expect(data).toHaveProperty("connectionId");
-      expect(data.connectionId).toBe(`twilio:${testData.organization.id}`);
-
-      // Cleanup
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWILIO_%'`,
-        [testData.organization.id],
-      );
-    });
-
-    it("should return token for Twitter platform", async () => {
-      // Ensure clean state
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
-        [testData.organization.id],
-      );
-
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN",
-        "twitter_platform_token",
-      );
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN_SECRET",
-        "twitter_platform_secret",
-      );
-
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/token/twitter`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      // Token may be from cache if tests run out of order, just verify format
-      expect(typeof data.accessToken).toBe("string");
-      expect(data.accessToken.length).toBeGreaterThan(0);
-      expect(data.connectionId).toBe(`twitter:${testData.organization.id}`);
-
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
-        [testData.organization.id],
-      );
-    });
-
-    it("should return token for Blooio platform", async () => {
-      // Ensure clean state
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'BLOOIO_%'`,
-        [testData.organization.id],
-      );
-
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "BLOOIO_API_KEY",
-        "blooio_platform_key",
-      );
-
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/token/blooio`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      // Token may be from cache if tests run out of order, just verify format
-      expect(typeof data.accessToken).toBe("string");
-      expect(data.accessToken.length).toBeGreaterThan(0);
-      expect(data.connectionId).toBe(`blooio:${testData.organization.id}`);
-
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'BLOOIO_%'`,
-        [testData.organization.id],
-      );
-    });
-
-    it("should handle platform with mixed case", async () => {
+    it("should return 404 for mixed-case platform names", async () => {
       const response = await fetch(`${BASE_URL}/api/v1/oauth/token/GOOGLE`, {
         headers: {
           "X-API-Key": testData.apiKey.key,
@@ -1482,61 +1157,8 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      // Mixed-case platform names currently fall through to token lookup behavior.
-      expect([400, 401]).toContain(response.status);
-      const data = await response.json();
-      expect(typeof (data.error ?? data.code)).toBe("string");
-    });
-
-    it("should return most recently used active connection when multiple exist", async () => {
-      const credId1 = crypto.randomUUID();
-      const credId2 = crypto.randomUUID();
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 3600000);
-
-      await client.query(
-        `INSERT INTO platform_credentials 
-         (id, organization_id, platform, platform_user_id, status, scopes, created_at, updated_at, last_used_at)
-         VALUES ($1, $2, 'google', 'user-old', 'active', '[]', $3, $3, $3)`,
-        [credId1, testData.organization.id, oneHourAgo],
-      );
-      await client.query(
-        `INSERT INTO platform_credentials 
-         (id, organization_id, platform, platform_user_id, status, scopes, created_at, updated_at, last_used_at)
-         VALUES ($1, $2, 'google', 'user-recent', 'active', '[]', $3, $3, $3)`,
-        [credId2, testData.organization.id, now],
-      );
-
-      // This test would fail without real Google credentials
-      // but we can check the platform logic by examining revoked connections
-      await client.query(`DELETE FROM platform_credentials WHERE id IN ($1, $2)`, [
-        credId1,
-        credId2,
-      ]);
-    });
-
-    it("should skip revoked connections when getting token by platform", async () => {
-      const credId = crypto.randomUUID();
-      await client.query(
-        `INSERT INTO platform_credentials 
-         (id, organization_id, platform, platform_user_id, status, scopes, created_at, updated_at)
-         VALUES ($1, $2, 'google', 'revoked-user', 'revoked', '[]', NOW(), NOW())`,
-        [credId, testData.organization.id],
-      );
-
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/token/google`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      // Should return PLATFORM_NOT_CONNECTED since there's no active connection
-      expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.code).toBe("PLATFORM_NOT_CONNECTED");
-
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
     });
   });
 
@@ -1544,30 +1166,17 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   // Error Handling Tests
   // ============================================================================
   describe("Error Handling", () => {
-    it("should return reconnectRequired=true for token errors", async () => {
-      // Insert a revoked Google connection
-      const credId = crypto.randomUUID();
-      await client.query(
-        `INSERT INTO platform_credentials 
-         (id, organization_id, platform, platform_user_id, status, scopes, created_at, updated_at)
-         VALUES ($1, $2, 'google', 'revoked-user', 'revoked', '[]', NOW(), NOW())`,
-        [credId, testData.organization.id],
-      );
-
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
+    it("should return removed-route payload for authenticated token requests", async () => {
+      const connectionId = `twitter:${testData.organization.id}`;
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
         headers: {
           "X-API-Key": testData.apiKey.key,
         },
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.reconnectRequired).toBe(true);
-      expect(data.code).toBe("CONNECTION_REVOKED");
-
-      // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
     });
 
     it("should handle invalid JSON in request body", async () => {
@@ -1598,7 +1207,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       expect(response.status).toBe(400);
     });
 
-    it("should return proper error structure for all error types", async () => {
+    it("should return proper error structure for removed token routes", async () => {
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/connections/${crypto.randomUUID()}/token`,
         {
@@ -1609,15 +1218,12 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         },
       );
 
+      expect(response.status).toBe(404);
       const data = await response.json();
-      expect(data).toHaveProperty("error");
-      expect(data).toHaveProperty("code");
-      expect(data).toHaveProperty("message");
-      expect(data).toHaveProperty("reconnectRequired");
-      expect(typeof data.reconnectRequired).toBe("boolean");
+      expect(data).toEqual({ error: "Not Found" });
     });
 
-    it("should return CONNECTION_NOT_FOUND for all invalid connection formats", async () => {
+    it("should return 404 payload for all invalid connection formats", async () => {
       const invalidIds = ["invalid", "12345", "null", "undefined"];
 
       for (const invalidId of invalidIds) {
@@ -1629,161 +1235,8 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         });
 
         expect(response.status).toBe(404);
-
-        // Try to parse JSON, but handle cases where it might not be JSON
-        const text = await response.text();
-        try {
-          const data = JSON.parse(text);
-          expect(data.code).toBe("CONNECTION_NOT_FOUND");
-        } catch {
-          // Non-JSON response, just verify status was 404
-          expect(response.status).toBe(404);
-        }
+        expect(await response.json()).toEqual({ error: "Not Found" });
       }
-    });
-  });
-
-  // ============================================================================
-  // Token Caching Tests
-  // ============================================================================
-  describe("Token Caching", () => {
-    it("should return fromCache=true on second token request", async () => {
-      // First, clean up any existing secrets and invalidate cache by revoking
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
-        [testData.organization.id],
-      );
-
-      // Insert fresh secrets
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN",
-        "cache_test_token_fresh",
-      );
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN_SECRET",
-        "cache_test_secret_fresh",
-      );
-
-      const connectionId = `twitter:${testData.organization.id}`;
-
-      // First request - should not be from cache (fresh secrets)
-      const response1 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-      expect(response1.status).toBe(200);
-      const _data1 = await response1.json();
-      // Note: Due to test isolation issues with cache, we just verify the second request is cached
-      // The first request may or may not be from cache depending on test order
-
-      // Second request - should be from cache
-      const response2 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-      expect(response2.status).toBe(200);
-      const data2 = await response2.json();
-      expect(data2.fromCache).toBe(CACHE_CONFIGURED);
-
-      // Cleanup
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
-        [testData.organization.id],
-      );
-    });
-
-    it("should return same token value from cache", async () => {
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN",
-        "consistent_token",
-      );
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN_SECRET",
-        "consistent_secret",
-      );
-
-      const connectionId = `twitter:${testData.organization.id}`;
-
-      const response1 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-      const data1 = await response1.json();
-
-      const response2 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-      const data2 = await response2.json();
-
-      expect(data1.accessToken).toBe(data2.accessToken);
-      expect(data1.accessTokenSecret).toBe(data2.accessTokenSecret);
-
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
-        [testData.organization.id],
-      );
-    });
-
-    it("should invalidate cache after connection revocation", async () => {
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN",
-        "revoke_cache_test",
-      );
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN_SECRET",
-        "revoke_cache_secret",
-      );
-
-      const connectionId = `twitter:${testData.organization.id}`;
-
-      // Get token to populate cache
-      const response1 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-      expect(response1.status).toBe(200);
-
-      // Revoke connection
-      const revokeResponse = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}`, {
-        method: "DELETE",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-      expect(revokeResponse.status).toBe(200);
-
-      // Try to get token again - should fail since secrets are deleted
-      const response2 = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-      expect(response2.status).toBe(401);
     });
   });
 
@@ -1791,45 +1244,24 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   // Concurrent Request Tests
   // ============================================================================
   describe("Concurrent Requests", () => {
-    it("should handle concurrent token requests", async () => {
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN",
-        "concurrent_token",
-      );
-      await createTestSecret(
-        testData.organization.id,
-        testData.user.id,
-        "TWITTER_ACCESS_TOKEN_SECRET",
-        "concurrent_secret",
-      );
-
-      const connectionId = `twitter:${testData.organization.id}`;
-
-      // Make 5 concurrent requests
+    it("should handle concurrent requests to removed token endpoint", async () => {
       const requests = Array(5)
         .fill(null)
         .map(() =>
-          fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
+          fetch(`${BASE_URL}/api/v1/oauth/connections/${crypto.randomUUID()}/token`, {
             headers: {
               "X-API-Key": testData.apiKey.key,
             },
             signal: AbortSignal.timeout(TIMEOUT),
-          }).then((r) => r.json()),
+          }),
         );
 
       const results = await Promise.all(requests);
 
-      // All should succeed
-      for (const result of results) {
-        expect(result.accessToken).toBe("concurrent_token");
+      for (const response of results) {
+        expect(response.status).toBe(404);
+        expect(await response.json()).toEqual({ error: "Not Found" });
       }
-
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND name LIKE 'TWITTER_%'`,
-        [testData.organization.id],
-      );
     });
 
     it("should handle concurrent connection list requests", async () => {
@@ -1894,8 +1326,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       await client.query(`DELETE FROM platform_credentials WHERE id = ANY($1)`, [credIds]);
     });
 
-    it("should only return active connections when getting token by platform", async () => {
-      // Create connections with different statuses
+    it("should keep token-by-platform route disabled even with active connections", async () => {
       const activeCredId = crypto.randomUUID();
       const revokedCredId = crypto.randomUUID();
 
@@ -1912,8 +1343,16 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         [revokedCredId, testData.organization.id],
       );
 
-      // Getting token by platform should use the active one
-      // Note: This would fail without real Google credentials, so we clean up
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/token/google`, {
+        headers: {
+          "X-API-Key": testData.apiKey.key,
+        },
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
+
       await client.query(`DELETE FROM platform_credentials WHERE id IN ($1, $2)`, [
         activeCredId,
         revokedCredId,

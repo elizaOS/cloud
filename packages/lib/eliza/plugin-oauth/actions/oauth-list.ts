@@ -48,8 +48,8 @@ export const oauthListAction: ActionWithParams = {
     const userResult = await lookupUser(message.entityId as string, actionName);
     if (isUserLookupError(userResult)) return userResult;
 
-    const { organizationId } = userResult;
-    const connections = await oauthService.listConnections({ organizationId });
+    const { organizationId, user } = userResult;
+    const connections = await oauthService.listConnections({ organizationId, userId: user.id });
 
     if (connections.length === 0) {
       const text = "You don't have any connected accounts. Say 'connect google' to get started.";

@@ -1,4 +1,8 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+
+afterAll(() => {
+  mock.restore();
+});
 
 const mockFindRunningSandbox = mock();
 const mockFindByIdAndOrg = mock();
@@ -79,7 +83,7 @@ describe("MiladySandboxService bridge SSRF guards", () => {
     mockFindDockerNodeById.mockReset();
     mockAssertSafeOutboundUrl.mockReset();
     fetchMock.mockReset();
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const runningSandbox = {
       id: "agent-1",
@@ -338,11 +342,15 @@ describe("MiladySandboxService bridge SSRF guards", () => {
     const backup = {
       id: "backup-1",
       sandbox_record_id: "agent-1",
-      snapshot_type: "manual",
-      state_data: { sessions: ["restored"] },
+      snapshot_type: "manual" as const,
+      state_data: {
+        memories: [],
+        config: {},
+        workspaceFiles: {},
+      },
+      vercel_snapshot_id: null,
       size_bytes: 23,
       created_at: new Date(),
-      updated_at: new Date(),
     };
 
     mockFindRunningSandbox.mockResolvedValue(runningSandbox);

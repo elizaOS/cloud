@@ -76,16 +76,24 @@ async function extractSearchParams(
 ): Promise<WebSearchParams> {
   // First, try to get params from state (custom bootstrap pattern)
   const composedState = await runtime.composeState(message, ["ACTION_STATE"], true);
-
-  const stateParams = (composedState?.data?.actionParams ||
-    composedState?.data?.webSearch ||
-    composedState?.data?.websearch ||
-    {}) as WebSearchParams;
+  const stateParamSources = [
+    { source: "actionParams", value: composedState?.data?.actionParams },
+    { source: "webSearch", value: composedState?.data?.webSearch },
+    { source: "websearch", value: composedState?.data?.websearch },
+  ];
+  const matchedStateParams = stateParamSources.find(
+    (candidate) =>
+      candidate.value && typeof candidate.value === "object" && !Array.isArray(candidate.value),
+  );
+  const stateParams = (matchedStateParams?.value || {}) as WebSearchParams;
 
   // If we have a query from state, use it
   if (stateParams?.query?.trim()) {
     logger.info(
-      { src: "webSearch:extractParams", source: "actionParams" },
+      {
+        src: "webSearch:extractParams",
+        source: matchedStateParams?.source || "actionParams",
+      },
       "Using params from state",
     );
     return stateParams;

@@ -8,6 +8,10 @@ import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { resolveModel } from "@/lib/models";
 import { estimateTokens } from "@/lib/pricing";
+import {
+  mergeAnthropicCotProviderOptions,
+  resolveAnthropicThinkingBudgetTokens,
+} from "@/lib/providers/anthropic-thinking";
 import { getLanguageModel } from "@/lib/providers/language-model";
 import { billUsage } from "@/lib/services/ai-billing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
@@ -283,6 +287,17 @@ async function handlePOST(req: NextRequest) {
     settleReservation = createCreditReservationSettler(reservation);
     const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
 
+    // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection.
+    // When CoT is active, thinking tokens count against max_tokens, so we must add a buffer
+    // for actual response generation on top of the thinking budget.
+    // Default minimum output tokens to allow for actual response generation (consistent with MCP endpoint)
+    const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
+    const cotBudget = resolveAnthropicThinkingBudgetTokens(selectedModel, process.env);
+    const effectiveMaxOutputTokens =
+      cotBudget != null
+        ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, cotBudget + DEFAULT_MIN_OUTPUT_TOKENS)
+        : undefined;
+
     const result = streamText({
       model: getLanguageModel(selectedModel),
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
@@ -290,6 +305,8 @@ async function handlePOST(req: NextRequest) {
       messages: await convertToModelMessages(messages),
       abortSignal: req.signal,
       timeout: routeTimeoutMs,
+      ...(effectiveMaxOutputTokens != null ? { maxOutputTokens: effectiveMaxOutputTokens } : {}),
+      ...mergeAnthropicCotProviderOptions(selectedModel, process.env, cotBudget ?? undefined),
       onFinish: async ({ text, usage }) => {
         try {
           if (!usage) {

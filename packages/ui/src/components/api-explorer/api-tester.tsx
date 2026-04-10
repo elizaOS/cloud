@@ -59,6 +59,7 @@ import { CustomSelect } from "./custom-select";
 interface ApiTesterProps {
   endpoint: ApiEndpoint;
   authToken: string;
+  isAuthLoading?: boolean;
   refreshCredits?: () => void;
 }
 
@@ -80,7 +81,12 @@ interface AudioResponseData {
   message?: string;
 }
 
-export function ApiTester({ endpoint, authToken, refreshCredits }: ApiTesterProps) {
+export function ApiTester({
+  endpoint,
+  authToken,
+  isAuthLoading = false,
+  refreshCredits,
+}: ApiTesterProps) {
   const [parameters, setParameters] = useState<Record<string, unknown>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<TestResponse | null>(null);
@@ -159,6 +165,14 @@ export function ApiTester({ endpoint, authToken, refreshCredits }: ApiTesterProp
   };
 
   const executeTest = async () => {
+    if (endpoint.requiresAuth && isAuthLoading) {
+      toast({
+        message: "Loading API key...",
+        mode: "info",
+      });
+      return;
+    }
+
     if (endpoint.requiresAuth && !authToken.trim()) {
       toast({
         message: "API key is required for this endpoint",
@@ -607,7 +621,7 @@ export function ApiTester({ endpoint, authToken, refreshCredits }: ApiTesterProp
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button
           onClick={executeTest}
-          disabled={isLoading}
+          disabled={isLoading || (endpoint.requiresAuth && isAuthLoading)}
           className="gap-2 bg-[#471E08] text-[#FF5800] hover:bg-[#5A2610] active:bg-[#6B2E18] border-0"
         >
           {isLoading ? (
@@ -615,7 +629,11 @@ export function ApiTester({ endpoint, authToken, refreshCredits }: ApiTesterProp
           ) : (
             <PlayIcon className="h-4 w-4" />
           )}
-          {isLoading ? "Testing..." : "Send Request"}
+          {isLoading
+            ? "Testing..."
+            : endpoint.requiresAuth && isAuthLoading
+              ? "Loading API key..."
+              : "Send Request"}
         </Button>
 
         <Button variant="outline" onClick={copyCurlCommand} className="gap-2 sm:w-auto">

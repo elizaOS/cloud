@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shims";
 
 import { jsonRequest } from "./route-test-helpers";
+
+const realAiModule = await import("ai");
 
 class MockInsufficientCreditsError extends Error {
   required: number;
@@ -65,6 +68,7 @@ mock.module("@/lib/services/ai-billing", () => ({
 }));
 
 mock.module("@/lib/services/credits", () => ({
+  ...creditsModuleRuntimeShim,
   creditsService: {
     createAnonymousReservation: mockCreateAnonymousReservation,
   },
@@ -91,6 +95,7 @@ mock.module("@/lib/pricing", () => ({
 }));
 
 mock.module("ai", () => ({
+  ...realAiModule,
   generateText: mockGenerateText,
   jsonSchema: (schema: unknown) => schema,
   streamText: mockStreamText,

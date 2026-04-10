@@ -20,6 +20,7 @@ async function getJiraToken(): Promise<string> {
   try {
     const result = await oauthService.getValidTokenByPlatform({
       organizationId: user.organization_id,
+      userId: user.id,
       platform: "jira",
     });
     return result.accessToken;
@@ -122,6 +123,7 @@ export function registerJiraTools(server: McpServer): void {
         const { user } = getAuthContext();
         const connections = await oauthService.listConnections({
           organizationId: user.organization_id,
+          userId: user.id,
           platform: "jira",
         });
         const active = connections.find((c) => c.status === "active");

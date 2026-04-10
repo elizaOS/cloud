@@ -36,6 +36,8 @@ const ALLOWED_REDIRECT_PATHS = [
   "/settings",
   "/auth/success", // For chat-based OAuth flows (Telegram, iMessage, etc.)
   "/api/eliza-app/auth/connection-success",
+  "/api/v1/milady/lifeops/github-complete",
+  "/api/v1/milady/github-oauth-complete", // Auto-links GitHub connections to agents
 ];
 
 /**
@@ -184,7 +186,10 @@ async function handleCallback(
         entitySettingsCache.invalidateUser(result.userId),
         edgeRuntimeCache.bumpMcpVersion(result.organizationId),
         incrementOAuthVersion(result.organizationId, platformLower),
-        connectionEnforcementService.invalidateRequiredConnectionCache(result.organizationId),
+        connectionEnforcementService.invalidateRequiredConnectionCache(
+          result.organizationId,
+          result.userId,
+        ),
       ]);
     } catch (e) {
       logger.warn(`[OAuth ${platform}] Cache invalidation failed`, {

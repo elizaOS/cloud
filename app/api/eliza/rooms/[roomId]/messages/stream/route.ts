@@ -11,6 +11,7 @@ import {
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { mergeModelPreferences, sanitizeModelPreferences } from "@/lib/eliza/model-preferences";
 import { DEFAULT_AGENT_ID_STRING, runtimeFactory } from "@/lib/eliza/runtime-factory";
 import {
   clientCharacterStateSchema,
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     const {
       text,
       model,
+      modelPreferences: bodyModelPreferences,
       agentMode,
       sessionToken,
       attachments,
@@ -353,12 +355,29 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     );
 
     // Step 5: Apply model preferences if provided
+    const requestModelPreferences = sanitizeModelPreferences(bodyModelPreferences);
+
+    if (model || requestModelPreferences) {
+      userContext.modelPreferences = mergeModelPreferences(
+        userContext.modelPreferences,
+        model
+          ? {
+              smallModel: model,
+              largeModel: model,
+            }
+          : undefined,
+        requestModelPreferences,
+      );
+    }
+
     if (model) {
-      userContext.modelPreferences = {
-        smallModel: model,
-        largeModel: model,
-      };
-      logger.info(`[Stream] User selected model: ${model}`);
+      logger.info(`[Stream] User selected shorthand model: ${model}`);
+    }
+
+    if (requestModelPreferences) {
+      logger.info(
+        `[Stream] Applied request model preferences: ${Object.keys(requestModelPreferences).join(", ")}`,
+      );
     } else if (userContext.modelPreferences) {
       logger.info(
         `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`,

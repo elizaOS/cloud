@@ -22,7 +22,14 @@ const TWILIO_AUTH_TOKEN = "test_token";
 const BLOOIO_WEBHOOK_SECRET = "webhook_secret_123";
 const TWILIO_SECRET_NAMES = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"];
 const BLOOIO_SECRET_NAMES = ["BLOOIO_API_KEY", "BLOOIO_WEBHOOK_SECRET", "BLOOIO_FROM_NUMBER"];
+const WEBHOOK_RATE_LIMIT_IP = "198.51.100.250";
 const encryptionService = createEncryptionService();
+const forwardOriginalFetchPreconnect: NonNullable<typeof originalFetch.preconnect> = (...args) => {
+  if (typeof originalFetch.preconnect === "function") {
+    originalFetch.preconnect(...args);
+  }
+};
+let webhookRequestCounter = 0;
 
 async function deleteSecrets(
   client: Client,
@@ -67,7 +74,7 @@ async function upsertSecret(
   );
 }
 
-const originalFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+const originalFetch: typeof fetch = globalThis.fetch;
 
 function getRequestUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") {
@@ -103,39 +110,69 @@ function createBlooioSignature(rawBody: string, timestamp: number): string {
   return `t=${timestamp},v1=${signature}`;
 }
 
-const signedWebhookFetch: typeof fetch = (input, init) => {
-  const url = getRequestUrl(input);
-  const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+function withWebhookIpHeaders(headers: Headers, ip?: string): void {
+  webhookRequestCounter += 1;
+  const requestIp = ip ?? `198.51.100.${(webhookRequestCounter % 200) + 1}`;
 
-  if (method !== "POST") {
-    return originalFetch(input, init);
+  if (!headers.has("x-forwarded-for")) {
+    headers.set("x-forwarded-for", requestIp);
   }
 
-  const headers = new Headers(
-    init?.headers ?? (input instanceof Request ? input.headers : undefined),
-  );
+  if (!headers.has("x-real-ip")) {
+    headers.set("x-real-ip", requestIp);
+  }
+}
 
-  if (headers.get("X-Test-Skip-Signature") === "true") {
-    headers.delete("X-Test-Skip-Signature");
+const signedWebhookFetch: typeof fetch = Object.assign(
+  (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = getRequestUrl(input);
+    const method = (
+      init?.method ?? (input instanceof Request ? input.method : "GET")
+    ).toUpperCase();
+
+    if (method !== "POST") {
+      return originalFetch(input, init);
+    }
+
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined),
+    );
+    const isWebhookRequest =
+      url.includes("/api/webhooks/twilio/") || url.includes("/api/webhooks/blooio/");
+
+    if (isWebhookRequest) {
+      const fixedIp =
+        headers.get("X-Test-Rate-Limit-IP") === "true" ? WEBHOOK_RATE_LIMIT_IP : undefined;
+      headers.delete("X-Test-Rate-Limit-IP");
+      withWebhookIpHeaders(headers, fixedIp);
+    }
+
+    if (headers.get("X-Test-Skip-Signature") === "true") {
+      headers.delete("X-Test-Skip-Signature");
+      return originalFetch(input, { ...init, headers });
+    }
+
+    if (url.includes("/api/webhooks/twilio/") && !headers.has("X-Twilio-Signature")) {
+      const body = init?.body;
+      if (body instanceof URLSearchParams || typeof body === "string") {
+        headers.set("X-Twilio-Signature", createTwilioSignature(url, body));
+      }
+    }
+
+    if (url.includes("/api/webhooks/blooio/") && !headers.has("X-Blooio-Signature")) {
+      const body = init?.body;
+      if (typeof body === "string") {
+        headers.set(
+          "X-Blooio-Signature",
+          createBlooioSignature(body, Math.floor(Date.now() / 1000)),
+        );
+      }
+    }
+
     return originalFetch(input, { ...init, headers });
-  }
-
-  if (url.includes("/api/webhooks/twilio/") && !headers.has("X-Twilio-Signature")) {
-    const body = init?.body;
-    if (body instanceof URLSearchParams || typeof body === "string") {
-      headers.set("X-Twilio-Signature", createTwilioSignature(url, body));
-    }
-  }
-
-  if (url.includes("/api/webhooks/blooio/") && !headers.has("X-Blooio-Signature")) {
-    const body = init?.body;
-    if (typeof body === "string") {
-      headers.set("X-Blooio-Signature", createBlooioSignature(body, Math.floor(Date.now() / 1000)));
-    }
-  }
-
-  return originalFetch(input, { ...init, headers });
-};
+  },
+  { preconnect: forwardOriginalFetchPreconnect },
+);
 
 describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
   let testData: TestDataSet;
@@ -248,6 +285,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
             method: "POST",
             headers: {
               "Content-Type": "application/x-www-form-urlencoded",
+              "X-Test-Rate-Limit-IP": "true",
             },
             body: formData,
           },

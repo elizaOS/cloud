@@ -11,6 +11,10 @@
  * - API key authentication (uses org credits)
  *
  * When monetization is enabled, the agent creator earns their markup percentage.
+ *
+ * **Anthropic extended thinking:** The `chat` tool merges `providerOptions` using
+ * `user_characters.settings.anthropicThinkingBudgetTokens` (see `parseThinkingBudgetFromCharacterSettings`).
+ * **Why:** Thinking budget is owner-defined on the character, not passed by MCP clients (untrusted).
  */
 
 import { gateway } from "@ai-sdk/gateway";
@@ -18,12 +22,25 @@ import { streamText } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS } from "@/lib/cors-constants";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
+import {
+  mergeAnthropicCotProviderOptions,
+  parseThinkingBudgetFromCharacterSettings,
+  resolveAnthropicThinkingBudgetTokens,
+} from "@/lib/providers/anthropic-thinking";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
 import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
+
+/**
+ * Default minimum output tokens to allow for actual response generation.
+ * Consistent with A2A endpoint for credit estimation.
+ */
+export const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
 
 export const maxDuration = 60;
 
@@ -46,7 +63,10 @@ const MCPRequestSchema = z.object({
  * GET /api/agents/{id}/mcp
  * Returns MCP server metadata
  */
-export async function GET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handleGET(request: NextRequest, ctx?: { params: Promise<{ id: string }> }) {
+  if (!ctx) {
+    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
+  }
   const { id } = await ctx.params;
 
   const character = await charactersService.getById(id);
@@ -124,7 +144,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
  * POST /api/agents/{id}/mcp
  * MCP protocol handler
  */
-export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: NextRequest, ctx?: { params: Promise<{ id: string }> }) {
+  if (!ctx) {
+    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
+  }
   const { id } = await ctx.params;
 
   const character = await charactersService.getById(id);
@@ -263,6 +286,7 @@ async function handleToolCall(
     inference_markup_percentage: string | null;
     system: string | null;
     bio: string | string[];
+    settings: Record<string, unknown>;
   },
   params: Record<string, unknown>,
   rpcId: string | number,
@@ -314,11 +338,28 @@ async function handleToolCall(
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
+      // Note: constructs messages with system and user roles for processing in chat model.
       { role: "user" as const, content: message },
     ];
 
     const provider = getProviderFromModel(model);
     const markupPct = Number(character.inference_markup_percentage || 0);
+
+    // Resolve effective thinking budget before reservation (applies ANTHROPIC_COT_BUDGET_MAX cap)
+    const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
+    const effectiveThinkingBudget = resolveAnthropicThinkingBudgetTokens(
+      model,
+      process.env,
+      agentThinkingBudget,
+    );
+    // Include thinking budget in output token estimate when budget is non-null
+    // (resolveAnthropicThinkingBudgetTokens already checks model support internally)
+    // Note: Use higher base to allow for actual response generation, not just thinking budget
+    const baseOutputTokens = DEFAULT_MIN_OUTPUT_TOKENS;
+    const estimatedOutputTokens =
+      effectiveThinkingBudget != null
+        ? baseOutputTokens + effectiveThinkingBudget
+        : baseOutputTokens;
 
     // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
     let reservation: CreditReservation;
@@ -328,7 +369,7 @@ async function handleToolCall(
         model,
         provider,
         estimatedInputTokens: estimateTokens(systemPrompt + message),
-        estimatedOutputTokens: 500,
+        estimatedOutputTokens,
         userId: authResult.user.id,
         description: `Agent MCP: ${character.name}`,
       });
@@ -346,10 +387,18 @@ async function handleToolCall(
       throw error;
     }
 
+    // Anthropic API requires maxOutputTokens >= budgetTokens when thinking is enabled
+    // Also need to reserve capacity for actual response generation beyond thinking
+    const maxOutputTokens = effectiveThinkingBudget
+      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, effectiveThinkingBudget) + DEFAULT_MIN_OUTPUT_TOKENS
+      : undefined;
+
     try {
       const result = await streamText({
         model: gateway.languageModel(model),
         messages,
+        ...(maxOutputTokens && { maxOutputTokens }),
+        ...mergeAnthropicCotProviderOptions(model, process.env, agentThinkingBudget),
       });
 
       let fullText = "";
@@ -440,6 +489,9 @@ async function handleToolCall(
   });
 }
 
+export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+
 /**
  * OPTIONS handler for CORS
  */
@@ -448,8 +500,8 @@ export async function OPTIONS() {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
+      "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
+      "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
     },
   });
 }

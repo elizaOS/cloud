@@ -16,6 +16,8 @@ interface ServerRoute {
   serverUrl: string;
 }
 
+export type RoutingRedis = Pick<Redis, "get" | "set" | "lpush" | "ltrim" | "expire">;
+
 export interface ResolvedIdentity {
   userId: string;
   organizationId: string;
@@ -23,7 +25,7 @@ export interface ResolvedIdentity {
 }
 
 export async function resolveIdentity(
-  redis: Redis,
+  redis: RoutingRedis,
   cloudBaseUrl: string,
   authHeader: Record<string, string>,
   platform: string,
@@ -75,7 +77,7 @@ export async function resolveIdentity(
 }
 
 export async function resolveAgentServer(
-  redis: Redis,
+  redis: RoutingRedis,
   agentId: string,
 ): Promise<ServerRoute | null> {
   const serverName = await redis.get<string>(`agent:${agentId}:server`);
@@ -87,7 +89,7 @@ export async function resolveAgentServer(
   return { serverName, serverUrl };
 }
 
-export async function refreshKedaActivity(redis: Redis, serverName: string): Promise<void> {
+export async function refreshKedaActivity(redis: RoutingRedis, serverName: string): Promise<void> {
   const key = `keda:${serverName}:activity`;
   await redis.lpush(key, Date.now().toString());
   await redis.ltrim(key, 0, 0);
@@ -163,6 +165,11 @@ export async function wakeServer(serverName: string, serverUrl: string): Promise
   }
 }
 
+/**
+ * Forwards a chat message to the correct agent-server pod via hash-ring routing.
+ * Parses the agent-server response to extract the `.response` field expected
+ * by platform adapters (e.g. Telegram, WhatsApp sendReply).
+ */
 export async function forwardToServer(
   serverUrl: string,
   serverName: string,
@@ -170,8 +177,60 @@ export async function forwardToServer(
   userId: string,
   text: string,
 ): Promise<string> {
-  const body = JSON.stringify({ userId, text });
+  const raw = await forwardWithRetry(
+    serverUrl,
+    serverName,
+    userId,
+    `/agents/${agentId}/message`,
+    JSON.stringify({ userId, text }),
+  );
+  const data = JSON.parse(raw) as { response: string };
+  return data.response;
+}
 
+/**
+ * Forwards an internal event to the correct agent-server pod via hash-ring routing.
+ * Uses the same retry, wake, and fallback logic as message forwarding.
+ *
+ * Hash key is `userId` (not `agentId`) to maintain session affinity: the same
+ * user's messages and events land on the same pod, keeping the conversation
+ * context hot. For system-initiated events (e.g. cron) the caller supplies a
+ * deterministic userId so that affinity still distributes across the ring.
+ */
+export async function forwardEventToServer(
+  serverUrl: string,
+  serverName: string,
+  agentId: string,
+  userId: string,
+  type: "cron" | "notification" | "system",
+  payload: Record<string, unknown>,
+): Promise<string> {
+  return forwardWithRetry(
+    serverUrl,
+    serverName,
+    userId,
+    `/agents/${agentId}/event`,
+    JSON.stringify({ userId, type, payload }),
+  );
+}
+
+type TargetResult =
+  | { ok: true; response: string }
+  | { ok: false; error: Error; isConnectionError: boolean };
+
+/**
+ * Generic retry loop with hash-ring routing and KEDA wake-on-zero.
+ * Resolves pod targets via the hash ring, retries with linear backoff,
+ * falls back to a secondary target on failure, and triggers a K8s
+ * scale-up when all pods are unavailable.
+ */
+async function forwardWithRetry(
+  serverUrl: string,
+  serverName: string,
+  hashKey: string,
+  endpointPath: string,
+  body: string,
+): Promise<string> {
   let lastError: Error | null = null;
   let woken = false;
 
@@ -181,7 +240,7 @@ export async function forwardToServer(
       await new Promise((r) => setTimeout(r, delay));
     }
 
-    const targets = await getHashTargets(serverUrl, userId, 2);
+    const targets = await getHashTargets(serverUrl, hashKey, 2);
 
     if (targets.length === 0) {
       if (!woken) {
@@ -192,12 +251,12 @@ export async function forwardToServer(
       continue;
     }
 
-    const result = await tryTarget(targets[0], agentId, body);
+    const result = await tryTarget(targets[0], endpointPath, body);
     if (result.ok) return result.response;
 
     if (targets.length > 1) {
       await refreshHashRing(serverUrl);
-      const fallback = await tryTarget(targets[1], agentId, body);
+      const fallback = await tryTarget(targets[1], endpointPath, body);
       if (fallback.ok) return fallback.response;
     }
 
@@ -208,14 +267,18 @@ export async function forwardToServer(
     }
   }
 
-  throw lastError ?? new Error("forwardToServer failed");
+  throw lastError ?? new Error("Forward failed after retries");
 }
 
-type TargetResult =
-  | { ok: true; response: string }
-  | { ok: false; error: Error; isConnectionError: boolean };
-
-async function tryTarget(target: string, agentId: string, body: string): Promise<TargetResult> {
+/**
+ * Attempts a single POST to a target pod IP at the given endpoint path.
+ * Attaches X-Server-Token when AGENT_SERVER_SHARED_SECRET is configured.
+ */
+async function tryTarget(
+  target: string,
+  endpointPath: string,
+  body: string,
+): Promise<TargetResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
 
@@ -228,7 +291,7 @@ async function tryTarget(target: string, agentId: string, body: string): Promise
   }
 
   try {
-    const res = await fetch(`http://${target}/agents/${agentId}/message`, {
+    const res = await fetch(`http://${target}${endpointPath}`, {
       method: "POST",
       headers,
       body,
@@ -236,8 +299,8 @@ async function tryTarget(target: string, agentId: string, body: string): Promise
     });
 
     if (res.ok) {
-      const data = (await res.json()) as { response: string };
-      return { ok: true, response: data.response };
+      const text = await res.text();
+      return { ok: true, response: text };
     }
 
     return {

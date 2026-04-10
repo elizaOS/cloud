@@ -20,12 +20,83 @@ import type {
   InitiateAuthResult,
   ListConnectionsParams,
   OAuthConnection,
+  OAuthConnectionRole,
   OAuthProviderInfo,
   TokenResult,
 } from "./types";
 
 const DEFAULT_REDIRECT = "/dashboard/settings?tab=connections";
 const STATE_TTL = 600; // 10 minutes
+
+export function sortConnectionsByRecency(connections: OAuthConnection[]): OAuthConnection[] {
+  return [...connections].sort((a, b) => {
+    const aTime = a.lastUsedAt?.getTime() || a.linkedAt.getTime();
+    const bTime = b.lastUsedAt?.getTime() || b.linkedAt.getTime();
+    return bTime - aTime;
+  });
+}
+
+export function getMostRecentActiveConnection(
+  connections: OAuthConnection[],
+): OAuthConnection | null {
+  const active = connections.filter((c) => c.status === "active");
+  if (active.length === 0) return null;
+  return active.reduce((most, conn) => {
+    const mostTime = most.lastUsedAt?.getTime() || most.linkedAt.getTime();
+    const connTime = conn.lastUsedAt?.getTime() || conn.linkedAt.getTime();
+    return connTime > mostTime ? conn : most;
+  });
+}
+
+export function getPreferredActiveConnection(
+  connections: OAuthConnection[],
+  userId?: string,
+  connectionRole?: OAuthConnectionRole,
+): OAuthConnection | null {
+  const scopedByRole = connectionRole
+    ? connections.filter((connection) => connection.connectionRole === connectionRole)
+    : connections;
+  if (!userId) {
+    return getMostRecentActiveConnection(scopedByRole);
+  }
+
+  const ownedConnection = getMostRecentActiveConnection(
+    scopedByRole.filter((connection) => connection.userId === userId),
+  );
+  if (ownedConnection) {
+    return ownedConnection;
+  }
+
+  return getMostRecentActiveConnection(
+    scopedByRole.filter((connection) => connection.userId === undefined),
+  );
+}
+
+export function scopeConnectionsForUser(
+  connections: OAuthConnection[],
+  userId?: string,
+  connectionRole?: OAuthConnectionRole,
+): OAuthConnection[] {
+  const scopedByRole = connectionRole
+    ? connections.filter((connection) => connection.connectionRole === connectionRole)
+    : connections;
+  if (!userId) {
+    return sortConnectionsByRecency(scopedByRole);
+  }
+
+  const ownedConnections = sortConnectionsByRecency(
+    scopedByRole.filter((connection) => connection.userId === userId),
+  );
+  const sharedConnections = sortConnectionsByRecency(
+    scopedByRole.filter((connection) => connection.userId === undefined),
+  );
+
+  if (ownedConnections.length > 0) {
+    return [...ownedConnections, ...sharedConnections];
+  }
+
+  return sharedConnections;
+}
 
 class OAuthService {
   /** List all available OAuth providers with configuration status */
@@ -42,7 +113,7 @@ class OAuthService {
 
   /** Initiate OAuth flow for a platform */
   async initiateAuth(params: InitiateAuthParams): Promise<InitiateAuthResult> {
-    const { organizationId, userId, platform, redirectUrl, scopes } = params;
+    const { organizationId, userId, platform, redirectUrl, scopes, connectionRole } = params;
 
     const provider = getProvider(platform);
     if (!provider) throw Errors.platformNotSupported(platform);
@@ -60,6 +131,7 @@ class OAuthService {
         userId,
         redirectUrl,
         scopes,
+        connectionRole,
       });
       return { authUrl: result.authUrl, state: result.state };
     }
@@ -101,7 +173,7 @@ class OAuthService {
 
   /** List all OAuth connections for an organization */
   async listConnections(params: ListConnectionsParams): Promise<OAuthConnection[]> {
-    const { organizationId, platform } = params;
+    const { organizationId, platform, userId, connectionRole } = params;
     const adapters = platform ? [getAdapter(platform)].filter(Boolean) : getAllAdapters();
     const results = await Promise.allSettled(
       adapters.map((a) => a!.listConnections(organizationId)),
@@ -115,7 +187,7 @@ class OAuthService {
       return [];
     });
 
-    return this.sortConnectionsByRecency(connections);
+    return scopeConnectionsForUser(connections, userId, connectionRole);
   }
 
   /** Get a single connection by ID */
@@ -181,13 +253,13 @@ class OAuthService {
   async getValidTokenByPlatformWithConnectionId(
     params: GetTokenByPlatformParams,
   ): Promise<{ token: TokenResult; connectionId: string }> {
-    const { organizationId, platform } = params;
+    const { organizationId, platform, userId, connectionRole } = params;
 
     const adapter = getAdapter(platform);
     if (!adapter) throw Errors.platformNotSupported(platform);
 
     const connections = await adapter.listConnections(organizationId);
-    const activeConnection = this.getMostRecentActive(connections);
+    const activeConnection = getPreferredActiveConnection(connections, userId, connectionRole);
     if (!activeConnection) throw Errors.platformNotConnected(platform);
 
     const token = await this.getValidToken({
@@ -199,17 +271,22 @@ class OAuthService {
   }
 
   /** Check if a platform has an active connection */
-  async isPlatformConnected(organizationId: string, platform: string): Promise<boolean> {
+  async isPlatformConnected(
+    organizationId: string,
+    platform: string,
+    userId?: string,
+    connectionRole?: OAuthConnectionRole,
+  ): Promise<boolean> {
     const adapter = getAdapter(platform);
     if (!adapter) return false;
 
     const connections = await adapter.listConnections(organizationId);
-    return connections.some((c) => c.status === "active");
+    return getPreferredActiveConnection(connections, userId, connectionRole) !== null;
   }
 
   /** Get all platforms with active connections */
-  async getConnectedPlatforms(organizationId: string): Promise<string[]> {
-    const connections = await this.listConnections({ organizationId });
+  async getConnectedPlatforms(organizationId: string, userId?: string): Promise<string[]> {
+    const connections = await this.listConnections({ organizationId, userId });
     return [...new Set(connections.filter((c) => c.status === "active").map((c) => c.platform))];
   }
 
@@ -227,23 +304,8 @@ class OAuthService {
     }
     return null;
   }
-
-  private getMostRecentActive(connections: OAuthConnection[]): OAuthConnection | null {
-    const active = connections.filter((c) => c.status === "active");
-    if (active.length === 0) return null;
-    return active.reduce((most, conn) => {
-      const mostTime = most.lastUsedAt?.getTime() || most.linkedAt.getTime();
-      const connTime = conn.lastUsedAt?.getTime() || conn.linkedAt.getTime();
-      return connTime > mostTime ? conn : most;
-    });
-  }
-
   private sortConnectionsByRecency(connections: OAuthConnection[]): OAuthConnection[] {
-    return connections.sort((a, b) => {
-      const aTime = a.lastUsedAt?.getTime() || a.linkedAt.getTime();
-      const bTime = b.lastUsedAt?.getTime() || b.linkedAt.getTime();
-      return bTime - aTime;
-    });
+    return sortConnectionsByRecency(connections);
   }
 }
 

@@ -1,0 +1,60 @@
+import { describe, expect, test } from "bun:test";
+import { NextRequest } from "next/server";
+import { GET } from "@/app/api/v1/milady/lifeops/github-complete/route";
+
+function routeUrl(params: Record<string, string>): string {
+  const search = new URLSearchParams(params);
+  return `https://example.com/api/v1/milady/lifeops/github-complete?${search.toString()}`;
+}
+
+describe("lifeops github completion route", () => {
+  test("returns an html handoff page for popup completion", async () => {
+    const response = await GET(
+      new NextRequest(
+        routeUrl({
+          github_connected: "true",
+          connection_id: "conn-1",
+          post_message: "1",
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    const html = await response.text();
+    expect(html).toContain("milady-lifeops-github-complete");
+    expect(html).toContain("LifeOps GitHub connected");
+  });
+
+  test("returns an html handoff page for deep-link completion", async () => {
+    const response = await GET(
+      new NextRequest(
+        routeUrl({
+          github_connected: "true",
+          connection_id: "conn-1",
+          return_url: "milady://lifeops",
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("milady://lifeops");
+    expect(html).toContain("github_target=owner");
+    expect(html).toContain("github_status=connected");
+  });
+
+  test("redirects back to the cloud dashboard when no local handoff is requested", async () => {
+    const response = await GET(
+      new NextRequest(
+        routeUrl({
+          github_error: "denied",
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/dashboard/settings?tab=connections");
+    expect(response.headers.get("location")).toContain("github_error=denied");
+  });
+});

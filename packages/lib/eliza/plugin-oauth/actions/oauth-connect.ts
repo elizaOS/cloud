@@ -120,8 +120,12 @@ export const oauthConnectAction: ActionWithParams = {
     const { organizationId, user } = userResult;
     const platformName = capitalize(platform);
 
-    if (await oauthService.isPlatformConnected(organizationId, platform)) {
-      const connections = await oauthService.listConnections({ organizationId, platform });
+    if (await oauthService.isPlatformConnected(organizationId, platform, user.id)) {
+      const connections = await oauthService.listConnections({
+        organizationId,
+        userId: user.id,
+        platform,
+      });
       const email = connections.find((c) => c.status === "active")?.email || "";
       return {
         text: `Your ${platformName} account is already connected${email ? ` (${email})` : ""}.`,

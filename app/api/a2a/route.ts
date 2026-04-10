@@ -25,9 +25,18 @@ import {
   type TaskCancelParams,
   type TaskGetParams,
 } from "@/lib/api/a2a";
+
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { ORGANIZATION_SERVICE_BURST_LIMIT } from "@/lib/middleware/rate-limit";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import { logger } from "@/lib/utils/logger";
+
+/**
+ * Default base output tokens for credit reservation.
+ * Consistent with MCP endpoint (4096) to avoid systematic underbilling.
+ * Note: This constant should be imported by @/lib/api/a2a handlers for credit reservation calculations.
+ */
+export const DEFAULT_BASE_OUTPUT_TOKENS = 4096;
 
 export const maxDuration = 60;
 
@@ -109,8 +118,8 @@ export async function POST(request: NextRequest) {
   // Rate limit
   const rateLimitResult = await checkRateLimitRedis(
     `a2a:${authResult.user.organization_id}`,
-    60000,
-    100,
+    ORGANIZATION_SERVICE_BURST_LIMIT.windowMs,
+    ORGANIZATION_SERVICE_BURST_LIMIT.maxRequests,
   );
   if (!rateLimitResult.allowed) {
     return a2aError(A2AErrorCodes.RATE_LIMITED, "Rate limited", id, 429);

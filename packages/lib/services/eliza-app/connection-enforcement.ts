@@ -139,18 +139,21 @@ function formatConversationHistory(messages: ConversationMessage[]): string {
     .join("\n")}\n`;
 }
 
-function getConversationKey(organizationId: string): string {
-  return `connection-enforcement:conversation:${organizationId}`;
+function getConversationKey(organizationId: string, userId: string): string {
+  return `connection-enforcement:conversation:${organizationId}:${userId}`;
 }
 
-function getConnectionStatusKey(organizationId: string): string {
-  return `connection-enforcement:required-connection:${organizationId}`;
+function getConnectionStatusKey(organizationId: string, userId: string): string {
+  return `connection-enforcement:required-connection:${organizationId}:${userId}`;
 }
 
-async function loadConversationState(organizationId: string): Promise<ConversationState> {
+async function loadConversationState(
+  organizationId: string,
+  userId: string,
+): Promise<ConversationState> {
   try {
     return (
-      (await cache.get<ConversationState>(getConversationKey(organizationId))) ?? {
+      (await cache.get<ConversationState>(getConversationKey(organizationId, userId))) ?? {
         messageCount: 0,
         messages: [],
       }
@@ -162,6 +165,7 @@ async function loadConversationState(organizationId: string): Promise<Conversati
 
 async function saveConversationState(
   organizationId: string,
+  userId: string,
   state: ConversationState,
 ): Promise<void> {
   try {
@@ -169,10 +173,15 @@ async function saveConversationState(
       ...state,
       messages: state.messages.slice(-MAX_HISTORY_MESSAGES),
     };
-    await cache.set(getConversationKey(organizationId), normalizedState, CONVERSATION_TTL_SECONDS);
+    await cache.set(
+      getConversationKey(organizationId, userId),
+      normalizedState,
+      CONVERSATION_TTL_SECONDS,
+    );
   } catch (error) {
     logger.warn("[ConnectionEnforcement] Failed to persist conversation state", {
       organizationId,
+      userId,
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -335,15 +344,15 @@ function detectProviderFromMessage(message: string): RequiredPlatform | null {
 }
 
 class ConnectionEnforcementService {
-  async hasRequiredConnection(organizationId: string): Promise<boolean> {
+  async hasRequiredConnection(organizationId: string, userId: string): Promise<boolean> {
     try {
-      const cacheKey = getConnectionStatusKey(organizationId);
+      const cacheKey = getConnectionStatusKey(organizationId, userId);
       const cached = await cache.get<boolean>(cacheKey);
       if (typeof cached === "boolean") {
         return cached;
       }
 
-      const connectedPlatforms = await oauthService.getConnectedPlatforms(organizationId);
+      const connectedPlatforms = await oauthService.getConnectedPlatforms(organizationId, userId);
       const hasRequired = connectedPlatforms.some((platform) =>
         (REQUIRED_PLATFORMS as readonly string[]).includes(platform),
       );
@@ -353,18 +362,25 @@ class ConnectionEnforcementService {
     } catch (error) {
       logger.error("[ConnectionEnforcement] Failed to check connections", {
         organizationId,
+        userId,
         error: error instanceof Error ? error.message : String(error),
       });
       return true;
     }
   }
 
-  async invalidateRequiredConnectionCache(organizationId: string): Promise<void> {
+  async invalidateRequiredConnectionCache(organizationId: string, userId?: string): Promise<void> {
     try {
-      await cache.del(getConnectionStatusKey(organizationId));
+      if (userId) {
+        await cache.del(getConnectionStatusKey(organizationId, userId));
+        return;
+      }
+
+      await cache.delPattern(`connection-enforcement:required-connection:${organizationId}:*`);
     } catch (error) {
       logger.warn("[ConnectionEnforcement] Failed to invalidate connection cache", {
         organizationId,
+        userId,
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -372,7 +388,7 @@ class ConnectionEnforcementService {
 
   async generateNudgeResponse(params: NudgeParams): Promise<string> {
     const { userMessage, platform, organizationId, userId } = params;
-    const state = await loadConversationState(organizationId);
+    const state = await loadConversationState(organizationId, userId);
     const conversationHistory = formatConversationHistory(state.messages);
     const detectedProvider = detectProviderFromMessage(userMessage);
     const isFirstInteraction = state.messageCount === 0;
@@ -409,7 +425,7 @@ class ConnectionEnforcementService {
     state.messages.push({ role: "user", content: userMessage });
     state.messages.push({ role: "assistant", content: responseForHistory });
     state.messageCount += 1;
-    await saveConversationState(organizationId, state);
+    await saveConversationState(organizationId, userId, state);
 
     return response;
   }

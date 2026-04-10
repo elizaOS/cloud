@@ -64,7 +64,9 @@ test.describe("Public Pages", () => {
     test("/chat/[characterId] handles nonexistent character", async ({ page }) => {
       const response = await page.goto(
         "http://localhost:3000/chat/00000000-0000-4000-8000-000000000000",
+        { waitUntil: "domcontentloaded" },
       );
+      await expect(page.locator("body")).toContainText("This page could not be found.");
       expect(response?.status()).not.toBe(500);
       expect([200, 304, 404]).toContain(response?.status() ?? 0);
     });

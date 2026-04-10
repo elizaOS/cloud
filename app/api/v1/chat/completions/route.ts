@@ -11,6 +11,7 @@
 
 import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
 import type { NextRequest } from "next/server";
+import { getErrorStatusCode } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { createPreflightResponse } from "@/lib/middleware/cors-apps";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -20,6 +21,15 @@ import {
   getSafeModelParams,
   normalizeModelName,
 } from "@/lib/pricing";
+import {
+  mergeAnthropicCotProviderOptions,
+  resolveAnthropicThinkingBudgetTokens,
+} from "@/lib/providers/anthropic-thinking";
+import {
+  ANTHROPIC_WEB_SEARCH_INPUT_TOKEN_BUFFER,
+  buildProviderNativeWebSearchTools,
+  isAnthropicWebSearchEnabled,
+} from "@/lib/providers/anthropic-web-search";
 import { getLanguageModel } from "@/lib/providers/language-model";
 import {
   billUsage,
@@ -38,13 +48,40 @@ import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 export const maxDuration = 800;
 
+// Minimum tokens to reserve for actual response generation when CoT is active
+const MIN_RESPONSE_TOKENS = 4096;
+
+/**
+ * Computes effective max_tokens when Anthropic CoT is enabled.
+ * When thinking is active, max_tokens must be >= budgetTokens or Anthropic API rejects.
+ * Additionally, we must reserve capacity for the actual response (not just thinking).
+ */
+function computeEffectiveMaxTokens(
+  requestMaxTokens: number | undefined,
+  cotBudget: number | null,
+): number | undefined {
+  if (cotBudget !== null) {
+    // When CoT is active, ensure max_tokens covers both thinking budget AND response capacity
+    // Without this, thinking consumes all tokens leaving nothing for the actual response
+    return Math.max(requestMaxTokens ?? MIN_RESPONSE_TOKENS, cotBudget + MIN_RESPONSE_TOKENS);
+  }
+  return requestMaxTokens;
+}
+
 // ============================================================================
 // Types
 // ============================================================================
 
 interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  content:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+        image_url?: { url: string } | string;
+        file?: { filename?: string; file_data?: string; file_id?: string };
+      }>;
   name?: string;
   tool_calls?: Array<{
     id: string;
@@ -73,6 +110,10 @@ interface ChatRequest {
     };
   }>;
   tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  /** Enable provider-native web search. Defaults to false. */
+  webSearchEnabled?: boolean;
+  /** Optional max search budget for provider-native web search. */
+  webSearchMaxUses?: number;
 }
 
 // ============================================================================
@@ -117,6 +158,31 @@ function inferImageMediaType(url: string): string {
   return "image/jpeg";
 }
 
+function getImageUrl(imageUrl: { url: string } | string): string | null {
+  if (typeof imageUrl === "string") {
+    return imageUrl || null;
+  }
+  return imageUrl.url || null;
+}
+
+function inferFileMediaType(fileData: string | undefined, filename: string | undefined): string {
+  const dataUrlMatch = fileData?.match(/^data:([^;,]+)[;,]/i);
+  if (dataUrlMatch?.[1]) {
+    return dataUrlMatch[1];
+  }
+
+  const lowerFilename = filename?.toLowerCase() ?? "";
+  if (lowerFilename.endsWith(".pdf")) return "application/pdf";
+  if (lowerFilename.endsWith(".png")) return "image/png";
+  if (lowerFilename.endsWith(".gif")) return "image/gif";
+  if (lowerFilename.endsWith(".webp")) return "image/webp";
+  if (lowerFilename.endsWith(".jpg") || lowerFilename.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+
+  return "application/octet-stream";
+}
+
 function convertToUIMessages(messages: ChatMessage[]): UIMessage[] {
   return messages.map((msg) => {
     // Handle simple string content
@@ -132,10 +198,34 @@ function convertToUIMessages(messages: ChatMessage[]): UIMessage[] {
     const parts = msg.content
       .map((part) => {
         if (part.image_url) {
+          const imageUrl = getImageUrl(part.image_url);
+          if (!imageUrl) {
+            logger.warn("[chat/completions] Ignoring image part without url", {
+              role: msg.role,
+            });
+            return null;
+          }
           return {
             type: "file" as const,
-            url: part.image_url.url,
-            mediaType: inferImageMediaType(part.image_url.url),
+            url: imageUrl,
+            mediaType: inferImageMediaType(imageUrl),
+          };
+        }
+        if (part.file) {
+          const fileUrl = part.file.file_data;
+          if (!fileUrl) {
+            logger.warn("[chat/completions] Ignoring file part without file_data", {
+              role: msg.role,
+              filename: part.file.filename,
+              hasFileId: typeof part.file.file_id === "string",
+            });
+            return null;
+          }
+          return {
+            type: "file" as const,
+            url: fileUrl,
+            filename: part.file.filename,
+            mediaType: inferFileMediaType(fileUrl, part.file.filename),
           };
         }
         if (part.text) {
@@ -205,6 +295,18 @@ async function handlePOST(req: NextRequest) {
     const model = request.model;
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
+    const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
+    const cotOptions =
+      cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
+    const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
+    const webSearchEnabled = request.webSearchEnabled === true;
+    const webSearchActive = isAnthropicWebSearchEnabled(provider, model, webSearchEnabled);
+    const webSearchOptions = buildProviderNativeWebSearchTools({
+      provider,
+      model,
+      enabled: webSearchEnabled,
+      maxUses: request.webSearchMaxUses,
+    });
 
     // 5. Check content moderation
     if (await contentModerationService.shouldBlockUser(user.id)) {
@@ -237,10 +339,10 @@ async function handlePOST(req: NextRequest) {
     }
 
     // 6. Estimate tokens and reserve credits
-    const estimatedInputTokens = estimateInputTokens(
-      request.messages.map((m) => ({ content: getMessageContent(m) })),
-    );
-    const estimatedOutputTokens = request.max_tokens || 500;
+    const estimatedInputTokens =
+      estimateInputTokens(request.messages.map((m) => ({ content: getMessageContent(m) }))) +
+      (webSearchActive ? ANTHROPIC_WEB_SEARCH_INPUT_TOKEN_BUFFER : 0);
+    const estimatedOutputTokens = effectiveMaxTokens ?? request.max_tokens ?? 500;
     const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     let reservation: CreditReservation;
@@ -330,11 +432,12 @@ async function handlePOST(req: NextRequest) {
       messageCount: request.messages.length,
       streaming: request.stream,
       estimatedInputTokens,
+      webSearchEnabled: webSearchActive,
     });
 
     // 8. Handle streaming vs non-streaming
     if (request.stream) {
-      return handleStreamingRequest(
+      return await handleStreamingRequest(
         model,
         systemPrompt,
         uiMessages,
@@ -347,9 +450,12 @@ async function handlePOST(req: NextRequest) {
         req.signal,
         routeTimeoutMs,
         settleReservation,
+        cotOptions,
+        effectiveMaxTokens,
+        webSearchOptions,
       );
     } else {
-      return handleNonStreamingRequest(
+      return await handleNonStreamingRequest(
         model,
         systemPrompt,
         uiMessages,
@@ -362,6 +468,9 @@ async function handlePOST(req: NextRequest) {
         req.signal,
         routeTimeoutMs,
         settleReservation,
+        cotOptions,
+        effectiveMaxTokens,
+        webSearchOptions,
       );
     }
   } catch (error) {
@@ -369,18 +478,17 @@ async function handlePOST(req: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Chat Completions] Error", { error: errorMessage });
 
-    // Determine appropriate status code based on error
-    let status = 500;
+    const isInsufficientCredits =
+      error instanceof InsufficientCreditsError ||
+      errorMessage.includes("Insufficient") ||
+      errorMessage.includes("credits");
+    const status = isInsufficientCredits ? 402 : getErrorStatusCode(error);
     let errorType = "api_error";
-
-    if (errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")) {
-      status = 401;
+    if (status === 401) {
       errorType = "authentication_error";
-    } else if (errorMessage.includes("Insufficient") || errorMessage.includes("credits")) {
-      status = 402;
+    } else if (status === 402) {
       errorType = "insufficient_quota";
-    } else if (errorMessage.includes("Invalid") || errorMessage.includes("validation")) {
-      status = 400;
+    } else if (status === 400) {
       errorType = "invalid_request_error";
     }
 
@@ -415,6 +523,9 @@ async function handleStreamingRequest(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
+  cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
+  effectiveMaxTokens: number | undefined,
+  webSearchOptions: ReturnType<typeof buildProviderNativeWebSearchTools>,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -434,10 +545,12 @@ async function handleStreamingRequest(
     model: getLanguageModel(model),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
+    ...webSearchOptions,
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
-    ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
+    ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
+    ...cotOptions,
     onFinish: async ({ text, usage }) => {
       try {
         const billing = await billUsage(
@@ -474,7 +587,13 @@ async function handleStreamingRequest(
             provider,
           },
           billing,
-          { type: "chat", content: text },
+          {
+            type: "chat",
+            content: text,
+            systemPrompt,
+            prompt: request.messages.map((m) => `[${m.role}] ${getMessageContent(m)}`).join("\n"),
+            latencyMs: Date.now() - startTime,
+          },
         );
 
         logger.info("[Chat Completions] Streaming complete", {
@@ -503,15 +622,12 @@ async function handleStreamingRequest(
   const openAIStream = new ReadableStream({
     async start(controller) {
       const reader = stream.getReader();
-      let _fullContent = "";
       const responseId = `chatcmpl-${Date.now()}`;
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-
-          _fullContent += value;
 
           // Send OpenAI-format SSE chunk
           const chunk = {
@@ -582,6 +698,9 @@ async function handleNonStreamingRequest(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
+  cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
+  effectiveMaxTokens: number | undefined,
+  webSearchOptions: ReturnType<typeof buildProviderNativeWebSearchTools>,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -602,10 +721,12 @@ async function handleNonStreamingRequest(
       model: getLanguageModel(model),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
+      ...webSearchOptions,
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
-      ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
+      ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
+      ...cotOptions,
     });
 
     // Bill using actual usage from SDK response
@@ -643,7 +764,13 @@ async function handleNonStreamingRequest(
         provider,
       },
       billing,
-      { type: "chat", content: result.text },
+      {
+        type: "chat",
+        content: result.text,
+        systemPrompt,
+        prompt: request.messages.map((m) => `[${m.role}] ${getMessageContent(m)}`).join("\n"),
+        latencyMs: Date.now() - startTime,
+      },
     );
 
     logger.info("[Chat Completions] Non-streaming complete", {

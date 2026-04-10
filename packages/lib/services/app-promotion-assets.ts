@@ -3,6 +3,10 @@ import { put } from "@vercel/blob";
 import { generateText, streamText } from "ai";
 import { z } from "zod";
 import type { App } from "@/db/repositories";
+import {
+  mergeAnthropicCotProviderOptions,
+  mergeGoogleImageModalitiesWithAnthropicCot,
+} from "@/lib/providers/anthropic-thinking";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { parseAiJson } from "@/lib/utils/ai-json-parse";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
@@ -297,11 +301,11 @@ class AppPromotionAssetsService {
     try {
       // Use model string directly (not gateway.languageModel) for image generation
       // This matches the working pattern in /api/v1/generate-image
+      // Note: mergeGoogleImageModalitiesWithAnthropicCot returns image modalities for Google models.
+      // CoT/thinking budget has no effect on Google models (only applies to Anthropic).
       const result = streamText({
         model: IMAGE_MODEL,
-        providerOptions: {
-          google: { responseModalities: ["TEXT", "IMAGE"] },
-        },
+        ...mergeGoogleImageModalitiesWithAnthropicCot(IMAGE_MODEL, process.env),
         prompt: `Generate a promotional banner image: ${prompt}`,
       });
 
@@ -458,8 +462,13 @@ Return JSON with these exact fields:
 
 Return ONLY valid JSON. No markdown, no explanation.`;
 
+    const copyModel = "anthropic/claude-sonnet-4";
+    // Note: When ANTHROPIC_COT_BUDGET is set, @ai-sdk/anthropic silently strips temperature,
+    // topP, and topK when extended thinking is active. We explicitly disable extended thinking
+    // (pass budget=0) to preserve temperature control for creative promotional content quality.
     const { text } = await generateText({
-      model: gateway.languageModel("anthropic/claude-sonnet-4"),
+      model: gateway.languageModel(copyModel),
+      ...mergeAnthropicCotProviderOptions(copyModel, process.env, 0),
       temperature: 0.8,
       prompt,
     });

@@ -12,8 +12,9 @@ import { createApiKeySchema } from "./schemas";
  *
  * @returns Array of API key objects.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // API key management requires session auth only - API keys cannot manage other API keys
     const user = await requireAuthWithOrg();
 
     const keys = await apiKeysService.listByOrganization(user.organization_id!);
@@ -38,6 +39,7 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
+    // API key management requires session auth only - API keys cannot manage other API keys
     const user = await requireAuthWithOrg();
 
     const body = await request.json();

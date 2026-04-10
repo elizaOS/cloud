@@ -33,7 +33,7 @@ export function DashboardActionCards({ creditBalance, className }: DashboardActi
 
   return (
     <div className={cn("grid gap-4 sm:grid-cols-2 lg:grid-cols-4", className)}>
-      {/* Chat with Eliza */}
+      {/* Model Playground */}
       <Link
         href="/dashboard/chat"
         className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-orange-500/15 via-orange-600/10 to-transparent p-5 transition-all duration-300 hover:border-orange-500/40 hover:shadow-lg hover:shadow-orange-500/5"
@@ -45,8 +45,8 @@ export function DashboardActionCards({ creditBalance, className }: DashboardActi
           <ArrowRight className="h-4 w-4 text-white/30 transition-all duration-300 group-hover:translate-x-1 group-hover:text-orange-400" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-white">Chat with Eliza</h3>
-          <p className="mt-1 text-sm text-white/50">Talk to any agent</p>
+          <h3 className="text-base font-semibold text-white">Model Playground</h3>
+          <p className="mt-1 text-sm text-white/50">Test prompts and compare models</p>
         </div>
         {/* Glow effect */}
         <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-500/10 blur-3xl transition-opacity duration-500 group-hover:opacity-100 opacity-0" />

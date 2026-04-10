@@ -519,7 +519,7 @@ describe("dual-provider wallet routing", () => {
         expect.objectContaining({ walletId: "pw_rpc1", method: "eth_sendTransaction" }),
       );
       expect(mockStewardSignTransaction).not.toHaveBeenCalled();
-      expect(result).toEqual({ method: "eth_sendTransaction", data: "0xResult" });
+      expect(result as unknown).toEqual({ method: "eth_sendTransaction", data: "0xResult" });
     });
 
     it("routes to Steward for a wallet record with wallet_provider='steward'", async () => {

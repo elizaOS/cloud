@@ -770,7 +770,12 @@ export class SandboxService {
       }
 
       const SandboxModule = await import("@vercel/sandbox");
-      const Sandbox = SandboxModule.Sandbox || SandboxModule.default;
+      const Sandbox =
+        "Sandbox" in SandboxModule
+          ? SandboxModule.Sandbox
+          : "default" in SandboxModule
+            ? (SandboxModule as { default?: unknown }).default
+            : undefined;
 
       const connectOptions: Record<string, unknown> = { id: sandboxId };
 

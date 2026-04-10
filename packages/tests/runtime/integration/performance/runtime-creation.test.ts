@@ -214,7 +214,7 @@ describe.skipIf(!hasDatabaseUrl)("Database Query Performance", () => {
       try {
         await testRuntime.runtime.createEntity({
           id: uuidv4() as UUID,
-          agentId: testRuntime.agentId,
+          agentId: testRuntime.agentId as UUID,
           names: [`PerfEntity${i}`],
           metadata: { type: "test", index: i },
         });
@@ -242,7 +242,7 @@ describe.skipIf(!hasDatabaseUrl)("Database Query Performance", () => {
         {
           id: uuidv4() as UUID,
           entityId: testUser.entityId,
-          agentId: testRuntime.agentId,
+          agentId: testRuntime.agentId as UUID,
           roomId: testUser.roomId,
           content: { text: `Performance test message ${i}` },
           createdAt: Date.now(),
@@ -267,7 +267,7 @@ describe.skipIf(!hasDatabaseUrl)("Database Query Performance", () => {
         {
           id: uuidv4() as UUID,
           entityId: testUser.entityId,
-          agentId: testRuntime.agentId,
+          agentId: testRuntime.agentId as UUID,
           roomId: testUser.roomId,
           content: { text: `Retrieval test message ${i}` },
           createdAt: Date.now(),

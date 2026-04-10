@@ -2,6 +2,7 @@
 import type { Action, IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
 import { addHeader, composeActionExamples, formatActionNames, logger } from "@elizaos/core";
 import type { ActionWithParams } from "../types";
+import { filterActionsByRouting, getContextRoutingFromMessage } from "../utils/context-routing";
 
 function formatActionsWithoutParams(actions: Action[]): string {
   return actions.map((a) => `## ${a.name}\n${a.description}`).join("\n\n---\n\n");
@@ -101,7 +102,10 @@ export const actionsProvider: Provider = {
       }
     }
 
-    const actionsData = cached.actions;
+    const actionsData = filterActionsByRouting(
+      cached.actions,
+      getContextRoutingFromMessage(message),
+    );
     const discoverableToolCount = cached.discoverableToolCount;
     const hasActions = actionsData.length > 0;
     const actionNames = `Possible response actions: ${formatActionNames(actionsData)}`;

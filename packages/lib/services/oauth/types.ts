@@ -11,6 +11,8 @@ export type OAuthConnectionStatus = "pending" | "active" | "expired" | "revoked"
 
 export type OAuthConnectionSource = "platform_credentials" | "secrets";
 
+export type OAuthConnectionRole = "owner" | "agent";
+
 /**
  * Provider information returned by the list providers endpoint.
  */
@@ -35,6 +37,10 @@ export interface OAuthProviderInfo {
 export interface OAuthConnection {
   /** Unique connection identifier */
   id: string;
+  /** Cloud user that owns the connection when user-scoped */
+  userId?: string;
+  /** Logical role Milady uses for the connection */
+  connectionRole?: OAuthConnectionRole;
   /** Platform identifier (e.g., 'google', 'twitter') */
   platform: string;
   /** User ID on the platform */
@@ -93,6 +99,8 @@ export interface InitiateAuthParams {
   redirectUrl?: string;
   /** Specific scopes to request (overrides defaults) */
   scopes?: string[];
+  /** Logical Milady-side role for the connection */
+  connectionRole?: OAuthConnectionRole;
 }
 
 /**
@@ -113,8 +121,12 @@ export interface InitiateAuthResult {
 export interface ListConnectionsParams {
   /** Organization to list connections for */
   organizationId: string;
+  /** Optional user scope within the organization */
+  userId?: string;
   /** Optional platform filter */
   platform?: string;
+  /** Optional logical role filter */
+  connectionRole?: OAuthConnectionRole;
 }
 
 /**
@@ -133,8 +145,12 @@ export interface GetTokenParams {
 export interface GetTokenByPlatformParams {
   /** Organization owning the connection */
   organizationId: string;
+  /** Optional user scope within the organization */
+  userId?: string;
   /** Platform identifier */
   platform: string;
+  /** Optional logical role filter */
+  connectionRole?: OAuthConnectionRole;
 }
 
 /**

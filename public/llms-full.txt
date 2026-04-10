@@ -6169,7 +6169,53 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ---
 
+## April 2026
+
+### Apr 6, 2026
+
+**Auth API consistency — API keys, sessions, and clearer errors**
+
+- **Programmatic access** — Many dashboard and org APIs (apps/domains, ElevenLabs voices, API key CRUD except Explorer, profile, crypto payment **list/status** `GET`, org members and invites **management**) now accept the same **API keys** you use for chat, so CI and backends do not need a browser cookie. **Why:** One credential model for automation; avoids “request reached the server but auth failed” confusion when only cookies worked before.
+- **Session-only endpoints** — Some flows stay **browser session only** (e.g. accepting an invite, redeeming a signup code, Stripe checkout, CLI web **completion** after login). If you send `X-API-Key` or `Bearer eliza_…` there, the edge returns **`401`** with code **`session_auth_required`**. **Why:** Clear signal that the URL expects a logged-in user in the product, not a script key; reduces abuse on one-time or redirect flows.
+- **CLI login paths** — Creating a CLI session and polling status stay easy for the terminal; completing login in the browser follows normal API auth rules. **Why:** Completion issues API key material and must align with cookie session semantics.
+
+Docs: [API authentication](../../docs/api-authentication.md) (mechanics), [Auth consistency — WHY](../../docs/auth-api-consistency.md). Engineering: [CHANGELOG.md](../../CHANGELOG.md).
+
+---
+
 ## March 2026
+
+### Mar 30, 2026
+
+**Referral invite links — API, dashboard UI, docs**
+
+- **`GET /api/v1/referrals`** — Returns the signed-in user’s referral row as flat JSON (`code`, `total_referrals`, `is_active`); creates a code via `getOrCreateCode` on first success. **Why:** One round trip for “my link,” no separate create endpoint; idempotent and safe for duplicate calls from header + Affiliates page.
+- **HTTP semantics** — `401` for auth failures (including `Authentication required` and API key errors), **`403` for `ForbiddenError`** (e.g. no org), `500` for unexpected errors. **Why:** Callers can tell “not logged in” from “logged in but not allowed” instead of masking 403 as 500.
+- **Dashboard** — Header **Invite** (lazy fetch, clipboard, toast; hidden for anonymous users and during `authGraceActive`). Affiliates page **Invite friends** card above the affiliate link (distinct styling); inactive codes show a warning and block copy in header. **Why:** Discoverability without a new nav item; avoids conflating `?ref=` with `?affiliate=`; grace-period gating avoids broken clicks mid-session sync.
+- **Docs** — [docs/referrals.md](../../docs/referrals.md) (flows, APIs, WHYs), [docs/affiliate-referral-comparison.md](../../docs/affiliate-referral-comparison.md); README subsection updated; [ROADMAP.md](../../docs/ROADMAP.md) entry. Shared type `ReferralMeResponse` + `parseReferralMeResponse` in `packages/lib/types/referral-me.ts`. **Why:** README previously linked to missing referral docs; flat JSON and parser reduce client bugs.
+
+### Mar 28, 2026
+
+**Per-agent Anthropic extended thinking (MCP / A2A)**
+
+- **`user_characters.settings.anthropicThinkingBudgetTokens`**: integer token budget for Anthropic “extended thinking” on **`POST /api/agents/{id}/mcp`** (`chat`) and **`POST /api/agents/{id}/a2a`** (`chat`). **`0`** disables thinking for that agent even if `ANTHROPIC_COT_BUDGET` is set; omitted or invalid values fall back to env default. **Why:** Agent owners set inference policy in stored character data without redeploying; request bodies must not carry budgets so third-party MCP/A2A callers cannot inflate token spend.
+- **`ANTHROPIC_COT_BUDGET`**: clarified as **default** when the character does not set the key (and for routes that have no resolved character). **`ANTHROPIC_COT_BUDGET_MAX`**: optional ceiling on any effective budget. **Why:** Operators keep a baseline and a worst-case cap while still allowing per-agent overrides.
+
+Docs: [Anthropic CoT / thinking](../../docs/anthropic-cot-budget.md), [CHANGELOG.md](../../CHANGELOG.md).
+
+### Mar 27, 2026
+
+**Anthropic extended thinking (deploy policy)**
+
+- Optional **`ANTHROPIC_COT_BUDGET`**: positive integer enables Anthropic extended thinking for eligible Claude models via `providerOptions.anthropic.thinking`; unset or `0` leaves behavior unchanged. **Why:** Thinking uses extra tokens—keeping control in environment config avoids arbitrary client-controlled budgets and keeps billing/support predictable.
+- Provider-option **merge helpers** preserve existing `gateway` / `google` keys when adding Anthropic fragments. **Why:** Routes already set gateway order or image modalities; overwriting the whole `providerOptions` object would drop those settings.
+
+**Milady unit tests and pricing mocks**
+
+- **`mockMiladyPricingMinimumDepositForRouteTests`**: route tests that tweak minimum deposit now spread the real `MILADY_PRICING` object instead of replacing it with `{ MINIMUM_DEPOSIT }` only. **Why:** `mock.module` replaces the entire module for the process; partial objects removed hourly rates and warning thresholds and broke Milady billing cron tests when the full unit suite ran.
+- Billing cron test file renamed to `z-milady-billing-route.test.ts` with stable queue-backed DB mocks re-registered in `beforeEach`. **Why:** Reduces order-dependent failures when other tests also mock `@/db/client`.
+
+Engineering details: [CHANGELOG.md](../../CHANGELOG.md), [docs/unit-testing-milady-mocks.md](../../docs/unit-testing-milady-mocks.md), [docs/anthropic-cot-budget.md](../../docs/anthropic-cot-budget.md).
 
 ### Mar 8, 2026
 

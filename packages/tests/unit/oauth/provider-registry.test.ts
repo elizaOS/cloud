@@ -5,16 +5,31 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import {
-  getAllProviderIds,
-  getConfiguredProviders,
-  getProvider,
-  isProviderConfigured,
-  isValidProvider,
-  OAUTH_PROVIDERS,
-} from "@/lib/services/oauth/provider-registry";
+
+type PR = typeof import("@/lib/services/oauth/provider-registry");
 
 describe("Provider Registry", () => {
+  let getProvider: PR["getProvider"];
+  let getAllProviderIds: PR["getAllProviderIds"];
+  let getConfiguredProviders: PR["getConfiguredProviders"];
+  let getAllowedScopes: PR["getAllowedScopes"];
+  let isProviderConfigured: PR["isProviderConfigured"];
+  let isValidProvider: PR["isValidProvider"];
+  let OAUTH_PROVIDERS: PR["OAUTH_PROVIDERS"];
+  let resolveRequestedScopes: PR["resolveRequestedScopes"];
+
+  beforeEach(async () => {
+    const m = await import(`@/lib/services/oauth/provider-registry?t=${Date.now()}`);
+    getProvider = m.getProvider;
+    getAllProviderIds = m.getAllProviderIds;
+    getConfiguredProviders = m.getConfiguredProviders;
+    getAllowedScopes = m.getAllowedScopes;
+    isProviderConfigured = m.isProviderConfigured;
+    isValidProvider = m.isValidProvider;
+    OAUTH_PROVIDERS = m.OAUTH_PROVIDERS;
+    resolveRequestedScopes = m.resolveRequestedScopes;
+  });
+
   describe("OAUTH_PROVIDERS", () => {
     it("should include all expected providers", () => {
       const expectedProviders = ["google", "twitter", "twilio", "blooio"];
@@ -52,105 +67,99 @@ describe("Provider Registry", () => {
     });
 
     describe("Google Provider", () => {
-      const google = OAUTH_PROVIDERS.google;
-
       it("should have correct type", () => {
-        expect(google.type).toBe("oauth2");
+        expect(OAUTH_PROVIDERS.google.type).toBe("oauth2");
       });
 
       it("should require GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET", () => {
-        expect(google.envVars).toContain("GOOGLE_CLIENT_ID");
-        expect(google.envVars).toContain("GOOGLE_CLIENT_SECRET");
+        expect(OAUTH_PROVIDERS.google.envVars).toContain("GOOGLE_CLIENT_ID");
+        expect(OAUTH_PROVIDERS.google.envVars).toContain("GOOGLE_CLIENT_SECRET");
       });
 
       it("should use platform_credentials storage", () => {
-        expect(google.storage).toBe("platform_credentials");
+        expect(OAUTH_PROVIDERS.google.storage).toBe("platform_credentials");
       });
 
       it("should have default scopes", () => {
-        expect(google.defaultScopes).toBeDefined();
-        expect(Array.isArray(google.defaultScopes)).toBe(true);
-        expect(google.defaultScopes!.length).toBeGreaterThan(0);
+        expect(OAUTH_PROVIDERS.google.defaultScopes).toBeDefined();
+        expect(Array.isArray(OAUTH_PROVIDERS.google.defaultScopes)).toBe(true);
+        expect(OAUTH_PROVIDERS.google.defaultScopes!.length).toBeGreaterThan(0);
       });
 
       it("should use generic routes", () => {
-        expect(google.useGenericRoutes).toBe(true);
-        expect(google.routes).toBeUndefined();
+        expect(OAUTH_PROVIDERS.google.useGenericRoutes).toBe(true);
+        expect(OAUTH_PROVIDERS.google.routes).toBeUndefined();
       });
     });
 
     describe("Twitter Provider", () => {
-      const twitter = OAUTH_PROVIDERS.twitter;
-
       it("should have OAuth 1.0a type", () => {
-        expect(twitter.type).toBe("oauth1a");
+        expect(OAUTH_PROVIDERS.twitter.type).toBe("oauth1a");
       });
 
       it("should require Twitter API keys", () => {
-        expect(twitter.envVars).toContain("TWITTER_API_KEY");
-        expect(twitter.envVars).toContain("TWITTER_API_SECRET_KEY");
+        expect(OAUTH_PROVIDERS.twitter.envVars).toContain("TWITTER_API_KEY");
+        expect(OAUTH_PROVIDERS.twitter.envVars).toContain("TWITTER_API_SECRET_KEY");
       });
 
       it("should use secrets storage", () => {
-        expect(twitter.storage).toBe("secrets");
+        expect(OAUTH_PROVIDERS.twitter.storage).toBe("secrets");
       });
 
       it("should have secret patterns defined", () => {
-        expect(twitter.secretPatterns).toBeDefined();
-        expect(twitter.secretPatterns!.accessToken).toBe("TWITTER_ACCESS_TOKEN");
-        expect(twitter.secretPatterns!.accessTokenSecret).toBe("TWITTER_ACCESS_TOKEN_SECRET");
-        expect(twitter.secretPatterns!.username).toBe("TWITTER_USERNAME");
-        expect(twitter.secretPatterns!.userId).toBe("TWITTER_USER_ID");
+        expect(OAUTH_PROVIDERS.twitter.secretPatterns).toBeDefined();
+        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.accessToken).toBe("TWITTER_ACCESS_TOKEN");
+        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.accessTokenSecret).toBe(
+          "TWITTER_ACCESS_TOKEN_SECRET",
+        );
+        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.username).toBe("TWITTER_USERNAME");
+        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.userId).toBe("TWITTER_USER_ID");
       });
     });
 
     describe("Twilio Provider", () => {
-      const twilio = OAUTH_PROVIDERS.twilio;
-
       it("should have api_key type", () => {
-        expect(twilio.type).toBe("api_key");
+        expect(OAUTH_PROVIDERS.twilio.type).toBe("api_key");
       });
 
       it("should have empty envVars (user provides credentials)", () => {
-        expect(twilio.envVars).toEqual([]);
+        expect(OAUTH_PROVIDERS.twilio.envVars).toEqual([]);
       });
 
       it("should use secrets storage", () => {
-        expect(twilio.storage).toBe("secrets");
+        expect(OAUTH_PROVIDERS.twilio.storage).toBe("secrets");
       });
 
       it("should have secret patterns defined", () => {
-        expect(twilio.secretPatterns).toBeDefined();
-        expect(twilio.secretPatterns!.accountSid).toBe("TWILIO_ACCOUNT_SID");
-        expect(twilio.secretPatterns!.authToken).toBe("TWILIO_AUTH_TOKEN");
-        expect(twilio.secretPatterns!.phoneNumber).toBe("TWILIO_PHONE_NUMBER");
+        expect(OAUTH_PROVIDERS.twilio.secretPatterns).toBeDefined();
+        expect(OAUTH_PROVIDERS.twilio.secretPatterns!.accountSid).toBe("TWILIO_ACCOUNT_SID");
+        expect(OAUTH_PROVIDERS.twilio.secretPatterns!.authToken).toBe("TWILIO_AUTH_TOKEN");
+        expect(OAUTH_PROVIDERS.twilio.secretPatterns!.phoneNumber).toBe("TWILIO_PHONE_NUMBER");
       });
 
       it("should have empty callback route (API key platforms)", () => {
-        expect(twilio.routes.callback).toBe("");
+        expect(OAUTH_PROVIDERS.twilio.routes!.callback).toBe("");
       });
     });
 
     describe("Blooio Provider", () => {
-      const blooio = OAUTH_PROVIDERS.blooio;
-
       it("should have api_key type", () => {
-        expect(blooio.type).toBe("api_key");
+        expect(OAUTH_PROVIDERS.blooio.type).toBe("api_key");
       });
 
       it("should have empty envVars (user provides credentials)", () => {
-        expect(blooio.envVars).toEqual([]);
+        expect(OAUTH_PROVIDERS.blooio.envVars).toEqual([]);
       });
 
       it("should use secrets storage", () => {
-        expect(blooio.storage).toBe("secrets");
+        expect(OAUTH_PROVIDERS.blooio.storage).toBe("secrets");
       });
 
       it("should have secret patterns defined", () => {
-        expect(blooio.secretPatterns).toBeDefined();
-        expect(blooio.secretPatterns!.apiKey).toBe("BLOOIO_API_KEY");
-        expect(blooio.secretPatterns!.webhookSecret).toBe("BLOOIO_WEBHOOK_SECRET");
-        expect(blooio.secretPatterns!.fromNumber).toBe("BLOOIO_FROM_NUMBER");
+        expect(OAUTH_PROVIDERS.blooio.secretPatterns).toBeDefined();
+        expect(OAUTH_PROVIDERS.blooio.secretPatterns!.apiKey).toBe("BLOOIO_API_KEY");
+        expect(OAUTH_PROVIDERS.blooio.secretPatterns!.webhookSecret).toBe("BLOOIO_WEBHOOK_SECRET");
+        expect(OAUTH_PROVIDERS.blooio.secretPatterns!.fromNumber).toBe("BLOOIO_FROM_NUMBER");
       });
     });
   });
@@ -186,6 +195,39 @@ describe("Provider Registry", () => {
         expect(provider).not.toBeNull();
         expect(provider!.id).toBe(id);
       }
+    });
+  });
+
+  describe("scope resolution", () => {
+    it("returns normalized default scopes when no scopes are requested", () => {
+      const scopes = resolveRequestedScopes(OAUTH_PROVIDERS.google, undefined);
+
+      expect(scopes).toEqual(getAllowedScopes(OAUTH_PROVIDERS.google));
+    });
+
+    it("dedupes and trims requested scopes within the allowlist", () => {
+      const provider = {
+        ...OAUTH_PROVIDERS.google,
+        allowedScopes: ["scope:a", "scope:b"],
+        defaultScopes: ["scope:a"],
+      };
+
+      expect(resolveRequestedScopes(provider, [" scope:a ", "scope:b", "scope:a"])).toEqual([
+        "scope:a",
+        "scope:b",
+      ]);
+    });
+
+    it("rejects requested scopes outside the allowlist", () => {
+      const provider = {
+        ...OAUTH_PROVIDERS.google,
+        allowedScopes: ["scope:a"],
+        defaultScopes: ["scope:a"],
+      };
+
+      expect(() => resolveRequestedScopes(provider, ["scope:a", "scope:admin"])).toThrow(
+        "Requested scopes are not allowed",
+      );
     });
   });
 

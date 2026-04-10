@@ -215,7 +215,7 @@ cloud/
 │   ├── eliza/               # elizaOS integration
 │   │   ├── agent-runtime.ts # AgentRuntime wrapper
 │   │   ├── agent.ts         # Agent management
-│   │   └── plugin-assistant/  # Custom elizaOS plugin
+│   │   └── plugin-cloud-bootstrap/  # Cloud bootstrap plugin (name: "cloud-bootstrap")
 │   ├── config/              # Configuration
 │   │   ├── env-validator.ts # Environment validation
 │   │   ├── env-consolidation.ts  # Config helpers
@@ -232,6 +232,9 @@ cloud/
 ├── .env.example            # Environment template
 ├── docs/                    # Detailed documentation
 │   ├── API_REFERENCE.md    # Complete API reference
+│   ├── anthropic-cot-budget.md   # ANTHROPIC_COT_BUDGET + provider merge WHYs
+│   ├── unit-testing-milady-mocks.md  # Bun mock.module + Milady pricing test WHYs
+│   ├── ROADMAP.md          # Product direction and done items
 │   ├── DEPLOYMENT.md       # Deployment guide
 │   ├── DEPLOYMENT_TROUBLESHOOTING.md  # Troubleshooting
 │   ├── STRIPE_SETUP.md     # Stripe integration
@@ -553,10 +556,17 @@ Tests are split by kind; use the right script for what you want to run:
 | `bun run test:unit`        | `tests/unit/`        | Unit tests (mocked deps, fast) | Env preload only; some skip without `DATABASE_URL`        |
 | `bun run test:integration` | `tests/integration/` | API/DB/E2E integration tests   | `DATABASE_URL` (+ migrations); some need a running server |
 | `bun run test:runtime`     | `tests/runtime/`     | Runtime/factory and perf tests | `DATABASE_URL` (+ migrations), heavier                    |
-| `bun run test`             | all of the above     | Full suite in one run          | Same as integration + runtime for those layers            |
+| `bun run test`             | `test:repo-unit:bulk` + `special` | Two staged **unit** batches (see `package.json` for included/excluded files) | Env preload only (same family as `test:unit`) |
 | `bun run test:playwright`  | `tests/playwright/`  | Playwright E2E (optional)      | `@playwright/test` installed                              |
 
-Env is loaded from `.env`, `.env.local`, and `.env.test` via preload. See `docs/test-failure-assessment.md` for skip behavior and remaining failure categories.
+Env is loaded from `.env`, `.env.local`, and `.env.test` via preload.
+
+### Engineering docs (WHYs)
+
+- **[docs/unit-testing-milady-mocks.md](docs/unit-testing-milady-mocks.md)** — Why partial `MILADY_PRICING` mocks break other Milady modules under Bun, and how the billing cron tests isolate `mock.module("@/db/client")` contention.
+- **[docs/anthropic-cot-budget.md](docs/anthropic-cot-budget.md)** — Per-agent `settings.anthropicThinkingBudgetTokens` (MCP/A2A), env default (`ANTHROPIC_COT_BUDGET`) and cap (`ANTHROPIC_COT_BUDGET_MAX`), and **why** thinking budgets are not request parameters.
+- **[CHANGELOG.md](CHANGELOG.md)** — Engineering changelog (Keep a Changelog style).
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** — Product direction and rationale; “Done” links to the above where relevant.
 
 ### Development Workflow
 
@@ -710,6 +720,8 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 **Cost**: Token-based pricing from `lib/pricing.ts`
 
 **Anthropic Messages API (Claude Code):** For tools that expect the [Anthropic Messages API](https://docs.anthropic.com/en/api/messages) (e.g. Claude Code), use **POST /api/v1/messages** with the same request/response shape. Set `ANTHROPIC_BASE_URL=https://cloud.milady.ai/api/v1` and `ANTHROPIC_API_KEY` to your Cloud API key so usage goes through Cloud credits instead of a direct Anthropic key. See [API docs → Anthropic Messages](/docs/api/messages). *Why: single API key and billing for both OpenAI-style and Anthropic-style clients.*
+
+**Public cloud agents (MCP / A2A) — Anthropic extended thinking:** For **`POST /api/agents/{id}/mcp`** (`chat` tool) and **`POST /api/agents/{id}/a2a`** (`chat`), extended thinking uses the character’s **`settings.anthropicThinkingBudgetTokens`** when the model is Anthropic (`0` = off; omitted = fall back to `ANTHROPIC_COT_BUDGET`). Optional **`ANTHROPIC_COT_BUDGET_MAX`** clamps any effective budget. *Why: the agent owner controls cost/quality per agent; MCP/A2A clients cannot pass a thinking budget in the request (untrusted input).* See [docs/anthropic-cot-budget.md](docs/anthropic-cot-budget.md).
 
 ### 2. AI Image Generation
 
@@ -1158,8 +1170,9 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - **Referrals**: Signup-based. When a user signs up with a referral code, we record the link; when they buy credits (Stripe or x402), we **redistribute 100%** of that purchase in a 50/40/10 split (ElizaCloud / app owner / creator). Signup and qualified bonuses ($1 + $0.50 + $0.50) are minted as marketing spend, not carved from revenue. **Why:** One predictable split model; no risk of over-paying (splits always sum to 100%).
 - **Affiliates**: Link-based. Users can be linked to an affiliate code; on **auto top-up** and **MCP usage** we add a markup (default 20%) to what the customer pays and pay that to the affiliate. **Why:** Affiliate cost is passed to the customer, so we never over-allocate.
 - **No double-apply:** Referral splits apply only to Stripe checkout and x402; affiliate markup only to auto top-up and MCP. No single transaction pays both.
+- **Invite links (referral):** Signed-in users can copy `…/login?ref=<code>` from the dashboard header (**Invite**) and from the **Invite friends** card on `/dashboard/affiliates`. **`GET /api/v1/referrals`** returns `{ code, total_referrals, is_active }` and creates a code on first use. **`POST /api/v1/referrals/apply`** still applies someone else’s code after login. **Why:** Referral economics existed in code, but there was no product surface for “my link”; flat JSON and a dedicated card avoid confusing referral URLs (`?ref=`) with affiliate URLs (`?affiliate=`).
 
-See [docs/referrals.md](./docs/referrals.md) for flow, API, and revenue math; [docs/affiliate-referral-comparison.md](./docs/affiliate-referral-comparison.md) for comparison with the other cloud repo.
+See [docs/referrals.md](./docs/referrals.md) for flow, APIs, UI behavior, and WHYs; [docs/affiliate-referral-comparison.md](./docs/affiliate-referral-comparison.md) for a side-by-side with affiliates.
 
 #### Signup codes
 
@@ -1467,6 +1480,11 @@ Documented management endpoints support multiple authentication methods:
 2. **API Key Header**: `Authorization: Bearer eliza_your_key` or `X-API-Key: eliza_your_key`
 3. **SIWE**: Get nonce from `GET /api/auth/siwe/nonce`, sign EIP-4361 message, `POST /api/auth/siwe/verify` to receive an API key
 4. **Wallet header**: `X-Wallet-Address`, `X-Timestamp`, `X-Wallet-Signature` (per-request signature; first request can create account)
+
+**Policy and rationale:** Some routes accept **only** a browser session (edge returns `session_auth_required` if you send an API key). Others accept **session or API key** depending on the handler. **Why:** automation should work where it is safe and expected; human-only flows (e.g. certain checkouts, invite accept, promo redeem) stay session-bound to reduce scripted abuse and confusing semantics.
+
+- **Mechanics:** [docs/api-authentication.md](docs/api-authentication.md) (CORS, rate limits, error shape, route lists)
+- **Design / WHY:** [docs/auth-api-consistency.md](docs/auth-api-consistency.md)
 
 ### Base URL
 
@@ -1985,6 +2003,13 @@ Container deployments are billed **daily**:
 ---
 
 ## 📚 Additional Resources
+
+### Platform documentation (this repo)
+
+- [docs/api-authentication.md](docs/api-authentication.md) — Auth headers, CORS, rate limits, errors
+- [docs/auth-api-consistency.md](docs/auth-api-consistency.md) — **Why** session vs API key vs edge behavior
+- [CHANGELOG.md](CHANGELOG.md) — Engineering changelog
+- [docs/ROADMAP.md](docs/ROADMAP.md) — Direction and follow-ups
 
 ### Core Framework
 

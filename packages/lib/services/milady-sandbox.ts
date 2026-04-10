@@ -82,29 +82,6 @@ export interface SnapshotResult {
 
 const MAX_BACKUPS = 10;
 type LifecycleTx = Parameters<Parameters<Database["transaction"]>[0]>[0];
-const MAX_NEON_RESOURCE_NAME_LENGTH = 63;
-const MILADY_NEON_RESOURCE_PREFIX = "milady-";
-
-function sanitizeNeonResourceName(value: string, fallback: string): string {
-  const normalized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
-
-  return normalized || fallback;
-}
-
-function buildMiladyNeonResourceName(agentName: string, agentId: string): string {
-  const prefix = sanitizeNeonResourceName(agentName, "agent");
-  const suffix = agentId.substring(0, 8).toLowerCase();
-  const maxPrefixLength =
-    MAX_NEON_RESOURCE_NAME_LENGTH - MILADY_NEON_RESOURCE_PREFIX.length - suffix.length - 1;
-  const trimmedPrefix =
-    prefix.slice(0, Math.max(1, maxPrefixLength)).replace(/-+$/g, "") || "agent";
-
-  return `${MILADY_NEON_RESOURCE_PREFIX}${trimmedPrefix}-${suffix}`;
-}
 
 export class MiladySandboxService {
   private _provider?: SandboxProvider;
@@ -1092,58 +1069,22 @@ export class MiladySandboxService {
   private async provisionNeon(
     rec: MiladySandbox,
   ): Promise<{ success: boolean; connectionUri?: string; error?: string }> {
+    // Use the shared cloud database instead of creating per-agent Neon projects.
+    // ElizaOS plugin-sql tables scope all data by agent UUID, so multiple agents
+    // safely coexist in one database. This avoids Neon project/branch limits
+    // (BRANCHES_LIMIT_EXCEEDED at 100 projects / 10 branches per project).
+    const sharedDbUrl = process.env.DATABASE_URL;
+    if (!sharedDbUrl) {
+      return { success: false, error: "DATABASE_URL not configured in cloud environment" };
+    }
+
     await miladySandboxesRepository.update(rec.id, {
-      database_status: "provisioning",
-    });
-
-    const neon = getNeonClient();
-    const resourceName = buildMiladyNeonResourceName(rec.agent_name ?? "agent", rec.id);
-    const result = NEON_PARENT_PROJECT_ID
-      ? await neon.createBranch(NEON_PARENT_PROJECT_ID, resourceName)
-      : await neon.createProject({
-          name: resourceName,
-          region: "aws-us-east-1",
-        });
-
-    const updated = await miladySandboxesRepository.update(rec.id, {
-      neon_project_id: result.projectId,
-      neon_branch_id: result.branchId,
-      database_uri: result.connectionUri,
+      database_uri: sharedDbUrl,
       database_status: "ready",
       database_error: null,
     });
 
-    if (!updated) {
-      logger.error("[milady-sandbox] DB update failed after Neon creation, cleaning orphan", {
-        projectId: result.projectId,
-        branchId: result.branchId,
-      });
-
-      if (result.projectId === NEON_PARENT_PROJECT_ID && result.branchId) {
-        await neon.deleteBranch(result.projectId, result.branchId).catch((error) => {
-          logger.error("[milady-sandbox] Orphan Neon branch cleanup failed", {
-            projectId: result.projectId,
-            branchId: result.branchId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
-      } else {
-        await neon.deleteProject(result.projectId).catch((error) => {
-          logger.error("[milady-sandbox] Orphan Neon project cleanup failed", {
-            projectId: result.projectId,
-            branchId: result.branchId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
-      }
-
-      return {
-        success: false,
-        error: "Failed to persist database credentials",
-      };
-    }
-
-    return { success: true, connectionUri: result.connectionUri };
+    return { success: true, connectionUri: sharedDbUrl };
   }
 
   private async cleanupNeon(projectId: string | null | undefined, branchId?: string | null) {

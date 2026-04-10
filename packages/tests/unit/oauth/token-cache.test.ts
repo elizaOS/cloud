@@ -239,12 +239,15 @@ describe("Token Cache Logic", () => {
     });
 
     it("should handle undefined expiresAt", () => {
-      const expiresAt: Date | undefined = undefined;
-      const result = expiresAt
-        ? expiresAt instanceof Date
-          ? expiresAt
-          : new Date(expiresAt)
-        : undefined;
+      const expiresAt = undefined as Date | undefined;
+      let result: Date | undefined;
+      if (expiresAt === undefined) {
+        result = undefined;
+      } else if (expiresAt instanceof Date) {
+        result = expiresAt;
+      } else {
+        result = new Date(expiresAt);
+      }
 
       expect(result).toBeUndefined();
     });

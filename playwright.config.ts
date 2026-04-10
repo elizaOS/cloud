@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
-const PORT = 3000;
+const configuredPort = Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "3000", 10);
+const PORT = Number.isFinite(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
 const BASE_URL = `http://localhost:${PORT}`;
 const PLAYWRIGHT_WORKERS = Number.parseInt(process.env.PLAYWRIGHT_WORKERS ?? "1", 10);
 
@@ -29,6 +30,9 @@ export default defineConfig({
       NODE_ENV: "production",
       PORT: String(PORT),
       REDIS_RATE_LIMITING: "true",
+      PLAYWRIGHT_TEST_AUTH: process.env.PLAYWRIGHT_TEST_AUTH ?? "true",
+      PLAYWRIGHT_TEST_AUTH_SECRET:
+        process.env.PLAYWRIGHT_TEST_AUTH_SECRET ?? "playwright-local-auth-secret",
     },
   },
 });
