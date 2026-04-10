@@ -35,7 +35,7 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: `Agent ${id.slice(0, 8)} — Milady`,
+    title: `Agent ${id.slice(0, 8)} — Instances`,
     robots: { index: false, follow: false },
   };
 }
@@ -106,7 +106,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           <div className="flex items-center justify-center w-7 h-7 border border-white/10 bg-black/40 group-hover:border-[#FF5800]/40 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
           </div>
-          <span>Milady Instances</span>
+          <span>Instances</span>
         </Link>
 
         {webUiUrl && agent.status === "running" && <MiladyConnectButton agentId={agent.id} />}

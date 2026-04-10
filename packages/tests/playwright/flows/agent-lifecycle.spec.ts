@@ -15,8 +15,8 @@ test.describe("Agent Lifecycle Pages", () => {
     expect([200, 302, 304]).toContain(response?.status() ?? 0);
   });
 
-  test("containers page loads and has content", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/containers`);
+  test("instances page loads and has content", async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}/dashboard/milady`);
     expect(response?.status()).not.toBe(500);
     expect([200, 302, 304]).toContain(response?.status() ?? 0);
   });
@@ -29,7 +29,7 @@ test.describe("Agent Lifecycle Pages", () => {
     await page.goto(`${BASE_URL}/dashboard/my-agents`);
     await page.waitForLoadState("domcontentloaded");
 
-    await page.goto(`${BASE_URL}/dashboard/containers`);
+    await page.goto(`${BASE_URL}/dashboard/milady`);
     await page.waitForLoadState("domcontentloaded");
 
     await page.goto(`${BASE_URL}/dashboard/gallery`);

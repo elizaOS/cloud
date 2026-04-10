@@ -14,8 +14,9 @@ const DASHBOARD_PAGES = [
   "/dashboard/chat",
   "/dashboard/build",
 
-  // Agents & Containers
+  // Agents & Infrastructure
   "/dashboard/my-agents",
+  "/dashboard/milady",
   "/dashboard/containers",
 
   // API & Development
@@ -72,6 +73,13 @@ test.describe("Dashboard Pages", () => {
     test("/dashboard/containers/agents/[id] handles nonexistent ID", async ({ page }) => {
       const response = await page.goto(
         "http://localhost:3000/dashboard/containers/agents/00000000-0000-4000-8000-000000000000",
+      );
+      expect(response?.status()).not.toBe(500);
+    });
+
+    test("/dashboard/milady/agents/[id] handles nonexistent ID", async ({ page }) => {
+      const response = await page.goto(
+        "http://localhost:3000/dashboard/milady/agents/00000000-0000-4000-8000-000000000000",
       );
       expect(response?.status()).not.toBe(500);
     });

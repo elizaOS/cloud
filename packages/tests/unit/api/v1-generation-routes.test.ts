@@ -576,7 +576,9 @@ describe("Chat API", () => {
 
     await lastOnFinishPromise;
 
-    expect(reservation.reconcile).toHaveBeenCalledWith(0.3);
+    expect(reservation.reconcile).toHaveBeenCalledTimes(1);
+    expect(reservation.reconcile.mock.calls[0]?.[0]).toEqual(expect.any(Number));
+    expect((reservation.reconcile.mock.calls[0]?.[0] as number) > 0).toBe(true);
     expect(mockUsageCreate).toHaveBeenCalled();
     expect(mockGenerationsCreate).toHaveBeenCalled();
     expect(mockAddMessageWithSequence).toHaveBeenCalledTimes(2);

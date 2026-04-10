@@ -1,14 +1,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { IAgentRuntime } from "@elizaos/core";
+import type { HandlerCallback, IAgentRuntime, Memory } from "@elizaos/core";
 
 // ── Mock @elizaos/core ──────────────────────────────────────────
 
-type MessageContent = { text: string };
-type MessageCallback = (content: MessageContent) => Promise<object[]>;
-
 const mockEmitEvent = mock(() => Promise.resolve());
-const mockHandleMessage = mock((_rt: object, _mem: object, callback: MessageCallback) =>
-  callback({ text: "agent-response" }),
+const mockHandleMessage = mock((_rt: IAgentRuntime, _mem: Memory, callback?: HandlerCallback) =>
+  callback ? callback({ text: "agent-response" }) : Promise.resolve([] as Memory[]),
 );
 const mockEnsureConnection = mock(() => Promise.resolve());
 

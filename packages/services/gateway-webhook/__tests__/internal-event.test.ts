@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import type { RoutingRedis } from "../src/server-router";
 
 // ── Mock external boundaries ─────────────────────────────────────
 
@@ -59,7 +60,11 @@ import { handleInternalEvent } from "../src/internal-event-handler";
 
 // ── Fake Redis ───────────────────────────────────────────────────
 
-function createFakeRedis() {
+type FakeRedis = RoutingRedis & {
+  store: Map<string, string>;
+};
+
+function createFakeRedis(): FakeRedis {
   const store = new Map<string, string>();
   return {
     store,
@@ -146,7 +151,7 @@ describe("handleInternalEvent", () => {
       body: JSON.stringify({ agentId: "a", userId: "u", type: "cron", payload: {} }),
     });
     const redis = createFakeRedis();
-    const res = await handleInternalEvent(req, { redis: redis as any });
+    const res = await handleInternalEvent(req, { redis });
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body.error).toBe("unauthorized");
@@ -162,7 +167,7 @@ describe("handleInternalEvent", () => {
       body: JSON.stringify({ agentId: "a", userId: "u", type: "cron", payload: {} }),
     });
     const redis = createFakeRedis();
-    const res = await handleInternalEvent(req, { redis: redis as any });
+    const res = await handleInternalEvent(req, { redis });
     expect(res.status).toBe(401);
   });
 
@@ -184,7 +189,7 @@ describe("handleInternalEvent", () => {
       body: JSON.stringify(largePayload),
     });
     const redis = createFakeRedis();
-    const res = await handleInternalEvent(req, { redis: redis as any });
+    const res = await handleInternalEvent(req, { redis });
     expect(res.status).toBe(413);
     const body = await res.json();
     expect(body.error).toBe("payload too large");
@@ -201,7 +206,7 @@ describe("handleInternalEvent", () => {
       body: JSON.stringify({ agentId: "a1", userId: "u1", type: "cron", payload: {} }),
     });
     const redis = createFakeRedis();
-    const res = await handleInternalEvent(req, { redis: redis as any });
+    const res = await handleInternalEvent(req, { redis });
     expect(res.status).toBe(413);
     const body = await res.json();
     expect(body.error).toBe("payload too large");
@@ -218,7 +223,7 @@ describe("handleInternalEvent", () => {
       body: JSON.stringify({ agentId: "a1", userId: "u1", type: "cron", payload: {} }),
     });
     const redis = createFakeRedis();
-    const res = await handleInternalEvent(req, { redis: redis as any });
+    const res = await handleInternalEvent(req, { redis });
     expect(res.status).toBe(200);
   });
 
@@ -232,7 +237,7 @@ describe("handleInternalEvent", () => {
       body: "this is not json{",
     });
     const redis = createFakeRedis();
-    const res = await handleInternalEvent(req, { redis: redis as any });
+    const res = await handleInternalEvent(req, { redis });
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe("invalid JSON");
@@ -242,7 +247,7 @@ describe("handleInternalEvent", () => {
     const redis = createFakeRedis();
     const res = await handleInternalEvent(
       makeValidRequest({ userId: "u1", type: "cron", payload: {} }),
-      { redis: redis as any },
+      { redis },
     );
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -259,7 +264,7 @@ describe("handleInternalEvent", () => {
         type: "invalid-type",
         payload: {},
       }),
-      { redis: redis as any },
+      { redis },
     );
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -270,7 +275,7 @@ describe("handleInternalEvent", () => {
     const redis = createFakeRedis();
     const res = await handleInternalEvent(
       makeValidRequest({ agentId: "", userId: "u1", type: "cron", payload: {} }),
-      { redis: redis as any },
+      { redis },
     );
     expect(res.status).toBe(400);
   });
@@ -279,7 +284,7 @@ describe("handleInternalEvent", () => {
     const redis = createFakeRedis();
     const res = await handleInternalEvent(
       makeValidRequest({ agentId: "a1", userId: "", type: "cron", payload: {} }),
-      { redis: redis as any },
+      { redis },
     );
     expect(res.status).toBe(400);
   });
@@ -293,7 +298,7 @@ describe("handleInternalEvent", () => {
         type: "cron",
         payload: {},
       }),
-      { redis: redis as any },
+      { redis },
     );
     expect(res.status).toBe(400);
   });
@@ -307,7 +312,7 @@ describe("handleInternalEvent", () => {
         type: "cron",
         payload: {},
       }),
-      { redis: redis as any },
+      { redis },
     );
     expect(res.status).toBe(400);
   });
@@ -316,7 +321,7 @@ describe("handleInternalEvent", () => {
 
   test("returns 200 { queued: true } on valid request", async () => {
     const redis = createFakeRedis();
-    const res = await handleInternalEvent(makeValidRequest(), { redis: redis as any });
+    const res = await handleInternalEvent(makeValidRequest(), { redis });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ queued: true });
@@ -324,21 +329,21 @@ describe("handleInternalEvent", () => {
 
   test("calls resolveAgentServer with correct agentId", async () => {
     const redis = createFakeRedis();
-    await handleInternalEvent(makeValidRequest(), { redis: redis as any });
+    await handleInternalEvent(makeValidRequest(), { redis });
     await waitFor(() => mockResolveAgentServerCalls.length > 0);
     expect(mockResolveAgentServerCalls).toContain("agent-001");
   });
 
   test("calls refreshKedaActivity with correct serverName", async () => {
     const redis = createFakeRedis();
-    await handleInternalEvent(makeValidRequest(), { redis: redis as any });
+    await handleInternalEvent(makeValidRequest(), { redis });
     await waitFor(() => mockRefreshKedaCalls.length > 0);
     expect(mockRefreshKedaCalls).toContain("eliza-server-1");
   });
 
   test("calls forwardEventToServer with correct params", async () => {
     const redis = createFakeRedis();
-    await handleInternalEvent(makeValidRequest(), { redis: redis as any });
+    await handleInternalEvent(makeValidRequest(), { redis });
     await waitFor(() => mockForwardCalls.length > 0);
     expect(mockForwardCalls.length).toBe(1);
     expect(mockForwardCalls[0]).toEqual({
@@ -362,7 +367,7 @@ describe("handleInternalEvent", () => {
         type: "notification",
         payload: { message: "hello" },
       }),
-      { redis: redis as any },
+      { redis },
     );
     expect(res.status).toBe(200);
   });
@@ -376,7 +381,7 @@ describe("handleInternalEvent", () => {
         type: "system",
         payload: { action: "restart" },
       }),
-      { redis: redis as any },
+      { redis },
     );
     expect(res.status).toBe(200);
   });
@@ -386,7 +391,7 @@ describe("handleInternalEvent", () => {
   test("returns 200 even when agent server not found", async () => {
     mockServerRoute.value = null;
     const redis = createFakeRedis();
-    const res = await handleInternalEvent(makeValidRequest(), { redis: redis as any });
+    const res = await handleInternalEvent(makeValidRequest(), { redis });
     expect(res.status).toBe(200);
     await waitFor(() => mockResolveAgentServerCalls.length > 0);
     expect(mockForwardCalls.length).toBe(0);
@@ -395,7 +400,7 @@ describe("handleInternalEvent", () => {
   test("returns 200 even when forwarding fails", async () => {
     mockForwardError = new Error("Connection refused");
     const redis = createFakeRedis();
-    const res = await handleInternalEvent(makeValidRequest(), { redis: redis as any });
+    const res = await handleInternalEvent(makeValidRequest(), { redis });
     expect(res.status).toBe(200);
     await waitFor(() => mockForwardCalls.length > 0);
   });
@@ -436,7 +441,7 @@ describe("handleInternalEvent integration (Hono app)", () => {
     const fakeRedis = createFakeRedis();
     app.get("/health", (c) => c.json({ status: "healthy" }));
     app.post("/internal/event", async (c) => {
-      return handleInternalEvent(c.req.raw, { redis: fakeRedis as any });
+      return handleInternalEvent(c.req.raw, { redis: fakeRedis });
     });
     app.post("/webhook/:project/:platform", (c) =>
       c.json({ route: "webhook", project: c.req.param("project") }),

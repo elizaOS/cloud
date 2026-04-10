@@ -2,43 +2,27 @@
  * Unit tests for POST /api/v1/steward/tenants
  *
  * Mocking strategy:
- *   - Set required env vars BEFORE the dynamic import (route reads them at module init)
  *   - Mock @/lib/auth, @/packages/db/helpers via mock.module()
  *   - Mock globalThis.fetch per-test to control Steward API responses
  */
-import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, mock } from "bun:test";
 
-// ─── Env vars must be set before the route module is imported ────────────────
-// The route captures these as module-level constants on load.
-process.env.STEWARD_PLATFORM_KEYS = "test-platform-key";
-process.env.STEWARD_API_URL = "http://steward.test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { NextRequest } from "next/server";
 
 // ─── Mock state — mutated in beforeEach per test ─────────────────────────────
 
-let currentUser: { id: string; email: string } | null = { id: "user-1", email: "admin@test.com" };
+const mockRequireAuthOrApiKeyWithOrg = mock();
 let orgRows: unknown[] = [];
 let updateResult: unknown[] = [];
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
 mock.module("@/lib/auth", () => ({
-  getCurrentUser: () => Promise.resolve(currentUser),
+  requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
 }));
 
 // Drizzle-style chainable query builder returning configurable rows
 function chainReturning(rows: unknown[]) {
-  const chain: Record<string, unknown> = {};
-  const lazy = (fn: () => unknown) =>
-    new Proxy(fn, {
-      get(_t, prop: string) {
-        return typeof chain[prop] === "function" ? chain[prop] : () => chain;
-      },
-      apply(_t, _ctx, args) {
-        return fn();
-      },
-    });
-
   const base = {
     select: () => base,
     update: () => base,
@@ -77,7 +61,7 @@ mock.module("@/lib/utils/logger", () => ({
   logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
 }));
 
-// ─── Import route AFTER all mock.module() calls and env var setup ─────────────
+// ─── Import route AFTER all mock.module() calls ───────────────────────────────
 const { POST } = await import("../route");
 
 // ─── Test data ────────────────────────────────────────────────────────────────
@@ -97,49 +81,80 @@ function makeReq(body: Record<string, unknown>): NextRequest {
 
 const originalFetch = globalThis.fetch;
 
+afterAll(() => {
+  globalThis.fetch = originalFetch;
+});
+
+function asMockFetch(
+  handler: (url: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+): typeof fetch {
+  return handler as typeof fetch;
+}
+
 function stewardOk(apiKey = "stw_test_key") {
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ ok: true, apiKey }), {
-      status: 201,
-      headers: { "Content-Type": "application/json" },
-    }) as Response;
+  globalThis.fetch = asMockFetch(
+    async () =>
+      new Response(JSON.stringify({ ok: true, apiKey }), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }),
+  );
 }
 
 function steward409() {
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ ok: false, error: "Tenant already exists" }), {
-      status: 409,
-      headers: { "Content-Type": "application/json" },
-    }) as Response;
+  globalThis.fetch = asMockFetch(
+    async () =>
+      new Response(JSON.stringify({ ok: false, error: "Tenant already exists" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      }),
+  );
 }
 
 function stewardErr() {
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ ok: false, error: "Server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    }) as Response;
+  globalThis.fetch = asMockFetch(
+    async () =>
+      new Response(JSON.stringify({ ok: false, error: "Server error" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }),
+  );
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("POST /api/v1/steward/tenants", () => {
   beforeEach(() => {
-    currentUser = { id: "user-1", email: "admin@test.com" };
+    mockRequireAuthOrApiKeyWithOrg.mockReset();
+    mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
+      user: {
+        id: "user-1",
+        email: "admin@test.com",
+        organization_id: "org-1",
+      },
+    });
     orgRows = [MOCK_ORG_NEW];
     updateResult = [];
     process.env.STEWARD_PLATFORM_KEYS = "test-platform-key";
+    process.env.STEWARD_API_URL = "http://steward.test";
     stewardOk();
   });
 
   // ── Auth ──────────────────────────────────────────────────────────────────
 
   it("returns 401 when not authenticated", async () => {
-    currentUser = null;
+    mockRequireAuthOrApiKeyWithOrg.mockRejectedValue(new Error("Authentication required"));
     const res = await POST(makeReq({ organizationId: "org-1" }));
     expect(res.status).toBe(401);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("Unauthorized");
+  });
+
+  it("returns 403 when requesting another organization", async () => {
+    const res = await POST(makeReq({ organizationId: "org-2" }));
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("Forbidden");
   });
 
   // ── Input validation ──────────────────────────────────────────────────────
@@ -153,7 +168,7 @@ describe("POST /api/v1/steward/tenants", () => {
 
   it("returns 404 when org not found in DB", async () => {
     orgRows = [];
-    const res = await POST(makeReq({ organizationId: "nonexistent" }));
+    const res = await POST(makeReq({ organizationId: "org-1" }));
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: string };
     expect(body.error).toMatch(/not found/i);
@@ -189,7 +204,7 @@ describe("POST /api/v1/steward/tenants", () => {
 
   it("sends platform key and tenant details to Steward", async () => {
     const calls: { url: string; headers: Record<string, string>; body: string }[] = [];
-    globalThis.fetch = async (url: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = asMockFetch(async (url: RequestInfo | URL, init?: RequestInit) => {
       calls.push({
         url: url.toString(),
         headers: Object.fromEntries(new Headers(init?.headers ?? {}).entries()),
@@ -198,8 +213,8 @@ describe("POST /api/v1/steward/tenants", () => {
       return new Response(JSON.stringify({ ok: true, apiKey: "stw_k" }), {
         status: 201,
         headers: { "Content-Type": "application/json" },
-      }) as Response;
-    };
+      });
+    });
     await POST(makeReq({ organizationId: "org-1", tenantName: "My Custom Tenant" }));
     expect(calls.length).toBe(1);
     expect(calls[0].url).toContain("/platform/tenants");
@@ -229,19 +244,10 @@ describe("POST /api/v1/steward/tenants", () => {
   });
 
   it("returns 503 when STEWARD_PLATFORM_KEYS is not configured", async () => {
-    // Module-level constant is captured at import time, so we simulate an empty
-    // split by testing the guard: temporarily overwrite to empty — this is only
-    // effective if the route reads it on each call (via getPlatformKey()).
-    // Since the constant is module-level, we verify the 503 path via SKIP signal.
-    // This tests the branch where getPlatformKey() throws.
-    const origKeys = process.env.STEWARD_PLATFORM_KEYS;
-    // The module already captured "test-platform-key" at import — but getPlatformKey()
-    // reads the module-level constant (set to "test-platform-key"), so we can't
-    // easily reset it. This test instead validates the error surface exists.
-    // Restore env
-    process.env.STEWARD_PLATFORM_KEYS = origKeys;
-    // Skip asserting 503 since the module-level var was set before import.
-    // The 503 path is covered by inspection of the route source.
-    expect(true).toBe(true);
+    process.env.STEWARD_PLATFORM_KEYS = "";
+    const res = await POST(makeReq({ organizationId: "org-1" }));
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("Steward not configured");
   });
 });

@@ -2,11 +2,11 @@
  * SEO constants for site-wide metadata configuration.
  */
 export const SEO_CONSTANTS = {
-  siteName: "MILADY CLOUD",
+  siteName: "Eliza Cloud",
   twitterHandle: "@elizaos",
-  defaultTitle: "MILADY CLOUD - AI Agent Development Platform",
+  defaultTitle: "Eliza Cloud - Managed Hosting for AI Agents",
   defaultDescription:
-    "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
+    "Managed hosting, provisioning, billing, and deployment for AI agents on Eliza Cloud.",
   defaultKeywords: [
     "AI",
     "agents",
@@ -32,16 +32,16 @@ export const SEO_CONSTANTS = {
  */
 export const ROUTE_METADATA = {
   home: {
-    title: "MILADY CLOUD - AI Agent Development Platform",
+    title: "Eliza Cloud - Managed Hosting for AI Agents",
     description:
-      "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
+      "Managed hosting, provisioning, billing, and deployment for AI agents on Eliza Cloud.",
     keywords: ["AI platform", "agent development", "elizaOS", "AI hosting", "LLM deployment"],
   },
   dashboard: {
     title: "Dashboard",
     description:
-      "Manage your AI agents, containers, credits, and platform resources from your MILADY CLOUD dashboard.",
-    keywords: ["dashboard", "AI management", "MILADY CLOUD dashboard"],
+      "Manage your AI agents, instances, credits, and platform resources from the Eliza Cloud dashboard.",
+    keywords: ["dashboard", "AI management", "Eliza Cloud dashboard"],
   },
   containers: {
     title: "Containers",
@@ -94,8 +94,8 @@ export const ROUTE_METADATA = {
   apiExplorer: {
     title: "API Explorer",
     description:
-      "Explore and test MILADY CLOUD APIs. Interactive documentation and live testing environment.",
-    keywords: ["API explorer", "API docs", "REST API", "MILADY CLOUD API"],
+      "Explore and test Eliza Cloud APIs with interactive documentation and a live testing environment.",
+    keywords: ["API explorer", "API docs", "REST API", "Eliza Cloud API"],
   },
   billing: {
     title: "Billing & Credits",
@@ -105,7 +105,7 @@ export const ROUTE_METADATA = {
   },
   apiKeys: {
     title: "API Keys",
-    description: "Generate and manage API keys for programmatic access to MILADY CLOUD.",
+    description: "Generate and manage API keys for programmatic access to Eliza Cloud.",
     keywords: ["API keys", "authentication", "API access", "tokens"],
   },
   analytics: {
@@ -128,7 +128,7 @@ export const ROUTE_METADATA = {
   },
   account: {
     title: "Account Settings",
-    description: "Manage your account settings, profile, and preferences on MILADY CLOUD.",
+    description: "Manage your account settings, profile, and preferences on Eliza Cloud.",
     keywords: ["account", "settings", "profile", "preferences"],
   },
 } as const;

@@ -77,7 +77,10 @@ export type AgentEvent = z.infer<typeof EventBodySchema>;
  */
 export interface DispatchResult {
   response?: string;
-  [key: string]: JsonValue | undefined;
+  status?: "running";
+  agentId?: string;
+  reloaded?: false;
+  reason?: "not yet implemented";
 }
 
 /**
@@ -193,7 +196,7 @@ async function handleNotificationEvent(
     return [];
   });
 
-  return { response: response || undefined };
+  return response ? { response } : {};
 }
 
 /**

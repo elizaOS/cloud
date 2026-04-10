@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { HandlerCallback, IAgentRuntime, Memory } from "@elizaos/core";
 
 // ── Mock @elizaos/core (must be before any import that uses it) ──
 
-type MessageCallback = (content: { text: string }) => Promise<object[]>;
 type TestJsonValue =
   | string
   | number
@@ -12,24 +12,24 @@ type TestJsonValue =
   | { [key: string]: TestJsonValue };
 type EventRequestBody = {
   userId?: string;
-  type?: string;
+  type?: "cron" | "notification" | "system" | "webhook";
   payload?: { [key: string]: TestJsonValue };
 };
 
 const mockEmitEvent = mock(() => Promise.resolve());
-const mockHandleMessage = mock((_rt: object, _mem: object, callback: MessageCallback) =>
-  callback({ text: "integration-response" }),
+const mockHandleMessage = mock((_rt: IAgentRuntime, _mem: Memory, callback?: HandlerCallback) =>
+  callback ? callback({ text: "integration-response" }) : Promise.resolve([] as Memory[]),
 );
 const mockEnsureConnection = mock(() => Promise.resolve());
 
-function createMockRuntime() {
+function createMockRuntime(): IAgentRuntime {
   return {
     emitEvent: mockEmitEvent,
     ensureConnection: mockEnsureConnection,
     messageService: { handleMessage: mockHandleMessage },
     getService: mock(() => null),
     stop: mock(() => Promise.resolve()),
-  };
+  } as IAgentRuntime;
 }
 
 mock.module("@elizaos/core", () => ({
@@ -67,7 +67,7 @@ import { createRoutes } from "../../src/routes";
 interface TestAgentEntry {
   agentId: string;
   characterRef: string;
-  runtime: ReturnType<typeof createMockRuntime>;
+  runtime: IAgentRuntime;
   state: "running" | "stopped";
 }
 

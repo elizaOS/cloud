@@ -9,10 +9,6 @@ import {
   AgentsSectionSkeleton,
 } from "@/packages/ui/src/components/dashboard/agents-section";
 import {
-  ContainersSection,
-  ContainersSectionSkeleton,
-} from "@/packages/ui/src/components/dashboard/containers-section";
-import {
   DashboardActionCards,
   DashboardActionCardsSkeleton,
 } from "@/packages/ui/src/components/dashboard/dashboard-action-cards";
@@ -27,9 +23,9 @@ export const metadata: Metadata = generatePageMetadata({
 export const dynamic = "force-dynamic";
 
 /**
- * Main dashboard page displaying quick actions, agents, and containers.
+ * Main dashboard page displaying quick actions and agents.
  *
- * @returns Dashboard page with action cards, agents, and containers sections.
+ * @returns Dashboard page with action cards and agents section.
  */
 export default async function DashboardPage() {
   let data;
@@ -59,12 +55,6 @@ export default async function DashboardPage() {
           <section>
             <Suspense fallback={<AgentsSectionSkeleton />}>
               <AgentsSection agents={data.agents} />
-            </Suspense>
-          </section>
-
-          <section>
-            <Suspense fallback={<ContainersSectionSkeleton />}>
-              <ContainersSection containers={data.containers} />
             </Suspense>
           </section>
         </div>

@@ -8,6 +8,6 @@ interface MiladyPageWrapperProps {
 }
 
 export function MiladyPageWrapper({ children }: MiladyPageWrapperProps): ReactNode {
-  useSetPageHeader({ title: "Milady Instances" }, []);
+  useSetPageHeader({ title: "Instances" }, []);
   return children;
 }

@@ -46,9 +46,11 @@ export function validateInternalSecret(request: Request): boolean {
   a.copy(aPadded);
   b.copy(bPadded);
 
-  // Pre-compute both conditions so the || does not short-circuit
-  // and timingSafeEqual always executes regardless of length match.
+  // Compare original lengths before using padded buffers so values like
+  // "secret\0\0" can never match "secret" after padding.
   const lengthMatch = a.length === b.length;
+  // Pre-compute both conditions so the || below does not short-circuit and
+  // timingSafeEqual always executes regardless of length match.
   const valueMatch = timingSafeEqual(aPadded, bPadded);
 
   if (secretMissing || headerMissing || !lengthMatch || !valueMatch) {

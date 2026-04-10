@@ -16,6 +16,8 @@ interface ServerRoute {
   serverUrl: string;
 }
 
+export type RoutingRedis = Pick<Redis, "get" | "set" | "lpush" | "ltrim" | "expire">;
+
 export interface ResolvedIdentity {
   userId: string;
   organizationId: string;
@@ -23,7 +25,7 @@ export interface ResolvedIdentity {
 }
 
 export async function resolveIdentity(
-  redis: Redis,
+  redis: RoutingRedis,
   cloudBaseUrl: string,
   authHeader: Record<string, string>,
   platform: string,
@@ -75,7 +77,7 @@ export async function resolveIdentity(
 }
 
 export async function resolveAgentServer(
-  redis: Redis,
+  redis: RoutingRedis,
   agentId: string,
 ): Promise<ServerRoute | null> {
   const serverName = await redis.get<string>(`agent:${agentId}:server`);
@@ -87,7 +89,7 @@ export async function resolveAgentServer(
   return { serverName, serverUrl };
 }
 
-export async function refreshKedaActivity(redis: Redis, serverName: string): Promise<void> {
+export async function refreshKedaActivity(redis: RoutingRedis, serverName: string): Promise<void> {
   const key = `keda:${serverName}:activity`;
   await redis.lpush(key, Date.now().toString());
   await redis.ltrim(key, 0, 0);

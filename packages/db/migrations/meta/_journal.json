@@ -400,6 +400,13 @@
       "when": 1775644290084,
       "tag": "0059_add_vertex_tuning_registry",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1775695200000,
+      "tag": "0060_add_steward_tenant_columns_to_organizations",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,12 @@
-import type { Redis } from "@upstash/redis";
 import { z } from "zod";
 import { validateInternalSecret } from "./internal-auth";
 import { logger } from "./logger";
-import { forwardEventToServer, refreshKedaActivity, resolveAgentServer } from "./server-router";
+import {
+  forwardEventToServer,
+  type RoutingRedis,
+  refreshKedaActivity,
+  resolveAgentServer,
+} from "./server-router";
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -32,7 +36,7 @@ const InternalEventSchema = z.object({
 export type InternalEvent = z.infer<typeof InternalEventSchema>;
 
 interface InternalEventDeps {
-  redis: Redis;
+  redis: RoutingRedis;
 }
 
 /**
@@ -62,8 +66,10 @@ export async function handleInternalEvent(
   let rawText: string;
   try {
     rawText = await request.text();
-  } catch {
-    logger.warn("Internal event rejected: unreadable body");
+  } catch (error) {
+    logger.warn("Internal event rejected: unreadable body", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return jsonResponse({ error: "invalid request" }, 400);
   }
 

@@ -9,7 +9,6 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import { anthropic as anthropicProvider } from "@ai-sdk/anthropic";
 import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
 import type { NextRequest } from "next/server";
 import { getErrorStatusCode } from "@/lib/api/errors";
@@ -26,6 +25,11 @@ import {
   mergeAnthropicCotProviderOptions,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
+import {
+  ANTHROPIC_WEB_SEARCH_INPUT_TOKEN_BUFFER,
+  buildProviderNativeWebSearchTools,
+  isAnthropicWebSearchEnabled,
+} from "@/lib/providers/anthropic-web-search";
 import { getLanguageModel } from "@/lib/providers/language-model";
 import {
   billUsage,
@@ -106,51 +110,10 @@ interface ChatRequest {
     };
   }>;
   tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
-  /** Enable provider-native web search. Defaults to true for Anthropic models. */
+  /** Enable provider-native web search. Defaults to false. */
   webSearchEnabled?: boolean;
-}
-
-// ============================================================================
-// Web Search Tools
-// ============================================================================
-
-/**
- * Build provider-native web search tools based on model provider.
- * Anthropic models get native server-side web search (no extra API key needed).
- * Returns empty object if search is disabled or provider doesn't support it.
- */
-/** Models that support Anthropic server-side web search. */
-const ANTHROPIC_WEB_SEARCH_MODELS = new Set([
-  "claude-sonnet-4-6",
-  "claude-opus-4-6",
-]);
-
-function supportsAnthropicWebSearch(model: string): boolean {
-  const normalized = normalizeModelName(model).toLowerCase();
-  return Array.from(ANTHROPIC_WEB_SEARCH_MODELS).some((m) => normalized.includes(m));
-}
-
-function getSearchToolsParam(
-  provider: string,
-  model: string,
-  webSearchEnabled: boolean,
-):
-  | { tools: Record<string, ReturnType<typeof anthropicProvider.tools.webSearch_20260209>> }
-  | Record<string, never> {
-  if (!webSearchEnabled) return {};
-
-  if (provider === "anthropic" && supportsAnthropicWebSearch(model)) {
-    return {
-      tools: {
-        web_search: anthropicProvider.tools.webSearch_20260209({
-          maxUses: 5,
-        }),
-      },
-    };
-  }
-
-  // Unsupported model or provider: no search tools
-  return {};
+  /** Optional max search budget for provider-native web search. */
+  webSearchMaxUses?: number;
 }
 
 // ============================================================================
@@ -336,6 +299,14 @@ async function handlePOST(req: NextRequest) {
     const cotOptions =
       cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
     const effectiveMaxTokens = computeEffectiveMaxTokens(request.max_tokens, cotBudget);
+    const webSearchEnabled = request.webSearchEnabled === true;
+    const webSearchActive = isAnthropicWebSearchEnabled(provider, model, webSearchEnabled);
+    const webSearchOptions = buildProviderNativeWebSearchTools({
+      provider,
+      model,
+      enabled: webSearchEnabled,
+      maxUses: request.webSearchMaxUses,
+    });
 
     // 5. Check content moderation
     if (await contentModerationService.shouldBlockUser(user.id)) {
@@ -368,9 +339,9 @@ async function handlePOST(req: NextRequest) {
     }
 
     // 6. Estimate tokens and reserve credits
-    const estimatedInputTokens = estimateInputTokens(
-      request.messages.map((m) => ({ content: getMessageContent(m) })),
-    );
+    const estimatedInputTokens =
+      estimateInputTokens(request.messages.map((m) => ({ content: getMessageContent(m) }))) +
+      (webSearchActive ? ANTHROPIC_WEB_SEARCH_INPUT_TOKEN_BUFFER : 0);
     const estimatedOutputTokens = effectiveMaxTokens ?? request.max_tokens ?? 500;
     const affiliateCode = req.headers.get("X-Affiliate-Code");
 
@@ -461,6 +432,7 @@ async function handlePOST(req: NextRequest) {
       messageCount: request.messages.length,
       streaming: request.stream,
       estimatedInputTokens,
+      webSearchEnabled: webSearchActive,
     });
 
     // 8. Handle streaming vs non-streaming
@@ -480,6 +452,7 @@ async function handlePOST(req: NextRequest) {
         settleReservation,
         cotOptions,
         effectiveMaxTokens,
+        webSearchOptions,
       );
     } else {
       return await handleNonStreamingRequest(
@@ -497,6 +470,7 @@ async function handlePOST(req: NextRequest) {
         settleReservation,
         cotOptions,
         effectiveMaxTokens,
+        webSearchOptions,
       );
     }
   } catch (error) {
@@ -504,9 +478,10 @@ async function handlePOST(req: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Chat Completions] Error", { error: errorMessage });
 
-    // Check for insufficient credits by message since InsufficientCreditsError may not set .name
     const isInsufficientCredits =
-      errorMessage.includes("Insufficient") || errorMessage.includes("credits");
+      error instanceof InsufficientCreditsError ||
+      errorMessage.includes("Insufficient") ||
+      errorMessage.includes("credits");
     const status = isInsufficientCredits ? 402 : getErrorStatusCode(error);
     let errorType = "api_error";
     if (status === 401) {
@@ -550,6 +525,7 @@ async function handleStreamingRequest(
   settleReservation: (actualCost: number) => Promise<void>,
   cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
   effectiveMaxTokens: number | undefined,
+  webSearchOptions: ReturnType<typeof buildProviderNativeWebSearchTools>,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -569,7 +545,7 @@ async function handleStreamingRequest(
     model: getLanguageModel(model),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
-    ...getSearchToolsParam(provider, model, request.webSearchEnabled !== false),
+    ...webSearchOptions,
     abortSignal,
     timeout: timeoutMs,
     ...safeParams,
@@ -646,15 +622,12 @@ async function handleStreamingRequest(
   const openAIStream = new ReadableStream({
     async start(controller) {
       const reader = stream.getReader();
-      let _fullContent = "";
       const responseId = `chatcmpl-${Date.now()}`;
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-
-          _fullContent += value;
 
           // Send OpenAI-format SSE chunk
           const chunk = {
@@ -727,6 +700,7 @@ async function handleNonStreamingRequest(
   settleReservation: (actualCost: number) => Promise<void>,
   cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
   effectiveMaxTokens: number | undefined,
+  webSearchOptions: ReturnType<typeof buildProviderNativeWebSearchTools>,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -747,7 +721,7 @@ async function handleNonStreamingRequest(
       model: getLanguageModel(model),
       system: systemPrompt,
       messages: await convertToModelMessages(messages),
-      ...getSearchToolsParam(provider, model, request.webSearchEnabled !== false),
+      ...webSearchOptions,
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,

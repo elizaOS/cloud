@@ -6,6 +6,7 @@ export const metadata: Metadata = generatePageMetadata({
   description: "Sign in to Eliza Cloud to create, provision, and manage Milady agents.",
   path: "/login",
   keywords: ["login", "sign in", "authentication", "Milady", "Eliza Cloud"],
+  noIndex: true,
 });
 
 /**

@@ -141,8 +141,8 @@ spec:
                   -H "X-Internal-Secret: $SECRET" \
                   -d '{"agentId":"eliza","userId":"e2e-test","type":"system","payload":{"test":true}}' 2>/dev/null)
 
-              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-              BODY=$(echo "$RESPONSE" | head -1)
+              HTTP_CODE=$(printf "%s\n" "$RESPONSE" | tail -1)
+              BODY=$(printf "%s\n" "$RESPONSE" | sed '$d')
               echo "Status: $HTTP_CODE Body: $BODY"
               [ "$HTTP_CODE" = "200" ] || { echo "FAIL: expected 200, got $HTTP_CODE"; exit 1; }
               echo "$BODY" | grep -q '"queued":true' || { echo "FAIL: missing queued:true"; exit 1; }
@@ -177,9 +177,15 @@ spec:
               SECRET=$(kubectl get secret eliza-agent-secrets -n eliza-agents \
                 -o jsonpath='{.data.AGENT_SERVER_SHARED_SECRET}' | base64 -d)
 
+              SERVER_NAME=$(kubectl run cs-resolve-evt-map-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=redis:7-alpine --quiet -- \
+                redis-cli -h redis GET "agent:${AGENT_ID}:server" 2>/dev/null)
+
+              [ -n "$SERVER_NAME" ] || { echo "FAIL: could not resolve server name"; exit 1; }
+
               SERVER_URL=$(kubectl run cs-resolve-evt-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
-                redis-cli -h redis GET "server:srv-gw:url" 2>/dev/null)
+                redis-cli -h redis GET "server:${SERVER_NAME}:url" 2>/dev/null)
 
               [ -n "$SERVER_URL" ] || { echo "FAIL: could not resolve server URL"; exit 1; }
 
@@ -193,8 +199,8 @@ spec:
                   -H "X-Server-Token: $SECRET" \
                   -d '{"userId":"e2e-test","type":"system","payload":{"action":"health"}}' 2>/dev/null)
 
-              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-              BODY=$(echo "$RESPONSE" | head -1)
+              HTTP_CODE=$(printf "%s\n" "$RESPONSE" | tail -1)
+              BODY=$(printf "%s\n" "$RESPONSE" | sed '$d')
               echo "Status: $HTTP_CODE Body: $BODY"
               [ "$HTTP_CODE" = "200" ] || { echo "FAIL: expected 200, got $HTTP_CODE"; exit 1; }
               echo "$BODY" | grep -q '"handled":true' || { echo "FAIL: missing handled:true"; exit 1; }
@@ -211,12 +217,19 @@ spec:
         - script:
             timeout: 30s
             content: |
+              AGENT_ID="eliza"
               SECRET=$(kubectl get secret eliza-agent-secrets -n eliza-agents \
                 -o jsonpath='{.data.AGENT_SERVER_SHARED_SECRET}' | base64 -d)
 
+              SERVER_NAME=$(kubectl run cs-resolve-evt2-map-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=redis:7-alpine --quiet -- \
+                redis-cli -h redis GET "agent:${AGENT_ID}:server" 2>/dev/null)
+
+              [ -n "$SERVER_NAME" ] || { echo "FAIL: could not resolve server name"; exit 1; }
+
               SERVER_URL=$(kubectl run cs-resolve-evt2-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
-                redis-cli -h redis GET "server:srv-gw:url" 2>/dev/null)
+                redis-cli -h redis GET "server:${SERVER_NAME}:url" 2>/dev/null)
 
               TARGET="${SERVER_URL}/agents/nonexistent-agent-id/event"
               echo "POST $TARGET"
@@ -244,9 +257,15 @@ spec:
             timeout: 30s
             content: |
               AGENT_ID="eliza"
+              SERVER_NAME=$(kubectl run cs-resolve-evt3-map-$RANDOM --rm -i --restart=Never -n eliza-infra \
+                --image=redis:7-alpine --quiet -- \
+                redis-cli -h redis GET "agent:${AGENT_ID}:server" 2>/dev/null)
+
+              [ -n "$SERVER_NAME" ] || { echo "FAIL: could not resolve server name"; exit 1; }
+
               SERVER_URL=$(kubectl run cs-resolve-evt3-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
-                redis-cli -h redis GET "server:srv-gw:url" 2>/dev/null)
+                redis-cli -h redis GET "server:${SERVER_NAME}:url" 2>/dev/null)
 
               TARGET="${SERVER_URL}/agents/${AGENT_ID}/event"
               echo "POST $TARGET (no auth)"

@@ -9,8 +9,8 @@ import { MiladyPricingBanner } from "@/packages/ui/src/components/containers/mil
 import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/milady-sandboxes-table";
 
 export const metadata: Metadata = {
-  title: "Milady Instances",
-  description: "View, launch, and manage your Milady instances backed by Eliza Cloud containers.",
+  title: "Instances",
+  description: "View, launch, and manage your instances backed by Eliza Cloud.",
 };
 
 export const dynamic = "force-dynamic";
@@ -55,7 +55,7 @@ export default async function MiladyDashboardPage() {
               Instances
             </p>
           </div>
-          <h1 className="text-xl font-semibold text-white md:text-2xl">Milady Instances</h1>
+          <h1 className="text-xl font-semibold text-white md:text-2xl">Instances</h1>
         </div>
 
         <MiladyPricingBanner
