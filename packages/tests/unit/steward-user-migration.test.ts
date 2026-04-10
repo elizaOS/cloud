@@ -18,7 +18,7 @@ mock.module("@/lib/services/users", () => ({
   },
 }));
 
-mock.module("@/db/repositories/users", () => ({
+mock.module("@/db/repositories", () => ({
   usersRepository: {
     listPendingStewardProvisioning: mockListPendingStewardProvisioning,
   },

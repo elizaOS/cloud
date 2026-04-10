@@ -1,4 +1,4 @@
-import { type User, usersRepository } from "@/db/repositories/users";
+import { type User, usersRepository } from "@/db/repositories";
 import {
   isStewardPlatformConfigured,
   provisionStewardPlatformUser,

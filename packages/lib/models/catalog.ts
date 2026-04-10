@@ -29,6 +29,14 @@ const OPENAI_TEXT_MODEL_IDS = [
   "openai/gpt-5.4-pro",
   "openai/gpt-5.4-mini",
   "openai/gpt-5.4-nano",
+  "openai/gpt-5",
+  "openai/gpt-5-pro",
+  "openai/gpt-5-mini",
+  "openai/gpt-5-nano",
+  "openai/gpt-5.2",
+  "openai/gpt-5.2-pro",
+  "openai/gpt-5.3-chat",
+  "openai/gpt-5.3-codex",
   "openai/o4-mini",
   "openai/o3",
   "openai/o3-pro",
@@ -74,7 +82,12 @@ const QWEN_TEXT_MODEL_IDS = [
   "alibaba/qwen-3-14b",
 ] as const;
 const DEEPSEEK_TEXT_MODEL_IDS = ["deepseek/deepseek-v3.2", "deepseek/deepseek-r1"] as const;
-const ZAI_TEXT_MODEL_IDS = ["zai/glm-5.1"] as const;
+const ZAI_TEXT_MODEL_IDS = [
+  "zai/glm-5.1",
+  "zai/glm-5",
+  "zai/glm-4.7",
+  "zai/glm-4.7-flashx",
+] as const;
 const MOONSHOT_TEXT_MODEL_IDS = ["moonshotai/kimi-k2.5", "moonshotai/kimi-k2-turbo"] as const;
 const META_TEXT_MODEL_IDS = ["meta/llama-4-maverick", "meta/llama-4-scout"] as const;
 const BYTEDANCE_TEXT_MODEL_IDS = ["bytedance/seed-1.8"] as const;
