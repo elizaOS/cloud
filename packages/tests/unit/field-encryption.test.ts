@@ -74,6 +74,7 @@ mock.module("@/lib/utils/logger", () => ({
     error: (...args: string[]) => {
       loggerError(...args);
     },
+    debug: () => {},
   },
 }));
 

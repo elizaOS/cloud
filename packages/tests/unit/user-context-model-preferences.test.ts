@@ -31,6 +31,7 @@ mock.module("@/lib/utils/logger", () => ({
     info: () => {},
     warn: () => {},
     error: () => {},
+    debug: () => {},
   },
 }));
 

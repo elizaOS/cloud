@@ -18,7 +18,7 @@ mock.module("@/lib/services/users", () => ({
   },
 }));
 
-mock.module("@/db/repositories", () => ({
+mock.module("@/db/repositories/users", () => ({
   usersRepository: {
     listPendingStewardProvisioning: mockListPendingStewardProvisioning,
   },
@@ -29,6 +29,7 @@ mock.module("@/lib/utils/logger", () => ({
     info: () => {},
     warn: () => {},
     error: () => {},
+    debug: () => {},
   },
 }));
 
