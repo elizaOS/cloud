@@ -8,6 +8,34 @@ import {
   supportsAnthropicWebSearch,
 } from "@/lib/providers/anthropic-web-search";
 
+function requireWebSearchToolMetadata(tool: unknown): {
+  type?: string;
+  id?: string;
+  args: { maxUses?: number };
+} {
+  expect(tool).toBeDefined();
+  if (!tool || typeof tool !== "object") {
+    throw new Error("Expected the Anthropic web_search tool to be registered");
+  }
+
+  const typedTool = tool as {
+    type?: string;
+    id?: string;
+    args?: { maxUses?: number };
+  };
+
+  expect(typedTool.args).toBeDefined();
+  if (!typedTool.args || typeof typedTool.args !== "object") {
+    throw new Error("Expected the Anthropic web_search tool args to be registered");
+  }
+
+  return {
+    type: typedTool.type,
+    id: typedTool.id,
+    args: typedTool.args,
+  };
+}
+
 describe("anthropic web search helpers", () => {
   test("supports allowlisted Anthropic models and dated variants", () => {
     expect(supportsAnthropicWebSearch("claude-sonnet-4-6")).toBe(true);
@@ -27,11 +55,18 @@ describe("anthropic web search helpers", () => {
       provider: "anthropic",
       model: "anthropic/claude-sonnet-4-6",
       enabled: true,
-    }) as { tools: { web_search: { type: string; id: string; args: { maxUses: number } } } };
+    });
 
-    expect(tools.tools.web_search.type).toBe("provider");
-    expect(tools.tools.web_search.id).toBe("anthropic.web_search_20260209");
-    expect(tools.tools.web_search.args.maxUses).toBe(DEFAULT_ANTHROPIC_WEB_SEARCH_MAX_USES);
+    expect("tools" in tools).toBe(true);
+    if (!("tools" in tools)) {
+      throw new Error("Expected provider-native web search tools");
+    }
+
+    const webSearchTool = requireWebSearchToolMetadata(tools.tools.web_search);
+
+    expect(webSearchTool.type).toBe("provider");
+    expect(webSearchTool.id).toBe("anthropic.web_search_20260209");
+    expect(webSearchTool.args.maxUses).toBe(DEFAULT_ANTHROPIC_WEB_SEARCH_MAX_USES);
   });
 
   test("clamps requested maxUses and skips unsupported requests", () => {
@@ -48,8 +83,16 @@ describe("anthropic web search helpers", () => {
       model: "claude-opus-4-6",
       enabled: true,
       maxUses: 99,
-    }) as { tools: { web_search: { args: { maxUses: number } } } };
-    expect(tools.tools.web_search.args.maxUses).toBe(10);
+    });
+
+    expect("tools" in tools).toBe(true);
+    if (!("tools" in tools)) {
+      throw new Error("Expected provider-native web search tools");
+    }
+
+    const webSearchTool = requireWebSearchToolMetadata(tools.tools.web_search);
+
+    expect(webSearchTool.args.maxUses).toBe(10);
   });
 
   test("exports the reservation buffer used for search-enabled requests", () => {
