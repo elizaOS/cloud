@@ -1,8 +1,14 @@
 import { Elysia } from "elysia";
 import type { AgentManager } from "./agent-manager";
+import { EventBodySchema } from "./handlers/event";
+import { logger } from "./logger";
 
 type HeaderMap = Record<string, string | undefined>;
 
+/**
+ * Extracts the auth token from request headers.
+ * Checks X-Server-Token first, then falls back to Authorization Bearer.
+ */
 function getAuthToken(headers: HeaderMap): string | null {
   const direct = headers["x-server-token"] ?? headers["X-Server-Token"];
   if (direct) {
@@ -17,6 +23,11 @@ function getAuthToken(headers: HeaderMap): string | null {
   return null;
 }
 
+/**
+ * Validates internal service-to-service auth.
+ * Returns null on success, or an error response object with the appropriate
+ * HTTP status set when auth fails (401) or is unconfigured (503).
+ */
 function requireInternalAuth(
   headers: HeaderMap,
   set: { status?: number | string },
@@ -35,6 +46,20 @@ function requireInternalAuth(
   return null;
 }
 
+/**
+ * Creates the Elysia route tree for the agent-server.
+ *
+ * Routes:
+ *   GET  /health              - Liveness probe
+ *   GET  /ready               - Readiness probe (503 while draining)
+ *   GET  /status              - Server status (auth required)
+ *   POST /agents              - Start a new agent (auth required)
+ *   POST /agents/:id/stop     - Stop an agent (auth required)
+ *   DELETE /agents/:id        - Delete an agent (auth required)
+ *   POST /agents/:id/message  - Forward a user message to an agent (auth required)
+ *   POST /agents/:id/event    - Forward a structured event to an agent (auth required, ticket #54)
+ *   POST /drain               - Initiate graceful drain (auth required)
+ */
 export function createRoutes(manager: AgentManager, sharedSecret: string) {
   return new Elysia()
     .get("/health", () => ({ alive: true }))
@@ -125,6 +150,46 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         set.status = message === "Agent not found" || message === "Agent not running" ? 404 : 500;
+        return { error: message };
+      }
+    })
+
+    .post("/agents/:id/event", async ({ params, body, headers, set }) => {
+      const denial = requireInternalAuth(headers as HeaderMap, set, sharedSecret);
+      if (denial) {
+        return denial;
+      }
+
+      const parsed = EventBodySchema.safeParse(body);
+      if (!parsed.success) {
+        logger.warn("Event rejected: schema validation failed", {
+          agentId: params.id,
+          issues: parsed.error.issues,
+        });
+        set.status = 400;
+        return { error: "invalid request body", details: parsed.error.issues };
+      }
+
+      try {
+        const result = await manager.handleEvent(
+          params.id,
+          parsed.data.userId,
+          parsed.data.type,
+          parsed.data.payload,
+        );
+        return { handled: true, type: parsed.data.type, ...result };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message === "Agent not found" || message === "Agent not running") {
+          set.status = 404;
+        } else {
+          logger.error("Event handler failed", {
+            agentId: params.id,
+            type: parsed.data.type,
+            error: message,
+          });
+          set.status = 500;
+        }
         return { error: message };
       }
     })

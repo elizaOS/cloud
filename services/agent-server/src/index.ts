@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
 import { AgentManager } from "./agent-manager";
+import { logger } from "./logger";
 import { getRedis } from "./redis";
 import { createRoutes } from "./routes";
 
@@ -18,13 +19,13 @@ const required = [
 ];
 for (const key of required) {
   if (!process.env[key]) {
-    console.error(`Missing required env var: ${key}`);
+    logger.error("Missing required env var", { key });
     process.exit(1);
   }
 }
 
 if (process.env.AGENT_ID && !process.env.CHARACTER_REF) {
-  console.error("CHARACTER_REF is required when AGENT_ID is set");
+  logger.error("CHARACTER_REF is required when AGENT_ID is set");
   process.exit(1);
 }
 
@@ -38,19 +39,24 @@ const agentId = process.env.AGENT_ID;
 const characterRef = process.env.CHARACTER_REF;
 if (agentId && characterRef) {
   await manager.startAgent(agentId, characterRef);
-  console.log(
-    `Auto-started agent ${agentId} (${process.env.TIER} tier, character=${characterRef})`,
-  );
+  logger.info("Auto-started agent", {
+    agentId,
+    tier: process.env.TIER,
+    characterRef,
+  });
 }
 
 new Elysia().use(createRoutes(manager, process.env.AGENT_SERVER_SHARED_SECRET!)).listen(PORT);
 
-console.log(
-  `agent-server ${process.env.SERVER_NAME} listening on :${PORT} (tier=${process.env.TIER}, capacity=${process.env.CAPACITY})`,
-);
+logger.info("Agent-server listening", {
+  serverName: process.env.SERVER_NAME,
+  port: PORT,
+  tier: process.env.TIER,
+  capacity: process.env.CAPACITY,
+});
 
 process.on("SIGTERM", async () => {
-  console.log("SIGTERM received, draining...");
+  logger.info("SIGTERM received, draining...");
   await manager.drain();
   await manager.cleanupRedis();
   const redis = getRedis();
