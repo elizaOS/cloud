@@ -1,5 +1,5 @@
 /**
- * Integration tests for dual-provider wallet routing (Privy ↔ Steward).
+ * Unit tests for dual-provider wallet routing (Privy ↔ Steward).
  *
  * Tests cover:
  *  1. Provisioning routing — flag off → Privy, flag on → Steward
@@ -9,18 +9,26 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 
+const dbClientModuleUrl = new URL("../../db/client.ts", import.meta.url).href;
+const cacheClientModuleUrl = new URL("../../lib/cache/client.ts", import.meta.url).href;
+
 // ---------------------------------------------------------------------------
 // Steward mock setup
 // ---------------------------------------------------------------------------
 
 const mockStewardCreateWallet = mock();
+const mockStewardGetAgent = mock();
 const mockStewardSignTransaction = mock();
 const mockStewardSignMessage = mock();
 const mockStewardSignTypedData = mock();
 const mockGetStewardClient = mock();
+const mockGetStewardAgent = mock();
+const mockGetStewardWalletInfo = mock();
+const mockIsStewardAvailable = mock();
 
 const mockStewardClient = {
   createWallet: mockStewardCreateWallet,
+  getAgent: mockStewardGetAgent,
   signTransaction: mockStewardSignTransaction,
   signMessage: mockStewardSignMessage,
   signTypedData: mockStewardSignTypedData,
@@ -48,6 +56,18 @@ const mockFindFirst = mock();
 // ---------------------------------------------------------------------------
 
 const mockCacheSetIfNotExists = mock().mockResolvedValue(true);
+const mockCacheGet = mock().mockResolvedValue(null);
+const mockCacheGetWithSWR = mock(
+  async (_key: string, _staleTTL: number, revalidate: () => Promise<unknown>) => await revalidate(),
+);
+const mockCacheSet = mock().mockResolvedValue(undefined);
+const mockCacheIncr = mock().mockResolvedValue(0);
+const mockCacheExpire = mock().mockResolvedValue(undefined);
+const mockCacheGetAndDelete = mock().mockResolvedValue(null);
+const mockCacheDel = mock().mockResolvedValue(undefined);
+const mockCacheDelPattern = mock().mockResolvedValue(undefined);
+const mockCacheMget = mock(async (keys: string[]) => keys.map(() => null));
+const mockCacheIsAvailable = mock().mockReturnValue(true);
 const mockVerifyMessage = mock();
 
 // ---------------------------------------------------------------------------
@@ -66,8 +86,8 @@ const mockWalletProviderFlags = {
 
 beforeAll(async () => {
   const actualViem = await import("viem");
-  const actualDbClient = await import("@/db/client");
-  const actualCacheModule = await import("@/lib/cache/client");
+  const actualDbClient = await import(`${dbClientModuleUrl}?server-wallets-steward`);
+  const actualCacheModule = await import(`${cacheClientModuleUrl}?server-wallets-steward`);
 
   // Wallet-provider feature flags (mutable object so per-test mutations work)
   mock.module("@/lib/config/wallet-provider-flags", () => ({
@@ -77,6 +97,9 @@ beforeAll(async () => {
   // Steward SDK client
   mock.module("@/lib/services/steward-client", () => ({
     getStewardClient: mockGetStewardClient,
+    getStewardAgent: mockGetStewardAgent,
+    getStewardWalletInfo: mockGetStewardWalletInfo,
+    isStewardAvailable: mockIsStewardAvailable,
   }));
 
   // Privy client
@@ -113,17 +136,17 @@ beforeAll(async () => {
   mock.module("@/lib/cache/client", () => ({
     ...actualCacheModule,
     cache: {
-      get: actualCacheModule.cache.get.bind(actualCacheModule.cache),
-      getWithSWR: actualCacheModule.cache.getWithSWR.bind(actualCacheModule.cache),
-      set: actualCacheModule.cache.set.bind(actualCacheModule.cache),
+      get: mockCacheGet,
+      getWithSWR: mockCacheGetWithSWR,
+      set: mockCacheSet,
       setIfNotExists: mockCacheSetIfNotExists,
-      incr: actualCacheModule.cache.incr.bind(actualCacheModule.cache),
-      expire: actualCacheModule.cache.expire.bind(actualCacheModule.cache),
-      getAndDelete: actualCacheModule.cache.getAndDelete.bind(actualCacheModule.cache),
-      del: actualCacheModule.cache.del.bind(actualCacheModule.cache),
-      delPattern: actualCacheModule.cache.delPattern.bind(actualCacheModule.cache),
-      mget: actualCacheModule.cache.mget.bind(actualCacheModule.cache),
-      isAvailable: actualCacheModule.cache.isAvailable.bind(actualCacheModule.cache),
+      incr: mockCacheIncr,
+      expire: mockCacheExpire,
+      getAndDelete: mockCacheGetAndDelete,
+      del: mockCacheDel,
+      delPattern: mockCacheDelPattern,
+      mget: mockCacheMget,
+      isAvailable: mockCacheIsAvailable,
     },
   }));
 });
@@ -150,9 +173,13 @@ describe("dual-provider wallet routing", () => {
     // Steward
     mockGetStewardClient.mockClear().mockReturnValue(mockStewardClient);
     mockStewardCreateWallet.mockClear();
+    mockStewardGetAgent.mockClear();
     mockStewardSignTransaction.mockClear();
     mockStewardSignMessage.mockClear();
     mockStewardSignTypedData.mockClear();
+    mockGetStewardAgent.mockClear().mockResolvedValue(null);
+    mockGetStewardWalletInfo.mockClear().mockResolvedValue(null);
+    mockIsStewardAvailable.mockClear().mockResolvedValue(true);
 
     // Privy
     mockGetPrivyClient.mockClear().mockReturnValue({
@@ -168,7 +195,22 @@ describe("dual-provider wallet routing", () => {
     mockFindFirst.mockClear();
 
     // Cache / viem
+    mockCacheGet.mockClear().mockResolvedValue(null);
+    mockCacheGetWithSWR
+      .mockClear()
+      .mockImplementation(
+        async (_key: string, _staleTTL: number, revalidate: () => Promise<unknown>) =>
+          await revalidate(),
+      );
+    mockCacheSet.mockClear().mockResolvedValue(undefined);
     mockCacheSetIfNotExists.mockClear().mockResolvedValue(true);
+    mockCacheIncr.mockClear().mockResolvedValue(0);
+    mockCacheExpire.mockClear().mockResolvedValue(undefined);
+    mockCacheGetAndDelete.mockClear().mockResolvedValue(null);
+    mockCacheDel.mockClear().mockResolvedValue(undefined);
+    mockCacheDelPattern.mockClear().mockResolvedValue(undefined);
+    mockCacheMget.mockClear().mockImplementation(async (keys: string[]) => keys.map(() => null));
+    mockCacheIsAvailable.mockClear().mockReturnValue(true);
     mockVerifyMessage.mockClear();
 
     // Default: Privy mode
@@ -299,6 +341,67 @@ describe("dual-provider wallet routing", () => {
         }),
       ).rejects.toThrow("Steward did not return a wallet address");
     });
+
+    it("reuses an existing Steward agent when createWallet returns a 409 conflict", async () => {
+      mockWalletProviderFlags.USE_STEWARD_FOR_NEW_WALLETS = true;
+
+      mockStewardCreateWallet.mockRejectedValue({
+        name: "StewardApiError",
+        status: 409,
+        message: "Agent already exists",
+      });
+      mockStewardGetAgent.mockResolvedValue({
+        id: "cloud-char-conflict",
+        walletAddress: "0xExistingSteward",
+      });
+      mockInsertReturning.mockResolvedValue([
+        {
+          id: "rec-conflict",
+          wallet_provider: "steward",
+          steward_agent_id: "cloud-char-conflict",
+          address: "0xExistingSteward",
+          privy_wallet_id: null,
+        },
+      ]);
+
+      const { provisionServerWallet } = await import("@/lib/services/server-wallets");
+
+      const result = await provisionServerWallet({
+        organizationId: "org-conflict",
+        userId: "user-conflict",
+        characterId: "char-conflict",
+        clientAddress: "0xClientConflict",
+        chainType: "evm",
+      });
+
+      expect(mockStewardGetAgent).toHaveBeenCalledWith("cloud-char-conflict");
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: "rec-conflict",
+          steward_agent_id: "cloud-char-conflict",
+          address: "0xExistingSteward",
+        }),
+      );
+    });
+
+    it("blocks new Privy wallet creation when DISABLE_PRIVY_WALLETS=true", async () => {
+      mockWalletProviderFlags.USE_STEWARD_FOR_NEW_WALLETS = false;
+      mockWalletProviderFlags.DISABLE_PRIVY_WALLETS = true;
+
+      const { provisionServerWallet } = await import("@/lib/services/server-wallets");
+
+      await expect(
+        provisionServerWallet({
+          organizationId: "org-disabled",
+          userId: "user-disabled",
+          characterId: "char-disabled",
+          clientAddress: "0xClientDisabled",
+          chainType: "evm",
+        }),
+      ).rejects.toThrow(/Privy wallet creation is disabled/);
+
+      expect(mockPrivyWalletCreate).not.toHaveBeenCalled();
+    });
   });
 
   // =========================================================================
@@ -416,8 +519,7 @@ describe("dual-provider wallet routing", () => {
         expect.objectContaining({ walletId: "pw_rpc1", method: "eth_sendTransaction" }),
       );
       expect(mockStewardSignTransaction).not.toHaveBeenCalled();
-      expect(result).toEqual(expect.objectContaining({ method: "eth_sendTransaction" }));
-      expect(result).toEqual(expect.objectContaining({ data: "0xResult" }));
+      expect(result as unknown).toEqual({ method: "eth_sendTransaction", data: "0xResult" });
     });
 
     it("routes to Steward for a wallet record with wallet_provider='steward'", async () => {
@@ -564,6 +666,37 @@ describe("dual-provider wallet routing", () => {
         value: { contents: "Hello" },
       });
       expect(result).toEqual({ signature: "0xTypedSig" });
+    });
+
+    it("accepts eth_signTypedData_v4 payloads that are already parsed objects", async () => {
+      mockStewardSignTypedData.mockResolvedValue({ signature: "0xTypedSigObject" });
+
+      const { executeServerWalletRpc } = await import("@/lib/services/server-wallets");
+
+      const typedData = {
+        domain: { name: "TestDomain", chainId: 8453 },
+        types: { Permit: [{ name: "spender", type: "address" }] },
+        primaryType: "Permit",
+        message: { spender: "0xSpender" },
+      };
+      const payload = rpcPayload(
+        "eth_signTypedData_v4",
+        ["0xSignerAddr", typedData],
+        "nonce-dispatch-typed-object",
+      );
+      const result = await executeServerWalletRpc({
+        clientAddress: "0xClientD4Object" as `0x${string}`,
+        payload,
+        signature: "0xSig" as `0x${string}`,
+      });
+
+      expect(mockStewardSignTypedData).toHaveBeenCalledWith("cloud-agent-dispatch", {
+        domain: { name: "TestDomain", chainId: 8453 },
+        types: { Permit: [{ name: "spender", type: "address" }] },
+        primaryType: "Permit",
+        value: { spender: "0xSpender" },
+      });
+      expect(result).toEqual({ signature: "0xTypedSigObject" });
     });
 
     it("throws for unsupported RPC methods on Steward", async () => {
