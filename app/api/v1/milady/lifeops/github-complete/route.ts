@@ -27,9 +27,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         returnUrl,
       });
     }
-    return NextResponse.redirect(
-      `${dashboardUrl}&github_error=${encodeURIComponent(githubError)}`,
-    );
+    return NextResponse.redirect(`${dashboardUrl}&github_error=${encodeURIComponent(githubError)}`);
   }
 
   if (githubConnected !== "true" || !connectionId) {
@@ -48,9 +46,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         returnUrl,
       });
     }
-    return NextResponse.redirect(
-      `${dashboardUrl}&github_error=${encodeURIComponent(message)}`,
-    );
+    return NextResponse.redirect(`${dashboardUrl}&github_error=${encodeURIComponent(message)}`);
   }
 
   if (postMessage || returnUrl) {

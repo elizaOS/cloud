@@ -204,8 +204,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
     return respond({
       status: "error",
-      message:
-        error instanceof Error ? error.message : "Failed to link GitHub to agent",
+      message: error instanceof Error ? error.message : "Failed to link GitHub to agent",
     });
   }
 }

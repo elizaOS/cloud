@@ -72,8 +72,7 @@ export async function POST(
       agentId,
       organizationId: user.organization_id,
       binding: {
-        mode:
-          connection.connectionRole === "owner" ? "shared-owner" : "cloud-managed",
+        mode: connection.connectionRole === "owner" ? "shared-owner" : "cloud-managed",
         connectionId,
         connectionRole: connection.connectionRole,
         source: connection.source,
