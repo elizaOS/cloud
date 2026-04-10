@@ -14,7 +14,7 @@ import {
   type UUID,
   type World,
 } from "@elizaos/core";
-import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
+import * as sqlPluginNode from "@elizaos/plugin-sql/node";
 
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
@@ -30,6 +30,29 @@ import {
 } from "@/lib/cache/edge-runtime-cache";
 
 const adapterEmbeddingDimensions = new Map<string, number>();
+
+const createDatabaseAdapter = (
+  sqlPluginNode as unknown as {
+    createDatabaseAdapter: (
+      config: { dataDir?: string; postgresUrl?: string },
+      agentId: UUID,
+    ) => IDatabaseAdapter;
+  }
+).createDatabaseAdapter;
+
+function assertPersistentDatabaseRequired(
+  runtime: Pick<AgentRuntime, "getSetting" | "agentId">,
+): void {
+  const raw = runtime.getSetting("ALLOW_NO_DATABASE") ?? process.env.ALLOW_NO_DATABASE;
+  const normalized = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") {
+    throw new Error(
+      `Milady cloud requires persistent database storage and does not permit ALLOW_NO_DATABASE (agent ${runtime.agentId}). Remove ALLOW_NO_DATABASE from config/env and keep plugin-sql configured.`,
+    );
+  }
+}
 
 function stableSerialize(value: unknown): string {
   if (Array.isArray(value)) {
@@ -972,6 +995,7 @@ export class RuntimeFactory {
     let initSucceeded = false;
     try {
       const initStart = Date.now();
+      assertPersistentDatabaseRequired(runtime);
       await runtime.initialize({ skipMigrations: true });
       elizaLogger.info(`[RuntimeFactory] initialize() completed in ${Date.now() - initStart}ms`);
       initSucceeded = true;

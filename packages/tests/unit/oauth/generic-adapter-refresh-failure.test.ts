@@ -102,9 +102,7 @@ describe("generic OAuth adapter refresh rotation failures", () => {
       newRefreshToken: "new-refresh-token",
       expiresIn: 3600,
     });
-    mockRotate
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error("kms unavailable"));
+    mockRotate.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("kms unavailable"));
     mockWhereWrite.mockResolvedValue(undefined);
     mockIncrementOAuthVersion.mockResolvedValue(2);
   });

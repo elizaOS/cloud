@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import { type Organization } from "../schemas/organizations";
 import { type UserIdentity, userIdentities } from "../schemas/user-identities";
@@ -33,6 +33,7 @@ const COMPATIBLE_USER_SELECT = {
   avatar: users.avatar,
   organization_id: users.organization_id,
   role: users.role,
+  steward_user_id: users.steward_user_id,
   privy_user_id: users.privy_user_id,
   telegram_id: users.telegram_id,
   telegram_username: users.telegram_username,
@@ -105,6 +106,17 @@ export class UsersRepository {
   }
 
   /**
+   * Finds a user by Steward user ID with organization data.
+   * Prefer the identity projection, but fall back to the legacy users column
+   * while backfill is still converging.
+   */
+  async findByStewardIdWithOrganization(
+    stewardUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    return this.findByStewardIdWithOrganizationUsingDb(dbRead, "read", stewardUserId);
+  }
+
+  /**
    * Finds a user by Privy user ID with organization data.
    * Prefer the identity projection, which is the steady-state auth lookup,
    * but fall back to the legacy users column while backfill or projection
@@ -141,6 +153,32 @@ export class UsersRepository {
 
     // Fallback: look up via identity projection (two-query approach for safety)
     const identityUserId = await this.findIdentityUserIdByPrivyId(dbWrite, privyUserId);
+
+    if (!identityUserId) {
+      return undefined;
+    }
+
+    return await this.findCompatibleUserWithOrganizationById(dbWrite, "write", identityUserId);
+  }
+
+  /**
+   * Finds a user by Steward user ID with organization data from primary.
+   * Use after writes when replica lag could hide the just-written identity row.
+   */
+  async findByStewardIdWithOrganizationForWrite(
+    stewardUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await this.findCompatibleUserWithOrganizationByStewardId(
+      dbWrite,
+      "write",
+      stewardUserId,
+    );
+
+    if (user) {
+      return user;
+    }
+
+    const identityUserId = await this.findIdentityUserIdByStewardId(dbWrite, stewardUserId);
 
     if (!identityUserId) {
       return undefined;
@@ -404,6 +442,16 @@ export class UsersRepository {
     });
   }
 
+  /**
+   * Finds the identity projection row for a Steward user ID from primary.
+   * Use when recovery or auth linking must verify projection row ownership directly.
+   */
+  async findIdentityByStewardIdForWrite(stewardUserId: string): Promise<UserIdentity | undefined> {
+    return await dbWrite.query.userIdentities.findFirst({
+      where: eq(userIdentities.steward_user_id, stewardUserId),
+    });
+  }
+
   private async findByPrivyIdWithOrganizationUsingDb(
     database: typeof dbRead,
     databaseRole: "read" | "write",
@@ -427,6 +475,28 @@ export class UsersRepository {
       database,
       databaseRole,
       privyUserId,
+    );
+  }
+
+  private async findByStewardIdWithOrganizationUsingDb(
+    database: typeof dbRead,
+    databaseRole: "read" | "write",
+    stewardUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const identityUserId = await this.findIdentityUserIdByStewardId(database, stewardUserId);
+
+    if (identityUserId) {
+      return await this.findCompatibleUserWithOrganizationById(
+        database,
+        databaseRole,
+        identityUserId,
+      );
+    }
+
+    return await this.findCompatibleUserWithOrganizationByStewardId(
+      database,
+      databaseRole,
+      stewardUserId,
     );
   }
 
@@ -507,6 +577,19 @@ export class UsersRepository {
     return identity?.user_id;
   }
 
+  private async findIdentityUserIdByStewardId(
+    database: typeof dbRead,
+    stewardUserId: string,
+  ): Promise<string | undefined> {
+    const [identity] = await database
+      .select({ user_id: userIdentities.user_id })
+      .from(userIdentities)
+      .where(eq(userIdentities.steward_user_id, stewardUserId))
+      .limit(1);
+
+    return identity?.user_id;
+  }
+
   private normalizeCompatibleUser(user: CompatibleUserRow, hasUsersWhatsAppColumns: boolean): User {
     return {
       ...user,
@@ -559,6 +642,34 @@ export class UsersRepository {
           .select(COMPATIBLE_USER_SELECT)
           .from(users)
           .where(eq(users.privy_user_id, privyUserId))
+          .limit(1);
+
+    if (!user) {
+      return undefined;
+    }
+
+    return await this.attachOrganization(
+      database,
+      this.normalizeCompatibleUser(user as CompatibleUserRow, support.users),
+    );
+  }
+
+  private async findCompatibleUserWithOrganizationByStewardId(
+    database: typeof dbRead,
+    databaseRole: "read" | "write",
+    stewardUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const support = await this.getWhatsAppColumnSupport(database, databaseRole);
+    const [user] = support.users
+      ? await database
+          .select(COMPATIBLE_USER_SELECT_WITH_WHATSAPP)
+          .from(users)
+          .where(eq(users.steward_user_id, stewardUserId))
+          .limit(1)
+      : await database
+          .select(COMPATIBLE_USER_SELECT)
+          .from(users)
+          .where(eq(users.steward_user_id, stewardUserId))
           .limit(1);
 
     if (!user) {
@@ -684,6 +795,108 @@ export class UsersRepository {
     }
 
     return identity;
+  }
+
+  /**
+   * Upserts the Steward identity projection for a user.
+   */
+  async upsertStewardIdentity(userId: string, stewardUserId: string): Promise<UserIdentity> {
+    const support = await this.getWhatsAppColumnSupport(dbWrite, "write");
+    const whatsappInsertColumns = support.userIdentities
+      ? sql`,
+        whatsapp_id,
+        whatsapp_name`
+      : sql``;
+    const whatsappSelectColumns = support.userIdentities
+      ? support.users
+        ? sql`,
+        u.whatsapp_id,
+        u.whatsapp_name`
+        : sql`,
+        NULL::text,
+        NULL::text`
+      : sql``;
+
+    const result = await dbWrite.execute<UserIdentity>(sql`
+      INSERT INTO ${userIdentities} (
+        user_id,
+        steward_user_id,
+        is_anonymous,
+        anonymous_session_id,
+        expires_at,
+        telegram_id,
+        telegram_username,
+        telegram_first_name,
+        telegram_photo_url,
+        phone_number,
+        phone_verified,
+        discord_id,
+        discord_username,
+        discord_global_name,
+        discord_avatar_url
+        ${whatsappInsertColumns}
+      )
+      SELECT
+        ${userId},
+        ${stewardUserId},
+        u.is_anonymous,
+        u.anonymous_session_id,
+        u.expires_at,
+        u.telegram_id,
+        u.telegram_username,
+        u.telegram_first_name,
+        u.telegram_photo_url,
+        u.phone_number,
+        u.phone_verified,
+        u.discord_id,
+        u.discord_username,
+        u.discord_global_name,
+        u.discord_avatar_url
+        ${whatsappSelectColumns}
+      FROM ${users} u
+      WHERE u.id = ${userId}
+      ON CONFLICT (user_id) DO UPDATE
+      SET
+        steward_user_id = EXCLUDED.steward_user_id,
+        updated_at = NOW()
+      RETURNING *
+    `);
+
+    const [identity] = result.rows;
+
+    if (!identity) {
+      throw new Error(`User ${userId} not found while upserting Steward identity ${stewardUserId}`);
+    }
+
+    return identity;
+  }
+
+  /**
+   * Lists active, non-anonymous users with email addresses that still need a
+   * Steward user mapping.
+   */
+  async listPendingStewardProvisioning(
+    limit: number,
+  ): Promise<Array<Pick<User, "id" | "email" | "email_verified" | "name" | "steward_user_id">>> {
+    return await dbWrite
+      .select({
+        id: users.id,
+        email: users.email,
+        email_verified: users.email_verified,
+        name: users.name,
+        steward_user_id: users.steward_user_id,
+      })
+      .from(users)
+      .where(
+        and(
+          eq(users.is_active, true),
+          eq(users.is_anonymous, false),
+          isNull(users.steward_user_id),
+          isNotNull(users.email),
+        ),
+      )
+      .orderBy(asc(users.created_at), asc(users.id))
+      .limit(limit);
   }
 
   /**

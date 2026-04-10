@@ -29,6 +29,7 @@ const mockCheckSignupAbuse = mock();
 const mockRecordSignupMetadata = mock();
 const mockListCharactersByOrg = mock();
 const mockCreateCharacter = mock();
+const mockEnsureStewardUserMappingForUser = mock();
 
 function makeUniqueViolationError(
   message: string,
@@ -142,6 +143,10 @@ mock.module("@/lib/services/characters/characters", () => ({
   },
 }));
 
+mock.module("@/lib/services/steward-user-migration", () => ({
+  ensureStewardUserMappingForUser: mockEnsureStewardUserMappingForUser,
+}));
+
 mock.module("@/lib/utils/default-eliza-character", () => ({
   getDefaultElizaCharacterData: () => ({
     name: "Eliza",
@@ -205,6 +210,7 @@ describe("syncUserFromPrivy", () => {
     mockRecordSignupMetadata.mockResolvedValue(undefined);
     mockListCharactersByOrg.mockResolvedValue([]);
     mockCreateCharacter.mockResolvedValue({ id: "char-default", name: "Eliza" });
+    mockEnsureStewardUserMappingForUser.mockReset().mockResolvedValue(null);
     process.env.INITIAL_FREE_CREDITS = "5";
   });
 
@@ -248,6 +254,49 @@ describe("syncUserFromPrivy", () => {
     );
     expect(mockUpsertPrivyIdentity).toHaveBeenCalledWith("user-new", "did:privy:new-user");
     expect(result).toMatchObject(hydratedUser);
+  });
+
+  test("syncs a Steward mapping after resolving an existing Privy user", async () => {
+    const existingUser = {
+      id: "user-existing",
+      email: "existing@example.com",
+      email_verified: true,
+      name: "existing",
+      organization_id: "org-existing",
+      organization: { id: "org-existing", name: "Existing Org" },
+      privy_user_id: "did:privy:existing-user",
+      steward_user_id: null,
+      wallet_address: null,
+      wallet_chain_type: null,
+      wallet_verified: false,
+      is_anonymous: false,
+      role: "owner",
+    };
+
+    mockGetByPrivyId.mockResolvedValue(existingUser);
+    mockGetByPrivyIdForWrite.mockResolvedValue(existingUser);
+    mockEnsureStewardUserMappingForUser.mockResolvedValue("stwd-user-existing");
+
+    const { syncUserFromPrivy } = await import("@/lib/privy-sync");
+
+    const result = await syncUserFromPrivy({
+      id: "did:privy:existing-user",
+      email: { address: "existing@example.com" },
+      linkedAccounts: [],
+    } as never);
+
+    expect(mockEnsureStewardUserMappingForUser).toHaveBeenCalledWith(
+      {
+        id: "user-existing",
+        email: "existing@example.com",
+        email_verified: true,
+        name: "existing",
+        steward_user_id: null,
+        is_anonymous: false,
+      },
+      { required: false },
+    );
+    expect(result.steward_user_id).toBe("stwd-user-existing");
   });
 
   test("upserts user identity before reading linked accounts by new Privy id", async () => {

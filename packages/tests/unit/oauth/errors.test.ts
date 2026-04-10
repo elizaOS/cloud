@@ -97,6 +97,7 @@ describe("OAuthError Class", () => {
         [OAuthErrorCode.TOKEN_INVALID]: 401,
         [OAuthErrorCode.PLATFORM_NOT_CONFIGURED]: 400,
         [OAuthErrorCode.PLATFORM_NOT_SUPPORTED]: 400,
+        [OAuthErrorCode.INVALID_SCOPE_REQUEST]: 400,
         [OAuthErrorCode.UNAUTHORIZED]: 401,
         [OAuthErrorCode.FORBIDDEN]: 403,
         [OAuthErrorCode.RATE_LIMITED]: 429,

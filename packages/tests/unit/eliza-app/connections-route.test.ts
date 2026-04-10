@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
-import { OAuthError, OAuthErrorCode } from "@/lib/services/oauth/errors";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
 
 const mockValidateAuthHeader = mock();
 const mockListConnections = mock();
@@ -33,7 +40,12 @@ describe("Eliza App connections routes", () => {
     }));
 
     const oauthModule = {
+      ERROR_STATUS_MAP,
+      Errors,
+      internalErrorResponse,
       OAuthError,
+      OAuthErrorCode,
+      validationErrorResponse,
       oauthService: {
         listConnections: mockListConnections,
         initiateAuth: mockInitiateAuth,

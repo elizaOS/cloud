@@ -4,12 +4,15 @@ import { logger } from "@/lib/utils/logger";
 import {
   type ManagedMiladyDiscordBinding,
   readManagedMiladyDiscordBinding,
+  readManagedMiladyDiscordGateway,
   withManagedMiladyDiscordBinding,
+  withManagedMiladyDiscordGateway,
   withoutManagedMiladyDiscordBinding,
 } from "./milady-agent-config";
 
-const ROLES_PLUGIN_ID = "@miladyai/plugin-roles";
+const DISCORD_OWNER_USER_IDS_ENV_KEY = "MILADY_DISCORD_OWNER_USER_IDS_JSON";
 export const DISCORD_DEVELOPER_PORTAL_URL = "https://discord.com/developers/applications";
+export const MANAGED_DISCORD_GATEWAY_AGENT_NAME = "Milady Discord Gateway";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -33,13 +36,8 @@ function withDiscordConnectorAdmin(
   adminDiscordUserId: string,
 ): Record<string, unknown> {
   const next = { ...(agentConfig ?? {}) };
-  const plugins = ensureRecord(next, "plugins");
-  const entries = ensureRecord(plugins, "entries");
-  const rolesEntry = ensureRecord(entries, ROLES_PLUGIN_ID);
-  rolesEntry.enabled = true;
-
-  const roleConfig = ensureRecord(rolesEntry, "config");
-  const connectorAdmins = ensureRecord(roleConfig, "connectorAdmins");
+  const roles = ensureRecord(next, "roles");
+  const connectorAdmins = ensureRecord(roles, "connectorAdmins");
   connectorAdmins.discord = [adminDiscordUserId];
 
   return next;
@@ -49,23 +47,46 @@ function withoutDiscordConnectorAdmin(
   agentConfig: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> {
   const next = { ...(agentConfig ?? {}) };
-  const plugins = asRecord(next.plugins);
-  const entries = asRecord(plugins?.entries);
-  const rolesEntry = asRecord(entries?.[ROLES_PLUGIN_ID]);
-  const roleConfig = asRecord(rolesEntry?.config);
-  const connectorAdmins = asRecord(roleConfig?.connectorAdmins);
+  const roles = asRecord(next.roles);
+  const connectorAdmins = asRecord(roles?.connectorAdmins);
 
   if (connectorAdmins) {
     delete connectorAdmins.discord;
-    if (Object.keys(connectorAdmins).length === 0 && roleConfig) {
-      delete roleConfig.connectorAdmins;
+    if (Object.keys(connectorAdmins).length === 0 && roles) {
+      delete roles.connectorAdmins;
     }
   }
 
-  if (roleConfig && Object.keys(roleConfig).length === 0 && rolesEntry) {
-    delete rolesEntry.config;
+  if (roles && Object.keys(roles).length === 0) {
+    delete next.roles;
   }
 
+  return next;
+}
+
+function withDiscordOwnerIdentity(
+  agentConfig: Record<string, unknown> | null | undefined,
+  adminDiscordUserId: string,
+): Record<string, unknown> {
+  const next = { ...(agentConfig ?? {}) };
+  const env = ensureRecord(next, "env");
+  env[DISCORD_OWNER_USER_IDS_ENV_KEY] = JSON.stringify([adminDiscordUserId]);
+  return next;
+}
+
+function withoutDiscordOwnerIdentity(
+  agentConfig: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const next = { ...(agentConfig ?? {}) };
+  const env = asRecord(next.env);
+  if (!env) {
+    return next;
+  }
+
+  delete env[DISCORD_OWNER_USER_IDS_ENV_KEY];
+  if (Object.keys(env).length === 0) {
+    delete next.env;
+  }
   return next;
 }
 
@@ -79,6 +100,7 @@ export interface ManagedMiladyDiscordStatus {
   adminDiscordUserId: string | null;
   adminDiscordUsername: string | null;
   adminDiscordDisplayName: string | null;
+  adminDiscordAvatarUrl: string | null;
   adminElizaUserId: string | null;
   botNickname: string | null;
   connectedAt: string | null;
@@ -101,6 +123,7 @@ function toStatus(
     adminDiscordUserId: binding?.adminDiscordUserId ?? null,
     adminDiscordUsername: binding?.adminDiscordUsername ?? null,
     adminDiscordDisplayName: binding?.adminDiscordDisplayName ?? null,
+    adminDiscordAvatarUrl: binding?.adminDiscordAvatarUrl ?? null,
     adminElizaUserId: binding?.adminElizaUserId ?? null,
     botNickname: binding?.botNickname ?? null,
     connectedAt: binding?.connectedAt ?? null,
@@ -108,6 +131,45 @@ function toStatus(
 }
 
 export class ManagedMiladyDiscordService {
+  async ensureGatewayAgent(params: { organizationId: string; userId: string }): Promise<{
+    created: boolean;
+    sandbox: Awaited<ReturnType<typeof miladySandboxesRepository.create>>;
+  }> {
+    const sandboxes = await miladySandboxesRepository.listByOrganization(params.organizationId);
+    const existingGateway = sandboxes.find((sandbox) =>
+      readManagedMiladyDiscordGateway(
+        (sandbox.agent_config as Record<string, unknown> | null) ?? {},
+      ),
+    );
+
+    if (existingGateway) {
+      return {
+        created: false,
+        sandbox: existingGateway,
+      };
+    }
+
+    const sandbox = await miladySandboxesRepository.create({
+      organization_id: params.organizationId,
+      user_id: params.userId,
+      agent_name: MANAGED_DISCORD_GATEWAY_AGENT_NAME,
+      agent_config: withManagedMiladyDiscordGateway({}),
+      environment_vars: {},
+      status: "pending",
+      database_status: "none",
+    });
+
+    logger.info("[managed-discord] Created shared Discord gateway agent", {
+      agentId: sandbox.id,
+      organizationId: params.organizationId,
+    });
+
+    return {
+      created: true,
+      sandbox,
+    };
+  }
+
   async getStatus(params: {
     agentId: string;
     organizationId: string;
@@ -155,6 +217,7 @@ export class ManagedMiladyDiscordService {
       params.binding,
     );
     nextConfig = withDiscordConnectorAdmin(nextConfig, params.binding.adminDiscordUserId);
+    nextConfig = withDiscordOwnerIdentity(nextConfig, params.binding.adminDiscordUserId);
 
     await miladySandboxesRepository.update(sandbox.id, {
       agent_config: nextConfig,
@@ -206,6 +269,7 @@ export class ManagedMiladyDiscordService {
       (sandbox.agent_config as Record<string, unknown> | null) ?? {},
     );
     nextConfig = withoutDiscordConnectorAdmin(nextConfig);
+    nextConfig = withoutDiscordOwnerIdentity(nextConfig);
 
     await miladySandboxesRepository.update(sandbox.id, {
       agent_config: nextConfig,

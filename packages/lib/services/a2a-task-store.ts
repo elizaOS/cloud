@@ -14,6 +14,7 @@
 import { Redis } from "@upstash/redis";
 import type { Task } from "@/lib/types/a2a";
 import { logger } from "@/lib/utils/logger";
+import { assertPersistentCloudStateConfigured } from "@/lib/utils/persistence-guard";
 
 // ============================================================================
 // Types
@@ -45,7 +46,6 @@ let initialized = false;
 
 function getRedisClient(): Redis | null {
   if (initialized) return redis;
-  initialized = true;
 
   const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
   const restUrl = process.env.KV_REST_API_URL;
@@ -58,10 +58,12 @@ function getRedisClient(): Redis | null {
     redis = new Redis({ url: restUrl, token: restToken });
     logger.info("[A2A TaskStore] ✓ Redis task store initialized (REST API)");
   } else {
+    assertPersistentCloudStateConfigured("A2A TaskStore", false);
     logger.warn("[A2A TaskStore] ⚠️ Redis not available, using in-memory fallback");
     redis = null;
   }
 
+  initialized = true;
   return redis;
 }
 

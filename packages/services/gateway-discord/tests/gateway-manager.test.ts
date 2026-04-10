@@ -466,6 +466,65 @@ describe("GatewayManager managed Milady guild routing", () => {
       allowedMentions: { repliedUser: false },
     });
   });
+
+  test("routes shared Discord direct messages through the managed Milady resolver", async () => {
+    const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      expect(body).toEqual({
+        channelId: "dm-1",
+        messageId: "message-1",
+        content: "hello from dm",
+        sender: {
+          id: "discord-user-1",
+          username: "owner",
+          displayName: "Owner Person",
+          avatar: "https://cdn.discordapp.com/avatar.png",
+        },
+      });
+      return new Response(
+        JSON.stringify({
+          handled: true,
+          replyText: "hello from owner agent",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+    const manager = await createGatewayManager();
+    const sendTyping = mock(async () => {});
+    const reply = mock(async () => {});
+
+    await (manager as any).handleElizaAppMessage({
+      guild: null,
+      channelId: "dm-1",
+      id: "message-1",
+      content: "hello from dm",
+      channel: {
+        sendTyping,
+      },
+      author: {
+        bot: false,
+        id: "discord-user-1",
+        username: "owner",
+        globalName: "Owner Person",
+        displayAvatarURL: () => "https://cdn.discordapp.com/avatar.png",
+      },
+      member: undefined,
+      reply,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(sendTyping).toHaveBeenCalledTimes(1);
+    expect(reply).toHaveBeenCalledWith({
+      content: "hello from owner agent",
+      allowedMentions: { repliedUser: false },
+    });
+  });
 });
 
 describe("GatewayManager constants", () => {

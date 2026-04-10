@@ -407,6 +407,13 @@
       "when": 1775695200000,
       "tag": "0060_add_steward_tenant_columns_to_organizations",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1775788338243,
+      "tag": "0061_add_steward_user_identity_columns",
+      "breakpoints": true
     }
   ]
 }

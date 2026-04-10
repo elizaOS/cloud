@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
 import { jsonRequest, routeParams } from "./api/route-test-helpers";
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
@@ -51,6 +59,12 @@ describe("managed Milady GitHub routes", () => {
     }));
 
     mock.module("@/lib/services/oauth", () => ({
+      ERROR_STATUS_MAP,
+      Errors,
+      internalErrorResponse,
+      OAuthError,
+      OAuthErrorCode,
+      validationErrorResponse,
       oauthService: {
         getConnection: mockGetConnection,
         revokeConnection: mockRevokeConnection,

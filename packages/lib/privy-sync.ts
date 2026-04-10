@@ -17,6 +17,7 @@ import { discordService } from "@/lib/services/discord";
 import { emailService } from "@/lib/services/email";
 import { invitesService } from "@/lib/services/invites";
 import { organizationsService } from "@/lib/services/organizations";
+import { ensureStewardUserMappingForUser } from "@/lib/services/steward-user-migration";
 import { usersService } from "@/lib/services/users";
 import type { UserWithOrganization } from "@/lib/types";
 import { getDefaultElizaCharacterData } from "@/lib/utils/default-eliza-character";
@@ -192,6 +193,34 @@ import { logger } from "@/lib/utils/logger";
  */
 type PrivyUserData = PrivyUser;
 
+async function finalizeSyncedUser(user: UserWithOrganization): Promise<UserWithOrganization> {
+  try {
+    const stewardUserId = await ensureStewardUserMappingForUser(
+      {
+        id: user.id,
+        email: user.email,
+        email_verified: user.email_verified,
+        name: user.name,
+        steward_user_id: user.steward_user_id,
+        is_anonymous: user.is_anonymous,
+      },
+      { required: false },
+    );
+
+    if (stewardUserId && user.steward_user_id !== stewardUserId) {
+      user.steward_user_id = stewardUserId;
+    }
+  } catch (error) {
+    logger.error("[PrivySync] Failed to sync Steward user mapping", {
+      userId: user.id,
+      privyUserId: user.privy_user_id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return user;
+}
+
 /**
  * Sync a Privy user to the local database
  * Creates user and organization if they don't exist
@@ -332,7 +361,7 @@ export async function syncUserFromPrivy(
       user = (await usersService.getByPrivyIdForWrite(privyUserId))!;
     }
 
-    return user;
+    return await finalizeSyncedUser(user);
   }
 
   // Check for pending invite first (before creating new organization)
@@ -397,7 +426,7 @@ export async function syncUserFromPrivy(
           console.error("[SYNC] Discord log failed:", error);
         });
 
-      return userWithOrg;
+      return await finalizeSyncedUser(userWithOrg);
     }
   }
 
@@ -426,7 +455,7 @@ export async function syncUserFromPrivy(
       if (!linkedUser) {
         throw new Error(`Failed to fetch user after Privy account linking for ${email}`);
       }
-      return linkedUser;
+      return await finalizeSyncedUser(linkedUser);
     }
   }
 
@@ -584,7 +613,7 @@ export async function syncUserFromPrivy(
             if (!linkedUser) {
               throw new Error(`Failed to fetch user after Privy account linking for ${email}`);
             }
-            return linkedUser;
+            return await finalizeSyncedUser(linkedUser);
           }
           break;
         }
@@ -593,7 +622,7 @@ export async function syncUserFromPrivy(
       if (existingUser) {
         // Clean up the orphaned organization we just created
         await organizationsService.delete(organization.id);
-        return existingUser;
+        return await finalizeSyncedUser(existingUser);
       }
 
       // Couldn't find existing user even after retries - cleanup and rethrow
@@ -670,7 +699,7 @@ export async function syncUserFromPrivy(
   // Auto-create default Eliza character for new user (fire-and-forget)
   void ensureDefaultCharacter(userWithOrg.id, userWithOrg.organization?.id || "");
 
-  return userWithOrg;
+  return await finalizeSyncedUser(userWithOrg);
 }
 
 /**

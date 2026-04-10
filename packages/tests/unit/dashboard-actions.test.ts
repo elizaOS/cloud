@@ -12,6 +12,7 @@ const mockListAppsByOrganization = mock();
 const mockGetStatsByOrganization = mock();
 const mockGetCharacterStatisticsBatch = mock();
 const mockLoggerError = mock();
+const realContainersModule = await import("@/lib/services/containers");
 
 mock.module("@/lib/auth", () => ({
   requireAuthWithOrg: mockRequireAuthWithOrg,
@@ -42,6 +43,7 @@ mock.module("@/lib/services/characters/characters", () => ({
 }));
 
 mock.module("@/lib/services/containers", () => ({
+  ...realContainersModule,
   listContainers: mockListContainers,
 }));
 

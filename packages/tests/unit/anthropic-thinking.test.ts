@@ -183,7 +183,7 @@ describe("anthropic COT env", () => {
 
     test("anthropic model + budget → thinking enabled", () => {
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env)).toEqual({
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env)).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
         },
@@ -196,17 +196,17 @@ describe("anthropic COT env", () => {
     });
 
     test("anthropic model + no budget → {}", () => {
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", {})).toEqual({});
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", {})).toEqual({});
     });
 
     test("per-agent 0 disables despite env default", () => {
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 0)).toEqual({});
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env, 0)).toEqual({});
     });
 
     test("per-agent budget overrides env default", () => {
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 2048)).toEqual({
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env, 2048)).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 2048 } },
         },
@@ -215,7 +215,7 @@ describe("anthropic COT env", () => {
 
     test("ANTHROPIC_COT_BUDGET_MAX clamps per-agent budget", () => {
       const env = { [COT_ENV_KEY]: "1024", [COT_MAX_ENV_KEY]: "500" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env, 9000)).toEqual({
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env, 9000)).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 500 } },
         },
@@ -224,7 +224,7 @@ describe("anthropic COT env", () => {
 
     test("ANTHROPIC_COT_BUDGET_MAX clamps env default when no per-agent override", () => {
       const env = { [COT_ENV_KEY]: "9000", [COT_MAX_ENV_KEY]: "1000" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env)).toEqual({
+      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env)).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 1000 } },
         },
@@ -236,10 +236,10 @@ describe("anthropic COT env", () => {
     test("aliases mergeProviderOptions(undefined, anthropicThinking…)", () => {
       expect(mergeAnthropicCotProviderOptions("openai/gpt-4o", {})).toEqual({});
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(mergeAnthropicCotProviderOptions("anthropic/claude-sonnet-4.5", env)).toEqual(
+      expect(mergeAnthropicCotProviderOptions("anthropic/claude-sonnet-4.6", env)).toEqual(
         mergeProviderOptions(
           undefined,
-          anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env),
+          anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env),
         ),
       );
     });
@@ -249,11 +249,11 @@ describe("anthropic COT env", () => {
     test("gateway order + anthropic when Claude + budget", () => {
       const env = { [COT_ENV_KEY]: "1024" };
       expect(
-        mergeGatewayGroqPreferenceWithAnthropicCot("anthropic/claude-sonnet-4.5", env),
+        mergeGatewayGroqPreferenceWithAnthropicCot("anthropic/claude-sonnet-4.6", env),
       ).toEqual(
         mergeProviderOptions(
           { providerOptions: { gateway: { order: ["groq"] } } },
-          anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.5", env),
+          anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env),
         ),
       );
     });

@@ -227,17 +227,24 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   },
   // OpenAI
   {
-    id: "gpt-5",
-    name: "GPT-5",
-    description: "Most capable OpenAI",
-    modelId: "openai/gpt-5",
+    id: "gpt-5.4",
+    name: "GPT-5.4",
+    description: "Flagship OpenAI model",
+    modelId: "openai/gpt-5.4",
     provider: "openai",
   },
   {
-    id: "gpt-5-mini",
-    name: "GPT-5 Mini",
-    description: "Fast & affordable",
-    modelId: "openai/gpt-5-mini",
+    id: "gpt-5.4-pro",
+    name: "GPT-5.4 Pro",
+    description: "Highest-precision OpenAI model",
+    modelId: "openai/gpt-5.4-pro",
+    provider: "openai",
+  },
+  {
+    id: "gpt-5.4-mini",
+    name: "GPT-5.4 Mini",
+    description: "Fast & affordable latest GPT-5 tier",
+    modelId: "openai/gpt-5.4-mini",
     provider: "openai",
   },
   // Anthropic
@@ -340,10 +347,10 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   },
   // Z.AI (Zhipu)
   {
-    id: "glm-5",
-    name: "GLM-5",
-    description: "Z.AI (Zhipu) most powerful",
-    modelId: "zai/glm-5",
+    id: "glm-5.1",
+    name: "GLM-5.1",
+    description: "Z.AI (Zhipu) latest flagship",
+    modelId: "zai/glm-5.1",
     provider: "zai",
   },
   // Moonshot (Kimi)

@@ -102,7 +102,7 @@ const DEFAULT_TIMEOUT_MS = 13 * 60 * 1000; // 13 minutes - matches Vercel fluid 
 const MAX_ITERATIONS = 30;
 
 // Default model - uses AI Gateway so any supported model works
-const DEFAULT_MODEL = "anthropic/claude-opus-4.5";
+const DEFAULT_MODEL = "anthropic/claude-opus-4.6";
 
 // ============================================================================
 // Available Models (fetched dynamically, these are suggestions)
@@ -110,25 +110,25 @@ const DEFAULT_MODEL = "anthropic/claude-opus-4.5";
 
 const AVAILABLE_MODELS = [
   {
-    id: "anthropic/claude-opus-4.5",
-    name: "Claude Opus 4.5",
+    id: "anthropic/claude-opus-4.6",
+    name: "Claude Opus 4.6",
     description: "Most capable model for complex coding tasks",
     isDefault: true,
   },
   {
-    id: "anthropic/claude-sonnet-4.5",
-    name: "Claude Sonnet 4.5",
+    id: "anthropic/claude-sonnet-4.6",
+    name: "Claude Sonnet 4.6",
     description: "Best balance of speed and capability for coding tasks",
   },
   {
-    id: "openai/gpt-5.2-codex",
-    name: "GPT-5.2 Codex",
-    description: "OpenAI's most capable coding model",
+    id: "openai/gpt-5.4",
+    name: "GPT-5.4",
+    description: "OpenAI's flagship model for coding and agentic workflows",
   },
   {
-    id: "openai/gpt-5.2",
-    name: "GPT-5.2",
-    description: "OpenAI's most capable model",
+    id: "openai/gpt-5.4-mini",
+    name: "GPT-5.4 Mini",
+    description: "OpenAI's strongest fast model for coding and subagents",
   },
   {
     id: "xai/grok-code-fast-1",

@@ -1,4 +1,12 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
 
 afterAll(() => {
   mock.restore();
@@ -28,6 +36,12 @@ mock.module("@/lib/services/milady-sandbox", () => ({
 }));
 
 mock.module("@/lib/services/oauth", () => ({
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
   oauthService: {
     getValidToken: mockGetValidToken,
     revokeConnection: mockRevokeConnection,

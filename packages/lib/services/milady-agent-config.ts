@@ -2,6 +2,7 @@ export const MILADY_INTERNAL_CONFIG_PREFIX = "__milady";
 export const MILADY_CHARACTER_OWNERSHIP_KEY = "__miladyCharacterOwnership";
 export const MILADY_REUSE_EXISTING_CHARACTER = "reuse-existing";
 export const MILADY_MANAGED_DISCORD_KEY = "__miladyManagedDiscord";
+export const MILADY_MANAGED_DISCORD_GATEWAY_KEY = "__miladyManagedDiscordGateway";
 export const MILADY_MANAGED_GITHUB_KEY = "__miladyManagedGithub";
 
 export interface ManagedMiladyDiscordBinding {
@@ -12,6 +13,7 @@ export interface ManagedMiladyDiscordBinding {
   adminDiscordUserId: string;
   adminDiscordUsername: string;
   adminDiscordDisplayName?: string;
+  adminDiscordAvatarUrl?: string;
   adminElizaUserId: string;
   botNickname?: string;
   connectedAt: string;
@@ -93,6 +95,9 @@ export function readManagedMiladyDiscordBinding(
     binding.adminDiscordDisplayName.trim()
       ? { adminDiscordDisplayName: binding.adminDiscordDisplayName.trim() }
       : {}),
+    ...(typeof binding.adminDiscordAvatarUrl === "string" && binding.adminDiscordAvatarUrl.trim()
+      ? { adminDiscordAvatarUrl: binding.adminDiscordAvatarUrl.trim() }
+      : {}),
     ...(typeof binding.botNickname === "string" && binding.botNickname.trim()
       ? { botNickname: binding.botNickname.trim() }
       : {}),
@@ -116,6 +121,9 @@ export function withManagedMiladyDiscordBinding(
     ...(binding.adminDiscordDisplayName
       ? { adminDiscordDisplayName: binding.adminDiscordDisplayName }
       : {}),
+    ...(binding.adminDiscordAvatarUrl
+      ? { adminDiscordAvatarUrl: binding.adminDiscordAvatarUrl }
+      : {}),
     ...(binding.botNickname ? { botNickname: binding.botNickname } : {}),
   };
   return next;
@@ -126,6 +134,47 @@ export function withoutManagedMiladyDiscordBinding(
 ): Record<string, unknown> {
   const next = cloneAgentConfig(agentConfig);
   delete next[MILADY_MANAGED_DISCORD_KEY];
+  return next;
+}
+
+export interface ManagedMiladyDiscordGateway {
+  mode: "shared-gateway";
+  createdAt: string;
+}
+
+export function readManagedMiladyDiscordGateway(
+  agentConfig?: Record<string, unknown> | null,
+): ManagedMiladyDiscordGateway | null {
+  const gateway = asRecord(agentConfig?.[MILADY_MANAGED_DISCORD_GATEWAY_KEY]);
+  if (!gateway) {
+    return null;
+  }
+
+  const mode = typeof gateway.mode === "string" ? gateway.mode.trim() : "";
+  if (mode !== "shared-gateway") {
+    return null;
+  }
+
+  const createdAt = typeof gateway.createdAt === "string" ? gateway.createdAt.trim() : "";
+
+  return {
+    mode: "shared-gateway",
+    createdAt: createdAt || new Date(0).toISOString(),
+  };
+}
+
+export function withManagedMiladyDiscordGateway(
+  agentConfig: Record<string, unknown> | null | undefined,
+  gateway: ManagedMiladyDiscordGateway = {
+    mode: "shared-gateway",
+    createdAt: new Date().toISOString(),
+  },
+): Record<string, unknown> {
+  const next = cloneAgentConfig(agentConfig);
+  next[MILADY_MANAGED_DISCORD_GATEWAY_KEY] = {
+    mode: "shared-gateway",
+    createdAt: gateway.createdAt,
+  };
   return next;
 }
 

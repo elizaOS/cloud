@@ -1,4 +1,12 @@
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
 
 const mockGenerateText = mock();
 const mockGetConnectedPlatforms = mock();
@@ -6,10 +14,12 @@ const mockInitiateAuth = mock();
 const mockCacheGet = mock();
 const mockCacheSet = mock();
 const mockCacheDel = mock();
+const realAiModule = await import("ai");
 
 const cacheStore = new Map<string, unknown>();
 
 mock.module("ai", () => ({
+  ...realAiModule,
   generateText: mockGenerateText,
 }));
 
@@ -20,6 +30,12 @@ mock.module("@ai-sdk/gateway", () => ({
 }));
 
 mock.module("@/lib/services/oauth", () => ({
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
   oauthService: {
     getConnectedPlatforms: mockGetConnectedPlatforms,
     initiateAuth: mockInitiateAuth,

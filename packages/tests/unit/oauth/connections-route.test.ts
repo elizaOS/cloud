@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
-import { OAuthError } from "@/lib/services/oauth/errors";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
 
 const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockListConnections = mock();
@@ -26,7 +33,9 @@ mock.module("@/lib/utils/logger", () => ({
 describe("OAuth connection detail routes", () => {
   beforeEach(async () => {
     const oauthModule = {
+      ERROR_STATUS_MAP,
       Errors: {
+        ...Errors,
         connectionNotFound: (connectionId: string) => ({
           toResponse: () => ({
             error: "CONNECTION_NOT_FOUND",
@@ -37,12 +46,9 @@ describe("OAuth connection detail routes", () => {
         }),
       },
       OAuthError,
-      internalErrorResponse: (message: string) => ({
-        error: "INTERNAL_ERROR",
-        code: "INTERNAL_ERROR",
-        message,
-        reconnectRequired: false,
-      }),
+      OAuthErrorCode,
+      internalErrorResponse,
+      validationErrorResponse,
       oauthService: {
         listConnections: mockListConnections,
         revokeConnection: mockRevokeConnection,

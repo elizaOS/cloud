@@ -21,6 +21,15 @@ mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
 }));
 
+mock.module("@/lib/services/steward-platform-users", () => ({
+  getStewardApiUrl: () => process.env.STEWARD_API_URL ?? "http://localhost:3200",
+  getStewardPlatformKey: () => {
+    const key = (process.env.STEWARD_PLATFORM_KEYS ?? "").split(",")[0]?.trim();
+    if (!key) throw new Error("STEWARD_PLATFORM_KEYS is not configured");
+    return key;
+  },
+}));
+
 // Drizzle-style chainable query builder returning configurable rows
 function chainReturning(rows: unknown[]) {
   const base = {

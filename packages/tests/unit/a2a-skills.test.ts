@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockGetOrCreateRoom = mock();
 const mockSendMessage = mock();
+const realAiModule = await import("ai");
+const realPricingModule = await import("@/lib/pricing");
+const realContainersModule = await import("@/lib/services/containers");
 
 mock.module("@ai-sdk/gateway", () => ({
   gateway: {
@@ -10,20 +13,15 @@ mock.module("@ai-sdk/gateway", () => ({
 }));
 
 mock.module("ai", () => ({
+  ...realAiModule,
   streamText: mock(),
 }));
 
 mock.module("@/lib/pricing", () => ({
+  ...realPricingModule,
   calculateCost: mock(),
   estimateRequestCost: mock(),
-  getProviderFromModel: mock(),
   IMAGE_GENERATION_COST: 0.01,
-}));
-
-mock.module("@/lib/providers/anthropic-thinking", () => ({
-  mergeAnthropicCotProviderOptions: () => ({}),
-  mergeGoogleImageModalitiesWithAnthropicCot: () => ({}),
-  resolveAnthropicThinkingBudgetTokens: () => undefined,
 }));
 
 mock.module("@/lib/services/agents/agents", () => ({
@@ -38,6 +36,7 @@ mock.module("@/lib/services/characters/characters", () => ({
 }));
 
 mock.module("@/lib/services/containers", () => ({
+  ...realContainersModule,
   containersService: {},
 }));
 
@@ -105,4 +104,8 @@ describe("A2A chat with agent skill", () => {
       }),
     );
   });
+});
+
+afterAll(() => {
+  mock.restore();
 });

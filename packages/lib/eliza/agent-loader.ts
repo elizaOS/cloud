@@ -1,7 +1,6 @@
 import type { Action, Character, Plugin, Provider } from "@elizaos/core";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
-import { memoryPlugin } from "@elizaos/plugin-memory";
 import { memoriesRepository } from "@/db/repositories/agents/memories";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { ElizaCharacter } from "@/lib/types";
@@ -16,6 +15,7 @@ import {
   SETTINGS_PLUGIN_MAP,
 } from "./agent-mode-types";
 import { buildElevenLabsSettings, getElizaCloudApiUrl } from "./config";
+import advancedMemoryPlugin from "./plugin-advanced-memory";
 import { affiliatePlugin } from "./plugin-affiliate";
 import { characterBuilderPlugin } from "./plugin-character-builder";
 import { chatPlaygroundPlugin } from "./plugin-chat-playground";
@@ -141,7 +141,7 @@ function asPlugin<T extends { name: string; description: string }>(plugin: T): P
 const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-elizacloud": asPlugin(elizaOSCloudPlugin),
   "@elizaos/plugin-elevenlabs": asPlugin(elevenLabsPlugin),
-  "@elizaos/plugin-memory": asPlugin(memoryPlugin),
+  "@eliza-cloud/plugin-advanced-memory": asPlugin(advancedMemoryPlugin),
   "@elizaos/plugin-mcp": asPlugin(mcpPlugin),
   "@elizaos/plugin-n8n-workflow": cloudN8nPlugin,
   "@eliza-cloud/plugin-assistant": cloudBootstrapPlugin,

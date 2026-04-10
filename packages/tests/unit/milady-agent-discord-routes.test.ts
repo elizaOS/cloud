@@ -11,6 +11,7 @@ const mockGetAgent = mock();
 const mockGetStatus = mock();
 const mockDisconnectAgent = mock();
 const mockConnectAgent = mock();
+const mockEnsureGatewayAgent = mock();
 const mockIsOAuthConfigured = mock();
 const mockGetApplicationId = mock();
 const mockGenerateOAuthUrl = mock();
@@ -32,6 +33,7 @@ mock.module("@/lib/services/milady-managed-discord", () => ({
     getStatus: mockGetStatus,
     disconnectAgent: mockDisconnectAgent,
     connectAgent: mockConnectAgent,
+    ensureGatewayAgent: mockEnsureGatewayAgent,
   },
 }));
 
@@ -60,6 +62,7 @@ import {
   DELETE as deleteManagedDiscord,
   GET as getManagedDiscord,
 } from "@/app/api/v1/milady/agents/[agentId]/discord/route";
+import { POST as postManagedDiscordGatewayAgent } from "@/app/api/v1/milady/discord/gateway-agent/route";
 
 describe("managed Milady Discord routes", () => {
   beforeEach(() => {
@@ -68,6 +71,7 @@ describe("managed Milady Discord routes", () => {
     mockGetStatus.mockReset();
     mockDisconnectAgent.mockReset();
     mockConnectAgent.mockReset();
+    mockEnsureGatewayAgent.mockReset();
     mockIsOAuthConfigured.mockReset();
     mockGetApplicationId.mockReset();
     mockGenerateOAuthUrl.mockReset();
@@ -119,6 +123,61 @@ describe("managed Milady Discord routes", () => {
     );
   });
 
+  test("POST /api/v1/milady/discord/gateway-agent returns the shared gateway target", async () => {
+    mockEnsureGatewayAgent.mockResolvedValue({
+      created: true,
+      sandbox: {
+        id: "agent-gateway",
+        organization_id: "org-1",
+        user_id: "user-1",
+        agent_name: "Milady Discord Gateway",
+        agent_config: {
+          __miladyManagedDiscordGateway: {
+            mode: "shared-gateway",
+            createdAt: "2026-04-09T00:00:00.000Z",
+          },
+        },
+        status: "pending",
+        database_status: "none",
+        created_at: "2026-04-09T00:00:00.000Z",
+        updated_at: "2026-04-09T00:00:00.000Z",
+        container_name: null,
+        sandbox_id: null,
+        headscale_ip: null,
+        bridge_url: null,
+        health_url: null,
+        web_ui_port: null,
+        bridge_port: null,
+        error_message: null,
+        last_heartbeat_at: null,
+      },
+    });
+
+    const response = await postManagedDiscordGatewayAgent(
+      new NextRequest("https://example.com/api/v1/milady/discord/gateway-agent", {
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      success: true,
+      data: {
+        created: true,
+        agent: expect.objectContaining({
+          agent_id: "agent-gateway",
+          agent_name: "Milady Discord Gateway",
+          status: "queued",
+          database_status: "none",
+        }),
+      },
+    });
+    expect(mockEnsureGatewayAgent).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+    });
+  });
+
   test("GET /api/v1/milady/agents/[agentId]/discord returns managed Discord status", async () => {
     mockGetStatus.mockResolvedValue({
       applicationId: "discord-app-1",
@@ -130,6 +189,8 @@ describe("managed Milady Discord routes", () => {
       adminDiscordUserId: "discord-user-1",
       adminDiscordUsername: "owner",
       adminDiscordDisplayName: "Owner",
+      adminDiscordAvatarUrl:
+        "https://cdn.discordapp.com/avatars/discord-user-1/avatar.png?size=128",
       adminElizaUserId: "user-1",
       botNickname: "Milady",
       connectedAt: "2026-04-04T16:00:00.000Z",
@@ -153,6 +214,8 @@ describe("managed Milady Discord routes", () => {
         adminDiscordUserId: "discord-user-1",
         adminDiscordUsername: "owner",
         adminDiscordDisplayName: "Owner",
+        adminDiscordAvatarUrl:
+          "https://cdn.discordapp.com/avatars/discord-user-1/avatar.png?size=128",
         adminElizaUserId: "user-1",
         botNickname: "Milady",
         connectedAt: "2026-04-04T16:00:00.000Z",
@@ -177,7 +240,7 @@ describe("managed Milady Discord routes", () => {
         id: "discord-user-1",
         username: "owner",
         globalName: "Owner Person",
-        avatar: null,
+        avatar: "avatar-hash",
       },
     });
     mockConnectAgent.mockResolvedValue({
@@ -210,6 +273,8 @@ describe("managed Milady Discord routes", () => {
         adminDiscordUserId: "discord-user-1",
         adminDiscordUsername: "owner",
         adminDiscordDisplayName: "Owner Person",
+        adminDiscordAvatarUrl:
+          "https://cdn.discordapp.com/avatars/discord-user-1/avatar-hash.png?size=128",
         adminElizaUserId: "user-1",
         botNickname: "Milady Chen",
         connectedAt: expect.any(String),
@@ -230,6 +295,7 @@ describe("managed Milady Discord routes", () => {
         adminDiscordUserId: null,
         adminDiscordUsername: null,
         adminDiscordDisplayName: null,
+        adminDiscordAvatarUrl: null,
         adminElizaUserId: null,
         botNickname: null,
         connectedAt: null,
@@ -256,6 +322,7 @@ describe("managed Milady Discord routes", () => {
         adminDiscordUserId: null,
         adminDiscordUsername: null,
         adminDiscordDisplayName: null,
+        adminDiscordAvatarUrl: null,
         adminElizaUserId: null,
         botNickname: null,
         connectedAt: null,

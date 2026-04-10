@@ -19,6 +19,7 @@ export const userIdentities = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
 
     // Privy authentication
+    steward_user_id: text("steward_user_id").unique(),
     privy_user_id: text("privy_user_id").unique(),
 
     // Anonymous user support
@@ -52,6 +53,7 @@ export const userIdentities = pgTable(
   },
   (table) => ({
     user_idx: index("user_identities_user_idx").on(table.user_id),
+    steward_user_id_idx: index("user_identities_steward_user_id_idx").on(table.steward_user_id),
     privy_user_id_idx: index("user_identities_privy_user_id_idx").on(table.privy_user_id),
     is_anonymous_idx: index("user_identities_is_anonymous_idx").on(table.is_anonymous),
     anonymous_session_idx: index("user_identities_anonymous_session_idx").on(

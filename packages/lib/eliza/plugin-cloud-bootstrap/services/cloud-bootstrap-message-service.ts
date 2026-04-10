@@ -49,8 +49,8 @@ import {
 } from "../utils/context-routing";
 import {
   getAvailableActionNames,
-  validateMultiStepDecision,
   type ValidatedMultiStepDecision,
+  validateMultiStepDecision,
 } from "../utils/multi-step-guards";
 import {
   cleanupLatestResponseId,

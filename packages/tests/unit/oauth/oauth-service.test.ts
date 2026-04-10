@@ -233,8 +233,9 @@ describe("OAuth Service Logic", () => {
       });
 
       expect(getPreferredActiveConnection([shared, owned], "user-1")?.id).toBe("owned");
-      expect(scopeConnectionsForUser([shared, owned], "user-1").map((connection) => connection.id))
-        .toEqual(["owned", "shared"]);
+      expect(
+        scopeConnectionsForUser([shared, owned], "user-1").map((connection) => connection.id),
+      ).toEqual(["owned", "shared"]);
     });
   });
 
