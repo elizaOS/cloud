@@ -60,9 +60,6 @@ export interface CompatAgentShape {
 
 /**
  * Translate a MiladySandbox row to the canonical Agent shape.
- */
-/**
- * Translate a MiladySandbox row to the canonical Agent shape.
  *
  * Optionally accepts pre-resolved wallet info to avoid redundant Steward calls.
  * If not provided, wallet fields default to null.

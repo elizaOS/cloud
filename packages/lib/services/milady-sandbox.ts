@@ -28,7 +28,12 @@ import { logger } from "@/lib/utils/logger";
 import type { DockerSandboxMetadata } from "./docker-sandbox-provider";
 import { prepareManagedMiladyEnvironment } from "./managed-milady-env";
 import { miladyProvisionAdvisoryLockSql } from "./milady-provision-lock";
-import { getNeonClient, NeonClientError } from "./neon-client";
+import {
+  getNeonClient,
+  MAX_NEON_RESOURCE_NAME_LENGTH,
+  NeonClientError,
+  sanitizeNeonResourceName,
+} from "./neon-client";
 import { JOB_TYPES } from "./provisioning-jobs";
 import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
 
@@ -82,18 +87,7 @@ export interface SnapshotResult {
 
 const MAX_BACKUPS = 10;
 type LifecycleTx = Parameters<Parameters<Database["transaction"]>[0]>[0];
-const MAX_NEON_RESOURCE_NAME_LENGTH = 63;
 const MILADY_NEON_RESOURCE_PREFIX = "milady-";
-
-function sanitizeNeonResourceName(value: string, fallback: string): string {
-  const normalized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
-
-  return normalized || fallback;
-}
 
 function buildMiladyNeonResourceName(agentName: string, agentId: string): string {
   const prefix = sanitizeNeonResourceName(agentName, "agent");
@@ -1119,7 +1113,7 @@ export class MiladySandboxService {
         branchId: result.branchId,
       });
 
-      if (result.projectId === NEON_PARENT_PROJECT_ID && result.branchId) {
+      if (result.branchId) {
         await neon.deleteBranch(result.projectId, result.branchId).catch((error) => {
           logger.error("[milady-sandbox] Orphan Neon branch cleanup failed", {
             projectId: result.projectId,
@@ -1152,10 +1146,10 @@ export class MiladySandboxService {
 
     const neon = getNeonClient();
     try {
-      if (projectId === NEON_PARENT_PROJECT_ID && branchId) {
+      if (branchId) {
         // Branch-based: delete the branch, not the shared project
-        await neon.deleteBranch(NEON_PARENT_PROJECT_ID, branchId);
-      } else if (projectId !== NEON_PARENT_PROJECT_ID) {
+        await neon.deleteBranch(projectId, branchId);
+      } else {
         // Legacy project-based: delete the entire project
         await neon.deleteProject(projectId);
       }

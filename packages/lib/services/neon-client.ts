@@ -17,6 +17,27 @@ const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1000;
 const RETRY_BACKOFF_MULTIPLIER = 2;
 
+// Neon resource name constraints
+export const MAX_NEON_RESOURCE_NAME_LENGTH = 63;
+
+/**
+ * Sanitize a string for use as a Neon resource name (project or branch).
+ * Converts to lowercase, replaces invalid characters with hyphens, and ensures valid format.
+ *
+ * @param value Input string to sanitize
+ * @param fallback Fallback string if sanitization results in empty string
+ * @returns Sanitized resource name
+ */
+export function sanitizeNeonResourceName(value: string, fallback: string): string {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+
+  return normalized || fallback;
+}
+
 /**
  * Result from creating a new Neon project.
  */

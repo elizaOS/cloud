@@ -9,20 +9,14 @@ import { appsRepository } from "@/db/repositories/apps";
 import type { App, UserDatabaseStatus } from "@/db/schemas/apps";
 import { logger } from "@/lib/utils/logger";
 import { fieldEncryption } from "./field-encryption";
-import { getNeonClient, NeonClientError } from "./neon-client";
+import {
+  getNeonClient,
+  MAX_NEON_RESOURCE_NAME_LENGTH,
+  NeonClientError,
+  sanitizeNeonResourceName,
+} from "./neon-client";
 
 const NEON_PARENT_PROJECT_ID = process.env.NEON_PARENT_PROJECT_ID ?? "";
-const MAX_NEON_RESOURCE_NAME_LENGTH = 63;
-
-function sanitizeNeonResourceName(value: string, fallback: string): string {
-  const normalized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
-
-  return normalized || fallback;
-}
 
 function buildUserDatabaseResourceName(appName: string, appId: string): string {
   const prefix = sanitizeNeonResourceName(appName, "app");
@@ -217,9 +211,9 @@ export class UserDatabaseService {
       if (createdProjectId) {
         try {
           const neonClient = getNeonClient();
-          if (createdProjectId === NEON_PARENT_PROJECT_ID && createdBranchId) {
+          if (createdBranchId) {
             await neonClient.deleteBranch(createdProjectId, createdBranchId);
-          } else if (createdProjectId !== NEON_PARENT_PROJECT_ID) {
+          } else {
             await neonClient.deleteProject(createdProjectId);
           }
           logger.info("Cleaned up orphaned Neon resource after failure", {
@@ -266,16 +260,8 @@ export class UserDatabaseService {
 
     try {
       const neonClient = getNeonClient();
-      if (app.user_database_project_id === NEON_PARENT_PROJECT_ID) {
-        if (app.user_database_branch_id) {
-          await neonClient.deleteBranch(app.user_database_project_id, app.user_database_branch_id);
-        } else {
-          logger.warn("Skipping Neon cleanup for shared parent project without branch id", {
-            appId,
-            projectId: app.user_database_project_id,
-          });
-          return;
-        }
+      if (app.user_database_branch_id) {
+        await neonClient.deleteBranch(app.user_database_project_id, app.user_database_branch_id);
       } else {
         await neonClient.deleteProject(app.user_database_project_id);
       }
