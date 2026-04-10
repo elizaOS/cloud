@@ -1,6 +1,6 @@
+import { describe, expect, test } from "bun:test";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, test } from "bun:test";
 import { RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
@@ -36,13 +36,8 @@ describe("Embeddings rate-limit parity", () => {
   });
 
   test("embeddings route is wired to RELAXED", () => {
-    const source = readFileSync(
-      join(REPO_ROOT, "app/api/v1/embeddings/route.ts"),
-      "utf8",
-    );
+    const source = readFileSync(join(REPO_ROOT, "app/api/v1/embeddings/route.ts"), "utf8");
     // Whitespace-tolerant regex to survive auto-formatter rewrites.
-    expect(source).toMatch(
-      /withRateLimit\(\s*handlePOST\s*,\s*RateLimitPresets\.RELAXED\s*\)/,
-    );
+    expect(source).toMatch(/withRateLimit\(\s*handlePOST\s*,\s*RateLimitPresets\.RELAXED\s*\)/);
   });
 });
