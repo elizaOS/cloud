@@ -11,6 +11,14 @@
 
 import { afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
 import type {
   GetTokenByPlatformParams,
   ListConnectionsParams,
@@ -92,6 +100,12 @@ const mockOAuthService = {
 
 // Mock the oauth service module
 mock.module("@/lib/services/oauth", () => ({
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
   oauthService: mockOAuthService,
 }));
 

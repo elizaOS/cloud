@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   MILADY_CHARACTER_OWNERSHIP_KEY,
   readManagedMiladyDiscordBinding,
+  readManagedMiladyDiscordGateway,
   withManagedMiladyDiscordBinding,
+  withManagedMiladyDiscordGateway,
   withoutManagedMiladyDiscordBinding,
 } from "@/lib/services/milady-agent-config";
 
@@ -21,6 +23,8 @@ describe("managed Milady Discord config helpers", () => {
         adminDiscordUserId: "discord-user-1",
         adminDiscordUsername: "owner",
         adminDiscordDisplayName: "Owner Person",
+        adminDiscordAvatarUrl:
+          "https://cdn.discordapp.com/avatars/discord-user-1/avatar.png?size=128",
         adminElizaUserId: "user-1",
         botNickname: "Milady",
         connectedAt: "2026-04-04T16:00:00.000Z",
@@ -35,6 +39,8 @@ describe("managed Milady Discord config helpers", () => {
       adminDiscordUserId: "discord-user-1",
       adminDiscordUsername: "owner",
       adminDiscordDisplayName: "Owner Person",
+      adminDiscordAvatarUrl:
+        "https://cdn.discordapp.com/avatars/discord-user-1/avatar.png?size=128",
       adminElizaUserId: "user-1",
       botNickname: "Milady",
       connectedAt: "2026-04-04T16:00:00.000Z",
@@ -61,5 +67,23 @@ describe("managed Milady Discord config helpers", () => {
       existing: true,
       [MILADY_CHARACTER_OWNERSHIP_KEY]: "reuse-existing",
     });
+  });
+
+  test("writes and reads the managed Discord gateway marker", () => {
+    const config = withManagedMiladyDiscordGateway(
+      {
+        existing: true,
+      },
+      {
+        mode: "shared-gateway",
+        createdAt: "2026-04-09T00:00:00.000Z",
+      },
+    );
+
+    expect(readManagedMiladyDiscordGateway(config)).toEqual({
+      mode: "shared-gateway",
+      createdAt: "2026-04-09T00:00:00.000Z",
+    });
+    expect(config.existing).toBe(true);
   });
 });

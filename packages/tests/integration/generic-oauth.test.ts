@@ -718,7 +718,7 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
-    it("should return error when requesting token for connection without secret", async () => {
+    it("should return 404 when requesting token for connection without secret", async () => {
       const credId = crypto.randomUUID();
       // Insert connection WITHOUT access_token_secret_id (simulates broken state)
       await client.query(
@@ -735,19 +735,14 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      // Should return error because no access token secret is stored
-      // 400 = TOKEN_REFRESH_FAILED, 401 = route requires different auth
-      expect([400, 401]).toContain(response.status);
-      if (response.status === 400) {
-        const data = await response.json();
-        expect(data.error).toContain("TOKEN");
-      }
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
 
       // Cleanup
       await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
-    it("should return error when requesting token for revoked connection", async () => {
+    it("should return 404 when requesting token for revoked connection", async () => {
       const credId = crypto.randomUUID();
       await client.query(
         `INSERT INTO platform_credentials
@@ -763,19 +758,14 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      // Should return error because connection is revoked
-      // 400 = CONNECTION_REVOKED, 401 = route requires different auth
-      expect([400, 401]).toContain(response.status);
-      if (response.status === 400) {
-        const data = await response.json();
-        expect(data.error).toContain("REVOKED");
-      }
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
 
       // Cleanup
       await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
     });
 
-    it("should return error when requesting token for expired connection without refresh token", async () => {
+    it("should return 404 when requesting token for expired connection without refresh token", async () => {
       const credId = crypto.randomUUID();
       const fakeSecretId = crypto.randomUUID(); // Must be valid UUID format
       // Insert connection with expired token and no refresh token
@@ -795,8 +785,8 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      // Should return error - SECRET_NOT_FOUND, TOKEN_REFRESH_FAILED, or auth error
-      expect([400, 401, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "Not Found" });
 
       // Cleanup
       await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);

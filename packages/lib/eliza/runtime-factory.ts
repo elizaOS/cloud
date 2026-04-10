@@ -14,7 +14,7 @@ import {
   type UUID,
   type World,
 } from "@elizaos/core";
-import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
+import * as sqlPluginNode from "@elizaos/plugin-sql/node";
 
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
@@ -30,6 +30,15 @@ import {
 } from "@/lib/cache/edge-runtime-cache";
 
 const adapterEmbeddingDimensions = new Map<string, number>();
+
+const createDatabaseAdapter = (
+  sqlPluginNode as unknown as {
+    createDatabaseAdapter: (
+      config: { dataDir?: string; postgresUrl?: string },
+      agentId: UUID,
+    ) => IDatabaseAdapter;
+  }
+).createDatabaseAdapter;
 
 function stableSerialize(value: unknown): string {
   if (Array.isArray(value)) {

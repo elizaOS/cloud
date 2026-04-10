@@ -19,12 +19,7 @@ import {
   type User,
 } from "discord.js";
 import { logger } from "./logger";
-import {
-  forwardToServer,
-  refreshKedaActivity,
-  resolveAgentServer,
-  resolveIdentity,
-} from "./server-router";
+import { forwardToServer, refreshKedaActivity, resolveAgentServer } from "./server-router";
 import { hasVoiceAttachments, VoiceMessageHandler } from "./voice-message-handler";
 
 // ============================================
@@ -1695,89 +1690,9 @@ export class GatewayManager {
       await this.handleManagedMiladyGuildMessage(message);
       return;
     }
-    if (!message.content.trim()) return;
-
-    if (!this.redis) {
-      logger.warn("No Redis, cannot route Eliza App message");
-      return;
-    }
-
-    // 1. Identity resolution: discord platformId -> userId + agentId (auto-creates if new)
-    let identity;
-    try {
-      identity = await resolveIdentity(
-        this.redis,
-        this.config.elizaCloudUrl,
-        this.getAuthHeader(),
-        "discord",
-        message.author.id,
-        message.author.username,
-      );
-    } catch (error) {
-      logger.error("Identity resolution failed", {
-        podName: this.config.podName,
-        authorId: message.author.id,
-        error: sanitizeError(error),
-      });
-      return;
-    }
-
-    if (!identity) {
-      logger.error("Identity resolution returned null", {
-        authorId: message.author.id,
-      });
-      return;
-    }
-
-    // 3. Resolve agent -> server pod
-    const route = await resolveAgentServer(this.redis, identity.agentId);
-    if (!route) {
-      logger.warn("No server found for agent", {
-        podName: this.config.podName,
-        agentId: identity.agentId,
-        userId: identity.userId,
-        project: this.config.project,
-      });
-      return;
-    }
-
-    // 4. Forward to pod and reply directly
-    try {
-      await refreshKedaActivity(this.redis, route.serverName);
-      if ("sendTyping" in message.channel) {
-        await message.channel.sendTyping();
-      }
-
-      const userId = `discord-user-${message.author.id}`;
-      const response = await forwardToServer(
-        route.serverUrl,
-        route.serverName,
-        identity.agentId,
-        userId,
-        message.content,
-      );
-
-      if (response) {
-        const truncated = response.length > 2000 ? response.slice(0, 2000) : response;
-        await message.reply(truncated);
-      }
-
-      logger.info("Eliza App message routed to server", {
-        podName: this.config.podName,
-        serverName: route.serverName,
-        agentId: identity.agentId,
-        userId: identity.userId,
-        project: this.config.project,
-      });
-    } catch (error) {
-      logger.error("Failed to route Eliza App message", {
-        podName: this.config.podName,
-        agentId: identity.agentId,
-        serverName: route.serverName,
-        project: this.config.project,
-        error: sanitizeError(error),
-      });
-    }
+    const trimmedContent = message.content.trim();
+    if (!trimmedContent) return;
+    await this.routeManagedMiladyMessage(message, trimmedContent);
   }
 
   private async handleManagedMiladyGuildMessage(message: Message): Promise<void> {
@@ -1817,6 +1732,10 @@ export class GatewayManager {
       return;
     }
 
+    await this.routeManagedMiladyMessage(message, sanitizedContent);
+  }
+
+  private async routeManagedMiladyMessage(message: Message, content: string): Promise<void> {
     try {
       if ("sendTyping" in message.channel) {
         await message.channel.sendTyping();
@@ -1831,10 +1750,10 @@ export class GatewayManager {
             ...this.getAuthHeader(),
           },
           body: JSON.stringify({
-            guildId: message.guildId,
+            ...(message.guildId ? { guildId: message.guildId } : {}),
             channelId: message.channelId,
             messageId: message.id,
-            content: sanitizedContent,
+            content,
             sender: {
               id: message.author.id,
               username: message.author.username,
@@ -1849,7 +1768,7 @@ export class GatewayManager {
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
         logger.warn("Managed Milady Discord routing request failed", {
-          guildId: message.guildId,
+          guildId: message.guildId ?? null,
           channelId: message.channelId,
           status: response.status,
           error: errorText.slice(0, 200),
@@ -1866,7 +1785,7 @@ export class GatewayManager {
 
       if (!routed.handled) {
         logger.debug("Managed Milady Discord message was not handled", {
-          guildId: message.guildId,
+          guildId: message.guildId ?? null,
           channelId: message.channelId,
           reason: routed.reason,
           agentId: routed.agentId,
@@ -1885,8 +1804,8 @@ export class GatewayManager {
         allowedMentions: { repliedUser: false },
       });
     } catch (error) {
-      logger.error("Failed to route managed Milady guild message", {
-        guildId: message.guildId,
+      logger.error("Failed to route managed Milady Discord message", {
+        guildId: message.guildId ?? null,
         channelId: message.channelId,
         messageId: message.id,
         error: sanitizeError(error),

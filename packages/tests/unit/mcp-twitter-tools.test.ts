@@ -7,6 +7,14 @@
 
 import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import {
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+} from "@/lib/services/oauth/errors";
 import type { OAuthConnection } from "@/lib/services/oauth/types";
 
 function twitterOAuthFixture(
@@ -220,7 +228,15 @@ const mockOAuth = {
   ]),
 };
 
-mock.module("@/lib/services/oauth", () => ({ oauthService: mockOAuth }));
+mock.module("@/lib/services/oauth", () => ({
+  ERROR_STATUS_MAP,
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  OAuthErrorCode,
+  validationErrorResponse,
+  oauthService: mockOAuth,
+}));
 
 let registerTwitterTools: typeof import("@/app/api/mcp/tools/twitter").registerTwitterTools;
 

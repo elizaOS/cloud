@@ -12,8 +12,8 @@
  * - API Key (Twilio, Blooio - user provides credentials)
  */
 
-import type { OAuthProviderType } from "./types";
 import { Errors } from "./errors";
+import type { OAuthProviderType } from "./types";
 
 /**
  * OAuth endpoint URLs for the authorization flow.

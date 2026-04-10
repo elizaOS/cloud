@@ -14,6 +14,7 @@ const mockLoggerWarn = mock();
 const mockLoggerInfo = mock();
 const mockLoggerDebug = mock();
 const { AffiliatesRepository } = await import("@/db/repositories/affiliates");
+const realContainersModule = await import("@/lib/services/containers");
 
 mock.module("@/lib/auth", () => ({
   requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
@@ -43,6 +44,7 @@ mock.module("@/lib/services/credits", () => ({
 }));
 
 mock.module("@/lib/services/containers", () => ({
+  ...realContainersModule,
   containersService: {
     getById: mock(),
   },

@@ -27,9 +27,10 @@ function normalizeBoolean(value: string | boolean | undefined): boolean | undefi
   return undefined;
 }
 
-function parseParameters(
-  parameters: ParsedMultiStepDecision["parameters"],
-): { value: Record<string, unknown>; error?: string } {
+function parseParameters(parameters: ParsedMultiStepDecision["parameters"]): {
+  value: Record<string, unknown>;
+  error?: string;
+} {
   if (parameters == null || parameters === "") {
     return { value: {} };
   }

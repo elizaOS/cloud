@@ -35,6 +35,7 @@ export const users = pgTable(
     role: text("role").notNull().default("member"),
 
     // External identities (kept here for auth system compatibility)
+    steward_user_id: text("steward_user_id").unique(),
     privy_user_id: text("privy_user_id").unique(),
     telegram_id: text("telegram_id").unique(),
     telegram_username: text("telegram_username"),
@@ -73,6 +74,7 @@ export const users = pgTable(
     wallet_chain_type_idx: index("users_wallet_chain_type_idx").on(table.wallet_chain_type),
     organization_idx: index("users_organization_idx").on(table.organization_id),
     is_active_idx: index("users_is_active_idx").on(table.is_active),
+    steward_idx: index("users_steward_idx").on(table.steward_user_id),
     privy_idx: index("users_privy_idx").on(table.privy_user_id),
     telegram_idx: index("users_telegram_idx").on(table.telegram_id),
     discord_idx: index("users_discord_idx").on(table.discord_id),

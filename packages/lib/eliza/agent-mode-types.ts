@@ -77,18 +77,18 @@ export const AGENT_MODE_PLUGINS = {
   [AgentMode.CHAT]: [
     "@elizaos/plugin-elizacloud",
     "@eliza-cloud/plugin-chat-playground",
-    "@elizaos/plugin-memory",
+    "@eliza-cloud/plugin-advanced-memory",
   ],
   [AgentMode.BUILD]: [
     "@elizaos/plugin-elizacloud",
     "@eliza-cloud/plugin-character-builder",
-    "@elizaos/plugin-memory",
+    "@eliza-cloud/plugin-advanced-memory",
   ],
   [AgentMode.ASSISTANT]: [
     "@elizaos/plugin-elizacloud",
     "@eliza-cloud/plugin-assistant",
     "@eliza-cloud/plugin-oauth",
-    "@elizaos/plugin-memory",
+    "@eliza-cloud/plugin-advanced-memory",
   ],
 } as const;
 

@@ -26,6 +26,14 @@ const LOOPBACK_REDIRECT_ORIGINS = [
   "https://127.0.0.1:*",
 ] as const;
 
+function resolveDiscordAvatarUrl(userId: string, avatarHash: string | null): string | undefined {
+  if (!avatarHash) {
+    return undefined;
+  }
+  const ext = avatarHash.startsWith("a_") ? "gif" : "png";
+  return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${ext}?size=128`;
+}
+
 function resolveOAuthReturnTarget(
   baseUrl: string,
   returnUrl: string | undefined,
@@ -127,6 +135,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         decodedState.userId &&
         result.discordUser
       ) {
+        const adminDiscordAvatarUrl = resolveDiscordAvatarUrl(
+          result.discordUser.id,
+          result.discordUser.avatar,
+        );
         const connected = await managedMiladyDiscordService.connectAgent({
           agentId: decodedState.agentId,
           organizationId: decodedState.organizationId,
@@ -141,6 +153,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             connectedAt: new Date().toISOString(),
             ...(result.discordUser.globalName
               ? { adminDiscordDisplayName: result.discordUser.globalName }
+              : {}),
+            ...(adminDiscordAvatarUrl
+              ? {
+                  adminDiscordAvatarUrl,
+                }
               : {}),
             ...(decodedState.botNickname?.trim()
               ? { botNickname: decodedState.botNickname.trim() }

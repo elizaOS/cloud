@@ -4,6 +4,8 @@ import { creditsModuleRuntimeShim } from "@/tests/support/bun-partial-module-shi
 
 import { jsonRequest } from "./route-test-helpers";
 
+const realAiModule = await import("ai");
+
 class MockInsufficientCreditsError extends Error {
   required: number;
 
@@ -93,6 +95,7 @@ mock.module("@/lib/pricing", () => ({
 }));
 
 mock.module("ai", () => ({
+  ...realAiModule,
   generateText: mockGenerateText,
   jsonSchema: (schema: unknown) => schema,
   streamText: mockStreamText,
