@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { createHash } from "crypto";
+import { miladyGatewayRelayService as actualMiladyGatewayRelayService } from "../../lib/services/milady-gateway-relay";
 
 const mockListByOrganization = mock();
 const mockFindByManagedDiscordGuildId = mock();
@@ -32,10 +33,7 @@ mock.module("@/lib/services/milady-sandbox", () => ({
 }));
 
 mock.module("@/lib/services/milady-gateway-relay", () => ({
-  miladyGatewayRelayService: {
-    listOwnerSessions: mockListOwnerSessions,
-    routeToSession: mockRouteToSession,
-  },
+  miladyGatewayRelayService: actualMiladyGatewayRelayService,
 }));
 
 mock.module("@/lib/utils/logger", () => ({
@@ -95,10 +93,16 @@ function makeSandbox(overrides: Record<string, unknown> = {}) {
 
 describe("miladyGatewayRouterService", () => {
   beforeAll(async () => {
+    Object.assign(actualMiladyGatewayRelayService, {
+      listOwnerSessions: mockListOwnerSessions,
+      routeToSession: mockRouteToSession,
+    });
     ({ miladyGatewayRouterService } = await import("../../lib/services/milady-gateway-router"));
   });
 
   afterAll(() => {
+    delete (actualMiladyGatewayRelayService as { listOwnerSessions?: unknown }).listOwnerSessions;
+    delete (actualMiladyGatewayRelayService as { routeToSession?: unknown }).routeToSession;
     mock.restore();
   });
 
@@ -570,7 +574,7 @@ describe("miladyGatewayRouterService", () => {
     expect(mockBridge).not.toHaveBeenCalled();
   });
 
-  test("refuses to route when the owner has multiple live local sessions", async () => {
+  test("routes to all live local sessions when the owner has multiple active local Miladys", async () => {
     mockFindByDiscordIdWithOrganization.mockResolvedValue({
       id: "user-1",
       organization_id: "org-1",
@@ -599,6 +603,17 @@ describe("miladyGatewayRouterService", () => {
         lastSeenAt: "2026-04-10T00:01:00.000Z",
       },
     ]);
+    mockRouteToSession
+      .mockResolvedValueOnce({
+        jsonrpc: "2.0",
+        id: "rpc-multi-1",
+        result: { text: "reply from local 1" },
+      })
+      .mockResolvedValueOnce({
+        jsonrpc: "2.0",
+        id: "rpc-multi-2",
+        result: { text: "reply from local 2" },
+      });
 
     const result = await miladyGatewayRouterService.routeDiscordMessage({
       channelId: "dm-ambiguous",
@@ -611,11 +626,40 @@ describe("miladyGatewayRouterService", () => {
     });
 
     expect(result).toEqual({
-      handled: false,
-      reason: "ambiguous_target",
-      agentId: undefined,
+      handled: true,
+      replyText: "reply from local 1",
+      agentId: "local-agent-1",
+      organizationId: "org-1",
     });
-    expect(mockRouteToSession).not.toHaveBeenCalled();
+    expect(mockRouteToSession).toHaveBeenCalledTimes(2);
+    expect(mockRouteToSession).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: "session-1",
+        runtimeAgentId: "local-agent-1",
+      }),
+      expect.objectContaining({
+        method: "message.send",
+        params: expect.objectContaining({
+          roomId: "discord-dm:discord-user-1:channel:dm-ambiguous",
+          channelType: "DM",
+        }),
+      }),
+    );
+    expect(mockRouteToSession).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        id: "session-2",
+        runtimeAgentId: "local-agent-2",
+      }),
+      expect.objectContaining({
+        method: "message.send",
+        params: expect.objectContaining({
+          roomId: "discord-dm:discord-user-1:channel:dm-ambiguous",
+          channelType: "DM",
+        }),
+      }),
+    );
     expect(mockBridge).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { Redis } from "@upstash/redis";
 import { randomUUID } from "crypto";
 import type { BridgeRequest, BridgeResponse } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
+import { assertPersistentCloudStateConfigured } from "@/lib/utils/persistence-guard";
 
 const ENV_PREFIX = process.env.VERCEL_ENV || process.env.ENVIRONMENT || "local";
 const SESSION_TTL_SECONDS = 90;
@@ -93,7 +94,6 @@ function getRedisClient(): Redis | null {
   if (redisInitialized) {
     return redisClient;
   }
-  redisInitialized = true;
 
   const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
   const restUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
@@ -101,15 +101,17 @@ function getRedisClient(): Redis | null {
 
   if (redisUrl) {
     redisClient = Redis.fromEnv();
-    logger.info("[milady-gateway-relay] Redis relay store initialized (native protocol)");
+    logger.info?.("[milady-gateway-relay] Redis relay store initialized (native protocol)");
   } else if (restUrl && restToken) {
     redisClient = new Redis({ url: restUrl, token: restToken });
-    logger.info("[milady-gateway-relay] Redis relay store initialized (REST API)");
+    logger.info?.("[milady-gateway-relay] Redis relay store initialized (REST API)");
   } else {
-    logger.warn("[milady-gateway-relay] Redis unavailable, using in-memory relay store");
+    assertPersistentCloudStateConfigured("milady-gateway-relay", false);
+    logger.warn?.("[milady-gateway-relay] Redis unavailable, using in-memory relay store");
     redisClient = null;
   }
 
+  redisInitialized = true;
   return redisClient;
 }
 
@@ -265,7 +267,15 @@ function createStore(): RelaySessionStore {
 }
 
 class MiladyGatewayRelayService {
-  private readonly store = createStore();
+  private store: RelaySessionStore;
+
+  constructor(store: RelaySessionStore = createStore()) {
+    this.store = store;
+  }
+
+  resetForTests(store: RelaySessionStore = new InMemoryRelayStore()): void {
+    this.store = store;
+  }
 
   async registerSession(params: {
     organizationId: string;
@@ -291,7 +301,7 @@ class MiladyGatewayRelayService {
       session.id,
     );
 
-    logger.info("[milady-gateway-relay] Registered local runtime session", {
+    logger.info?.("[milady-gateway-relay] Registered local runtime session", {
       sessionId: session.id,
       organizationId: params.organizationId,
       userId: params.userId,

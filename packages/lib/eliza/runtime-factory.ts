@@ -40,6 +40,20 @@ const createDatabaseAdapter = (
   }
 ).createDatabaseAdapter;
 
+function assertPersistentDatabaseRequired(
+  runtime: Pick<AgentRuntime, "getSetting" | "agentId">,
+): void {
+  const raw = runtime.getSetting("ALLOW_NO_DATABASE") ?? process.env.ALLOW_NO_DATABASE;
+  const normalized = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") {
+    throw new Error(
+      `Milady cloud requires persistent database storage and does not permit ALLOW_NO_DATABASE (agent ${runtime.agentId}). Remove ALLOW_NO_DATABASE from config/env and keep plugin-sql configured.`,
+    );
+  }
+}
+
 function stableSerialize(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map((item) => stableSerialize(item)).join(",")}]`;
@@ -981,6 +995,7 @@ export class RuntimeFactory {
     let initSucceeded = false;
     try {
       const initStart = Date.now();
+      assertPersistentDatabaseRequired(runtime);
       await runtime.initialize({ skipMigrations: true });
       elizaLogger.info(`[RuntimeFactory] initialize() completed in ${Date.now() - initStart}ms`);
       initSucceeded = true;

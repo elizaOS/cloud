@@ -42,6 +42,7 @@ interface ResolvedMiladyTarget {
   kind: "sandbox" | "local-session";
   sandbox?: MiladySandbox;
   session?: MiladyGatewayRelaySession;
+  sessions?: MiladyGatewayRelaySession[];
 }
 
 function asConfigRecord(
@@ -154,18 +155,13 @@ export class MiladyGatewayRouterService {
     agentId?: string;
   }> {
     const localSessions = await miladyGatewayRelayService.listOwnerSessions(organizationId, userId);
-    if (localSessions.length === 1) {
+    if (localSessions.length >= 1) {
       return {
         target: {
           kind: "local-session",
           session: localSessions[0],
+          sessions: localSessions,
         },
-      };
-    }
-
-    if (localSessions.length > 1) {
-      return {
-        reason: "ambiguous_target",
       };
     }
 
@@ -274,27 +270,44 @@ export class MiladyGatewayRouterService {
     rpc: BridgeRequest,
   ): Promise<MiladyGatewayRouteResult> {
     if (target.kind === "local-session" && target.session) {
-      const response = await miladyGatewayRelayService.routeToSession(target.session, rpc);
-      if (response.error) {
+      const sessions = target.sessions ?? [target.session];
+      const responses = await Promise.all(
+        sessions.map(async (session) => ({
+          session,
+          response: await miladyGatewayRelayService.routeToSession(session, rpc),
+        })),
+      );
+
+      const successful = responses.filter((entry) => !entry.response.error);
+      for (const entry of responses) {
+        if (!entry.response.error) {
+          continue;
+        }
         logger.warn("[milady-gateway] Local relay rejected inbound message", {
-          agentId: target.session.runtimeAgentId,
-          organizationId: target.session.organizationId,
+          agentId: entry.session.runtimeAgentId,
+          organizationId: entry.session.organizationId,
           method: rpc.method,
-          error: response.error.message,
+          error: entry.response.error.message,
         });
+      }
+
+      if (successful.length === 0) {
         return {
           handled: false,
           reason: "bridge_failed",
-          agentId: target.session.runtimeAgentId,
-          organizationId: target.session.organizationId,
+          agentId: sessions[0]?.runtimeAgentId,
+          organizationId: sessions[0]?.organizationId,
         };
       }
 
+      const primary =
+        successful.find((entry) => extractReplyText(entry.response) !== null) ?? successful[0]!;
+
       return {
         handled: true,
-        replyText: extractReplyText(response),
-        agentId: target.session.runtimeAgentId,
-        organizationId: target.session.organizationId,
+        replyText: extractReplyText(primary.response),
+        agentId: primary.session.runtimeAgentId,
+        organizationId: primary.session.organizationId,
       };
     }
 

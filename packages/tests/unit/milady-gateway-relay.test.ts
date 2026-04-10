@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { miladyGatewayRelayService } from "../../lib/services/milady-gateway-relay";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+
+let miladyGatewayRelayService: typeof import("../../lib/services/milady-gateway-relay").miladyGatewayRelayService;
 
 const createdSessionIds: string[] = [];
 
@@ -9,6 +10,14 @@ afterEach(async () => {
       .splice(0)
       .map((sessionId) => miladyGatewayRelayService.disconnectSession(sessionId)),
   );
+});
+
+beforeEach(async () => {
+  mock.restore();
+  ({ miladyGatewayRelayService } = await import(
+    new URL("../../lib/services/milady-gateway-relay.ts", import.meta.url).href
+  ));
+  miladyGatewayRelayService.resetForTests();
 });
 
 describe("miladyGatewayRelayService", () => {

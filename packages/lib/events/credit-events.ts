@@ -5,6 +5,7 @@
  */
 
 import { EventEmitter } from "events";
+import { assertPersistentCloudStateConfigured } from "@/lib/utils/persistence-guard";
 import type { CreditUpdateEvent } from "./credit-events-redis";
 import { redisCreditEventEmitter } from "./credit-events-redis";
 
@@ -65,6 +66,7 @@ class CreditEventEmitter {
       process.env.FORCE_REDIS_EVENTS === "true";
 
     const redisConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+    assertPersistentCloudStateConfigured("credit-events", redisConfigured);
 
     const useRedis = isServerless && redisConfigured;
 

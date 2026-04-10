@@ -21,10 +21,14 @@ export interface SelectorModel {
   provider: string;
 }
 
-// Verified against the public provider catalogs on 2026-03-07:
+// Verified against the public provider catalogs on 2026-04-10:
 // - Vercel AI Gateway: https://ai-gateway.vercel.sh/v1/models
 // - Groq docs: https://console.groq.com/docs/models
 const OPENAI_TEXT_MODEL_IDS = [
+  "openai/gpt-5.4",
+  "openai/gpt-5.4-pro",
+  "openai/gpt-5.4-mini",
+  "openai/gpt-5.4-nano",
   "openai/gpt-5",
   "openai/gpt-5-pro",
   "openai/gpt-5-mini",
@@ -80,7 +84,7 @@ const QWEN_TEXT_MODEL_IDS = [
   "alibaba/qwen-3-14b",
 ] as const;
 const DEEPSEEK_TEXT_MODEL_IDS = ["deepseek/deepseek-v3.2", "deepseek/deepseek-r1"] as const;
-const ZAI_TEXT_MODEL_IDS = ["zai/glm-5", "zai/glm-4.7", "zai/glm-4.7-flashx"] as const;
+const ZAI_TEXT_MODEL_IDS = ["zai/glm-5.1", "zai/glm-5", "zai/glm-4.7", "zai/glm-4.7-flashx"] as const;
 const MOONSHOT_TEXT_MODEL_IDS = ["moonshotai/kimi-k2.5", "moonshotai/kimi-k2-turbo"] as const;
 const META_TEXT_MODEL_IDS = ["meta/llama-4-maverick", "meta/llama-4-scout"] as const;
 const BYTEDANCE_TEXT_MODEL_IDS = ["bytedance/seed-1.8"] as const;
