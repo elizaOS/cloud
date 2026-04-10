@@ -31,7 +31,7 @@ import {
 import { Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { ApiKey } from "@/db/schemas/api-keys";
+import { type ClientApiKey, copyApiKeyToClipboard, listClientApiKeys } from "@/lib/client/api-keys";
 import type { UserWithOrganization } from "@/lib/types";
 
 interface ApisTabProps {
@@ -56,7 +56,7 @@ interface FormState {
 }
 
 export function ApisTab({ user }: ApisTabProps) {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [apiKeys, setApiKeys] = useState<ClientApiKey[]>([]);
 
   const [modalState, setModalState] = useState<ModalState>({
     showCreateModal: false,
@@ -94,14 +94,8 @@ export function ApisTab({ user }: ApisTabProps) {
 
   const fetchApiKeys = useCallback(async () => {
     updateOperation({ loading: true });
-    const response = await fetch("/api/v1/api-keys");
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch API keys");
-    }
-
-    const data = await response.json();
-    setApiKeys(data.keys || []);
+    const keys = await listClientApiKeys();
+    setApiKeys(keys);
     updateOperation({ loading: false });
   }, [updateOperation]);
 
@@ -154,16 +148,24 @@ export function ApisTab({ user }: ApisTabProps) {
     updateOperation({ creating: false });
   };
 
-  const handleCopyKey = async (keyPrefix: string) => {
-    await navigator.clipboard.writeText(keyPrefix);
-    toast.success("API key prefix copied to clipboard");
+  const handleCopyKey = async (apiKey: string) => {
+    try {
+      await copyApiKeyToClipboard(apiKey);
+      toast.success("Full API key copied to clipboard");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to copy API key");
+    }
   };
 
   const handleCopyFullKey = async () => {
     if (!modalState.newlyCreatedKey) return;
 
-    await navigator.clipboard.writeText(modalState.newlyCreatedKey);
-    toast.success("Full API key copied to clipboard");
+    try {
+      await copyApiKeyToClipboard(modalState.newlyCreatedKey);
+      toast.success("Full API key copied to clipboard");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to copy API key");
+    }
   };
 
   const handleDeleteKey = async (keyId: string, keyName: string) => {
@@ -290,7 +292,7 @@ export function ApisTab({ user }: ApisTabProps) {
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleCopyKey(apiKey.key_prefix)}
+                            onClick={() => void handleCopyKey(apiKey.key)}
                             className="px-3 py-2 border border-white/20 hover:bg-white/5 transition-colors flex-shrink-0"
                           >
                             <Copy className="h-4 w-4 text-white/60" />
@@ -407,7 +409,7 @@ export function ApisTab({ user }: ApisTabProps) {
                             </div>
                             <button
                               type="button"
-                              onClick={() => handleCopyKey(apiKey.key_prefix)}
+                              onClick={() => void handleCopyKey(apiKey.key)}
                               className="px-3 py-2 border border-white/20 hover:bg-white/5 transition-colors group"
                               title="Copy API key"
                             >

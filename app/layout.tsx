@@ -8,8 +8,8 @@ import NextTopLoader from "nextjs-toploader";
 import { Toaster } from "sonner";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import { PostHogProvider } from "@/lib/providers/PostHogProvider";
-import { getRobotsMetadata } from "@/lib/seo";
 import PrivyProvider from "@/lib/providers/PrivyProvider";
+import { getRobotsMetadata } from "@/lib/seo";
 
 // DM Mono for landing page
 const dmMono = DM_Mono({

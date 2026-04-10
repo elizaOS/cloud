@@ -30,6 +30,9 @@ export default defineConfig({
       NODE_ENV: "production",
       PORT: String(PORT),
       REDIS_RATE_LIMITING: "true",
+      PLAYWRIGHT_TEST_AUTH: process.env.PLAYWRIGHT_TEST_AUTH ?? "true",
+      PLAYWRIGHT_TEST_AUTH_SECRET:
+        process.env.PLAYWRIGHT_TEST_AUTH_SECRET ?? "playwright-local-auth-secret",
     },
   },
 });

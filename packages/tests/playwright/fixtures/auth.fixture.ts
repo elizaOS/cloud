@@ -8,10 +8,12 @@
  * - Authenticated flows require TEST_API_KEY env var
  */
 
+import type { BrowserContext } from "@playwright/test";
 import { type APIRequestContext, test as base, expect } from "@playwright/test";
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
+const TEST_AUTH_COOKIE_NAME = "eliza-test-session";
 
 /** Auth headers for API requests */
 export function authHeaders(): Record<string, string> {
@@ -25,6 +27,40 @@ export function authHeaders(): Record<string, string> {
 /** Check if API key is available for authenticated tests */
 export function hasApiKey(): boolean {
   return !!API_KEY;
+}
+
+export async function authenticateBrowserContext(
+  request: APIRequestContext,
+  context: BrowserContext,
+  baseUrl: string = BASE_URL,
+): Promise<void> {
+  if (!API_KEY) {
+    throw new Error("TEST_API_KEY required for authenticated browser tests");
+  }
+
+  const response = await request.post(`${baseUrl}/api/test/auth/session`, {
+    headers: authHeaders(),
+  });
+
+  if (response.status() === 404) {
+    throw new Error(
+      "Playwright test auth endpoint is unavailable. Start the Playwright web server or set PLAYWRIGHT_TEST_AUTH=true.",
+    );
+  }
+
+  expect(response.status()).toBe(200);
+  const body = (await response.json()) as { token?: string; cookieName?: string };
+  expect(body.token).toBeTruthy();
+
+  await context.addCookies([
+    {
+      name: body.cookieName || TEST_AUTH_COOKIE_NAME,
+      value: body.token!,
+      url: baseUrl,
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
 }
 
 /**

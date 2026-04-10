@@ -6,6 +6,12 @@ import { logger } from "@/lib/utils/logger";
 
 const EXPLORER_KEY_NAME = "API Explorer Key";
 
+function isUsableExplorerKey(key: { key: string; is_active: boolean; expires_at: Date | null }) {
+  const isValidFormat = key.key.startsWith("eliza_") || key.key.startsWith("sk-");
+  const isExpired = key.expires_at ? key.expires_at < new Date() : false;
+  return key.is_active && isValidFormat && !isExpired;
+}
+
 /**
  * GET /api/v1/api-keys/explorer
  *
@@ -23,13 +29,13 @@ export async function GET() {
     // Check if user already has an explorer key
     const existingKeys = await apiKeysService.listByOrganization(user.organization_id);
 
-    const explorerKey = existingKeys.find(
-      (key) => key.name === EXPLORER_KEY_NAME && key.user_id === user.id,
-    );
+    const explorerKeys = existingKeys
+      .filter((key) => key.name === EXPLORER_KEY_NAME && key.user_id === user.id)
+      .sort((left, right) => right.created_at.getTime() - left.created_at.getTime());
+
+    const explorerKey = explorerKeys.find(isUsableExplorerKey);
 
     if (explorerKey) {
-      // Return existing key info (we can't return the plain key for existing keys)
-      // But we stored the full key in the database, so we can return it
       return NextResponse.json({
         apiKey: {
           id: explorerKey.id,
@@ -44,6 +50,10 @@ export async function GET() {
         },
         isNew: false,
       });
+    }
+
+    if (explorerKeys.length > 0) {
+      await apiKeysService.deactivateUserKeysByName(user.id, EXPLORER_KEY_NAME);
     }
 
     // Create a new explorer key for this user

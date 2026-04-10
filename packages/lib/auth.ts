@@ -14,6 +14,11 @@ import { usersService } from "@/lib/services/users";
 import type { ApiKey, UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 import {
+  isPlaywrightTestAuthEnabled,
+  PLAYWRIGHT_TEST_SESSION_COOKIE_NAME,
+  verifyPlaywrightTestSessionToken,
+} from "./auth/playwright-test-session";
+import {
   getUserById,
   getUserFromIdToken,
   invalidatePrivyTokenCache,
@@ -92,6 +97,39 @@ export type AuthResult = {
   session_token?: string;
 };
 
+async function getPlaywrightTestUser(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+): Promise<UserWithOrganization | null> {
+  if (!isPlaywrightTestAuthEnabled()) {
+    return null;
+  }
+
+  const testSession = cookieStore.get(PLAYWRIGHT_TEST_SESSION_COOKIE_NAME)?.value;
+  if (!testSession) {
+    return null;
+  }
+
+  const claims = verifyPlaywrightTestSessionToken(testSession);
+  if (!claims) {
+    return null;
+  }
+
+  const user = await usersService.getWithOrganization(claims.userId);
+  if (!user || !user.is_active || !user.organization?.is_active) {
+    return null;
+  }
+
+  if (user.organization_id !== claims.organizationId) {
+    logger.warn("[AUTH] Playwright test session organization mismatch", {
+      userId: claims.userId,
+      organizationId: claims.organizationId,
+    });
+    return null;
+  }
+
+  return user;
+}
+
 /**
  * Get the current authenticated user from Privy token
  *
@@ -111,8 +149,13 @@ export type AuthResult = {
  */
 export const getCurrentUser = cache(async (): Promise<UserWithOrganization | null> => {
   try {
-    // Get the auth token from cookies
     const cookieStore = await cookies();
+    const playwrightTestUser = await getPlaywrightTestUser(cookieStore);
+    if (playwrightTestUser) {
+      return playwrightTestUser;
+    }
+
+    // Get the auth token from cookies
     const authToken = cookieStore.get("privy-token");
 
     if (!authToken) {

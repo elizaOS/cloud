@@ -201,7 +201,7 @@ export function ApiKeysTable({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => onCopyKey?.(key.id)}>
                     <Copy className="mr-2 h-4 w-4" />
-                    Copy prefix
+                    Copy key
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onRegenerateKey?.(key.id)}>
                     <RefreshCw className="mr-2 h-4 w-4" />

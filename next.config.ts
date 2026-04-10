@@ -29,6 +29,98 @@ const withNextra = nextra({
   contentDirBasePath: "/docs",
 });
 
+function normalizeOrigin(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const normalized = value.startsWith("http") ? value : `https://${value}`;
+    return new URL(normalized).origin;
+  } catch {
+    return null;
+  }
+}
+
+function uniqueCspValues(values: Array<string | null | undefined>): string {
+  return [...new Set(values.filter((value): value is string => Boolean(value?.trim())))]
+    .map((value) => value.trim())
+    .join(" ");
+}
+
+const appOrigin = normalizeOrigin(
+  process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
+);
+const posthogOrigin =
+  normalizeOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST) || "https://us.i.posthog.com";
+const localDevConnectOrigins =
+  process.env.NODE_ENV === "development"
+    ? [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "ws://localhost:3000",
+        "ws://127.0.0.1:3000",
+      ]
+    : [];
+
+const frameSrc = uniqueCspValues([
+  "'self'",
+  appOrigin,
+  "https://auth.privy.io",
+  "https://verify.walletconnect.com",
+  "https://verify.walletconnect.org",
+  "https://challenges.cloudflare.com",
+  "https://oauth.telegram.org",
+  "https://*.vercel.run",
+  "https://*.vercel.app",
+  "https://www.youtube.com",
+  "https://youtube.com",
+]);
+
+const connectSrc = uniqueCspValues([
+  "'self'",
+  appOrigin,
+  posthogOrigin,
+  "https://auth.privy.io",
+  "https://api.privy.io",
+  "https://*.privy.io",
+  "https://verify.walletconnect.com",
+  "https://verify.walletconnect.org",
+  "https://relay.walletconnect.com",
+  "https://*.walletconnect.com",
+  "wss://relay.walletconnect.com",
+  "wss://*.walletconnect.com",
+  "https://pulse.walletconnect.org",
+  "https://challenges.cloudflare.com",
+  "https://va.vercel-scripts.com",
+  "https://vercel.live",
+  "https://*.vercel.run",
+  "https://*.vercel.app",
+  "https://us-assets.i.posthog.com",
+  ...localDevConnectOrigins,
+]);
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://vercel.live https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com https://cdn.discordapp.com",
+  "font-src 'self' data: https://cdn.jsdelivr.net",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self' https://auth.privy.io https://oauth.telegram.org",
+  "frame-ancestors 'self'",
+  `child-src ${frameSrc}`,
+  `frame-src ${frameSrc}`,
+  `connect-src ${connectSrc}`,
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+  "media-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://video-placeholder.eliza.ai",
+]
+  .join("; ")
+  .replace(/\s+/g, " ");
+
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   images: {
@@ -241,30 +333,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
-              "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-              // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash, Discord CDN
-              // Note: Fal.ai URLs are proxied through our storage, so not needed here
-              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com https://cdn.discordapp.com",
-              // Fonts - allow self, Monaco Editor CDN, and Vercel sandboxes (for iframe embedding)
-              "font-src 'self' https://cdn.jsdelivr.net https://*.vercel.run https://*.vercel.app",
-              "object-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-              // Allow iframes from any origin - sandbox apps need to embed
-              "frame-ancestors *",
-              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://cloud.milady.ai",
-              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://cloud.milady.ai",
-              ["connect-src *"].join(" "),
-              "worker-src 'self' blob:",
-              "manifest-src 'self'",
-              // Media - allow self, data URIs, blob URIs, Vercel blob storage (for videos), and video placeholder domain
-              "media-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://video-placeholder.eliza.ai",
-            ]
-              .join("; ")
-              .replace(/\s+/g, " "),
+            value: contentSecurityPolicy,
           },
           // Remove X-Frame-Options to allow iframes - frame-ancestors CSP handles this now
           { key: "X-Content-Type-Options", value: "nosniff" },

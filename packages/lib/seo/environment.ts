@@ -16,7 +16,7 @@ export function getIndexableHosts(env: NodeJS.ProcessEnv = process.env): string[
 }
 
 export function shouldIndexSite(env: NodeJS.ProcessEnv = process.env): boolean {
-  const currentHost = normalizeHost(getAppHost());
+  const currentHost = normalizeHost(getAppHost(env));
   return getIndexableHosts(env).includes(currentHost);
 }
 
@@ -41,7 +41,7 @@ export function getRobotsMetadata(
 
 export function generateRobotsFile(env: NodeJS.ProcessEnv = process.env): MetadataRoute.Robots {
   const index = shouldIndexSite(env);
-  const appUrl = getAppUrl();
+  const appUrl = getAppUrl(env);
 
   return {
     rules: index

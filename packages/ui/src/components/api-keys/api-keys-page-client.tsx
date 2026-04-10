@@ -39,6 +39,7 @@ import { Copy, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { copyApiKeyToClipboard, getClientApiKeySecret } from "@/lib/client/api-keys";
 import { ApiKeysSummary } from "./api-keys-summary";
 import { ApiKeysTable } from "./api-keys-table";
 import type { ApiKeyDisplay, ApiKeysSummaryData } from "./types";
@@ -158,11 +159,28 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
     setIsCreating(false);
   };
 
-  const handleCopyKey = (plainKey: string) => {
-    navigator.clipboard.writeText(plainKey);
-    toast.success("Copied to clipboard", {
-      description: "API key prefix has been copied to your clipboard.",
-    });
+  const handleCopyKey = async (plainKey: string) => {
+    try {
+      await copyApiKeyToClipboard(plainKey);
+      toast.success("Copied to clipboard", {
+        description: "Full API key copied to your clipboard.",
+      });
+    } catch (error) {
+      toast.error("Failed to copy API key", {
+        description: error instanceof Error ? error.message : "Clipboard access was blocked.",
+      });
+    }
+  };
+
+  const handleCopyStoredKey = async (id: string) => {
+    try {
+      const plainKey = await getClientApiKeySecret(id);
+      await handleCopyKey(plainKey);
+    } catch (error) {
+      toast.error("Failed to load API key", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    }
   };
 
   const handleDisableKey = async (id: string) => {
@@ -440,7 +458,10 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                     readOnly
                     className="font-mono text-sm rounded-none border-white/10 bg-black/40 text-white"
                   />
-                  <BrandButton variant="outline" onClick={() => handleCopyKey(createdKey.plainKey)}>
+                  <BrandButton
+                    variant="outline"
+                    onClick={() => void handleCopyKey(createdKey.plainKey)}
+                  >
                     <Copy className="h-4 w-4" />
                   </BrandButton>
                 </div>
@@ -465,10 +486,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
         {hasKeys ? (
           <ApiKeysTable
             keys={keys}
-            onCopyKey={(id) => {
-              const key = keys.find((k) => k.id === id);
-              if (key) handleCopyKey(key.keyPrefix);
-            }}
+            onCopyKey={(id) => void handleCopyStoredKey(id)}
             onDisableKey={handleDisableKey}
             onDeleteKey={handleDeleteKey}
             onRegenerateKey={handleRegenerateKey}

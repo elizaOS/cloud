@@ -32,6 +32,7 @@ import { toast } from "@/lib/utils/toast-adapter";
 import { ApiTester } from "@/packages/ui/src/components/api-explorer/api-tester";
 import { AuthManager } from "@/packages/ui/src/components/api-explorer/auth-manager";
 import { EndpointCard } from "@/packages/ui/src/components/api-explorer/endpoint-card";
+import { useExplorerApiKey } from "@/packages/ui/src/components/api-explorer/use-explorer-api-key";
 
 const OpenApiViewer = dynamic(
   () =>
@@ -69,8 +70,9 @@ export default function ApiExplorerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [openApiSpec, setOpenApiSpec] = useState<OpenAPISpec | null>(null);
-  const [authToken, setAuthToken] = useState<string>("");
   const [copied, setCopied] = useState<"json" | "yaml" | null>(null);
+  const { authToken, explorerKey, isLoading, error, refreshExplorerKey, setAuthToken } =
+    useExplorerApiKey();
 
   const categories = ["All", ...getAvailableCategories()];
   const filteredEndpoints = searchQuery
@@ -257,7 +259,11 @@ export default function ApiExplorerPage() {
                 <p className="text-sm text-neutral-400">{selectedEndpoint.description}</p>
               </div>
 
-              <ApiTester endpoint={selectedEndpoint} authToken={authToken} />
+              <ApiTester
+                endpoint={selectedEndpoint}
+                authToken={authToken}
+                isAuthLoading={isLoading}
+              />
             </div>
           </div>
         ) : (
@@ -375,7 +381,14 @@ export default function ApiExplorerPage() {
       {/* Auth Tab */}
       {activeTab === "auth" && (
         <div className="max-w-md">
-          <AuthManager authToken={authToken} onTokenChange={setAuthToken} />
+          <AuthManager
+            authToken={authToken}
+            explorerKey={explorerKey}
+            isLoading={isLoading}
+            error={error}
+            onTokenChange={setAuthToken}
+            onRefresh={refreshExplorerKey}
+          />
         </div>
       )}
 
