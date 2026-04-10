@@ -219,4 +219,9 @@ async function handlePOST(req: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+// Embeddings use RELAXED (200/min) to match chat completions and responses.
+// Rationale: embeddings are ~100x cheaper than chat calls per token and are
+// commonly issued in batches (RAG ingestion, knowledge base chunking). A lower
+// limit than /v1/chat/completions creates an artificial bottleneck for RAG
+// flows where N embeddings feed 1 completion.
+export const POST = withRateLimit(handlePOST, RateLimitPresets.RELAXED);
