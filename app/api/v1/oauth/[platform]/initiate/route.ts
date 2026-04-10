@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
+import { OAuthError } from "@/lib/services/oauth";
 import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
 import { initiateOAuth2 } from "@/lib/services/oauth/providers";
 import { logger } from "@/lib/utils/logger";
@@ -130,6 +131,10 @@ async function handleInitiate(request: NextRequest, context?: RouteParams): Prom
 
     if (error instanceof ApiError) {
       return NextResponse.json(error.toJSON(), { status: error.status });
+    }
+
+    if (error instanceof OAuthError) {
+      return NextResponse.json(error.toResponse(), { status: error.httpStatus });
     }
 
     return NextResponse.json(

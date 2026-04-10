@@ -319,18 +319,17 @@ export async function executeSkillChatWithAgent(
   const message = (dataContent.message as string) || textContent;
   const roomId = dataContent.roomId as string | undefined;
   const agentId = dataContent.agentId as string | undefined;
-  const entityId = dataContent.entityId as string | undefined;
+  const entityId = ctx.user.id;
 
   if (!message) throw new Error("Message required");
   if (!agentId && !roomId) throw new Error("agentId or roomId required");
 
   // If we have a roomId, use it directly; otherwise create/get a room for the agent
-  const actualRoomId =
-    roomId || (await agentService.getOrCreateRoom(entityId || ctx.user.id, agentId!));
+  const actualRoomId = roomId || (await agentService.getOrCreateRoom(entityId, agentId!));
 
   const response = await agentService.sendMessage({
     roomId: actualRoomId,
-    entityId: entityId || ctx.user.id,
+    entityId,
     message,
     organizationId: ctx.user.organization_id,
     streaming: false,

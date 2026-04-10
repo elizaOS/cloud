@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import { OAuthError, OAuthErrorCode } from "@/lib/services/oauth/errors";
 
 const mockValidateAuthHeader = mock();
 const mockListConnections = mock();
@@ -31,12 +32,17 @@ describe("Eliza App connections routes", () => {
       },
     }));
 
-    mock.module("@/lib/services/oauth", () => ({
+    const oauthModule = {
+      OAuthError,
       oauthService: {
         listConnections: mockListConnections,
         initiateAuth: mockInitiateAuth,
       },
-    }));
+    };
+
+    mock.module("@/lib/services/oauth", () => oauthModule);
+    mock.module("@/lib/services/oauth/index", () => oauthModule);
+    mock.module("@/lib/services/oauth/index.ts", () => oauthModule);
 
     const cacheKey = Date.now();
     ({ GET } = await import(`@/app/api/eliza-app/connections/route?t=${cacheKey}`));
@@ -120,5 +126,31 @@ describe("Eliza App connections routes", () => {
     const json = await response.json();
     expect(json.authUrl).toContain("accounts.google.com");
     expect(json.provider.name).toBe("Google");
+  });
+
+  test("returns OAuth validation errors from initiateAuth", async () => {
+    mockInitiateAuth.mockRejectedValue(
+      new OAuthError(
+        OAuthErrorCode.INVALID_SCOPE_REQUEST,
+        "Requested scopes are not allowed for google: admin",
+      ),
+    );
+
+    const response = await POST(
+      new NextRequest("https://elizacloud.ai/api/eliza-app/connections/google/initiate", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer session-token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ scopes: ["admin"] }),
+      }),
+      { params: Promise.resolve({ platform: "google" }) },
+    );
+
+    expect(response.status).toBe(400);
+    const json = await response.json();
+    expect(json.code).toBe("INVALID_SCOPE_REQUEST");
+    expect(json.error).toContain("Requested scopes are not allowed");
   });
 });

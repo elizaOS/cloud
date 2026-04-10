@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { elizaAppSessionService } from "@/lib/services/eliza-app";
-import { oauthService } from "@/lib/services/oauth";
+import { OAuthError, oauthService } from "@/lib/services/oauth";
 import { getProvider } from "@/lib/services/oauth/provider-registry";
 
 interface InitiateBody {
@@ -74,6 +74,16 @@ export async function POST(
       },
     });
   } catch (error) {
+    if (error instanceof OAuthError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.code,
+        },
+        { status: error.httpStatus },
+      );
+    }
+
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to initiate OAuth",

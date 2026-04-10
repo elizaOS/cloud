@@ -124,6 +124,12 @@ Current date/time: {{currentDateTime}}
 ---
 
 # Task Results
+{{#if executionAborted}}
+Execution stopped before the task was fully completed.
+Reason: {{incompleteReason}}
+Be explicit about what could not be completed.
+
+{{/if}}
 {{#if hasActionResults}}
 {{actionResults}}
 

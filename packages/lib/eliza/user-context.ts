@@ -103,7 +103,7 @@ export class UserContextService {
     // Fetch API key and OAuth connections in parallel for efficiency
     const [apiKey, oauthConnections, resolvedModels] = await Promise.all([
       this.getUserApiKey(authResult.user.id, authResult.user.organization_id),
-      this.getOAuthConnections(authResult.user.organization_id),
+      this.getOAuthConnections(authResult.user.organization_id, authResult.user.id),
       vertexModelRegistryService.resolveModelPreferences({
         organizationId: authResult.user.organization_id,
         userId: authResult.user.id,
@@ -169,9 +169,9 @@ export class UserContextService {
     return userKey.key;
   }
 
-  private async getOAuthConnections(orgId: string): Promise<OAuthConnection[]> {
+  private async getOAuthConnections(orgId: string, userId: string): Promise<OAuthConnection[]> {
     try {
-      const connections = await oauthService.listConnections({ organizationId: orgId });
+      const connections = await oauthService.listConnections({ organizationId: orgId, userId });
       return connections
         .filter((c) => c.status === "active")
         .map((c) => ({ platform: c.platform }));

@@ -13,7 +13,13 @@ import { cache } from "@/lib/cache/client";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import type { OAuthProviderConfig, UserInfoMapping } from "../provider-registry";
-import { getCallbackUrl, getClientId, getClientSecret, getNestedValue } from "../provider-registry";
+import {
+  getCallbackUrl,
+  getClientId,
+  getClientSecret,
+  getNestedValue,
+  resolveRequestedScopes,
+} from "../provider-registry";
 import type { OAuthConnectionRole } from "../types";
 
 const STATE_TTL_SECONDS = 600; // 10 minutes
@@ -119,7 +125,7 @@ export async function initiateOAuth2(
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const callbackUrl = getCallbackUrl(provider, baseUrl);
-  const scopes = params.scopes || provider.defaultScopes || [];
+  const scopes = resolveRequestedScopes(provider, params.scopes);
   const redirectUrl = params.redirectUrl || "/auth/success";
 
   // Generate cryptographically secure state

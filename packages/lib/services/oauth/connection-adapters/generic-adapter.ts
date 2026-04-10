@@ -185,8 +185,7 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
             source: "generic-adapter",
           };
 
-          // Store tokens atomically - if any step fails after access token rotation,
-          // log error but continue since the new access token is already valid
+          // Rotate the access token first so we never keep using a known-expired token.
           await secretsService.rotate(
             cred.access_token_secret_id,
             organizationId,
@@ -194,8 +193,9 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
             audit,
           );
 
-          // Store new refresh token if provided
-          // Critical: Some providers invalidate old refresh tokens, so this must succeed
+          // Some providers invalidate the previous refresh token immediately.
+          // If persisting the replacement fails, disable the connection and surface
+          // the problem instead of silently continuing with a broken refresh chain.
           if (refreshResult.newRefreshToken && cred.refresh_token_secret_id) {
             try {
               await secretsService.rotate(
@@ -205,8 +205,6 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
                 audit,
               );
             } catch (refreshTokenError) {
-              // Log but don't throw - access token is still valid for this request
-              // Future refreshes may fail if provider invalidated the old refresh token
               logger.error(`[GenericAdapter] Failed to store new refresh token for ${platform}`, {
                 connectionId,
                 organizationId,
@@ -215,6 +213,18 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
                     ? refreshTokenError.message
                     : String(refreshTokenError),
               });
+
+              await dbWrite
+                .update(platformCredentials)
+                .set({
+                  status: "error",
+                  updated_at: new Date(),
+                })
+                .where(eq(platformCredentials.id, connectionId));
+              await incrementOAuthVersion(organizationId, platform);
+              throw new Error(
+                `Failed to persist rotated ${platform} refresh token. Please reconnect ${platform}.`,
+              );
             }
           }
 

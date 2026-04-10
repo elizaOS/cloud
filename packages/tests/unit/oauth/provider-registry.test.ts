@@ -12,18 +12,22 @@ describe("Provider Registry", () => {
   let getProvider: PR["getProvider"];
   let getAllProviderIds: PR["getAllProviderIds"];
   let getConfiguredProviders: PR["getConfiguredProviders"];
+  let getAllowedScopes: PR["getAllowedScopes"];
   let isProviderConfigured: PR["isProviderConfigured"];
   let isValidProvider: PR["isValidProvider"];
   let OAUTH_PROVIDERS: PR["OAUTH_PROVIDERS"];
+  let resolveRequestedScopes: PR["resolveRequestedScopes"];
 
   beforeEach(async () => {
     const m = await import(`@/lib/services/oauth/provider-registry?t=${Date.now()}`);
     getProvider = m.getProvider;
     getAllProviderIds = m.getAllProviderIds;
     getConfiguredProviders = m.getConfiguredProviders;
+    getAllowedScopes = m.getAllowedScopes;
     isProviderConfigured = m.isProviderConfigured;
     isValidProvider = m.isValidProvider;
     OAUTH_PROVIDERS = m.OAUTH_PROVIDERS;
+    resolveRequestedScopes = m.resolveRequestedScopes;
   });
 
   describe("OAUTH_PROVIDERS", () => {
@@ -191,6 +195,39 @@ describe("Provider Registry", () => {
         expect(provider).not.toBeNull();
         expect(provider!.id).toBe(id);
       }
+    });
+  });
+
+  describe("scope resolution", () => {
+    it("returns normalized default scopes when no scopes are requested", () => {
+      const scopes = resolveRequestedScopes(OAUTH_PROVIDERS.google, undefined);
+
+      expect(scopes).toEqual(getAllowedScopes(OAUTH_PROVIDERS.google));
+    });
+
+    it("dedupes and trims requested scopes within the allowlist", () => {
+      const provider = {
+        ...OAUTH_PROVIDERS.google,
+        allowedScopes: ["scope:a", "scope:b"],
+        defaultScopes: ["scope:a"],
+      };
+
+      expect(resolveRequestedScopes(provider, [" scope:a ", "scope:b", "scope:a"])).toEqual([
+        "scope:a",
+        "scope:b",
+      ]);
+    });
+
+    it("rejects requested scopes outside the allowlist", () => {
+      const provider = {
+        ...OAUTH_PROVIDERS.google,
+        allowedScopes: ["scope:a"],
+        defaultScopes: ["scope:a"],
+      };
+
+      expect(() => resolveRequestedScopes(provider, ["scope:a", "scope:admin"])).toThrow(
+        "Requested scopes are not allowed",
+      );
     });
   });
 

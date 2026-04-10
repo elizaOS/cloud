@@ -221,6 +221,21 @@ describe("OAuth Service Logic", () => {
       const active = connections.filter((c) => c.status === "active");
       expect(active.length).toBe(2);
     });
+
+    it("prefers user-owned connections before shared org connections", () => {
+      const owned = createMockConnection("active", "owned", {
+        userId: "user-1",
+        lastUsedAt: new Date("2026-04-09T10:00:00Z"),
+      });
+      const shared = createMockConnection("active", "shared", {
+        userId: undefined,
+        lastUsedAt: new Date("2026-04-09T11:00:00Z"),
+      });
+
+      expect(getPreferredActiveConnection([shared, owned], "user-1")?.id).toBe("owned");
+      expect(scopeConnectionsForUser([shared, owned], "user-1").map((connection) => connection.id))
+        .toEqual(["owned", "shared"]);
+    });
   });
 
   describe("Token retrieval logic", () => {

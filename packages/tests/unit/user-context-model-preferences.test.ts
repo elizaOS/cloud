@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { Errors, internalErrorResponse, OAuthError } from "@/lib/services/oauth/errors";
 
 const mockListByOrganization = mock();
 const mockListConnections = mock();
@@ -11,6 +12,9 @@ mock.module("@/lib/services/api-keys", () => ({
 }));
 
 mock.module("@/lib/services/oauth", () => ({
+  Errors,
+  internalErrorResponse,
+  OAuthError,
   oauthService: {
     listConnections: mockListConnections,
   },
@@ -71,6 +75,10 @@ describe("UserContextService model preferences", () => {
     });
 
     expect(mockResolveModelPreferences).toHaveBeenCalledWith({
+      organizationId: "00000000-0000-0000-0000-000000000111",
+      userId: "00000000-0000-0000-0000-000000000222",
+    });
+    expect(mockListConnections).toHaveBeenCalledWith({
       organizationId: "00000000-0000-0000-0000-000000000111",
       userId: "00000000-0000-0000-0000-000000000222",
     });

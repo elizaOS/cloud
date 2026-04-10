@@ -13,6 +13,15 @@ import { logger } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+async function getAccessibleConnection(
+  organizationId: string,
+  userId: string,
+  connectionId: string,
+) {
+  const connections = await oauthService.listConnections({ organizationId, userId });
+  return connections.find((connection) => connection.id === connectionId) || null;
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: connectionId } = await params;
   let organizationId: string | undefined;
@@ -26,10 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       connectionId,
     });
 
-    const connection = await oauthService.getConnection({
-      organizationId,
-      connectionId,
-    });
+    const connection = await getAccessibleConnection(organizationId, user.id, connectionId);
 
     if (!connection) {
       const error = Errors.connectionNotFound(connectionId);
@@ -80,9 +86,15 @@ export async function DELETE(
       connectionId,
     });
 
+    const connection = await getAccessibleConnection(organizationId, userId, connectionId);
+    if (!connection) {
+      const error = Errors.connectionNotFound(connectionId);
+      return NextResponse.json(error.toResponse(), { status: 404 });
+    }
+
     await oauthService.revokeConnection({
       organizationId,
-      connectionId,
+      connectionId: connection.id,
     });
 
     await invalidateOAuthState(organizationId, "oauth", userId, { skipVersionBump: true });
