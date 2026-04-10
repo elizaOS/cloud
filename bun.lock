@@ -1545,8 +1545,6 @@
 
     "@stwd/sdk": ["@stwd/sdk@0.3.0", "", {}, "sha512-GUx+6lskxFA9PTlPtfVeZbKiIb0mZelBNjvodr8fiayyJIyJVbAzmr2gMLhbM88AGSqqp+BH6ur2GUhBosFl+Q=="],
 
-    "@stwd/sdk": ["@stwd/sdk@0.3.0", "", {}, "sha512-GUx+6lskxFA9PTlPtfVeZbKiIb0mZelBNjvodr8fiayyJIyJVbAzmr2gMLhbM88AGSqqp+BH6ur2GUhBosFl+Q=="],
-
     "@swc/helpers": ["@swc/helpers@0.5.15", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g=="],
 
     "@tabby_ai/hijri-converter": ["@tabby_ai/hijri-converter@1.0.5", "", {}, "sha512-r5bClKrcIusDoo049dSL8CawnHR6mRdDwhlQuIgZRNty68q0x8k3Lf1BtPAMxRf/GgnHBnIO4ujd3+GQdLWzxQ=="],
