@@ -31,12 +31,12 @@ const cacheStore = new Map<string, unknown>();
 
 let gatewayCatalog = [
   {
-    id: "openai/gpt-5",
+    id: "openai/gpt-5.4",
     object: "model" as const,
     created: 0,
     owned_by: "openai",
     type: "language",
-    name: "GPT-5",
+    name: "GPT-5.4",
   },
   {
     id: "anthropic/claude-sonnet-4.6",
@@ -92,12 +92,12 @@ describe("Model catalog cache E2E", () => {
     cacheStore.clear();
     gatewayCatalog = [
       {
-        id: "openai/gpt-5",
+        id: "openai/gpt-5.4",
         object: "model",
         created: 0,
         owned_by: "openai",
         type: "language",
-        name: "GPT-5",
+        name: "GPT-5.4",
       },
       {
         id: "anthropic/claude-sonnet-4.6",
@@ -206,7 +206,7 @@ describe("Model catalog cache E2E", () => {
     const secondBody = await secondResponse.json();
 
     expect(firstBody.data.map((model: { id: string }) => model.id)).toEqual([
-      "openai/gpt-5",
+      "openai/gpt-5.4",
       "anthropic/claude-sonnet-4.6",
     ]);
     expect(secondBody.data).toEqual(firstBody.data);
@@ -217,12 +217,12 @@ describe("Model catalog cache E2E", () => {
 
     const statusResponse = await getModelStatus(
       jsonRequest("http://localhost:3000/api/v1/models/status", "POST", {
-        modelIds: ["openai/gpt-5", "anthropic/claude-sonnet-4.6"],
+        modelIds: ["openai/gpt-5.4", "anthropic/claude-sonnet-4.6"],
       }),
     );
     const detailResponse = await getModelDetail(
-      new NextRequest("http://localhost:3000/api/v1/models/openai/gpt-5"),
-      { params: Promise.resolve({ model: ["openai", "gpt-5"] }) },
+      new NextRequest("http://localhost:3000/api/v1/models/openai/gpt-5.4"),
+      { params: Promise.resolve({ model: ["openai", "gpt-5.4"] }) },
     );
 
     expect(statusResponse.status).toBe(200);
@@ -234,10 +234,10 @@ describe("Model catalog cache E2E", () => {
     const detailBody = await detailResponse.json();
 
     expect(statusBody.models).toEqual([
-      { modelId: "openai/gpt-5", available: true },
+      { modelId: "openai/gpt-5.4", available: true },
       { modelId: "anthropic/claude-sonnet-4.6", available: true },
     ]);
-    expect(detailBody.id).toBe("openai/gpt-5");
+    expect(detailBody.id).toBe("openai/gpt-5.4");
   });
 
   test("cron refresh repopulates the cache and updates later route responses", async () => {
@@ -278,7 +278,7 @@ describe("Model catalog cache E2E", () => {
     expect(cronBody.success).toBe(true);
     expect(cronBody.data.modelCount).toBe(3);
     expect(refreshedBody.data.map((model: { id: string }) => model.id)).toEqual([
-      "openai/gpt-5",
+      "openai/gpt-5.4",
       "anthropic/claude-sonnet-4.6",
       "google/gemini-3.1-pro-preview",
     ]);

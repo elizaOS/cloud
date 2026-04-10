@@ -11,13 +11,13 @@ describe("Groq catalog helpers", () => {
   test("recognizes Groq native model ids", () => {
     expect(isGroqNativeModel("groq/compound")).toBe(true);
     expect(isGroqNativeModel("groq/compound-mini")).toBe(true);
-    expect(isGroqNativeModel("openai/gpt-5")).toBe(false);
+    expect(isGroqNativeModel("openai/gpt-5.4")).toBe(false);
   });
 
   test("maps Groq public ids to API ids", () => {
     expect(getGroqApiModelId("groq/compound")).toBe("compound-beta");
     expect(getGroqApiModelId("groq/compound-mini")).toBe("compound-beta-mini");
-    expect(getGroqApiModelId("openai/gpt-5")).toBe("openai/gpt-5");
+    expect(getGroqApiModelId("openai/gpt-5.4")).toBe("openai/gpt-5.4");
   });
 });
 
@@ -25,7 +25,7 @@ describe("text model selection filter", () => {
   test("keeps current chat-capable language models", () => {
     expect(
       isSelectableTextModel({
-        id: "openai/gpt-5",
+        id: "openai/gpt-5.4",
         object: "model",
         created: 0,
         owned_by: "openai",
@@ -112,7 +112,7 @@ describe("catalog merging", () => {
     const merged = mergeCatalogModels(
       [
         {
-          id: "openai/gpt-5",
+          id: "openai/gpt-5.4",
           object: "model",
           created: 1,
           owned_by: "openai",
@@ -120,7 +120,7 @@ describe("catalog merging", () => {
       ],
       [
         {
-          id: "openai/gpt-5",
+          id: "openai/gpt-5.4",
           object: "model",
           created: 2,
           owned_by: "openai",
@@ -135,7 +135,7 @@ describe("catalog merging", () => {
     );
 
     expect(merged).toHaveLength(2);
-    expect(merged.map((model) => model.id)).toEqual(["openai/gpt-5", "groq/compound"]);
+    expect(merged.map((model) => model.id)).toEqual(["openai/gpt-5.4", "groq/compound"]);
   });
 });
 
