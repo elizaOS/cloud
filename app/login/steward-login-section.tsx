@@ -23,7 +23,7 @@ export default function StewardLoginSection() {
   return (
     <div className="space-y-4">
       <StewardProvider
-        client={new StewardClient({ baseUrl: STEWARD_AUTH_BASE_URL }) as any}
+        client={new StewardClient({ baseUrl: STEWARD_AUTH_BASE_URL }) as any} // Type mismatch: workspace vs npm resolution
         agentId=""
         auth={{ baseUrl: STEWARD_AUTH_BASE_URL }}
         tenantId={STEWARD_TENANT_ID || undefined}
