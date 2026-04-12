@@ -852,6 +852,36 @@ describe("Google MCP Tools", () => {
       expect(capturedBody.description).toBe("Quarterly review");
       expect(capturedBody.location).toBe("Room A");
     });
+
+    test("preserves UTC instants when a timezone is provided", async () => {
+      let capturedBody: any;
+      globalThis.fetch = mock(async (_url: string, init?: RequestInit) => {
+        if (init?.method === "POST") capturedBody = JSON.parse(init.body as string);
+        return new Response(
+          JSON.stringify({ id: "evt-1", htmlLink: "https://cal.google.com", status: "confirmed" }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }) as unknown as typeof fetch;
+
+      await callTool("calendar_create_event", {
+        summary: "Dinner",
+        start: "2026-02-20T14:00:00Z",
+        end: "2026-02-20T15:00:00Z",
+        timeZone: "America/Los_Angeles",
+      });
+
+      expect(capturedBody.start).toEqual({
+        dateTime: "2026-02-20T06:00:00-08:00",
+        timeZone: "America/Los_Angeles",
+      });
+      expect(capturedBody.end).toEqual({
+        dateTime: "2026-02-20T07:00:00-08:00",
+        timeZone: "America/Los_Angeles",
+      });
+    });
   });
 
   // ── calendar_update_event ─────────────────────────────────────────────────
@@ -894,6 +924,60 @@ describe("Google MCP Tools", () => {
       expect(p.success).toBe(true);
       expect(capturedBody.summary).toBe("New Title");
       expect(capturedBody.start.dateTime).toBe("2026-02-20T10:00:00Z");
+    });
+
+    test("preserves the existing timezone when updating timed bounds without restating it", async () => {
+      let requestCount = 0;
+      let capturedBody: any;
+      globalThis.fetch = mock(async (_url: string, init?: RequestInit) => {
+        requestCount++;
+        if (requestCount === 1) {
+          return new Response(
+            JSON.stringify({
+              id: "evt-2",
+              summary: "Tokyo Dinner",
+              start: {
+                dateTime: "2026-02-20T20:00:00+09:00",
+                timeZone: "Asia/Tokyo",
+              },
+              end: {
+                dateTime: "2026-02-20T21:00:00+09:00",
+                timeZone: "Asia/Tokyo",
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        capturedBody = JSON.parse(init?.body as string);
+        return new Response(
+          JSON.stringify({
+            id: "evt-2",
+            htmlLink: "https://cal.google.com",
+            updated: "2026-02-20T16:00:00Z",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }) as unknown as typeof fetch;
+
+      const p = parse(
+        await callTool("calendar_update_event", {
+          eventId: "evt-2",
+          start: "2026-02-20T12:00:00Z",
+          end: "2026-02-20T13:00:00Z",
+        }),
+      );
+
+      expect(p.success).toBe(true);
+      expect(capturedBody.start).toEqual({
+        dateTime: "2026-02-20T21:00:00+09:00",
+        timeZone: "Asia/Tokyo",
+        date: undefined,
+      });
+      expect(capturedBody.end).toEqual({
+        dateTime: "2026-02-20T22:00:00+09:00",
+        timeZone: "Asia/Tokyo",
+        date: undefined,
+      });
     });
 
     test("returns error when event not found (null safety)", async () => {

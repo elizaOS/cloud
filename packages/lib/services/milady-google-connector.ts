@@ -383,8 +383,133 @@ async function googleFetch(args: {
   }
 }
 
+function getZonedDateParts(
+  date: Date,
+  timeZone: string,
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(date);
+  const read = (type: Intl.DateTimeFormatPartTypes) => {
+    const value = parts.find((part) => part.type === type)?.value;
+    if (!value) {
+      throw new Error(`missing zoned date part: ${type}`);
+    }
+    return Number(value);
+  };
+  return {
+    year: read("year"),
+    month: read("month"),
+    day: read("day"),
+    hour: read("hour"),
+    minute: read("minute"),
+    second: read("second"),
+  };
+}
+
+function getTimeZoneOffsetMinutes(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const token = parts.find((part) => part.type === "timeZoneName")?.value?.trim() ?? "GMT";
+  if (token === "GMT" || token === "UTC") {
+    return 0;
+  }
+  const match = token.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/i);
+  if (!match) {
+    throw new Error(`unsupported offset token: ${token}`);
+  }
+  const sign = match[1] === "+" ? 1 : -1;
+  return sign * (Number(match[2]) * 60 + Number(match[3] ?? "0"));
+}
+
+function localPartsToEpochMs(parts: {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}): number {
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+}
+
+function buildUtcDateFromLocalParts(
+  timeZone: string,
+  parts: {
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    second: number;
+  },
+): Date {
+  const baseUtcMs = localPartsToEpochMs(parts);
+  let candidate = new Date(baseUtcMs);
+  for (let index = 0; index < 6; index += 1) {
+    const offsetMinutes = getTimeZoneOffsetMinutes(candidate, timeZone);
+    const adjusted = new Date(baseUtcMs - offsetMinutes * 60_000);
+    const actualParts = getZonedDateParts(adjusted, timeZone);
+    const deltaMinutes = Math.round(
+      (localPartsToEpochMs(parts) - localPartsToEpochMs(actualParts)) / 60_000,
+    );
+    if (deltaMinutes === 0) {
+      return adjusted;
+    }
+    candidate = new Date(adjusted.getTime() + deltaMinutes * 60_000);
+  }
+  return candidate;
+}
+
+function normalizeGoogleDateOnly(
+  date: string,
+  timeZone: string | undefined,
+): { iso: string; timeZone: string | null } {
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const effectiveTimeZone = timeZone?.trim() || "UTC";
+  if (!match) {
+    return {
+      iso: new Date(`${date}T00:00:00.000Z`).toISOString(),
+      timeZone: timeZone?.trim() || null,
+    };
+  }
+  const localizedMidnight = buildUtcDateFromLocalParts(effectiveTimeZone, {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: 0,
+    minute: 0,
+    second: 0,
+  });
+  return {
+    iso: localizedMidnight.toISOString(),
+    timeZone: effectiveTimeZone,
+  };
+}
+
 function readGoogleEventInstant(
   value: GoogleCalendarEventDate | undefined,
+  fallbackTimeZone?: string,
 ): { iso: string; isAllDay: boolean; timeZone: string | null } | null {
   if (!value) return null;
   if (value.dateTime?.trim()) {
@@ -395,10 +520,14 @@ function readGoogleEventInstant(
     };
   }
   if (value.date?.trim()) {
+    const normalized = normalizeGoogleDateOnly(
+      value.date,
+      value.timeZone?.trim() || fallbackTimeZone,
+    );
     return {
-      iso: new Date(`${value.date}T00:00:00.000Z`).toISOString(),
+      iso: normalized.iso,
       isAllDay: true,
-      timeZone: value.timeZone?.trim() || null,
+      timeZone: normalized.timeZone,
     };
   }
   return null;
@@ -414,10 +543,11 @@ function readConferenceLink(event: GoogleCalendarApiEvent): string | null {
 function normalizeGoogleCalendarEvent(
   calendarId: string,
   event: GoogleCalendarApiEvent,
+  fallbackTimeZone?: string,
 ): ManagedGoogleCalendarEvent | null {
   const externalId = event.id?.trim();
-  const start = readGoogleEventInstant(event.start);
-  const end = readGoogleEventInstant(event.end);
+  const start = readGoogleEventInstant(event.start, fallbackTimeZone);
+  const end = readGoogleEventInstant(event.end, start?.timeZone ?? fallbackTimeZone);
   if (!externalId || !start || !end) {
     return null;
   }
@@ -900,7 +1030,7 @@ export async function fetchManagedGoogleCalendarFeed(args: {
   return {
     calendarId: args.calendarId,
     events: (parsed.items ?? [])
-      .map((event) => normalizeGoogleCalendarEvent(args.calendarId, event))
+      .map((event) => normalizeGoogleCalendarEvent(args.calendarId, event, args.timeZone))
       .filter((event): event is ManagedGoogleCalendarEvent => event !== null),
     syncedAt: new Date().toISOString(),
   };
@@ -942,7 +1072,7 @@ export async function createManagedGoogleCalendarEvent(args: {
     },
   });
   const parsed = (await response.json()) as GoogleCalendarApiEvent;
-  const event = normalizeGoogleCalendarEvent(args.calendarId, parsed);
+  const event = normalizeGoogleCalendarEvent(args.calendarId, parsed, args.timeZone);
   if (!event) {
     fail(502, "Google Calendar returned an incomplete event payload.");
   }

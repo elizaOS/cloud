@@ -164,23 +164,117 @@ export function mapContact(person: Record<string, unknown>): Record<string, unkn
 // ── Timezone helpers ─────────────────────────────────────────────────────────
 
 /**
- * Applies a timezone to a datetime string for Google Calendar API.
- *
- * If the datetime ends with "Z" (UTC) and a timezone is provided, this would
- * silently reinterpret the UTC time as local — e.g. 15:00Z with Asia/Kolkata
- * would become 15:00 IST (a 5.5-hour shift). We reject that case explicitly.
+ * Builds a Google Calendar datetime payload while preserving the intended
+ * instant. Local datetimes without an explicit offset are treated as wall-clock
+ * time in the supplied timeZone. UTC or offset-bearing datetimes are converted
+ * into an RFC3339 string in that same timeZone so Google preserves both the
+ * instant and the event's named zone.
  */
+function hasExplicitDateTimeOffset(dateTime: string): boolean {
+  return /(?:[zZ]|[+-]\d{2}:\d{2})$/.test(dateTime);
+}
+
+function getZonedDateParts(
+  date: Date,
+  timeZone: string,
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(date);
+  const read = (type: Intl.DateTimeFormatPartTypes) => {
+    const value = parts.find((part) => part.type === type)?.value;
+    if (!value) {
+      throw new Error(`missing zoned date part: ${type}`);
+    }
+    return Number(value);
+  };
+  return {
+    year: read("year"),
+    month: read("month"),
+    day: read("day"),
+    hour: read("hour"),
+    minute: read("minute"),
+    second: read("second"),
+  };
+}
+
+function getTimeZoneOffsetMinutes(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const token = parts.find((part) => part.type === "timeZoneName")?.value?.trim() ?? "GMT";
+  if (token === "GMT" || token === "UTC") return 0;
+  const match = token.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/i);
+  if (!match) {
+    throw new Error(`unsupported offset token: ${token}`);
+  }
+  const sign = match[1] === "+" ? 1 : -1;
+  return sign * (Number(match[2]) * 60 + Number(match[3] ?? "0"));
+}
+
+function formatOffsetToken(offsetMinutes: number): string {
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absolute = Math.abs(offsetMinutes);
+  const hours = Math.trunc(absolute / 60)
+    .toString()
+    .padStart(2, "0");
+  const minutes = Math.trunc(absolute % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${sign}${hours}:${minutes}`;
+}
+
+function formatInstantAsRfc3339InTimeZone(dateTime: string, timeZone: string): string {
+  const date = new Date(dateTime);
+  if (!Number.isFinite(date.getTime())) {
+    throw new Error(`Invalid datetime: ${dateTime}`);
+  }
+  const parts = getZonedDateParts(date, timeZone);
+  const offset = getTimeZoneOffsetMinutes(date, timeZone);
+  return (
+    [
+      `${parts.year.toString().padStart(4, "0")}-${parts.month
+        .toString()
+        .padStart(2, "0")}-${parts.day.toString().padStart(2, "0")}`,
+      `${parts.hour.toString().padStart(2, "0")}:${parts.minute
+        .toString()
+        .padStart(2, "0")}:${parts.second.toString().padStart(2, "0")}`,
+    ].join("T") + formatOffsetToken(offset)
+  );
+}
+
 export function applyTimeZone(
   dateTime: string,
   timeZone: string | undefined,
 ): { dateTime: string; timeZone?: string } {
-  if (!timeZone) return { dateTime };
-  if (dateTime.endsWith("Z")) {
-    throw new Error(
-      `DateTime "${dateTime}" has a UTC 'Z' suffix but timeZone "${timeZone}" was also provided. Pass the time as a local datetime without 'Z' (e.g. '2026-02-21T15:00:00') and set the timeZone parameter, or pass a UTC datetime with 'Z' and omit timeZone.`,
-    );
+  if (!timeZone) {
+    return { dateTime };
   }
-  return { dateTime, timeZone };
+  return {
+    dateTime: hasExplicitDateTimeOffset(dateTime)
+      ? formatInstantAsRfc3339InTimeZone(dateTime, timeZone)
+      : dateTime,
+    timeZone,
+  };
 }
 
 const calendarTzCache = new Map<string, { value: string | null; expiresAt: number }>();

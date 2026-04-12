@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
+  createManagedGoogleCalendarEvent,
   disconnectManagedGoogleConnection,
   fetchManagedGoogleCalendarFeed,
   fetchManagedGoogleGmailSearch,
@@ -296,6 +297,89 @@ describe("milady Google connector service", () => {
       description: "Review the launch plan",
       location: "HQ",
       timezone: "America/Los_Angeles",
+    });
+  });
+
+  test("normalizes all-day managed calendar events to local midnight in the feed timezone", async () => {
+    globalThis.fetch = mock(
+      async () =>
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                id: "event-allday",
+                summary: "Offsite",
+                status: "confirmed",
+                start: { date: "2026-04-05" },
+                end: { date: "2026-04-06" },
+              },
+            ],
+          }),
+        ),
+    ) as unknown as typeof fetch;
+
+    const feed = await fetchManagedGoogleCalendarFeed({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      calendarId: "primary",
+      timeMin: "2026-04-04T00:00:00.000Z",
+      timeMax: "2026-04-07T00:00:00.000Z",
+      timeZone: "America/Los_Angeles",
+    });
+
+    expect(feed.events[0]).toMatchObject({
+      externalId: "event-allday",
+      isAllDay: true,
+      timezone: "America/Los_Angeles",
+      startAt: "2026-04-05T07:00:00.000Z",
+      endAt: "2026-04-06T07:00:00.000Z",
+    });
+  });
+
+  test("preserves UTC instants when creating managed calendar events with a timezone", async () => {
+    let sentBody: string | undefined;
+    globalThis.fetch = mock(async (_url: string | URL | Request, options?: RequestInit) => {
+      sentBody = typeof options?.body === "string" ? options.body : undefined;
+      return new Response(
+        JSON.stringify({
+          id: "event-1",
+          summary: "Founder sync",
+          status: "confirmed",
+          start: {
+            dateTime: "2026-04-12T16:00:00-07:00",
+            timeZone: "America/Los_Angeles",
+          },
+          end: {
+            dateTime: "2026-04-12T17:00:00-07:00",
+            timeZone: "America/Los_Angeles",
+          },
+        }),
+      );
+    }) as unknown as typeof fetch;
+
+    await createManagedGoogleCalendarEvent({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      calendarId: "primary",
+      title: "Founder sync",
+      startAt: "2026-04-12T16:00:00.000Z",
+      endAt: "2026-04-12T17:00:00.000Z",
+      timeZone: "America/Los_Angeles",
+    });
+
+    const payload = JSON.parse(String(sentBody)) as {
+      start: { dateTime: string; timeZone?: string };
+      end: { dateTime: string; timeZone?: string };
+    };
+    expect(payload.start).toEqual({
+      dateTime: "2026-04-12T09:00:00-07:00",
+      timeZone: "America/Los_Angeles",
+    });
+    expect(payload.end).toEqual({
+      dateTime: "2026-04-12T10:00:00-07:00",
+      timeZone: "America/Los_Angeles",
     });
   });
 
