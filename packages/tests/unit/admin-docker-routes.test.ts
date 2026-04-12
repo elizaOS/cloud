@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isValidDockerLogsSince } from "@/app/api/v1/admin/docker-containers/[id]/logs/route";
+import { isValidDockerLogsSince } from "@/app/api/v1/admin/docker-containers/[id]/logs/since";
 import type { DockerNodeStatus } from "@/db/schemas/docker-nodes";
 import type { MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
 

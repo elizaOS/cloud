@@ -326,8 +326,23 @@ export async function enforceMcpOrganizationRateLimit(
  * Uses Redis-backed rate limiting when REDIS_RATE_LIMITING=true (production)
  * Falls back to in-memory rate limiting for local development
  */
+type RouteContext<T> = { params: Promise<T> };
+type StaticRouteHandler = (request: NextRequest) => Promise<Response>;
+type DynamicRouteHandler<T> = (
+  request: NextRequest,
+  context: RouteContext<T>,
+) => Promise<Response>;
+
+export function withRateLimit(
+  handler: StaticRouteHandler,
+  config: RateLimitConfig,
+): StaticRouteHandler;
 export function withRateLimit<T = Record<string, string>>(
-  handler: (request: NextRequest, context?: { params: Promise<T> }) => Promise<Response>,
+  handler: DynamicRouteHandler<T>,
+  config: RateLimitConfig,
+): DynamicRouteHandler<T>;
+export function withRateLimit<T = Record<string, string>>(
+  handler: StaticRouteHandler | DynamicRouteHandler<T>,
   config: RateLimitConfig,
 ) {
   return async (request: NextRequest, context?: { params: Promise<T> }): Promise<Response> => {
@@ -366,7 +381,10 @@ export function withRateLimit<T = Record<string, string>>(
     }
 
     // Call the actual handler
-    const response = await handler(request, context);
+    const response =
+      context === undefined
+        ? await (handler as StaticRouteHandler)(request)
+        : await (handler as DynamicRouteHandler<T>)(request, context);
 
     // Add rate limit headers to successful responses
     // Create new response with additional headers to preserve immutability

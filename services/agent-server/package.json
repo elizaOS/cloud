@@ -11,7 +11,7 @@
     "test:integration": "bun test __tests__/integration/"
   },
   "dependencies": {
-    "@elizaos/core": "1.7.3-alpha.2",
+    "@elizaos/core": "alpha",
     "@elizaos/plugin-elizacloud": "^1.7.5",
     "@elizaos/plugin-openai": "1.6.0",
     "@elizaos/plugin-sql": "1.7.1",

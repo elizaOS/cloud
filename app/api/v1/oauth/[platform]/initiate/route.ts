@@ -32,7 +32,7 @@ interface RouteParams {
   }>;
 }
 
-async function handleInitiate(request: NextRequest, context?: RouteParams): Promise<NextResponse> {
+async function handleInitiate(request: NextRequest, context: RouteParams): Promise<NextResponse> {
   if (!context) {
     return NextResponse.json({ error: "Missing route params" }, { status: 400 });
   }

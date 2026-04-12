@@ -21,6 +21,57 @@ beforeEach(async () => {
 });
 
 describe("miladyGatewayRelayService", () => {
+  test("defers the Redis production guard until the relay is actually used", async () => {
+    const envKeys = [
+      "NODE_ENV",
+      "VERCEL",
+      "VERCEL_ENV",
+      "ENVIRONMENT",
+      "REDIS_URL",
+      "KV_URL",
+      "KV_REST_API_URL",
+      "KV_REST_API_TOKEN",
+      "UPSTASH_REDIS_REST_URL",
+      "UPSTASH_REDIS_REST_TOKEN",
+      "MILADY_ALLOW_EPHEMERAL_CLOUD_STATE",
+    ] as const;
+    const previousEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
+
+    try {
+      process.env.NODE_ENV = "production";
+      delete process.env.VERCEL;
+      delete process.env.VERCEL_ENV;
+      delete process.env.ENVIRONMENT;
+      delete process.env.REDIS_URL;
+      delete process.env.KV_URL;
+      delete process.env.KV_REST_API_URL;
+      delete process.env.KV_REST_API_TOKEN;
+      delete process.env.UPSTASH_REDIS_REST_URL;
+      delete process.env.UPSTASH_REDIS_REST_TOKEN;
+      delete process.env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
+
+      const imported = await import(
+        new URL(`../../lib/services/milady-gateway-relay.ts?test=${Date.now()}`, import.meta.url)
+          .href
+      );
+
+      expect(imported.miladyGatewayRelayService).toBeDefined();
+      imported.miladyGatewayRelayService.resetForTests(null);
+      await expect(
+        imported.miladyGatewayRelayService.listOwnerSessions("org-prod", "user-prod"),
+      ).rejects.toThrow("Redis-backed shared storage is required in production");
+    } finally {
+      for (const key of envKeys) {
+        const value = previousEnv[key];
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
+  });
+
   test("queues a request for a registered local session and resolves the posted response", async () => {
     const session = await miladyGatewayRelayService.registerSession({
       organizationId: "org-1",

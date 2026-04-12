@@ -9,7 +9,7 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-async function handleGetPayment(req: NextRequest, context?: RouteContext) {
+async function handleGetPayment(req: NextRequest, context: RouteContext) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
     if (!context) {

@@ -218,7 +218,7 @@ interface AISdkRequest {
  * @param aiSdkRequest - AI SDK format request.
  * @returns OpenAI format request.
  */
-export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
+function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
   const {
     model,
     input, // 🔑 AI SDK uses 'input'

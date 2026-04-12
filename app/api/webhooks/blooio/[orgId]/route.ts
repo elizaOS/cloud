@@ -26,7 +26,7 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-async function handleBlooioWebhook(request: NextRequest, context?: RouteParams): Promise<Response> {
+async function handleBlooioWebhook(request: NextRequest, context: RouteParams): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {

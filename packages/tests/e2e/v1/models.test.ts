@@ -11,6 +11,7 @@ describe("Models API", () => {
     expect([200, 401]).toContain(response.status);
 
     if (response.status === 200) {
+      expect(response.headers.get("cache-control")).toContain("s-maxage");
       const body = (await response.json()) as any;
       expect(body.data || body.models || Array.isArray(body)).toBeTruthy();
     }
@@ -47,6 +48,16 @@ describe("Responses API", () => {
       input: "Hello",
     });
     expect([200, 401, 402, 403]).toContain(response.status);
+  });
+
+  test("POST /api/v1/responses rejects malformed requests", async () => {
+    const response = await api.post("/api/v1/responses", {});
+    expect([400, 401, 403]).toContain(response.status);
+
+    if (response.status === 400) {
+      const body = (await response.json()) as any;
+      expect(body.error).toBeTruthy();
+    }
   });
 
   test.skipIf(!api.hasApiKey())("POST /api/v1/responses accepts valid input", async () => {

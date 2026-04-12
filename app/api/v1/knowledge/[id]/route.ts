@@ -19,7 +19,7 @@ export const maxDuration = 60;
  * @param context - Route context containing the document ID parameter.
  * @returns Success status.
  */
-async function handleDELETE(req: NextRequest, context?: { params: Promise<{ id: string }> }) {
+async function handleDELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;

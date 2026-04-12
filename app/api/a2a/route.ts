@@ -36,7 +36,7 @@ import { logger } from "@/lib/utils/logger";
  * Consistent with MCP endpoint (4096) to avoid systematic underbilling.
  * Note: This constant should be imported by @/lib/api/a2a handlers for credit reservation calculations.
  */
-export const DEFAULT_BASE_OUTPUT_TOKENS = 4096;
+const DEFAULT_BASE_OUTPUT_TOKENS = 4096;
 
 export const maxDuration = 60;
 
