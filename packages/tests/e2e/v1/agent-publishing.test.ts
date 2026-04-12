@@ -4,12 +4,15 @@
  * Tests the agent publish/unpublish flow including monetization
  * settings and protocol endpoint (A2A, MCP) generation.
  *
+ * Character creation uses POST /api/v1/app/agents (the actual endpoint).
+ * NOT /api/my-agents/characters which is GET-only.
+ *
  * Requires: TEST_API_KEY env var pointing at a live Cloud account.
  */
 
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import * as api from "../helpers/api-client";
-import { testCharacterPayload } from "../helpers/app-lifecycle";
+import { createTestAgent, deleteTestAgent } from "../helpers/app-lifecycle";
 import { NONEXISTENT_UUID } from "../helpers/test-data";
 
 setDefaultTimeout(30_000);
@@ -18,33 +21,27 @@ describe.skipIf(!api.hasApiKey())("Agent Publishing", () => {
   let agentId: string;
 
   beforeAll(async () => {
-    // Create a character/agent to publish
-    const charPayload = testCharacterPayload();
-    const response = await api.post("/api/my-agents/characters", charPayload, {
-      authenticated: true,
-    });
-
-    // Accept various success patterns — the endpoint may return the character
-    // directly or nested under a key
-    if (response.status === 200 || response.status === 201) {
-      const body = (await response.json()) as any;
-      agentId = body.id || body.character?.id || body.agent?.id;
+    const { response, agentId: id } = await createTestAgent();
+    if (response.status === 201 || response.status === 200) {
+      agentId = id!;
     }
   });
 
   afterAll(async () => {
     if (agentId) {
-      // Unpublish and delete
-      await api.del(`/api/v1/agents/${agentId}/publish`, { authenticated: true }).catch(() => {});
-      await api
-        .del(`/api/my-agents/characters/${agentId}`, { authenticated: true })
-        .catch(() => {});
+      await deleteTestAgent(agentId).catch(() => {});
     }
+  });
+
+  // ── Create agent verification ───────────────────────────────────
+  test("POST /api/v1/app/agents creates a character", async () => {
+    expect(agentId).toBeDefined();
+    expect(typeof agentId).toBe("string");
   });
 
   // ── Publish agent ───────────────────────────────────────────────
   test("POST /api/v1/agents/[id]/publish publishes agent", async () => {
-    if (!agentId) return; // skip if character creation failed
+    if (!agentId) return;
 
     const response = await api.post(
       `/api/v1/agents/${agentId}/publish`,
@@ -189,5 +186,15 @@ describe.skipIf(!api.hasApiKey())("Agent Publishing — Error Cases", () => {
       authenticated: true,
     });
     expect([403, 404]).toContain(response.status);
+  });
+
+  test("POST /api/v1/app/agents validates name", async () => {
+    const response = await api.post("/api/v1/app/agents", { name: "" }, { authenticated: true });
+    expect(response.status).toBe(400);
+  });
+
+  test("POST /api/v1/app/agents requires auth", async () => {
+    const response = await api.post("/api/v1/app/agents", { name: "Test" });
+    expect([401, 403]).toContain(response.status);
   });
 });

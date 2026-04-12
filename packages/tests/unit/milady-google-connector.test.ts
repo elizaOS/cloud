@@ -221,9 +221,8 @@ describe("milady Google connector service", () => {
       platform: "google",
       redirectUrl: "https://www.elizacloud.ai/auth/success?platform=google",
       scopes: [
-        "openid",
-        "email",
-        "profile",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/calendar.readonly",
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/gmail.send",

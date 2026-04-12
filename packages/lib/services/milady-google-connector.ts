@@ -228,7 +228,10 @@ function normalizeCapabilities(
 }
 
 function capabilitiesToScopes(capabilities: readonly MiladyGoogleCapability[]): string[] {
-  const scopes = new Set<string>(["openid", "email", "profile"]);
+  const scopes = new Set<string>([
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+  ]);
 
   for (const capability of normalizeCapabilities(capabilities)) {
     if (capability === "google.calendar.read") {
