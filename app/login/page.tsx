@@ -76,7 +76,6 @@ function GradientBackground({ children }: { children: React.ReactNode }) {
 function LoginPageContent() {
   const stewardOnly = STEWARD_AUTH_ENABLED && !PRIVY_CONFIGURED;
   const both = STEWARD_AUTH_ENABLED && PRIVY_CONFIGURED;
-  const privyOnly = !STEWARD_AUTH_ENABLED;
 
   if (stewardOnly) {
     return (

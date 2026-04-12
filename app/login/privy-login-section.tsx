@@ -1,17 +1,11 @@
 "use client";
 
 import { BrandButton, Input } from "@elizaos/cloud-ui";
-import {
-  useLogin,
-  useLoginWithEmail,
-  useLoginWithOAuth,
-  usePrivy,
-} from "@privy-io/react-auth";
+import { useLogin, useLoginWithEmail, useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
 import { ArrowLeft, Chrome, Github, Loader2, Mail, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 // Discord SVG Icon Component
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -445,8 +439,7 @@ export default function PrivyLoginSection() {
               autoFocus
             />
             <p className="text-xs text-neutral-500 text-center">
-              Enter the 6-digit code sent to{" "}
-              <span className="font-medium text-white">{email}</span>
+              Enter the 6-digit code sent to <span className="font-medium text-white">{email}</span>
             </p>
           </div>
           <BrandButton
@@ -564,17 +557,11 @@ export default function PrivyLoginSection() {
       {/* Footer */}
       <p className="text-center text-xs text-neutral-500 pt-4 border-t border-white/10">
         By signing in, you agree to our{" "}
-        <a
-          href="/terms-of-service"
-          className="text-neutral-400 hover:text-white transition-colors"
-        >
+        <a href="/terms-of-service" className="text-neutral-400 hover:text-white transition-colors">
           Terms
         </a>{" "}
         and{" "}
-        <a
-          href="/privacy-policy"
-          className="text-neutral-400 hover:text-white transition-colors"
-        >
+        <a href="/privacy-policy" className="text-neutral-400 hover:text-white transition-colors">
           Privacy Policy
         </a>
       </p>

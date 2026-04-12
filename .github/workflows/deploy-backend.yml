@@ -154,7 +154,10 @@ jobs:
             
             sudo chown -R deploy:deploy /opt/eliza-cloud
             cd /opt/eliza-cloud
-            git config --global --add safe.directory /opt/eliza-cloud
+            # Use env-based config to avoid writing ~/.gitconfig (lock file failures)
+            export GIT_CONFIG_COUNT=1
+            export GIT_CONFIG_KEY_0=safe.directory
+            export GIT_CONFIG_VALUE_0=/opt/eliza-cloud
 
             if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
               STASH_NAME="deploy-backend-auto-$(date -u +%Y%m%dT%H%M%SZ)"
