@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { AppNameConflictError, appsService } from "@/lib/services/apps";
 import { appFactoryService } from "@/lib/services/app-factory";
+import { AppNameConflictError, appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 
 const CreateAppSchema = z.object({

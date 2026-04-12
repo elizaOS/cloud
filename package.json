@@ -70,6 +70,8 @@
     "test:oauth": "bun test --preload ./packages/tests/e2e/preload.ts packages/tests/integration/unified-oauth-api.test.ts --timeout 120000",
     "test:oauth:manual": "./packages/tests/manual/oauth-manual-test.sh",
     "test:e2e:api": "bun test --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/api --timeout 120000",
+    "test:e2e:v1": "bun test --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/v1 --timeout 120000",
+    "test:e2e:miniapp": "bun test --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/v1/miniapp-lifecycle.test.ts packages/tests/e2e/v1/app-monetization.test.ts packages/tests/e2e/v1/agent-publishing.test.ts packages/tests/e2e/v1/credits-billing.test.ts packages/tests/e2e/v1/affiliate-miniapp.test.ts --timeout 120000",
     "test": "bun run test:repo-unit:bulk && bun run test:repo-unit:special && bun run test:repo-unit:isolated",
     "test:playwright": "playwright test",
     "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test packages/tests/playwright/auth-real.spec.ts --grep @auth-real --headed"
