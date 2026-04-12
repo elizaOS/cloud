@@ -4,6 +4,7 @@ import { POST as postCalendarEvent } from "@/app/api/v1/milady/google/calendar/e
 import { GET as getCalendarFeed } from "@/app/api/v1/milady/google/calendar/feed/route";
 import { POST as postConnectInitiate } from "@/app/api/v1/milady/google/connect/initiate/route";
 import { POST as postDisconnect } from "@/app/api/v1/milady/google/disconnect/route";
+import { POST as postMessageSend } from "@/app/api/v1/milady/google/gmail/message-send/route";
 import { GET as getGmailRead } from "@/app/api/v1/milady/google/gmail/read/route";
 import { POST as postReplySend } from "@/app/api/v1/milady/google/gmail/reply-send/route";
 import { GET as getGmailSearch } from "@/app/api/v1/milady/google/gmail/search/route";
@@ -21,6 +22,7 @@ const mockCreateCalendarEvent = mock();
 const mockFetchGmailSearch = mock();
 const mockFetchGmailTriage = mock();
 const mockReadGmailMessage = mock();
+const mockSendMessage = mock();
 const mockSendReply = mock();
 const originalRouteDeps = { ...miladyGoogleRouteDeps };
 
@@ -35,6 +37,7 @@ describe("Milady managed Google routes", () => {
     miladyGoogleRouteDeps.fetchManagedGoogleGmailSearch = mockFetchGmailSearch;
     miladyGoogleRouteDeps.fetchManagedGoogleGmailTriage = mockFetchGmailTriage;
     miladyGoogleRouteDeps.readManagedGoogleGmailMessage = mockReadGmailMessage;
+    miladyGoogleRouteDeps.sendManagedGoogleMessage = mockSendMessage;
     miladyGoogleRouteDeps.sendManagedGoogleReply = mockSendReply;
     mockRequireAuthOrApiKeyWithOrg.mockReset();
     mockGetStatus.mockReset();
@@ -45,6 +48,7 @@ describe("Milady managed Google routes", () => {
     mockFetchGmailSearch.mockReset();
     mockFetchGmailTriage.mockReset();
     mockReadGmailMessage.mockReset();
+    mockSendMessage.mockReset();
     mockSendReply.mockReset();
 
     mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
@@ -281,6 +285,32 @@ describe("Milady managed Google routes", () => {
       bodyText: "Reviewing it now.",
       inReplyTo: "<msg-1@example.com>",
       references: null,
+    });
+  });
+
+  test("POST /api/v1/milady/google/gmail/message-send validates the payload and delegates to the service", async () => {
+    mockSendMessage.mockResolvedValue(undefined);
+
+    const response = await postMessageSend(
+      jsonRequest("https://example.com/api/v1/milady/google/gmail/message-send", "POST", {
+        to: ["founder@example.com"],
+        cc: ["ops@example.com"],
+        bcc: ["archive@example.com"],
+        subject: "Project sync",
+        bodyText: "Reviewing it now.",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockSendMessage).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      to: ["founder@example.com"],
+      cc: ["ops@example.com"],
+      bcc: ["archive@example.com"],
+      subject: "Project sync",
+      bodyText: "Reviewing it now.",
     });
   });
 

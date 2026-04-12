@@ -9,6 +9,7 @@ import {
   initiateManagedGoogleConnection,
   managedGoogleConnectorDeps,
   readManagedGoogleGmailMessage,
+  sendManagedGoogleMessage,
   sendManagedGoogleReply,
 } from "../../lib/services/milady-google-connector";
 import type { OAuthConnection } from "../../lib/services/oauth/types";
@@ -560,6 +561,38 @@ describe("milady Google connector service", () => {
     expect(decoded).toContain("Subject: Re: Project sync");
     expect(decoded).toContain("In-Reply-To: <msg-1@example.com>");
     expect(decoded).toContain("References: <thread-1@example.com>");
+    expect(decoded).toContain("Reviewing it now.");
+  });
+
+  test("sends Gmail messages with sanitized RFC822 headers", async () => {
+    let sentUrl: string | undefined;
+    let sentBody: string | undefined;
+    const fetchMock = mock(async (url: string | URL | Request, options?: RequestInit) => {
+      sentUrl = url.toString();
+      sentBody = typeof options?.body === "string" ? options.body : undefined;
+      return new Response(null, { status: 200 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await sendManagedGoogleMessage({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      to: ["founder@example.com"],
+      cc: ["ops@example.com"],
+      bcc: ["archive@example.com"],
+      subject: "Project sync",
+      bodyText: "Reviewing it now.",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(sentUrl).toBe("https://gmail.googleapis.com/gmail/v1/users/me/messages/send");
+    const payload = JSON.parse(String(sentBody)) as { raw: string };
+    const decoded = Buffer.from(payload.raw, "base64url").toString("utf-8");
+    expect(decoded).toContain("To: founder@example.com");
+    expect(decoded).toContain("Cc: ops@example.com");
+    expect(decoded).toContain("Bcc: archive@example.com");
+    expect(decoded).toContain("Subject: Project sync");
     expect(decoded).toContain("Reviewing it now.");
   });
 

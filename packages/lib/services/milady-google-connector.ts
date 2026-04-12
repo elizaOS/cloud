@@ -1292,3 +1292,40 @@ export async function sendManagedGoogleReply(args: {
     },
   });
 }
+
+export async function sendManagedGoogleMessage(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  bodyText: string;
+}): Promise<void> {
+  const lines = [
+    `To: ${sanitizeHeaderValue(args.to.join(", "))}`,
+    ...(args.cc && args.cc.length > 0 ? [`Cc: ${sanitizeHeaderValue(args.cc.join(", "))}`] : []),
+    ...(args.bcc && args.bcc.length > 0
+      ? [`Bcc: ${sanitizeHeaderValue(args.bcc.join(", "))}`]
+      : []),
+    `Subject: ${sanitizeHeaderValue(args.subject)}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "",
+    args.bodyText.replace(/\r?\n/g, "\r\n"),
+  ];
+  const raw = Buffer.from(lines.join("\r\n"), "utf-8").toString("base64url");
+
+  await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    url: GOOGLE_GMAIL_SEND_ENDPOINT,
+    options: {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raw }),
+    },
+  });
+}
