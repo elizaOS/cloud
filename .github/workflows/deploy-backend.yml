@@ -2,7 +2,7 @@ name: Deploy Backend
 
 on:
   push:
-    branches: [dev, main]
+    branches: [develop, main]
     paths:
       - '.github/workflows/deploy-backend.yml'
       - 'app/**'
@@ -57,13 +57,13 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
-            echo "branch=${{ github.event.inputs.environment == 'production' && 'main' || 'dev' }}" >> $GITHUB_OUTPUT
+            echo "branch=${{ github.event.inputs.environment == 'production' && 'main' || 'develop' }}" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "environment=production" >> $GITHUB_OUTPUT
             echo "branch=main" >> $GITHUB_OUTPUT
           else
             echo "environment=staging" >> $GITHUB_OUTPUT
-            echo "branch=dev" >> $GITHUB_OUTPUT
+            echo "branch=develop" >> $GITHUB_OUTPUT
           fi
 
   migrate-db:
