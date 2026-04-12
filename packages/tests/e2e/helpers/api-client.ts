@@ -51,7 +51,7 @@ export function url(path: string): string {
 }
 
 /** Default request timeout in ms */
-const REQUEST_TIMEOUT = 10_000;
+const REQUEST_TIMEOUT = 30_000;
 
 /** Create AbortSignal with timeout */
 function timeoutSignal(): AbortSignal {

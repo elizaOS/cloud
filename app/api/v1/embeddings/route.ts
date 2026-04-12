@@ -12,6 +12,7 @@
 import { gateway } from "@ai-sdk/gateway";
 import { embed, embedMany } from "ai";
 import type { NextRequest } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { estimateTokens, getProviderFromModel, normalizeModelName } from "@/lib/pricing";
@@ -204,17 +205,26 @@ async function handlePOST(req: NextRequest) {
       },
     });
   } catch (error) {
+    const status = getErrorStatusCode(error);
+    const message =
+      status === 500
+        ? error instanceof Error
+          ? error.message
+          : "Internal server error"
+        : getSafeErrorMessage(error);
+
     logger.error("[Embeddings] Error", {
-      error: error instanceof Error ? error.message : String(error),
+      error: message,
     });
+
     return Response.json(
       {
         error: {
-          message: error instanceof Error ? error.message : "Internal server error",
-          type: "api_error",
+          message,
+          type: status === 401 || status === 403 ? "authentication_error" : "api_error",
         },
       },
-      { status: 500 },
+      { status },
     );
   }
 }

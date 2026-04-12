@@ -1079,6 +1079,186 @@ export async function createManagedGoogleCalendarEvent(args: {
   return { event };
 }
 
+function normalizeManagedCalendarDateTimeInTimeZone(
+  value: string | undefined,
+  field: string,
+  timeZone: string | undefined,
+): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const text = value.trim();
+  if (!text) {
+    fail(400, `${field} is required.`);
+  }
+  if (/[zZ]|[+-]\d{2}:\d{2}$/.test(text)) {
+    const parsed = new Date(text);
+    if (!Number.isFinite(parsed.getTime())) {
+      fail(400, `${field} must be a valid datetime.`);
+    }
+    return parsed.toISOString();
+  }
+
+  const localMatch = text.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/,
+  );
+  if (localMatch) {
+    if (!timeZone) {
+      fail(
+        400,
+        `${field} must include a timezone or UTC offset when no event timezone is available.`,
+      );
+    }
+    const localized = buildUtcDateFromLocalParts(timeZone, {
+      year: Number(localMatch[1]),
+      month: Number(localMatch[2]),
+      day: Number(localMatch[3]),
+      hour: Number(localMatch[4] ?? "0"),
+      minute: Number(localMatch[5] ?? "0"),
+      second: Number(localMatch[6] ?? "0"),
+    });
+    localized.setUTCMilliseconds(Number((localMatch[7] ?? "0").padEnd(3, "0")));
+    return localized.toISOString();
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isFinite(parsed.getTime())) {
+    fail(400, `${field} must be a valid datetime.`);
+  }
+  return parsed.toISOString();
+}
+
+async function fetchManagedGoogleCalendarEvent(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  calendarId: string;
+  eventId: string;
+  fallbackTimeZone?: string;
+}): Promise<ManagedGoogleCalendarEvent | null> {
+  const params = new URLSearchParams({
+    fields:
+      "id,status,summary,description,location,htmlLink,hangoutLink,iCalUID,recurringEventId,created,start,end,organizer(email,displayName,self),attendees(email,displayName,responseStatus,self,organizer,optional),conferenceData(entryPoints(uri))",
+  });
+  const response = await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}?${params.toString()}`,
+  });
+  const parsed = (await response.json()) as GoogleCalendarApiEvent;
+  return normalizeGoogleCalendarEvent(args.calendarId, parsed, args.fallbackTimeZone);
+}
+
+export async function updateManagedGoogleCalendarEvent(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  calendarId: string;
+  eventId: string;
+  title?: string;
+  description?: string;
+  location?: string;
+  startAt?: string;
+  endAt?: string;
+  timeZone?: string;
+  attendees?: Array<{
+    email: string;
+    displayName?: string;
+    optional?: boolean;
+  }>;
+}): Promise<{ event: ManagedGoogleCalendarEvent }> {
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  const needsExistingEventContext =
+    Boolean(args.startAt || args.endAt) && (!args.timeZone || !args.startAt || !args.endAt);
+  const existingEvent = needsExistingEventContext
+    ? await fetchManagedGoogleCalendarEvent({
+        organizationId: args.organizationId,
+        userId: args.userId,
+        side: args.side,
+        calendarId: args.calendarId,
+        eventId: args.eventId,
+        fallbackTimeZone: args.timeZone,
+      })
+    : null;
+  const effectiveTimeZone = args.timeZone ?? existingEvent?.timezone ?? undefined;
+  let normalizedStartAt = normalizeManagedCalendarDateTimeInTimeZone(
+    args.startAt,
+    "startAt",
+    effectiveTimeZone,
+  );
+  let normalizedEndAt = normalizeManagedCalendarDateTimeInTimeZone(
+    args.endAt,
+    "endAt",
+    effectiveTimeZone,
+  );
+  const existingDurationMs =
+    existingEvent &&
+    Number.isFinite(Date.parse(existingEvent.startAt)) &&
+    Number.isFinite(Date.parse(existingEvent.endAt))
+      ? Date.parse(existingEvent.endAt) - Date.parse(existingEvent.startAt)
+      : Number.NaN;
+  const fallbackDurationMs =
+    Number.isFinite(existingDurationMs) && existingDurationMs > 0
+      ? existingDurationMs
+      : ONE_HOUR_MS;
+  if (normalizedStartAt && !normalizedEndAt) {
+    normalizedEndAt = new Date(
+      new Date(normalizedStartAt).getTime() + fallbackDurationMs,
+    ).toISOString();
+  } else if (normalizedEndAt && !normalizedStartAt) {
+    normalizedStartAt = new Date(
+      new Date(normalizedEndAt).getTime() - fallbackDurationMs,
+    ).toISOString();
+  }
+
+  const response = await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}?conferenceDataVersion=1`,
+    options: {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...(args.title !== undefined ? { summary: args.title } : {}),
+        ...(args.description !== undefined ? { description: args.description } : {}),
+        ...(args.location !== undefined ? { location: args.location } : {}),
+        ...(normalizedStartAt
+          ? { start: applyTimeZone(normalizedStartAt, effectiveTimeZone) }
+          : {}),
+        ...(normalizedEndAt ? { end: applyTimeZone(normalizedEndAt, effectiveTimeZone) } : {}),
+        ...(args.attendees !== undefined ? { attendees: args.attendees } : {}),
+      }),
+    },
+  });
+  const parsed = (await response.json()) as GoogleCalendarApiEvent;
+  const event = normalizeGoogleCalendarEvent(args.calendarId, parsed, effectiveTimeZone);
+  if (!event) {
+    fail(502, "Google Calendar returned an incomplete event payload.");
+  }
+  return { event };
+}
+
+export async function deleteManagedGoogleCalendarEvent(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  calendarId: string;
+  eventId: string;
+}): Promise<{ ok: true }> {
+  await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}`,
+    options: {
+      method: "DELETE",
+    },
+  });
+  return { ok: true };
+}
+
 async function fetchManagedGoogleGmailMessages(args: {
   organizationId: string;
   userId: string;

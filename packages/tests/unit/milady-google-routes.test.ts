@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { NextRequest } from "next/server";
+import {
+  DELETE as deleteCalendarEvent,
+  PATCH as patchCalendarEvent,
+} from "@/app/api/v1/milady/google/calendar/events/[eventId]/route";
 import { POST as postCalendarEvent } from "@/app/api/v1/milady/google/calendar/events/route";
 import { GET as getCalendarFeed } from "@/app/api/v1/milady/google/calendar/feed/route";
 import { POST as postConnectInitiate } from "@/app/api/v1/milady/google/connect/initiate/route";
@@ -19,6 +23,8 @@ const mockInitiateConnection = mock();
 const mockDisconnectConnection = mock();
 const mockFetchCalendarFeed = mock();
 const mockCreateCalendarEvent = mock();
+const mockUpdateCalendarEvent = mock();
+const mockDeleteCalendarEvent = mock();
 const mockFetchGmailSearch = mock();
 const mockFetchGmailTriage = mock();
 const mockReadGmailMessage = mock();
@@ -34,6 +40,8 @@ describe("Milady managed Google routes", () => {
     miladyGoogleRouteDeps.disconnectManagedGoogleConnection = mockDisconnectConnection;
     miladyGoogleRouteDeps.fetchManagedGoogleCalendarFeed = mockFetchCalendarFeed;
     miladyGoogleRouteDeps.createManagedGoogleCalendarEvent = mockCreateCalendarEvent;
+    miladyGoogleRouteDeps.updateManagedGoogleCalendarEvent = mockUpdateCalendarEvent;
+    miladyGoogleRouteDeps.deleteManagedGoogleCalendarEvent = mockDeleteCalendarEvent;
     miladyGoogleRouteDeps.fetchManagedGoogleGmailSearch = mockFetchGmailSearch;
     miladyGoogleRouteDeps.fetchManagedGoogleGmailTriage = mockFetchGmailTriage;
     miladyGoogleRouteDeps.readManagedGoogleGmailMessage = mockReadGmailMessage;
@@ -45,6 +53,8 @@ describe("Milady managed Google routes", () => {
     mockDisconnectConnection.mockReset();
     mockFetchCalendarFeed.mockReset();
     mockCreateCalendarEvent.mockReset();
+    mockUpdateCalendarEvent.mockReset();
+    mockDeleteCalendarEvent.mockReset();
     mockFetchGmailSearch.mockReset();
     mockFetchGmailTriage.mockReset();
     mockReadGmailMessage.mockReset();
@@ -205,6 +215,74 @@ describe("Milady managed Google routes", () => {
       endAt: "2026-04-04T19:30:00.000Z",
       timeZone: "UTC",
       attendees: undefined,
+    });
+  });
+
+  test("PATCH /api/v1/milady/google/calendar/events/[eventId] updates calendar events through the service", async () => {
+    mockUpdateCalendarEvent.mockResolvedValue({
+      event: {
+        externalId: "event-1",
+        calendarId: "primary",
+        title: "Founder sync",
+        description: "Updated",
+        location: "HQ",
+        status: "confirmed",
+        startAt: "2026-04-04T19:00:00.000Z",
+        endAt: "2026-04-04T19:45:00.000Z",
+        isAllDay: false,
+        timezone: "UTC",
+        htmlLink: null,
+        conferenceLink: null,
+        organizer: null,
+        attendees: [],
+        metadata: {},
+      },
+    });
+
+    const response = await patchCalendarEvent(
+      jsonRequest("https://example.com/api/v1/milady/google/calendar/events/event-1", "PATCH", {
+        title: "Founder sync",
+        endAt: "2026-04-04T19:45:00.000Z",
+        timeZone: "UTC",
+      }),
+      { params: Promise.resolve({ eventId: "event-1" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockUpdateCalendarEvent).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      calendarId: "primary",
+      eventId: "event-1",
+      title: "Founder sync",
+      description: undefined,
+      location: undefined,
+      startAt: undefined,
+      endAt: "2026-04-04T19:45:00.000Z",
+      timeZone: "UTC",
+      attendees: undefined,
+    });
+  });
+
+  test("DELETE /api/v1/milady/google/calendar/events/[eventId] deletes calendar events through the service", async () => {
+    mockDeleteCalendarEvent.mockResolvedValue({ ok: true });
+
+    const response = await deleteCalendarEvent(
+      new NextRequest(
+        "https://example.com/api/v1/milady/google/calendar/events/event-1?side=agent&calendarId=team",
+        { method: "DELETE" },
+      ),
+      { params: Promise.resolve({ eventId: "event-1" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockDeleteCalendarEvent).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "agent",
+      calendarId: "team",
+      eventId: "event-1",
     });
   });
 

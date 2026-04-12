@@ -42,15 +42,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
       let anonData = await getAnonymousUser();
 
       if (!anonData) {
-        // Create new anonymous session if none exists
-        logger.info("[Messages API] No session cookie - creating new anonymous session");
-        const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
-        const newAnonData = await getOrCreateAnonymousUser();
-        anonData = {
-          user: newAnonData.user,
-          session: newAnonData.session,
-        };
-        logger.info("[Messages API] Created anonymous user:", anonData.user.id);
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
       }
 
       user = anonData.user;

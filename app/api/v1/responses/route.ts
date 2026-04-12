@@ -1241,10 +1241,25 @@ async function handlePOST(req: NextRequest) {
       } else {
         // Create new anonymous session if none exists
         logger.info("[Responses API] Creating new anonymous session...");
-        const newAnonData = await getOrCreateAnonymousUser();
-        user = newAnonData.user;
-        isAnonymous = true;
-        logger.info("[Responses API] Created anonymous user:", user.id);
+        try {
+          const newAnonData = await getOrCreateAnonymousUser();
+          user = newAnonData.user;
+          isAnonymous = true;
+          logger.info("[Responses API] Created anonymous user:", user.id);
+        } catch (error) {
+          logger.warn("[Responses API] Anonymous fallback unavailable", {
+            error: getSafeErrorMessage(error),
+          });
+          return Response.json(
+            {
+              error: {
+                message: "Authentication required",
+                type: "authentication_error",
+              },
+            },
+            { status: 401 },
+          );
+        }
       }
     }
 

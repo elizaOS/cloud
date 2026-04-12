@@ -1,6 +1,7 @@
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   createManagedGoogleCalendarEvent,
+  deleteManagedGoogleCalendarEvent,
   disconnectManagedGoogleConnection,
   fetchManagedGoogleCalendarFeed,
   fetchManagedGoogleGmailSearch,
@@ -11,6 +12,7 @@ import {
   readManagedGoogleGmailMessage,
   sendManagedGoogleMessage,
   sendManagedGoogleReply,
+  updateManagedGoogleCalendarEvent,
 } from "@/lib/services/milady-google-connector";
 
 export const miladyGoogleRouteDeps = {
@@ -20,6 +22,8 @@ export const miladyGoogleRouteDeps = {
   disconnectManagedGoogleConnection,
   fetchManagedGoogleCalendarFeed,
   createManagedGoogleCalendarEvent,
+  updateManagedGoogleCalendarEvent,
+  deleteManagedGoogleCalendarEvent,
   fetchManagedGoogleGmailSearch,
   fetchManagedGoogleGmailTriage,
   readManagedGoogleGmailMessage,

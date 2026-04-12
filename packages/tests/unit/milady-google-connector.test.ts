@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   createManagedGoogleCalendarEvent,
+  deleteManagedGoogleCalendarEvent,
   disconnectManagedGoogleConnection,
   fetchManagedGoogleCalendarFeed,
   fetchManagedGoogleGmailSearch,
@@ -11,6 +12,7 @@ import {
   readManagedGoogleGmailMessage,
   sendManagedGoogleMessage,
   sendManagedGoogleReply,
+  updateManagedGoogleCalendarEvent,
 } from "../../lib/services/milady-google-connector";
 import type { OAuthConnection } from "../../lib/services/oauth/types";
 
@@ -382,6 +384,97 @@ describe("milady Google connector service", () => {
       dateTime: "2026-04-12T10:00:00-07:00",
       timeZone: "America/Los_Angeles",
     });
+  });
+
+  test("preserves duration and timezone when updating a managed calendar event with only a new start time", async () => {
+    const requests: Array<{ url: string; method: string; body?: string }> = [];
+    globalThis.fetch = mock(async (url: string | URL | Request, options?: RequestInit) => {
+      requests.push({
+        url: url.toString(),
+        method: options?.method ?? "GET",
+        body: typeof options?.body === "string" ? options.body : undefined,
+      });
+      if (requests.length === 1) {
+        return new Response(
+          JSON.stringify({
+            id: "event-1",
+            summary: "Founder sync",
+            status: "confirmed",
+            start: {
+              dateTime: "2026-04-12T09:00:00-07:00",
+              timeZone: "America/Los_Angeles",
+            },
+            end: {
+              dateTime: "2026-04-12T10:00:00-07:00",
+              timeZone: "America/Los_Angeles",
+            },
+          }),
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          id: "event-1",
+          summary: "Founder sync",
+          status: "confirmed",
+          start: {
+            dateTime: "2026-04-12T10:30:00-07:00",
+            timeZone: "America/Los_Angeles",
+          },
+          end: {
+            dateTime: "2026-04-12T11:30:00-07:00",
+            timeZone: "America/Los_Angeles",
+          },
+        }),
+      );
+    }) as unknown as typeof fetch;
+
+    await updateManagedGoogleCalendarEvent({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      calendarId: "primary",
+      eventId: "event-1",
+      startAt: "2026-04-12T17:30:00.000Z",
+    });
+
+    expect(requests[0]).toMatchObject({
+      method: "GET",
+      url: expect.stringContaining("/calendars/primary/events/event-1?"),
+    });
+    const patchPayload = JSON.parse(String(requests[1]?.body)) as {
+      start: { dateTime: string; timeZone?: string };
+      end: { dateTime: string; timeZone?: string };
+    };
+    expect(patchPayload.start).toEqual({
+      dateTime: "2026-04-12T10:30:00-07:00",
+      timeZone: "America/Los_Angeles",
+    });
+    expect(patchPayload.end).toEqual({
+      dateTime: "2026-04-12T11:30:00-07:00",
+      timeZone: "America/Los_Angeles",
+    });
+  });
+
+  test("deletes managed calendar events through Google Calendar", async () => {
+    let requestUrl = "";
+    let requestMethod = "";
+    globalThis.fetch = mock(async (url: string | URL | Request, options?: RequestInit) => {
+      requestUrl = url.toString();
+      requestMethod = options?.method ?? "GET";
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    const result = await deleteManagedGoogleCalendarEvent({
+      organizationId: "org-1",
+      userId: "user-1",
+      side: "owner",
+      calendarId: "team-calendar",
+      eventId: "event-1",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(requestMethod).toBe("DELETE");
+    expect(requestUrl).toContain("/calendars/team-calendar/events/event-1");
   });
 
   test("classifies Gmail triage messages using the connected Google identity", async () => {

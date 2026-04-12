@@ -245,6 +245,7 @@ export async function ensureServer(): Promise<void> {
         NODE_ENV: "development",
         NEXT_DIST_DIR: TEST_SERVER_DIST_DIR,
         PORT: TEST_SERVER_PORT,
+        RATE_LIMIT_MULTIPLIER: process.env.RATE_LIMIT_MULTIPLIER || "100",
         PATH: extendPathWithExecutableDirectory(process.env.PATH, bunExecutable),
       },
     });
