@@ -187,15 +187,18 @@ jobs:
               bun pm cache rm 2>/dev/null || true
             fi
 
+            # Discard local checkout drift before fetch. Cleaning untracked
+            # files first frees space for git to rewrite tracked files.
+            # Preserve the server's environment file.
+            echo "Discarding local checkout drift..."
+            git clean -fdx -e .env.local 2>/dev/null || true
+            rm -f .git/index.lock
+            git checkout -- . 2>/dev/null || true
+            rm -f .git/index.lock
+
             echo "Disk after cleanup:"
             df -h / | tail -1
             # --- End disk cleanup ---
-
-            if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-              echo "Discarding uncommitted local changes..."
-              git checkout -- . 2>/dev/null || true
-              git clean -fd 2>/dev/null || true
-            fi
 
             # Fetch and checkout
             BRANCH="${{ needs.determine-env.outputs.branch }}"
