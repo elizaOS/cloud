@@ -80,7 +80,15 @@
     ".next-test-3313/types/**/*.ts",
     ".next-test-3313/dev/types/**/*.ts",
     ".next-test-3314/types/**/*.ts",
-    ".next-test-3314/dev/types/**/*.ts"
+    ".next-test-3314/dev/types/**/*.ts",
+    ".next-test-3316/types/**/*.ts",
+    ".next-test-3316/dev/types/**/*.ts",
+    ".next-test-3317/types/**/*.ts",
+    ".next-test-3317/dev/types/**/*.ts",
+    ".next-test-3318/types/**/*.ts",
+    ".next-test-3318/dev/types/**/*.ts",
+    ".next-test-3319/types/**/*.ts",
+    ".next-test-3319/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
