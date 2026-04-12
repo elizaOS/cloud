@@ -22,7 +22,7 @@ import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
 import { shellQuote } from "@/lib/services/docker-sandbox-utils";
 import { logger } from "@/lib/utils/logger";
-import { isValidDockerLogsSince } from "./since";
+import { isValidDockerLogsSince } from "@/app/api/v1/admin/docker-containers/logs-since";
 
 export const dynamic = "force-dynamic";
 
