@@ -26,8 +26,8 @@ import {
 } from "./auth/privy-client";
 import { invalidateStewardTokenCache, verifyStewardTokenCached } from "./auth/steward-client";
 
-// TODO: Import syncUserFromSteward once steward-sync module is created
-// import { syncUserFromSteward } from "./steward-sync";
+// Steward user sync (mirrors Privy JIT sync)
+import { syncUserFromSteward } from "./steward-sync";
 
 // Re-export Organization type for convenience
 export type { Organization };
@@ -578,12 +578,18 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
           };
         }
 
-        // TODO: JIT sync from Steward (mirrors Privy JIT sync above)
-        // Once syncUserFromSteward is implemented, uncomment:
-        // const syncedUser = await syncUserFromSteward(stewardClaims);
-        // if (syncedUser) {
-        //   return { user: syncedUser, authMethod: "session", session_token: bearerValue };
-        // }
+        // JIT sync from Steward (mirrors Privy JIT sync)
+        // Create or link the user in eliza-cloud DB
+        try {
+          const syncedUser = await syncUserFromSteward({
+            stewardUserId: stewardClaims.userId!,
+            email: stewardClaims.email,
+            walletAddress: stewardClaims.address,
+          });
+          return { user: syncedUser, authMethod: "session" as const, session_token: bearerValue };
+        } catch (syncErr) {
+          logger.error("[AUTH] Steward JIT sync failed", { error: syncErr });
+        }
 
         logger.warn("[AUTH] Steward JWT valid but no matching user", {
           stewardUserId: stewardClaims.userId.substring(0, 20),
