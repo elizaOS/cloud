@@ -69,9 +69,7 @@ async function getSessionCookieFromServer(): Promise<string | null> {
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(
-      `Failed to create live test session: ${response.status} ${body.slice(0, 200)}`,
-    );
+    throw new Error(`Failed to create live test session: ${response.status} ${body.slice(0, 200)}`);
   }
 
   const body = (await response.json()) as {

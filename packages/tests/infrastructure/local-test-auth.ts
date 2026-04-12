@@ -119,7 +119,13 @@ async function upsertUser(client: Client, organizationId: string): Promise<strin
               updated_at = NOW()
         WHERE id = $1
         RETURNING id`,
-      [existingUsers.rows[0]!.id, TEST_USER_EMAIL, TEST_USER_NAME, organizationId, TEST_USER_WALLET],
+      [
+        existingUsers.rows[0]!.id,
+        TEST_USER_EMAIL,
+        TEST_USER_NAME,
+        organizationId,
+        TEST_USER_WALLET,
+      ],
     );
 
     return result.rows[0]!.id;

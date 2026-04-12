@@ -328,10 +328,7 @@ export async function enforceMcpOrganizationRateLimit(
  */
 type RouteContext<T> = { params: Promise<T> };
 type StaticRouteHandler = (request: NextRequest) => Promise<Response>;
-type DynamicRouteHandler<T> = (
-  request: NextRequest,
-  context: RouteContext<T>,
-) => Promise<Response>;
+type DynamicRouteHandler<T> = (request: NextRequest, context: RouteContext<T>) => Promise<Response>;
 
 export function withRateLimit(
   handler: StaticRouteHandler,

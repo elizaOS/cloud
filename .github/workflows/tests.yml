@@ -42,7 +42,19 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - uses: ./.github/actions/setup-test-env
       - name: Run unit tests
-        run: bun run test
+        run: |
+          bun run test:repo-unit:bulk
+          bun run test:repo-unit:special
+          for test_file in \
+            packages/tests/unit/auth-pair-route.test.ts \
+            packages/tests/unit/steward-user-migration.test.ts \
+            packages/tests/unit/discord-automation-oauth.test.ts \
+            packages/tests/unit/docker-infrastructure.test.ts \
+            packages/tests/unit/oauth/secrets-adapter-utils.test.ts; do
+            if [ -f "$test_file" ]; then
+              SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts "./$test_file"
+            fi
+          done
 
   integration-tests:
     runs-on: ubuntu-latest
