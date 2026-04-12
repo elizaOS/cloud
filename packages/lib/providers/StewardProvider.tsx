@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  StewardProvider,
-  useAuth as useStewardAuth,
-} from "@stwd/react";
+import { StewardProvider, useAuth as useStewardAuth } from "@stwd/react";
 import { StewardClient } from "@stwd/sdk";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -60,11 +57,7 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
   return children;
 }
 
-export function StewardAuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function StewardAuthProvider({ children }: { children: React.ReactNode }) {
   const hasLoggedConfigError = useRef(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_STEWARD_API_URL ?? "http://localhost:3200";

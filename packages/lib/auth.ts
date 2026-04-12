@@ -24,11 +24,9 @@ import {
   invalidatePrivyTokenCache,
   verifyAuthTokenCached,
 } from "./auth/privy-client";
-import {
-  invalidateStewardTokenCache,
-  verifyStewardTokenCached,
-} from "./auth/steward-client";
+import { invalidateStewardTokenCache, verifyStewardTokenCached } from "./auth/steward-client";
 import { syncUserFromPrivy } from "./privy-sync";
+
 // TODO: Import syncUserFromSteward once steward-sync module is created
 // import { syncUserFromSteward } from "./steward-sync";
 

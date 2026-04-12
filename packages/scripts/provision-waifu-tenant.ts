@@ -1,6 +1,6 @@
 /**
  * Provision a steward tenant for waifu.fun
- * 
+ *
  * Usage:
  *   STEWARD_API_URL=http://steward:3200 \
  *   STEWARD_PLATFORM_KEYS=stw_plat... \

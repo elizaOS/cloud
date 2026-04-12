@@ -328,11 +328,7 @@ export async function syncUserFromSteward(
       try {
         await usersService.upsertStewardIdentity(existingByEmail.id, stewardUserId);
       } catch (error) {
-        await restorePreviousStewardUserIdSafely(
-          existingByEmail.id,
-          previousStewardUserId,
-          error,
-        );
+        await restorePreviousStewardUserIdSafely(existingByEmail.id, previousStewardUserId, error);
         throw error;
       }
 
@@ -467,9 +463,7 @@ export async function syncUserFromSteward(
             await organizationsService.delete(organization.id);
             const linkedUser = await usersService.getByStewardIdForWrite(stewardUserId);
             if (!linkedUser) {
-              throw new Error(
-                `Failed to fetch user after Steward account linking for ${email}`,
-              );
+              throw new Error(`Failed to fetch user after Steward account linking for ${email}`);
             }
             return linkedUser;
           }
