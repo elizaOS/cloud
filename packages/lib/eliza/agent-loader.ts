@@ -1,4 +1,10 @@
-import type { Action, Character, Plugin, Provider } from "@elizaos/core";
+import {
+  type Action,
+  type Character,
+  createCharacter,
+  type Plugin,
+  type Provider,
+} from "@elizaos/core";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoriesRepository } from "@/db/repositories/agents/memories";
@@ -214,7 +220,12 @@ export class AgentLoader {
       [],
     );
     const plugins = await this.resolvePlugins(modeResolution.mode, [], characterSettings);
-    return { character: defaultAgent.character, plugins, modeResolution };
+    const character = this.buildCharacter({
+      ...(defaultAgent.character as unknown as ElizaCharacter),
+      settings: characterSettings,
+    });
+
+    return { character, plugins, modeResolution };
   }
 
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
@@ -233,7 +244,7 @@ export class AgentLoader {
         : {}),
     };
 
-    return {
+    return createCharacter({
       id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: elizaCharacter.name,
       username: elizaCharacter.username,
@@ -248,7 +259,7 @@ export class AgentLoader {
       knowledge: elizaCharacter.knowledge,
       style: elizaCharacter.style,
       templates: elizaCharacter.templates,
-    };
+    });
   }
 
   private async resolvePlugins(
