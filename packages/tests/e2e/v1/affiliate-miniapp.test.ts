@@ -118,7 +118,11 @@ describe.skipIf(!api.hasApiKey())("Programmatic Mini App Setup", () => {
     if (!appId) return;
 
     // POST /api/v1/app/agents is the actual character creation endpoint
-    const { response, body, agentId: id } = await createTestAgent({
+    const {
+      response,
+      body,
+      agentId: id,
+    } = await createTestAgent({
       name: `Miniapp Agent ${Date.now()}`,
       bio: "AI assistant for the mini app",
     });
