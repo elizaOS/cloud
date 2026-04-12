@@ -190,9 +190,16 @@ export default function PrivyProvider({ children }: { children: React.ReactNode 
 
   if (!hasValidAppId) {
     // When Steward auth is enabled and Privy isn't configured,
-    // pass children through instead of blocking the whole app.
+    // provide a minimal Privy context with a dummy app ID so that
+    // child components calling usePrivy() get a valid context instead
+    // of throwing. Auth is fully handled by Steward; Privy hooks will
+    // simply report unauthenticated.
     if (process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true") {
-      return <>{children}</>;
+      return (
+        <PrivyProviderReactAuth appId="cm00000000000000000000000" config={privyConfig}>
+          {children}
+        </PrivyProviderReactAuth>
+      );
     }
     return (
       <div className="flex min-h-screen items-center justify-center">
