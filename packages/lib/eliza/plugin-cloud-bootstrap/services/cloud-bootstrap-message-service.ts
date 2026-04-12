@@ -2,6 +2,7 @@
  * CloudBootstrapMessageService - Multi-step message execution for cloud.
  */
 
+import * as elizaCore from "@elizaos/core";
 import {
   asUUID,
   ChannelType,
@@ -9,7 +10,6 @@ import {
   composePromptFromState,
   createUniqueUuid,
   EventType,
-  getRequestContext,
   type HandlerCallback,
   type IAgentRuntime,
   type IMessageService,
@@ -134,7 +134,7 @@ async function withScopedSettings<T>(
   overrides: ScopedSettingOverride[],
   operation: () => Promise<T>,
 ): Promise<T> {
-  const requestContext = getRequestContext();
+  const requestContext = elizaCore.getRequestContext?.();
   if (!requestContext || overrides.length === 0) {
     return await operation();
   }

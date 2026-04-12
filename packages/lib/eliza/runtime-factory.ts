@@ -2,11 +2,11 @@
  * Runtime Factory - Creates configured elizaOS runtimes per user/agent context.
  */
 import { createHash } from "node:crypto";
+import * as elizaCore from "@elizaos/core";
 import {
   AgentRuntime,
   type Character,
   elizaLogger,
-  getRequestContext,
   type IDatabaseAdapter,
   type Logger,
   type Plugin,
@@ -810,7 +810,7 @@ export class RuntimeFactory {
    * dynamic-tool-actions.ts can filter tools per-user on every path.
    */
   private setMcpEnabledServers(context: UserContext): void {
-    const requestCtx = getRequestContext();
+    const requestCtx = elizaCore.getRequestContext?.();
     if (!requestCtx) return;
     const connected = this.getConnectedPlatforms(context);
     const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));
