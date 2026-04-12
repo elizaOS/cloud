@@ -170,7 +170,12 @@ async function handlePOST(req: NextRequest) {
       throw error;
     }
 
-    const modelConfig = resolveModel(tier || id);
+    // Don't pass agent/conversation UUIDs to resolveModel — they're not tier
+    // names or model IDs and would be treated as a custom model, causing
+    // "model not found" errors (see elizaOS/eliza#6331).
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const tierOrModel = tier || (id && !UUID_RE.test(id) ? id : undefined);
+    const modelConfig = resolveModel(tierOrModel);
     const selectedModel = modelConfig.modelId;
     const provider = modelConfig.provider;
     const lastMessage = messages[messages.length - 1];
