@@ -72,7 +72,7 @@
     "test:oauth:manual": "./packages/tests/manual/oauth-manual-test.sh",
     "test:e2e:api": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/api --timeout 120000",
     "test:e2e:v1": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/v1 --timeout 120000",
-    "test:e2e:smoke": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/api/health-route.test.ts packages/tests/e2e/v1/chat.test.ts --timeout 120000",
+    "test:e2e:smoke": "node scripts/run-e2e-smoke.mjs",
     "test:e2e:miniapp": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/v1/miniapp-lifecycle.test.ts packages/tests/e2e/v1/app-monetization.test.ts packages/tests/e2e/v1/agent-publishing.test.ts packages/tests/e2e/v1/credits-billing.test.ts packages/tests/e2e/v1/affiliate-miniapp.test.ts --timeout 120000",
     "test": "bun run test:repo-unit:bulk && bun run test:repo-unit:special && bun run test:repo-unit:isolated",
     "test:playwright": "playwright test",
