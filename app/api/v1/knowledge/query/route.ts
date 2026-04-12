@@ -1,4 +1,4 @@
-import type { KnowledgeItem, UUID } from "@elizaos/core";
+import type { UUID } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
@@ -55,8 +55,9 @@ async function handlePOST(req: NextRequest) {
       return NextResponse.json({ error: "Knowledge service not available" }, { status: 503 });
     }
 
-    // Use runtime.agentId as roomId (matching plugin pattern)
-    const roomId = runtime.agentId ?? user.id;
+    type KnowledgeContext = NonNullable<Parameters<typeof knowledgeService.getKnowledge>[1]>;
+    const roomId = (runtime.agentId ?? stringToUuid(user.id)) as KnowledgeContext["roomId"];
+    const entityId = stringToUuid(user.id) as KnowledgeContext["entityId"];
 
     // Create a query message
     const queryMessage = {
@@ -66,7 +67,7 @@ async function handlePOST(req: NextRequest) {
       },
       roomId,
       agentId: runtime.agentId,
-      entityId: stringToUuid(user.id) as UUID,
+      entityId,
       createdAt: Date.now(),
     };
 
@@ -74,7 +75,7 @@ async function handlePOST(req: NextRequest) {
     const relevantKnowledge = await knowledgeService.getKnowledge(queryMessage as never, {
       roomId,
       worldId: roomId,
-      entityId: stringToUuid(user.id) as UUID,
+      entityId,
     });
 
     // Limit results on our side
@@ -83,7 +84,7 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json({
       query,
       results: limitedResults.map(
-        (item: KnowledgeItem): QueryResult => ({
+        (item): QueryResult => ({
           id: item.id,
           content: item.content.text ?? "",
           similarity: (() => {

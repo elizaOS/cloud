@@ -14,6 +14,11 @@ function getApiKey(): string | null {
   return apiKey && apiKey.length > 0 ? apiKey : null;
 }
 
+function hasNonEmptyEnv(name: string): boolean {
+  const value = process.env[name]?.trim();
+  return Boolean(value);
+}
+
 function getSessionCookie(): string | null {
   const token = process.env.TEST_SESSION_TOKEN?.trim();
   if (!token) {
@@ -69,7 +74,9 @@ async function getSessionCookieFromServer(): Promise<string | null> {
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`Failed to create live test session: ${response.status} ${body.slice(0, 200)}`);
+    throw new Error(
+      `Failed to create live test session: ${response.status} ${body.slice(0, 200)}`,
+    );
   }
 
   const body = (await response.json()) as {
@@ -122,6 +129,16 @@ export function cronHeaders(): Record<string, string> {
 /** Check if API key is available */
 export function hasApiKey(): boolean {
   return !!getApiKey();
+}
+
+/** Check if a live AI provider is configured for inference-backed routes */
+export function hasAiProvider(): boolean {
+  return (
+    hasNonEmptyEnv("AI_GATEWAY_API_KEY") ||
+    hasNonEmptyEnv("VERCEL_AI_GATEWAY_API_KEY") ||
+    hasNonEmptyEnv("OPENAI_API_KEY") ||
+    hasNonEmptyEnv("GROQ_API_KEY")
+  );
 }
 
 /** Check if cron secret is available */

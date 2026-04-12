@@ -250,13 +250,15 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
             ? result.message.content
             : result.message.content?.text || "";
 
-        const character =
-          characterId &&
-          (await dbRead.execute<{ name: string }>(
-            sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`,
-          ));
+        const characterName = characterId
+          ? (
+              await dbRead.execute<{ name: string }>(
+                sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`,
+              )
+            ).rows[0]?.name
+          : undefined;
 
-        const agentMessage = `**${character?.rows[0]?.name || "Agent"}:** ${responseText}`;
+        const agentMessage = `**${characterName || "Agent"}:** ${responseText}`;
         await discordService.sendToThread(discordThreadId, agentMessage);
 
         logger.info("[Eliza Messages API] Sent to Discord thread:", {

@@ -12,7 +12,11 @@ import {
   mergeAnthropicCotProviderOptions,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
-import { getLanguageModel } from "@/lib/providers/language-model";
+import {
+  getAiProviderConfigurationError,
+  getLanguageModel,
+  hasLanguageModelProviderConfigured,
+} from "@/lib/providers/language-model";
 import { billUsage } from "@/lib/services/ai-billing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -188,6 +192,10 @@ async function handlePOST(req: NextRequest) {
         ? (lastRawMessage.metadata as MessageMetadata)
         : null;
     const conversationId = metadata?.conversationId;
+
+    if (!hasLanguageModelProviderConfigured(selectedModel)) {
+      return NextResponse.json({ error: getAiProviderConfigurationError() }, { status: 503 });
+    }
 
     // Check if user is blocked due to moderation violations
     if (await contentModerationService.shouldBlockUser(user.id)) {

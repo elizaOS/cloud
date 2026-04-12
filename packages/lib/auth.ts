@@ -25,7 +25,6 @@ import {
   verifyAuthTokenCached,
 } from "./auth/privy-client";
 import { invalidateStewardTokenCache, verifyStewardTokenCached } from "./auth/steward-client";
-import { syncUserFromPrivy } from "./privy-sync";
 
 // TODO: Import syncUserFromSteward once steward-sync module is created
 // import { syncUserFromSteward } from "./steward-sync";
@@ -103,6 +102,20 @@ export type AuthResult = {
   authMethod: "session" | "api_key" | "wallet_signature";
   session_token?: string;
 };
+
+let privySyncLoader:
+  | null
+  | (() => Promise<typeof import("./privy-sync")>) = null;
+
+async function loadPrivySyncModule(): Promise<typeof import("./privy-sync")> {
+  if (!privySyncLoader) {
+    privySyncLoader = new Function(
+      "return import('./privy-sync');",
+    ) as () => Promise<typeof import("./privy-sync")>;
+  }
+
+  return await privySyncLoader();
+}
 
 async function getPlaywrightTestUser(
   cookieStore: Awaited<ReturnType<typeof cookies>>,
@@ -224,6 +237,7 @@ export const getCurrentUser = cache(async (): Promise<UserWithOrganization | nul
         }
 
         if (privyUser) {
+          const { syncUserFromPrivy } = await loadPrivySyncModule();
           user = await syncUserFromPrivy(privyUser);
           logger.info("[AUTH] ✓ JIT sync complete:", {
             userId: user.id,

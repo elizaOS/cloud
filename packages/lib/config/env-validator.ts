@@ -357,7 +357,12 @@ export function isFeatureConfigured(feature: string): boolean {
     case "blob":
       return !!process.env.BLOB_READ_WRITE_TOKEN;
     case "ai":
-      return !!(process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY);
+      return !!(
+        process.env.OPENAI_API_KEY ||
+        process.env.AI_GATEWAY_API_KEY ||
+        process.env.VERCEL_AI_GATEWAY_API_KEY ||
+        process.env.GROQ_API_KEY
+      );
     default:
       return false;
   }

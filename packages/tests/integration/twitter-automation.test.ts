@@ -248,8 +248,7 @@ describe("App Twitter Post API", () => {
     const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/twitter-automation/post`, "POST", {
       text: "Test tweet",
     });
-    // Should return 500 with "App not found" error
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(404);
 
     const data = await res.json();
     expect(data).toHaveProperty("error");

@@ -814,10 +814,9 @@ export class DockerSandboxProvider implements SandboxProvider {
           sshUser = dbNode.ssh_user ?? DEFAULT_SSH_USERNAME;
           hostKeyFingerprint = dbNode.host_key_fingerprint ?? undefined;
         } else {
-          // Try env var fallback for hostname
-          const envNodes = parseDockerNodes();
-          const envNode = envNodes.find((n) => n.nodeId === sandbox.node_id);
-          hostname = envNode?.hostname ?? "";
+          throw new Error(
+            `[docker-sandbox] Missing persisted docker node metadata for node "${sandbox.node_id}"`,
+          );
         }
 
         if (hostname) {

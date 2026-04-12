@@ -649,7 +649,7 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
   });
 });
 
-describe("Stress Test: High Concurrency", () => {
+describe.skipIf(!hasRequestContextApis)("Stress Test: High Concurrency", () => {
   let stressFixtures: TestFixtures;
 
   beforeAll(async () => {

@@ -293,7 +293,24 @@ jobs:
 
       - name: Upload prebuilt Next output
         run: |
-          tar -C .next-build -czf - . | ssh -i "$HOME/.ssh/id_ed25519" \
+          # Only ship the runtime output. The webpack cache dominates .next-build
+          # size locally but is not needed by `next start` on the VPS.
+          tar -C .next-build -czf - \
+            BUILD_ID \
+            app-path-routes-manifest.json \
+            build-manifest.json \
+            export-marker.json \
+            images-manifest.json \
+            next-minimal-server.js.nft.json \
+            next-server.js.nft.json \
+            package.json \
+            prerender-manifest.json \
+            react-loadable-manifest.json \
+            required-server-files.js \
+            required-server-files.json \
+            routes-manifest.json \
+            server \
+            static | ssh -i "$HOME/.ssh/id_ed25519" \
             deploy@${{ secrets.MILADY_VPS_HOST }} \
             'set -e; cd /opt/eliza-cloud; rm -rf .next-build/*; tar -xzf - -C .next-build'
 

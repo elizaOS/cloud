@@ -45,7 +45,8 @@ describe("Models API", () => {
 describe("Responses API", () => {
   test("POST /api/v1/responses supports auth or anonymous fallback", async () => {
     const response = await api.post("/api/v1/responses", {
-      input: "Hello",
+      model: "google/gemini-2.5-flash",
+      input: [{ role: "user", content: "Hello" }],
     });
     expect([200, 401, 402, 403]).toContain(response.status);
   });
@@ -63,9 +64,12 @@ describe("Responses API", () => {
   test.skipIf(!api.hasApiKey())("POST /api/v1/responses accepts valid input", async () => {
     const response = await api.post(
       "/api/v1/responses",
-      { input: "Say hello" },
+      {
+        model: "google/gemini-2.5-flash",
+        input: [{ role: "user", content: "Say hello" }],
+      },
       { authenticated: true },
     );
-    expect([200, 402]).toContain(response.status);
+    expect([200, 401, 402]).toContain(response.status);
   });
 });

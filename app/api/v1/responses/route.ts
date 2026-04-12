@@ -168,35 +168,38 @@ function normalizeToolChoice(
 // AI SDK request format (different from OpenAI)
 interface AISdkRequest {
   model: string;
-  input: Array<{
-    role: "user" | "system" | "assistant" | "tool";
-    content:
-      | string
-      | Array<{
-          type: string;
-          text?: string;
-          image_url?: { url: string } | string;
-          image?: string;
-          file_data?: string;
-          file_url?: string;
-          file_id?: string;
-          filename?: string;
+  input:
+    | Array<{
+        role: "user" | "system" | "assistant" | "tool";
+        content:
+          | string
+          | Array<{
+              type: string;
+              text?: string;
+              image_url?: { url: string } | string;
+              image?: string;
+              file_data?: string;
+              file_url?: string;
+              file_id?: string;
+              filename?: string;
+            }>;
+        name?: string;
+        tool_calls?: Array<{
+          id: string;
+          type: "function";
+          function: {
+            name: string;
+            arguments: string;
+          };
         }>;
-    name?: string;
-    tool_calls?: Array<{
-      id: string;
-      type: "function";
-      function: {
-        name: string;
-        arguments: string;
-      };
-    }>;
-    tool_call_id?: string;
-    function_call?: {
-      name: string;
-      arguments: string;
-    };
-  }>;
+        tool_call_id?: string;
+        function_call?: {
+          name: string;
+          arguments: string;
+        };
+      }>
+    | string
+    | undefined;
   max_output_tokens?: number;
   temperature?: number;
   top_p?: number;
@@ -212,8 +215,6 @@ interface AISdkRequest {
 
 /**
  * Transforms AI SDK request format to OpenAI format.
- *
- * Exported for unit testing.
  *
  * @param aiSdkRequest - AI SDK format request.
  * @returns OpenAI format request.
@@ -234,8 +235,10 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
     stream,
   } = aiSdkRequest;
 
+  const normalizedInput = typeof input === "string" ? [{ role: "user" as const, content: input }] : (input ?? []);
+
   // Transform messages: fix content types for multimodal
-  const transformedMessages = input.map((msg, msgIndex) => {
+  const transformedMessages = normalizedInput.map((msg, msgIndex) => {
     // If content is an array (multimodal), transform types and filter empty text blocks
     if (Array.isArray(msg.content)) {
       const originalLength = msg.content.length;

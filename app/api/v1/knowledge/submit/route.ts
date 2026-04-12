@@ -1,4 +1,3 @@
-import type { UUID } from "@elizaos/core";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { userCharactersRepository } from "@/db/repositories/characters";
@@ -232,15 +231,16 @@ async function handlePOST(req: NextRequest) {
       }
       const base64Content = buffer.toString("base64");
 
+      type AddKnowledgeInput = Parameters<typeof knowledgeService.addKnowledge>[0];
       const result = await knowledgeService.addKnowledge({
-        agentId: runtime.agentId,
-        clientDocumentId: "" as UUID,
+        agentId: runtime.agentId as AddKnowledgeInput["agentId"],
+        clientDocumentId: "" as AddKnowledgeInput["clientDocumentId"],
         content: base64Content,
         contentType: file.contentType,
         originalFilename: file.filename,
-        worldId: runtime.agentId,
-        roomId: runtime.agentId,
-        entityId: runtime.agentId,
+        worldId: runtime.agentId as AddKnowledgeInput["worldId"],
+        roomId: runtime.agentId as AddKnowledgeInput["roomId"],
+        entityId: runtime.agentId as AddKnowledgeInput["entityId"],
         metadata: {
           uploadedBy: user.id,
           uploadedAt: Date.now(),

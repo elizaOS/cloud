@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { cryptoPaymentsRepository } from "@/db/repositories/crypto-payments";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -16,6 +17,10 @@ async function handleGetPayment(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Missing route params" }, { status: 400 });
     }
     const { id } = await context.params;
+
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ error: "Invalid payment ID" }, { status: 400 });
+    }
 
     if (!user.organization_id) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });

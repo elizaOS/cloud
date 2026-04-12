@@ -1,5 +1,5 @@
-import type { UUID } from "@elizaos/core";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
@@ -55,9 +55,14 @@ async function handleDELETE(req: NextRequest, context: { params: Promise<{ id: s
     }
 
     const { id } = await context.params;
+    const parsedId = z.string().uuid().safeParse(id);
+    if (!parsedId.success) {
+      return NextResponse.json({ error: "Document ID must be a valid UUID" }, { status: 400 });
+    }
 
     // Delete the document
-    await knowledgeService.deleteMemory(id as UUID);
+    const memoryId = parsedId.data as unknown as Parameters<typeof knowledgeService.deleteMemory>[0];
+    await knowledgeService.deleteMemory(memoryId);
 
     return NextResponse.json({
       success: true,

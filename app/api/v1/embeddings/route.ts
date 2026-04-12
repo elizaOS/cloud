@@ -9,13 +9,17 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import { gateway } from "@ai-sdk/gateway";
 import { embed, embedMany } from "ai";
 import type { NextRequest } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { estimateTokens, getProviderFromModel, normalizeModelName } from "@/lib/pricing";
+import {
+  getAiProviderConfigurationError,
+  getTextEmbeddingModel,
+  hasTextEmbeddingProviderConfigured,
+} from "@/lib/providers/language-model";
 import { billUsage, InsufficientCreditsError, reserveCredits } from "@/lib/services/ai-billing";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
@@ -88,6 +92,19 @@ async function handlePOST(req: NextRequest) {
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
 
+    if (!hasTextEmbeddingProviderConfigured()) {
+      return Response.json(
+        {
+          error: {
+            message: getAiProviderConfigurationError(),
+            type: "service_unavailable",
+            code: "ai_not_configured",
+          },
+        },
+        { status: 503 },
+      );
+    }
+
     // Estimate tokens for reservation
     const inputText = Array.isArray(request.input) ? request.input.join(" ") : request.input;
     const estimatedInputTokens = estimateTokens(inputText);
@@ -134,7 +151,7 @@ async function handlePOST(req: NextRequest) {
     if (Array.isArray(request.input)) {
       // Multiple inputs - use embedMany
       const result = await embedMany({
-        model: gateway.textEmbeddingModel(model),
+        model: getTextEmbeddingModel(model),
         values: request.input,
       });
       embeddings = result.embeddings;
@@ -143,7 +160,7 @@ async function handlePOST(req: NextRequest) {
     } else {
       // Single input - use embed
       const result = await embed({
-        model: gateway.textEmbeddingModel(model),
+        model: getTextEmbeddingModel(model),
         value: request.input,
       });
       embeddings = [result.embedding];

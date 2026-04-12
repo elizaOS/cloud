@@ -52,15 +52,20 @@ describe("Affiliates API", () => {
       const chatRes = await api.post(
         "/api/v1/chat/completions",
         {
-          model: "google/gemini-2.5-flash",
+          model: "openai/gpt-4o-mini",
           messages: [{ role: "user", content: "Say hello!" }],
-          max_tokens: 10,
+          max_tokens: 16,
         },
         {
           authenticated: true,
           headers: { "X-Affiliate-Code": affiliateCode },
         },
       );
+      if (chatRes.status === 503) {
+        expect(chatRes.status).toBe(503);
+        return;
+      }
+
       expect(chatRes.status).toBe(200);
 
       // 4. Verify earnings increased

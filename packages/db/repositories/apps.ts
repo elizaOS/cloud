@@ -28,6 +28,8 @@ export type {
   NewAppUser,
 };
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /**
  * Repository for app database operations.
  *
@@ -45,6 +47,10 @@ export class AppsRepository {
    * Finds an app by ID.
    */
   async findById(id: string): Promise<App | undefined> {
+    if (!UUID_PATTERN.test(id)) {
+      return undefined;
+    }
+
     return await dbRead.query.apps.findFirst({
       where: eq(apps.id, id),
     });

@@ -223,16 +223,6 @@ const nextConfig: NextConfig = {
         // Ignore missing highlight.js language files (c-like, htmlbars, sql_more removed in v11)
         resourceRegExp: /^highlight\.js\/lib\/languages\/(c-like|htmlbars|sql_more)$/,
       }),
-      new webpack.IgnorePlugin({
-        // Ignore refractor grammar imports — refractor isn't installed
-        resourceRegExp: /^refractor\b/,
-        contextRegExp: /react-syntax-highlighter/,
-      }),
-      new webpack.IgnorePlugin({
-        // Ignore lowlight imports — lowlight isn't installed
-        resourceRegExp: /^lowlight\b/,
-        contextRegExp: /react-syntax-highlighter/,
-      }),
     );
     if (isServer) {
       // Resolve thread-stream to synchronous stub in production webpack builds
