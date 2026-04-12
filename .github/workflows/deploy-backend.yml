@@ -148,6 +148,7 @@ jobs:
           username: deploy
           key: ${{ secrets.MILADY_VPS_SSH_KEY }}
           script_stop: true
+          command_timeout: 20m
           script: |
             set -e
             echo "=== Deploying eliza-cloud backend ==="
@@ -166,8 +167,11 @@ jobs:
             # Remove stale index.lock FIRST (previous failed git op leaves this)
             rm -f .git/index.lock
 
-            # Remove previous build output (rebuilt every deploy) — frees most space
-            rm -rf .next-build .next node_modules/.cache
+            # Remove previous build output and local build caches.
+            # Keep node_modules in place so bun install can reuse the existing
+            # tree instead of redownloading the full dependency graph onto a
+            # nearly-full VPS.
+            rm -rf .next-build .next .turbo node_modules/.cache
 
             # Drop all accumulated deploy stashes
             git stash clear 2>/dev/null || true
@@ -175,9 +179,10 @@ jobs:
             # Prune loose git objects
             git prune 2>/dev/null || true
 
-            # Trim bun install cache
+            # Trim Bun/Turbo caches aggressively
             export BUN_INSTALL="$HOME/.bun"
             export PATH="$BUN_INSTALL/bin:$PATH"
+            rm -rf "$HOME/.bun/install/cache" "$HOME/.cache/bun" "$HOME/.cache/turbo"
             if command -v bun >/dev/null 2>&1; then
               bun pm cache rm 2>/dev/null || true
             fi
@@ -215,7 +220,16 @@ jobs:
               echo "bun install attempt $attempt failed; retrying in 10s..."
               sleep 10
             done
-            bun run build
+
+            # bun may repopulate its global cache during install; clear it again
+            # before building so the compiler has more scratch space available.
+            rm -rf "$HOME/.bun/install/cache" "$HOME/.cache/bun"
+
+            # Next 16 defaults to Turbopack for production builds. On the VPS
+            # that path has been hitting ENOSPC inside turbopack_ctx.rs, so use
+            # webpack for deploy builds to reduce scratch-space pressure.
+            rm -rf node_modules/.cache
+            NEXT_DIST_DIR=.next-build LOG_LEVEL=error NODE_NO_WARNINGS=1 NODE_OPTIONS=--max-old-space-size=6144 bun run next build --webpack
 
             # Restart the Next.js service
             sudo systemctl restart eliza-cloud
