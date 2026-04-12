@@ -494,14 +494,15 @@ describe("Models API", () => {
     expect(body.data[0].id).toBe("openai/gpt-4o-mini");
   });
 
-  test("GET creates an anonymous session when auth is missing", async () => {
+  test("GET does not create an anonymous session when auth is missing", async () => {
     mockRequireAuthOrApiKey.mockRejectedValue(new Error("Unauthorized: Authentication required"));
     mockGetAnonymousUser.mockResolvedValue(null);
 
     const response = await getModels(new NextRequest("http://localhost:3000/api/v1/models"));
 
     expect(response.status).toBe(200);
-    expect(mockGetOrCreateAnonymousUser).toHaveBeenCalled();
+    expect(mockGetAnonymousUser).toHaveBeenCalled();
+    expect(mockGetOrCreateAnonymousUser).not.toHaveBeenCalled();
 
     await flushMicrotasks();
   });
