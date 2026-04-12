@@ -139,7 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [determine-env, migrate-db]
     environment: ${{ needs.determine-env.outputs.environment }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
