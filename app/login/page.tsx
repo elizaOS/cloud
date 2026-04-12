@@ -2,11 +2,17 @@
 
 import { BrandButton, Input } from "@elizaos/cloud-ui";
 import { useLogin, useLoginWithEmail, useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
+import { StewardLogin } from "@stwd/react";
+import { StewardProvider } from "@stwd/react";
 import { ArrowLeft, Chrome, Github, Loader2, Mail, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
+
+const STEWARD_AUTH_ENABLED = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
+const STEWARD_AUTH_BASE_URL = process.env.NEXT_PUBLIC_STEWARD_AUTH_BASE_URL || "https://api.steward.fi";
+const STEWARD_TENANT_ID = process.env.NEXT_PUBLIC_STEWARD_TENANT_ID || undefined;
 
 // Discord SVG Icon Component
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -502,6 +508,41 @@ function LoginPageContent() {
                   : "Sign in to your Eliza Cloud account"}
               </p>
             </div>
+            {/* Steward Auth Section (feature-flagged) */}
+            {STEWARD_AUTH_ENABLED && !showCodeInput && (
+              <div className="space-y-4">
+                <StewardProvider
+                  auth={{ baseUrl: STEWARD_AUTH_BASE_URL }}
+                  tenantId={STEWARD_TENANT_ID}
+                >
+                  <StewardLogin
+                    variant="inline"
+                    showPasskey
+                    showEmail
+                    title="Sign in with Steward"
+                    onSuccess={() => {
+                      toast.success("Signed in with Steward!");
+                      const redirectUrl = getSafeReturnTo(searchParams);
+                      router.replace(redirectUrl);
+                    }}
+                    onError={(err) => {
+                      toast.error(err?.message || "Steward login failed");
+                    }}
+                  />
+                </StewardProvider>
+
+                {/* Divider between Steward and Privy options */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/10" />
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-neutral-900 px-3 text-neutral-500">or</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Email/Code Login Section */}
             {!showCodeInput ? (
               // Email Input
