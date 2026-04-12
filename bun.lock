@@ -61,6 +61,7 @@
         "@sendgrid/client": "^8.1.6",
         "@sendgrid/helpers": "^8.0.0",
         "@sendgrid/mail": "^8.1.6",
+        "@simplewebauthn/browser": "^13.3.0",
         "@smithy/smithy-client": "^4.12.3",
         "@solana-program/memo": "^0.10.0",
         "@solana-program/system": "^0.10.0",
@@ -72,7 +73,8 @@
         "@solana/web3.js": "^1.98.4",
         "@stripe/react-stripe-js": "^5.4.1",
         "@stripe/stripe-js": "^8.6.4",
-        "@stwd/sdk": "^0.3.0",
+        "@stwd/react": "0.6.4",
+        "@stwd/sdk": "0.7.2",
         "@tabler/icons-react": "^3.36.1",
         "@tailwindcss/postcss": "^4.1.18",
         "@tailwindcss/typography": "^0.5.19",
@@ -1543,7 +1545,9 @@
 
     "@stripe/stripe-js": ["@stripe/stripe-js@8.11.0", "", {}, "sha512-3fVF4z3efsgwgyj64nFK+6F4/vMw0mUXD2TBbOfftJtKVNx4JNv3CSfe1fY4DCtCk0JFp8/YPNcRkzgV0HJ8cg=="],
 
-    "@stwd/sdk": ["@stwd/sdk@0.3.0", "", {}, "sha512-GUx+6lskxFA9PTlPtfVeZbKiIb0mZelBNjvodr8fiayyJIyJVbAzmr2gMLhbM88AGSqqp+BH6ur2GUhBosFl+Q=="],
+    "@stwd/react": ["@stwd/react@0.6.4", "", { "dependencies": { "@stwd/sdk": "^0.7.0" }, "peerDependencies": { "react": ">=18.0.0", "react-dom": ">=18.0.0" } }, "sha512-DWDpDVDTwFLzOqbTRgigjGHUfpeUvAesMa6yG7c5Uc0dPQciUqmKhzxcEw9id8aMYTiMnn6A0zIv4hpQYZlFSg=="],
+
+    "@stwd/sdk": ["@stwd/sdk@0.7.2", "", {}, "sha512-qu1gyULCZ7YKAWGYQ8wkVDrvsxDJsn/ffVYjhR6HNCoBEoK29LW4Gwekxr2PprBMeAXsEtxhkDkyTj/5ly/W/Q=="],
 
     "@swc/helpers": ["@swc/helpers@0.5.15", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g=="],
 

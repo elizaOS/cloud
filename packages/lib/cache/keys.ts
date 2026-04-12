@@ -47,6 +47,8 @@ export const CacheKeys = {
   session: {
     /** Cache session token validation results */
     privy: (tokenHash: string) => `session:privy:${tokenHash}:v1`,
+    /** Cache Steward JWT verification results */
+    steward: (tokenHash: string) => `session:steward:${tokenHash}:v1`,
     /** Cache user data by session token */
     user: (tokenHash: string) => `session:user:${tokenHash}:v1`,
     pattern: () => `session:*`,
@@ -240,6 +242,7 @@ export const CacheTTL = {
   },
   session: {
     privy: 300, // 5 minutes - Privy token validation
+    steward: 300, // 5 minutes - Steward JWT validation (mirrors Privy)
     user: 300, // 5 minutes - User data by session
   },
   user: {
