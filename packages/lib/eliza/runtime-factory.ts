@@ -2354,7 +2354,13 @@ export const _testing = {
 
     const adapter = dbAdapterPool["adapters"].get(agentId);
     if (adapter) {
-      await adapter.close();
+      try {
+        await adapter.close();
+      } catch (error) {
+        elizaLogger.debug(
+          `[TestCloseAdapterDirectly] Ignoring adapter close error for ${agentId}: ${error}`,
+        );
+      }
     }
   },
 };
