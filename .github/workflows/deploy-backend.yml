@@ -151,7 +151,7 @@ jobs:
           script: |
             set -e
             echo "=== Deploying eliza-cloud backend ==="
-            
+
             sudo chown -R deploy:deploy /opt/eliza-cloud
             cd /opt/eliza-cloud
             # Use env-based config to avoid writing ~/.gitconfig (lock file failures)
@@ -159,20 +159,45 @@ jobs:
             export GIT_CONFIG_KEY_0=safe.directory
             export GIT_CONFIG_VALUE_0=/opt/eliza-cloud
 
-            if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-              STASH_NAME="deploy-backend-auto-$(date -u +%Y%m%dT%H%M%SZ)"
-              git stash push --include-untracked --message "$STASH_NAME"
-              echo "Stashed local changes as $STASH_NAME"
+            # --- Disk cleanup (prevents "Out of diskspace" failures) ---
+            echo "Disk before cleanup:"
+            df -h / | tail -1
+
+            # Remove stale index.lock FIRST (previous failed git op leaves this)
+            rm -f .git/index.lock
+
+            # Remove previous build output (rebuilt every deploy) — frees most space
+            rm -rf .next-build .next node_modules/.cache
+
+            # Drop all accumulated deploy stashes
+            git stash clear 2>/dev/null || true
+
+            # Prune loose git objects
+            git prune 2>/dev/null || true
+
+            # Trim bun install cache
+            export BUN_INSTALL="$HOME/.bun"
+            export PATH="$BUN_INSTALL/bin:$PATH"
+            if command -v bun >/dev/null 2>&1; then
+              bun pm cache rm 2>/dev/null || true
             fi
-            
+
+            echo "Disk after cleanup:"
+            df -h / | tail -1
+            # --- End disk cleanup ---
+
+            if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+              echo "Discarding uncommitted local changes..."
+              git checkout -- . 2>/dev/null || true
+              git clean -fd 2>/dev/null || true
+            fi
+
             # Fetch and checkout
             BRANCH="${{ needs.determine-env.outputs.branch }}"
             git fetch origin "$BRANCH"
             git checkout -B "$BRANCH" "origin/$BRANCH"
-            
+
             # Install and build
-            export BUN_INSTALL="$HOME/.bun"
-            export PATH="$BUN_INSTALL/bin:$PATH"
             if ! command -v bun >/dev/null 2>&1; then
               curl -fsSL https://bun.sh/install | bash
               export PATH="$BUN_INSTALL/bin:$PATH"
@@ -191,13 +216,13 @@ jobs:
               sleep 10
             done
             bun run build
-            
+
             # Restart the Next.js service
             sudo systemctl restart eliza-cloud
-            
+
             # Restart the provisioning worker (VPS owns container lifecycle)
             sudo systemctl restart milady-provisioning-worker
-            
+
             echo "=== Deploy complete ==="
 
       - name: Health Check
