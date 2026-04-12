@@ -189,6 +189,11 @@ export default function PrivyProvider({ children }: { children: React.ReactNode 
   }, [hasValidAppId]);
 
   if (!hasValidAppId) {
+    // When Steward auth is enabled and Privy isn't configured,
+    // pass children through instead of blocking the whole app.
+    if (process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true") {
+      return <>{children}</>;
+    }
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
