@@ -139,16 +139,48 @@ jobs:
     runs-on: ubuntu-latest
     needs: [determine-env, migrate-db]
     environment: ${{ needs.determine-env.outputs.environment }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
-      - name: Deploy via SSH
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          for attempt in 1 2 3; do
+            if [ "$attempt" -eq 3 ]; then
+              bun install --frozen-lockfile --verbose && exit 0
+            else
+              bun install --frozen-lockfile && exit 0
+            fi
+
+            echo "bun install attempt $attempt failed; retrying in 10s..."
+            sleep 10
+          done
+
+          exit 1
+
+      - name: Build backend artifact
+        run: bun run build:deploy
+
+      - name: Prepare SSH access
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' '${{ secrets.MILADY_VPS_SSH_KEY }}' > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          ssh-keyscan -H "${{ secrets.MILADY_VPS_HOST }}" >> "$HOME/.ssh/known_hosts"
+
+      - name: Prepare VPS checkout
         uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         with:
           host: ${{ secrets.MILADY_VPS_HOST }}
           username: deploy
           key: ${{ secrets.MILADY_VPS_SSH_KEY }}
           script_stop: true
-          command_timeout: 20m
+          command_timeout: 30m
           script: |
             set -e
             echo "=== Deploying eliza-cloud backend ==="
@@ -187,14 +219,40 @@ jobs:
               bun pm cache rm 2>/dev/null || true
             fi
 
+            # Free host-level disk before touching the checkout. The root
+            # filesystem fills up outside /opt/eliza-cloud too, especially with
+            # old Docker layers, package caches, and journals.
+            sudo apt-get clean 2>/dev/null || true
+            sudo journalctl --vacuum-size=500M 2>/dev/null || true
+            sudo docker system prune -af 2>/dev/null || true
+            sudo rm -rf /root/.bun/install/cache /root/.cache/bun /root/.cache/turbo 2>/dev/null || true
+
             # Discard local checkout drift before fetch. Cleaning untracked
             # files first frees space for git to rewrite tracked files.
-            # Preserve the server's environment file.
+            # Preserve the server's environment file and keep dependency trees
+            # if there is enough free disk to reuse them.
             echo "Discarding local checkout drift..."
-            git clean -fdx -e .env.local 2>/dev/null || true
+            git clean -fdx \
+              -e .env.local \
+              -e node_modules \
+              -e packages/services/gateway-discord/node_modules \
+              -e packages/services/gateway-webhook/node_modules \
+              -e packages/ui/node_modules \
+              -e services/agent-server/node_modules 2>/dev/null || true
             rm -f .git/index.lock
             git checkout -- . 2>/dev/null || true
             rm -f .git/index.lock
+
+            AVAILABLE_KB="$(df --output=avail -k / | tail -1 | tr -d ' ')"
+            if [ "${AVAILABLE_KB:-0}" -lt 5000000 ]; then
+              echo "Still under 5GB free; removing workspace node_modules as a fallback..."
+              rm -rf \
+                node_modules \
+                packages/services/gateway-discord/node_modules \
+                packages/services/gateway-webhook/node_modules \
+                packages/ui/node_modules \
+                services/agent-server/node_modules
+            fi
 
             echo "Disk after cleanup:"
             df -h / | tail -1
@@ -205,12 +263,11 @@ jobs:
             git fetch origin "$BRANCH"
             git checkout -B "$BRANCH" "origin/$BRANCH"
 
-            # Install and build
+            # Install runtime dependencies and regenerate lightweight assets.
             if ! command -v bun >/dev/null 2>&1; then
               curl -fsSL https://bun.sh/install | bash
               export PATH="$BUN_INSTALL/bin:$PATH"
             fi
-            export NEXT_DIST_DIR=.next-build
             for attempt in 1 2 3; do
               if bun install --frozen-lockfile; then
                 break
@@ -224,22 +281,33 @@ jobs:
               sleep 10
             done
 
-            # bun may repopulate its global cache during install; clear it again
-            # before building so the compiler has more scratch space available.
+            bun run generate:llms
+
+            # The build now runs on GitHub Actions to avoid ENOSPC during
+            # `next build` on the VPS. Clear any stale output and leave an empty
+            # destination for the streamed artifact.
             rm -rf "$HOME/.bun/install/cache" "$HOME/.cache/bun"
-
-            # Next 16 defaults to Turbopack for production builds. On the VPS
-            # that path has been hitting ENOSPC inside turbopack_ctx.rs, so use
-            # webpack for deploy builds to reduce scratch-space pressure.
             rm -rf node_modules/.cache
-            NEXT_DIST_DIR=.next-build LOG_LEVEL=error NODE_NO_WARNINGS=1 NODE_OPTIONS=--max-old-space-size=6144 bun run next build --webpack
+            rm -rf .next-build
+            mkdir -p .next-build
 
-            # Restart the Next.js service
+      - name: Upload prebuilt Next output
+        run: |
+          tar -C .next-build -czf - . | ssh -i "$HOME/.ssh/id_ed25519" \
+            deploy@${{ secrets.MILADY_VPS_HOST }} \
+            'set -e; cd /opt/eliza-cloud; rm -rf .next-build/*; tar -xzf - -C .next-build'
+
+      - name: Restart services
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        with:
+          host: ${{ secrets.MILADY_VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.MILADY_VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
             sudo systemctl restart eliza-cloud
-
-            # Restart the provisioning worker (VPS owns container lifecycle)
             sudo systemctl restart milady-provisioning-worker
-
             echo "=== Deploy complete ==="
 
       - name: Health Check
