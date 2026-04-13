@@ -98,6 +98,10 @@ const connectSrc = uniqueCspValues([
   "https://*.vercel.run",
   "https://*.vercel.app",
   "https://us-assets.i.posthog.com",
+  // Steward auth
+  "https://eliza.steward.fi",
+  "https://steward-api-production-115d.up.railway.app",
+  "https://*.steward.fi",
   ...localDevConnectOrigins,
 ]);
 

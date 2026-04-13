@@ -8,7 +8,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 
 const STEWARD_AUTH_BASE_URL =
-  process.env.NEXT_PUBLIC_STEWARD_AUTH_BASE_URL || "https://api.steward.fi";
+  process.env.NEXT_PUBLIC_STEWARD_API_URL || "https://eliza.steward.fi";
 const STEWARD_TENANT_ID = process.env.NEXT_PUBLIC_STEWARD_TENANT_ID || undefined;
 
 function getSafeReturnTo(searchParams: { get(name: string): string | null }): string {
