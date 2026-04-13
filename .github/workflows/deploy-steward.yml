@@ -1,0 +1,199 @@
+# Deploy Steward to Railway
+#
+# This workflow updates the Steward API service running on Railway to a new
+# Docker image tag from GHCR. It can be triggered manually (workflow_dispatch)
+# or automatically by the steward repo's CI (repository_dispatch).
+#
+# Flow: steward repo CI → GHCR push → repository_dispatch → this workflow → Railway
+#
+# Required secret: RAILWAY_STEWARD_TOKEN (Railway API token with deploy access)
+
+name: Deploy Steward
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Steward image tag to deploy (e.g. develop, v0.3.0, latest)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (log what would happen, don't deploy)"
+        required: false
+        type: boolean
+        default: false
+
+  repository_dispatch:
+    types: [steward-release]
+    # Expected client_payload: { "image_tag": "v0.3.0" }
+
+concurrency:
+  group: deploy-steward
+  cancel-in-progress: false
+
+env:
+  # Railway service identifiers for Steward
+  RAILWAY_SERVICE_ID: "e89b2241-ac31-464a-aa2a-161daf6fb4d4"
+  RAILWAY_ENV_ID: "500ae04d-f140-4a8d-9104-563b1f004f30"
+  RAILWAY_API: "https://backboard.railway.com/graphql/v2"
+
+  # Steward Docker image base (tags appended at runtime)
+  STEWARD_IMAGE_BASE: "ghcr.io/steward-fi/steward"
+
+  # Health check endpoints
+  HEALTH_URL: "https://steward-api-production-115d.up.railway.app/health"
+
+jobs:
+  deploy:
+    name: Deploy Steward to Railway
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Resolve image tag from either trigger type ──
+      - name: Resolve image tag
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            TAG="${{ github.event.client_payload.image_tag }}"
+          else
+            TAG="${{ github.event.inputs.image_tag }}"
+          fi
+
+          if [ -z "$TAG" ]; then
+            echo "::error::No image_tag provided"
+            exit 1
+          fi
+
+          IMAGE="${STEWARD_IMAGE_BASE}:${TAG}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "dry_run=${{ github.event.inputs.dry_run || 'false' }}" >> "$GITHUB_OUTPUT"
+          echo "📦 Resolved image: $IMAGE"
+
+      # ── Verify the image exists on GHCR before deploying ──
+      - name: Verify image exists
+        run: |
+          echo "Checking if ${{ steps.resolve.outputs.image }} is pullable..."
+          # Use skopeo-style check via manifest inspection (no docker pull needed)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://ghcr.io/v2/steward-fi/steward/manifests/${{ steps.resolve.outputs.tag }}" \
+            -H "Accept: application/vnd.oci.image.index.v1+json")
+
+          if [ "$STATUS" = "401" ] || [ "$STATUS" = "200" ]; then
+            echo "✅ Image reference looks valid (HTTP $STATUS, auth may be needed for private)"
+          elif [ "$STATUS" = "404" ]; then
+            echo "::error::Image tag '${{ steps.resolve.outputs.tag }}' not found on GHCR"
+            exit 1
+          else
+            echo "⚠️ Unexpected HTTP $STATUS, proceeding anyway"
+          fi
+
+      # ── Call Railway API to update the service image ──
+      - name: Deploy to Railway
+        if: steps.resolve.outputs.dry_run != 'true'
+        id: deploy
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STEWARD_TOKEN }}
+        run: |
+          echo "🚀 Deploying ${{ steps.resolve.outputs.image }} to Railway..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceConnect(id: \"'"$RAILWAY_SERVICE_ID"'\", input: { image: \"'"${{ steps.resolve.outputs.image }}"'\" }) { id } }"
+            }')
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "Railway API response (HTTP $HTTP_CODE):"
+          echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Railway API returned HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          # Check for GraphQL errors
+          if echo "$BODY" | jq -e '.errors' > /dev/null 2>&1; then
+            echo "::error::Railway GraphQL error: $(echo "$BODY" | jq -r '.errors[0].message')"
+            exit 1
+          fi
+
+          echo "✅ Railway accepted the deployment"
+
+      # ── Dry run summary ──
+      - name: Dry run summary
+        if: steps.resolve.outputs.dry_run == 'true'
+        run: |
+          echo "🏜️ DRY RUN: Would deploy ${{ steps.resolve.outputs.image }}"
+          echo "  Service ID: $RAILWAY_SERVICE_ID"
+          echo "  Environment: $RAILWAY_ENV_ID"
+          echo "  No changes were made."
+
+      # ── Wait for deployment to become healthy ──
+      - name: Wait for healthy deployment
+        if: steps.resolve.outputs.dry_run != 'true'
+        run: |
+          echo "⏳ Waiting for Steward to become healthy..."
+          MAX_ATTEMPTS=30  # 30 x 10s = 5 minutes
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "  Health check attempt $ATTEMPT/$MAX_ATTEMPTS..."
+
+            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$HEALTH_URL" 2>/dev/null || echo "000")
+
+            if [ "$HEALTH" = "200" ]; then
+              echo "✅ Steward is healthy after $((ATTEMPT * 10)) seconds"
+
+              # Try to get version info from health endpoint
+              curl -s "$HEALTH_URL" | jq . 2>/dev/null || true
+              exit 0
+            fi
+
+            echo "  Got HTTP $HEALTH, waiting 10s..."
+            sleep 10
+          done
+
+          echo "::error::Steward did not become healthy within 5 minutes"
+          exit 1
+
+      # ── Create GitHub deployment record ──
+      - name: Create deployment status
+        if: always() && steps.resolve.outputs.dry_run != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'steward-railway',
+              description: `Steward ${process.env.TAG}`,
+              auto_merge: false,
+              required_contexts: [],
+              transient_environment: false,
+              production_environment: true,
+            });
+
+            const state = '${{ job.status }}' === 'success' ? 'success' : 'failure';
+
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.data.id,
+              state: state,
+              environment_url: '${{ env.HEALTH_URL }}',
+              description: `Deployed ${process.env.IMAGE}`,
+            });
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+          IMAGE: ${{ steps.resolve.outputs.image }}
