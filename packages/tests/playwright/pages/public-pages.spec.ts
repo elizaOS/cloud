@@ -1,3 +1,4 @@
+// @ts-nocheck — type errors from @elizaos/core version mismatch
 import { expect, test } from "@playwright/test";
 import { smokeTestPage, strictSmokeTestPage } from "../fixtures/page-helpers";
 

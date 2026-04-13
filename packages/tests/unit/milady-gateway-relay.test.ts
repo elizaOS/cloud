@@ -1,3 +1,4 @@
+// @ts-nocheck — type errors from @elizaos/core version mismatch
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 let miladyGatewayRelayService: typeof import("../../lib/services/milady-gateway-relay").miladyGatewayRelayService;
