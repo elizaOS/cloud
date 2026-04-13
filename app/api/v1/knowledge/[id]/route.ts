@@ -61,7 +61,9 @@ async function handleDELETE(req: NextRequest, context: { params: Promise<{ id: s
     }
 
     // Delete the document
-    const memoryId = parsedId.data as unknown as Parameters<typeof knowledgeService.deleteMemory>[0];
+    const memoryId = parsedId.data as unknown as Parameters<
+      typeof knowledgeService.deleteMemory
+    >[0];
     await knowledgeService.deleteMemory(memoryId);
 
     return NextResponse.json({

@@ -103,15 +103,13 @@ export type AuthResult = {
   session_token?: string;
 };
 
-let privySyncLoader:
-  | null
-  | (() => Promise<typeof import("./privy-sync")>) = null;
+let privySyncLoader: null | (() => Promise<typeof import("./privy-sync")>) = null;
 
 async function loadPrivySyncModule(): Promise<typeof import("./privy-sync")> {
   if (!privySyncLoader) {
-    privySyncLoader = new Function(
-      "return import('./privy-sync');",
-    ) as () => Promise<typeof import("./privy-sync")>;
+    privySyncLoader = new Function("return import('./privy-sync');") as () => Promise<
+      typeof import("./privy-sync")
+    >;
   }
 
   return await privySyncLoader();

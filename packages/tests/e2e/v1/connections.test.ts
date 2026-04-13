@@ -29,10 +29,13 @@ describe("Platform Connections API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())("POST /api/v1/connections/github returns unsupported platform", async () => {
-    const response = await api.post("/api/v1/connections/github", {}, { authenticated: true });
-    expect(response.status).toBe(404);
-  });
+  test.skipIf(!api.hasApiKey())(
+    "POST /api/v1/connections/github returns unsupported platform",
+    async () => {
+      const response = await api.post("/api/v1/connections/github", {}, { authenticated: true });
+      expect(response.status).toBe(404);
+    },
+  );
 });
 
 describe("MCPs API", () => {

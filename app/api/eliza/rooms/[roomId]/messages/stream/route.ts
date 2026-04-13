@@ -1,5 +1,5 @@
-import * as elizaCore from "@elizaos/core";
 import type { UUID } from "@elizaos/core";
+import * as elizaCore from "@elizaos/core";
 import type { NextRequest } from "next/server";
 import { roomsRepository } from "@/db/repositories";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -49,8 +49,7 @@ type RunWithRequestContext = <T>(
 ) => Promise<T>;
 
 const runWithRequestContext: RunWithRequestContext =
-  "runWithRequestContext" in elizaCore &&
-  typeof elizaCore.runWithRequestContext === "function"
+  "runWithRequestContext" in elizaCore && typeof elizaCore.runWithRequestContext === "function"
     ? (elizaCore.runWithRequestContext as RunWithRequestContext)
     : async (_context, operation) => await operation();
 

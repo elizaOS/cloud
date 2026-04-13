@@ -235,7 +235,8 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
     stream,
   } = aiSdkRequest;
 
-  const normalizedInput = typeof input === "string" ? [{ role: "user" as const, content: input }] : (input ?? []);
+  const normalizedInput =
+    typeof input === "string" ? [{ role: "user" as const, content: input }] : (input ?? []);
 
   // Transform messages: fix content types for multimodal
   const transformedMessages = normalizedInput.map((msg, msgIndex) => {

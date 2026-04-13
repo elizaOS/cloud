@@ -146,9 +146,7 @@ export function resolveEmbeddingProviderSource(): "gateway" | "openai" | null {
 }
 
 export function hasAnyAiProviderConfigured(): boolean {
-  return Boolean(
-    getGatewayApiKey() || process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY,
-  );
+  return Boolean(getGatewayApiKey() || process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY);
 }
 
 export function getAiProviderConfigurationStatus() {
