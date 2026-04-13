@@ -37,12 +37,22 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isAuthenticated) {
       lastSyncedToken.current = null;
+      // Clear the server-side cookie on sign out
+      fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
       return;
     }
 
     const token = getToken();
     if (token && token !== lastSyncedToken.current) {
       lastSyncedToken.current = token;
+
+      // Set the server-side session cookie so Next.js server components
+      // can read the steward JWT (localStorage is client-only)
+      fetch("/api/auth/steward-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      }).catch((err) => console.warn("[steward] Failed to set session cookie", err));
 
       // Dispatch a custom event so non-React code (fetch wrappers, etc.)
       // can pick up the fresh JWT without coupling to React context.
