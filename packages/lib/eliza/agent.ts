@@ -1,4 +1,3 @@
-import type { Character } from "@elizaos/core";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { getDefaultModels, getElizaCloudApiUrl } from "./config";
