@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@elizaos/core": "alpha",
-    "@elizaos/plugin-elizacloud": "^1.7.5",
+    "@elizaos/plugin-elizacloud": "^2.0.0-alpha.8",
     "@elizaos/plugin-openai": "1.6.0",
     "@elizaos/plugin-sql": "1.7.1",
     "@elysiajs/cors": "^1.1.0",
