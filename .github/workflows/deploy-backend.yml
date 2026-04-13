@@ -312,7 +312,7 @@ jobs:
             server \
             static | ssh -i "$HOME/.ssh/id_ed25519" \
             deploy@${{ secrets.MILADY_VPS_HOST }} \
-            'set -e; cd /opt/eliza-cloud; rm -rf .next-build/*; tar -xzf - -C .next-build'
+            'set -e; cd /opt/eliza-cloud; rm -rf .next .next-build/*; tar -xzf - -C .next-build; ln -sfn .next-build .next'
 
       - name: Restart services
         uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
@@ -323,7 +323,16 @@ jobs:
           script_stop: true
           script: |
             set -e
-            sudo systemctl restart eliza-cloud
+            cd /opt/eliza-cloud
+            rm -rf .next
+            ln -sfn .next-build .next
+
+            if ! sudo systemctl restart eliza-cloud; then
+              sudo systemctl status eliza-cloud --no-pager || true
+              sudo journalctl -u eliza-cloud -n 100 --no-pager || true
+              exit 1
+            fi
+
             sudo systemctl restart milady-provisioning-worker
             echo "=== Deploy complete ==="
 
