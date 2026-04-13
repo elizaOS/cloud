@@ -231,6 +231,7 @@ const publicPaths = [
   "/auth/cli-login",
   "/api/auth/pair", // Milady agent pairing (validates its own one-time tokens)
   "/api/auth/siwe", // SIWE nonce + verify (EIP-4361)
+  "/api/auth/steward-session", // Steward session cookie bridge (validates its own JWT)
   "/api/set-anonymous-session",
   "/api/anonymous-session",
   "/api/auth/create-anonymous-session",
