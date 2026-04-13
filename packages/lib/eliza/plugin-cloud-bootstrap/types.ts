@@ -1,4 +1,11 @@
-import type { Action, Content, Memory, State, UUID } from "@elizaos/core";
+import type {
+  Action,
+  Content,
+  ActionParameter as CoreActionParameter,
+  Memory,
+  State,
+  UUID,
+} from "@elizaos/core";
 
 export interface MultiStepActionResult {
   data: { actionName: string };
@@ -25,9 +32,42 @@ export interface ActionParameter {
   default?: unknown;
 }
 
-export type ActionWithParams = Omit<Action, "parameters"> & {
-  parameters?: Record<string, ActionParameter> | Action["parameters"];
-};
+export type ActionWithParams = Action;
+
+export function defineActionParameters(
+  parameters?: Record<string, ActionParameter> | Action["parameters"],
+): Action["parameters"] {
+  if (!parameters) {
+    return undefined;
+  }
+
+  if (Array.isArray(parameters)) {
+    return parameters;
+  }
+
+  const entries = Object.entries(parameters);
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return entries.map(
+    ([name, parameter]): CoreActionParameter => ({
+      name,
+      description: parameter.description,
+      required: parameter.required,
+      schema: {
+        type: parameter.type,
+        default: (parameter.default as CoreActionParameter["schema"]["default"]) ?? undefined,
+        enum: parameter.enum?.map((value) =>
+          String(value),
+        ) as CoreActionParameter["schema"]["enum"],
+        enumValues: parameter.enum?.map((value) =>
+          String(value),
+        ) as CoreActionParameter["schema"]["enumValues"],
+      },
+    }),
+  );
+}
 
 export interface ParsedMultiStepDecision {
   thought?: string;

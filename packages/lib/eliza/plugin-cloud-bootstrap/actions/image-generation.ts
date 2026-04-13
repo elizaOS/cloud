@@ -13,7 +13,7 @@ import {
   type State,
 } from "@elizaos/core";
 import { v4 } from "uuid";
-import type { ActionWithParams } from "../types";
+import { type ActionWithParams, defineActionParameters } from "../types";
 
 const IMAGE_GENERATION_TEMPLATE = `# Task: Generate an image prompt based on the user's request.
 # Instructions:
@@ -64,14 +64,14 @@ export const generateImageAction: ActionWithParams = {
   description:
     "Generates an image based on a prompt. Use when the user wants to visualize, illustrate, or see something visually.",
 
-  parameters: {
+  parameters: defineActionParameters({
     prompt: {
       type: "string",
       description:
         "Optional direct prompt for image generation. If not provided, will extract from conversation.",
       required: false,
     },
-  },
+  }),
 
   validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     // Check runtime has required model capability

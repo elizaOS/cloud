@@ -134,7 +134,7 @@ async function withScopedSettings<T>(
   overrides: ScopedSettingOverride[],
   operation: () => Promise<T>,
 ): Promise<T> {
-  const requestContext = elizaCore.getRequestContext?.();
+  const requestContext = (elizaCore as any).getRequestContext?.();
   if (!requestContext || overrides.length === 0) {
     return await operation();
   }
@@ -468,7 +468,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     // Check if room is muted
     const isMuted =
       agentUserState === "MUTED" &&
-      !message.content.text?.toLowerCase().includes(runtime.character.name.toLowerCase());
+      !message.content.text?.toLowerCase().includes(runtime.character.name?.toLowerCase() ?? "");
     if (isMuted) {
       logger.debug(`[CloudBootstrap] Ignoring muted room ${message.roomId}`);
       await this.emitRunEnded(runtime, runId, message, startTime, "muted");
@@ -723,7 +723,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         ],
         true,
       );
-      accumulatedState.data.actionResults = traceActionResult;
+      (accumulatedState.data as any).actionResults = traceActionResult;
 
       // Snapshot provider values for use in the decision loop. ACTIONS and USER_AUTH_STATUS
       // are truly stable. RECENT_MESSAGES is intentionally frozen here so the decision LLM
@@ -786,7 +786,7 @@ export class CloudBootstrapMessageService implements IMessageService {
           content: {
             ...message.content,
             metadata: {
-              ...(message.content.metadata || {}),
+              ...((message.content as any).metadata || {}),
               actionResults: traceActionResult,
             },
           },
@@ -802,11 +802,11 @@ export class CloudBootstrapMessageService implements IMessageService {
         // Merge: start with fresh ACTION_STATE, overlay cached stable provider values
         accumulatedState = {
           ...actionOnlyState,
-          values: { ...actionOnlyState.values, ...cachedStableValues },
+          values: { ...actionOnlyState.values, ...cachedStableValues } as any,
           data: { ...actionOnlyState.data, ...cachedStableData },
         };
         // Also set on state.data for consistency
-        accumulatedState.data.actionResults = traceActionResult;
+        (accumulatedState.data as any).actionResults = traceActionResult;
 
         const remainingSteps = maxIterations - iterationCount;
         const stateWithIterationContext = {
@@ -1196,7 +1196,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         content: {
           ...message.content,
           metadata: {
-            ...(message.content.metadata || {}),
+            ...((message.content as any).metadata || {}),
             actionResults: traceActionResult,
           },
         },
@@ -1220,11 +1220,11 @@ export class CloudBootstrapMessageService implements IMessageService {
       // changed after actions executed, so the stale cached copy must NOT win.
       accumulatedState = {
         ...summaryFreshState,
-        values: { ...cachedStableValues, ...summaryFreshState.values },
+        values: { ...cachedStableValues, ...summaryFreshState.values } as any,
         data: { ...cachedStableData, ...summaryFreshState.data },
       };
       // Also set on state.data for consistency
-      accumulatedState.data.actionResults = traceActionResult;
+      (accumulatedState.data as any).actionResults = traceActionResult;
       accumulatedState.totalActionsExecuted = totalActionsExecuted;
       accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
       accumulatedState.values.hasActionResults = traceActionResult.length > 0;

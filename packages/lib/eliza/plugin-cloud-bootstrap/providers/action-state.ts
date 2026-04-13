@@ -115,7 +115,9 @@ export const actionStateProvider: Provider = {
         unique: false,
       });
       recentActionMemories = recentMessages.filter(
-        (msg) => msg.content?.type === "action_result" && msg.metadata?.type === "action_result",
+        (msg) =>
+          (msg.content?.type as string) === "action_result" &&
+          (msg.metadata?.type as string) === "action_result",
       );
     } catch (error) {
       logger.warn(

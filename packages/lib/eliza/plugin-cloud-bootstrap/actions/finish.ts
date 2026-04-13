@@ -1,5 +1,5 @@
 import type { ActionResult, HandlerCallback, IAgentRuntime, Memory, State } from "@elizaos/core";
-import type { ActionWithParams } from "../types";
+import { type ActionWithParams, defineActionParameters } from "../types";
 
 /**
  * FINISH action — the decision LLM calls this as its last step to produce
@@ -16,14 +16,14 @@ export const finishAction: ActionWithParams = {
   description:
     "Complete the task and respond to the user. Call this when all actions are done " +
     "or the user's request is fully satisfied. Provide your final response in character.",
-  parameters: {
+  parameters: defineActionParameters({
     response: {
       type: "string",
       description:
         "Your final response to the user summarizing what was accomplished, written in character.",
       required: true,
     },
-  },
+  }),
 
   validate: async () => true,
 

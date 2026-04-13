@@ -266,7 +266,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     compat,
     "upsertEntities",
     async (entities: Array<Record<string, unknown> & { id?: UUID }>) => {
-      const entityIds = entities.flatMap((entity) => (entity.id ? [entity.id] : []));
+      const entityIds = entities.flatMap((entity: any) => (entity.id ? [entity.id] : []));
       const existingById = new Set<string>();
 
       if (hasAdapterMethod(compat, "getEntitiesByIds") && entityIds.length > 0) {
@@ -283,18 +283,18 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         entities.map(async (entity) => {
           if (!entity.id) {
             if (hasAdapterMethod(compat, "createEntities")) {
-              await compat.createEntities([entity]);
+              await compat.createEntities([entity as any]);
             }
             return;
           }
 
           if (existingById.has(entity.id as string) && hasAdapterMethod(compat, "updateEntity")) {
-            await compat.updateEntity(entity);
+            await compat.updateEntity(entity as any);
             return;
           }
 
           if (hasAdapterMethod(compat, "createEntities")) {
-            await compat.createEntities([entity]);
+            await compat.createEntities([entity as any]);
           }
         }),
       );
@@ -440,7 +440,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
             (entity as { id: UUID }).id,
             params.worldId,
           );
-          const matchedComponents = allComponents.filter((component) => {
+          const matchedComponents = allComponents.filter((component: any) => {
             if (
               params.componentType &&
               (component as { type?: string }).type !== params.componentType
@@ -595,11 +595,13 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       writable: true,
       value: async (roomIdsOrRoomId: UUID[] | UUID, tableName: string) => {
         if (Array.isArray(roomIdsOrRoomId)) {
-          await Promise.all(roomIdsOrRoomId.map((roomId) => deleteAllMemories(roomId, tableName)));
+          await Promise.all(
+            roomIdsOrRoomId.map((roomId: UUID) => deleteAllMemories(roomId as any, tableName)),
+          );
           return;
         }
 
-        return deleteAllMemories(roomIdsOrRoomId, tableName);
+        return deleteAllMemories(roomIdsOrRoomId as any, tableName);
       },
     });
   }
@@ -633,14 +635,18 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
           }
 
           const counts = await Promise.all(
-            roomIds.map((roomId) =>
-              countMemories(roomId, params.unique ?? false, params.tableName ?? "messages"),
+            roomIds.map((roomId: UUID) =>
+              (countMemories as any)(
+                roomId,
+                params.unique ?? false,
+                params.tableName ?? "messages",
+              ),
             ),
           );
           return counts.reduce((sum, value) => sum + Number(value ?? 0), 0);
         }
 
-        return countMemories(roomIdOrParams, unique, tableName);
+        return (countMemories as any)(roomIdOrParams, unique, tableName);
       },
     });
   }
@@ -817,18 +823,18 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         rooms.map(async (room) => {
           if (!room.id) {
             if (hasAdapterMethod(compat, "createRooms")) {
-              await compat.createRooms([room]);
+              await compat.createRooms([room as any]);
             }
             return;
           }
 
           if (existingIds.has(room.id as string) && hasAdapterMethod(compat, "updateRoom")) {
-            await compat.updateRoom(room);
+            await compat.updateRoom(room as any);
             return;
           }
 
           if (hasAdapterMethod(compat, "createRooms")) {
-            await compat.createRooms([room]);
+            await compat.createRooms([room as any]);
           }
         }),
       );
@@ -1514,7 +1520,7 @@ class DbAdapterPool {
     const adapter = applyLegacyDatabaseAdapterCompat(
       createDatabaseAdapter({ postgresUrl: process.env.DATABASE_URL }, agentId),
     );
-    await adapter.init();
+    await adapter.initialize();
 
     const key = agentId as string;
     const dimension = getStaticEmbeddingDimension(embeddingModel);
@@ -1745,7 +1751,7 @@ export class RuntimeFactory {
       character: {
         ...character,
         id: agentId,
-        settings: settingsWithMcp,
+        settings: settingsWithMcp as any,
       },
       plugins: filteredPlugins,
       agentId,
@@ -1760,7 +1766,7 @@ export class RuntimeFactory {
 
     this.setMcpEnabledServers(context);
 
-    await runtimeCache.set(cacheKey, runtime, character.name, agentId, currentMcpVersion);
+    await runtimeCache.set(cacheKey, runtime, character.name ?? "", agentId, currentMcpVersion);
 
     edgeRuntimeCache
       .markRuntimeWarm(agentId as string, {
@@ -1906,7 +1912,7 @@ export class RuntimeFactory {
    * dynamic-tool-actions.ts can filter tools per-user on every path.
    */
   private setMcpEnabledServers(context: UserContext): void {
-    const requestCtx = elizaCore.getRequestContext?.();
+    const requestCtx = (elizaCore as any).getRequestContext?.();
     if (!requestCtx) return;
     const connected = this.getConnectedPlatforms(context);
     const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));

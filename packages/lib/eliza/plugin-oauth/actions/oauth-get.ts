@@ -12,7 +12,7 @@ import {
   type State,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
-import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
+import { type ActionWithParams, defineActionParameters } from "../../plugin-cloud-bootstrap/types";
 import {
   capitalize,
   extractPlatform,
@@ -56,14 +56,14 @@ export const oauthGetAction: ActionWithParams = {
   description:
     "Check status of an OAuth connection. Use when user says 'done' after connecting, or asks about connection status.",
 
-  parameters: {
+  parameters: defineActionParameters({
     platform: {
       type: "string",
       description:
         "Platform to check: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft. If not specified, checks all.",
       required: false,
     },
-  },
+  }),
 
   validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     return !!message.entityId;

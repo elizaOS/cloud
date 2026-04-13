@@ -1,5 +1,16 @@
-import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
+import type {
+  IAgentRuntime,
+  Memory,
+  MessageExample,
+  MessageExampleGroup,
+  Provider,
+  State,
+} from "@elizaos/core";
 import { addHeader } from "@elizaos/core";
+
+function getExampleMessages(example: MessageExampleGroup | MessageExample[]): MessageExample[] {
+  return Array.isArray(example) ? example : example.examples;
+}
 
 /**
  * Character Provider - Research-Based Implementation
@@ -155,8 +166,9 @@ export const characterProvider: Provider = {
 
       // Score each example by keyword overlap
       const scoredExamples = character.messageExamples.map((example) => {
-        const exampleText = example
-          .map((msg) => msg.content?.text ?? "")
+        const messages = getExampleMessages(example);
+        const exampleText = messages
+          .map((msg: any) => msg.content?.text ?? "")
           .join(" ")
           .toLowerCase();
         const exampleWords = exampleText.split(/\s+/).filter((w) => w.length > 3);
@@ -169,7 +181,7 @@ export const characterProvider: Provider = {
         // Add small random factor to break ties and maintain variety
         score += Math.random() * 0.5;
 
-        return { example, score };
+        return { example: messages, score };
       });
 
       // Sort by score descending and take top 3
@@ -181,7 +193,7 @@ export const characterProvider: Provider = {
       const formattedExamples = selectedExamples
         .map((exchange) => {
           return exchange
-            .map((msg) => {
+            .map((msg: any) => {
               // Skip messages without text content
               if (!msg.content?.text) {
                 return null;
@@ -190,10 +202,10 @@ export const characterProvider: Provider = {
               // Replace placeholders
               let text = `${msg.name}: ${msg.content.text}`;
               text = text.replace(/\{\{user1?\}\}/g, "User");
-              text = text.replace(/\{\{char\}\}/g, character.name);
+              text = text.replace(/\{\{char\}\}/g, character.name ?? "");
               return text;
             })
-            .filter((text): text is string => text !== null)
+            .filter((text: any): text is string => text !== null)
             .join("\n");
         })
         .filter((exchange) => exchange.length > 0)

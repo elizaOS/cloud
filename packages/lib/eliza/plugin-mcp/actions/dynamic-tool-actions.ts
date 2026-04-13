@@ -1,5 +1,6 @@
 import {
   type Action,
+  type ActionParameter,
   type ActionResult,
   type IAgentRuntime,
   logger,
@@ -13,13 +14,12 @@ import { generateSimiles, makeUniqueActionName } from "../utils/action-naming";
 import { checkMcpOAuthAccess } from "../utils/mcp";
 import { processToolResult } from "../utils/processing";
 import {
-  type ActionParameter,
   convertJsonSchemaToActionParams,
   validateParamsAgainstSchema,
 } from "../utils/schema-converter";
 
-export interface McpToolAction extends Action {
-  parameters?: Record<string, ActionParameter>;
+export interface McpToolAction extends Omit<Action, "parameters"> {
+  parameters?: ActionParameter[];
   _mcpMeta: { serverName: string; toolName: string; originalSchema: Tool["inputSchema"] };
 }
 
@@ -178,11 +178,14 @@ export function createMcpToolActions(
   return actions;
 }
 
-export function isMcpToolAction(action: Action): action is McpToolAction {
+export function isMcpToolAction(action: Action | McpToolAction): action is McpToolAction {
   return "_mcpMeta" in action && typeof (action as McpToolAction)._mcpMeta === "object";
 }
 
-export function getMcpToolActionsForServer(actions: Action[], serverName: string): McpToolAction[] {
+export function getMcpToolActionsForServer(
+  actions: (Action | McpToolAction)[],
+  serverName: string,
+): McpToolAction[] {
   return actions.filter(
     (a): a is McpToolAction => isMcpToolAction(a) && a._mcpMeta.serverName === serverName,
   );

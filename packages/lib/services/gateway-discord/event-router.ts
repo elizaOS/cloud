@@ -609,7 +609,7 @@ async function sendToRuntime(
       role: "user",
       dialogueType: "message",
       visibility: "visible",
-      discord: message.metadata,
+      discord: message.metadata as any,
     },
   };
 

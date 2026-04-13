@@ -1,7 +1,6 @@
 /** ACTIONS Provider - Provides available actions with parameter schemas to the LLM. */
 import type { Action, IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
 import { addHeader, composeActionExamples, formatActionNames, logger } from "@elizaos/core";
-import type { ActionWithParams } from "../types";
 import { filterActionsByRouting, getContextRoutingFromMessage } from "../utils/context-routing";
 
 function formatActionsWithoutParams(actions: Action[]): string {
@@ -11,20 +10,17 @@ function formatActionsWithoutParams(actions: Action[]): string {
 function formatActionsWithParams(actions: Action[]): string {
   return actions
     .map((action) => {
-      const params = (action as ActionWithParams).parameters;
+      const params = action.parameters;
       let formatted = `## ${action.name}\n${action.description}`;
 
-      if (!params) return formatted;
-
-      const entries = Object.entries(params);
-      if (entries.length === 0) {
+      if (!params || params.length === 0) {
         return formatted + "\n\n**Parameters:** None (can be called directly without parameters)";
       }
 
       formatted += "\n\n**Parameters:**";
-      for (const [name, def] of entries) {
+      for (const def of params) {
         const required = def.required ? "(required)" : "(optional)";
-        formatted += `\n- \`${name}\` ${required}: ${def.type} - ${def.description}`;
+        formatted += `\n- \`${def.name}\` ${required}: ${def.schema.type} - ${def.description}`;
       }
       return formatted;
     })
