@@ -329,7 +329,9 @@ export const saveChangesAction = {
 
     for (const [key, value] of Object.entries(changesObj)) {
       if (key.startsWith("style.")) {
-        if (!updatedCharacter.style) updatedCharacter.style = {};
+        if (!updatedCharacter.style) {
+          updatedCharacter.style = {} as unknown as typeof updatedCharacter.style;
+        }
         const styleProp = key.split(".")[1];
         if (styleProp === "all" || styleProp === "chat" || styleProp === "post") {
           (updatedCharacter.style as Record<string, unknown>)[styleProp] = value;

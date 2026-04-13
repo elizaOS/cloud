@@ -44,6 +44,26 @@ describe("lifeops github completion route", () => {
     expect(html).toContain("github_status=connected");
   });
 
+  test("preserves agent callback metadata for client-side fallback linking", async () => {
+    const response = await GET(
+      new NextRequest(
+        routeUrl({
+          github_connected: "true",
+          connection_id: "conn-1",
+          agent_id: "agent-123",
+          target: "agent",
+          post_message: "1",
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain('"target":"agent"');
+    expect(html).toContain('"agentId":"agent-123"');
+    expect(html).toContain("Agent GitHub connected");
+  });
+
   test("redirects back to the cloud dashboard when no local handoff is requested", async () => {
     const response = await GET(
       new NextRequest(

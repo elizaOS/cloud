@@ -25,8 +25,8 @@ export interface ActionParameter {
   default?: unknown;
 }
 
-export type ActionWithParams = Action & {
-  parameters?: Record<string, ActionParameter>;
+export type ActionWithParams = Omit<Action, "parameters"> & {
+  parameters?: Record<string, ActionParameter> | Action["parameters"];
 };
 
 export interface ParsedMultiStepDecision {

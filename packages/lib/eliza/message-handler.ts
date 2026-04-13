@@ -35,6 +35,19 @@ export interface UsageInfo {
   model: string;
 }
 
+function isUsageInfo(value: unknown): value is UsageInfo {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const usage = value as Partial<UsageInfo>;
+  return (
+    typeof usage.inputTokens === "number" &&
+    typeof usage.outputTokens === "number" &&
+    typeof usage.model === "string"
+  );
+}
+
 export interface MessageResult {
   message: Memory;
   usage?: UsageInfo;
@@ -107,8 +120,8 @@ export class MessageHandler {
         await this.runtime.createMemory(responseMemory, "messages");
       }
 
-      if ("usage" in content && content.usage) {
-        usage = content.usage as UsageInfo;
+      if ("usage" in content && isUsageInfo(content.usage)) {
+        usage = content.usage;
       }
       return [];
     };
