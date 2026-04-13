@@ -222,7 +222,7 @@ export class AgentLoader {
     const plugins = await this.resolvePlugins(modeResolution.mode, [], characterSettings);
     const character = this.buildCharacter({
       ...(defaultAgent.character as unknown as ElizaCharacter),
-      settings: characterSettings,
+      settings: characterSettings as Record<string, string | number | boolean | Record<string, unknown>>,
     });
 
     return { character, plugins, modeResolution };
