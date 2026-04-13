@@ -264,6 +264,9 @@ jobs:
               done
             fi
 
+            echo "Env files available on VPS checkout:"
+            ls -la .env* 2>/dev/null || true
+
             AVAILABLE_KB="$(df --output=avail -k / | tail -1 | tr -d ' ')"
             if [ "${AVAILABLE_KB:-0}" -lt 5000000 ]; then
               echo "Still under 5GB free; removing workspace node_modules as a fallback..."
@@ -349,6 +352,10 @@ jobs:
             ln -sfn .next-build .next
 
             if ! sudo systemctl restart eliza-cloud; then
+              sudo systemctl cat eliza-cloud || true
+              sudo systemctl show eliza-cloud \
+                --property=FragmentPath,EnvironmentFiles,ExecStart,WorkingDirectory || true
+              ls -la /opt/eliza-cloud/.env* 2>/dev/null || true
               sudo systemctl status eliza-cloud --no-pager || true
               sudo journalctl -u eliza-cloud -n 100 --no-pager || true
               exit 1
