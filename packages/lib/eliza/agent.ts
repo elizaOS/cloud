@@ -1253,6 +1253,6 @@ const agent = {
     ...(cloudBillingPlugin.providers || []),
   ].flat(),
   actions: [...(elevenLabsPlugin.actions || []), ...(cloudBootstrapPlugin.actions || [])].flat(),
-} as unknown as Character;
+};
 
 export default agent;
