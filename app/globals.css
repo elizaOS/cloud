@@ -1663,3 +1663,150 @@ button:not(:disabled),
   60% { transform: scale(1.08); }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* ─── Steward Login — Eliza Cloud Theme Overrides ─── */
+
+.stwd-eliza-login {
+  --stwd-primary: #FF5800;
+  --stwd-accent: #FF8A4C;
+  --stwd-surface: #171717;
+  --stwd-text: #fafafa;
+  --stwd-muted: #737373;
+  --stwd-error: #ef4444;
+  --stwd-radius: 12px;
+  --stwd-font: inherit;
+}
+
+/* Remove max-width constraint — parent card controls width */
+.stwd-eliza-login .stwd-login {
+  max-width: none;
+}
+
+/* Email input — match Privy styling */
+.stwd-eliza-login .stwd-login__input {
+  height: 2.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  color: #fafafa;
+  font-size: 0.875rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.stwd-eliza-login .stwd-login__input:focus {
+  border-color: #FF5800;
+  box-shadow: 0 0 0 1px #FF5800;
+}
+.stwd-eliza-login .stwd-login__input::placeholder {
+  color: #525252;
+}
+
+/* Primary action button (passkey) — orange brand */
+.stwd-eliza-login .stwd-login__btn--passkey {
+  height: 2.75rem;
+  background: #FF5800;
+  color: #fff;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: none;
+}
+.stwd-eliza-login .stwd-login__btn--passkey:hover:not(:disabled) {
+  background: #e64f00;
+  opacity: 1;
+}
+
+/* Secondary buttons (email magic link, SIWE) — ghost style */
+.stwd-eliza-login .stwd-login__btn--email,
+.stwd-eliza-login .stwd-login__btn--siwe {
+  height: 2.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  color: #fafafa;
+  font-size: 0.875rem;
+}
+.stwd-eliza-login .stwd-login__btn--email:hover:not(:disabled),
+.stwd-eliza-login .stwd-login__btn--siwe:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+/* Enable the SIWE button (it ships disabled by default) */
+.stwd-eliza-login .stwd-login__btn--siwe {
+  opacity: 1;
+}
+
+/* Google button — dark themed instead of white */
+.stwd-eliza-login .stwd-login__btn--google {
+  height: 2.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  color: #fafafa;
+  font-size: 0.875rem;
+}
+.stwd-eliza-login .stwd-login__btn--google:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* Discord button — dark themed instead of blurple */
+.stwd-eliza-login .stwd-login__btn--discord {
+  height: 2.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  color: #fafafa;
+  font-size: 0.875rem;
+}
+.stwd-eliza-login .stwd-login__btn--discord:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+/* Back button */
+.stwd-eliza-login .stwd-login__btn--back {
+  color: #737373;
+  font-size: 0.8125rem;
+}
+.stwd-eliza-login .stwd-login__btn--back:hover:not(:disabled) {
+  color: #fafafa;
+}
+
+/* Divider line */
+.stwd-eliza-login .stwd-login__divider {
+  color: #525252;
+  font-size: 0.75rem;
+}
+.stwd-eliza-login .stwd-login__divider::before,
+.stwd-eliza-login .stwd-login__divider::after {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Error text */
+.stwd-eliza-login .stwd-login__error {
+  color: #ef4444;
+  font-size: 0.8125rem;
+}
+
+/* Notice (magic link sent) */
+.stwd-eliza-login .stwd-login__notice p {
+  color: #fafafa;
+}
+.stwd-eliza-login .stwd-login__notice-sub {
+  color: #737373 !important;
+}
+
+/* Spinner — orange */
+.stwd-eliza-login .stwd-login__spinner {
+  border-color: rgba(255, 88, 0, 0.3);
+  border-top-color: #FF5800;
+}
+
+/* Focus ring for all buttons */
+.stwd-eliza-login .stwd-login__btn:focus-visible {
+  outline: 2px solid #FF5800;
+  outline-offset: 2px;
+}
