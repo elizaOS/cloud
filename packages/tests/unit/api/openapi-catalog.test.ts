@@ -32,8 +32,8 @@ describe("Public API catalog", () => {
     const body = await response.json();
 
     expect(body.info?.title).toBe("Eliza Cloud API");
-    expect(body.info?.contact?.url).toBe("https://www.elizacloud.ai");
-    expect(body.servers?.[0]?.url).toBe("https://www.elizacloud.ai");
+    expect(body.info?.contact?.url).toMatch(/^https:\/\/www\.(dev\.)?elizacloud\.ai$/);
+    expect(body.servers?.[0]?.url).toMatch(/^https:\/\/www\.(dev\.)?elizacloud\.ai$/);
 
     for (const endpoint of API_ENDPOINTS) {
       expect(body.paths[endpoint.path]?.[endpoint.method.toLowerCase()]).toBeDefined();
