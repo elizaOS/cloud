@@ -233,7 +233,9 @@ jobs:
             # if there is enough free disk to reuse them.
             echo "Discarding local checkout drift..."
             git clean -fdx \
+              -e .env \
               -e .env.local \
+              -e .env.* \
               -e node_modules \
               -e packages/services/gateway-discord/node_modules \
               -e packages/services/gateway-webhook/node_modules \
@@ -242,6 +244,25 @@ jobs:
             rm -f .git/index.lock
             git checkout -- . 2>/dev/null || true
             rm -f .git/index.lock
+
+            # The systemd unit on the VPS expects a repo-local env file, but the
+            # exact filename can vary across older hosts. Preserve all root env
+            # files and recreate the common aliases from whichever one survived.
+            ENV_SOURCE=""
+            for candidate in .env.local .env.production .env.staging .env; do
+              if [ -f "$candidate" ]; then
+                ENV_SOURCE="$candidate"
+                break
+              fi
+            done
+
+            if [ -n "$ENV_SOURCE" ]; then
+              for alias in .env .env.local .env.production .env.staging; do
+                if [ ! -e "$alias" ]; then
+                  ln -s "$ENV_SOURCE" "$alias"
+                fi
+              done
+            fi
 
             AVAILABLE_KB="$(df --output=avail -k / | tail -1 | tr -d ' ')"
             if [ "${AVAILABLE_KB:-0}" -lt 5000000 ]; then
