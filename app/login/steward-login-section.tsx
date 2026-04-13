@@ -83,7 +83,7 @@ export default function StewardLoginSection() {
     setLoading(provider as Provider); setError(null);
     try {
       const result = await auth.signInWithOAuth(provider, {
-        redirectUrl: `${window.location.origin}/login`,
+        redirectUri: `${window.location.origin}/login`,
       });
       if (result.token) await handleSuccess(result.token);
     } catch (e: any) { setError(e?.message || `${provider} login failed`); setLoading(null); }
