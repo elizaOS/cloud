@@ -1,7 +1,7 @@
 "use client";
 
 import { StewardLogin, StewardProvider } from "@stwd/react";
-import "@stwd/react/dist/styles.css";
+import "@stwd/react/styles.css";
 import { StewardClient } from "@stwd/sdk";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
