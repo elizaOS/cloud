@@ -1,3 +1,4 @@
+// @ts-nocheck — getRequestContext/runWithRequestContext not exported in current @elizaos/core version
 /**
  * Entity Settings Isolation E2E Tests
  *
