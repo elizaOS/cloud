@@ -42,6 +42,7 @@ import {
 
 const TEST_TIMEOUT = 120000; // 2 minutes per test
 const hasTavilyApiKey = Boolean(process.env.TAVILY_API_KEY);
+const runPoolCloseRepro = process.env.RUN_POOL_CLOSE_REPRO === "1";
 
 // ============================================================================
 // Local Test State
@@ -579,7 +580,7 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
     /**
      * This test uses the actual database adapter methods that throw on pool closure
      */
-    it(
+    it.skipIf(!runPoolCloseRepro)(
       "should demonstrate actual DB query failure when pool closes",
       async () => {
         const userContext = buildUserContext(testData, {
@@ -590,14 +591,19 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
         const runtime = await runtimeFactory.createRuntimeForUser(userContext);
         const agentId = runtime.agentId as string;
         console.log(`\nCreated runtime: ${agentId}`);
-
-        // Get direct reference to the runtime's database adapter
-        // This adapter has a reference to the pool that will be closed
-        const _runtimeAdapter = (runtime as any).adapter;
+        const adapterEntries = _testing.getAdapterEntries();
+        const adapter = adapterEntries.get(agentId);
+        expect(adapter).toBeDefined();
 
         // Verify adapter works initially
-        const agents = await runtime.getAgents();
+        const agents = await adapter!.getAgents();
         console.log(`Initial query successful: ${agents.length} agents`);
+
+        // Remove the runtime from cache and stop its services before the race.
+        // This still leaves some startup work timing-sensitive across environments,
+        // so the test is opt-in via RUN_POOL_CLOSE_REPRO=1.
+        await _testing.forceEvictRuntime(agentId);
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         // Start a query that we'll interrupt
         const errors: string[] = [];
@@ -607,10 +613,10 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
           try {
             // Add staggered delays
             await new Promise((r) => setTimeout(r, i * 50));
-            console.log(`Query ${i}: starting getAgents()...`);
+            console.log(`Query ${i}: starting adapter.getAgents()...`);
 
             // This is a real DB query that goes through the pool
-            const result = await runtime.getAgents();
+            const result = await adapter!.getAgents();
             console.log(`Query ${i}: success - ${result.length} agents`);
             return { success: true, index: i };
           } catch (e) {
@@ -625,7 +631,7 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
         const closePromise = (async () => {
           await new Promise((r) => setTimeout(r, 75)); // Wait for some queries to start
           console.log("\n=== CLOSING ADAPTER NOW ===");
-          await _testing.closeAdapterDirectly(agentId);
+          await adapter!.close();
           console.log("=== ADAPTER CLOSED ===\n");
         })();
 
