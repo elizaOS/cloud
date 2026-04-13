@@ -1,6 +1,6 @@
 "use client";
 
-import { StewardLogin, StewardProvider } from "@stwd/react";
+import { StewardLogin, StewardProvider, useAuth } from "@stwd/react";
 import "@stwd/react/styles.css";
 import { StewardClient } from "@stwd/sdk";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,16 +19,18 @@ function getSafeReturnTo(searchParams: { get(name: string): string | null }): st
     : "/dashboard/milady";
 }
 
-/**
- * Inner component that handles auth state and redirect.
- * Must be INSIDE StewardProvider to use useAuth from the correct context.
- */
+function setSessionCookie(token: string): Promise<void> {
+  return fetch("/api/auth/steward-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  }).then(() => {});
+}
+
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, getToken } = (
-    require("@stwd/react") as typeof import("@stwd/react")
-  ).useAuth();
+  const { isAuthenticated, getToken } = useAuth();
   const didSetCookie = useRef(false);
 
   useEffect(() => {
@@ -36,19 +38,9 @@ function LoginContent() {
       didSetCookie.current = true;
       const token = getToken();
       if (token) {
-        // Set server-side cookie, then redirect
-        fetch("/api/auth/steward-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        })
-          .then(() => {
-            const redirectUrl = getSafeReturnTo(searchParams);
-            router.replace(redirectUrl);
-          })
-          .catch(() => {
-            router.replace(getSafeReturnTo(searchParams));
-          });
+        setSessionCookie(token)
+          .then(() => router.replace(getSafeReturnTo(searchParams)))
+          .catch(() => router.replace(getSafeReturnTo(searchParams)));
       }
     }
   }, [isAuthenticated, getToken, router, searchParams]);
@@ -72,19 +64,9 @@ function LoginContent() {
       showSIWE
       onSuccess={({ token }) => {
         toast.success("Signed in!");
-        // Set cookie then redirect
-        fetch("/api/auth/steward-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        })
-          .then(() => {
-            const redirectUrl = getSafeReturnTo(searchParams);
-            router.replace(redirectUrl);
-          })
-          .catch(() => {
-            router.replace(getSafeReturnTo(searchParams));
-          });
+        setSessionCookie(token)
+          .then(() => router.replace(getSafeReturnTo(searchParams)))
+          .catch(() => router.replace(getSafeReturnTo(searchParams)));
       }}
       onError={(err) => {
         toast.error(err?.message || "Login failed");
@@ -106,19 +88,6 @@ export default function StewardLoginSection() {
         agentId=""
         auth={{ baseUrl: STEWARD_API_URL }}
         tenantId={STEWARD_TENANT_ID || undefined}
-        theme={{
-          primaryColor: "#FF5800",
-          accentColor: "#FF8A4C",
-          backgroundColor: "#0a0a0a",
-          surfaceColor: "#171717",
-          textColor: "#fafafa",
-          mutedColor: "#737373",
-          successColor: "#22c55e",
-          errorColor: "#ef4444",
-          warningColor: "#f59e0b",
-          borderRadius: 12,
-          colorScheme: "dark" as const,
-        }}
       >
         <LoginContent />
       </StewardProvider>
