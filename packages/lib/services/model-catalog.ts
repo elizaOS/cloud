@@ -96,9 +96,7 @@ export async function getCachedOpenRouterModelCatalog(): Promise<CatalogModel[]>
 }
 
 export async function getCachedMergedModelCatalog(): Promise<CatalogModel[]> {
-  const gatewayModels = hasGatewayProviderConfigured()
-    ? await getCachedGatewayModelCatalog()
-    : [];
+  const gatewayModels = hasGatewayProviderConfigured() ? await getCachedGatewayModelCatalog() : [];
   let models = gatewayModels;
 
   if (hasGroqProviderConfigured()) {
