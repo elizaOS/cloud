@@ -97,8 +97,14 @@ function mergeTierWithOverride(
 
   if (!override) return base;
 
+  const hasRpmOverride =
+    override.completions_rpm != null ||
+    override.embeddings_rpm != null ||
+    override.standard_rpm != null ||
+    override.strict_rpm != null;
+
   return {
-    tierName: "custom",
+    tierName: hasRpmOverride ? "custom" : tier.name,
     completionsRpm: override.completions_rpm ?? base.completionsRpm,
     embeddingsRpm: override.embeddings_rpm ?? base.embeddingsRpm,
     standardRpm: override.standard_rpm ?? base.standardRpm,
@@ -205,7 +211,7 @@ describe("Org Rate Limits — Override Merging", () => {
     expect(merged.strictRpm).toBe(25); // overridden
   });
 
-  test("all-null override → tier defaults with custom label", () => {
+  test("all-null override → tier defaults with base tier name", () => {
     const tier = computeTier(100); // growth
     const merged = mergeTierWithOverride(tier, {
       completions_rpm: null,
@@ -214,7 +220,7 @@ describe("Org Rate Limits — Override Merging", () => {
       strict_rpm: null,
     });
 
-    expect(merged.tierName).toBe("custom");
+    expect(merged.tierName).toBe("growth"); // no RPM override → keeps base tier name
     expect(merged.completionsRpm).toBe(300);
     expect(merged.embeddingsRpm).toBe(600);
   });

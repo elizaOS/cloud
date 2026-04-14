@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { orgRateLimitOverridesRepository } from "@/db/repositories/org-rate-limit-overrides";
+import { organizationsRepository } from "@/db/repositories/organizations";
 import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import {
   getOrgTier,
@@ -113,6 +114,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   try {
+    const org = await organizationsRepository.findById(orgId);
+    if (!org) {
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
     // Pass values as-is: null clears a field, undefined = not provided (no change)
     const result = await orgRateLimitOverridesRepository.upsert({
       organization_id: orgId,

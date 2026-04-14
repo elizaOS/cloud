@@ -138,8 +138,13 @@ export async function recalculateOrgTier(orgId: string): Promise<OrgTierData> {
   };
 
   if (override) {
+    const hasRpmOverride =
+      override.completions_rpm != null ||
+      override.embeddings_rpm != null ||
+      override.standard_rpm != null ||
+      override.strict_rpm != null;
     tierData = {
-      tierName: "custom",
+      tierName: hasRpmOverride ? "custom" : matchedTier.name,
       completionsRpm: override.completions_rpm ?? tierData.completionsRpm,
       embeddingsRpm: override.embeddings_rpm ?? tierData.embeddingsRpm,
       standardRpm: override.standard_rpm ?? tierData.standardRpm,
