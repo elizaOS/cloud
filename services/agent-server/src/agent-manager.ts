@@ -42,6 +42,11 @@ export function resolveSource(metadata?: MessageMetadata): string {
   if (metadata?.platformName && KNOWN_PLATFORMS.has(metadata.platformName)) {
     return metadata.platformName;
   }
+  if (metadata?.platformName) {
+    logger.warn("Unrecognized platformName, falling back to agent-server", {
+      platformName: metadata.platformName,
+    });
+  }
   return "agent-server";
 }
 
@@ -77,7 +82,7 @@ export function buildConnectionMetadata(
   }
 
   const result: Record<string, string> = { platformName: validPlatform };
-  if (metadata?.chatId) {
+  if (metadata.chatId) {
     result.chatId = metadata.chatId.slice(0, MAX_CHAT_ID_LENGTH);
   }
   return result;
@@ -329,7 +334,7 @@ export class AgentManager {
         });
       }
 
-      // `metadata` is an unofficial extension not yet in upstream EnsureConnectionParams.
+      // TODO: remove cast once `metadata` is added to upstream EnsureConnectionParams
       // The intersection narrows the cast to only the extra field so the compiler
       // still checks the standard fields.
       await rt.ensureConnection({
