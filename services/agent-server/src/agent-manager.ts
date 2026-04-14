@@ -43,9 +43,12 @@ export function resolveSource(metadata?: MessageMetadata): string {
   return "agent-server";
 }
 
-/** Returns the display name for the connection, falling back to the raw userId. */
+const MAX_USER_NAME_LENGTH = 255;
+
+/** Returns the display name for the connection, falling back to the raw userId. Caps length to prevent oversized values from reaching the database. */
 export function resolveUserName(userId: string, metadata?: MessageMetadata): string {
-  return metadata?.senderName || userId;
+  const name = metadata?.senderName || userId;
+  return name.length > MAX_USER_NAME_LENGTH ? name.slice(0, MAX_USER_NAME_LENGTH) : name;
 }
 
 /**
@@ -56,12 +59,16 @@ export function resolveUserName(userId: string, metadata?: MessageMetadata): str
 export function buildConnectionMetadata(
   metadata?: MessageMetadata,
 ): Record<string, string> | undefined {
-  const result: Record<string, string> = {};
+  const validPlatform =
+    metadata?.platformName && KNOWN_PLATFORMS.has(metadata.platformName)
+      ? metadata.platformName
+      : undefined;
+
+  if (!validPlatform) return undefined;
+
+  const result: Record<string, string> = { platformName: validPlatform };
   if (metadata?.chatId) result.chatId = metadata.chatId;
-  if (metadata?.platformName && KNOWN_PLATFORMS.has(metadata.platformName)) {
-    result.platformName = metadata.platformName;
-  }
-  return Object.keys(result).length > 0 ? result : undefined;
+  return result;
 }
 
 const REDIS_STATE_TTL_SECONDS = Math.max(
@@ -302,12 +309,16 @@ export class AgentManager {
       const userName = resolveUserName(userId, metadata);
       const connMeta = buildConnectionMetadata(metadata);
 
+      // senderName and chatId excluded from logs (PII — phone numbers, display names)
       logger.debug("Handling message with platform metadata", {
         agentId,
         userId,
         platformName: metadata?.platformName,
       });
 
+      // The `metadata` field is an unofficial extension not yet in the upstream
+      // EnsureConnectionParams type — the cast preserves it for downstream use
+      // while avoiding a compile-time error.
       await rt.ensureConnection({
         entityId: uid,
         roomId,

@@ -151,15 +151,23 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
         return { error: "userId and text are required" };
       }
 
-      logger.debug("Message received with platform metadata", {
-        agentId: params.id,
-        platformName,
-      });
+      const metadata = (platformName || senderName || chatId)
+        ? {
+            ...(platformName && { platformName }),
+            ...(senderName && { senderName }),
+            ...(chatId && { chatId }),
+          }
+        : undefined;
+
+      if (metadata) {
+        // senderName and chatId excluded from logs (PII — phone numbers, display names)
+        logger.debug("Message received with platform metadata", {
+          agentId: params.id,
+          platformName: metadata.platformName,
+        });
+      }
 
       try {
-        const metadata = (platformName || senderName || chatId)
-          ? { platformName, senderName, chatId }
-          : undefined;
         const response = await manager.handleMessage(params.id, userId, text, metadata);
         return { response };
       } catch (err: unknown) {

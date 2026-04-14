@@ -50,6 +50,13 @@ describe("resolveUserName", () => {
   test("falls back to userId when senderName is empty string", () => {
     expect(resolveUserName("user-001", { senderName: "" })).toBe("user-001");
   });
+
+  test("truncates senderName exceeding 255 characters", () => {
+    const longName = "A".repeat(300);
+    const result = resolveUserName("user-001", { senderName: longName });
+    expect(result.length).toBe(255);
+    expect(result).toBe("A".repeat(255));
+  });
 });
 
 describe("buildConnectionMetadata", () => {
@@ -71,8 +78,8 @@ describe("buildConnectionMetadata", () => {
     });
   });
 
-  test("returns only chatId when platformName is absent", () => {
-    expect(buildConnectionMetadata({ chatId: "42" })).toEqual({ chatId: "42" });
+  test("returns undefined when chatId is present but platformName is absent", () => {
+    expect(buildConnectionMetadata({ chatId: "42" })).toBeUndefined();
   });
 
   test("returns undefined when metadata is undefined", () => {
@@ -91,10 +98,8 @@ describe("buildConnectionMetadata", () => {
     expect(buildConnectionMetadata({ chatId: "", platformName: "" })).toBeUndefined();
   });
 
-  test("excludes unrecognized platformName but keeps chatId", () => {
-    expect(buildConnectionMetadata({ platformName: "garbage", chatId: "42" })).toEqual({
-      chatId: "42",
-    });
+  test("excludes both chatId and platformName when platform is unrecognized", () => {
+    expect(buildConnectionMetadata({ platformName: "garbage", chatId: "42" })).toBeUndefined();
   });
 
   test("excludes unrecognized platformName when it is the only field", () => {

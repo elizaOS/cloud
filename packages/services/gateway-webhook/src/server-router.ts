@@ -215,6 +215,7 @@ export async function forwardToServer(
 ): Promise<string> {
   const body = buildForwardBody(userId, text, options);
 
+  // senderName and chatId excluded from logs (PII — phone numbers, display names)
   logger.debug("Forwarding message to agent-server", {
     agentId,
     userId,
