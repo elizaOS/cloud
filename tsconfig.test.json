@@ -26,6 +26,7 @@
   },
   "include": [
     "types/**/*.d.ts",
+    "../packages/typescript/src/external-modules.d.ts",
     "./packages/types/**/*.d.ts",
     "./packages/tests/**/*.ts",
     "tests/**/*.tsx",
