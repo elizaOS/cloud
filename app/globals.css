@@ -1810,3 +1810,9 @@ button:not(:disabled),
   outline: 2px solid #FF5800;
   outline-offset: 2px;
 }
+
+/* Neutralize stwd-root wrapper CSS so it doesn't break other pages */
+.stwd-root {
+  background: transparent !important;
+  color: inherit !important;
+}

@@ -369,7 +369,17 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    const authToken = request.cookies.get("privy-token") || request.cookies.get("steward-token");
+    const privyToken = request.cookies.get("privy-token");
+    const stewardToken = request.cookies.get("steward-token");
+    const authToken = privyToken || stewardToken;
+
+    // Steward tokens are HS256 (verified by getCurrentUser, not Privy)
+    // Just pass them through the middleware without Privy verification
+    if (stewardToken && !privyToken && !bearerToken) {
+      return middlewareNext({
+        headers: { "X-Proxy-Time": `${Date.now() - startTime}ms`, "X-Auth-Source": "steward" },
+      });
+    }
     const playwrightTestSession =
       process.env.PLAYWRIGHT_TEST_AUTH === "true"
         ? request.cookies.get(PLAYWRIGHT_TEST_SESSION_COOKIE_NAME)
