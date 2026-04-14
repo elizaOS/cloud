@@ -24,7 +24,7 @@ export interface OrgRateLimitConfig {
   maxRequests: number;
 }
 
-interface OrgTierData {
+export interface OrgTierData {
   tierName: string;
   completionsRpm: number;
   embeddingsRpm: number;

@@ -4,6 +4,9 @@
  * GET    — read current override (if any) + computed tier
  * PATCH  — upsert override fields
  * DELETE — remove all overrides (revert to automatic tier)
+ *
+ * Auth: requireAdminWithResponse — superadmin only. All admins can modify any org.
+ * There are no tenant-scoped admin roles in the current system.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -59,6 +62,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 
+// PATCH semantics: null = clear override (revert to tier default), omit = keep current value.
 const PatchSchema = z.object({
   completions_rpm: z.number().int().min(1).max(10_000).nullable().optional(),
   embeddings_rpm: z.number().int().min(1).max(10_000).nullable().optional(),

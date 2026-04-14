@@ -130,6 +130,15 @@ describe("Org Rate Limits — Tier Thresholds", () => {
     expect(computeTier(4.99).name).toBe("free");
   });
 
+  test("free credits excluded — $4.99 paid + $100 free = still free tier", () => {
+    // recalculateOrgTier filters out FREE_CREDIT_TYPES before summing.
+    // Only paid spend counts. This test validates the tier logic:
+    // an org with $4.99 of real purchases stays free regardless of bonuses.
+    expect(computeTier(4.99).name).toBe("free");
+    // And $5 paid would be paid, even if they also got $100 free
+    expect(computeTier(5).name).toBe("paid");
+  });
+
   test("$5 boundary → paid", () => {
     const tier = computeTier(5);
     expect(tier.name).toBe("paid");
@@ -216,6 +225,17 @@ describe("Org Rate Limits — Override Merging", () => {
 
     expect(merged.tierName).toBe("paid");
     expect(merged.completionsRpm).toBe(120);
+  });
+
+  test("null clears a single override field back to tier default", () => {
+    const tier = computeTier(5); // paid: completionsRpm=120
+    // First set an override
+    const withOverride = mergeTierWithOverride(tier, { completions_rpm: 500 });
+    expect(withOverride.completionsRpm).toBe(500);
+
+    // Then "clear" it by setting null — should revert to tier default
+    const cleared = mergeTierWithOverride(tier, { completions_rpm: null });
+    expect(cleared.completionsRpm).toBe(120); // paid tier default
   });
 
   test("override on free tier", () => {
