@@ -45,6 +45,7 @@ interface PublicApiRoot {
 
 const METHOD_RE =
   /export\s+(?:(?:async\s+)?function|const)\s+(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\b/g;
+const METHOD_REEXPORT_RE = /export\s*\{\s*([^}]+)\s*\}\s*from\b/g;
 
 function segmentToOpenApi(segment: string): string {
   // Dynamic route: [id] -> {id}
@@ -86,6 +87,22 @@ function extractMethods(source: string): HttpMethod[] {
   const methods = new Set<HttpMethod>();
   for (const match of source.matchAll(METHOD_RE)) {
     methods.add(match[1] as HttpMethod);
+  }
+  for (const match of source.matchAll(METHOD_REEXPORT_RE)) {
+    for (const exported of match[1].split(",")) {
+      const method = exported.trim().split(/\s+as\s+/i)[0]?.trim();
+      if (
+        method === "GET" ||
+        method === "POST" ||
+        method === "PUT" ||
+        method === "PATCH" ||
+        method === "DELETE" ||
+        method === "OPTIONS" ||
+        method === "HEAD"
+      ) {
+        methods.add(method);
+      }
+    }
   }
   // If no explicit method exports, keep empty (rare, but don't invent).
   return Array.from(methods).sort();
