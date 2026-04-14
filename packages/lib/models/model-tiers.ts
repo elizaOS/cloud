@@ -67,8 +67,8 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
     provider: extractProvider(FAST_MODEL_ID),
     icon: "zap",
     pricing: {
-      inputPer1k: 0.0002,
-      outputPer1k: 0.001,
+      inputPer1k: 0.00024,
+      outputPer1k: 0.0012,
       currency: "USD",
     },
     capabilities: ["text", "code", "function_calling"],
@@ -82,8 +82,8 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
     provider: extractProvider(PRO_MODEL_ID),
     icon: "sparkles",
     pricing: {
-      inputPer1k: 0.003,
-      outputPer1k: 0.015,
+      inputPer1k: 0.0036,
+      outputPer1k: 0.018,
       currency: "USD",
     },
     capabilities: ["text", "code", "reasoning", "vision", "function_calling", "long_context"],
@@ -98,8 +98,8 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
     provider: extractProvider(ULTRA_MODEL_ID),
     icon: "crown",
     pricing: {
-      inputPer1k: 0.015,
-      outputPer1k: 0.075,
+      inputPer1k: 0.018,
+      outputPer1k: 0.09,
       currency: "USD",
     },
     capabilities: ["text", "code", "reasoning", "vision", "function_calling", "long_context"],

@@ -112,11 +112,18 @@ with open('speech.mp3', 'wb') as f:
 
 ### Available Models
 
-| Model                    | Languages | Quality | Speed   | Credits |
-| ------------------------ | --------- | ------- | ------- | ------- |
-| `eleven_multilingual_v2` | 29        | Highest | Medium  | 3       |
-| `eleven_turbo_v2_5`      | 32        | High    | Fast    | 2       |
-| `eleven_monolingual_v1`  | English   | Good    | Fastest | 1       |
+| Model                    | Languages | Quality | Speed   |
+| ------------------------ | --------- | ------- | ------- |
+| `eleven_multilingual_v2` | 29        | Highest | Medium  |
+| `eleven_turbo_v2_5`      | 32        | High    | Fast    |
+| `eleven_flash_v2_5`      | 32        | High    | Fast    |
+| `eleven_v3`              | Multi     | Highest | Medium  |
+
+<Callout type="info">
+  Voice pricing is refreshed separately from the text/image/video catalogs. TTS
+  is billed per character, STT per decoded audio duration, and voice cloning by
+  clone tier.
+</Callout>
 
 ### Response
 

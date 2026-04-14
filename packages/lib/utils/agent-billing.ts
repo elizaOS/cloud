@@ -54,11 +54,11 @@ export const ESTIMATED_COSTS = {
   chat_large: 0.01, // GPT-4o, Claude Sonnet
   chat_xlarge: 0.03, // GPT-4o with long context
 
-  // Media operations (aligned with pricing-constants.ts)
-  image_gen: 0.01, // Gemini Flash Image (matches IMAGE_GENERATION_COST)
-  video_gen: 0.05, // Video generation (matches VIDEO_GENERATION_COST)
-  voice_tts: 0.015, // ElevenLabs TTS
-  voice_stt: 0.01, // ElevenLabs STT
+  // Media operations (aligned with current provider-backed defaults)
+  image_gen: 0.0468, // Gemini 2.5 Flash Image default output
+  video_gen: 3.84, // Veo 3 default 8s request with audio
+  voice_tts: 0.06, // ElevenLabs Flash/Turbo per 1K characters
+  voice_stt: 0.0044, // ElevenLabs STT per minute
 
   // External operations
   mcp_call: 0.01, // Average MCP tool call
