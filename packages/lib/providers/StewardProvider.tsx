@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { StewardProvider, useAuth as useStewardAuth } from "@stwd/react";
 import { StewardClient } from "@stwd/sdk";
 import { useEffect, useMemo, useRef } from "react";
@@ -100,11 +99,6 @@ export function StewardAuthProvider({ children }: { children: React.ReactNode })
     return <>{children}</>;
   }
 
-  // Skip StewardProvider on docs/blog pages (CSS conflicts with nextra)
-  const pathname = usePathname();
-  if (pathname?.startsWith("/docs") || pathname?.startsWith("/blog")) {
-    return <>{children}</>;
-  }
 
   return (
     <StewardProvider

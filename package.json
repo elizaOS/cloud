@@ -153,7 +153,7 @@
     "@solana/web3.js": "^1.98.4",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.4",
-    "@stwd/react": "0.6.4",
+    "@stwd/react": "0.6.5",
     "@stwd/sdk": "0.7.2",
     "@sapphire/snowflake": "^3.5.5",
     "@tabler/icons-react": "^3.36.1",
