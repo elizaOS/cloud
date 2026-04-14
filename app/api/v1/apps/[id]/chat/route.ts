@@ -14,7 +14,7 @@ import {
   getProviderFromModel,
   normalizeModelName,
 } from "@/lib/pricing";
-import { getProviderForModel } from "@/lib/providers";
+import { getProviderForModelWithFallback, withProviderFallback } from "@/lib/providers";
 import type { OpenAIChatMessage, OpenAIChatRequest } from "@/lib/providers/types";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { appsService } from "@/lib/services/apps";
@@ -245,13 +245,24 @@ async function handlePOST(request: NextRequest, context: RouteContext): Promise<
     });
 
     // Forward to provider - wrap in try-catch to refund on failure
-    const providerInstance = getProviderForModel(model);
+    const { primary: providerInstance, fallback: fallbackProvider } =
+      getProviderForModelWithFallback(model);
     let providerResponse: Response;
     try {
-      providerResponse = await providerInstance.chatCompletions(chatRequest, {
-        signal: request.signal,
-        timeoutMs: routeTimeoutMs,
-      });
+      providerResponse = await withProviderFallback(
+        () =>
+          providerInstance.chatCompletions(chatRequest, {
+            signal: request.signal,
+            timeoutMs: routeTimeoutMs,
+          }),
+        fallbackProvider
+          ? () =>
+              fallbackProvider.chatCompletions(chatRequest, {
+                signal: request.signal,
+                timeoutMs: routeTimeoutMs,
+              })
+          : null,
+      );
     } catch (providerError) {
       // Provider call failed - refund the reserved credits
       logger.error("[App Chat] Provider call failed, refunding credits", {

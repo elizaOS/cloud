@@ -361,7 +361,8 @@ export function isFeatureConfigured(feature: string): boolean {
         process.env.OPENAI_API_KEY ||
         process.env.AI_GATEWAY_API_KEY ||
         process.env.VERCEL_AI_GATEWAY_API_KEY ||
-        process.env.GROQ_API_KEY
+        process.env.GROQ_API_KEY ||
+        process.env.OPENROUTER_API_KEY
       );
     default:
       return false;
