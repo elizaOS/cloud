@@ -147,8 +147,18 @@ export async function recalculateOrgTier(orgId: string): Promise<OrgTierData> {
     };
   }
 
-  // 4. Cache
-  await cache.set(tierCacheKey(orgId), tierData, TIER_CACHE_TTL_SECONDS);
+  // 4. Cache (non-fatal: if Redis is down, next request will re-query DB)
+  try {
+    await cache.set(tierCacheKey(orgId), tierData, TIER_CACHE_TTL_SECONDS);
+  } catch (err) {
+    logger.warn(
+      "[OrgRateLimits] Failed to cache tier, will re-query on next request",
+      {
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    );
+  }
 
   logger.debug("[OrgRateLimits] Tier computed", {
     orgId,

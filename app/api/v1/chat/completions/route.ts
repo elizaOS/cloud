@@ -291,11 +291,13 @@ async function handlePOST(req: NextRequest) {
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
 
     // 1b. Per-org tier rate limit
-    const orgRateLimited = await enforceOrgRateLimit(
-      user.organization_id!,
-      "completions",
-    );
-    if (orgRateLimited) return orgRateLimited;
+    if (user.organization_id) {
+      const orgRateLimited = await enforceOrgRateLimit(
+        user.organization_id,
+        "completions",
+      );
+      if (orgRateLimited) return orgRateLimited;
+    }
 
     // 2. Check for app monetization
     const appId = req.headers.get("X-App-Id");

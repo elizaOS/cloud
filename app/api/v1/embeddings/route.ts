@@ -56,11 +56,13 @@ async function handlePOST(req: NextRequest) {
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
 
     // Per-org tier rate limit
-    const orgRateLimited = await enforceOrgRateLimit(
-      user.organization_id!,
-      "embeddings",
-    );
-    if (orgRateLimited) return orgRateLimited;
+    if (user.organization_id) {
+      const orgRateLimited = await enforceOrgRateLimit(
+        user.organization_id,
+        "embeddings",
+      );
+      if (orgRateLimited) return orgRateLimited;
+    }
 
     const request: EmbeddingsRequest = await req.json();
 

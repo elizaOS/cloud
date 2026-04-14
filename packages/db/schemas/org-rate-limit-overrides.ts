@@ -7,6 +7,9 @@ import { organizations } from "./organizations";
  *
  * Nullable columns: NULL means "use the tier default."
  * Only non-null fields override the automatically computed tier limits.
+ *
+ * Note: A DB-level CHECK constraint (chk_rpm_positive) ensures RPM values are
+ * either NULL or > 0. See migration 0063 — Drizzle doesn't support raw constraints.
  */
 export const orgRateLimitOverrides = pgTable("org_rate_limit_overrides", {
   id: uuid("id").defaultRandom().primaryKey(),
