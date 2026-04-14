@@ -737,6 +737,15 @@ async function fetchText(url: string): Promise<string> {
   return await response.text();
 }
 
+function evictExpiredCacheEntries(): void {
+  const now = Date.now();
+  for (const [key, value] of third - partyCatalogCache) {
+    if (value.expiresAt <= now) {
+      third - partyCatalogCache.delete(key);
+    }
+  }
+}
+
 async function getCachedExternalEntries(
   cacheKey: string,
   loader: () => Promise<PreparedPricingEntry[]>,
@@ -745,6 +754,9 @@ async function getCachedExternalEntries(
   if (cached && cached.expiresAt > Date.now()) {
     return cached.entries;
   }
+
+  // Evict expired entries before adding new ones to prevent unbounded growth
+  evictExpiredCacheEntries();
 
   const entries = await loader();
   externalCatalogCache.set(cacheKey, {
