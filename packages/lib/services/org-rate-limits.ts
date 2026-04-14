@@ -6,7 +6,7 @@
  * and caches the result in Redis (1h TTL) for fast lookups.
  */
 
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { dbRead } from "@/db/helpers";
 import { orgRateLimitOverridesRepository } from "@/db/repositories/org-rate-limit-overrides";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
@@ -89,30 +89,45 @@ const tierCacheKey = (orgId: string) => `orgtier:${orgId}:v1`;
  * "growth" regardless of how much they consumed.
  */
 export async function recalculateOrgTier(orgId: string): Promise<OrgTierData> {
-  // 1. Sum paid credit purchases
-  const [row] = await dbRead
-    .select({
-      totalSpend: sql<string>`COALESCE(SUM(${creditTransactions.amount}), '0')`,
-    })
-    .from(creditTransactions)
-    .where(
-      and(
-        eq(creditTransactions.organization_id, orgId),
-        eq(creditTransactions.type, "credit"),
-        sql`COALESCE(${creditTransactions.metadata}->>'type', '') NOT IN (${sql.join(
-          FREE_CREDIT_TYPES.map((t) => sql`${t}`),
-          sql`, `,
-        )})`,
+  // 1. Sum paid credit purchases + load overrides in parallel
+  const [creditResult, override] = await Promise.all([
+    dbRead
+      .select({
+        totalSpend: sql<string>`COALESCE(SUM(${creditTransactions.amount}), '0')`,
+      })
+      .from(creditTransactions)
+      .where(
+        and(
+          eq(creditTransactions.organization_id, orgId),
+          eq(creditTransactions.type, "credit"),
+          sql`COALESCE(${creditTransactions.metadata}->>'type', '') NOT IN (${sql.join(
+            FREE_CREDIT_TYPES.map((t) => sql`${t}`),
+            sql`, `,
+          )})`,
+        ),
       ),
-    );
+    orgRateLimitOverridesRepository.findByOrganizationId(orgId).catch((err) => {
+      logger.warn(
+        "[OrgRateLimits] Failed to load overrides, using tier defaults",
+        {
+          orgId,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      );
+      return undefined;
+    }),
+  ]);
 
-  const totalSpend = Number.parseFloat(row?.totalSpend ?? "0");
+  const totalSpend = Number.parseFloat(creditResult[0]?.totalSpend ?? "0");
 
   // 2. Match tier (first threshold where totalSpend >= minSpend)
+  const sortedThresholds = [...TIER_THRESHOLDS].sort(
+    (a, b) => b.minSpend - a.minSpend,
+  );
   const matchedTier =
-    TIER_THRESHOLDS.find((t) => totalSpend >= t.minSpend) ?? FREE_TIER;
+    sortedThresholds.find((t) => totalSpend >= t.minSpend) ?? FREE_TIER;
 
-  // 3. Load override and merge non-null fields
+  // 3. Merge override non-null fields
   let tierData: OrgTierData = {
     tierName: matchedTier.name,
     completionsRpm: matchedTier.completionsRpm,
@@ -121,26 +136,14 @@ export async function recalculateOrgTier(orgId: string): Promise<OrgTierData> {
     strictRpm: matchedTier.strictRpm,
   };
 
-  try {
-    const override =
-      await orgRateLimitOverridesRepository.findByOrganizationId(orgId);
-    if (override) {
-      tierData = {
-        tierName: "custom",
-        completionsRpm: override.completions_rpm ?? tierData.completionsRpm,
-        embeddingsRpm: override.embeddings_rpm ?? tierData.embeddingsRpm,
-        standardRpm: override.standard_rpm ?? tierData.standardRpm,
-        strictRpm: override.strict_rpm ?? tierData.strictRpm,
-      };
-    }
-  } catch (err) {
-    logger.warn(
-      "[OrgRateLimits] Failed to load overrides, using tier defaults",
-      {
-        orgId,
-        error: err instanceof Error ? err.message : String(err),
-      },
-    );
+  if (override) {
+    tierData = {
+      tierName: "custom",
+      completionsRpm: override.completions_rpm ?? tierData.completionsRpm,
+      embeddingsRpm: override.embeddings_rpm ?? tierData.embeddingsRpm,
+      standardRpm: override.standard_rpm ?? tierData.standardRpm,
+      strictRpm: override.strict_rpm ?? tierData.strictRpm,
+    };
   }
 
   // 4. Cache

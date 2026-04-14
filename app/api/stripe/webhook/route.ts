@@ -217,6 +217,16 @@ async function handleStripeWebhook(req: NextRequest) {
                 },
                 stripePaymentIntentId: paymentIntentId,
               });
+
+              // Invalidate org rate limit tier cache on app purchase too
+              invalidateOrgTierCache(organizationId).catch((err) =>
+                logger.warn(
+                  "[Stripe Webhook] Failed to invalidate org tier cache",
+                  {
+                    error: err instanceof Error ? err.message : String(err),
+                  },
+                ),
+              );
             } catch (appError) {
               logger.error(
                 "[Stripe Webhook] Error processing app credit purchase",

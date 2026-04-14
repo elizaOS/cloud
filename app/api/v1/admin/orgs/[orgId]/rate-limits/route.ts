@@ -48,11 +48,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
 }
 
 const PatchSchema = z.object({
-  completions_rpm: z.number().int().positive().nullish(),
-  embeddings_rpm: z.number().int().positive().nullish(),
-  standard_rpm: z.number().int().positive().nullish(),
-  strict_rpm: z.number().int().positive().nullish(),
-  note: z.string().max(500).nullish(),
+  completions_rpm: z.number().int().min(1).max(10_000).nullable().optional(),
+  embeddings_rpm: z.number().int().min(1).max(10_000).nullable().optional(),
+  standard_rpm: z.number().int().min(1).max(10_000).nullable().optional(),
+  strict_rpm: z.number().int().min(1).max(10_000).nullable().optional(),
+  note: z.string().max(500).nullable().optional(),
 });
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -80,13 +80,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   try {
+    // Pass values as-is: null clears a field, undefined = not provided (no change)
     const result = await orgRateLimitOverridesRepository.upsert({
       organization_id: orgId,
-      completions_rpm: parsed.data.completions_rpm ?? undefined,
-      embeddings_rpm: parsed.data.embeddings_rpm ?? undefined,
-      standard_rpm: parsed.data.standard_rpm ?? undefined,
-      strict_rpm: parsed.data.strict_rpm ?? undefined,
-      note: parsed.data.note ?? undefined,
+      ...("completions_rpm" in parsed.data && {
+        completions_rpm: parsed.data.completions_rpm,
+      }),
+      ...("embeddings_rpm" in parsed.data && {
+        embeddings_rpm: parsed.data.embeddings_rpm,
+      }),
+      ...("standard_rpm" in parsed.data && {
+        standard_rpm: parsed.data.standard_rpm,
+      }),
+      ...("strict_rpm" in parsed.data && {
+        strict_rpm: parsed.data.strict_rpm,
+      }),
+      ...("note" in parsed.data && { note: parsed.data.note }),
     });
 
     await invalidateOrgTierCache(orgId);
