@@ -1377,6 +1377,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Per-org tier rate limit (skipped for anonymous users — they use the outer withRateLimit)
+    // Shares the "completions" counter with /chat/completions — both are LLM inference endpoints
     if (user.organization_id) {
       const orgRateLimited = await enforceOrgRateLimit(
         user.organization_id,

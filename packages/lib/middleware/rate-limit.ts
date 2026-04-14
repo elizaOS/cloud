@@ -11,6 +11,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
+import type { EndpointType } from "@/lib/services/org-rate-limits";
+import { getOrgRpmForEndpoint } from "@/lib/services/org-rate-limits";
 import { checkRateLimitRedis, type RateLimitResult } from "./rate-limit-redis";
 
 interface RateLimitConfig {
@@ -348,10 +350,8 @@ export async function enforceMcpOrganizationRateLimit(
  */
 export async function enforceOrgRateLimit(
   organizationId: string,
-  endpointType: import("@/lib/services/org-rate-limits").EndpointType,
+  endpointType: EndpointType,
 ): Promise<Response | null> {
-  const { getOrgRpmForEndpoint } =
-    await import("@/lib/services/org-rate-limits");
   const { windowMs, maxRequests } = await getOrgRpmForEndpoint(
     organizationId,
     endpointType,

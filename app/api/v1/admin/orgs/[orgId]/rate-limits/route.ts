@@ -18,6 +18,16 @@ import { logger } from "@/lib/utils/logger";
 
 type RouteContext = { params: Promise<{ orgId: string }> };
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function validateOrgId(orgId: string): NextResponse | null {
+  if (!UUID_RE.test(orgId)) {
+    return NextResponse.json({ error: "Invalid org ID" }, { status: 400 });
+  }
+  return null;
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const authResult = await requireAdminWithResponse(
     request,
@@ -26,6 +36,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   if (authResult instanceof NextResponse) return authResult;
 
   const { orgId } = await context.params;
+  const invalid = validateOrgId(orgId);
+  if (invalid) return invalid;
 
   try {
     const [override, tier] = await Promise.all([
@@ -63,6 +75,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (authResult instanceof NextResponse) return authResult;
 
   const { orgId } = await context.params;
+  const invalid = validateOrgId(orgId);
+  if (invalid) return invalid;
 
   let body: unknown;
   try {
@@ -124,6 +138,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   if (authResult instanceof NextResponse) return authResult;
 
   const { orgId } = await context.params;
+  const invalid = validateOrgId(orgId);
+  if (invalid) return invalid;
 
   try {
     await orgRateLimitOverridesRepository.deleteByOrganizationId(orgId);
