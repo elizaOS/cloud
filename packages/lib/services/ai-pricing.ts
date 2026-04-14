@@ -691,8 +691,15 @@ function parseFalPricingEntries(
       }
       break;
     }
-    case "seedance":
-      throw new Error("Seedance pricing parser is not implemented yet");
+    case "seedance": {
+      const match = paragraph.match(/\$([\d.]+)\/second/);
+      if (!match) {
+        throw new Error(`Unable to parse Seedance pricing paragraph: ${paragraph}`);
+      }
+
+      entries.push(buildFalEntry(model, "second", Number(match[1]), { resolution: "720p" }));
+      break;
+    }
   }
 
   return entries;

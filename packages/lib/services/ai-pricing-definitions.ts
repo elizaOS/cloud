@@ -281,6 +281,32 @@ export const SUPPORTED_VIDEO_MODELS: SupportedVideoModelDefinition[] = [
       audio: false,
     },
   },
+  {
+    modelId: "bytedance/seedance-2.0/text-to-video",
+    provider: "fal",
+    billingSource: "fal",
+    label: "Seedance 2.0",
+    pageUrl: "https://fal.ai/models/bytedance/seedance-2.0/text-to-video",
+    pricingParser: "seedance",
+    defaultParameters: {
+      durationSeconds: 8,
+      resolution: "720p",
+      audio: true,
+    },
+  },
+  {
+    modelId: "bytedance/seedance-2.0/fast/text-to-video",
+    provider: "fal",
+    billingSource: "fal",
+    label: "Seedance 2.0 Fast",
+    pageUrl: "https://fal.ai/models/bytedance/seedance-2.0/fast/text-to-video",
+    pricingParser: "seedance",
+    defaultParameters: {
+      durationSeconds: 8,
+      resolution: "720p",
+      audio: true,
+    },
+  },
 ] as const;
 
 export const ELEVENLABS_SNAPSHOT_PRICING: ElevenLabsSnapshotEntry[] = [
