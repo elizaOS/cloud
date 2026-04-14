@@ -33,9 +33,14 @@ export interface MessageMetadata {
   chatId?: string;
 }
 
-/** Returns the message source, falling back to "agent-server" when no platform is specified. */
+const KNOWN_PLATFORMS = new Set(["telegram", "whatsapp", "twilio", "blooio"]);
+
+/** Returns the message source, falling back to "agent-server" when no platform is specified or unrecognized. */
 export function resolveSource(metadata?: MessageMetadata): string {
-  return metadata?.platformName || "agent-server";
+  if (metadata?.platformName && KNOWN_PLATFORMS.has(metadata.platformName)) {
+    return metadata.platformName;
+  }
+  return "agent-server";
 }
 
 /** Returns the display name for the connection, falling back to the raw userId. */
@@ -53,7 +58,9 @@ export function buildConnectionMetadata(
 ): Record<string, string> | undefined {
   const result: Record<string, string> = {};
   if (metadata?.chatId) result.chatId = metadata.chatId;
-  if (metadata?.platformName) result.platformName = metadata.platformName;
+  if (metadata?.platformName && KNOWN_PLATFORMS.has(metadata.platformName)) {
+    result.platformName = metadata.platformName;
+  }
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
@@ -299,7 +306,6 @@ export class AgentManager {
         agentId,
         userId,
         platformName: metadata?.platformName,
-        chatId: metadata?.chatId,
       });
 
       await rt.ensureConnection({

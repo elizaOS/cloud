@@ -154,15 +154,13 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
       logger.debug("Message received with platform metadata", {
         agentId: params.id,
         platformName,
-        chatId,
       });
 
       try {
-        const response = await manager.handleMessage(params.id, userId, text, {
-          platformName,
-          senderName,
-          chatId,
-        });
+        const metadata = (platformName || senderName || chatId)
+          ? { platformName, senderName, chatId }
+          : undefined;
+        const response = await manager.handleMessage(params.id, userId, text, metadata);
         return { response };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);

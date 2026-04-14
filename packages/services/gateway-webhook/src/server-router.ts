@@ -219,7 +219,6 @@ export async function forwardToServer(
     agentId,
     userId,
     platformName: options?.platformName,
-    chatId: options?.chatId,
   });
 
   const raw = await forwardWithRetry(

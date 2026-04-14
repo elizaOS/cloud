@@ -22,6 +22,16 @@ describe("resolveSource", () => {
   test("returns 'agent-server' when platformName is empty string", () => {
     expect(resolveSource({ platformName: "" })).toBe("agent-server");
   });
+
+  test("returns 'agent-server' when platformName is unrecognized", () => {
+    expect(resolveSource({ platformName: "unknown-platform" })).toBe("agent-server");
+  });
+
+  test("accepts all known platforms", () => {
+    for (const p of ["telegram", "whatsapp", "twilio", "blooio"]) {
+      expect(resolveSource({ platformName: p })).toBe(p);
+    }
+  });
 });
 
 describe("resolveUserName", () => {
@@ -79,5 +89,15 @@ describe("buildConnectionMetadata", () => {
 
   test("returns undefined when chatId and platformName are empty strings", () => {
     expect(buildConnectionMetadata({ chatId: "", platformName: "" })).toBeUndefined();
+  });
+
+  test("excludes unrecognized platformName but keeps chatId", () => {
+    expect(buildConnectionMetadata({ platformName: "garbage", chatId: "42" })).toEqual({
+      chatId: "42",
+    });
+  });
+
+  test("excludes unrecognized platformName when it is the only field", () => {
+    expect(buildConnectionMetadata({ platformName: "garbage" })).toBeUndefined();
   });
 });
