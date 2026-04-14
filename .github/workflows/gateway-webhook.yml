@@ -41,4 +41,4 @@ jobs:
         working-directory: packages/services/gateway-webhook
         run: |
           bun test ./__tests__/project-config.test.ts --timeout 60000
-          bun test ./__tests__/webhook-config.test.ts __tests__/webhook-handler.test.ts __tests__/adapters/ --timeout 60000
+          bun test ./__tests__/webhook-config.test.ts ./__tests__/webhook-handler.test.ts ./__tests__/adapters/ --timeout 60000
