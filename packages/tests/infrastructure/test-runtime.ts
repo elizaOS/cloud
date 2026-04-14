@@ -1,3 +1,4 @@
+// @ts-nocheck — serverId removed from World type in newer @elizaos/core
 /**
  * Test Runtime Infrastructure
  *

@@ -26,8 +26,8 @@ import {
 } from "./auth/privy-client";
 import { invalidateStewardTokenCache, verifyStewardTokenCached } from "./auth/steward-client";
 
-// TODO: Import syncUserFromSteward once steward-sync module is created
-// import { syncUserFromSteward } from "./steward-sync";
+// Steward user sync (mirrors Privy JIT sync)
+import { syncUserFromSteward } from "./steward-sync";
 
 // Re-export Organization type for convenience
 export type { Organization };
@@ -173,8 +173,10 @@ export const getCurrentUser = cache(async (): Promise<UserWithOrganization | nul
       return playwrightTestUser;
     }
 
-    // Get the auth token from cookies
-    const authToken = cookieStore.get("privy-token");
+    // Get the auth token from cookies (try steward-token first, then privy-token)
+    const stewardToken = cookieStore.get("steward-token");
+    const privyToken = cookieStore.get("privy-token");
+    const authToken = stewardToken || privyToken;
 
     if (!authToken) {
       return null;
@@ -194,6 +196,41 @@ export const getCurrentUser = cache(async (): Promise<UserWithOrganization | nul
       }
 
       return cachedUser;
+    }
+
+    // If this is a steward token, verify with steward first
+    if (stewardToken) {
+      logger.debug("[AUTH] Verifying steward session cookie");
+      const stewardClaims = await verifyStewardTokenCached(stewardToken.value);
+
+      if (stewardClaims) {
+        // Look up or JIT-create user
+        let user = await usersService.getByStewardId(stewardClaims.userId);
+
+        if (!user) {
+          try {
+            user = await syncUserFromSteward({
+              stewardUserId: stewardClaims.userId,
+              email: stewardClaims.email,
+              walletAddress: stewardClaims.address,
+            });
+          } catch (syncErr) {
+            logger.error("[AUTH] Steward JIT sync failed", { error: syncErr });
+            return null;
+          }
+        }
+
+        if (user && user.is_active) {
+          // Cache the resolved user
+          await redisCache.set(cacheKey, user, CacheTTL.session.user);
+          if (user.organization_id) {
+            void trackSessionActivity(user.id, user.organization_id, stewardToken.value);
+          }
+          return user;
+        }
+        return null;
+      }
+      // Steward token invalid, fall through to Privy check
     }
 
     logger.debug("[AUTH] Cache miss, verifying with Privy (cached)");
@@ -578,12 +615,18 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
           };
         }
 
-        // TODO: JIT sync from Steward (mirrors Privy JIT sync above)
-        // Once syncUserFromSteward is implemented, uncomment:
-        // const syncedUser = await syncUserFromSteward(stewardClaims);
-        // if (syncedUser) {
-        //   return { user: syncedUser, authMethod: "session", session_token: bearerValue };
-        // }
+        // JIT sync from Steward (mirrors Privy JIT sync)
+        // Create or link the user in eliza-cloud DB
+        try {
+          const syncedUser = await syncUserFromSteward({
+            stewardUserId: stewardClaims.userId!,
+            email: stewardClaims.email,
+            walletAddress: stewardClaims.address,
+          });
+          return { user: syncedUser, authMethod: "session" as const, session_token: bearerValue };
+        } catch (syncErr) {
+          logger.error("[AUTH] Steward JIT sync failed", { error: syncErr });
+        }
 
         logger.warn("[AUTH] Steward JWT valid but no matching user", {
           stewardUserId: stewardClaims.userId.substring(0, 20),

@@ -222,7 +222,10 @@ export class AgentLoader {
     const plugins = await this.resolvePlugins(modeResolution.mode, [], characterSettings);
     const character = this.buildCharacter({
       ...(defaultAgent.character as unknown as ElizaCharacter),
-      settings: characterSettings as ElizaCharacter["settings"],
+      settings: characterSettings as Record<
+        string,
+        string | number | boolean | Record<string, unknown>
+      >,
     });
 
     return { character, plugins, modeResolution };
@@ -230,23 +233,27 @@ export class AgentLoader {
 
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
     const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
-    const charSettings = (elizaCharacter.settings || {}) as Record<string, unknown>;
+    const charSettings = (elizaCharacter.settings || {}) as Record<
+      string,
+      string | boolean | number | Record<string, unknown>
+    >;
 
-    const settings = JSON.parse(
-      JSON.stringify({
-        ...charSettings,
-        POSTGRES_URL: process.env.DATABASE_URL!,
-        DATABASE_URL: process.env.DATABASE_URL!,
-        ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
-        // ElevenLabs settings (shared config)
-        ...buildElevenLabsSettings(charSettings),
-        ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
-          ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
-          : {}),
-      }),
-    ) as Character["settings"];
+    const settings: Record<string, string | boolean | number | Record<string, unknown>> = {
+      ...charSettings,
+      POSTGRES_URL: process.env.DATABASE_URL!,
+      DATABASE_URL: process.env.DATABASE_URL!,
+      ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
+      // ElevenLabs settings (shared config)
+      ...buildElevenLabsSettings(charSettings),
+      ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
+        ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
+        : {}),
+    };
 
-    const characterInput = {
+    // createCharacter() normalizes all fields internally. The ElizaCharacter DB type
+    // carries wider types (e.g. Record<string, unknown>) that are structurally compatible
+    // but not directly assignable to the stricter CharacterInput generics.
+    return createCharacter({
       id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: elizaCharacter.name,
       username: elizaCharacter.username,
@@ -254,18 +261,14 @@ export class AgentLoader {
       settings,
       system: elizaCharacter.system,
       bio: elizaCharacter.bio,
-      messageExamples: elizaCharacter.messageExamples as Parameters<
-        typeof createCharacter
-      >[0]["messageExamples"],
+      messageExamples: elizaCharacter.messageExamples,
       postExamples: elizaCharacter.postExamples,
       topics: elizaCharacter.topics,
       adjectives: elizaCharacter.adjectives,
       knowledge: elizaCharacter.knowledge,
       style: elizaCharacter.style,
       templates: elizaCharacter.templates,
-    } as Parameters<typeof createCharacter>[0];
-
-    return createCharacter(characterInput);
+    } as Parameters<typeof createCharacter>[0]);
   }
 
   private async resolvePlugins(

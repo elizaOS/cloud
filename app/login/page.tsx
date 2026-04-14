@@ -74,10 +74,8 @@ function GradientBackground({ children }: { children: React.ReactNode }) {
 }
 
 function LoginPageContent() {
-  const stewardOnly = STEWARD_AUTH_ENABLED && !PRIVY_CONFIGURED;
-  const both = STEWARD_AUTH_ENABLED && PRIVY_CONFIGURED;
-
-  if (stewardOnly) {
+  // When steward is enabled, it is the ONLY auth surface — no Privy side-by-side.
+  if (STEWARD_AUTH_ENABLED) {
     return (
       <GradientBackground>
         <div className="space-y-6">
@@ -107,31 +105,7 @@ function LoginPageContent() {
     );
   }
 
-  if (both) {
-    return (
-      <GradientBackground>
-        <div className="space-y-6">
-          <div className="space-y-2 text-center">
-            <h1 className="text-2xl font-semibold text-white">Welcome back</h1>
-            <p className="text-sm text-neutral-500">Sign in to your Eliza Cloud account</p>
-          </div>
-          <StewardLoginSection />
-          {/* Divider between Steward and Privy sections */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-neutral-900 px-3 text-neutral-500">or</span>
-            </div>
-          </div>
-          <PrivyLoginSection />
-        </div>
-      </GradientBackground>
-    );
-  }
-
-  // privyOnly (default / existing behavior)
+  // Privy-only (legacy / default when steward is not enabled)
   return (
     <GradientBackground>
       <PrivyLoginSection />
