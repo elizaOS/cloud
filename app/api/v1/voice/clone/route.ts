@@ -26,7 +26,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { VOICE_CLONE_INSTANT_COST, VOICE_CLONE_PROFESSIONAL_COST } from "@/lib/pricing-constants";
+import { billFlatUsage } from "@/lib/services/ai-billing";
+import { calculateVoiceCloneCostFromCatalog } from "@/lib/services/ai-pricing";
 import {
   type CreditReservation,
   creditsService,
@@ -124,7 +125,8 @@ export async function POST(request: NextRequest) {
       totalSize,
     });
 
-    const cost = cloneType === "instant" ? VOICE_CLONE_INSTANT_COST : VOICE_CLONE_PROFESSIONAL_COST;
+    const cloneCost = await calculateVoiceCloneCostFromCatalog({ cloneType });
+    const cost = cloneCost.totalCost;
 
     let reservation: CreditReservation;
     try {
@@ -178,7 +180,19 @@ export async function POST(request: NextRequest) {
         duration,
       });
 
-      await reservation.reconcile(cost);
+      const billing = await billFlatUsage(
+        {
+          organizationId: user.organization_id,
+          userId: user.id,
+          apiKeyId: apiKey?.id ?? null,
+          model: `elevenlabs/${cloneType}`,
+          provider: "elevenlabs",
+          billingSource: "elevenlabs",
+          description: `Voice cloning (${cloneType}): ${name}`,
+        },
+        cloneCost,
+        reservation,
+      );
 
       (async () => {
         try {
@@ -191,14 +205,17 @@ export async function POST(request: NextRequest) {
             provider: "elevenlabs",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: String(cost),
+            input_cost: String(billing.totalCost),
             output_cost: String(0),
+            markup: String(billing.platformMarkup),
             is_successful: true,
             duration_ms: duration,
             metadata: {
               voiceName: name,
               fileCount: files.length,
               totalSize,
+              baseTotalCost: billing.baseTotalCost,
+              billingSource: "elevenlabs",
             },
           });
         } catch (error) {

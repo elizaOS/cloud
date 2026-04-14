@@ -34,6 +34,7 @@ import {
   getAiProviderConfigurationError,
   getLanguageModel,
   hasLanguageModelProviderConfigured,
+  resolveAiProviderSource,
 } from "@/lib/providers/language-model";
 import {
   billUsage,
@@ -42,6 +43,7 @@ import {
   recordUsageAnalytics,
   reserveCredits,
 } from "@/lib/services/ai-billing";
+import type { PricingBillingSource } from "@/lib/services/ai-pricing-definitions";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { appsService } from "@/lib/services/apps";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -321,6 +323,7 @@ async function handlePOST(req: NextRequest) {
 
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
+    const billingSource = resolveAiProviderSource(model) ?? "gateway";
     const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
     const cotOptions =
       cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
@@ -383,6 +386,7 @@ async function handlePOST(req: NextRequest) {
         provider,
         estimatedInputTokens,
         estimatedOutputTokens,
+        billingSource,
       );
       const costWithMarkup = await appCreditsService.calculateCostWithMarkup(appId, totalCost);
 
@@ -421,6 +425,7 @@ async function handlePOST(req: NextRequest) {
             userId: user.id,
             model,
             provider,
+            billingSource,
             affiliateCode,
           },
           estimatedInputTokens,
@@ -479,6 +484,7 @@ async function handlePOST(req: NextRequest) {
         cotOptions,
         effectiveMaxTokens,
         webSearchOptions,
+        billingSource,
       );
     } else {
       return await handleNonStreamingRequest(
@@ -497,6 +503,7 @@ async function handlePOST(req: NextRequest) {
         cotOptions,
         effectiveMaxTokens,
         webSearchOptions,
+        billingSource,
       );
     }
   } catch (error) {
@@ -552,6 +559,7 @@ async function handleStreamingRequest(
   cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
   effectiveMaxTokens: number | undefined,
   webSearchOptions: ReturnType<typeof buildProviderNativeWebSearchTools>,
+  billingSource: PricingBillingSource,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -586,6 +594,7 @@ async function handleStreamingRequest(
             apiKeyId: apiKey?.id,
             model,
             provider,
+            billingSource,
             affiliateCode,
           },
           usage,
@@ -600,7 +609,7 @@ async function handleStreamingRequest(
             estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
             actualBaseCost: billing.totalCost,
             description: `Chat reconciliation: ${model}`,
-            metadata: { model, provider, streaming: true },
+            metadata: { model, provider, billingSource, streaming: true },
           });
         }
 
@@ -611,6 +620,7 @@ async function handleStreamingRequest(
             apiKeyId: apiKey?.id,
             model,
             provider,
+            billingSource,
           },
           billing,
           {
@@ -729,6 +739,7 @@ async function handleNonStreamingRequest(
   cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
   effectiveMaxTokens: number | undefined,
   webSearchOptions: ReturnType<typeof buildProviderNativeWebSearchTools>,
+  billingSource: PricingBillingSource,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -767,6 +778,7 @@ async function handleNonStreamingRequest(
         apiKeyId: apiKey?.id,
         model,
         provider,
+        billingSource,
         affiliateCode,
       },
       result.usage,
@@ -781,7 +793,7 @@ async function handleNonStreamingRequest(
         estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
         actualBaseCost: billing.totalCost,
         description: `Chat: ${model}`,
-        metadata: { model, provider, streaming: false },
+        metadata: { model, provider, billingSource, streaming: false },
       });
     }
 
@@ -792,6 +804,7 @@ async function handleNonStreamingRequest(
         apiKeyId: apiKey?.id,
         model,
         provider,
+        billingSource,
       },
       billing,
       {

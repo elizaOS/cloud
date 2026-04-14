@@ -12,18 +12,14 @@
 
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
-import {
-  calculateCost,
-  estimateRequestCost,
-  getProviderFromModel,
-  IMAGE_GENERATION_COST,
-} from "@/lib/pricing";
+import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
 import {
   mergeAnthropicCotProviderOptions,
   mergeGoogleImageModalitiesWithAnthropicCot,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
 import { agentService } from "@/lib/services/agents/agents";
+import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
 import { charactersService } from "@/lib/services/characters/characters";
 import { containersService } from "@/lib/services/containers";
 import { conversationsService } from "@/lib/services/conversations";
@@ -166,19 +162,25 @@ export async function executeSkillImageGeneration(
   const aspectRatio = (dataContent.aspectRatio as string) || "1:1";
 
   if (!prompt) throw new Error("Image prompt required");
+  const imageCost = await calculateImageGenerationCostFromCatalog({
+    model: "google/gemini-2.5-flash-image",
+    provider: "google",
+    imageCount: 1,
+    dimensions: { size: "default" },
+  });
 
   // Reserve credits BEFORE the operation (TOCTOU-safe)
   let reservation: CreditReservation;
   try {
     reservation = await creditsService.reserve({
       organizationId: ctx.user.organization_id,
-      amount: IMAGE_GENERATION_COST,
+      amount: imageCost.totalCost,
       userId: ctx.user.id,
       description: "A2A image generation",
     });
   } catch (error) {
     if (error instanceof InsufficientCreditsError) {
-      throw new Error(`Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`);
+      throw new Error(`Insufficient credits: need $${imageCost.totalCost.toFixed(4)}`);
     }
     throw error;
   }
@@ -193,8 +195,8 @@ export async function executeSkillImageGeneration(
       provider: "google",
       prompt,
       status: "pending",
-      credits: String(IMAGE_GENERATION_COST),
-      cost: String(IMAGE_GENERATION_COST),
+      credits: String(imageCost.totalCost),
+      cost: String(imageCost.totalCost),
     });
 
     const aspectDesc: Record<string, string> = {
@@ -236,13 +238,13 @@ export async function executeSkillImageGeneration(
     });
 
     // Reconcile with actual cost (same as estimated for fixed-price operations)
-    await reservation.reconcile(IMAGE_GENERATION_COST);
+    await reservation.reconcile(imageCost.totalCost);
 
     return {
       image: imageBase64,
       mimeType,
       aspectRatio,
-      cost: IMAGE_GENERATION_COST,
+      cost: imageCost.totalCost,
     };
   } catch (error) {
     // Refund on failure

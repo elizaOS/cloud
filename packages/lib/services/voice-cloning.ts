@@ -3,8 +3,8 @@ import { and, desc, eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import type { NewUserVoice, VoiceCloningJob } from "@/db/schemas/user-voices";
 import { userVoices, voiceCloningJobs, voiceSamples } from "@/db/schemas/user-voices";
-import { VOICE_CLONE_INSTANT_COST, VOICE_CLONE_PROFESSIONAL_COST } from "@/lib/pricing-constants";
 import { logger } from "@/lib/utils/logger";
+import { calculateVoiceCloneCostFromCatalog } from "./ai-pricing";
 import { getElevenLabsService } from "./elevenlabs";
 
 /**
@@ -164,8 +164,11 @@ export class VoiceCloningService {
       });
 
       // Determine creation cost using constants for consistency
-      const creationCost =
-        cloneType === "instant" ? VOICE_CLONE_INSTANT_COST : VOICE_CLONE_PROFESSIONAL_COST;
+      const creationCost = (
+        await calculateVoiceCloneCostFromCatalog({
+          cloneType,
+        })
+      ).totalCost;
 
       // Create user_voices record
       const [userVoice] = await dbWrite

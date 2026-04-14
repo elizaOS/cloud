@@ -27,8 +27,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { dbRead } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { calculateTTSCost } from "@/lib/pricing";
 import { CUSTOM_VOICE_TTS_MARKUP } from "@/lib/pricing-constants";
+import { billFlatUsage } from "@/lib/services/ai-billing";
+import { calculateTTSCostFromCatalog } from "@/lib/services/ai-pricing";
 import {
   type CreditReservation,
   creditsService,
@@ -113,11 +114,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    let estimatedCost = calculateTTSCost(text.length);
-
-    if (isCustomVoice) {
-      estimatedCost = Math.round(estimatedCost * CUSTOM_VOICE_TTS_MARKUP * 10000) / 10000;
-    }
+    const ttsCost = await calculateTTSCostFromCatalog({
+      model: `elevenlabs/${modelId || "eleven_flash_v2_5"}`,
+      characterCount: text.length,
+    });
+    const estimatedCost = isCustomVoice
+      ? Math.round(ttsCost.totalCost * CUSTOM_VOICE_TTS_MARKUP * 1_000_000) / 1_000_000
+      : ttsCost.totalCost;
 
     try {
       reservation = await creditsService.reserve({
@@ -151,7 +154,27 @@ export async function POST(request: NextRequest) {
 
     logger.info(`[Voice TTS API] Stream started in ${duration}ms`);
 
-    await reservation.reconcile(estimatedCost);
+    const billing = await billFlatUsage(
+      {
+        organizationId: user.organization_id,
+        userId: user.id,
+        apiKeyId: apiKey?.id ?? null,
+        model: `elevenlabs/${modelId || "eleven_flash_v2_5"}`,
+        provider: "elevenlabs",
+        billingSource: "elevenlabs",
+        description: `TTS generation: ${text.length} chars${isCustomVoice ? " (custom voice)" : ""}`,
+      },
+      {
+        totalCost: estimatedCost,
+        baseTotalCost: isCustomVoice
+          ? Math.round(ttsCost.baseTotalCost * CUSTOM_VOICE_TTS_MARKUP * 1_000_000) / 1_000_000
+          : ttsCost.baseTotalCost,
+        platformMarkup: isCustomVoice
+          ? Math.round(ttsCost.platformMarkup * CUSTOM_VOICE_TTS_MARKUP * 1_000_000) / 1_000_000
+          : ttsCost.platformMarkup,
+      },
+      reservation,
+    );
 
     (async () => {
       try {
@@ -164,8 +187,9 @@ export async function POST(request: NextRequest) {
           provider: "elevenlabs",
           input_tokens: Math.ceil(text.length / 4),
           output_tokens: 0,
-          input_cost: String(estimatedCost),
+          input_cost: String(billing.totalCost),
           output_cost: String(0),
+          markup: String(billing.platformMarkup),
           duration_ms: duration,
           is_successful: true,
           metadata: {
@@ -175,6 +199,8 @@ export async function POST(request: NextRequest) {
             textLength: text.length,
             characterCount: text.length,
             isCustomVoice,
+            baseTotalCost: billing.baseTotalCost,
+            billingSource: "elevenlabs",
           },
         });
       } catch (error) {

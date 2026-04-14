@@ -19,6 +19,7 @@ import {
   getAiProviderConfigurationError,
   getTextEmbeddingModel,
   hasTextEmbeddingProviderConfigured,
+  resolveEmbeddingProviderSource,
 } from "@/lib/providers/language-model";
 import { billUsage, InsufficientCreditsError, reserveCredits } from "@/lib/services/ai-billing";
 import { usageService } from "@/lib/services/usage";
@@ -98,6 +99,7 @@ async function handlePOST(req: NextRequest) {
     const model = request.model;
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
+    const billingSource = resolveEmbeddingProviderSource() ?? "gateway";
 
     if (!hasTextEmbeddingProviderConfigured()) {
       return Response.json(
@@ -125,6 +127,7 @@ async function handlePOST(req: NextRequest) {
           userId: user.id,
           model,
           provider,
+          billingSource,
         },
         estimatedInputTokens,
         0, // embeddings don't have output tokens
@@ -182,6 +185,7 @@ async function handlePOST(req: NextRequest) {
         apiKeyId: apiKey?.id,
         model,
         provider,
+        billingSource,
       },
       { inputTokens: actualTokens, outputTokens: 0 },
       reservation,

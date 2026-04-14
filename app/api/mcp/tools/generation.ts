@@ -9,11 +9,13 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { streamText } from "ai";
 import { z } from "zod/v3";
 import { uploadBase64Image } from "@/lib/blob";
-import { calculateCost, getProviderFromModel, IMAGE_GENERATION_COST } from "@/lib/pricing";
+import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import {
   mergeAnthropicCotProviderOptions,
   mergeGoogleImageModalitiesWithAnthropicCot,
 } from "@/lib/providers/anthropic-thinking";
+import { billFlatUsage } from "@/lib/services/ai-billing";
+import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import {
   type CreditReservation,
@@ -246,6 +248,13 @@ export function registerGenerationTools(server: McpServer): void {
     async ({ prompt, aspectRatio = "1:1" }) => {
       let generationId: string | undefined;
       let reservation: CreditReservation | null = null;
+      const imageModelId = "google/gemini-2.5-flash-image";
+      const imageCost = await calculateImageGenerationCostFromCatalog({
+        model: imageModelId,
+        provider: "google",
+        imageCount: 1,
+        dimensions: { size: "default" },
+      });
 
       try {
         const { user, apiKey } = getAuthContext();
@@ -265,9 +274,9 @@ export function registerGenerationTools(server: McpServer): void {
         try {
           reservation = await creditsService.reserve({
             organizationId: user.organization_id,
-            amount: IMAGE_GENERATION_COST,
+            amount: imageCost.totalCost,
             userId: user.id,
-            description: "MCP image generation: google/gemini-2.5-flash-image",
+            description: `MCP image generation: ${imageModelId}`,
           });
         } catch (error) {
           if (error instanceof InsufficientCreditsError) {
@@ -287,8 +296,8 @@ export function registerGenerationTools(server: McpServer): void {
           provider: "google",
           prompt,
           status: "pending",
-          credits: String(IMAGE_GENERATION_COST),
-          cost: String(IMAGE_GENERATION_COST),
+          credits: String(imageCost.totalCost),
+          cost: String(imageCost.totalCost),
         });
 
         generationId = generation.id;
@@ -303,10 +312,9 @@ export function registerGenerationTools(server: McpServer): void {
 
         const enhancedPrompt = `${prompt}, ${aspectRatioDescriptions[aspectRatio]}`;
 
-        const geminiImageModel = "google/gemini-2.5-flash-image";
         const result = streamText({
-          model: geminiImageModel,
-          ...mergeGoogleImageModalitiesWithAnthropicCot(geminiImageModel),
+          model: imageModelId,
+          ...mergeGoogleImageModalitiesWithAnthropicCot(imageModelId),
           prompt: `Generate an image: ${enhancedPrompt}`,
         });
 
@@ -362,18 +370,37 @@ export function registerGenerationTools(server: McpServer): void {
           return errorResponse("No image was generated");
         }
 
+        const billing = await billFlatUsage(
+          {
+            organizationId: user.organization_id,
+            userId: user.id,
+            apiKeyId: apiKey?.id ?? null,
+            model: imageModelId,
+            provider: "google",
+            billingSource: "gateway",
+            description: `MCP image generation: ${imageModelId}`,
+          },
+          imageCost,
+          reservation ?? undefined,
+        );
+
         const usageRecord = await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "image",
-          model: "google/gemini-2.5-flash-image",
+          model: imageModelId,
           provider: "google",
           input_tokens: 0,
           output_tokens: 0,
-          input_cost: String(IMAGE_GENERATION_COST),
+          input_cost: String(billing.totalCost),
           output_cost: String(0),
+          markup: String(billing.platformMarkup),
           is_successful: true,
+          metadata: {
+            billingSource: "gateway",
+            baseTotalCost: billing.baseTotalCost,
+          },
         });
 
         let blobUrl = imageBase64;
@@ -392,8 +419,6 @@ export function registerGenerationTools(server: McpServer): void {
           logger.error("Failed to upload to Vercel Blob:", blobError);
         }
 
-        await reservation?.reconcile(IMAGE_GENERATION_COST);
-
         await generationsService.update(generationId, {
           status: "completed",
           content: imageBase64,
@@ -409,7 +434,7 @@ export function registerGenerationTools(server: McpServer): void {
           message: "Image generated successfully",
           url: blobUrl !== imageBase64 ? blobUrl : undefined,
           aspectRatio,
-          cost: String(IMAGE_GENERATION_COST),
+          cost: String(billing.totalCost),
         });
       } catch (error) {
         try {
