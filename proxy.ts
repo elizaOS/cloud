@@ -368,7 +368,7 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    const authToken = request.cookies.get("privy-token");
+    const authToken = request.cookies.get("privy-token") || request.cookies.get("steward-token");
     const playwrightTestSession =
       process.env.PLAYWRIGHT_TEST_AUTH === "true"
         ? request.cookies.get(PLAYWRIGHT_TEST_SESSION_COOKIE_NAME)
