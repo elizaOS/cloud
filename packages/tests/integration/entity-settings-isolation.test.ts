@@ -11,6 +11,7 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { UUID } from "@elizaos/core";
+import * as elizaCore from "@elizaos/core";
 import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
 import { dbWrite } from "@/db/client";
@@ -21,10 +22,28 @@ import { users } from "@/db/schemas/users";
 import { entitySettingsService } from "@/lib/services/entity-settings";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { getEncryptionService } from "@/lib/services/secrets";
-import {
-  getRequestContext,
-  runWithRequestContext,
-} from "../../../../packages/typescript/src/request-context";
+
+type RequestContext = {
+  entityId?: UUID;
+  agentId?: UUID;
+  entitySettings: Map<string, unknown>;
+  requestStartTime?: number;
+};
+
+type RunWithRequestContext = <T>(
+  context: RequestContext,
+  operation: () => Promise<T> | T,
+) => Promise<T>;
+
+const getRequestContext: () => RequestContext | undefined =
+  "getRequestContext" in elizaCore && typeof elizaCore.getRequestContext === "function"
+    ? (elizaCore.getRequestContext as () => RequestContext | undefined)
+    : () => undefined;
+
+const runWithRequestContext: RunWithRequestContext =
+  "runWithRequestContext" in elizaCore && typeof elizaCore.runWithRequestContext === "function"
+    ? (elizaCore.runWithRequestContext as RunWithRequestContext)
+    : async (_context, operation) => await operation();
 
 // Test fixtures
 interface TestUser {
@@ -43,7 +62,11 @@ interface TestFixtures {
 }
 
 let fixtures: TestFixtures;
-const hasRequestContextApis = true;
+const hasRequestContextApis =
+  "getRequestContext" in elizaCore &&
+  typeof elizaCore.getRequestContext === "function" &&
+  "runWithRequestContext" in elizaCore &&
+  typeof elizaCore.runWithRequestContext === "function";
 
 /**
  * Setup: Create test users with different API keys and settings
