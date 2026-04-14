@@ -98,7 +98,6 @@ export function StewardAuthProvider({ children }: { children: React.ReactNode })
     // rather than showing an error screen (unlike Privy which is required).
     return <>{children}</>;
   }
-  }
 
   return (
     <StewardProvider
