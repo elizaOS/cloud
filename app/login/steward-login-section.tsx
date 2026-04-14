@@ -20,7 +20,7 @@ export default function StewardLoginSection() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const auth = useMemo(() => new StewardAuth({ baseUrl: STEWARD_API_URL }), []);
+  const auth = useMemo(() => new StewardAuth({ baseUrl: STEWARD_API_URL, tenantId: "elizacloud" }), []);
 
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<AuthStep>("idle");
