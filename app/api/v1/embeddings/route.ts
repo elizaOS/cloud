@@ -13,14 +13,26 @@ import { embed, embedMany } from "ai";
 import type { NextRequest } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { estimateTokens, getProviderFromModel, normalizeModelName } from "@/lib/pricing";
+import {
+  RateLimitPresets,
+  enforceOrgRateLimit,
+  withRateLimit,
+} from "@/lib/middleware/rate-limit";
+import {
+  estimateTokens,
+  getProviderFromModel,
+  normalizeModelName,
+} from "@/lib/pricing";
 import {
   getAiProviderConfigurationError,
   getTextEmbeddingModel,
   hasTextEmbeddingProviderConfigured,
 } from "@/lib/providers/language-model";
-import { billUsage, InsufficientCreditsError, reserveCredits } from "@/lib/services/ai-billing";
+import {
+  billUsage,
+  InsufficientCreditsError,
+  reserveCredits,
+} from "@/lib/services/ai-billing";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 
@@ -42,6 +54,14 @@ interface EmbeddingsRequest {
 async function handlePOST(req: NextRequest) {
   try {
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
+
+    // Per-org tier rate limit
+    const orgRateLimited = await enforceOrgRateLimit(
+      user.organization_id!,
+      "embeddings",
+    );
+    if (orgRateLimited) return orgRateLimited;
+
     const request: EmbeddingsRequest = await req.json();
 
     // Validate input
@@ -74,7 +94,10 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    if (typeof request.input === "string" && request.input.trim().length === 0) {
+    if (
+      typeof request.input === "string" &&
+      request.input.trim().length === 0
+    ) {
       return Response.json(
         {
           error: {
@@ -106,7 +129,9 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Estimate tokens for reservation
-    const inputText = Array.isArray(request.input) ? request.input.join(" ") : request.input;
+    const inputText = Array.isArray(request.input)
+      ? request.input.join(" ")
+      : request.input;
     const estimatedInputTokens = estimateTokens(inputText);
 
     // Reserve credits BEFORE making API call
@@ -238,7 +263,10 @@ async function handlePOST(req: NextRequest) {
       {
         error: {
           message,
-          type: status === 401 || status === 403 ? "authentication_error" : "api_error",
+          type:
+            status === 401 || status === 403
+              ? "authentication_error"
+              : "api_error",
         },
       },
       { status },

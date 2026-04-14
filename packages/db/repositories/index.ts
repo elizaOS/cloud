@@ -95,6 +95,7 @@ export * from "./organization-invites";
 // ============================================
 // Core Platform Repositories
 // ============================================
+export * from "./org-rate-limit-overrides";
 export * from "./organizations";
 export * from "./provider-health";
 // ============================================
