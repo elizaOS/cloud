@@ -55,7 +55,7 @@ IMPORTANT: Your response must ONLY contain the <response></response> XML block a
  * Handler - generates and saves room title
  * IMPORTANT: Runs as fire-and-forget to avoid blocking message response
  */
-async function handler(runtime: IAgentRuntime, message: Memory) {
+async function handler(runtime: IAgentRuntime, message: Memory): Promise<any> {
   const { roomId } = message;
 
   if (!roomId) {

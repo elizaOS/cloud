@@ -12,7 +12,7 @@ import {
   type State,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
-import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
+import { type ActionWithParams, defineActionParameters } from "../../plugin-cloud-bootstrap/types";
 import {
   capitalize,
   extractPlatform,
@@ -69,14 +69,14 @@ export const oauthConnectAction: ActionWithParams = {
   description:
     "Connect an OAuth platform for the user. ALWAYS execute this action when the user asks to connect — generate a fresh authorization URL every time, even if one was sent before (previous links expire). Never tell the user to 'use a previous link'. Available: google, hubspot, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
 
-  parameters: {
+  parameters: defineActionParameters({
     platform: {
       type: "string",
       description:
         "Platform to connect. Available: google, hubspot, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
       required: true,
     },
-  },
+  }),
 
   validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     return !!message.entityId;

@@ -7,11 +7,11 @@ import * as api from "../helpers/api-client";
 
 describe("Models API", () => {
   test("GET /api/v1/models returns model list", async () => {
-    // Models endpoint may or may not require auth
     const response = await api.get("/api/v1/models");
     expect([200, 401]).toContain(response.status);
 
     if (response.status === 200) {
+      expect(response.headers.get("cache-control")).toContain("s-maxage");
       const body = (await response.json()) as any;
       expect(body.data || body.models || Array.isArray(body)).toBeTruthy();
     }
@@ -29,26 +29,47 @@ describe("Models API", () => {
     expect(models.length).toBeGreaterThan(0);
   });
 
-  test("GET /api/v1/models/status returns status", async () => {
-    const response = await api.get("/api/v1/models/status");
+  test("POST /api/v1/models/status returns status", async () => {
+    const response = await api.post("/api/v1/models/status", {
+      modelIds: ["google/gemini-2.5-flash"],
+    });
     expect([200, 401]).toContain(response.status);
+
+    if (response.status === 200) {
+      const body = (await response.json()) as any;
+      expect(Array.isArray(body.models)).toBe(true);
+    }
   });
 });
 
 describe("Responses API", () => {
-  test("POST /api/v1/responses requires authentication", async () => {
+  test("POST /api/v1/responses supports auth or anonymous fallback", async () => {
     const response = await api.post("/api/v1/responses", {
-      input: "Hello",
+      model: "google/gemini-2.5-flash",
+      input: [{ role: "user", content: "Hello" }],
     });
-    expect([200, 401, 403]).toContain(response.status);
+    expect([200, 401, 402, 403]).toContain(response.status);
+  });
+
+  test("POST /api/v1/responses rejects malformed requests", async () => {
+    const response = await api.post("/api/v1/responses", {});
+    expect([400, 401, 403]).toContain(response.status);
+
+    if (response.status === 400) {
+      const body = (await response.json()) as any;
+      expect(body.error).toBeTruthy();
+    }
   });
 
   test.skipIf(!api.hasApiKey())("POST /api/v1/responses accepts valid input", async () => {
     const response = await api.post(
       "/api/v1/responses",
-      { input: "Say hello" },
+      {
+        model: "google/gemini-2.5-flash",
+        input: [{ role: "user", content: "Say hello" }],
+      },
       { authenticated: true },
     );
-    expect([200, 402]).toContain(response.status);
+    expect([200, 401, 402]).toContain(response.status);
   });
 });

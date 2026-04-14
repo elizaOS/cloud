@@ -27,11 +27,14 @@ interface PageProps {
 export const dynamic = "force-dynamic";
 const CHARACTER_LOOKUP_TIMEOUT_MS = 1500;
 
-function withFallbackTimeout<T>(promise: Promise<T>, fallback: T, label: string): Promise<T> {
+function withLookupTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
-      logger.warn(`[Dashboard Chat] ${label} timed out after ${CHARACTER_LOOKUP_TIMEOUT_MS}ms`);
-      resolve(fallback);
+      const error = new Error(
+        `[Dashboard Chat] ${label} timed out after ${CHARACTER_LOOKUP_TIMEOUT_MS}ms`,
+      );
+      logger.error(error.message);
+      reject(error);
     }, CHARACTER_LOOKUP_TIMEOUT_MS);
 
     promise.then(
@@ -68,11 +71,15 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   }
 
   // Fetch character for dynamic metadata
-  const [character] = await withFallbackTimeout(
-    db.select().from(userCharacters).where(eq(userCharacters.id, characterId)).limit(1),
-    [] as Array<typeof userCharacters.$inferSelect>,
-    "metadata character lookup",
-  );
+  let character: typeof userCharacters.$inferSelect | undefined;
+  try {
+    [character] = await withLookupTimeout(
+      db.select().from(userCharacters).where(eq(userCharacters.id, characterId)).limit(1),
+      "metadata character lookup",
+    );
+  } catch (error) {
+    logger.error(`[Dashboard Chat] Metadata lookup failed for ${characterId}`, error);
+  }
 
   if (character) {
     const bio = Array.isArray(character.bio) ? character.bio[0] : character.bio;
@@ -180,9 +187,8 @@ export default async function ElizaPage({ searchParams }: PageProps) {
     } else {
       // Fetch character data to check access
       try {
-        const character = await withFallbackTimeout(
+        const character = await withLookupTimeout(
           charactersService.getById(initialCharacterId),
-          undefined,
           "character access lookup",
         );
 
@@ -253,7 +259,8 @@ export default async function ElizaPage({ searchParams }: PageProps) {
           }
         }
       } catch (error) {
-        logger.warn(`[Dashboard Chat] Failed to load character ${initialCharacterId}:`, error);
+        logger.error(`[Dashboard Chat] Failed to load character ${initialCharacterId}:`, error);
+        errorType = "character_unavailable";
         initialCharacterId = undefined;
       }
     }

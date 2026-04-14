@@ -1,4 +1,10 @@
-import type { Action, Character, Plugin, Provider } from "@elizaos/core";
+import {
+  type Action,
+  type Character,
+  createCharacter,
+  type Plugin,
+  type Provider,
+} from "@elizaos/core";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoriesRepository } from "@/db/repositories/agents/memories";
@@ -214,26 +220,33 @@ export class AgentLoader {
       [],
     );
     const plugins = await this.resolvePlugins(modeResolution.mode, [], characterSettings);
-    return { character: defaultAgent.character, plugins, modeResolution };
+    const character = this.buildCharacter({
+      ...(defaultAgent.character as unknown as ElizaCharacter),
+      settings: characterSettings as ElizaCharacter["settings"],
+    });
+
+    return { character, plugins, modeResolution };
   }
 
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
     const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
     const charSettings = (elizaCharacter.settings || {}) as Record<string, unknown>;
 
-    const settings: Record<string, string | boolean | number | Record<string, unknown>> = {
-      ...charSettings,
-      POSTGRES_URL: process.env.DATABASE_URL!,
-      DATABASE_URL: process.env.DATABASE_URL!,
-      ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
-      // ElevenLabs settings (shared config)
-      ...buildElevenLabsSettings(charSettings),
-      ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
-        ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
-        : {}),
-    };
+    const settings = JSON.parse(
+      JSON.stringify({
+        ...charSettings,
+        POSTGRES_URL: process.env.DATABASE_URL!,
+        DATABASE_URL: process.env.DATABASE_URL!,
+        ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
+        // ElevenLabs settings (shared config)
+        ...buildElevenLabsSettings(charSettings),
+        ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
+          ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
+          : {}),
+      }),
+    ) as Character["settings"];
 
-    return {
+    const characterInput = {
       id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: elizaCharacter.name,
       username: elizaCharacter.username,
@@ -241,14 +254,18 @@ export class AgentLoader {
       settings,
       system: elizaCharacter.system,
       bio: elizaCharacter.bio,
-      messageExamples: elizaCharacter.messageExamples,
+      messageExamples: elizaCharacter.messageExamples as Parameters<
+        typeof createCharacter
+      >[0]["messageExamples"],
       postExamples: elizaCharacter.postExamples,
       topics: elizaCharacter.topics,
       adjectives: elizaCharacter.adjectives,
       knowledge: elizaCharacter.knowledge,
       style: elizaCharacter.style,
       templates: elizaCharacter.templates,
-    };
+    } as Parameters<typeof createCharacter>[0];
+
+    return createCharacter(characterInput);
   }
 
   private async resolvePlugins(

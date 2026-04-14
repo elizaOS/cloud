@@ -57,7 +57,7 @@ export async function OPTIONS(request: NextRequest) {
  *
  * @returns Streaming or non-streaming chat completion response.
  */
-async function handlePOST(request: NextRequest, context?: RouteContext): Promise<Response> {
+async function handlePOST(request: NextRequest, context: RouteContext): Promise<Response> {
   const startTime = Date.now();
   const origin = request.headers.get("origin");
   const routeTimeoutMs = getRouteTimeoutMs(maxDuration);

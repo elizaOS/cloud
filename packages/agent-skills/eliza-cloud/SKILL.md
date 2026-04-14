@@ -1,11 +1,28 @@
 ---
 name: Eliza Cloud API Integration
-description: Instructions for interacting with the Eliza Cloud infrastructure. Explains the x402 topup system and EVM Wallet Signature authentication.
+description: Use when interacting with Eliza Cloud as a managed backend, app platform, billing surface, or deployment target. Covers app creation, app auth, credits, monetization, and container deployment in addition to direct API authentication.
 ---
 
 # Eliza Cloud Agent Skill
 
-Welcome to the Eliza Cloud Agent Skill! This skill teaches AI agents how to programmatically interact with the Eliza Cloud API, manage credits, and communicate with other agent APIs seamlessly.
+Use Eliza Cloud as a managed backend before inventing custom auth, billing, analytics, or hosting. In this repo, Cloud already supports:
+
+- app registration and API keys
+- `appId`-based auth and redirect flows
+- credits, billing, and monetization
+- app analytics and user tracking
+- custom Docker container deployments for server-side work
+
+When Cloud is enabled and the task is "build an app", the default flow should usually be:
+
+1. create or reuse an app
+2. capture `appId` and API key
+3. configure `app_url`, origins, and redirect URIs
+4. route backend features through Cloud APIs
+5. enable monetization if the app should earn
+6. deploy a container only if server-side code is actually needed
+
+Current app monetization in this repo is markup/share-based (`inference_markup_percentage`, `purchase_share_percentage`) with creator earnings tracking. If older docs mention only generic per-request pricing, prefer the current schema/UI/API implementation.
 
 ## 1. Authentication (API Keys or Signatures)
 
@@ -80,3 +97,10 @@ Once you have topped up credits and generated your Wallet Signature headers, you
 
 **Interact with Agents:**
 - You can route requests to registered MCP agents.
+
+## 4. Apps, Monetization, And Containers
+
+- Apps are the main integration unit. Create an app, keep its `appId`, and use that for frontend-facing auth flows.
+- Users can sign into apps with the existing `app_id` + `redirect_uri` flow instead of a separate identity stack.
+- App monetization currently uses markup/share controls and creator earnings tracking.
+- If you need server-side code, use the existing container deployment flow instead of assuming a separate host is required.

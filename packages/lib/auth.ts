@@ -24,7 +24,10 @@ import {
   invalidatePrivyTokenCache,
   verifyAuthTokenCached,
 } from "./auth/privy-client";
-import { syncUserFromPrivy } from "./privy-sync";
+import { invalidateStewardTokenCache, verifyStewardTokenCached } from "./auth/steward-client";
+
+// TODO: Import syncUserFromSteward once steward-sync module is created
+// import { syncUserFromSteward } from "./steward-sync";
 
 // Re-export Organization type for convenience
 export type { Organization };
@@ -53,8 +56,11 @@ export async function invalidateUserSessionCache(sessionToken: string): Promise<
  * @param sessionToken - The Privy auth token to invalidate
  */
 export async function invalidateSessionCaches(sessionToken: string): Promise<void> {
-  await invalidatePrivyTokenCache(sessionToken);
-  logger.debug("[AUTH] Invalidated all session caches (Privy + user)");
+  await Promise.all([
+    invalidatePrivyTokenCache(sessionToken),
+    invalidateStewardTokenCache(sessionToken),
+  ]);
+  logger.debug("[AUTH] Invalidated all session caches (Privy + Steward + user)");
 }
 
 /**
@@ -96,6 +102,18 @@ export type AuthResult = {
   authMethod: "session" | "api_key" | "wallet_signature";
   session_token?: string;
 };
+
+let privySyncLoader: null | (() => Promise<typeof import("./privy-sync")>) = null;
+
+async function loadPrivySyncModule(): Promise<typeof import("./privy-sync")> {
+  if (!privySyncLoader) {
+    privySyncLoader = new Function("return import('./privy-sync');") as () => Promise<
+      typeof import("./privy-sync")
+    >;
+  }
+
+  return await privySyncLoader();
+}
 
 async function getPlaywrightTestUser(
   cookieStore: Awaited<ReturnType<typeof cookies>>,
@@ -217,6 +235,7 @@ export const getCurrentUser = cache(async (): Promise<UserWithOrganization | nul
         }
 
         if (privyUser) {
+          const { syncUserFromPrivy } = await loadPrivySyncModule();
           user = await syncUserFromPrivy(privyUser);
           logger.info("[AUTH] ✓ JIT sync complete:", {
             userId: user.id,
@@ -507,8 +526,10 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
       throw new AuthenticationError("Invalid authorization header");
     }
 
-    // If the bearer token looks like a JWT, try to validate it as a Privy token first
+    // If the bearer token looks like a JWT, try to validate it as a Privy token first,
+    // then fall back to Steward JWT verification
     if (looksLikeJwt(bearerValue)) {
+      // 1. Try Privy token verification
       const verifiedClaims = await verifyAuthTokenCached(bearerValue);
 
       if (verifiedClaims) {
@@ -532,6 +553,42 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
           authMethod: "session",
           session_token: bearerValue,
         };
+      }
+
+      // 2. Try Steward JWT verification
+      const stewardClaims = await verifyStewardTokenCached(bearerValue);
+
+      if (stewardClaims) {
+        // Look up user by Steward ID
+        const user = await usersService.getByStewardId(stewardClaims.userId);
+
+        if (user) {
+          if (!user.is_active) {
+            throw new ForbiddenError("User account is inactive");
+          }
+
+          if (!user.organization?.is_active) {
+            throw new ForbiddenError("Organization is inactive");
+          }
+
+          return {
+            user,
+            authMethod: "session",
+            session_token: bearerValue,
+          };
+        }
+
+        // TODO: JIT sync from Steward (mirrors Privy JIT sync above)
+        // Once syncUserFromSteward is implemented, uncomment:
+        // const syncedUser = await syncUserFromSteward(stewardClaims);
+        // if (syncedUser) {
+        //   return { user: syncedUser, authMethod: "session", session_token: bearerValue };
+        // }
+
+        logger.warn("[AUTH] Steward JWT valid but no matching user", {
+          stewardUserId: stewardClaims.userId.substring(0, 20),
+        });
+        throw new AuthenticationError("User not found");
       }
     }
 
@@ -686,3 +743,8 @@ export {
   invalidatePrivyTokenCache,
   verifyAuthTokenCached,
 } from "./auth/privy-client";
+
+export {
+  invalidateStewardTokenCache,
+  verifyStewardTokenCached,
+} from "./auth/steward-client";

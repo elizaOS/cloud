@@ -9,12 +9,17 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import { gateway } from "@ai-sdk/gateway";
 import { embed, embedMany } from "ai";
 import type { NextRequest } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { estimateTokens, getProviderFromModel, normalizeModelName } from "@/lib/pricing";
+import {
+  getAiProviderConfigurationError,
+  getTextEmbeddingModel,
+  hasTextEmbeddingProviderConfigured,
+} from "@/lib/providers/language-model";
 import { billUsage, InsufficientCreditsError, reserveCredits } from "@/lib/services/ai-billing";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
@@ -87,6 +92,19 @@ async function handlePOST(req: NextRequest) {
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
 
+    if (!hasTextEmbeddingProviderConfigured()) {
+      return Response.json(
+        {
+          error: {
+            message: getAiProviderConfigurationError(),
+            type: "service_unavailable",
+            code: "ai_not_configured",
+          },
+        },
+        { status: 503 },
+      );
+    }
+
     // Estimate tokens for reservation
     const inputText = Array.isArray(request.input) ? request.input.join(" ") : request.input;
     const estimatedInputTokens = estimateTokens(inputText);
@@ -133,7 +151,7 @@ async function handlePOST(req: NextRequest) {
     if (Array.isArray(request.input)) {
       // Multiple inputs - use embedMany
       const result = await embedMany({
-        model: gateway.textEmbeddingModel(model),
+        model: getTextEmbeddingModel(model),
         values: request.input,
       });
       embeddings = result.embeddings;
@@ -142,7 +160,7 @@ async function handlePOST(req: NextRequest) {
     } else {
       // Single input - use embed
       const result = await embed({
-        model: gateway.textEmbeddingModel(model),
+        model: getTextEmbeddingModel(model),
         value: request.input,
       });
       embeddings = [result.embedding];
@@ -204,19 +222,33 @@ async function handlePOST(req: NextRequest) {
       },
     });
   } catch (error) {
+    const status = getErrorStatusCode(error);
+    const message =
+      status === 500
+        ? error instanceof Error
+          ? error.message
+          : "Internal server error"
+        : getSafeErrorMessage(error);
+
     logger.error("[Embeddings] Error", {
-      error: error instanceof Error ? error.message : String(error),
+      error: message,
     });
+
     return Response.json(
       {
         error: {
-          message: error instanceof Error ? error.message : "Internal server error",
-          type: "api_error",
+          message,
+          type: status === 401 || status === 403 ? "authentication_error" : "api_error",
         },
       },
-      { status: 500 },
+      { status },
     );
   }
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+// Embeddings use RELAXED (200/min) to match chat completions and responses.
+// Rationale: embeddings are ~100x cheaper than chat calls per token and are
+// commonly issued in batches (RAG ingestion, knowledge base chunking). A lower
+// limit than /v1/chat/completions creates an artificial bottleneck for RAG
+// flows where N embeddings feed 1 completion.
+export const POST = withRateLimit(handlePOST, RateLimitPresets.RELAXED);

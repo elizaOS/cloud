@@ -5,9 +5,9 @@ import { NONEXISTENT_UUID } from "../helpers/test-data";
 /**
  * Characters, Apps & Gallery API E2E Tests
  *
- * Discovery route calls external APIs, so we use a longer timeout.
+ * Discovery route can cold-compile slowly in the shared dev server, so use a wider timeout.
  */
-setDefaultTimeout(15_000);
+setDefaultTimeout(30_000);
 
 describe("Characters API", () => {
   test("PUT /api/v1/characters/[id]/public requires auth", async () => {

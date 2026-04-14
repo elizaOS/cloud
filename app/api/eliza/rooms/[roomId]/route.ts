@@ -27,13 +27,9 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ roomId:
     // Fallback to anonymous user
     const anonData = await getAnonymousUser();
     if (!anonData) {
-      // Create new anonymous session if none exists
-      const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
-      const newAnonData = await getOrCreateAnonymousUser();
-      userId = newAnonData.user.id;
-    } else {
-      userId = anonData.user.id;
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
+    userId = anonData.user.id;
   }
 
   const { roomId } = await ctx.params;

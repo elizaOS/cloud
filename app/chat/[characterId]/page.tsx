@@ -13,11 +13,14 @@ import { ChatInterface } from "@/packages/ui/src/components/chat/chat-interface"
 export const dynamic = "force-dynamic";
 const CHARACTER_LOOKUP_TIMEOUT_MS = 1500;
 
-function withFallbackTimeout<T>(promise: Promise<T>, fallback: T, label: string): Promise<T> {
+function withLookupTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
-      logger.warn(`[Chat Page] ${label} timed out after ${CHARACTER_LOOKUP_TIMEOUT_MS}ms`);
-      resolve(fallback);
+      const error = new Error(
+        `[Chat Page] ${label} timed out after ${CHARACTER_LOOKUP_TIMEOUT_MS}ms`,
+      );
+      logger.error(error.message);
+      reject(error);
     }, CHARACTER_LOOKUP_TIMEOUT_MS);
 
     promise.then(
@@ -59,9 +62,8 @@ async function resolveCharacter(characterIdParam: string): Promise<UserCharacter
     const username = characterIdParam.slice(1); // Remove @ prefix
     logger.debug(`[Chat Page] Resolving character by username: @${username}`);
 
-    const character = await withFallbackTimeout(
+    const character = await withLookupTimeout(
       charactersService.getByUsername(username),
-      undefined,
       "username character lookup",
     );
     if (character) {
@@ -79,9 +81,8 @@ async function resolveCharacter(characterIdParam: string): Promise<UserCharacter
 
   // Otherwise, treat as UUID
   logger.debug(`[Chat Page] Looking up character by ID: ${characterIdParam}`);
-  const character = await withFallbackTimeout(
+  const character = await withLookupTimeout(
     charactersService.getById(characterIdParam),
-    undefined,
     "character lookup",
   );
   return character || null;
@@ -121,7 +122,10 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
   // This provides the full dashboard experience (sidebar, header, etc.)
   if (decodedParam.startsWith("@")) {
     const username = decodedParam.slice(1);
-    const character = await charactersService.getByUsername(username);
+    const character = await withLookupTimeout(
+      charactersService.getByUsername(username),
+      "username redirect lookup",
+    );
 
     if (!character) {
       logger.warn(`[Chat Page] Character not found by username: @${username}`);
@@ -170,7 +174,13 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
   }
 
   // 1. Resolve character from URL parameter (UUID only at this point)
-  const character = await resolveCharacter(decodedParam);
+  let character: UserCharacter | null;
+  try {
+    character = await resolveCharacter(decodedParam);
+  } catch (error) {
+    logger.error(`[Chat Page] Character lookup failed for ${decodedParam}`, error);
+    notFound();
+  }
 
   if (!character) {
     logger.warn(`[Chat Page] Character not found: ${decodedParam}`);
@@ -420,7 +430,19 @@ export async function generateMetadata({ params, searchParams }: ChatPageProps):
   const decodedParam = decodeURIComponent(characterIdParam);
 
   // Resolve character from URL parameter (supports both UUID and @username)
-  const character = await resolveCharacter(decodedParam);
+  let character: UserCharacter | null = null;
+  try {
+    character = await resolveCharacter(decodedParam);
+  } catch (error) {
+    logger.error(`[Chat Page] Metadata lookup failed for ${decodedParam}`, error);
+    return {
+      title: "Character Unavailable",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
 
   if (!character) {
     return {

@@ -164,7 +164,7 @@ async function extractSearchParams(
   return {};
 }
 
-export const webSearch: Action = {
+export const webSearch: Action & Record<string, unknown> = {
   name: "WEB_SEARCH",
   similes: [
     "SEARCH_WEB",
@@ -186,7 +186,7 @@ export const webSearch: Action = {
     "- For crypto/DeFi content: use topic='finance' + source from [theblock.com, coindesk.com, decrypt.co, dlnews.com]\n" +
     "- Don't give up after one attempt if results are clearly irrelevant",
 
-  // Parameter schema for tool calling
+  // Parameter schema for tool calling (object form, cast for compat with upstream ActionParameter[])
   parameters: {
     query: {
       type: "string",
@@ -231,7 +231,7 @@ export const webSearch: Action = {
       description: "End date filter in YYYY-MM-DD format (returns results before this date)",
       required: false,
     },
-  },
+  } as any,
 
   validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
     try {
@@ -374,7 +374,7 @@ export const webSearch: Action = {
             text: result.text,
             actions: ["WEB_SEARCH"],
             data: result.data,
-          });
+          } as any);
         }
 
         return result;

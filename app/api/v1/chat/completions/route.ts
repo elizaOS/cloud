@@ -30,7 +30,11 @@ import {
   buildProviderNativeWebSearchTools,
   isAnthropicWebSearchEnabled,
 } from "@/lib/providers/anthropic-web-search";
-import { getLanguageModel } from "@/lib/providers/language-model";
+import {
+  getAiProviderConfigurationError,
+  getLanguageModel,
+  hasLanguageModelProviderConfigured,
+} from "@/lib/providers/language-model";
 import {
   billUsage,
   estimateInputTokens,
@@ -293,6 +297,22 @@ async function handlePOST(req: NextRequest) {
     }
 
     const model = request.model;
+
+    if (!hasLanguageModelProviderConfigured(model)) {
+      return addCorsHeaders(
+        Response.json(
+          {
+            error: {
+              message: getAiProviderConfigurationError(),
+              type: "service_unavailable",
+              code: "ai_not_configured",
+            },
+          },
+          { status: 503 },
+        ),
+      );
+    }
+
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
     const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);

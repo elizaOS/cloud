@@ -12,7 +12,7 @@ import {
   type State,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
-import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
+import { type ActionWithParams, defineActionParameters } from "../../plugin-cloud-bootstrap/types";
 import { capitalize, formatConnectionIdentifier, isUserLookupError, lookupUser } from "../utils";
 
 export const oauthListAction: ActionWithParams = {
@@ -28,7 +28,7 @@ export const oauthListAction: ActionWithParams = {
   ],
   description: "List all OAuth connections for the user. Shows which platforms are connected.",
 
-  parameters: {},
+  parameters: defineActionParameters({}),
 
   validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     return !!message.entityId;

@@ -7,6 +7,7 @@ const PLAYWRIGHT_WORKERS = Number.parseInt(process.env.PLAYWRIGHT_WORKERS ?? "1"
 
 export default defineConfig({
   testDir: "./packages/tests/playwright",
+  globalSetup: "./packages/tests/playwright/global-setup.ts",
   timeout: 30_000,
   fullyParallel: false,
   workers: Number.isFinite(PLAYWRIGHT_WORKERS) && PLAYWRIGHT_WORKERS > 0 ? PLAYWRIGHT_WORKERS : 1,

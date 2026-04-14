@@ -13,7 +13,6 @@ import { abuseDetectionService, type SignupContext } from "@/lib/services/abuse-
 import { apiKeysService } from "@/lib/services/api-keys";
 import { charactersService } from "@/lib/services/characters/characters";
 import { creditsService } from "@/lib/services/credits";
-import { discordService } from "@/lib/services/discord";
 import { emailService } from "@/lib/services/email";
 import { invitesService } from "@/lib/services/invites";
 import { organizationsService } from "@/lib/services/organizations";
@@ -154,6 +153,24 @@ async function restorePreviousPrivyUserIdSafely(
       rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
     });
   }
+}
+
+function logDiscordSignup(data: {
+  userId: string;
+  privyUserId: string;
+  email?: string | null;
+  name?: string | null;
+  walletAddress?: string | null;
+  organizationId: string;
+  organizationName: string;
+  role: string;
+  isNewOrganization: boolean;
+}): void {
+  void import("@/lib/services/discord")
+    .then(({ discordService }) => discordService.logUserSignup(data))
+    .catch((error) => {
+      console.error("[PrivySync] Discord log failed:", error);
+    });
 }
 
 /**
@@ -409,22 +426,17 @@ export async function syncUserFromPrivy(
       // existing projection conflict, because userWithOrg.id is the verified owner.
       await organizationInvitesRepository.markAsAccepted(pendingInvite.id, userWithOrg.id);
 
-      // Log to Discord (fire-and-forget)
-      discordService
-        .logUserSignup({
-          userId: userWithOrg.id,
-          privyUserId: userWithOrg.privy_user_id!,
-          email: userWithOrg.email || null,
-          name: userWithOrg.name || null,
-          walletAddress: userWithOrg.wallet_address || null,
-          organizationId: userWithOrg.organization?.id || "",
-          organizationName: userWithOrg.organization?.name || "",
-          role: userWithOrg.role,
-          isNewOrganization: false,
-        })
-        .catch((error) => {
-          console.error("[SYNC] Discord log failed:", error);
-        });
+      logDiscordSignup({
+        userId: userWithOrg.id,
+        privyUserId: userWithOrg.privy_user_id!,
+        email: userWithOrg.email || null,
+        name: userWithOrg.name || null,
+        walletAddress: userWithOrg.wallet_address || null,
+        organizationId: userWithOrg.organization?.id || "",
+        organizationName: userWithOrg.organization?.name || "",
+        role: userWithOrg.role,
+        isNewOrganization: false,
+      });
 
       return await finalizeSyncedUser(userWithOrg);
     }
@@ -681,7 +693,7 @@ export async function syncUserFromPrivy(
   }
 
   // Log to Discord (fire-and-forget)
-  discordService.logUserSignup({
+  logDiscordSignup({
     userId: userWithOrg.id,
     privyUserId: userWithOrg.privy_user_id!,
     email: userWithOrg.email || null,

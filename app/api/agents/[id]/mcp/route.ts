@@ -40,7 +40,7 @@ import { logger } from "@/lib/utils/logger";
  * Default minimum output tokens to allow for actual response generation.
  * Consistent with A2A endpoint for credit estimation.
  */
-export const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
+const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
 
 export const maxDuration = 60;
 
@@ -63,7 +63,7 @@ const MCPRequestSchema = z.object({
  * GET /api/agents/{id}/mcp
  * Returns MCP server metadata
  */
-async function handleGET(request: NextRequest, ctx?: { params: Promise<{ id: string }> }) {
+async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   if (!ctx) {
     return NextResponse.json({ error: "Missing route context" }, { status: 500 });
   }
@@ -144,7 +144,7 @@ async function handleGET(request: NextRequest, ctx?: { params: Promise<{ id: str
  * POST /api/agents/{id}/mcp
  * MCP protocol handler
  */
-async function handlePOST(request: NextRequest, ctx?: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   if (!ctx) {
     return NextResponse.json({ error: "Missing route context" }, { status: 500 });
   }

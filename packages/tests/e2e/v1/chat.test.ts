@@ -10,8 +10,12 @@ describe("Chat API", () => {
     const response = await api.post("/api/v1/chat", {
       messages: [{ role: "user", content: "Hello" }],
     });
-    // Anonymous users get 200 (anonymous fallback) or 401
-    expect([200, 401, 403]).toContain(response.status);
+    if (api.hasAiProvider()) {
+      // Anonymous users get 200 (anonymous fallback) or auth-layer rejection.
+      expect([200, 401, 403]).toContain(response.status);
+    } else {
+      expect([401, 403, 503]).toContain(response.status);
+    }
   });
 
   test("POST /api/v1/chat rejects empty messages", async () => {
@@ -25,12 +29,17 @@ describe("Chat API", () => {
       const response = await api.post(
         "/api/v1/chat",
         {
+          id: "openai/gpt-4o-mini",
           messages: [{ role: "user", content: "Say hello in one word" }],
         },
         { authenticated: true },
       );
-      // Should succeed or report insufficient credits
-      expect([200, 402]).toContain(response.status);
+      expect([200, 402, 503]).toContain(response.status);
+
+      if (response.status === 200) {
+        const body = await response.text();
+        expect(body.trim().length).toBeGreaterThan(0);
+      }
     },
   );
 });
@@ -50,9 +59,9 @@ describe("Chat Completions API (OpenAI-compat)", () => {
       const response = await api.post(
         "/api/v1/chat/completions",
         {
-          model: "gpt-4o-mini",
+          model: "openai/gpt-4o-mini",
           messages: [{ role: "user", content: "Say ok" }],
-          max_tokens: 5,
+          max_tokens: 16,
           stream: false,
         },
         { authenticated: true },
@@ -62,7 +71,7 @@ describe("Chat Completions API (OpenAI-compat)", () => {
         const body = (await response.json()) as any;
         expect(body.choices || body.id).toBeTruthy();
       } else {
-        expect([402, 429]).toContain(response.status);
+        expect([402, 429, 503]).toContain(response.status);
       }
     },
   );

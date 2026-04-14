@@ -177,7 +177,7 @@ export const cloudBootstrapPlugin: Plugin = {
     oauthListAction,
     oauthGetAction,
     oauthRevokeAction,
-  ],
+  ] as Plugin["actions"],
   providers: [
     actionStateProvider,
     actionsProvider,

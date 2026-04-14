@@ -20,18 +20,20 @@ describe("OAuth API", () => {
 });
 
 describe("Platform Connections API", () => {
-  test("GET /api/v1/connections/github requires auth", async () => {
-    const response = await api.get("/api/v1/connections/github");
+  test("POST /api/v1/connections/twilio requires auth", async () => {
+    const response = await api.post("/api/v1/connections/twilio", {
+      accountSid: "AC123",
+      authToken: "test-token",
+      phoneNumber: "+15551234567",
+    });
     expect([401, 403]).toContain(response.status);
   });
 
   test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/connections/github returns connection info",
+    "POST /api/v1/connections/github returns unsupported platform",
     async () => {
-      const response = await api.get("/api/v1/connections/github", {
-        authenticated: true,
-      });
-      expect([200, 404]).toContain(response.status);
+      const response = await api.post("/api/v1/connections/github", {}, { authenticated: true });
+      expect(response.status).toBe(404);
     },
   );
 });

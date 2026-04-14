@@ -2,9 +2,9 @@ name: Tests
 
 on:
   pull_request:
-    branches: [dev, main]
+    branches: [develop, main]
   push:
-    branches: [dev, main]
+    branches: [develop, main]
 
 concurrency:
   group: tests-${{ github.event.pull_request.number || github.ref }}
@@ -42,7 +42,19 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - uses: ./.github/actions/setup-test-env
       - name: Run unit tests
-        run: bun run test
+        run: |
+          bun run test:repo-unit:bulk
+          bun run test:repo-unit:special
+          for test_file in \
+            packages/tests/unit/auth-pair-route.test.ts \
+            packages/tests/unit/steward-user-migration.test.ts \
+            packages/tests/unit/discord-automation-oauth.test.ts \
+            packages/tests/unit/docker-infrastructure.test.ts \
+            packages/tests/unit/oauth/secrets-adapter-utils.test.ts; do
+            if [ -f "$test_file" ]; then
+              SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./packages/tests/load-env.ts "./$test_file"
+            fi
+          done
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -107,3 +119,48 @@ jobs:
           setup-db: "true"
       - name: Run API e2e tests
         run: bun run test:e2e:api
+
+  e2e-v1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [lint-and-types, build]
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Run V1 e2e tests
+        run: bun run test:e2e:v1
+
+  e2e-miniapp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [lint-and-types, build]
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Run miniapp e2e tests
+        run: bun run test:e2e:miniapp
+
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: [lint-and-types, build]
+    env:
+      NODE_ENV: test
+      PLAYWRIGHT_WORKERS: "1"
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+      - name: Run Playwright tests
+        run: bun run test:playwright

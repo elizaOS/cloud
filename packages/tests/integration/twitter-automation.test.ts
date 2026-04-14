@@ -15,7 +15,8 @@
 
 import { beforeAll, describe, expect, test } from "bun:test";
 
-const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
+const SERVER_URL =
+  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
 const TIMEOUT = 15000;
 
@@ -247,8 +248,7 @@ describe("App Twitter Post API", () => {
     const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/twitter-automation/post`, "POST", {
       text: "Test tweet",
     });
-    // Should return 500 with "App not found" error
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(404);
 
     const data = await res.json();
     expect(data).toHaveProperty("error");

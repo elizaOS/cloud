@@ -80,6 +80,7 @@ const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
 const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
 const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
+let hasWarnedMissingStewardTenantApiKey = false;
 
 if (!STEWARD_TENANT_API_KEY) {
   console.warn(
@@ -200,11 +201,24 @@ function extractStewardToken(raw: string): string {
   return trimmed;
 }
 
+function warnMissingStewardTenantApiKey() {
+  if (STEWARD_TENANT_API_KEY || hasWarnedMissingStewardTenantApiKey) {
+    return;
+  }
+
+  hasWarnedMissingStewardTenantApiKey = true;
+  logger.warn(
+    "[docker-sandbox] STEWARD_TENANT_API_KEY is not set; Steward registration will run without tenant API key auth",
+  );
+}
+
 async function registerAgentWithSteward(
   ssh: DockerSSHClient,
   agentId: string,
   agentName: string,
 ): Promise<string> {
+  warnMissingStewardTenantApiKey();
+
   const script = `python3 - <<'PY'
 import json
 import sys
@@ -800,10 +814,9 @@ export class DockerSandboxProvider implements SandboxProvider {
           sshUser = dbNode.ssh_user ?? DEFAULT_SSH_USERNAME;
           hostKeyFingerprint = dbNode.host_key_fingerprint ?? undefined;
         } else {
-          // Try env var fallback for hostname
-          const envNodes = parseDockerNodes();
-          const envNode = envNodes.find((n) => n.nodeId === sandbox.node_id);
-          hostname = envNode?.hostname ?? "";
+          throw new Error(
+            `[docker-sandbox] Missing persisted docker node metadata for node "${sandbox.node_id}"`,
+          );
         }
 
         if (hostname) {

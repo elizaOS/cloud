@@ -4,6 +4,7 @@ import { oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 import {
   type ManagedMiladyGithubBinding,
+  type ManagedMiladyGithubMode,
   readManagedMiladyGithubBinding,
   withManagedMiladyGithubBinding,
   withoutManagedMiladyGithubBinding,
@@ -12,13 +13,16 @@ import {
 export interface ManagedMiladyGithubStatus {
   configured: boolean;
   connected: boolean;
+  mode: ManagedMiladyGithubMode | null;
   connectionId: string | null;
+  connectionRole: "owner" | "agent" | null;
   githubUserId: string | null;
   githubUsername: string | null;
   githubDisplayName: string | null;
   githubAvatarUrl: string | null;
   githubEmail: string | null;
   scopes: string[];
+  source: "platform_credentials" | "secrets" | null;
   adminElizaUserId: string | null;
   connectedAt: string | null;
 }
@@ -32,13 +36,16 @@ function toStatus(
   return {
     configured,
     connected: Boolean(binding),
+    mode: binding?.mode ?? null,
     connectionId: binding?.connectionId ?? null,
+    connectionRole: binding?.connectionRole ?? null,
     githubUserId: binding?.githubUserId ?? null,
     githubUsername: binding?.githubUsername ?? null,
     githubDisplayName: binding?.githubDisplayName ?? null,
     githubAvatarUrl: binding?.githubAvatarUrl ?? null,
     githubEmail: binding?.githubEmail ?? null,
     scopes: binding?.scopes ?? [],
+    source: binding?.source ?? null,
     adminElizaUserId: binding?.adminElizaUserId ?? null,
     connectedAt: binding?.connectedAt ?? null,
   };
@@ -132,7 +139,7 @@ export class ManagedMiladyGithubService {
     const currentBinding = readManagedMiladyGithubBinding(currentConfig);
 
     // Revoke the OAuth connection if it exists
-    if (currentBinding?.connectionId) {
+    if (currentBinding?.connectionId && currentBinding.mode !== "shared-owner") {
       try {
         await oauthService.revokeConnection({
           organizationId: params.organizationId,

@@ -27,11 +27,12 @@ async function expectInstancesPageContent(page: Page): Promise<void> {
 test.describe("Milady agent lifecycle", () => {
   test.skip(() => !hasApiKey(), "TEST_API_KEY environment variable required");
 
-  test.beforeEach(async ({ page, request, baseUrl }) => {
-    await authenticateBrowserContext(request, page.context(), baseUrl);
+  test.beforeEach(async ({ page, request, baseURL }) => {
+    await authenticateBrowserContext(request, page.context(), baseURL);
   });
 
-  test("instances dashboard renders an authenticated Milady session", async ({ page, baseUrl }) => {
+  test("instances dashboard renders an authenticated Milady session", async ({ page, baseURL }) => {
+    const baseUrl = baseURL ?? "http://localhost:3000";
     const response = await page.goto(`${baseUrl}/dashboard/milady`);
     expect(response?.status()).toBe(200);
     expect(page.url()).toBe(`${baseUrl}/dashboard/milady`);
@@ -41,8 +42,9 @@ test.describe("Milady agent lifecycle", () => {
 
   test("authenticated dashboard navigation stays inside Milady and agent surfaces", async ({
     page,
-    baseUrl,
+    baseURL,
   }) => {
+    const baseUrl = baseURL ?? "http://localhost:3000";
     const miladyResponse = await page.goto(`${baseUrl}/dashboard/milady`);
     expect(miladyResponse?.status()).toBe(200);
     await expectInstancesPageContent(page);
@@ -59,8 +61,9 @@ test.describe("Milady agent lifecycle", () => {
 
   test("Milady agent detail route fails gracefully for unknown agents", async ({
     page,
-    baseUrl,
+    baseURL,
   }) => {
+    const baseUrl = baseURL ?? "http://localhost:3000";
     const response = await page.goto(
       `${baseUrl}/dashboard/milady/agents/00000000-0000-4000-8000-000000000000`,
     );

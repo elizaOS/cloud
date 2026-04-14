@@ -1,4 +1,5 @@
-import { type RequestContext, runWithRequestContext, type UUID } from "@elizaos/core";
+import type { UUID } from "@elizaos/core";
+import * as elizaCore from "@elizaos/core";
 import type { NextRequest } from "next/server";
 import { roomsRepository } from "@/db/repositories";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -32,6 +33,25 @@ import { createPerfTrace } from "@/lib/utils/perf-trace";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 180; // 3 minutes for image generation support
+
+type RequestContext = {
+  entityId?: UUID;
+  agentId?: UUID;
+  entitySettings: Map<string, unknown>;
+  requestStartTime?: number;
+  traceId?: string;
+  organizationId?: string;
+};
+
+type RunWithRequestContext = <T>(
+  context: RequestContext,
+  operation: () => Promise<T> | T,
+) => Promise<T>;
+
+const runWithRequestContext: RunWithRequestContext =
+  "runWithRequestContext" in elizaCore && typeof elizaCore.runWithRequestContext === "function"
+    ? (elizaCore.runWithRequestContext as RunWithRequestContext)
+    : async (_context, operation) => await operation();
 
 /**
  * POST /api/eliza/rooms/[roomId]/messages/stream
@@ -490,14 +510,16 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
         );
       }
 
+      const clientCharacterState = JSON.parse(JSON.stringify(validatedState.data));
+
       runtime.character.settings = {
         ...runtime.character.settings,
-        clientCharacterState: validatedState.data,
+        clientCharacterState,
         isClientStateUnsaved:
           typeof agentModeConfig.metadata.isUnsaved === "boolean"
             ? agentModeConfig.metadata.isUnsaved
             : true,
-      };
+      } as typeof runtime.character.settings;
       logger.info(
         "[Stream] BUILD mode - Stored validated client character state in runtime settings",
       );

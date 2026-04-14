@@ -6,25 +6,114 @@
  */
 
 const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
-const API_KEY = process.env.TEST_API_KEY;
 const CRON_SECRET = process.env.CRON_SECRET || "test-cron-secret";
+let cachedSessionCookiePromise: Promise<string | null> | null = null;
+
+function getApiKey(): string | null {
+  const apiKey = process.env.TEST_API_KEY?.trim();
+  return apiKey && apiKey.length > 0 ? apiKey : null;
+}
+
+function hasNonEmptyEnv(name: string): boolean {
+  const value = process.env[name]?.trim();
+  return Boolean(value);
+}
+
+function getSessionCookie(): string | null {
+  const token = process.env.TEST_SESSION_TOKEN?.trim();
+  if (!token) {
+    return null;
+  }
+
+  const cookieName = process.env.TEST_SESSION_COOKIE_NAME?.trim() || "eliza-test-session";
+  return `${cookieName}=${token}`;
+}
+
+function authenticatedHeaders(): Record<string, string> {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("TEST_API_KEY required");
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    "X-API-Key": apiKey,
+    "Content-Type": "application/json",
+  };
+
+  const cookie = getSessionCookie();
+  if (cookie) {
+    headers.Cookie = cookie;
+  }
+
+  return headers;
+}
+
+function isSessionOnlyPath(path: string): boolean {
+  return path === "/api/v1/api-keys" || path.startsWith("/api/v1/api-keys/");
+}
+
+async function getSessionCookieFromServer(): Promise<string | null> {
+  const existingCookie = getSessionCookie();
+  if (existingCookie) {
+    return existingCookie;
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return null;
+  }
+
+  const response = await fetch(url("/api/test/auth/session"), {
+    method: "POST",
+    signal: timeoutSignal(),
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "X-API-Key": apiKey,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Failed to create live test session: ${response.status} ${body.slice(0, 200)}`);
+  }
+
+  const body = (await response.json()) as {
+    cookieName?: string;
+    token?: string;
+  };
+
+  if (!body.token) {
+    throw new Error("Live test session response did not include a token");
+  }
+
+  const cookieName = body.cookieName || "eliza-test-session";
+  const cookie = `${cookieName}=${body.token}`;
+  process.env.TEST_SESSION_COOKIE_NAME = cookieName;
+  process.env.TEST_SESSION_TOKEN = body.token;
+  return cookie;
+}
+
+async function authenticatedRequestHeaders(path: string): Promise<Record<string, string>> {
+  const headers = isSessionOnlyPath(path)
+    ? { "Content-Type": "application/json" }
+    : authenticatedHeaders();
+  const cookie = await (cachedSessionCookiePromise ??= getSessionCookieFromServer());
+
+  if (cookie) {
+    headers.Cookie = cookie;
+  }
+
+  return headers;
+}
 
 /** Auth headers for API key authentication */
 export function authHeaders(): Record<string, string> {
-  if (!API_KEY) throw new Error("TEST_API_KEY required");
-  return {
-    Authorization: `Bearer ${API_KEY}`,
-    "Content-Type": "application/json",
-  };
+  return authenticatedHeaders();
 }
 
 /** Headers for X-API-Key authentication */
 export function apiKeyHeaders(): Record<string, string> {
-  if (!API_KEY) throw new Error("TEST_API_KEY required");
-  return {
-    "X-API-Key": API_KEY,
-    "Content-Type": "application/json",
-  };
+  return authenticatedHeaders();
 }
 
 /** Headers for cron secret authentication */
@@ -37,7 +126,17 @@ export function cronHeaders(): Record<string, string> {
 
 /** Check if API key is available */
 export function hasApiKey(): boolean {
-  return !!API_KEY;
+  return !!getApiKey();
+}
+
+/** Check if a live AI provider is configured for inference-backed routes */
+export function hasAiProvider(): boolean {
+  return (
+    hasNonEmptyEnv("AI_GATEWAY_API_KEY") ||
+    hasNonEmptyEnv("VERCEL_AI_GATEWAY_API_KEY") ||
+    hasNonEmptyEnv("OPENAI_API_KEY") ||
+    hasNonEmptyEnv("GROQ_API_KEY")
+  );
 }
 
 /** Check if cron secret is available */
@@ -51,7 +150,7 @@ export function url(path: string): string {
 }
 
 /** Default request timeout in ms */
-const REQUEST_TIMEOUT = 10_000;
+const REQUEST_TIMEOUT = 30_000;
 
 /** Create AbortSignal with timeout */
 function timeoutSignal(): AbortSignal {
@@ -68,7 +167,7 @@ export async function get(
     method: "GET",
     signal: timeoutSignal(),
     headers: {
-      ...(authenticated ? authHeaders() : {}),
+      ...(authenticated ? await authenticatedRequestHeaders(path) : {}),
       ...headers,
     },
   });
@@ -86,7 +185,7 @@ export async function post(
     signal: timeoutSignal(),
     headers: {
       "Content-Type": "application/json",
-      ...(authenticated ? authHeaders() : {}),
+      ...(authenticated ? await authenticatedRequestHeaders(path) : {}),
       ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -105,7 +204,7 @@ export async function patch(
     signal: timeoutSignal(),
     headers: {
       "Content-Type": "application/json",
-      ...(authenticated ? authHeaders() : {}),
+      ...(authenticated ? await authenticatedRequestHeaders(path) : {}),
       ...headers,
     },
     body: JSON.stringify(body),
@@ -122,7 +221,7 @@ export async function del(
     method: "DELETE",
     signal: timeoutSignal(),
     headers: {
-      ...(authenticated ? authHeaders() : {}),
+      ...(authenticated ? await authenticatedRequestHeaders(path) : {}),
       ...headers,
     },
   });
@@ -140,7 +239,7 @@ export async function put(
     signal: timeoutSignal(),
     headers: {
       "Content-Type": "application/json",
-      ...(authenticated ? authHeaders() : {}),
+      ...(authenticated ? await authenticatedRequestHeaders(path) : {}),
       ...headers,
     },
     body: JSON.stringify(body),

@@ -7,7 +7,7 @@ import {
   type Memory,
   type State,
 } from "@elizaos/core";
-import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
+import { type ActionWithParams, defineActionParameters } from "../../plugin-cloud-bootstrap/types";
 import type { McpService } from "../service";
 import { MCP_SERVICE_NAME } from "../types";
 import { createMcpToolAction } from "./dynamic-tool-actions";
@@ -31,7 +31,7 @@ export const searchActionsAction: ActionWithParams = {
     "DISCOVER_TOOLS",
     "LOOKUP_ACTIONS",
   ],
-  parameters: {
+  parameters: defineActionParameters({
     query: {
       type: "string",
       description:
@@ -72,7 +72,7 @@ export const searchActionsAction: ActionWithParams = {
       required: false,
       default: 0,
     },
-  },
+  }),
 
   validate: async () => true,
 

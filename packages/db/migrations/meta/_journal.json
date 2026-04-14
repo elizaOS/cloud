@@ -414,6 +414,13 @@
       "when": 1775788338243,
       "tag": "0061_add_steward_user_identity_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1775866779597,
+      "tag": "0062_add_llm_trajectories_table",
+      "breakpoints": true
     }
   ]
 }

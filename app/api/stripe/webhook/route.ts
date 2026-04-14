@@ -203,21 +203,7 @@ async function handleStripeWebhook(req: NextRequest) {
               });
             } catch (appError) {
               logger.error("[Stripe Webhook] Error processing app credit purchase", appError);
-              // Fall through to regular credit addition as fallback
-              await creditsService.addCredits({
-                organizationId,
-                amount: credits,
-                description: `Balance top-up (app purchase fallback) - $${credits.toFixed(2)}`,
-                metadata: {
-                  user_id: userId,
-                  app_id: appId,
-                  payment_intent_id: paymentIntentId,
-                  session_id: session.id,
-                  type: purchaseType,
-                  fallback: true,
-                },
-                stripePaymentIntentId: paymentIntentId,
-              });
+              throw appError instanceof Error ? appError : new Error(String(appError));
             }
           } else if (!isDuplicate) {
             // Regular credit purchase (not app-specific) — skip if duplicate (credits already added)

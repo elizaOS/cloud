@@ -21,18 +21,20 @@ describe("Eliza Rooms API", () => {
 
   test("GET /api/eliza/rooms/[id] returns 404 for nonexistent", async () => {
     const response = await api.get(`/api/eliza/rooms/${NONEXISTENT_UUID}`);
-    expect([404, 401]).toContain(response.status);
+    expect([401, 403, 404]).toContain(response.status);
   });
 
   test("POST /api/eliza/rooms/[id]/messages requires valid room", async () => {
     const response = await api.post(`/api/eliza/rooms/${NONEXISTENT_UUID}/messages`, {
       text: "Hello",
     });
-    expect([404, 401, 400]).toContain(response.status);
+    expect([400, 401, 403, 404]).toContain(response.status);
   });
 
   test("POST /api/eliza/rooms/[id]/welcome handles nonexistent room", async () => {
-    const response = await api.post(`/api/eliza/rooms/${NONEXISTENT_UUID}/welcome`);
-    expect([404, 401, 200]).toContain(response.status);
+    const response = await api.post(`/api/eliza/rooms/${NONEXISTENT_UUID}/welcome`, {
+      text: "Welcome",
+    });
+    expect([401, 403, 404]).toContain(response.status);
   });
 });

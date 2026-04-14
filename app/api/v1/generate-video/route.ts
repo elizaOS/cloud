@@ -326,4 +326,15 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
+const rateLimitedHandlePOST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
+
+export async function POST(request: NextRequest) {
+  try {
+    await requireAuthOrApiKeyWithOrg(request);
+  } catch (error) {
+    const status = getErrorStatusCode(error);
+    return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
+  }
+
+  return rateLimitedHandlePOST(request);
+}

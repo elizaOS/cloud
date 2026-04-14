@@ -16,11 +16,27 @@ describe("User API", () => {
     expect(response.status).toBe(200);
 
     const body = (await response.json()) as any;
-    expect(body.user || body.id).toBeTruthy();
+    expect(body.success).toBe(true);
+    expect(body.data?.id).toBeTruthy();
   });
 
   test("PATCH /api/v1/user requires authentication", async () => {
     const response = await api.patch("/api/v1/user", { name: "test" });
     expect([401, 403]).toContain(response.status);
   });
+
+  test.skipIf(!api.hasApiKey())(
+    "PATCH /api/v1/user rejects invalid authenticated updates",
+    async () => {
+      const response = await api.patch(
+        "/api/v1/user",
+        { work_function: "astronaut" },
+        { authenticated: true },
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as any;
+      expect(body.error).toBeTruthy();
+    },
+  );
 });

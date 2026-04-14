@@ -201,7 +201,7 @@ The GitHub Actions workflow at `.github/workflows/gateway-discord.yml` automates
 |-----|-------------|
 | `test` | Runs tests using Bun |
 | `build` | Builds Docker image and pushes to GHCR |
-| `deploy` | Deploys to development (dev branch) or production (main branch) using Helm |
+| `deploy` | Deploys to development (develop branch) or production (main branch) using Helm |
 
 ### Triggers
 

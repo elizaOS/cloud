@@ -2068,7 +2068,7 @@ The AWS infrastructure required to run the gateway is managed via **Terraform** 
 - Kubernetes namespace and secrets
 
 **Automated via GitHub Actions** (`.github/workflows/gateway-discord.yml`):
-- Push to `dev` branch → Terraform apply + app deploy to development
+- Push to `develop` branch → Terraform apply + app deploy to development
 - Push to `main` branch → Terraform apply + app deploy to production
 - Workflow auto-detects terraform vs app changes and runs appropriate jobs
 - If both change, terraform runs first, then deploy waits for completion

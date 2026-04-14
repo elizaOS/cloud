@@ -196,7 +196,7 @@ class AgentsService {
     const created = await agentsRepository.create({
       id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: character.name,
-      bio: characterData?.bio as string | string[] | undefined,
+      bio: characterData?.bio as string | string[] | undefined as string[] | undefined,
       settings: {
         ...(character.avatar_url ? { avatarUrl: character.avatar_url } : {}),
         ...(characterData?.settings as Record<string, unknown> | undefined),

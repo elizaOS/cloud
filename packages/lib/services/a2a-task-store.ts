@@ -8,7 +8,6 @@
  * - Redis persistence with TTL
  * - Automatic cleanup of expired tasks
  * - Organization-scoped task isolation
- * - Graceful fallback to in-memory when Redis unavailable
  */
 
 import { Redis } from "@upstash/redis";
@@ -44,8 +43,8 @@ const TASK_ORG_INDEX_PREFIX = "a2a:org:";
 let redis: Redis | null = null;
 let initialized = false;
 
-function getRedisClient(): Redis | null {
-  if (initialized) return redis;
+function getRedisClient(): Redis {
+  if (initialized && redis) return redis;
 
   const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
   const restUrl = process.env.KV_REST_API_URL;
@@ -59,30 +58,13 @@ function getRedisClient(): Redis | null {
     logger.info("[A2A TaskStore] ✓ Redis task store initialized (REST API)");
   } else {
     assertPersistentCloudStateConfigured("A2A TaskStore", false);
-    logger.warn("[A2A TaskStore] ⚠️ Redis not available, using in-memory fallback");
-    redis = null;
+    throw new Error(
+      "[A2A TaskStore] Redis-backed shared storage is required; configure REDIS_URL or KV_* credentials before starting the service.",
+    );
   }
 
   initialized = true;
   return redis;
-}
-
-// ============================================================================
-// In-Memory Fallback
-// ============================================================================
-
-const memoryStore = new Map<string, TaskStoreEntry>();
-
-// Cleanup old tasks every 5 minutes
-if (typeof setInterval !== "undefined") {
-  setInterval(() => {
-    const oneHourAgo = Date.now() - TASK_TTL_SECONDS * 1000;
-    for (const [id, entry] of memoryStore.entries()) {
-      if (new Date(entry.updatedAt).getTime() < oneHourAgo) {
-        memoryStore.delete(id);
-      }
-    }
-  }, 300000);
 }
 
 // ============================================================================
@@ -96,29 +78,21 @@ class A2ATaskStoreService {
   async get(taskId: string, organizationId: string): Promise<TaskStoreEntry | null> {
     const client = getRedisClient();
     const key = `${TASK_KEY_PREFIX}${taskId}`;
+    const value = await client.get<string>(key);
+    if (!value) return null;
 
-    if (client) {
-      const value = await client.get<string>(key);
-      if (!value) return null;
+    const entry: TaskStoreEntry = typeof value === "string" ? JSON.parse(value) : value;
 
-      const entry: TaskStoreEntry = typeof value === "string" ? JSON.parse(value) : value;
-
-      // Verify organization access
-      if (entry.organizationId !== organizationId) {
-        logger.warn("[A2A TaskStore] Task access denied - org mismatch", {
-          taskId,
-          requestedOrg: organizationId,
-          actualOrg: entry.organizationId,
-        });
-        return null;
-      }
-
-      return entry;
+    // Verify organization access
+    if (entry.organizationId !== organizationId) {
+      logger.warn("[A2A TaskStore] Task access denied - org mismatch", {
+        taskId,
+        requestedOrg: organizationId,
+        actualOrg: entry.organizationId,
+      });
+      return null;
     }
 
-    // Fallback to memory
-    const entry = memoryStore.get(taskId);
-    if (!entry || entry.organizationId !== organizationId) return null;
     return entry;
   }
 
@@ -129,28 +103,21 @@ class A2ATaskStoreService {
     const client = getRedisClient();
     const key = `${TASK_KEY_PREFIX}${taskId}`;
     const orgIndexKey = `${TASK_ORG_INDEX_PREFIX}${entry.organizationId}`;
+    const serialized = JSON.stringify(entry);
 
-    if (client) {
-      const serialized = JSON.stringify(entry);
+    // Store task with TTL
+    await client.setex(key, TASK_TTL_SECONDS, serialized);
 
-      // Store task with TTL
-      await client.setex(key, TASK_TTL_SECONDS, serialized);
+    // Add to organization's task index (for listing)
+    await client.zadd(orgIndexKey, {
+      score: Date.now(),
+      member: taskId,
+    });
 
-      // Add to organization's task index (for listing)
-      await client.zadd(orgIndexKey, {
-        score: Date.now(),
-        member: taskId,
-      });
+    // Set TTL on org index
+    await client.expire(orgIndexKey, TASK_TTL_SECONDS * 2);
 
-      // Set TTL on org index
-      await client.expire(orgIndexKey, TASK_TTL_SECONDS * 2);
-
-      logger.debug("[A2A TaskStore] Task stored in Redis", { taskId });
-    } else {
-      // Fallback to memory
-      memoryStore.set(taskId, entry);
-      logger.debug("[A2A TaskStore] Task stored in memory", { taskId });
-    }
+    logger.debug("[A2A TaskStore] Task stored in Redis", { taskId });
   }
 
   /**
@@ -184,18 +151,13 @@ class A2ATaskStoreService {
     const existing = await this.get(taskId, organizationId);
     if (!existing) return false;
 
-    if (client) {
-      await client.del(key);
+    await client.del(key);
 
-      // Remove from org index
-      const orgIndexKey = `${TASK_ORG_INDEX_PREFIX}${organizationId}`;
-      await client.zrem(orgIndexKey, taskId);
+    // Remove from org index
+    const orgIndexKey = `${TASK_ORG_INDEX_PREFIX}${organizationId}`;
+    await client.zrem(orgIndexKey, taskId);
 
-      logger.debug("[A2A TaskStore] Task deleted from Redis", { taskId });
-    } else {
-      memoryStore.delete(taskId);
-      logger.debug("[A2A TaskStore] Task deleted from memory", { taskId });
-    }
+    logger.debug("[A2A TaskStore] Task deleted from Redis", { taskId });
 
     return true;
   }
@@ -205,41 +167,26 @@ class A2ATaskStoreService {
    */
   async listByOrganization(organizationId: string, limit = 50): Promise<TaskStoreEntry[]> {
     const client = getRedisClient();
+    const orgIndexKey = `${TASK_ORG_INDEX_PREFIX}${organizationId}`;
 
-    if (client) {
-      const orgIndexKey = `${TASK_ORG_INDEX_PREFIX}${organizationId}`;
+    // Get recent task IDs from sorted set
+    const taskIds = await client.zrange(orgIndexKey, -limit, -1);
 
-      // Get recent task IDs from sorted set
-      const taskIds = await client.zrange(orgIndexKey, -limit, -1);
+    if (!taskIds.length) return [];
 
-      if (!taskIds.length) return [];
+    // Fetch all tasks
+    const keys = taskIds.map((id) => `${TASK_KEY_PREFIX}${id}`);
+    const values = await client.mget<string[]>(...keys);
 
-      // Fetch all tasks
-      const keys = taskIds.map((id) => `${TASK_KEY_PREFIX}${id}`);
-      const values = await client.mget<string[]>(...keys);
-
-      const entries: TaskStoreEntry[] = [];
-      for (const value of values) {
-        if (value) {
-          const entry: TaskStoreEntry = typeof value === "string" ? JSON.parse(value) : value;
-          entries.push(entry);
-        }
-      }
-
-      return entries.reverse(); // Most recent first
-    }
-
-    // Fallback to memory
     const entries: TaskStoreEntry[] = [];
-    for (const entry of memoryStore.values()) {
-      if (entry.organizationId === organizationId) {
+    for (const value of values) {
+      if (value) {
+        const entry: TaskStoreEntry = typeof value === "string" ? JSON.parse(value) : value;
         entries.push(entry);
       }
     }
 
-    return entries
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, limit);
+    return entries.reverse(); // Most recent first
   }
 
   /**
@@ -306,7 +253,12 @@ class A2ATaskStoreService {
    * Check if Redis is available
    */
   isRedisAvailable(): boolean {
-    return getRedisClient() !== null;
+    try {
+      getRedisClient();
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 

@@ -3,6 +3,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { cache } from "@/lib/cache/client";
 import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
 import { twitterAutomationService } from "@/lib/services/twitter-automation";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -28,7 +29,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const redirectUrl = `${safeRedirectTarget.pathname}${safeRedirectTarget.search}${safeRedirectTarget.hash}`;
   const callbackUrl = `${baseUrl}/api/v1/twitter/callback`;
 
-  const authLink = await twitterAutomationService.generateAuthLink(callbackUrl);
+  let authLink;
+  try {
+    authLink = await twitterAutomationService.generateAuthLink(callbackUrl);
+  } catch (error) {
+    logger.error("[Twitter Connect API] Failed to generate auth link", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json(
+      { error: "Twitter integration is currently unavailable" },
+      { status: 503 },
+    );
+  }
 
   const stateKey = `twitter_oauth:${authLink.oauthToken}`;
   await cache.set(

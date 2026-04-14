@@ -29,9 +29,11 @@ let groqProviderInstance: AIProvider | null = null;
  */
 export function getProvider(): AIProvider {
   if (!providerInstance) {
-    const apiKey = process.env.AI_GATEWAY_API_KEY;
+    const apiKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY;
     if (!apiKey) {
-      throw new Error("VERCEL_AI_GATEWAY_API_KEY environment variable is required");
+      throw new Error(
+        "AI_GATEWAY_API_KEY or VERCEL_AI_GATEWAY_API_KEY environment variable is required",
+      );
     }
     providerInstance = new VercelGatewayProvider(apiKey);
   }

@@ -124,7 +124,7 @@ export interface ElevenLabsVoice {
  */
 export interface DialogueMetadata extends BaseMetadata {
   /** Official elizaOS type - always MESSAGE for dialogue */
-  type: MemoryType.MESSAGE;
+  type: typeof MemoryType.MESSAGE;
 
   /** Semantic role: who created this message */
   role: "user" | "agent" | "system";
@@ -140,6 +140,9 @@ export interface DialogueMetadata extends BaseMetadata {
 
   /** Optional: Action that generated this (for action results) */
   action?: string;
+
+  /** Index signature for upstream MemoryMetadata compatibility */
+  [key: string]: unknown;
 }
 
 /**

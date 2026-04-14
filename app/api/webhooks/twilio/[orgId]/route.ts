@@ -25,7 +25,7 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-async function handleTwilioWebhook(request: NextRequest, context?: RouteParams): Promise<Response> {
+async function handleTwilioWebhook(request: NextRequest, context: RouteParams): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {

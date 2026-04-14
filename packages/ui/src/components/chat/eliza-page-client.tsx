@@ -82,6 +82,12 @@ export function ElizaPageClient({
             "This agent is private. Only the owner can chat with it. Ask the owner to make it public if you'd like to chat.",
           duration: 6000,
         });
+      } else if (accessError.type === "character_unavailable") {
+        toast.error("Character unavailable", {
+          description:
+            "The selected agent could not be loaded. Retry once the backing service is healthy.",
+          duration: 6000,
+        });
       } else {
         toast.error("Access denied", {
           description: "You don't have permission to access this agent.",

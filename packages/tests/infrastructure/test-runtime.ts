@@ -284,7 +284,6 @@ export async function createTestUser(
       id: worldId,
       name: `Test World for ${name}`,
       agentId: runtime.agentId,
-      serverId: worldId,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

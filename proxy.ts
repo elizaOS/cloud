@@ -76,6 +76,7 @@ function getRedis(): Redis | null {
 }
 
 const AUTH_CACHE_TTL = 300;
+const PLAYWRIGHT_TEST_SESSION_COOKIE_NAME = "eliza-test-session";
 
 interface CachedAuth {
   valid: boolean;
@@ -367,6 +368,10 @@ export async function proxy(request: NextRequest) {
 
   try {
     const authToken = request.cookies.get("privy-token");
+    const playwrightTestSession =
+      process.env.PLAYWRIGHT_TEST_AUTH === "true"
+        ? request.cookies.get(PLAYWRIGHT_TEST_SESSION_COOKIE_NAME)
+        : undefined;
     const authHeader = request.headers.get("Authorization");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const apiKey = request.headers.get("X-API-Key");
@@ -388,6 +393,12 @@ export async function proxy(request: NextRequest) {
           { "X-Proxy-Time": `${Date.now() - startTime}ms` },
         );
       }
+      return middlewareNext({
+        headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
+      });
+    }
+
+    if (playwrightTestSession?.value) {
       return middlewareNext({
         headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
       });

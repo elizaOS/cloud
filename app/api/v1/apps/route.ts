@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
+import { appFactoryService } from "@/lib/services/app-factory";
+import { AppNameConflictError, appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 
-const _CreateAppSchema = z.object({
+const CreateAppSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
   app_url: z.string().url(),
@@ -14,10 +15,6 @@ const _CreateAppSchema = z.object({
   logo_url: z.string().url().optional(),
   /** Whether to skip creating a GitHub repository (default: false) */
   skipGitHubRepo: z.boolean().optional(),
-});
-
-const _CheckNameSchema = z.object({
-  name: z.string().min(1).max(100),
 });
 
 /**
@@ -53,12 +50,6 @@ export async function GET(request: NextRequest) {
  * @returns Created app details, API key, and GitHub repo info.
  */
 export async function POST(request: NextRequest) {
-  return NextResponse.json(
-    { success: false, error: "App creation is temporarily disabled" },
-    { status: 403 },
-  );
-
-  /* App creation disabled - original handler body commented out below:
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -147,5 +138,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-  */
 }

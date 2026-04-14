@@ -501,7 +501,7 @@ export class MemoryService {
       entityId: context.participants[0] || ("system" as UUID),
       agentId: (await this.getSystemRuntime()).agentId,
       createdAt: Date.now(),
-      content: summaryContent,
+      content: summaryContent as any,
     };
 
     await memoryCache.cacheMemory(

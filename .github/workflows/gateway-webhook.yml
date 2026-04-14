@@ -2,12 +2,12 @@ name: Gateway Webhook
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, develop]
     paths:
       - "packages/services/gateway-webhook/**"
       - ".github/workflows/gateway-webhook.yml"
   pull_request:
-    branches: [main, dev]
+    branches: [main, develop]
     paths:
       - "packages/services/gateway-webhook/**"
       - ".github/workflows/gateway-webhook.yml"

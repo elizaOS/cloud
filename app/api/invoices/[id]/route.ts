@@ -72,5 +72,4 @@ async function handleGetInvoice(req: NextRequest, context: { params: Promise<{ i
   }
 }
 
-export const GET = (req: NextRequest, context?: { params: Promise<{ id: string }> }) =>
-  withRateLimit((r: NextRequest) => handleGetInvoice(r, context!), RateLimitPresets.STANDARD)(req);
+export const GET = withRateLimit(handleGetInvoice, RateLimitPresets.STANDARD);

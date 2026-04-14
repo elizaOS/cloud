@@ -231,7 +231,7 @@ export class CharactersService {
       id: character.id as `${string}-${string}-${string}-${string}-${string}`,
       name: character.name,
       username: character.username ?? undefined,
-      bio: character.bio,
+      bio: character.bio as string[] | undefined,
       system: character.system ?? undefined,
       enabled: true,
       settings: character.settings as Record<

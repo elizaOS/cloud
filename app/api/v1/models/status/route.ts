@@ -7,7 +7,7 @@
 
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import { getAnonymousUser } from "@/lib/auth-anonymous";
 import { isGroqNativeModel } from "@/lib/models";
 import { hasGroqProviderConfigured } from "@/lib/providers";
 import { getCachedGatewayModelCatalog } from "@/lib/services/model-catalog";
@@ -59,14 +59,11 @@ function isProviderUnavailable(modelId: string): {
  * Accepts an array of model IDs and returns their availability status.
  */
 export async function POST(request: NextRequest) {
-  // Support both authenticated and anonymous users
+  // Model status is public; probing auth state must not make the endpoint fail closed.
   try {
     await requireAuthOrApiKey(request);
   } catch {
-    const anonData = await getAnonymousUser();
-    if (!anonData) {
-      await getOrCreateAnonymousUser();
-    }
+    await getAnonymousUser();
   }
 
   const body = await request.json();

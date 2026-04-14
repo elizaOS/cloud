@@ -7,9 +7,18 @@ import { resolve } from "path";
 import { applyDatabaseUrlFallback, getLocalDockerDatabaseUrl } from "@/db/database-url";
 
 const root = resolve(import.meta.dir, "..");
-config({ path: resolve(root, ".env") });
-config({ path: resolve(root, ".env.local") });
-config({ path: resolve(root, ".env.test") });
+const workspaceRoot = resolve(root, "..");
+
+for (const envPath of [
+  resolve(workspaceRoot, ".env"),
+  resolve(workspaceRoot, ".env.local"),
+  resolve(workspaceRoot, ".env.test"),
+  resolve(root, ".env"),
+  resolve(root, ".env.local"),
+  resolve(root, ".env.test"),
+]) {
+  config({ path: envPath });
+}
 
 // Keep all test execution pinned to the local app surface.
 (process.env as Record<string, string | undefined>).NODE_ENV = "test";

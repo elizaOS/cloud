@@ -201,6 +201,10 @@ export class MemoryService extends Service {
     this.memoryConfig = { ...this.memoryConfig, ...updates };
   }
 
+  hasStorage(): boolean {
+    return !!this.storage;
+  }
+
   incrementMessageCount(roomId: UUID): number {
     const current = this.sessionMessageCounts.get(roomId) || 0;
     const next = current + 1;
