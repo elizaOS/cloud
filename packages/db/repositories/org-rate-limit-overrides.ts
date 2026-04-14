@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
-  type OrgRateLimitOverride,
   type NewOrgRateLimitOverride,
+  type OrgRateLimitOverride,
   orgRateLimitOverrides,
 } from "../schemas/org-rate-limit-overrides";
 
-export type { OrgRateLimitOverride, NewOrgRateLimitOverride };
+export type { NewOrgRateLimitOverride, OrgRateLimitOverride };
 
 /**
  * Repository for per-organization rate limit overrides.
@@ -15,9 +15,7 @@ export type { OrgRateLimitOverride, NewOrgRateLimitOverride };
  * Write operations → dbWrite (primary)
  */
 export class OrgRateLimitOverridesRepository {
-  async findByOrganizationId(
-    organizationId: string,
-  ): Promise<OrgRateLimitOverride | undefined> {
+  async findByOrganizationId(organizationId: string): Promise<OrgRateLimitOverride | undefined> {
     return await dbRead.query.orgRateLimitOverrides.findFirst({
       where: eq(orgRateLimitOverrides.organization_id, organizationId),
     });
@@ -28,11 +26,7 @@ export class OrgRateLimitOverridesRepository {
       Partial<
         Pick<
           NewOrgRateLimitOverride,
-          | "completions_rpm"
-          | "embeddings_rpm"
-          | "standard_rpm"
-          | "strict_rpm"
-          | "note"
+          "completions_rpm" | "embeddings_rpm" | "standard_rpm" | "strict_rpm" | "note"
         >
       >,
   ): Promise<OrgRateLimitOverride> {
@@ -67,5 +61,4 @@ export class OrgRateLimitOverridesRepository {
   }
 }
 
-export const orgRateLimitOverridesRepository =
-  new OrgRateLimitOverridesRepository();
+export const orgRateLimitOverridesRepository = new OrgRateLimitOverridesRepository();

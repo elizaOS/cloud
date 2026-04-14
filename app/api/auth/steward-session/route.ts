@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyStewardTokenCached } from "@/lib/auth/steward-client";
 
 /**
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, userId: claims.userId });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyStewardTokenCached } from "@/lib/auth/steward-client";
 import { usersService } from "@/lib/services/users";
 import { syncUserFromSteward } from "@/lib/steward-sync";
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     let user = await usersService.getByStewardId(claims.userId);
     let synced = false;
-    
+
     if (!user) {
       try {
         user = await syncUserFromSteward({
@@ -24,14 +24,17 @@ export async function POST(request: NextRequest) {
         });
         synced = true;
       } catch (syncErr: any) {
-        return NextResponse.json({ 
-          error: "sync failed", 
-          message: syncErr.message,
-          claims: { userId: claims.userId, email: claims.email, tenantId: claims.tenantId },
-        }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: "sync failed",
+            message: syncErr.message,
+            claims: { userId: claims.userId, email: claims.email, tenantId: claims.tenantId },
+          },
+          { status: 500 },
+        );
       }
     }
-    
+
     return NextResponse.json({
       ok: true,
       claims: { userId: claims.userId, email: claims.email, tenantId: claims.tenantId },

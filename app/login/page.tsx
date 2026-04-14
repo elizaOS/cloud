@@ -6,7 +6,6 @@ import { Suspense } from "react";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 const STEWARD_AUTH_ENABLED = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
-const PRIVY_CONFIGURED = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 // Dynamic imports: only load the section that's needed.
 // ssr: false prevents Privy hooks from executing during SSR or when Privy is unconfigured.

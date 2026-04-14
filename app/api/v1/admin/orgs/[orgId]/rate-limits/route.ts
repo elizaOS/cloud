@@ -14,16 +14,12 @@ import { z } from "zod";
 import { orgRateLimitOverridesRepository } from "@/db/repositories/org-rate-limit-overrides";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { requireAdminWithResponse } from "@/lib/api/admin-auth";
-import {
-  getOrgTier,
-  invalidateOrgTierCache,
-} from "@/lib/services/org-rate-limits";
+import { getOrgTier, invalidateOrgTierCache } from "@/lib/services/org-rate-limits";
 import { logger } from "@/lib/utils/logger";
 
 type RouteContext = { params: Promise<{ orgId: string }> };
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function validateOrgId(orgId: string): NextResponse | null {
   if (!UUID_RE.test(orgId)) {
@@ -33,10 +29,7 @@ function validateOrgId(orgId: string): NextResponse | null {
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
-  const authResult = await requireAdminWithResponse(
-    request,
-    "[Admin] Org rate limits auth error",
-  );
+  const authResult = await requireAdminWithResponse(request, "[Admin] Org rate limits auth error");
   if (authResult instanceof NextResponse) return authResult;
 
   const { orgId } = await context.params;
@@ -56,10 +49,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     });
   } catch (error) {
     logger.error("[Admin] Org rate limits GET error", { error, orgId });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -73,10 +63,7 @@ const PatchSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const authResult = await requireAdminWithResponse(
-    request,
-    "[Admin] Org rate limits auth error",
-  );
+  const authResult = await requireAdminWithResponse(request, "[Admin] Org rate limits auth error");
   if (authResult instanceof NextResponse) return authResult;
 
   const { orgId } = await context.params;
@@ -116,10 +103,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const org = await organizationsRepository.findById(orgId);
     if (!org) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
     // Pass values as-is: null clears a field, undefined = not provided (no change)
     const result = await orgRateLimitOverridesRepository.upsert({
@@ -150,18 +134,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json(result);
   } catch (error) {
     logger.error("[Admin] Org rate limits PATCH error", { error, orgId });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const authResult = await requireAdminWithResponse(
-    request,
-    "[Admin] Org rate limits auth error",
-  );
+  const authResult = await requireAdminWithResponse(request, "[Admin] Org rate limits auth error");
   if (authResult instanceof NextResponse) return authResult;
 
   const { orgId } = await context.params;
@@ -180,9 +158,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     logger.error("[Admin] Org rate limits DELETE error", { error, orgId });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -96,9 +96,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: getAiProviderConfigurationError() }, { status: 503 });
     }
 
-    const gatewayModelIds = new Set(
-      (await getCachedMergedModelCatalog()).map((model) => model.id),
-    );
+    const gatewayModelIds = new Set((await getCachedMergedModelCatalog()).map((model) => model.id));
 
     // Check availability for each requested model
     const results: ModelAvailability[] = modelIds.map((modelId) => {
