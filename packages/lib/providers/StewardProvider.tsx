@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { StewardProvider, useAuth as useStewardAuth } from "@stwd/react";
 import { StewardClient } from "@stwd/sdk";
 import { useEffect, useMemo, useRef } from "react";
@@ -96,6 +97,12 @@ export function StewardAuthProvider({ children }: { children: React.ReactNode })
   if (!hasValidUrl) {
     // Steward is optional, so we just render children without the provider
     // rather than showing an error screen (unlike Privy which is required).
+    return <>{children}</>;
+  }
+
+  // Skip StewardProvider on docs/blog pages (CSS conflicts with nextra)
+  const pathname = usePathname();
+  if (pathname?.startsWith("/docs") || pathname?.startsWith("/blog")) {
     return <>{children}</>;
   }
 
