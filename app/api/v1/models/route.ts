@@ -1,6 +1,11 @@
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
+import { hasGroqProviderConfigured } from "@/lib/providers";
+import {
+  getAiProviderConfigurationError,
+  hasGatewayProviderConfigured,
+} from "@/lib/providers/language-model";
 import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
 
@@ -23,6 +28,18 @@ export async function GET(request: NextRequest) {
       await requireAuthOrApiKey(request);
     } catch {
       await getAnonymousUser();
+    }
+
+    if (!hasGatewayProviderConfigured() && !hasGroqProviderConfigured()) {
+      return Response.json(
+        {
+          error: {
+            message: getAiProviderConfigurationError(),
+            type: "service_unavailable",
+          },
+        },
+        { status: 503 },
+      );
     }
 
     // Return OpenAI-compatible format with cache headers

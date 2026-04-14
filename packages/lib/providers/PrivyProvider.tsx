@@ -175,18 +175,26 @@ export default function PrivyProvider({ children }: { children: React.ReactNode 
   // Check if Privy App ID is configured
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
+  const playwrightTestAuthEnabled = process.env.NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH === "true";
+  const stewardAuthEnabled = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
   const resolvedClientId = isPlaceholderPrivyValue(clientId) ? undefined : clientId?.trim();
   const hasValidAppId =
     typeof appId === "string" && appId.trim().length === 25 && !isPlaceholderPrivyValue(appId);
+  const shouldUseFallbackPrivyContext = stewardAuthEnabled || playwrightTestAuthEnabled;
 
   useEffect(() => {
-    if (typeof window === "undefined" || hasValidAppId || hasLoggedPrivyConfigError.current) {
+    if (
+      typeof window === "undefined" ||
+      hasValidAppId ||
+      shouldUseFallbackPrivyContext ||
+      hasLoggedPrivyConfigError.current
+    ) {
       return;
     }
 
     hasLoggedPrivyConfigError.current = true;
     console.error("NEXT_PUBLIC_PRIVY_APP_ID is missing or invalid!");
-  }, [hasValidAppId]);
+  }, [hasValidAppId, shouldUseFallbackPrivyContext]);
 
   if (!hasValidAppId) {
     // When Steward auth is enabled and Privy isn't configured,
@@ -194,7 +202,7 @@ export default function PrivyProvider({ children }: { children: React.ReactNode 
     // child components calling usePrivy() get a valid context instead
     // of throwing. Auth is fully handled by Steward; Privy hooks will
     // simply report unauthenticated.
-    if (process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true") {
+    if (shouldUseFallbackPrivyContext) {
       return (
         <PrivyProviderReactAuth appId="cm00000000000000000000000" config={privyConfig}>
           {children}

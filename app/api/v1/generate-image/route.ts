@@ -7,6 +7,7 @@ import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { getProviderFromModel, IMAGE_GENERATION_COST } from "@/lib/pricing";
+import { hasGatewayProviderConfigured } from "@/lib/providers/language-model";
 import { billUsage } from "@/lib/services/ai-billing";
 import { appsService } from "@/lib/services/apps";
 import {
@@ -171,7 +172,10 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    if (process.env.NODE_ENV !== "test" && isAnonymous && !process.env.AI_GATEWAY_API_KEY) {
+    // Image generation currently depends on the AI Gateway resolving image-capable models.
+    // Fail fast so local and CI environments without gateway credentials return a stable 503
+    // instead of surfacing an internal provider exception from streamText().
+    if (!hasGatewayProviderConfigured()) {
       return Response.json(
         { error: "Image generation service is not configured" },
         { status: 503 },

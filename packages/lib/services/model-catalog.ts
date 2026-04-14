@@ -2,6 +2,7 @@ import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL, CacheTTL } from "@/lib/cache/keys";
 import { type CatalogModel, GROQ_NATIVE_MODELS, mergeCatalogModels } from "@/lib/models";
 import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
+import { hasGatewayProviderConfigured } from "@/lib/providers/language-model";
 import type { OpenAIModelsResponse } from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
 
@@ -22,6 +23,11 @@ function buildSWRValue<T>(data: T): SWRCachedValue<T> {
 }
 
 async function fetchGatewayModelCatalog(): Promise<CatalogModel[]> {
+  if (!hasGatewayProviderConfigured()) {
+    logger.info("[Model Catalog] Gateway provider is not configured; skipping catalog fetch");
+    return [];
+  }
+
   const response = await getProvider().listModels();
   const data = (await response.json()) as OpenAIModelsResponse;
 

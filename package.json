@@ -318,6 +318,7 @@
     "cpu-features": "empty-npm-package@1.0.0"
   },
   "patchedDependencies": {
-    "x402@1.1.0": "patches/x402@1.1.0.patch"
+    "x402@1.1.0": "patches/x402@1.1.0.patch",
+    "@elizaos/core@2.0.0-alpha.136": "patches/@elizaos%2Fcore@2.0.0-alpha.136.patch"
   }
 }

@@ -10,7 +10,12 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
 import { isGroqNativeModel } from "@/lib/models";
 import { hasGroqProviderConfigured } from "@/lib/providers";
+import {
+  getAiProviderConfigurationError,
+  hasGatewayProviderConfigured,
+} from "@/lib/providers/language-model";
 import { getCachedGatewayModelCatalog } from "@/lib/services/model-catalog";
+import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -59,77 +64,97 @@ function isProviderUnavailable(modelId: string): {
  * Accepts an array of model IDs and returns their availability status.
  */
 export async function POST(request: NextRequest) {
-  // Model status is public; probing auth state must not make the endpoint fail closed.
   try {
-    await requireAuthOrApiKey(request);
-  } catch {
-    await getAnonymousUser();
-  }
-
-  const body = await request.json();
-  const { modelIds } = body as { modelIds: string[] };
-
-  if (!Array.isArray(modelIds) || modelIds.length === 0) {
-    return Response.json({ error: "modelIds array is required" }, { status: 400 });
-  }
-
-  if (modelIds.length > 50) {
-    return Response.json({ error: "Maximum 50 models can be checked at once" }, { status: 400 });
-  }
-
-  // Validate each modelId is a non-empty string
-  if (!modelIds.every((id) => typeof id === "string" && id.length > 0)) {
-    return Response.json({ error: "Each modelId must be a non-empty string" }, { status: 400 });
-  }
-
-  const gatewayModelIds = new Set((await getCachedGatewayModelCatalog()).map((model) => model.id));
-
-  // Check availability for each requested model
-  const results: ModelAvailability[] = modelIds.map((modelId) => {
-    // First check if provider is known to be unavailable
-    const providerCheck = isProviderUnavailable(modelId);
-    if (providerCheck.unavailable) {
-      return {
-        modelId,
-        available: false,
-        reason: providerCheck.reason,
-      };
+    // Model status is public; probing auth state must not make the endpoint fail closed.
+    try {
+      await requireAuthOrApiKey(request);
+    } catch {
+      await getAnonymousUser();
     }
 
-    if (isGroqNativeModel(modelId)) {
-      return {
-        modelId,
-        available: hasGroqProviderConfigured(),
-        reason: hasGroqProviderConfigured()
-          ? undefined
-          : "Groq models are not configured on this deployment",
-      };
+    const body = await request.json();
+    const { modelIds } = body as { modelIds: string[] };
+
+    if (!Array.isArray(modelIds) || modelIds.length === 0) {
+      return Response.json({ error: "modelIds array is required" }, { status: 400 });
     }
 
-    // Then check if model exists in gateway
-    const inGateway = gatewayModelIds.has(modelId);
-    if (!inGateway) {
-      return {
-        modelId,
-        available: false,
-        reason: "Model not found in gateway",
-      };
+    if (modelIds.length > 50) {
+      return Response.json({ error: "Maximum 50 models can be checked at once" }, { status: 400 });
     }
 
-    return {
-      modelId,
-      available: true,
+    // Validate each modelId is a non-empty string
+    if (!modelIds.every((id) => typeof id === "string" && id.length > 0)) {
+      return Response.json({ error: "Each modelId must be a non-empty string" }, { status: 400 });
+    }
+
+    const gatewayConfigured = hasGatewayProviderConfigured();
+    const groqConfigured = hasGroqProviderConfigured();
+
+    if (!gatewayConfigured && !groqConfigured) {
+      return Response.json({ error: getAiProviderConfigurationError() }, { status: 503 });
+    }
+
+    const gatewayModelIds = gatewayConfigured
+      ? new Set((await getCachedGatewayModelCatalog()).map((model) => model.id))
+      : new Set<string>();
+
+    // Check availability for each requested model
+    const results: ModelAvailability[] = modelIds.map((modelId) => {
+      // First check if provider is known to be unavailable
+      const providerCheck = isProviderUnavailable(modelId);
+      if (providerCheck.unavailable) {
+        return {
+          modelId,
+          available: false,
+          reason: providerCheck.reason,
+        };
+      }
+
+      if (isGroqNativeModel(modelId)) {
+        return {
+          modelId,
+          available: groqConfigured,
+          reason: groqConfigured ? undefined : "Groq models are not configured on this deployment",
+        };
+      }
+
+      if (!gatewayConfigured) {
+        return {
+          modelId,
+          available: false,
+          reason: "Gateway provider is not configured on this deployment",
+        };
+      }
+
+      // Then check if model exists in gateway
+      const inGateway = gatewayModelIds.has(modelId);
+      if (!inGateway) {
+        return {
+          modelId,
+          available: false,
+          reason: "Model not found in gateway",
+        };
+      }
+
+      return {
+        modelId,
+        available: true,
+      };
+    });
+
+    const response: ModelStatusResponse = {
+      models: results,
+      timestamp: Date.now(),
     };
-  });
 
-  const response: ModelStatusResponse = {
-    models: results,
-    timestamp: Date.now(),
-  };
-
-  return Response.json(response, {
-    headers: {
-      "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-    },
-  });
+    return Response.json(response, {
+      headers: {
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+      },
+    });
+  } catch (error) {
+    logger.error("Error fetching model status:", error);
+    return Response.json({ error: "Failed to check model status" }, { status: 500 });
+  }
 }

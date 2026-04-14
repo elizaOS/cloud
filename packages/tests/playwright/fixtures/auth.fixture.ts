@@ -1,6 +1,8 @@
 import { type APIRequestContext, type BrowserContext, expect, test } from "@playwright/test";
 import { ensureLocalTestAuth } from "../../infrastructure/local-test-auth";
 
+const PLAYWRIGHT_TEST_AUTH_MARKER_COOKIE_NAME = "eliza-test-auth";
+
 function resolveBaseUrl(baseUrl?: string): URL {
   return new URL(baseUrl || process.env.TEST_BASE_URL || "http://localhost:3000");
 }
@@ -25,6 +27,15 @@ export async function authenticateBrowserContext(
       domain: url.hostname,
       path: "/",
       httpOnly: true,
+      sameSite: "Lax",
+      secure: url.protocol === "https:",
+    },
+    {
+      name: PLAYWRIGHT_TEST_AUTH_MARKER_COOKIE_NAME,
+      value: "1",
+      domain: url.hostname,
+      path: "/",
+      httpOnly: false,
       sameSite: "Lax",
       secure: url.protocol === "https:",
     },

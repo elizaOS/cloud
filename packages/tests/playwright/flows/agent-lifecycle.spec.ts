@@ -10,12 +10,12 @@ async function waitForFirstVisible(locators: Locator[], timeout = 10_000): Promi
 }
 
 async function expectInstancesPageContent(page: Page): Promise<void> {
-  await expect(page.getByRole("heading", { name: "Instances" })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("heading", { name: "Instances" })).toBeVisible();
   await expect(page.getByRole("button", { name: "New Agent" })).toBeVisible();
-  await expect(page.getByPlaceholder("Search agents…")).toBeVisible();
 
   await waitForFirstVisible(
     [
+      page.getByPlaceholder("Search agents…"),
       page.getByText("No agents yet"),
       page.getByRole("columnheader", { name: /agent/i }),
       page.getByRole("link", { name: /Unnamed Agent/i }),

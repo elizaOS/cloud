@@ -16,6 +16,7 @@ import { OnboardingProvider } from "@/packages/ui/src/components/onboarding/onbo
  * - /dashboard/build - AI agent builder
  */
 const FREE_MODE_PATHS = ["/dashboard/chat", "/dashboard/build"];
+const PLAYWRIGHT_TEST_AUTH_MARKER_COOKIE = "eliza-test-auth=1";
 /**
  * Grace period (ms) for transient Privy token refresh gaps.
  *
@@ -47,6 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const _isAppCreatePage = pathname?.startsWith("/dashboard/apps/create");
+  const playwrightTestAuthEnabled = process.env.NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH === "true";
 
   // Track whether we've confirmed authentication at least once and allow a short
   // grace period for transient auth loss during Privy token refresh.
@@ -66,9 +68,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setSidebarOpen((prev) => !prev);
   }, []);
 
+  const hasPlaywrightTestSession =
+    playwrightTestAuthEnabled &&
+    typeof document !== "undefined" &&
+    document.cookie.includes(PLAYWRIGHT_TEST_AUTH_MARKER_COOKIE);
+  const authReady = ready || playwrightTestAuthEnabled;
+
   // Check if current path allows free access
   const isFreeModePath = FREE_MODE_PATHS.some((path) => pathname?.startsWith(path));
-  const shouldAllowProtectedContent = authenticated || authGraceActive;
+  const shouldAllowProtectedContent = authenticated || authGraceActive || hasPlaywrightTestSession;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -87,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       authLossTimerRef.current = null;
     }
 
-    if (!ready || isFreeModePath) {
+    if (!authReady || isFreeModePath) {
       setAuthGraceActive(false);
       return;
     }
@@ -113,23 +121,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     setAuthGraceActive(false);
-  }, [ready, authenticated, isFreeModePath]);
+  }, [authReady, authenticated, isFreeModePath]);
 
   // Redirect to login if not authenticated and trying to access protected path.
   // A short grace period prevents transient Privy refreshes from breaking navigation,
   // but real auth loss still redirects once the grace window expires.
   useEffect(() => {
-    if (ready && !shouldAllowProtectedContent && !isFreeModePath) {
+    if (authReady && !shouldAllowProtectedContent && !isFreeModePath) {
       // Build login URL with returnTo parameter to preserve intended destination
       const returnTo = encodeURIComponent(
         pathname + (typeof window !== "undefined" ? window.location.search : ""),
       );
       router.replace(`/login?returnTo=${returnTo}`);
     }
-  }, [ready, shouldAllowProtectedContent, isFreeModePath, router, pathname]);
+  }, [authReady, shouldAllowProtectedContent, isFreeModePath, router, pathname]);
 
   // Show loading state while checking authentication
-  if (!ready) {
+  if (!authReady) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

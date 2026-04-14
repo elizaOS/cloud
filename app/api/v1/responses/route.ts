@@ -30,6 +30,11 @@ import {
 } from "@/lib/pricing";
 import { getProviderForModel } from "@/lib/providers";
 import { mergeGatewayGroqPreferenceWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
+import {
+  getAiProviderConfigurationError,
+  hasGatewayProviderConfigured,
+  hasGroqLanguageModelProviderConfigured,
+} from "@/lib/providers/language-model";
 import type {
   ChatCompletionsTool,
   ChatCompletionsToolChoice,
@@ -58,6 +63,20 @@ interface ResponsesTrajectoryContext {
   systemPrompt?: string;
   userPrompt?: string;
   metadata: Record<string, unknown>;
+}
+
+function hasResponsesRouteProviderConfigured(model: string): boolean {
+  return isGroqNativeModel(model)
+    ? hasGroqLanguageModelProviderConfigured()
+    : hasGatewayProviderConfigured();
+}
+
+function getResponsesRouteProviderConfigurationError(model: string): string {
+  if (isGroqNativeModel(model)) {
+    return "Groq models are not configured on this deployment";
+  }
+
+  return getAiProviderConfigurationError();
 }
 
 // ---------------------------------------------------------------------------
@@ -822,6 +841,19 @@ async function handleNativeResponsesPassthrough(
     );
   }
 
+  if (!hasResponsesRouteProviderConfigured(model)) {
+    return Response.json(
+      {
+        error: {
+          message: getResponsesRouteProviderConfigurationError(model),
+          type: "service_unavailable",
+          code: "provider_not_configured",
+        },
+      },
+      { status: 503 },
+    );
+  }
+
   // Rewrite `model` to Vercel AI Gateway's `provider/model` format if
   // the client sent a bare id. We build a shallow clone rather than
   // mutating the caller's body.
@@ -1561,6 +1593,18 @@ async function handlePOST(req: NextRequest) {
     }
 
     const model = request.model;
+    if (!hasResponsesRouteProviderConfigured(model)) {
+      return Response.json(
+        {
+          error: {
+            message: getResponsesRouteProviderConfigurationError(model),
+            type: "service_unavailable",
+            code: "provider_not_configured",
+          },
+        },
+        { status: 503 },
+      );
+    }
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
