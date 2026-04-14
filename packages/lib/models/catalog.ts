@@ -383,6 +383,29 @@ export function getGroqCatalogModel(modelId: string): CatalogModel | null {
   return GROQ_NATIVE_MODELS.find((model) => model.id === modelId) ?? null;
 }
 
+/**
+ * OpenRouter free model equivalents for fallback scenarios.
+ * Maps gateway model IDs to OpenRouter free-tier models.
+ */
+export const OPENROUTER_FREE_MODEL_MAP: Record<string, string> = {
+  "openai/gpt-4o": "meta-llama/llama-3.3-70b-instruct:free",
+  "openai/gpt-4o-mini": "meta-llama/llama-3.3-70b-instruct:free",
+  "openai/gpt-4.1": "meta-llama/llama-3.3-70b-instruct:free",
+  "openai/gpt-4.1-mini": "meta-llama/llama-3.3-70b-instruct:free",
+  "anthropic/claude-sonnet-4-20250514": "meta-llama/llama-3.3-70b-instruct:free",
+  "anthropic/claude-3.5-sonnet": "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemini-2.0-flash": "google/gemini-2.0-flash-exp:free",
+};
+
+export const OPENROUTER_DEFAULT_FREE_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+
+/**
+ * Resolve a model ID to an OpenRouter free equivalent when falling back.
+ */
+export function getOpenRouterFreeModel(modelId: string): string {
+  return OPENROUTER_FREE_MODEL_MAP[modelId] ?? OPENROUTER_DEFAULT_FREE_MODEL;
+}
+
 export function formatSelectorProvider(provider: string): string {
   return formatProviderLabel(provider);
 }

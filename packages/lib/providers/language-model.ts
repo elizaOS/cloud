@@ -4,6 +4,7 @@ import { getGroqApiModelId, isGroqNativeModel } from "@/lib/models";
 
 let groqClient: ReturnType<typeof createOpenAI> | null = null;
 let openAIClient: ReturnType<typeof createOpenAI> | null = null;
+let openRouterClient: ReturnType<typeof createOpenAI> | null = null;
 
 function getGatewayApiKey(): string | null {
   return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY || null;
@@ -38,6 +39,26 @@ function getOpenAIClient() {
   return openAIClient;
 }
 
+function getOpenRouterApiKey(): string | null {
+  return process.env.OPENROUTER_API_KEY || null;
+}
+
+function getOpenRouterClient() {
+  if (!openRouterClient) {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      throw new Error("OPENROUTER_API_KEY environment variable is required");
+    }
+
+    openRouterClient = createOpenAI({
+      apiKey,
+      baseURL: "https://openrouter.ai/api/v1",
+    });
+  }
+
+  return openRouterClient;
+}
+
 function isOpenAINativeModel(model: string): boolean {
   return (
     model.startsWith("openai/") ||
@@ -58,11 +79,11 @@ export function hasLanguageModelProviderConfigured(model: string): boolean {
     return Boolean(process.env.GROQ_API_KEY);
   }
 
-  return Boolean(getGatewayApiKey() || process.env.OPENAI_API_KEY);
+  return Boolean(getGatewayApiKey() || getOpenRouterApiKey() || process.env.OPENAI_API_KEY);
 }
 
 export function hasTextEmbeddingProviderConfigured(): boolean {
-  return Boolean(getGatewayApiKey() || process.env.OPENAI_API_KEY);
+  return Boolean(getGatewayApiKey() || getOpenRouterApiKey() || process.env.OPENAI_API_KEY);
 }
 
 export function getLanguageModel(model: string) {
@@ -76,6 +97,10 @@ export function getLanguageModel(model: string) {
 
   if (getGatewayApiKey()) {
     return gateway.languageModel(model);
+  }
+
+  if (getOpenRouterApiKey()) {
+    return getOpenRouterClient().languageModel(model);
   }
 
   if (process.env.OPENAI_API_KEY) {
@@ -92,6 +117,10 @@ export function getTextEmbeddingModel(model: string) {
 
   if (getGatewayApiKey()) {
     return gateway.textEmbeddingModel(model);
+  }
+
+  if (getOpenRouterApiKey()) {
+    return getOpenRouterClient().textEmbeddingModel(model);
   }
 
   if (process.env.OPENAI_API_KEY) {
@@ -117,13 +146,19 @@ export function hasGroqLanguageModelProviderConfigured(): boolean {
   return Boolean(process.env.GROQ_API_KEY);
 }
 
-export function resolveAiProviderSource(model: string): "groq" | "gateway" | "openai" | null {
+export function resolveAiProviderSource(
+  model: string,
+): "groq" | "gateway" | "openrouter" | "openai" | null {
   if (isGroqNativeModel(model)) {
     return process.env.GROQ_API_KEY ? "groq" : null;
   }
 
   if (getGatewayApiKey()) {
     return "gateway";
+  }
+
+  if (getOpenRouterApiKey()) {
+    return "openrouter";
   }
 
   if (process.env.OPENAI_API_KEY) {
@@ -133,9 +168,13 @@ export function resolveAiProviderSource(model: string): "groq" | "gateway" | "op
   return null;
 }
 
-export function resolveEmbeddingProviderSource(): "gateway" | "openai" | null {
+export function resolveEmbeddingProviderSource(): "gateway" | "openrouter" | "openai" | null {
   if (getGatewayApiKey()) {
     return "gateway";
+  }
+
+  if (getOpenRouterApiKey()) {
+    return "openrouter";
   }
 
   if (process.env.OPENAI_API_KEY) {
@@ -146,12 +185,18 @@ export function resolveEmbeddingProviderSource(): "gateway" | "openai" | null {
 }
 
 export function hasAnyAiProviderConfigured(): boolean {
-  return Boolean(getGatewayApiKey() || process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY);
+  return Boolean(
+    getGatewayApiKey() ||
+      getOpenRouterApiKey() ||
+      process.env.OPENAI_API_KEY ||
+      process.env.GROQ_API_KEY,
+  );
 }
 
 export function getAiProviderConfigurationStatus() {
   return {
     gateway: Boolean(getGatewayApiKey()),
+    openrouter: Boolean(getOpenRouterApiKey()),
     openai: Boolean(process.env.OPENAI_API_KEY),
     groq: Boolean(process.env.GROQ_API_KEY),
   };

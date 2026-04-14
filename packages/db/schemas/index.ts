@@ -53,6 +53,7 @@ export * from "./organization-billing";
 export * from "./organization-config";
 export * from "./organization-encryption-keys";
 export * from "./organization-invites";
+export * from "./org-rate-limit-overrides";
 export * from "./organizations";
 export * from "./platform-credentials";
 export * from "./provider-health";

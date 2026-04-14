@@ -17,8 +17,15 @@
 import type { NextRequest } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import {
+  getAnonymousUser,
+  getOrCreateAnonymousUser,
+} from "@/lib/auth-anonymous";
+import {
+  RateLimitPresets,
+  enforceOrgRateLimit,
+  withRateLimit,
+} from "@/lib/middleware/rate-limit";
 import { isGroqNativeModel } from "@/lib/models";
 import {
   calculateCost,
@@ -28,7 +35,10 @@ import {
   isReasoningModel,
   normalizeModelName,
 } from "@/lib/pricing";
-import { getProviderForModel } from "@/lib/providers";
+import {
+  getProviderForModelWithFallback,
+  withProviderFallback,
+} from "@/lib/providers";
 import { mergeGatewayGroqPreferenceWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
 import {
   getAiProviderConfigurationError,
@@ -176,11 +186,14 @@ function normalizeToolChoice(
     };
   }
   const unknownChoice = toolChoice as unknown as Record<string, unknown>;
-  logger.warn("[Responses API] Unrecognized tool_choice shape, passing through unchanged", {
-    choiceType: unknownChoice?.type,
-    hasFunction: Boolean(unknownChoice?.function),
-    hasName: Boolean(unknownChoice?.name),
-  });
+  logger.warn(
+    "[Responses API] Unrecognized tool_choice shape, passing through unchanged",
+    {
+      choiceType: unknownChoice?.type,
+      hasFunction: Boolean(unknownChoice?.function),
+      hasName: Boolean(unknownChoice?.name),
+    },
+  );
   return toolChoice as ChatCompletionsToolChoice;
 }
 
@@ -255,7 +268,9 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
   } = aiSdkRequest;
 
   const normalizedInput =
-    typeof input === "string" ? [{ role: "user" as const, content: input }] : (input ?? []);
+    typeof input === "string"
+      ? [{ role: "user" as const, content: input }]
+      : (input ?? []);
 
   // Transform messages: fix content types for multimodal
   const transformedMessages = normalizedInput.map((msg, msgIndex) => {
@@ -290,7 +305,8 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
                           part.image_url !== null &&
                           typeof part.image_url.url === "string"
                         ? part.image_url.url
-                        : undefined) ?? (typeof part.image === "string" ? part.image : ""),
+                        : undefined) ??
+                    (typeof part.image === "string" ? part.image : ""),
                 },
               };
             }
@@ -333,13 +349,17 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
             // Keep text blocks only if they have non-empty text
             if (typedPart.type === "text" || typedPart.type === "input_text") {
               const hasNonEmptyText =
-                typeof typedPart.text === "string" && typedPart.text.trim() !== "";
+                typeof typedPart.text === "string" &&
+                typedPart.text.trim() !== "";
               if (!hasNonEmptyText) {
-                logger.debug("[Responses API] Filtering out empty text content block", {
-                  messageIndex: msgIndex,
-                  role: msg.role,
-                  textValue: typedPart.text,
-                });
+                logger.debug(
+                  "[Responses API] Filtering out empty text content block",
+                  {
+                    messageIndex: msgIndex,
+                    role: msg.role,
+                    textValue: typedPart.text,
+                  },
+                );
               }
               return hasNonEmptyText;
             }
@@ -350,21 +370,27 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
 
       // Log if we filtered out content
       if (transformedContent.length < originalLength) {
-        logger.info("[Responses API] Filtered empty text blocks from content array", {
-          messageIndex: msgIndex,
-          role: msg.role,
-          originalParts: originalLength,
-          remainingParts: transformedContent.length,
-        });
+        logger.info(
+          "[Responses API] Filtered empty text blocks from content array",
+          {
+            messageIndex: msgIndex,
+            role: msg.role,
+            originalParts: originalLength,
+            remainingParts: transformedContent.length,
+          },
+        );
       }
 
       // If content array is now empty or has only empty parts, convert to empty string
       // This will be caught by validation later
       if (transformedContent.length === 0) {
-        logger.warn("[Responses API] Content array became empty after filtering", {
-          messageIndex: msgIndex,
-          role: msg.role,
-        });
+        logger.warn(
+          "[Responses API] Content array became empty after filtering",
+          {
+            messageIndex: msgIndex,
+            role: msg.role,
+          },
+        );
         return { ...msg, content: "" };
       }
 
@@ -389,8 +415,12 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
           type: "function",
           function: {
             name: tool.name,
-            ...(tool.description !== undefined ? { description: tool.description } : {}),
-            ...(tool.parameters !== undefined ? { parameters: tool.parameters } : {}),
+            ...(tool.description !== undefined
+              ? { description: tool.description }
+              : {}),
+            ...(tool.parameters !== undefined
+              ? { parameters: tool.parameters }
+              : {}),
           },
         };
       }
@@ -399,11 +429,14 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
       // The `tool` value here is `never` per the discriminated union, but we
       // narrow back to a record for diagnostic field extraction.
       const unknownTool = tool as unknown as Record<string, unknown>;
-      logger.warn("[Responses API] Unrecognized tool shape, passing through unchanged", {
-        toolType: unknownTool?.type,
-        hasFunction: Boolean(unknownTool?.function),
-        hasName: Boolean(unknownTool?.name),
-      });
+      logger.warn(
+        "[Responses API] Unrecognized tool shape, passing through unchanged",
+        {
+          toolType: unknownTool?.type,
+          hasFunction: Boolean(unknownTool?.function),
+          hasName: Boolean(unknownTool?.name),
+        },
+      );
       // Intentional best-effort: forward the malformed tool unchanged so
       // the downstream provider surfaces the original validation error
       // rather than silently dropping the tool. The cast is a lie that
@@ -486,7 +519,9 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
 
       if (typeof messageContent === "string") {
         // Simple string content
-        content = [{ type: "output_text", text: messageContent, annotations: [] }];
+        content = [
+          { type: "output_text", text: messageContent, annotations: [] },
+        ];
       } else if (Array.isArray(messageContent)) {
         // Already array (multimodal)
         content = (messageContent as Array<unknown>).map((part: unknown) => {
@@ -543,7 +578,8 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
     // Additional AI SDK expected fields
     error: null,
     // Preserve any provider metadata
-    ...("provider_metadata" in openAIResponse && openAIResponse.provider_metadata
+    ...("provider_metadata" in openAIResponse &&
+    openAIResponse.provider_metadata
       ? { provider_metadata: openAIResponse.provider_metadata }
       : {}),
   };
@@ -580,7 +616,11 @@ function stringifyMessageContent(
           return `[image:${part.image_url.url}]`;
         }
         if ("file" in part && part.file && typeof part.file === "object") {
-          const filePart = part.file as { filename?: string; file_id?: string; file_data?: string };
+          const filePart = part.file as {
+            filename?: string;
+            file_id?: string;
+            file_data?: string;
+          };
           return `[file:${filePart.filename ?? filePart.file_id ?? filePart.file_data ?? "attachment"}]`;
         }
       }
@@ -603,7 +643,10 @@ function buildTrajectoryContext(
 
   const transcript = request.messages
     .filter((message) => message.role !== "system")
-    .map((message) => `${message.role}: ${stringifyMessageContent(message.content)}`)
+    .map(
+      (message) =>
+        `${message.role}: ${stringifyMessageContent(message.content)}`,
+    )
     .filter((value) => value.length > 0)
     .join("\n\n");
 
@@ -694,7 +737,9 @@ function sanitizeGatewayError(raw: unknown): {
   // The gateway often nests an `error` object inside `error` — peel it
   // once if we see that shape.
   const inner =
-    obj.error && typeof obj.error === "object" ? (obj.error as Record<string, unknown>) : obj;
+    obj.error && typeof obj.error === "object"
+      ? (obj.error as Record<string, unknown>)
+      : obj;
   const sanitized: ReturnType<typeof sanitizeGatewayError> = {
     message:
       typeof inner.message === "string" && inner.message.length > 0
@@ -768,11 +813,13 @@ function isNativeResponsesPayload(body: Record<string, unknown>): boolean {
   // upstream returns a coherent validation error rather than falling
   // through to the Chat Completions transform path which would choke
   // on the field entirely.
-  if (body.instructions !== undefined && body.instructions !== null) return true;
+  if (body.instructions !== undefined && body.instructions !== null)
+    return true;
   // gpt-5 and gpt-5.x (gpt-5, gpt-5-mini, gpt-5.1, gpt-5.2, gpt-5.3,
   // gpt-5.4, gpt-5.x-codex, ...). Any model whose id starts with "gpt-5"
   // uses the Responses API natively.
-  if (typeof body.model === "string" && /^gpt-5(\b|[-.])/.test(body.model)) return true;
+  if (typeof body.model === "string" && /^gpt-5(\b|[-.])/.test(body.model))
+    return true;
   if (Array.isArray(body.tools)) {
     for (const tool of body.tools) {
       if (tool && typeof tool === "object") {
@@ -880,7 +927,7 @@ async function handleNativeResponsesPassthrough(
   // narrowed type survives across the intervening credit reservation
   // block. This avoids both a redundant second null check before the
   // forward call and the `!` non-null assertion biome flagged.
-  const providerInstance = getProviderForModel(model);
+  const { primary: providerInstance } = getProviderForModelWithFallback(model);
   const providerResponses = providerInstance.responses;
   if (!providerResponses) {
     return Response.json(
@@ -939,35 +986,38 @@ async function handleNativeResponsesPassthrough(
     // pseudo-messages. If estimation fails, fall back to a small default.
     let estimatedCost = 0;
     try {
-      const pseudoMessages: Array<{ role: string; content: string }> = Array.isArray(body.input)
-        ? (body.input as unknown[])
-            .map((item) => {
-              if (!item || typeof item !== "object") return null;
-              const rec = item as Record<string, unknown>;
-              const content = rec.content;
-              if (typeof content === "string") {
-                return {
-                  role: (rec.role as string) ?? "user",
-                  content,
-                };
-              }
-              if (Array.isArray(content)) {
-                const text = content
-                  .map((p) =>
-                    p && typeof p === "object" && typeof (p as { text?: unknown }).text === "string"
-                      ? (p as { text: string }).text
-                      : "",
-                  )
-                  .join(" ");
-                return {
-                  role: (rec.role as string) ?? "user",
-                  content: text,
-                };
-              }
-              return null;
-            })
-            .filter((m): m is { role: string; content: string } => m !== null)
-        : [];
+      const pseudoMessages: Array<{ role: string; content: string }> =
+        Array.isArray(body.input)
+          ? (body.input as unknown[])
+              .map((item) => {
+                if (!item || typeof item !== "object") return null;
+                const rec = item as Record<string, unknown>;
+                const content = rec.content;
+                if (typeof content === "string") {
+                  return {
+                    role: (rec.role as string) ?? "user",
+                    content,
+                  };
+                }
+                if (Array.isArray(content)) {
+                  const text = content
+                    .map((p) =>
+                      p &&
+                      typeof p === "object" &&
+                      typeof (p as { text?: unknown }).text === "string"
+                        ? (p as { text: string }).text
+                        : "",
+                    )
+                    .join(" ");
+                  return {
+                    role: (rec.role as string) ?? "user",
+                    content: text,
+                  };
+                }
+                return null;
+              })
+              .filter((m): m is { role: string; content: string } => m !== null)
+          : [];
       // pseudoMessages satisfies the looser
       // `Array<{ role: string; content: string | object }>` shape
       // estimateRequestCost expects — TypeScript widens `content` to
@@ -975,10 +1025,14 @@ async function handleNativeResponsesPassthrough(
       estimatedCost = await estimateRequestCost(
         model,
         pseudoMessages,
-        typeof body.max_output_tokens === "number" ? body.max_output_tokens : undefined,
+        typeof body.max_output_tokens === "number"
+          ? body.max_output_tokens
+          : undefined,
       );
     } catch (err) {
-      logger.warn("[Responses API passthrough] estimateRequestCost failed", { err });
+      logger.warn("[Responses API passthrough] estimateRequestCost failed", {
+        err,
+      });
       // Safety floor: when estimation fails we reserve a non-trivial
       // amount so an uncharged runaway session can't drain credits.
       // The Chat Completions path benefits from `estimateRequestCost`'s
@@ -1059,12 +1113,16 @@ async function handleNativeResponsesPassthrough(
     // end clients.
     if (err && typeof err === "object" && "error" in err && "status" in err) {
       const gwErr = err as { status: number; error: unknown };
-      return Response.json({ error: sanitizeGatewayError(gwErr.error) }, { status: gwErr.status });
+      return Response.json(
+        { error: sanitizeGatewayError(gwErr.error) },
+        { status: gwErr.status },
+      );
     }
     return Response.json(
       {
         error: {
-          message: err instanceof Error ? err.message : "Upstream request failed",
+          message:
+            err instanceof Error ? err.message : "Upstream request failed",
           type: "api_error",
           code: "upstream_error",
         },
@@ -1107,7 +1165,8 @@ async function handleNativeResponsesPassthrough(
   //   - NO BODY (headers-only upstream response, edge case): also
   //     synchronously settle to reserved so the reservation isn't
   //     stranded.
-  const upstreamContentType = upstreamResponse.headers.get("content-type") ?? "";
+  const upstreamContentType =
+    upstreamResponse.headers.get("content-type") ?? "";
   const isStreamingResponse = upstreamContentType.includes("text/event-stream");
 
   let reconciledBody: ReadableStream<Uint8Array> | null = null;
@@ -1115,13 +1174,17 @@ async function handleNativeResponsesPassthrough(
     // Streaming path: stream wrapper handles its own reconciliation
     // via the runReconciliation callback below.
     const providerName = getProviderFromModel(model);
-    const runReconciliation = async (usage: ResponsesUsage | null): Promise<void> => {
+    const runReconciliation = async (
+      usage: ResponsesUsage | null,
+    ): Promise<void> => {
       if (!settleReservation) return;
       if (!usage) {
         try {
           await settleReservation(reservedAmount);
         } catch (err) {
-          logger.warn("[Responses API passthrough] fallback settle failed", { err });
+          logger.warn("[Responses API passthrough] fallback settle failed", {
+            err,
+          });
         }
         return;
       }
@@ -1140,34 +1203,45 @@ async function handleNativeResponsesPassthrough(
         const actualCost = Math.min(totalCost, reservedAmount);
         await settleReservation(actualCost);
       } catch (err) {
-        logger.warn("[Responses API passthrough] cost calculation failed, settling to reserved", {
-          err,
-        });
+        logger.warn(
+          "[Responses API passthrough] cost calculation failed, settling to reserved",
+          {
+            err,
+          },
+        );
         try {
           await settleReservation(reservedAmount);
         } catch (innerErr) {
-          logger.warn("[Responses API passthrough] fallback settle also failed", { err: innerErr });
+          logger.warn(
+            "[Responses API passthrough] fallback settle also failed",
+            { err: innerErr },
+          );
         }
       }
     };
 
-    reconciledBody = wrapWithUsageExtraction(upstreamResponse.body, (usage, reason) => {
-      logger.debug("[Responses API passthrough] stream terminated", {
-        userId: user.id,
-        reason,
-        sawUsage: usage !== null,
-        inputTokens: usage?.inputTokens,
-        outputTokens: usage?.outputTokens,
-      });
-      void runReconciliation(usage);
-    });
+    reconciledBody = wrapWithUsageExtraction(
+      upstreamResponse.body,
+      (usage, reason) => {
+        logger.debug("[Responses API passthrough] stream terminated", {
+          userId: user.id,
+          reason,
+          sawUsage: usage !== null,
+          inputTokens: usage?.inputTokens,
+          outputTokens: usage?.outputTokens,
+        });
+        void runReconciliation(usage);
+      },
+    );
   } else if (settleReservation) {
     // Non-streaming OR no-body path: settle synchronously so a
     // serverless function freeze can't strand the reservation.
     try {
       await settleReservation(reservedAmount);
     } catch (err) {
-      logger.warn("[Responses API passthrough] synchronous settle failed", { err });
+      logger.warn("[Responses API passthrough] synchronous settle failed", {
+        err,
+      });
     }
   }
 
@@ -1238,7 +1312,10 @@ async function handlePOST(req: NextRequest) {
     const contentLengthHeader = req.headers.get("content-length");
     if (contentLengthHeader) {
       const contentLength = Number.parseInt(contentLengthHeader, 10);
-      if (Number.isFinite(contentLength) && contentLength > MAX_RESPONSES_BODY_BYTES) {
+      if (
+        Number.isFinite(contentLength) &&
+        contentLength > MAX_RESPONSES_BODY_BYTES
+      ) {
         logger.warn("[Responses API] rejecting oversized request body", {
           contentLength,
           limit: MAX_RESPONSES_BODY_BYTES,
@@ -1299,6 +1376,16 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
+    // Per-org tier rate limit (skipped for anonymous users — they use the outer withRateLimit)
+    // Shares the "completions" counter with /chat/completions — both are LLM inference endpoints
+    if (user.organization_id) {
+      const orgRateLimited = await enforceOrgRateLimit(
+        user.organization_id,
+        "completions",
+      );
+      if (orgRateLimited) return orgRateLimited;
+    }
+
     // 2. Read the body as text first so we can enforce the actual size
     // limit AFTER buffering — `Content-Length` is a hint clients can
     // omit (chunked transfer encoding) or lie about. The text-based
@@ -1310,10 +1397,13 @@ async function handlePOST(req: NextRequest) {
       const bodyText = await req.text();
       const actualBodyBytes = Buffer.byteLength(bodyText, "utf8");
       if (actualBodyBytes > MAX_RESPONSES_BODY_BYTES) {
-        logger.warn("[Responses API] rejecting oversized request body (post-read)", {
-          actualBytes: actualBodyBytes,
-          limit: MAX_RESPONSES_BODY_BYTES,
-        });
+        logger.warn(
+          "[Responses API] rejecting oversized request body (post-read)",
+          {
+            actualBytes: actualBodyBytes,
+            limit: MAX_RESPONSES_BODY_BYTES,
+          },
+        );
         return Response.json(
           {
             error: {
@@ -1327,7 +1417,11 @@ async function handlePOST(req: NextRequest) {
       }
       try {
         const parsedBody: unknown = JSON.parse(bodyText);
-        if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+        if (
+          !parsedBody ||
+          typeof parsedBody !== "object" ||
+          Array.isArray(parsedBody)
+        ) {
           return Response.json(
             {
               error: {
@@ -1440,7 +1534,8 @@ async function handlePOST(req: NextRequest) {
     request.messages = request.messages.filter((msg, i) => {
       if (
         msg.role === "system" &&
-        (!msg.content || (typeof msg.content === "string" && msg.content.trim() === ""))
+        (!msg.content ||
+          (typeof msg.content === "string" && msg.content.trim() === ""))
       ) {
         logger.debug("[Responses API] Filtering out empty system message", {
           messageIndex: i,
@@ -1485,7 +1580,8 @@ async function handlePOST(req: NextRequest) {
         return Response.json(
           {
             error: {
-              message: "Each message must have content, tool_calls, tool_call_id, or function_call",
+              message:
+                "Each message must have content, tool_calls, tool_call_id, or function_call",
               type: "invalid_request_error",
               param: `messages.${i}.content`,
               code: "invalid_value",
@@ -1522,8 +1618,14 @@ async function handlePOST(req: NextRequest) {
           const hasValidTextContent = msg.content.some((part) => {
             if (typeof part === "object" && part !== null && "type" in part) {
               const typedPart = part as { type: string; text?: string };
-              if (typedPart.type === "text" || typedPart.type === "input_text") {
-                return typeof typedPart.text === "string" && typedPart.text.trim() !== "";
+              if (
+                typedPart.type === "text" ||
+                typedPart.type === "input_text"
+              ) {
+                return (
+                  typeof typedPart.text === "string" &&
+                  typedPart.text.trim() !== ""
+                );
               }
               // Non-text parts (images) are valid
               return true;
@@ -1532,17 +1634,26 @@ async function handlePOST(req: NextRequest) {
           });
 
           // If we have a content array but no valid content, and no tool calls, reject
-          if (!hasValidTextContent && !hasToolCalls && !hasToolCallId && !hasFunctionCall) {
-            logger.warn("[Responses API] Content array has no valid text content", {
-              messageIndex: i,
-              role: msg.role,
-              contentLength: msg.content.length,
-            });
+          if (
+            !hasValidTextContent &&
+            !hasToolCalls &&
+            !hasToolCallId &&
+            !hasFunctionCall
+          ) {
+            logger.warn(
+              "[Responses API] Content array has no valid text content",
+              {
+                messageIndex: i,
+                role: msg.role,
+                contentLength: msg.content.length,
+              },
+            );
 
             return Response.json(
               {
                 error: {
-                  message: "Message content array must contain at least one non-empty text block",
+                  message:
+                    "Message content array must contain at least one non-empty text block",
                   type: "invalid_request_error",
                   param: `messages.${i}.content`,
                   code: "invalid_value",
@@ -1574,7 +1685,9 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    const lastUserMessage = [...request.messages].reverse().find((m) => m.role === "user");
+    const lastUserMessage = [...request.messages]
+      .reverse()
+      .find((m) => m.role === "user");
     if (lastUserMessage?.content) {
       const messageText =
         typeof lastUserMessage.content === "string"
@@ -1582,13 +1695,18 @@ async function handlePOST(req: NextRequest) {
           : lastUserMessage.content.find((c) => c.type === "text")?.text || "";
 
       if (messageText) {
-        contentModerationService.moderateInBackground(messageText, user.id, undefined, (result) => {
-          logger.warn("[Responses API] Async moderation detected violation", {
-            userId: user.id,
-            categories: result.flaggedCategories,
-            action: result.action,
-          });
-        });
+        contentModerationService.moderateInBackground(
+          messageText,
+          user.id,
+          undefined,
+          (result) => {
+            logger.warn("[Responses API] Async moderation detected violation", {
+              userId: user.id,
+              categories: result.flaggedCategories,
+              action: result.action,
+            });
+          },
+        );
       }
     }
 
@@ -1675,7 +1793,8 @@ async function handlePOST(req: NextRequest) {
 
     let reservationSettled = false;
     settleReservation = async (actualCost: number) => {
-      if (reservationSettled || !user.organization_id || !reservedAmount) return;
+      if (reservationSettled || !user.organization_id || !reservedAmount)
+        return;
 
       reservationSettled = true;
 
@@ -1718,7 +1837,8 @@ async function handlePOST(req: NextRequest) {
       delete safeRequest.temperature;
     }
 
-    const providerInstance = getProviderForModel(model);
+    const { primary: providerInstance, fallback: fallbackProvider } =
+      getProviderForModelWithFallback(model);
     // Gateway: Groq preference + optional ANTHROPIC_COT_BUDGET (providerOptions.anthropic.thinking) per AI Gateway docs.
     const requestWithProvider = isGroqNativeModel(model)
       ? safeRequest
@@ -1726,10 +1846,20 @@ async function handlePOST(req: NextRequest) {
           ...safeRequest,
           ...mergeGatewayGroqPreferenceWithAnthropicCot(model),
         };
-    const providerResponse = await providerInstance.chatCompletions(requestWithProvider, {
-      signal: req.signal,
-      timeoutMs: routeTimeoutMs,
-    });
+    const providerResponse = await withProviderFallback(
+      () =>
+        providerInstance.chatCompletions(requestWithProvider, {
+          signal: req.signal,
+          timeoutMs: routeTimeoutMs,
+        }),
+      fallbackProvider
+        ? () =>
+            fallbackProvider.chatCompletions(requestWithProvider, {
+              signal: req.signal,
+              timeoutMs: routeTimeoutMs,
+            })
+        : null,
+    );
 
     // 7. Handle streaming vs non-streaming
     if (isStreaming) {
@@ -1766,11 +1896,19 @@ async function handlePOST(req: NextRequest) {
       error: { message: string; type?: string; code?: string };
     }
 
-    if (error && typeof error === "object" && "error" in error && "status" in error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "error" in error &&
+      "status" in error
+    ) {
       const gatewayStatus = (error as { status: unknown }).status;
       if (typeof gatewayStatus === "number") {
         const gatewayError = error as GatewayError;
-        return Response.json({ error: gatewayError.error }, { status: gatewayError.status });
+        return Response.json(
+          { error: gatewayError.error },
+          { status: gatewayError.status },
+        );
       }
     }
 
@@ -1791,7 +1929,8 @@ async function handlePOST(req: NextRequest) {
     logger.error("[Responses API] Error:", error);
 
     const status = getErrorStatusCode(error);
-    const clientMessage = status >= 500 ? "Internal server error" : getSafeErrorMessage(error);
+    const clientMessage =
+      status >= 500 ? "Internal server error" : getSafeErrorMessage(error);
     const code =
       status === 402
         ? "insufficient_credits"
@@ -1838,7 +1977,9 @@ async function handleNonStreamingResponse(
   // Reconcile credits: refund difference if actual < reserved
   if (!usage) {
     await settleReservation?.(0);
-    logger.warn("[Responses API] Non-streaming response missing usage data", { model });
+    logger.warn("[Responses API] Non-streaming response missing usage data", {
+      model,
+    });
   } else if (user.organization_id && reservedAmount) {
     const organizationId = user.organization_id;
     const { inputCost, outputCost, totalCost } = await calculateCost(
@@ -1997,7 +2138,9 @@ function handleStreamingResponse(
                   type: "message",
                   id: itemId,
                   role: "assistant",
-                  content: [{ type: "output_text", text: fullContent, annotations: [] }],
+                  content: [
+                    { type: "output_text", text: fullContent, annotations: [] },
+                  ],
                   status: "completed",
                 },
               });
@@ -2107,7 +2250,10 @@ function handleStreamingResponse(
               // Log parsing failures as warnings - silent failures are hard to debug
               logger.warn("[Responses API] Failed to parse streaming chunk", {
                 line: line.substring(0, 200), // Truncate to avoid log spam
-                error: parseError instanceof Error ? parseError.message : String(parseError),
+                error:
+                  parseError instanceof Error
+                    ? parseError.message
+                    : String(parseError),
               });
             }
           }
@@ -2152,14 +2298,21 @@ function handleStreamingResponse(
 
       // After stream completes, record analytics
       if (totalTokens === 0) {
-        logger.warn("[Responses API] No usage data in stream, estimating tokens", {
-          model,
-          contentLength: fullContent.length,
-        });
+        logger.warn(
+          "[Responses API] No usage data in stream, estimating tokens",
+          {
+            model,
+            contentLength: fullContent.length,
+          },
+        );
 
         // Estimate tokens from content
         const messageText = messages
-          .map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content)))
+          .map((m) =>
+            typeof m.content === "string"
+              ? m.content
+              : JSON.stringify(m.content),
+          )
           .join(" ");
         inputTokens = estimateTokens(messageText);
         outputTokens = estimateTokens(fullContent);

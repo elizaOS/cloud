@@ -10,6 +10,7 @@ import { creditsService } from "@/lib/services/credits";
 import { discordService } from "@/lib/services/discord";
 import { invoicesService } from "@/lib/services/invoices";
 import { referralsService } from "@/lib/services/referrals";
+import { invalidateOrgTierCache } from "@/lib/services/org-rate-limits";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
 
@@ -53,18 +54,27 @@ async function handleStripeWebhook(req: NextRequest) {
   const signature = headersList.get("stripe-signature");
 
   if (!signature) {
-    return NextResponse.json({ error: "No signature provided" }, { status: 400 });
+    return NextResponse.json(
+      { error: "No signature provided" },
+      { status: 400 },
+    );
   }
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     logger.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET is not set");
-    return NextResponse.json({ error: "Webhook configuration error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Webhook configuration error" },
+      { status: 500 },
+    );
   }
 
   if (!isStripeConfigured()) {
     logger.error("[Stripe Webhook] STRIPE_SECRET_KEY is not set");
-    return NextResponse.json({ error: "Stripe configuration error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Stripe configuration error" },
+      { status: 500 },
+    );
   }
 
   const stripe = requireStripe();
@@ -74,7 +84,10 @@ async function handleStripeWebhook(req: NextRequest) {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch {
     logger.error("[Stripe Webhook] Signature verification failed");
-    return NextResponse.json({ error: "Webhook signature verification failed" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Webhook signature verification failed" },
+      { status: 400 },
+    );
   }
 
   logger.info(`[Stripe Webhook] Received event: ${event.type} (${event.id})`);
@@ -96,7 +109,8 @@ async function handleStripeWebhook(req: NextRequest) {
           const appId = session.metadata?.app_id;
 
           // Check if this is an app-specific purchase
-          const isAppPurchase = purchaseSource === "miniapp_app" && appId && userId;
+          const isAppPurchase =
+            purchaseSource === "miniapp_app" && appId && userId;
 
           if (!organizationId || !credits) {
             logger.warn(
@@ -128,7 +142,9 @@ async function handleStripeWebhook(req: NextRequest) {
           }
 
           const existingTransaction =
-            await creditsService.getTransactionByStripePaymentIntent(paymentIntentId);
+            await creditsService.getTransactionByStripePaymentIntent(
+              paymentIntentId,
+            );
 
           const isDuplicate = !!existingTransaction;
           if (isDuplicate) {
@@ -201,9 +217,24 @@ async function handleStripeWebhook(req: NextRequest) {
                 },
                 stripePaymentIntentId: paymentIntentId,
               });
+
+              // Invalidate org rate limit tier cache on app purchase too
+              invalidateOrgTierCache(organizationId).catch((err) =>
+                logger.warn(
+                  "[Stripe Webhook] Failed to invalidate org tier cache",
+                  {
+                    error: err instanceof Error ? err.message : String(err),
+                  },
+                ),
+              );
             } catch (appError) {
-              logger.error("[Stripe Webhook] Error processing app credit purchase", appError);
-              throw appError instanceof Error ? appError : new Error(String(appError));
+              logger.error(
+                "[Stripe Webhook] Error processing app credit purchase",
+                appError,
+              );
+              throw appError instanceof Error
+                ? appError
+                : new Error(String(appError));
             }
           } else if (!isDuplicate) {
             // Regular credit purchase (not app-specific) — skip if duplicate (credits already added)
@@ -220,7 +251,19 @@ async function handleStripeWebhook(req: NextRequest) {
               stripePaymentIntentId: paymentIntentId,
             });
 
-            logger.info(`[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`);
+            logger.info(
+              `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`,
+            );
+
+            // Invalidate org rate limit tier cache so it recalculates on next request
+            invalidateOrgTierCache(organizationId).catch((err) =>
+              logger.warn(
+                "[Stripe Webhook] Failed to invalidate org tier cache",
+                {
+                  error: err instanceof Error ? err.message : String(err),
+                },
+              ),
+            );
 
             if (userId) {
               trackServerEvent(userId, "credits_purchased", {
@@ -245,18 +288,22 @@ async function handleStripeWebhook(req: NextRequest) {
 
           // Revenue splits: run even when isDuplicate so retries can complete failed splits; dedupeBySourceId keeps payout inserts idempotent
           if (!isAppPurchase && userId) {
-            const { splits } = await referralsService.calculateRevenueSplits(userId, credits);
+            const { splits } = await referralsService.calculateRevenueSplits(
+              userId,
+              credits,
+            );
             if (splits.length > 0) {
               logger.info(
                 `[Stripe Webhook] Processing revenue splits for $${credits.toFixed(2)} purchase by user ${userId}`,
               );
-              const { redeemableEarningsService } = await import(
-                "@/lib/services/redeemable-earnings"
-              );
+              const { redeemableEarningsService } =
+                await import("@/lib/services/redeemable-earnings");
               for (const split of splits) {
                 if (split.amount <= 0) continue;
                 const source =
-                  split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
+                  split.role === "app_owner"
+                    ? "app_owner_revenue_share"
+                    : "creator_revenue_share";
                 try {
                   await redeemableEarningsService.addEarnings({
                     userId: split.userId,
@@ -279,7 +326,10 @@ async function handleStripeWebhook(req: NextRequest) {
                   logger.error(
                     `[Stripe Webhook] Failed to credit split to ${split.role} (${split.userId}) - retry webhook or reconcile manually`,
                     {
-                      error: splitError instanceof Error ? splitError.message : String(splitError),
+                      error:
+                        splitError instanceof Error
+                          ? splitError.message
+                          : String(splitError),
                       amount: split.amount,
                       paymentIntentId,
                       sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
@@ -291,10 +341,16 @@ async function handleStripeWebhook(req: NextRequest) {
                     split_user_id: split.userId,
                     split_role: split.role,
                     split_amount: split.amount,
-                    error: splitError instanceof Error ? splitError.message : String(splitError),
+                    error:
+                      splitError instanceof Error
+                        ? splitError.message
+                        : String(splitError),
                   });
                   return NextResponse.json(
-                    { error: "Failed to process revenue split", retryable: true },
+                    {
+                      error: "Failed to process revenue split",
+                      retryable: true,
+                    },
                     { status: 500 },
                   );
                 }
@@ -304,7 +360,9 @@ async function handleStripeWebhook(req: NextRequest) {
 
           if (!isDuplicate) {
             organizationsRepository.findById(organizationId).then((org) => {
-              const user = userId ? usersRepository.findById(userId) : Promise.resolve(null);
+              const user = userId
+                ? usersRepository.findById(userId)
+                : Promise.resolve(null);
               user.then((userData) => {
                 discordService
                   .logPaymentReceived({
@@ -317,12 +375,18 @@ async function handleStripeWebhook(req: NextRequest) {
                     userId: userId || undefined,
                     userName: userData?.name || userData?.email,
                     paymentMethod: "stripe",
-                    paymentType: purchaseType === "credit_pack" ? "Credit Pack" : "Balance Top-up",
+                    paymentType:
+                      purchaseType === "credit_pack"
+                        ? "Credit Pack"
+                        : "Balance Top-up",
                   })
                   .catch((err) => {
-                    logger.error("[Stripe Webhook] Failed to log payment to Discord", {
-                      error: err,
-                    });
+                    logger.error(
+                      "[Stripe Webhook] Failed to log payment to Discord",
+                      {
+                        error: err,
+                      },
+                    );
                   });
               });
             });
@@ -330,9 +394,8 @@ async function handleStripeWebhook(req: NextRequest) {
 
           if (!isDuplicate) {
             try {
-              const existingInvoice = await invoicesService.getByStripeInvoiceId(
-                `cs_${session.id}`,
-              );
+              const existingInvoice =
+                await invoicesService.getByStripeInvoiceId(`cs_${session.id}`);
 
               if (!existingInvoice) {
                 const amountTotal = session.amount_total
@@ -361,7 +424,9 @@ async function handleStripeWebhook(req: NextRequest) {
                   paid_at: new Date(),
                 });
 
-                logger.debug(`[Stripe Webhook] Invoice created for checkout session ${session.id}`);
+                logger.debug(
+                  `[Stripe Webhook] Invoice created for checkout session ${session.id}`,
+                );
               } else {
                 logger.debug(
                   `[Stripe Webhook] Invoice already exists for checkout session ${session.id}`,
@@ -380,7 +445,9 @@ async function handleStripeWebhook(req: NextRequest) {
 
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object;
-        logger.debug(`[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`);
+        logger.debug(
+          `[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`,
+        );
 
         // One-time and auto-top-up use PaymentIntent directly (no checkout session).
         // WHY no revenue splits here: Auto top-up has no user_id in metadata by design;
@@ -416,11 +483,16 @@ async function handleStripeWebhook(req: NextRequest) {
         }
 
         const affiliateFeeStr = paymentIntent.metadata?.affiliate_fee_amount;
-        const affiliateFeeAmount = affiliateFeeStr ? Number.parseFloat(affiliateFeeStr) : 0;
+        const affiliateFeeAmount = affiliateFeeStr
+          ? Number.parseFloat(affiliateFeeStr)
+          : 0;
         const affiliateOwnerId = paymentIntent.metadata?.affiliate_owner_id;
         const affiliateCodeId = paymentIntent.metadata?.affiliate_code_id;
 
-        if (affiliateFeeStr && (!Number.isFinite(affiliateFeeAmount) || affiliateFeeAmount <= 0)) {
+        if (
+          affiliateFeeStr &&
+          (!Number.isFinite(affiliateFeeAmount) || affiliateFeeAmount <= 0)
+        ) {
           logger.warn(
             `[Stripe Webhook] Permanent failure - Invalid affiliate metadata in payment intent ${paymentIntent.id}`,
             { affiliateFeeStr },
@@ -436,9 +508,10 @@ async function handleStripeWebhook(req: NextRequest) {
         }
 
         // Check for duplicate transaction
-        const existingTransaction = await creditsService.getTransactionByStripePaymentIntent(
-          paymentIntent.id,
-        );
+        const existingTransaction =
+          await creditsService.getTransactionByStripePaymentIntent(
+            paymentIntent.id,
+          );
         const isDuplicate = !!existingTransaction;
 
         if (isDuplicate) {
@@ -470,6 +543,16 @@ async function handleStripeWebhook(req: NextRequest) {
             `[Stripe Webhook] Credits added: ${credits} to org ${organizationId} (${purchaseType})`,
           );
 
+          // Invalidate org rate limit tier cache so it recalculates on next request
+          invalidateOrgTierCache(organizationId).catch((err) =>
+            logger.warn(
+              "[Stripe Webhook] Failed to invalidate org tier cache",
+              {
+                error: err instanceof Error ? err.message : String(err),
+              },
+            ),
+          );
+
           // Log payment to Discord (fire and forget)
           organizationsRepository.findById(organizationId).then((org) => {
             discordService
@@ -481,10 +564,16 @@ async function handleStripeWebhook(req: NextRequest) {
                 organizationId,
                 organizationName: org?.name,
                 paymentMethod: "stripe",
-                paymentType: purchaseType === "auto_top_up" ? "Auto Top-up" : "One-time Purchase",
+                paymentType:
+                  purchaseType === "auto_top_up"
+                    ? "Auto Top-up"
+                    : "One-time Purchase",
               })
               .catch((err) => {
-                logger.error("[Stripe Webhook] Failed to log payment to Discord", { error: err });
+                logger.error(
+                  "[Stripe Webhook] Failed to log payment to Discord",
+                  { error: err },
+                );
               });
           });
         }
@@ -496,9 +585,8 @@ async function handleStripeWebhook(req: NextRequest) {
           affiliateCodeId
         ) {
           try {
-            const { redeemableEarningsService } = await import(
-              "@/lib/services/redeemable-earnings"
-            );
+            const { redeemableEarningsService } =
+              await import("@/lib/services/redeemable-earnings");
             const result = await redeemableEarningsService.addEarnings({
               userId: affiliateOwnerId,
               amount: affiliateFeeAmount,
@@ -532,7 +620,9 @@ async function handleStripeWebhook(req: NextRequest) {
               `[Stripe Webhook] Failed to credit auto top-up affiliate payout for ${paymentIntent.id}`,
               {
                 error:
-                  affiliateError instanceof Error ? affiliateError.message : String(affiliateError),
+                  affiliateError instanceof Error
+                    ? affiliateError.message
+                    : String(affiliateError),
                 affiliateOwnerId,
                 affiliateCodeId,
               },
@@ -548,7 +638,10 @@ async function handleStripeWebhook(req: NextRequest) {
         }
 
         if (isDuplicate) {
-          return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
+          return NextResponse.json(
+            { received: true, duplicate: true },
+            { status: 200 },
+          );
         }
 
         try {
@@ -565,7 +658,8 @@ async function handleStripeWebhook(req: NextRequest) {
               ? invoiceIdOrObject.id
               : invoiceIdOrObject;
 
-            const existingInvoice = await invoicesService.getByStripeInvoiceId(invoiceId);
+            const existingInvoice =
+              await invoicesService.getByStripeInvoiceId(invoiceId);
 
             if (!existingInvoice) {
               const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
@@ -582,7 +676,8 @@ async function handleStripeWebhook(req: NextRequest) {
                 invoice_type: purchaseType || "one_time_purchase",
                 invoice_number: stripeInvoice.number || undefined,
                 invoice_pdf: stripeInvoice.invoice_pdf || undefined,
-                hosted_invoice_url: stripeInvoice.hosted_invoice_url || undefined,
+                hosted_invoice_url:
+                  stripeInvoice.hosted_invoice_url || undefined,
                 credits_added: credits.toString(),
                 metadata: {
                   type: purchaseType,
@@ -635,7 +730,10 @@ async function handleStripeWebhook(req: NextRequest) {
         } catch (invoiceError) {
           // Invoice creation failure is not critical - log but don't fail the webhook
           // The credits were already added successfully
-          logger.error("[Stripe Webhook] Non-critical error creating invoice record", invoiceError);
+          logger.error(
+            "[Stripe Webhook] Non-critical error creating invoice record",
+            invoiceError,
+          );
         }
 
         break;
@@ -643,7 +741,9 @@ async function handleStripeWebhook(req: NextRequest) {
 
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object;
-        logger.warn(`[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`);
+        logger.warn(
+          `[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`,
+        );
 
         // Track payment failure in PostHog
         const orgId = paymentIntent.metadata?.organization_id;
@@ -656,7 +756,10 @@ async function handleStripeWebhook(req: NextRequest) {
 
         // Get error reason from the payment intent
         const lastPaymentError = paymentIntent.last_payment_error;
-        const errorReason = lastPaymentError?.message || lastPaymentError?.code || "Payment failed";
+        const errorReason =
+          lastPaymentError?.message ||
+          lastPaymentError?.code ||
+          "Payment failed";
 
         // Use org-prefixed ID as fallback when user ID is missing (matches auto-top-up pattern)
         const trackingId = userId || (orgId ? `org:${orgId}` : null);
@@ -673,12 +776,15 @@ async function handleStripeWebhook(req: NextRequest) {
           });
         } else {
           // Log warning when metadata is missing - creates blind spot in failure analytics
-          logger.warn(`[Stripe Webhook] Cannot track checkout_failed - missing metadata`, {
-            paymentIntentId: paymentIntent.id,
-            hasUserId: !!userId,
-            hasOrgId: !!orgId,
-            errorReason,
-          });
+          logger.warn(
+            `[Stripe Webhook] Cannot track checkout_failed - missing metadata`,
+            {
+              paymentIntentId: paymentIntent.id,
+              hasUserId: !!userId,
+              hasOrgId: !!orgId,
+              errorReason,
+            },
+          );
         }
 
         break;
@@ -690,7 +796,8 @@ async function handleStripeWebhook(req: NextRequest) {
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
 
     logger.error(
       `[Stripe Webhook] Error processing event ${event.type} (${event.id}):`,
@@ -713,7 +820,9 @@ async function handleStripeWebhook(req: NextRequest) {
 
     if (isPermanentError) {
       // Return 200 for permanent errors to prevent retries
-      logger.warn("[Stripe Webhook] Permanent error detected, returning 200 to prevent retries");
+      logger.warn(
+        "[Stripe Webhook] Permanent error detected, returning 200 to prevent retries",
+      );
       return NextResponse.json(
         {
           received: true,
@@ -728,7 +837,9 @@ async function handleStripeWebhook(req: NextRequest) {
 
     // Return 500 for transient errors to trigger Stripe retry logic
     // (database issues, network issues, temporary service unavailability)
-    logger.warn("[Stripe Webhook] Transient error detected, returning 500 to trigger retry");
+    logger.warn(
+      "[Stripe Webhook] Transient error detected, returning 500 to trigger retry",
+    );
     return NextResponse.json(
       {
         error: "Transient error - will retry",
@@ -742,4 +853,7 @@ async function handleStripeWebhook(req: NextRequest) {
 }
 
 // Export rate-limited handler
-export const POST = withRateLimit(handleStripeWebhook, RateLimitPresets.AGGRESSIVE);
+export const POST = withRateLimit(
+  handleStripeWebhook,
+  RateLimitPresets.AGGRESSIVE,
+);

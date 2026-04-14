@@ -3,7 +3,7 @@
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getGroqCatalogModel, isGroqNativeModel } from "@/lib/models";
-import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
+import { getProviderForModel, hasGroqProviderConfigured } from "@/lib/providers";
 import { getCachedGatewayModelById } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
 
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ mod
       });
     }
 
-    const provider = getProvider();
+    const provider = getProviderForModel(model);
     const response = await provider.getModel(model);
 
     if (!response.ok) {
