@@ -180,6 +180,23 @@ export interface ForwardMessageOptions {
 }
 
 /**
+ * Builds the JSON body for forwarding a message to the agent-server.
+ * Only includes metadata fields that are truthy, keeping the payload
+ * backward-compatible when no platform context is available.
+ */
+export function buildForwardBody(
+  userId: string,
+  text: string,
+  options?: ForwardMessageOptions,
+): Record<string, string> {
+  const body: Record<string, string> = { userId, text };
+  if (options?.platformName) body.platformName = options.platformName;
+  if (options?.senderName) body.senderName = options.senderName;
+  if (options?.chatId) body.chatId = options.chatId;
+  return body;
+}
+
+/**
  * Forwards a chat message to the correct agent-server pod via hash-ring routing.
  * Parses the agent-server response to extract the `.response` field expected
  * by platform adapters (e.g. Telegram, WhatsApp sendReply).
@@ -196,10 +213,7 @@ export async function forwardToServer(
   text: string,
   options?: ForwardMessageOptions,
 ): Promise<string> {
-  const body: Record<string, string> = { userId, text };
-  if (options?.platformName) body.platformName = options.platformName;
-  if (options?.senderName) body.senderName = options.senderName;
-  if (options?.chatId) body.chatId = options.chatId;
+  const body = buildForwardBody(userId, text, options);
 
   logger.debug("Forwarding message to agent-server", {
     agentId,

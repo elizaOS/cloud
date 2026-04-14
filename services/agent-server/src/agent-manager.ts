@@ -33,6 +33,30 @@ export interface MessageMetadata {
   chatId?: string;
 }
 
+/** Returns the message source, falling back to "agent-server" when no platform is specified. */
+export function resolveSource(metadata?: MessageMetadata): string {
+  return metadata?.platformName || "agent-server";
+}
+
+/** Returns the display name for the connection, falling back to the raw userId. */
+export function resolveUserName(userId: string, metadata?: MessageMetadata): string {
+  return metadata?.senderName || userId;
+}
+
+/**
+ * Builds a metadata record for ensureConnection() from platform context.
+ * Returns undefined when no platform-specific fields are present, keeping
+ * the connection params backward-compatible.
+ */
+export function buildConnectionMetadata(
+  metadata?: MessageMetadata,
+): Record<string, string> | undefined {
+  const result: Record<string, string> = {};
+  if (metadata?.chatId) result.chatId = metadata.chatId;
+  if (metadata?.platformName) result.platformName = metadata.platformName;
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 const REDIS_STATE_TTL_SECONDS = Math.max(
   60,
   Number.parseInt(process.env.REDIS_STATE_TTL_SECONDS ?? "120", 10) || 120,
@@ -267,8 +291,9 @@ export class AgentManager {
       const uid = stringToUuid(userId);
       const roomId = stringToUuid(`${agentId}:${userId}`);
       const worldId = stringToUuid(`server:${process.env.SERVER_NAME}`);
-      const source = metadata?.platformName || "agent-server";
-      const userName = metadata?.senderName || userId;
+      const source = resolveSource(metadata);
+      const userName = resolveUserName(userId, metadata);
+      const connMeta = buildConnectionMetadata(metadata);
 
       logger.debug("Handling message with platform metadata", {
         agentId,
@@ -276,10 +301,6 @@ export class AgentManager {
         platformName: metadata?.platformName,
         chatId: metadata?.chatId,
       });
-
-      const connectionMetadata: Record<string, string> = {};
-      if (metadata?.chatId) connectionMetadata.chatId = metadata.chatId;
-      if (metadata?.platformName) connectionMetadata.platformName = metadata.platformName;
 
       await rt.ensureConnection({
         entityId: uid,
@@ -289,7 +310,7 @@ export class AgentManager {
         source,
         channelId: `${agentId}-${userId}`,
         type: ChannelType.DM,
-        ...(Object.keys(connectionMetadata).length > 0 && { metadata: connectionMetadata }),
+        ...(connMeta && { metadata: connMeta }),
       } as Parameters<typeof rt.ensureConnection>[0]);
 
       const mem = createMessageMemory({
