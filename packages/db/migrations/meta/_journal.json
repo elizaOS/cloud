@@ -421,6 +421,13 @@
       "when": 1775866779597,
       "tag": "0062_add_llm_trajectories_table",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1776195064097,
+      "tag": "0060_zippy_joshua_kane",
+      "breakpoints": true
     }
   ]
 }
