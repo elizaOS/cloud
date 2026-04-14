@@ -1,4 +1,5 @@
 "use client";
+import { usePathname } from "next/navigation";
 
 import { StewardProvider, useAuth as useStewardAuth } from "@stwd/react";
 import { StewardClient } from "@stwd/sdk";
@@ -92,9 +93,16 @@ export function StewardAuthProvider({ children }: { children: React.ReactNode })
     );
   }, [hasValidUrl]);
 
+  const pathname = usePathname();
+
   if (!hasValidUrl) {
     // Steward is optional, so we just render children without the provider
     // rather than showing an error screen (unlike Privy which is required).
+    return <>{children}</>;
+  }
+
+  // Skip on /docs to avoid stwd-root CSS conflicts with nextra theme
+  if (pathname?.startsWith("/docs")) {
     return <>{children}</>;
   }
 
