@@ -3,7 +3,6 @@ import { streamText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { getProviderFromModel } from "@/lib/pricing";
@@ -94,46 +93,19 @@ interface AuthContext {
   user: UserWithOrganization;
   apiKey?: { id: string } | null;
   session_token?: string;
-  isAnonymous: boolean;
 }
 
 /**
- * Authenticate user - supports both authenticated and anonymous users
+ * Authenticate user - requires valid auth or API key.
+ * Anonymous users are not allowed to generate images.
  */
 async function authenticateUser(req: NextRequest): Promise<AuthContext> {
-  // Try authenticated user first
-  try {
-    const authResult = await requireAuthOrApiKey(req);
-    return {
-      user: authResult.user,
-      apiKey: authResult.apiKey,
-      session_token: authResult.session_token,
-      isAnonymous: false,
-    };
-  } catch {
-    // Fall back to anonymous user
-    let anonData = await getAnonymousUser();
-
-    if (!anonData) {
-      const newAnonData = await getOrCreateAnonymousUser();
-      anonData = {
-        user: newAnonData.user,
-        session: newAnonData.session,
-      };
-    }
-
-    // Create a minimal UserWithOrganization for anonymous users
-    const anonymousUser: UserWithOrganization = {
-      ...anonData.user,
-      organization_id: null,
-      organization: null,
-    };
-
-    return {
-      user: anonymousUser,
-      isAnonymous: true,
-    };
-  }
+  const authResult = await requireAuthOrApiKey(req);
+  return {
+    user: authResult.user,
+    apiKey: authResult.apiKey,
+    session_token: authResult.session_token,
+  };
 }
 
 /**
@@ -149,9 +121,17 @@ async function handlePOST(req: NextRequest) {
   let imageServiceUnavailable = false;
 
   try {
-    // Authenticate - supports both authenticated and anonymous users
-    const authContext = await authenticateUser(req);
-    const { user, apiKey, isAnonymous } = authContext;
+    // Authenticate - require valid credentials, no anonymous fallback
+    let authContext: AuthContext;
+    try {
+      authContext = await authenticateUser(req);
+    } catch {
+      return Response.json(
+        { error: "Authentication required. Provide a valid session or API key." },
+        { status: 401 },
+      );
+    }
+    const { user, apiKey } = authContext;
 
     const requestBody = await req.json();
     const {
@@ -200,7 +180,7 @@ async function handlePOST(req: NextRequest) {
 
     // Reserve credits BEFORE generation to prevent TOCTOU race condition
     let reservation: CreditReservation;
-    if (!isAnonymous && user.organization_id) {
+    if (user.organization_id) {
       try {
         reservation = await creditsService.reserve({
           organizationId: user.organization_id,
@@ -221,11 +201,13 @@ async function handlePOST(req: NextRequest) {
         throw error;
       }
     } else {
+      // Authenticated user without an organization - this shouldn't normally happen
+      // but handle gracefully by creating a no-op reservation
       reservation = creditsService.createAnonymousReservation();
     }
 
-    // Only create generation record for authenticated users with an organization
-    if (!isAnonymous && user.organization_id) {
+    // Create generation record for authenticated users with an organization
+    if (user.organization_id) {
       const generation = await generationsService.create({
         organization_id: user.organization_id,
         user_id: user.id,
@@ -456,8 +438,7 @@ async function handlePOST(req: NextRequest) {
       // Reconcile with 0 cost (full refund)
       await reservation.reconcile(0);
 
-      // Only create usage record for authenticated users
-      if (!isAnonymous && user.organization_id) {
+      if (user.organization_id) {
         const usageRecord = await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
@@ -503,10 +484,9 @@ async function handlePOST(req: NextRequest) {
       dimensions: imagePricingDimensions,
     });
 
-    // Only create usage record for authenticated users
     let usageRecordId: string | undefined;
     let actualCostBilled = imageCost.totalCost;
-    if (!isAnonymous && user.organization_id) {
+    if (user.organization_id) {
       const billing = await billFlatUsage(
         {
           organizationId: user.organization_id,
@@ -622,7 +602,6 @@ async function handlePOST(req: NextRequest) {
     });
 
     // Update generation record if we created one
-    // Note: generationId only exists if user.organization_id was present at creation time
     if (generationId && usageRecordId) {
       // For multi-image generations, create separate records for each image
       // so they all appear in the gallery (which filters by storage_url)
@@ -700,9 +679,8 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
-    // Log to Discord only for authenticated users with organization
+    // Log to Discord
     if (
-      !isAnonymous &&
       user.organization_id &&
       user.organization &&
       uploadResults.length > 0 &&
