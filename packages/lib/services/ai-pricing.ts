@@ -786,9 +786,33 @@ async function fetchFalCatalogEntries(): Promise<PreparedPricingEntry[]> {
   return await getCachedExternalEntries("fal", async () => {
     const entryArrays = await Promise.all(
       SUPPORTED_VIDEO_MODELS.map(async (model) => {
-        const html = await fetchText(model.pageUrl);
-        const paragraph = extractFalPricingParagraph(html);
-        return parseFalPricingEntries(model, paragraph);
+        try {
+          const html = await fetchText(model.pageUrl);
+          const paragraph = extractFalPricingParagraph(html);
+          return parseFalPricingEntries(model, paragraph);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          logger.warn("[AI Pricing] fal parse failed, falling back to DB", {
+            model: model.modelId,
+            error: message,
+          });
+
+          // Fallback: return last known active DB entries for this model
+          const dbEntries = await aiPricingRepository.listActiveEntries({
+            billingSource: "fal",
+            provider: "fal",
+            model: model.modelId,
+            productFamily: "video",
+            chargeType: "generation",
+          });
+
+          if (dbEntries.length > 0) {
+            return dbEntries.map((entry) => aiEntryToPrepared(entry));
+          }
+
+          logger.error("[AI Pricing] No DB fallback available", { model: model.modelId });
+          return [];
+        }
       }),
     );
 
