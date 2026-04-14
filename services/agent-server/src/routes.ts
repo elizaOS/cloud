@@ -139,17 +139,16 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
       if (denial) {
         return denial;
       }
-      const { userId, text, platformName, senderName, chatId } = body as {
-        userId: string;
-        text: string;
-        platformName?: string;
-        senderName?: string;
-        chatId?: string;
-      };
+      const { userId, text } = body as { userId: string; text: string };
       if (!userId || !text) {
         set.status = 400;
         return { error: "userId and text are required" };
       }
+
+      const raw = body as Record<string, unknown>;
+      const platformName = typeof raw.platformName === "string" ? raw.platformName : undefined;
+      const senderName = typeof raw.senderName === "string" ? raw.senderName : undefined;
+      const chatId = typeof raw.chatId === "string" ? raw.chatId : undefined;
 
       const metadata = (platformName || senderName || chatId)
         ? {
@@ -158,14 +157,6 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
             ...(chatId && { chatId }),
           }
         : undefined;
-
-      if (metadata) {
-        // senderName and chatId excluded from logs (PII — phone numbers, display names)
-        logger.debug("Message received with platform metadata", {
-          agentId: params.id,
-          platformName: metadata.platformName,
-        });
-      }
 
       try {
         const response = await manager.handleMessage(params.id, userId, text, metadata);

@@ -33,7 +33,9 @@ export interface MessageMetadata {
   chatId?: string;
 }
 
-const KNOWN_PLATFORMS = new Set(["telegram", "whatsapp", "twilio", "blooio"]);
+// Must stay in sync with Platform type in gateway-webhook/src/adapters/types.ts
+// and SUPPORTED_PLATFORMS in app/api/internal/webhook/config/route.ts
+const KNOWN_PLATFORMS: ReadonlySet<string> = new Set(["telegram", "whatsapp", "twilio", "blooio"]);
 
 /** Returns the message source, falling back to "agent-server" when no platform is specified or unrecognized. */
 export function resolveSource(metadata?: MessageMetadata): string {
@@ -64,7 +66,14 @@ export function buildConnectionMetadata(
       ? metadata.platformName
       : undefined;
 
-  if (!validPlatform) return undefined;
+  if (!validPlatform) {
+    if (metadata?.platformName && metadata?.chatId) {
+      logger.warn("Discarding chatId — unrecognized platformName", {
+        platformName: metadata.platformName,
+      });
+    }
+    return undefined;
+  }
 
   const result: Record<string, string> = { platformName: validPlatform };
   if (metadata?.chatId) result.chatId = metadata.chatId;
@@ -309,12 +318,13 @@ export class AgentManager {
       const userName = resolveUserName(userId, metadata);
       const connMeta = buildConnectionMetadata(metadata);
 
-      // senderName and chatId excluded from logs (PII — phone numbers, display names)
-      logger.debug("Handling message with platform metadata", {
-        agentId,
-        userId,
-        platformName: metadata?.platformName,
-      });
+      if (metadata) {
+        // senderName and chatId excluded (PII — phone numbers, display names)
+        logger.debug("Handling message with platform context", {
+          agentId,
+          source,
+        });
+      }
 
       // The `metadata` field is an unofficial extension not yet in the upstream
       // EnsureConnectionParams type — the cast preserves it for downstream use
