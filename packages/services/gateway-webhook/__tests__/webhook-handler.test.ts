@@ -25,10 +25,28 @@ let mockServerRoute: { serverName: string; serverUrl: string } | null = {
 let mockForwardResponse = "Hello from the agent!";
 let mockForwardError: Error | null = null;
 
+interface ForwardCall {
+  serverUrl: string;
+  serverName: string;
+  agentId: string;
+  userId: string;
+  text: string;
+  options?: { platformName?: string; senderName?: string; chatId?: string };
+}
+const forwardCalls: ForwardCall[] = [];
+
 mock.module("../src/server-router", () => ({
   resolveIdentity: async () => mockIdentity,
   resolveAgentServer: async () => mockServerRoute,
-  forwardToServer: async () => {
+  forwardToServer: async (
+    serverUrl: string,
+    serverName: string,
+    agentId: string,
+    userId: string,
+    text: string,
+    options?: ForwardCall["options"],
+  ) => {
+    forwardCalls.push({ serverUrl, serverName, agentId, userId, text, options });
     if (mockForwardError) throw mockForwardError;
     return mockForwardResponse;
   },
@@ -132,6 +150,7 @@ describe("handleWebhook", () => {
     };
     mockForwardResponse = "Hello from the agent!";
     mockForwardError = null;
+    forwardCalls.length = 0;
 
     // Mock fetch for adapter.sendReply calls — return fresh Response per call
     fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
@@ -410,5 +429,68 @@ describe("handleWebhook", () => {
     const res = await handleWebhook(req, telegramAdapter, deps, "cloud", "agent-abc");
     expect(res.status).toBe(200);
     await flush();
+  });
+
+  // ── Platform metadata forwarding (ticket #55) ─────────────────
+
+  test("forwards platformName, senderName, chatId for Telegram", async () => {
+    const redis = createFakeRedis();
+    const deps = {
+      redis: redis as any,
+      cloudBaseUrl: "http://cloud.test",
+      getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
+    };
+
+    await handleWebhook(makeTelegramRequest("Hi from Alice"), telegramAdapter, deps, "cloud");
+    await flush();
+
+    expect(forwardCalls.length).toBe(1);
+    const call = forwardCalls[0];
+    expect(call.options).toBeDefined();
+    expect(call.options!.platformName).toBe("telegram");
+    expect(call.options!.senderName).toBe("Alice");
+    expect(call.options!.chatId).toBe("42");
+  });
+
+  test("forwards platformName and chatId for Twilio (senderName undefined)", async () => {
+    const verifySpy = spyOn(twilioAdapter, "verifyWebhook").mockResolvedValue(true);
+
+    const redis = createFakeRedis();
+    const deps = {
+      redis: redis as any,
+      cloudBaseUrl: "http://cloud.test",
+      getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
+    };
+
+    await handleWebhook(makeTwilioRequest("Hello from SMS"), twilioAdapter, deps, "cloud");
+    await flush();
+
+    expect(forwardCalls.length).toBe(1);
+    const call = forwardCalls[0];
+    expect(call.options).toBeDefined();
+    expect(call.options!.platformName).toBe("twilio");
+    expect(call.options!.senderName).toBeUndefined();
+    expect(call.options!.chatId).toBe("+15551234567");
+
+    verifySpy.mockRestore();
+  });
+
+  test("forwards correct userId and text alongside platform metadata", async () => {
+    const redis = createFakeRedis();
+    const deps = {
+      redis: redis as any,
+      cloudBaseUrl: "http://cloud.test",
+      getAuthHeader: () => ({ Authorization: "Bearer test-jwt" }),
+    };
+
+    await handleWebhook(makeTelegramRequest("Test message"), telegramAdapter, deps, "cloud");
+    await flush();
+
+    expect(forwardCalls.length).toBe(1);
+    const call = forwardCalls[0];
+    expect(call.userId).toBe("user-001");
+    expect(call.text).toBe("Test message");
+    // agentId comes from config.agentId (DEFAULT_AGENT_ID) when set, not identity
+    expect(call.agentId).toBe("agent-default");
   });
 });

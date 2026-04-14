@@ -151,6 +151,11 @@ async function processMessage(
       agentId,
       identity.userId,
       event.text,
+      {
+        platformName: adapter.platform,
+        senderName: event.senderName,
+        chatId: event.chatId,
+      },
     );
   } catch (err) {
     logger.error("Forward to server failed", {

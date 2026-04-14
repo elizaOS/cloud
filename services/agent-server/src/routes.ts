@@ -139,13 +139,30 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
       if (denial) {
         return denial;
       }
-      const { userId, text } = body as { userId: string; text: string };
+      const { userId, text, platformName, senderName, chatId } = body as {
+        userId: string;
+        text: string;
+        platformName?: string;
+        senderName?: string;
+        chatId?: string;
+      };
       if (!userId || !text) {
         set.status = 400;
         return { error: "userId and text are required" };
       }
+
+      logger.debug("Message received with platform metadata", {
+        agentId: params.id,
+        platformName,
+        chatId,
+      });
+
       try {
-        const response = await manager.handleMessage(params.id, userId, text);
+        const response = await manager.handleMessage(params.id, userId, text, {
+          platformName,
+          senderName,
+          chatId,
+        });
         return { response };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);

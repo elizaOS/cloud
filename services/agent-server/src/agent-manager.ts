@@ -19,6 +19,20 @@ interface AgentEntry {
   state: "running" | "stopped";
 }
 
+/**
+ * Platform metadata forwarded by the gateway webhook alongside a user message.
+ * All fields are optional for backward compatibility with callers that don't
+ * provide platform context (e.g. direct API calls, older gateway versions).
+ */
+export interface MessageMetadata {
+  /** Originating platform (e.g. "telegram", "whatsapp", "twilio", "blooio"). */
+  platformName?: string;
+  /** Display name of the sender as reported by the platform adapter. */
+  senderName?: string;
+  /** Platform-specific chat/conversation ID for reply routing. */
+  chatId?: string;
+}
+
 const REDIS_STATE_TTL_SECONDS = Math.max(
   60,
   Number.parseInt(process.env.REDIS_STATE_TTL_SECONDS ?? "120", 10) || 120,
@@ -240,23 +254,42 @@ export class AgentManager {
   /**
    * Handles a user message by routing it through the agent's message pipeline.
    * Tracks in-flight count for graceful drain during SIGTERM.
+   *
+   * @param metadata - Optional platform context forwarded by the gateway webhook.
+   *   When provided, `senderName` personalizes the connection's userName,
+   *   `platformName` sets the message source (e.g. "telegram"), and `chatId`
+   *   is stored in connection metadata for future proactive reply routing.
    */
-  async handleMessage(agentId: string, userId: string, text: string) {
+  async handleMessage(agentId: string, userId: string, text: string, metadata?: MessageMetadata) {
     this.inFlight++;
     try {
       const rt = this.getRuntime(agentId);
       const uid = stringToUuid(userId);
       const roomId = stringToUuid(`${agentId}:${userId}`);
       const worldId = stringToUuid(`server:${process.env.SERVER_NAME}`);
+      const source = metadata?.platformName || "agent-server";
+      const userName = metadata?.senderName || userId;
+
+      logger.debug("Handling message with platform metadata", {
+        agentId,
+        userId,
+        platformName: metadata?.platformName,
+        chatId: metadata?.chatId,
+      });
+
+      const connectionMetadata: Record<string, string> = {};
+      if (metadata?.chatId) connectionMetadata.chatId = metadata.chatId;
+      if (metadata?.platformName) connectionMetadata.platformName = metadata.platformName;
 
       await rt.ensureConnection({
         entityId: uid,
         roomId,
         worldId,
-        userName: userId,
-        source: "agent-server",
+        userName,
+        source,
         channelId: `${agentId}-${userId}`,
         type: ChannelType.DM,
+        ...(Object.keys(connectionMetadata).length > 0 && { metadata: connectionMetadata }),
       } as Parameters<typeof rt.ensureConnection>[0]);
 
       const mem = createMessageMemory({
@@ -264,7 +297,7 @@ export class AgentManager {
         roomId,
         content: {
           text,
-          source: "agent-server",
+          source,
           channelType: ChannelType.DM,
         },
       });
