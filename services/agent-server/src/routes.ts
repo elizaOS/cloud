@@ -139,13 +139,30 @@ export function createRoutes(manager: AgentManager, sharedSecret: string) {
       if (denial) {
         return denial;
       }
-      const { userId, text } = body as { userId: string; text: string };
+      const raw = body as Record<string, unknown>;
+      const userId = typeof raw.userId === "string" ? raw.userId : undefined;
+      const text = typeof raw.text === "string" ? raw.text : undefined;
       if (!userId || !text) {
         set.status = 400;
         return { error: "userId and text are required" };
       }
+
+      const platformName = typeof raw.platformName === "string" ? raw.platformName : undefined;
+      const senderName = typeof raw.senderName === "string" ? raw.senderName : undefined;
+      const chatId = typeof raw.chatId === "string" ? raw.chatId : undefined;
+
+      // Keeps metadata undefined (not {}) when no fields present,
+      // so handleMessage's gated debug log doesn't fire on plain requests.
+      const metadata = (platformName || senderName || chatId)
+        ? {
+            ...(platformName && { platformName }),
+            ...(senderName && { senderName }),
+            ...(chatId && { chatId }),
+          }
+        : undefined;
+
       try {
-        const response = await manager.handleMessage(params.id, userId, text);
+        const response = await manager.handleMessage(params.id, userId, text, metadata);
         return { response };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
