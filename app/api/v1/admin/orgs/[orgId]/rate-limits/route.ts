@@ -97,6 +97,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     );
   }
 
+  // Reject empty PATCH — at least one RPM or note field must be provided
+  const hasFields = [
+    "completions_rpm",
+    "embeddings_rpm",
+    "standard_rpm",
+    "strict_rpm",
+    "note",
+  ].some((k) => k in parsed.data);
+  if (!hasFields) {
+    return NextResponse.json(
+      { error: "At least one override field must be provided" },
+      { status: 400 },
+    );
+  }
+
   try {
     // Pass values as-is: null clears a field, undefined = not provided (no change)
     const result = await orgRateLimitOverridesRepository.upsert({
