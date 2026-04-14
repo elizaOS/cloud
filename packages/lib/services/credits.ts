@@ -19,6 +19,7 @@ import { invalidateOrganizationCache } from "@/lib/cache/organizations-cache";
 import { canSendLowCreditsEmail, markLowCreditsEmailSent } from "@/lib/email/utils/rate-limiter";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
+import type { PricingBillingSource } from "./ai-pricing-definitions";
 import { emailService } from "./email";
 import { organizationsService } from "./organizations";
 import { userSessionsService } from "./user-sessions";
@@ -65,6 +66,7 @@ export interface ReserveCreditsParams {
   amount?: number;
   model?: string;
   provider?: string;
+  billingSource?: PricingBillingSource;
   estimatedInputTokens?: number;
   estimatedOutputTokens?: number;
 }
@@ -680,6 +682,7 @@ export class CreditsService {
         provider,
         estimatedInputTokens,
         estimatedOutputTokens,
+        params.billingSource,
       );
 
       reservedAmount = Math.max(estimatedCost * COST_BUFFER, MIN_RESERVATION);

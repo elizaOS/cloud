@@ -28,6 +28,7 @@ import { generationsService } from "@/lib/services/generations";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
+import type { PricingBillingSource } from "./ai-pricing-definitions";
 
 // ============================================================================
 // Types
@@ -48,6 +49,7 @@ export interface BillingContext {
   apiKeyId?: string | null;
   model: string;
   provider?: string;
+  billingSource?: PricingBillingSource;
   description?: string;
   affiliateCode?: string | null;
 }
@@ -56,11 +58,21 @@ export interface BillingResult {
   inputCost: number;
   outputCost: number;
   totalCost: number;
+  baseInputCost: number;
+  baseOutputCost: number;
+  baseTotalCost: number;
+  platformMarkup: number;
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
   /** Includes 20% platform markup */
   markupApplied: boolean;
+}
+
+export interface FlatBillingCost {
+  totalCost: number;
+  baseTotalCost: number;
+  platformMarkup: number;
 }
 
 // ============================================================================
@@ -113,6 +125,7 @@ export async function reserveCredits(
     organizationId: context.organizationId,
     model: normalizedModel,
     provider,
+    billingSource: context.billingSource,
     estimatedInputTokens,
     estimatedOutputTokens,
     userId: context.userId,
@@ -167,7 +180,12 @@ export async function billUsage(
     provider,
     inputTokens,
     outputTokens,
+    context.billingSource,
   );
+  let baseInputCost = inputCost / PLATFORM_MARKUP_MULTIPLIER;
+  let baseOutputCost = outputCost / PLATFORM_MARKUP_MULTIPLIER;
+  let baseTotalCost = totalCost / PLATFORM_MARKUP_MULTIPLIER;
+  let platformMarkup = totalCost - baseTotalCost;
 
   // Apply affiliate markup if present
   let _appliedAffiliateMarkup = false;
@@ -233,9 +251,86 @@ export async function billUsage(
     inputCost,
     outputCost,
     totalCost,
+    baseInputCost,
+    baseOutputCost,
+    baseTotalCost,
+    platformMarkup,
     inputTokens,
     outputTokens,
     totalTokens,
+    markupApplied: true,
+  };
+}
+
+export async function billFlatUsage(
+  context: BillingContext,
+  cost: FlatBillingCost,
+  reservation?: CreditReservation,
+): Promise<BillingResult> {
+  let totalCost = cost.totalCost;
+  const baseTotalCost = cost.baseTotalCost;
+  const platformMarkup = cost.platformMarkup;
+  let inputCost = totalCost;
+  const outputCost = 0;
+  const provider = context.provider ?? getProviderFromModel(context.model);
+
+  if (context.affiliateCode) {
+    const affiliate = await affiliatesRepository.getAffiliateCodeByCode(context.affiliateCode);
+    if (affiliate && affiliate.is_active) {
+      const markupPercent = Number(affiliate.markup_percent) / 100;
+      const affiliateEarnings = totalCost * markupPercent;
+      totalCost += affiliateEarnings;
+      inputCost = totalCost;
+
+      if (affiliateEarnings > 0) {
+        const sourceId = `legacy_${crypto.randomUUID()}`;
+
+        await redeemableEarningsService
+          .addEarnings({
+            userId: affiliate.user_id,
+            amount: affiliateEarnings,
+            source: "affiliate",
+            sourceId,
+            description: `Affiliate markup earnings from model: ${context.model}`,
+            metadata: {
+              appId: null,
+              model: context.model,
+              provider,
+              flatOperation: true,
+            },
+            dedupeBySourceId: true,
+          })
+          .catch((err) => {
+            logger.error("[AI Billing] Failed to add flat-operation affiliate earnings", {
+              error: err instanceof Error ? err.message : String(err),
+              affiliateId: affiliate.id,
+              amount: affiliateEarnings,
+            });
+          });
+      }
+    }
+  }
+
+  if (reservation) {
+    await reservation.reconcile(totalCost);
+    logger.info("[AI Billing] Flat credits reconciled", {
+      model: context.model,
+      reserved: reservation.reservedAmount,
+      actual: totalCost,
+    });
+  }
+
+  return {
+    inputCost,
+    outputCost,
+    totalCost,
+    baseInputCost: baseTotalCost,
+    baseOutputCost: 0,
+    baseTotalCost,
+    platformMarkup,
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
     markupApplied: true,
   };
 }
@@ -276,8 +371,15 @@ export async function recordUsageAnalytics(
       output_tokens: billing.outputTokens,
       input_cost: String(billing.inputCost),
       output_cost: String(billing.outputCost),
+      markup: String(billing.platformMarkup),
       is_successful: isSuccessful,
       error_message: errorMessage,
+      metadata: {
+        billingSource: context.billingSource ?? null,
+        baseInputCost: billing.baseInputCost,
+        baseOutputCost: billing.baseOutputCost,
+        baseTotalCost: billing.baseTotalCost,
+      },
     });
 
     // Create generation record if API key is used
@@ -302,6 +404,9 @@ export async function recordUsageAnalytics(
           inputTokens: billing.inputTokens,
           outputTokens: billing.outputTokens,
           totalTokens: billing.totalTokens,
+          billingSource: context.billingSource ?? null,
+          baseTotalCost: billing.baseTotalCost,
+          platformMarkup: billing.platformMarkup,
         },
       });
     }

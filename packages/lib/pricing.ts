@@ -1,4 +1,12 @@
-import { modelPricingRepository } from "@/db/repositories";
+import {
+  calculateImageGenerationCostFromCatalog,
+  calculateSTTCostFromCatalog,
+  calculateTextCostFromCatalog,
+  calculateTTSCostFromCatalog,
+  calculateVideoGenerationCostFromCatalog,
+  calculateVoiceCloneCostFromCatalog,
+} from "@/lib/services/ai-pricing";
+import type { PricingBillingSource } from "@/lib/services/ai-pricing-definitions";
 
 // Re-export constants from pricing-constants (safe for client components)
 export {
@@ -15,13 +23,7 @@ export {
 } from "@/lib/pricing-constants";
 
 // Local import for constants used within this file
-import {
-  PLATFORM_MARKUP_MULTIPLIER,
-  STT_COST_PER_MINUTE,
-  STT_MINIMUM_COST,
-  TTS_COST_PER_1K_CHARS,
-  TTS_MINIMUM_COST,
-} from "@/lib/pricing-constants";
+import { STT_MINIMUM_COST, TTS_MINIMUM_COST } from "@/lib/pricing-constants";
 
 // =============================================================================
 // COST CALCULATION INTERFACES & FUNCTIONS
@@ -54,93 +56,19 @@ export async function calculateCost(
   provider: string,
   inputTokens: number,
   outputTokens: number,
+  billingSource?: PricingBillingSource,
 ): Promise<CostBreakdown> {
-  const pricing = await modelPricingRepository.findByModelAndProvider(model, provider);
-
-  if (!pricing) {
-    const fallbackCosts = getFallbackPricing(model, inputTokens, outputTokens);
-    return fallbackCosts;
-  }
-
-  // Calculate base provider costs in cents
-  const baseInputCostCents = Math.ceil(
-    (inputTokens / 1000) * parseFloat(pricing.input_cost_per_1k.toString()) * 100,
-  );
-  const baseOutputCostCents = Math.ceil(
-    (outputTokens / 1000) * parseFloat(pricing.output_cost_per_1k.toString()) * 100,
-  );
-
-  // Apply 20% platform markup
-  const inputCostCents = Math.ceil(baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER);
-  const outputCostCents = Math.ceil(baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER);
-
-  const inputCost = Math.round(inputCostCents) / 100;
-  const outputCost = Math.round(outputCostCents) / 100;
-
+  const breakdown = await calculateTextCostFromCatalog({
+    model,
+    provider,
+    billingSource,
+    inputTokens,
+    outputTokens,
+  });
   return {
-    inputCost,
-    outputCost,
-    totalCost: inputCost + outputCost,
-  };
-}
-
-/**
- * Gets fallback pricing when model pricing is not found in database.
- * Includes 20% platform markup.
- *
- * @param model - Model identifier.
- * @param inputTokens - Number of input tokens.
- * @param outputTokens - Number of output tokens.
- * @returns Cost breakdown using fallback pricing (with 20% markup).
- */
-function getFallbackPricing(
-  model: string,
-  inputTokens: number,
-  outputTokens: number,
-): CostBreakdown {
-  // Base provider pricing per 1k tokens (before markup)
-  const pricingMap: Record<string, { input: number; output: number }> = {
-    "gpt-4o": { input: 0.0025, output: 0.01 },
-    "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
-    "gpt-4-turbo": { input: 0.01, output: 0.03 },
-    "gpt-3.5-turbo": { input: 0.0005, output: 0.0015 },
-    "gpt-5.4-pro": { input: 0.03, output: 0.18 },
-    "gpt-5.4": { input: 0.0025, output: 0.015 },
-    "gpt-5.4-mini": { input: 0.00075, output: 0.0045 },
-    "gpt-5.4-nano": { input: 0.0002, output: 0.00125 },
-    "gpt-5": { input: 0.005, output: 0.02 },
-    "gpt-5-mini": { input: 0.0003, output: 0.0012 },
-    "claude-sonnet-4.6": { input: 0.003, output: 0.015 },
-    "claude-sonnet-4.5": { input: 0.003, output: 0.015 },
-    "claude-opus-4.6": { input: 0.015, output: 0.075 },
-    "claude-opus-4.5": { input: 0.015, output: 0.075 },
-    "claude-haiku-4.5": { input: 0.0008, output: 0.004 },
-    "claude-3-5-sonnet-20241022": { input: 0.003, output: 0.015 },
-    "claude-3-5-haiku-20241022": { input: 0.001, output: 0.005 },
-    "gemini-2.5-flash": { input: 0.00015, output: 0.001 },
-    "gemini-3-pro": { input: 0.00125, output: 0.01 },
-    "deepseek-v3.2": { input: 0.00027, output: 0.0011 },
-    "minimax-m2.7": { input: 0.0002, output: 0.001 },
-    "minimax-m2.5": { input: 0.0002, output: 0.001 },
-  };
-
-  const pricing = pricingMap[model] || { input: 0.001, output: 0.005 };
-
-  // Calculate base costs in cents
-  const baseInputCostCents = Math.ceil((inputTokens / 1000) * pricing.input * 100);
-  const baseOutputCostCents = Math.ceil((outputTokens / 1000) * pricing.output * 100);
-
-  // Apply 20% platform markup
-  const inputCostCents = Math.ceil(baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER);
-  const outputCostCents = Math.ceil(baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER);
-
-  const inputCost = Math.round(inputCostCents) / 100;
-  const outputCost = Math.round(outputCostCents) / 100;
-
-  return {
-    inputCost,
-    outputCost,
-    totalCost: inputCost + outputCost,
+    inputCost: breakdown.inputCost,
+    outputCost: breakdown.outputCost,
+    totalCost: breakdown.totalCost,
   };
 }
 
@@ -288,9 +216,8 @@ export async function estimateRequestCost(
   );
 
   // Add 50% buffer for safety (increased from 20% to handle usage spikes)
-  // Round to nearest cent (2 decimal places), minimum $0.01
   const bufferedCost = totalCost * 1.5;
-  return Math.max(0.01, Math.ceil(bufferedCost * 100) / 100);
+  return Math.max(0.000001, Math.ceil(bufferedCost * 1_000_000) / 1_000_000);
 }
 
 /**
@@ -300,9 +227,15 @@ export async function estimateRequestCost(
  * @param characterCount - Number of characters in the text.
  * @returns Cost in USD (with 20% markup).
  */
-export function calculateTTSCost(characterCount: number): number {
-  const cost = (characterCount / 1000) * TTS_COST_PER_1K_CHARS;
-  return Math.max(TTS_MINIMUM_COST, Math.round(cost * 10000) / 10000);
+export async function calculateTTSCost(
+  characterCount: number,
+  model: string = "elevenlabs/eleven_flash_v2_5",
+): Promise<number> {
+  const cost = await calculateTTSCostFromCatalog({
+    model,
+    characterCount,
+  });
+  return Math.max(TTS_MINIMUM_COST, cost.totalCost);
 }
 
 /**
@@ -312,7 +245,48 @@ export function calculateTTSCost(characterCount: number): number {
  * @param durationMinutes - Duration of audio in minutes.
  * @returns Cost in USD (with 20% markup).
  */
-export function calculateSTTCost(durationMinutes: number): number {
-  const cost = durationMinutes * STT_COST_PER_MINUTE;
-  return Math.max(STT_MINIMUM_COST, Math.round(cost * 10000) / 10000);
+export async function calculateSTTCost(
+  durationMinutes: number,
+  model: string = "elevenlabs/scribe_v1",
+): Promise<number> {
+  const cost = await calculateSTTCostFromCatalog({
+    model,
+    durationSeconds: durationMinutes * 60,
+  });
+  return Math.max(STT_MINIMUM_COST, cost.totalCost);
+}
+
+export async function calculateImageCost(
+  model: string,
+  provider: string,
+  imageCount: number,
+  dimensions?: Record<string, unknown>,
+): Promise<number> {
+  const cost = await calculateImageGenerationCostFromCatalog({
+    model,
+    provider,
+    imageCount,
+    dimensions,
+  });
+  return cost.totalCost;
+}
+
+export async function calculateVideoCost(
+  model: string,
+  durationSeconds: number,
+  dimensions?: Record<string, unknown>,
+): Promise<number> {
+  const cost = await calculateVideoGenerationCostFromCatalog({
+    model,
+    durationSeconds,
+    dimensions,
+  });
+  return cost.totalCost;
+}
+
+export async function calculateVoiceCloneCost(
+  cloneType: "instant" | "professional",
+): Promise<number> {
+  const cost = await calculateVoiceCloneCostFromCatalog({ cloneType });
+  return cost.totalCost;
 }
