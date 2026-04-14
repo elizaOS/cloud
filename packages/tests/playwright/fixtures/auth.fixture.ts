@@ -1,9 +1,4 @@
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type BrowserContext,
-} from "@playwright/test";
+import { type APIRequestContext, type BrowserContext, expect, test } from "@playwright/test";
 import { ensureLocalTestAuth } from "../../infrastructure/local-test-auth";
 
 function resolveBaseUrl(baseUrl?: string): URL {
