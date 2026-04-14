@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
   buildConnectionMetadata,
   type MessageMetadata,
@@ -6,6 +6,8 @@ import {
   resolveUserName,
 } from "../../src/agent-manager";
 import { logger } from "../../src/logger";
+
+afterEach(() => mock.restore());
 
 describe("resolveSource", () => {
   test("returns platformName when provided", () => {
@@ -122,7 +124,7 @@ describe("buildConnectionMetadata", () => {
     const spy = mock(() => {});
     logger.debug = spy;
     expect(buildConnectionMetadata({ platformName: "garbage", chatId: "42" })).toBeUndefined();
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).not.toHaveBeenCalled();
   });
 
   test("excludes unrecognized platformName when it is the only field", () => {

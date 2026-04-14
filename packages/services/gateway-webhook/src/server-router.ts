@@ -188,7 +188,7 @@ export function buildForwardBody(
   userId: string,
   text: string,
   options?: ForwardMessageOptions,
-): Record<string, string> {
+): { userId: string; text: string } & Partial<ForwardMessageOptions> {
   const body: Record<string, string> = { userId, text };
   if (options?.platformName) body.platformName = options.platformName;
   if (options?.senderName) body.senderName = options.senderName;

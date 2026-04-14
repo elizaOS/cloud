@@ -73,10 +73,8 @@ export function buildConnectionMetadata(
       : undefined;
 
   if (!validPlatform) {
-    if (metadata?.chatId) {
-      logger.debug("Discarding chatId — no valid platformName", {
-        hasPlatformName: !!metadata?.platformName,
-      });
+    if (metadata?.chatId && !metadata?.platformName) {
+      logger.debug("Discarding chatId — no platformName provided");
     }
     return undefined;
   }
