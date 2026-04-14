@@ -73,9 +73,9 @@ export function buildConnectionMetadata(
       : undefined;
 
   if (!validPlatform) {
-    if (metadata?.platformName && metadata?.chatId) {
-      logger.warn("Discarding chatId — unrecognized platformName", {
-        platformName: metadata.platformName,
+    if (metadata?.chatId) {
+      logger.debug("Discarding chatId — no valid platformName", {
+        hasPlatformName: !!metadata?.platformName,
       });
     }
     return undefined;
@@ -334,9 +334,9 @@ export class AgentManager {
         });
       }
 
-      // TODO: remove cast once `metadata` is added to upstream EnsureConnectionParams
-      // The intersection narrows the cast to only the extra field so the compiler
-      // still checks the standard fields.
+      // TODO(#55): remove cast once upstream @elizaos/core adds `metadata` to
+      // EnsureConnectionParams. The intersection narrows the cast to only the
+      // extra field so the compiler still checks the standard fields.
       await rt.ensureConnection({
         entityId: uid,
         roomId,

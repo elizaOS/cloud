@@ -1,10 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import {
   buildConnectionMetadata,
   type MessageMetadata,
   resolveSource,
   resolveUserName,
 } from "../../src/agent-manager";
+import { logger } from "../../src/logger";
 
 describe("resolveSource", () => {
   test("returns platformName when provided", () => {
@@ -24,7 +25,10 @@ describe("resolveSource", () => {
   });
 
   test("returns 'agent-server' when platformName is unrecognized", () => {
+    const spy = mock(() => {});
+    logger.warn = spy;
     expect(resolveSource({ platformName: "unknown-platform" })).toBe("agent-server");
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   test("accepts all known platforms", () => {
@@ -78,8 +82,11 @@ describe("buildConnectionMetadata", () => {
     });
   });
 
-  test("returns undefined when chatId is present but platformName is absent", () => {
+  test("returns undefined and logs debug when chatId is present but platformName is absent", () => {
+    const spy = mock(() => {});
+    logger.debug = spy;
     expect(buildConnectionMetadata({ chatId: "42" })).toBeUndefined();
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   test("returns undefined when metadata is undefined", () => {
@@ -112,7 +119,10 @@ describe("buildConnectionMetadata", () => {
   });
 
   test("excludes both chatId and platformName when platform is unrecognized", () => {
+    const spy = mock(() => {});
+    logger.debug = spy;
     expect(buildConnectionMetadata({ platformName: "garbage", chatId: "42" })).toBeUndefined();
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   test("excludes unrecognized platformName when it is the only field", () => {
