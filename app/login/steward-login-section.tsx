@@ -40,7 +40,7 @@ export default function StewardLoginSection() {
     const session = auth.getSession();
     if (session?.token) {
       setSessionCookie(session.token).then(() => {
-        router.replace(getSafeReturnTo(searchParams));
+        window.location.href = getSafeReturnTo(searchParams);
       });
     }
   }, [auth, router, searchParams]);
@@ -57,7 +57,7 @@ export default function StewardLoginSection() {
     setStep("success");
     toast.success("Signed in!");
     await setSessionCookie(token);
-    router.replace(getSafeReturnTo(searchParams));
+    window.location.href = getSafeReturnTo(searchParams);
   }
 
   async function handlePasskey() {
