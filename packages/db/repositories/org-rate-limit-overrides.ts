@@ -42,11 +42,17 @@ export class OrgRateLimitOverridesRepository {
       .onConflictDoUpdate({
         target: orgRateLimitOverrides.organization_id,
         set: {
-          completions_rpm: data.completions_rpm,
-          embeddings_rpm: data.embeddings_rpm,
-          standard_rpm: data.standard_rpm,
-          strict_rpm: data.strict_rpm,
-          note: data.note,
+          // Only update fields that were explicitly provided (including null to clear).
+          // Undefined fields are omitted so existing values are preserved.
+          ...("completions_rpm" in data && {
+            completions_rpm: data.completions_rpm,
+          }),
+          ...("embeddings_rpm" in data && {
+            embeddings_rpm: data.embeddings_rpm,
+          }),
+          ...("standard_rpm" in data && { standard_rpm: data.standard_rpm }),
+          ...("strict_rpm" in data && { strict_rpm: data.strict_rpm }),
+          ...("note" in data && { note: data.note }),
           updated_at: new Date(),
         },
       })

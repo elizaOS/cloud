@@ -65,7 +65,11 @@ const TIER_THRESHOLDS: ReadonlyArray<
   },
 ];
 
-const FREE_TIER = TIER_THRESHOLDS[TIER_THRESHOLDS.length - 1];
+/** Sorted highest-first at module load for threshold matching. */
+const SORTED_THRESHOLDS = [...TIER_THRESHOLDS].sort(
+  (a, b) => b.minSpend - a.minSpend,
+);
+const FREE_TIER = SORTED_THRESHOLDS[SORTED_THRESHOLDS.length - 1];
 
 /** Credit transaction metadata types that represent free/bonus credits (excluded from spend). */
 const FREE_CREDIT_TYPES = [
@@ -121,11 +125,8 @@ export async function recalculateOrgTier(orgId: string): Promise<OrgTierData> {
   const totalSpend = Number.parseFloat(creditResult[0]?.totalSpend ?? "0");
 
   // 2. Match tier (first threshold where totalSpend >= minSpend)
-  const sortedThresholds = [...TIER_THRESHOLDS].sort(
-    (a, b) => b.minSpend - a.minSpend,
-  );
   const matchedTier =
-    sortedThresholds.find((t) => totalSpend >= t.minSpend) ?? FREE_TIER;
+    SORTED_THRESHOLDS.find((t) => totalSpend >= t.minSpend) ?? FREE_TIER;
 
   // 3. Merge override non-null fields
   let tierData: OrgTierData = {

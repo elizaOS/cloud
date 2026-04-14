@@ -9,3 +9,8 @@ CREATE TABLE IF NOT EXISTS "org_rate_limit_overrides" (
   "created_at" timestamp DEFAULT now() NOT NULL,
   "updated_at" timestamp DEFAULT now() NOT NULL
 );
+
+-- Composite index for the tier spend aggregation query in recalculateOrgTier.
+-- Covers: WHERE organization_id = $1 AND type = 'credit'
+CREATE INDEX IF NOT EXISTS idx_credit_transactions_org_type
+  ON credit_transactions (organization_id, type);

@@ -352,6 +352,9 @@ export async function enforceOrgRateLimit(
   organizationId: string,
   endpointType: EndpointType,
 ): Promise<Response | null> {
+  // Mirror withRateLimit: skip when Redis is not configured (dev/staging)
+  if (process.env.REDIS_RATE_LIMITING !== "true") return null;
+
   const { windowMs, maxRequests } = await getOrgRpmForEndpoint(
     organizationId,
     endpointType,
