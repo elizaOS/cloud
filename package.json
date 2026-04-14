@@ -27,6 +27,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",
+    "verify": "bun run lint && bun run check-types && bun run check-types:tests && bun run check-types:ui && bun run check-types:agent-server && bun run check-types:gateway-discord && bun run check-types:gateway-webhook",
     "check-types": "bun run packages/scripts/check-types-split.ts",
     "check-types:full": "bun ./node_modules/typescript/lib/tsc.js --noEmit",
     "check-types:tests": "bun ./node_modules/typescript/lib/tsc.js --noEmit --project tsconfig.test.json",
@@ -74,6 +75,7 @@
     "test:e2e:v1": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/v1 --timeout 120000",
     "test:e2e:smoke": "node scripts/run-e2e-smoke.mjs",
     "test:e2e:miniapp": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/v1/miniapp-lifecycle.test.ts packages/tests/e2e/v1/app-monetization.test.ts packages/tests/e2e/v1/agent-publishing.test.ts packages/tests/e2e/v1/credits-billing.test.ts packages/tests/e2e/v1/affiliate-miniapp.test.ts --timeout 120000",
+    "test:e2e:all": "bun run test:e2e:api && bun run test:e2e:v1 && bun run test:e2e:miniapp",
     "test": "bun run test:repo-unit:bulk && bun run test:repo-unit:special && bun run test:repo-unit:isolated",
     "test:playwright": "playwright test",
     "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test packages/tests/playwright/auth-real.spec.ts --grep @auth-real --headed"

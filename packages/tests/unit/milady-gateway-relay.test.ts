@@ -22,6 +22,7 @@ beforeEach(async () => {
 
 describe("miladyGatewayRelayService", () => {
   test("defers the Redis production guard until the relay is actually used", async () => {
+    const env = process.env as Record<string, string | undefined>;
     const envKeys = [
       "NODE_ENV",
       "VERCEL",
@@ -38,17 +39,17 @@ describe("miladyGatewayRelayService", () => {
     const previousEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
 
     try {
-      process.env.NODE_ENV = "production";
-      delete process.env.VERCEL;
-      delete process.env.VERCEL_ENV;
-      delete process.env.ENVIRONMENT;
-      delete process.env.REDIS_URL;
-      delete process.env.KV_URL;
-      delete process.env.KV_REST_API_URL;
-      delete process.env.KV_REST_API_TOKEN;
-      delete process.env.UPSTASH_REDIS_REST_URL;
-      delete process.env.UPSTASH_REDIS_REST_TOKEN;
-      delete process.env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
+      env.NODE_ENV = "production";
+      delete env.VERCEL;
+      delete env.VERCEL_ENV;
+      delete env.ENVIRONMENT;
+      delete env.REDIS_URL;
+      delete env.KV_URL;
+      delete env.KV_REST_API_URL;
+      delete env.KV_REST_API_TOKEN;
+      delete env.UPSTASH_REDIS_REST_URL;
+      delete env.UPSTASH_REDIS_REST_TOKEN;
+      delete env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
 
       const imported = await import(
         new URL(`../../lib/services/milady-gateway-relay.ts?test=${Date.now()}`, import.meta.url)
@@ -64,9 +65,9 @@ describe("miladyGatewayRelayService", () => {
       for (const key of envKeys) {
         const value = previousEnv[key];
         if (value === undefined) {
-          delete process.env[key];
+          delete env[key];
         } else {
-          process.env[key] = value;
+          env[key] = value;
         }
       }
     }

@@ -119,3 +119,48 @@ jobs:
           setup-db: "true"
       - name: Run API e2e tests
         run: bun run test:e2e:api
+
+  e2e-v1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [lint-and-types, build]
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Run V1 e2e tests
+        run: bun run test:e2e:v1
+
+  e2e-miniapp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [lint-and-types, build]
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Run miniapp e2e tests
+        run: bun run test:e2e:miniapp
+
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: [lint-and-types, build]
+    env:
+      NODE_ENV: test
+      PLAYWRIGHT_WORKERS: "1"
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: "true"
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+      - name: Run Playwright tests
+        run: bun run test:playwright

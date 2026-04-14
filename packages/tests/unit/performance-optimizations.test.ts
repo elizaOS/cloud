@@ -41,6 +41,7 @@ describe("Action validation cache", () => {
   }
 
   const emptyState = { values: {}, data: {}, text: "" } as State;
+  const noopHandler: Action["handler"] = async () => undefined;
 
   type ProviderSnapshot = { data?: unknown; values?: unknown };
 
@@ -59,7 +60,7 @@ describe("Action validation cache", () => {
       name: "TEST_ACTION",
       description: "A test action",
       validate: async () => true,
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -67,7 +68,7 @@ describe("Action validation cache", () => {
       name: "INVALID_ACTION",
       description: "Should be filtered",
       validate: async () => false,
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -91,7 +92,7 @@ describe("Action validation cache", () => {
         validateCallCount++;
         return true;
       },
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -114,7 +115,7 @@ describe("Action validation cache", () => {
         validateCallCount++;
         return true;
       },
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -134,7 +135,7 @@ describe("Action validation cache", () => {
         validateCallCount++;
         return true;
       },
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -157,7 +158,7 @@ describe("Action validation cache", () => {
       name: "GOOD",
       description: "Works",
       validate: async () => true,
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -167,7 +168,7 @@ describe("Action validation cache", () => {
       validate: async () => {
         throw new Error("boom");
       },
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -186,7 +187,7 @@ describe("Action validation cache", () => {
       name: "MCP_TEST",
       description: "test",
       validate: async () => true,
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -204,7 +205,7 @@ describe("Action validation cache", () => {
       name: "NO_MCP",
       description: "test",
       validate: async () => true,
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -222,7 +223,7 @@ describe("Action validation cache", () => {
       name: "NEVER_VALID",
       description: "test",
       validate: async () => false,
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -246,7 +247,7 @@ describe("Action validation cache", () => {
         await new Promise((r) => setTimeout(r, 50));
         return true;
       },
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -277,7 +278,7 @@ describe("Action validation cache", () => {
         await new Promise((r) => setTimeout(r, 30));
         return true;
       },
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -308,7 +309,7 @@ describe("Action validation cache", () => {
         validateCallCount++;
         return true;
       },
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
@@ -351,7 +352,7 @@ describe("Action validation cache", () => {
         validateCallCount++;
         return true;
       },
-      handler: async () => {},
+      handler: noopHandler,
       similes: [],
       examples: [],
     };
