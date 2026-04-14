@@ -46,6 +46,7 @@ export function resolveSource(metadata?: MessageMetadata): string {
 }
 
 const MAX_USER_NAME_LENGTH = 255;
+const MAX_CHAT_ID_LENGTH = 128;
 
 /** Returns the display name for the connection, falling back to the raw userId. Caps length to prevent oversized values from reaching the database. */
 export function resolveUserName(userId: string, metadata?: MessageMetadata): string {
@@ -76,7 +77,9 @@ export function buildConnectionMetadata(
   }
 
   const result: Record<string, string> = { platformName: validPlatform };
-  if (metadata?.chatId) result.chatId = metadata.chatId;
+  if (metadata?.chatId) {
+    result.chatId = metadata.chatId.slice(0, MAX_CHAT_ID_LENGTH);
+  }
   return result;
 }
 
@@ -326,9 +329,9 @@ export class AgentManager {
         });
       }
 
-      // The `metadata` field is an unofficial extension not yet in the upstream
-      // EnsureConnectionParams type — the cast preserves it for downstream use
-      // while avoiding a compile-time error.
+      // `metadata` is an unofficial extension not yet in upstream EnsureConnectionParams.
+      // The intersection narrows the cast to only the extra field so the compiler
+      // still checks the standard fields.
       await rt.ensureConnection({
         entityId: uid,
         roomId,
@@ -338,7 +341,7 @@ export class AgentManager {
         channelId: `${agentId}-${userId}`,
         type: ChannelType.DM,
         ...(connMeta && { metadata: connMeta }),
-      } as Parameters<typeof rt.ensureConnection>[0]);
+      } as Parameters<typeof rt.ensureConnection>[0] & { metadata?: Record<string, string> });
 
       const mem = createMessageMemory({
         entityId: uid,

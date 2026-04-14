@@ -98,6 +98,19 @@ describe("buildConnectionMetadata", () => {
     expect(buildConnectionMetadata({ chatId: "", platformName: "" })).toBeUndefined();
   });
 
+  test("omits chatId key when chatId is empty string with valid platform", () => {
+    expect(buildConnectionMetadata({ platformName: "telegram", chatId: "" })).toEqual({
+      platformName: "telegram",
+    });
+  });
+
+  test("truncates chatId exceeding 128 characters", () => {
+    const longId = "x".repeat(200);
+    const result = buildConnectionMetadata({ platformName: "whatsapp", chatId: longId });
+    expect(result?.chatId?.length).toBe(128);
+    expect(result).toEqual({ platformName: "whatsapp", chatId: "x".repeat(128) });
+  });
+
   test("excludes both chatId and platformName when platform is unrecognized", () => {
     expect(buildConnectionMetadata({ platformName: "garbage", chatId: "42" })).toBeUndefined();
   });
