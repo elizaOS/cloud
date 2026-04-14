@@ -12,9 +12,10 @@ import { isGroqNativeModel } from "@/lib/models";
 import { hasGroqProviderConfigured } from "@/lib/providers";
 import {
   getAiProviderConfigurationError,
+  hasAnyAiProviderConfigured,
   hasGatewayProviderConfigured,
 } from "@/lib/providers/language-model";
-import { getCachedGatewayModelCatalog } from "@/lib/services/model-catalog";
+import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -91,13 +92,13 @@ export async function POST(request: NextRequest) {
     const gatewayConfigured = hasGatewayProviderConfigured();
     const groqConfigured = hasGroqProviderConfigured();
 
-    if (!gatewayConfigured && !groqConfigured) {
+    if (!hasAnyAiProviderConfigured()) {
       return Response.json({ error: getAiProviderConfigurationError() }, { status: 503 });
     }
 
-    const gatewayModelIds = gatewayConfigured
-      ? new Set((await getCachedGatewayModelCatalog()).map((model) => model.id))
-      : new Set<string>();
+    const gatewayModelIds = new Set(
+      (await getCachedMergedModelCatalog()).map((model) => model.id),
+    );
 
     // Check availability for each requested model
     const results: ModelAvailability[] = modelIds.map((modelId) => {

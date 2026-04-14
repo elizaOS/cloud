@@ -28,7 +28,7 @@ import {
   isReasoningModel,
   normalizeModelName,
 } from "@/lib/pricing";
-import { getProviderForModel } from "@/lib/providers";
+import { getProviderForModelWithFallback, withProviderFallback } from "@/lib/providers";
 import { mergeGatewayGroqPreferenceWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
 import {
   getAiProviderConfigurationError,
@@ -880,7 +880,7 @@ async function handleNativeResponsesPassthrough(
   // narrowed type survives across the intervening credit reservation
   // block. This avoids both a redundant second null check before the
   // forward call and the `!` non-null assertion biome flagged.
-  const providerInstance = getProviderForModel(model);
+  const { primary: providerInstance } = getProviderForModelWithFallback(model);
   const providerResponses = providerInstance.responses;
   if (!providerResponses) {
     return Response.json(
@@ -1718,7 +1718,8 @@ async function handlePOST(req: NextRequest) {
       delete safeRequest.temperature;
     }
 
-    const providerInstance = getProviderForModel(model);
+    const { primary: providerInstance, fallback: fallbackProvider } =
+      getProviderForModelWithFallback(model);
     // Gateway: Groq preference + optional ANTHROPIC_COT_BUDGET (providerOptions.anthropic.thinking) per AI Gateway docs.
     const requestWithProvider = isGroqNativeModel(model)
       ? safeRequest
@@ -1726,10 +1727,20 @@ async function handlePOST(req: NextRequest) {
           ...safeRequest,
           ...mergeGatewayGroqPreferenceWithAnthropicCot(model),
         };
-    const providerResponse = await providerInstance.chatCompletions(requestWithProvider, {
-      signal: req.signal,
-      timeoutMs: routeTimeoutMs,
-    });
+    const providerResponse = await withProviderFallback(
+      () =>
+        providerInstance.chatCompletions(requestWithProvider, {
+          signal: req.signal,
+          timeoutMs: routeTimeoutMs,
+        }),
+      fallbackProvider
+        ? () =>
+            fallbackProvider.chatCompletions(requestWithProvider, {
+              signal: req.signal,
+              timeoutMs: routeTimeoutMs,
+            })
+        : null,
+    );
 
     // 7. Handle streaming vs non-streaming
     if (isStreaming) {
