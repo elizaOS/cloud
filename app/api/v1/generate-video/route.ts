@@ -129,8 +129,8 @@ async function handlePOST(request: NextRequest) {
 
     if (!data?.video?.url) {
       logger.error("[VIDEO GENERATION] No video URL in response:", data);
-      // Reconcile with 0 cost (full refund)
-      await reservation.reconcile(0);
+      // Partial charge (~10% of quoted cost) — fal.ai may still bill for compute
+      await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
       return NextResponse.json(
         { error: "No video URL was returned from the generation service" },
         { status: 500 },
@@ -162,8 +162,8 @@ async function handlePOST(request: NextRequest) {
       blobFileSize = BigInt(uploadResult.size);
     } catch (blobError) {
       logger.error("[VIDEO GENERATION] Failed to upload to Vercel Blob:", blobError);
-      // Reconcile with 0 cost (full refund) - video generated but storage failed
-      await reservation.reconcile(0);
+      // Partial charge (~10% of quoted cost) — fal.ai already billed for the generation
+      await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
       return NextResponse.json(
         { error: "Failed to store video in our storage. Please try again." },
         { status: 500 },
@@ -288,10 +288,10 @@ async function handlePOST(request: NextRequest) {
 
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
-    // If reservation was made, refund the reservation when generation fails
+    // If reservation was made, charge ~10% — fal.ai may still bill for the compute attempt
     if (reservation) {
-      await reservation.reconcile(0);
-      logger.info("[VIDEO GENERATION] Credits refunded after failure");
+      await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
+      logger.info("[VIDEO GENERATION] Partial charge applied after failure (~10% of quoted cost)");
     }
 
     try {

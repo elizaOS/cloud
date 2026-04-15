@@ -373,6 +373,13 @@ export async function proxy(request: NextRequest) {
     const stewardToken = request.cookies.get("steward-token");
     const authToken = privyToken || stewardToken;
 
+    const playwrightTestSession =
+      process.env.PLAYWRIGHT_TEST_AUTH === "true"
+        ? request.cookies.get(PLAYWRIGHT_TEST_SESSION_COOKIE_NAME)
+        : undefined;
+    const authHeader = request.headers.get("Authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
     // Steward tokens are HS256 (verified by getCurrentUser, not Privy)
     // Just pass them through the middleware without Privy verification
     if (stewardToken && !privyToken && !bearerToken) {
@@ -380,12 +387,6 @@ export async function proxy(request: NextRequest) {
         headers: { "X-Proxy-Time": `${Date.now() - startTime}ms`, "X-Auth-Source": "steward" },
       });
     }
-    const playwrightTestSession =
-      process.env.PLAYWRIGHT_TEST_AUTH === "true"
-        ? request.cookies.get(PLAYWRIGHT_TEST_SESSION_COOKIE_NAME)
-        : undefined;
-    const authHeader = request.headers.get("Authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const apiKey = request.headers.get("X-API-Key");
 
     // Wallet-sig passthrough only for paths that verify the signature (getTopupRecipient or verifyWalletSignature)

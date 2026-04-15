@@ -1,6 +1,7 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   index,
   integer,
   jsonb,
@@ -60,6 +61,7 @@ export const generations = pgTable(
     usage_record_id: uuid("usage_record_id").references(() => usageRecords.id, {
       onDelete: "set null",
     }),
+    is_public: boolean("is_public").notNull().default(false),
     job_id: text("job_id"),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),

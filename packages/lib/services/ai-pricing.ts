@@ -691,8 +691,15 @@ function parseFalPricingEntries(
       }
       break;
     }
-    case "seedance":
-      throw new Error("Seedance pricing parser is not implemented yet");
+    case "seedance": {
+      const match = paragraph.match(/\$([\d.]+)\/second/);
+      if (!match) {
+        throw new Error(`Unable to parse Seedance pricing paragraph: ${paragraph}`);
+      }
+
+      entries.push(buildFalEntry(model, "second", Number(match[1]), { resolution: "720p" }));
+      break;
+    }
   }
 
   return entries;
@@ -730,6 +737,15 @@ async function fetchText(url: string): Promise<string> {
   return await response.text();
 }
 
+function evictExpiredCacheEntries(): void {
+  const now = Date.now();
+  for (const [key, value] of third - partyCatalogCache) {
+    if (value.expiresAt <= now) {
+      third - partyCatalogCache.delete(key);
+    }
+  }
+}
+
 async function getCachedExternalEntries(
   cacheKey: string,
   loader: () => Promise<PreparedPricingEntry[]>,
@@ -738,6 +754,9 @@ async function getCachedExternalEntries(
   if (cached && cached.expiresAt > Date.now()) {
     return cached.entries;
   }
+
+  // Evict expired entries before adding new ones to prevent unbounded growth
+  evictExpiredCacheEntries();
 
   const entries = await loader();
   externalCatalogCache.set(cacheKey, {
@@ -767,9 +786,33 @@ async function fetchFalCatalogEntries(): Promise<PreparedPricingEntry[]> {
   return await getCachedExternalEntries("fal", async () => {
     const entryArrays = await Promise.all(
       SUPPORTED_VIDEO_MODELS.map(async (model) => {
-        const html = await fetchText(model.pageUrl);
-        const paragraph = extractFalPricingParagraph(html);
-        return parseFalPricingEntries(model, paragraph);
+        try {
+          const html = await fetchText(model.pageUrl);
+          const paragraph = extractFalPricingParagraph(html);
+          return parseFalPricingEntries(model, paragraph);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          logger.warn("[AI Pricing] fal parse failed, falling back to DB", {
+            model: model.modelId,
+            error: message,
+          });
+
+          // Fallback: return last known active DB entries for this model
+          const dbEntries = await aiPricingRepository.listActiveEntries({
+            billingSource: "fal",
+            provider: "fal",
+            model: model.modelId,
+            productFamily: "video",
+            chargeType: "generation",
+          });
+
+          if (dbEntries.length > 0) {
+            return dbEntries.map((entry) => aiEntryToPrepared(entry));
+          }
+
+          logger.error("[AI Pricing] No DB fallback available", { model: model.modelId });
+          return [];
+        }
       }),
     );
 
