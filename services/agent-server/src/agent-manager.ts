@@ -80,7 +80,7 @@ export function buildConnectionMetadata(
   }
 
   const result: Record<string, string> = { platformName: validPlatform };
-  if (metadata.chatId) {
+  if (metadata?.chatId) {
     result.chatId = metadata.chatId.slice(0, MAX_CHAT_ID_LENGTH);
   }
   return result;
