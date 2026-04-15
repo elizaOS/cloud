@@ -44,7 +44,13 @@ const AUTH_LOSS_GRACE_MS = 5000;
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated: privyAuthenticated } = usePrivy();
+  // Steward auth: check if steward-token cookie exists (set by /api/auth/steward-session)
+  const [stewardAuthenticated, setStewardAuthenticated] = useState(false);
+  useEffect(() => {
+    setStewardAuthenticated(document.cookie.includes("steward-authed="));
+  }, []);
+  const authenticated = privyAuthenticated || stewardAuthenticated;
   const router = useRouter();
   const pathname = usePathname();
   const _isAppCreatePage = pathname?.startsWith("/dashboard/apps/create");
