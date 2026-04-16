@@ -2,6 +2,7 @@
 
 import { usePrivy } from "@privy-io/react-auth";
 import { useAuth as useStewardAuthRaw } from "@stwd/react";
+import { useEffect, useState } from "react";
 
 export type SessionAuthSource = "none" | "privy" | "steward" | "both";
 
@@ -19,17 +20,60 @@ const STEWARD_AUTH_FALLBACK = {
   getToken: () => null,
 } as const;
 
+const STEWARD_TOKEN_KEY = "steward_session_token";
+
+function decodeStewardToken(token: string): {
+  id: string;
+  email: string;
+  walletAddress?: string;
+  exp?: number;
+} | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const payload = JSON.parse(atob(padded));
+    return {
+      id: payload.userId ?? payload.sub ?? "",
+      email: payload.email ?? "",
+      walletAddress: payload.address ?? undefined,
+      exp: payload.exp,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Read a valid non-expired Steward session directly from localStorage. */
+function readStewardSessionFromStorage(): StewardSessionUser {
+  if (typeof window === "undefined") return null;
+  try {
+    const token = localStorage.getItem(STEWARD_TOKEN_KEY);
+    if (!token) return null;
+    const decoded = decodeStewardToken(token);
+    if (!decoded) return null;
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+      return null;
+    }
+    if (!decoded.id) return null;
+    return {
+      id: decoded.id,
+      email: decoded.email,
+      walletAddress: decoded.walletAddress,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Safe wrapper around @stwd/react useAuth that returns fallback defaults
- * when called outside <StewardProvider> (e.g. when steward auth is disabled).
- *
- * The try/catch is intentional — useAuth throws if the context is missing,
- * and we need graceful degradation when StewardProvider is conditionally mounted.
+ * when called outside <StewardProvider>.
  */
-// biome-ignore lint/correctness/useHookAtTopLevel: intentional try/catch for missing provider
 export function useStewardAuth() {
   try {
-    // biome-ignore lint/correctness/useHookAtTopLevel: see above
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional try/catch for missing provider
     return useStewardAuthRaw();
   } catch {
     return STEWARD_AUTH_FALLBACK;
@@ -49,13 +93,33 @@ export interface SessionAuthState {
 
 export function useSessionAuth(): SessionAuthState {
   const { ready: privyReady, authenticated: privyAuthenticated, user: privyUser } = usePrivy();
-  const {
-    isAuthenticated: stewardAuthenticated,
-    isLoading: stewardLoading,
-    user: stewardUser,
-  } = useStewardAuth();
+  const providerAuth = useStewardAuth();
 
-  const ready = privyReady && !stewardLoading;
+  // Read directly from localStorage as a fallback / source of truth when the
+  // @stwd/react provider is slow or flaky to initialize from storage.
+  const [storageUser, setStorageUser] = useState<StewardSessionUser>(null);
+
+  useEffect(() => {
+    // Sync on mount
+    setStorageUser(readStewardSessionFromStorage());
+
+    // Keep in sync across tabs + when our own code updates the token
+    const handler = () => setStorageUser(readStewardSessionFromStorage());
+    window.addEventListener("storage", handler);
+    window.addEventListener("steward-token-sync", handler);
+    // Poll once more after a tick in case login just completed
+    const t = setTimeout(handler, 250);
+    return () => {
+      window.removeEventListener("storage", handler);
+      window.removeEventListener("steward-token-sync", handler);
+      clearTimeout(t);
+    };
+  }, []);
+
+  const stewardUser = providerAuth.user ?? storageUser;
+  const stewardAuthenticated = providerAuth.isAuthenticated || storageUser !== null;
+
+  const ready = privyReady && !providerAuth.isLoading;
   const authenticated = privyAuthenticated || stewardAuthenticated;
 
   const authSource: SessionAuthSource = privyAuthenticated

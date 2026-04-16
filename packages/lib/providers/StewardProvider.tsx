@@ -30,44 +30,86 @@ function isPlaceholderValue(value: string | undefined): boolean {
  * Inner wrapper that syncs the Steward JWT to a global API client
  * so authenticated requests outside React components work correctly.
  */
+const STEWARD_TOKEN_KEY = "steward_session_token";
+
+function readStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(STEWARD_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function tokenIsExpired(token: string): boolean {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return true;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const payload = JSON.parse(atob(padded));
+    if (!payload.exp) return false;
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Syncs the Steward JWT from localStorage to a server cookie so Next.js
+ * server components can read it. Works independent of @stwd/react's internal
+ * auth state (which can be slow/flaky to initialize from storage during
+ * hydration) by reading localStorage directly.
+ */
 function AuthTokenSync({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, getToken, user } = useStewardAuth();
+  const { isAuthenticated, user } = useStewardAuth();
   const lastSyncedToken = useRef<string | null>(null);
   const wasAuthenticated = useRef(false);
 
+  // Sync localStorage token -> cookie on mount and when token changes.
+  // isAuthenticated is in deps so we re-sync after provider finishes initializing.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional re-run trigger
   useEffect(() => {
-    if (!isAuthenticated) {
-      // Only clear cookies if we were previously authenticated (actual sign-out),
-      // NOT on initial mount when auth state hasn't loaded from localStorage yet.
-      if (wasAuthenticated.current) {
-        lastSyncedToken.current = null;
-        fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
+    const sync = () => {
+      const token = readStoredToken();
+      if (!token || tokenIsExpired(token)) {
+        // Only DELETE if we previously synced a token (actual sign-out),
+        // never on initial mount when nothing was ever synced.
+        if (wasAuthenticated.current && lastSyncedToken.current) {
+          lastSyncedToken.current = null;
+          wasAuthenticated.current = false;
+          fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
+        }
+        return;
       }
-      return;
-    }
-    wasAuthenticated.current = true;
 
-    const token = getToken();
-    if (token && token !== lastSyncedToken.current) {
+      if (token === lastSyncedToken.current) return;
       lastSyncedToken.current = token;
+      wasAuthenticated.current = true;
 
-      // Set the server-side session cookie so Next.js server components
-      // can read the steward JWT (localStorage is client-only)
       fetch("/api/auth/steward-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       }).catch((err) => console.warn("[steward] Failed to set session cookie", err));
 
-      // Dispatch a custom event so non-React code (fetch wrappers, etc.)
-      // can pick up the fresh JWT without coupling to React context.
       window.dispatchEvent(
         new CustomEvent("steward-token-sync", {
           detail: { token, userId: user?.id },
         }),
       );
-    }
-  }, [isAuthenticated, getToken, user]);
+    };
+
+    sync();
+
+    // Also react to provider auth state changes (login/logout triggered via
+    // the @stwd/react provider will update localStorage).
+    const handler = () => sync();
+    window.addEventListener("storage", handler);
+    return () => {
+      window.removeEventListener("storage", handler);
+    };
+  }, [isAuthenticated, user]);
 
   return children;
 }
