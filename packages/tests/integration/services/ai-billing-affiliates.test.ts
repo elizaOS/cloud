@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import { affiliateCodes } from "@/db/schemas/affiliates";
+import { aiPricingEntries } from "@/db/schemas/ai-pricing";
 import { organizations } from "@/db/schemas/organizations";
 import { redeemableEarnings } from "@/db/schemas/redeemable-earnings";
 import { users } from "@/db/schemas/users";
@@ -11,6 +12,9 @@ import { billUsage } from "@/lib/services/ai-billing";
 let affiliateUser: { id: string; email: string };
 let callerUser: { id: string; email: string; organizationId: string };
 let codeString = "";
+const testPricingProvider = "affiliate-test-provider";
+const testPricingModel = `affiliate-test-model-${Date.now()}`;
+const canonicalTestPricingModel = `${testPricingProvider}/${testPricingModel}`;
 
 async function setupFixtures() {
   const now = new Date();
@@ -51,6 +55,35 @@ async function setupFixtures() {
     updated_at: now,
   });
 
+  await dbWrite.insert(aiPricingEntries).values([
+    {
+      billing_source: "gateway",
+      provider: testPricingProvider,
+      model: canonicalTestPricingModel,
+      product_family: "language",
+      charge_type: "input",
+      unit: "token",
+      unit_price: "0.01",
+      source_kind: "manual_override",
+      source_url: "test://ai-billing-affiliates",
+      is_override: true,
+      updated_by: "ai-billing-affiliates.test.ts",
+    },
+    {
+      billing_source: "gateway",
+      provider: testPricingProvider,
+      model: canonicalTestPricingModel,
+      product_family: "language",
+      charge_type: "output",
+      unit: "token",
+      unit_price: "0.02",
+      source_kind: "manual_override",
+      source_url: "test://ai-billing-affiliates",
+      is_override: true,
+      updated_by: "ai-billing-affiliates.test.ts",
+    },
+  ]);
+
   return {
     userA: { id: idA, email: emailA },
     userB: { id: idB, email: emailB, organizationId: orgId },
@@ -58,6 +91,10 @@ async function setupFixtures() {
 }
 
 async function cleanupFixtures() {
+  await dbWrite
+    .delete(aiPricingEntries)
+    .where(eq(aiPricingEntries.model, canonicalTestPricingModel))
+    .catch(() => {});
   if (affiliateUser) {
     await dbWrite
       .delete(affiliateCodes)
@@ -105,8 +142,8 @@ describe.skipIf(!process.env.DATABASE_URL)("AI Billing: Affiliate SKUs", () => {
       {
         organizationId: callerUser.organizationId,
         userId: callerUser.id,
-        model: "test-model",
-        provider: "test-provider",
+        model: testPricingModel,
+        provider: testPricingProvider,
         description: "Test AI inference",
         affiliateCode: codeString, // Important!
       },
