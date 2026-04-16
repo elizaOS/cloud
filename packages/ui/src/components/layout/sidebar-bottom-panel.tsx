@@ -9,10 +9,9 @@
 "use client";
 
 import { CornerBrackets } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { LogIn, Settings, UserPlus } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useStewardAuth } from "@/lib/hooks/use-session-auth";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import { cn } from "@/lib/utils";
 
 interface SidebarBottomPanelProps {
@@ -21,17 +20,8 @@ interface SidebarBottomPanelProps {
 }
 
 export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBottomPanelProps) {
-  const { ready: privyReady, authenticated: privyAuthenticated, user: privyUser } = usePrivy();
-  const {
-    isAuthenticated: stewardAuthenticated,
-    isLoading: stewardLoading,
-    user: stewardUser,
-  } = useStewardAuth();
+  const { ready, authenticated, user } = useSessionAuth();
   const pathname = usePathname();
-
-  const ready = privyReady && !stewardLoading;
-  const authenticated = privyAuthenticated || stewardAuthenticated;
-  const user = privyUser || stewardUser;
 
   // If not authenticated, show sign up/login CTA
   if (!ready || !authenticated || !user) {

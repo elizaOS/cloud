@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
-import { useStewardAuth } from "@/lib/hooks/use-session-auth";
+import { useSessionAuth, useStewardAuth } from "@/lib/hooks/use-session-auth";
 import { useCredits } from "@/lib/providers/CreditsProvider";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { FeedbackModal } from "./feedback-modal";
@@ -289,13 +289,15 @@ interface UserMenuProps {
 // Main component (inner)
 // ---------------------------------------------------------------------------
 function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
-  const { ready: privyReady, authenticated: privyAuthenticated, user: privyUser } = usePrivy();
   const {
-    isAuthenticated: stewardAuthenticated,
-    isLoading: stewardLoading,
-    user: stewardUser,
-    signOut: stewardSignOut,
-  } = useStewardAuth();
+    ready,
+    authenticated,
+    privyAuthenticated,
+    stewardAuthenticated,
+    stewardUser,
+    user: currentUser,
+  } = useSessionAuth();
+  const { signOut: stewardSignOut } = useStewardAuth();
   const pathname = usePathname();
   const { logout } = useLogout();
   const router = useRouter();
@@ -308,10 +310,6 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
   const [lastAuthenticatedUser, setLastAuthenticatedUser] = useState<
     PrivyUser | StewardUser | null
   >(null);
-
-  const ready = privyReady && !stewardLoading;
-  const authenticated = privyAuthenticated || stewardAuthenticated;
-  const currentUser = privyUser || stewardUser;
 
   useEffect(() => {
     if (authenticated && currentUser) {
