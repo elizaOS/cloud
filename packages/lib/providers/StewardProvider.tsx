@@ -89,6 +89,10 @@ export function StewardAuthProvider({ children }: { children: React.ReactNode })
     [apiUrl, tenantId],
   );
 
+  // Stabilize the auth prop so the inner <StewardProvider> doesn't recreate its
+  // StewardAuth instance on every render (which would thrash auth state).
+  const authConfig = useMemo(() => ({ baseUrl: apiUrl }), [apiUrl]);
+
   useEffect(() => {
     if (typeof window === "undefined" || hasValidUrl || hasLoggedConfigError.current) return;
     hasLoggedConfigError.current = true;
@@ -107,7 +111,7 @@ export function StewardAuthProvider({ children }: { children: React.ReactNode })
     <StewardProvider
       client={client}
       agentId="eliza-cloud"
-      auth={{ baseUrl: apiUrl }}
+      auth={authConfig}
       tenantId={tenantId && !isPlaceholderValue(tenantId) ? tenantId : undefined}
     >
       <AuthTokenSync>{children}</AuthTokenSync>
