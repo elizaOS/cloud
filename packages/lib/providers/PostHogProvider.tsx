@@ -2,7 +2,7 @@
 
 import { usePrivy } from "@privy-io/react-auth";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import {
   getPostHog,
   getSignupMethod,
@@ -12,6 +12,7 @@ import {
   resetUser,
   trackEvent,
 } from "@/lib/analytics/posthog";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
 function PageViewTracker(): null {
   const pathname = usePathname();
@@ -34,10 +35,46 @@ function PageViewTracker(): null {
 }
 
 function UserIdentifier(): null {
-  const { ready, authenticated, user } = usePrivy();
+  const { user: privyUser } = usePrivy();
+  const { ready, authenticated, authSource, user } = useSessionAuth();
   const pathname = usePathname();
   const identifiedRef = useRef(false);
   const previousAuthState = useRef<boolean | null>(null);
+
+  const authInfo: PrivyUserAuthInfo = useMemo(
+    () => ({
+      email: privyUser?.email ? { address: privyUser.email.address ?? undefined } : null,
+      google: privyUser?.google
+        ? {
+            email: privyUser.google.email ?? undefined,
+            name: privyUser.google.name ?? undefined,
+          }
+        : null,
+      discord: privyUser?.discord
+        ? {
+            email: privyUser.discord.email ?? undefined,
+            username: privyUser.discord.username ?? undefined,
+          }
+        : null,
+      github: privyUser?.github ? { username: privyUser.github.username ?? undefined } : null,
+      wallet: privyUser?.wallet ? { address: privyUser.wallet.address ?? undefined } : null,
+    }),
+    [privyUser],
+  );
+
+  const email =
+    authSource === "steward"
+      ? user && "email" in user && typeof user.email === "string"
+        ? user.email
+        : undefined
+      : (authInfo.email?.address ?? authInfo.google?.email ?? authInfo.discord?.email);
+  const name =
+    authSource === "steward"
+      ? email?.split("@")[0]
+      : (authInfo.google?.name ?? authInfo.discord?.username ?? authInfo.github?.username);
+  const method = authSource === "steward" ? "email" : getSignupMethod(authInfo);
+  const walletAddress = authSource === "steward" ? undefined : privyUser?.wallet?.address;
+  const createdAt = authSource === "steward" ? undefined : privyUser?.createdAt?.toISOString();
 
   useEffect(() => {
     // AbortController cancels in-flight requests on cleanup (logout/unmount)
@@ -61,26 +98,6 @@ function UserIdentifier(): null {
 
     // Handle login - fetch internal user ID for consistent identification
     if (authenticated && user && !identifiedRef.current) {
-      const authInfo: PrivyUserAuthInfo = {
-        email: user.email ? { address: user.email.address ?? undefined } : null,
-        google: user.google
-          ? {
-              email: user.google.email ?? undefined,
-              name: user.google.name ?? undefined,
-            }
-          : null,
-        discord: user.discord
-          ? {
-              email: user.discord.email ?? undefined,
-              username: user.discord.username ?? undefined,
-            }
-          : null,
-        github: user.github ? { username: user.github.username ?? undefined } : null,
-        wallet: user.wallet ? { address: user.wallet.address ?? undefined } : null,
-      };
-      const email = authInfo.email?.address ?? authInfo.google?.email ?? authInfo.discord?.email;
-      const name = authInfo.google?.name ?? authInfo.discord?.username ?? authInfo.github?.username;
-      const method = getSignupMethod(authInfo);
       const isFirstLogin = previousAuthState.current === false;
 
       // Fetch internal user ID from API
@@ -97,9 +114,9 @@ function UserIdentifier(): null {
             identifyUser(data.data.id, {
               email,
               name,
-              wallet_address: user.wallet?.address,
+              wallet_address: walletAddress,
               signup_method: method,
-              created_at: user.createdAt?.toISOString(),
+              created_at: createdAt,
             });
 
             identifiedRef.current = true;
@@ -122,7 +139,7 @@ function UserIdentifier(): null {
     return () => {
       abortController.abort();
     };
-  }, [ready, authenticated, pathname, user]);
+  }, [ready, authenticated, pathname, user, email, name, method, walletAddress, createdAt]);
 
   return null;
 }

@@ -6,12 +6,12 @@
 
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 // import DiscoverAgents from "./discover-agents";
 import { toast } from "sonner";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import Footer from "@/packages/ui/src/components/landing/Footer";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 import HeroSection from "./hero-section";
@@ -21,7 +21,7 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ accessError }: LandingPageProps) {
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated } = useSessionAuth();
   const router = useRouter();
   const hasRedirectedRef = useRef(false);
   const errorShownRef = useRef(false);

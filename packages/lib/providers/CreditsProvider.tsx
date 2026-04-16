@@ -19,6 +19,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import { logger } from "@/lib/utils/logger";
 
 interface CreditsContextValue {
@@ -36,7 +37,8 @@ const POLL_INTERVAL = 30000; // Increased from 10s to 30s
 const MAX_AUTH_ERRORS = 3;
 
 export function CreditsProvider({ children }: { children: ReactNode }) {
-  const { authenticated, ready, getAccessToken, logout } = usePrivy();
+  const { authenticated, ready, privyAuthenticated } = useSessionAuth();
+  const { getAccessToken, logout } = usePrivy();
   const pathname = usePathname();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,11 +57,11 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   const isLoggingOutRef = useRef(false);
   const shouldDeferAuthenticatedFetches = pathname === "/login";
 
-  // Store Privy functions in refs to avoid recreating callbacks on every render
+  // Store Privy helpers in refs so authenticated Privy sessions can still refresh cookies on 401.
+  // Steward sessions stay cookie-based and do not use this path.
   const getAccessTokenRef = useRef(getAccessToken);
   const logoutRef = useRef(logout);
 
-  // Update refs in effect to avoid updating during render
   useEffect(() => {
     getAccessTokenRef.current = getAccessToken;
     logoutRef.current = logout;
@@ -127,34 +129,28 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
 
     let response = await doFetch();
 
-    // On 401, try to refresh the session and retry once
-    if (response.status === 401) {
-      logger.info("[CreditsProvider] Session may be stale, refreshing...");
+    // On 401, try to refresh the session and retry once for Privy sessions.
+    // Steward sessions are already cookie-backed, so there is no separate token refresh path.
+    if (response.status === 401 && privyAuthenticated) {
+      logger.info("[CreditsProvider] Session may be stale, refreshing Privy session...");
 
-      // getAccessToken() triggers Privy to refresh the session/cookies
       const freshToken = await getAccessTokenRef.current().catch(() => null);
 
       if (!freshToken) {
-        // Token refresh failed - session is truly expired
-        logger.warn("[CreditsProvider] Session refresh failed, logging out");
+        logger.warn("[CreditsProvider] Privy session refresh failed, pausing polling");
         if (isMountedRef.current) {
           setError("Session expired");
           setIsConnected(false);
           setCreditBalance(null);
           setIsLoading(false);
         }
-        // Set logout flag BEFORE stopping polling to prevent race conditions
         isLoggingOutRef.current = true;
         stopPolling();
         logoutRef.current();
         return;
       }
 
-      // Token refresh succeeded - reset error counter before retry
-      // This acknowledges the auth system is working, giving a fresh set of retries
       authErrorCountRef.current = 0;
-
-      // Retry with refreshed session
       response = await doFetch();
     }
 
@@ -163,12 +159,11 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         authErrorCountRef.current++;
 
         if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
-          logger.warn("[CreditsProvider] Too many auth errors after refresh, logging out");
+          logger.warn("[CreditsProvider] Too many auth errors, pausing credit polling");
           // Set logout flag BEFORE stopping polling to prevent race conditions
           isLoggingOutRef.current = true;
           stopPolling();
-          logoutRef.current();
-          // Early return after triggering logout to prevent further processing
+          // Early return after pausing to prevent further processing
           if (isMountedRef.current) {
             setError("Unauthorized");
             setIsConnected(false);
@@ -208,7 +203,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         timestamp: new Date().toISOString(),
       });
     }
-  }, [authenticated, shouldDeferAuthenticatedFetches, stopPolling]);
+  }, [authenticated, shouldDeferAuthenticatedFetches, stopPolling, privyAuthenticated]);
 
   // Setup BroadcastChannel for cross-tab sync
   useEffect(() => {

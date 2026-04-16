@@ -16,7 +16,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import {
   Check,
   ChevronDown,
@@ -35,6 +34,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { cn } from "@/lib/utils";
 import { ElizaAvatar } from "@/packages/ui/src/components/chat/eliza-avatar";
@@ -116,7 +116,7 @@ interface ChatHeaderProps {
 export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { authenticated: isAuthenticated } = usePrivy();
+  const { authenticated: isAuthenticated } = useSessionAuth();
   const {
     selectedCharacterId,
     setSelectedCharacterId,

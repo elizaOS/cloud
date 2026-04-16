@@ -6,14 +6,14 @@
 "use client";
 
 import { Button, ElizaCloudLockup } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import UserMenu from "@/packages/ui/src/components/layout/user-menu";
 
 export default function LandingHeader() {
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated } = useSessionAuth();
   const router = useRouter();
 
   // No auto-redirect - let users stay on landing page even when logged in
