@@ -10,9 +10,9 @@
 
 import { CornerBrackets } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
-import { useAuth as useStewardAuth } from "@stwd/react";
 import { LogIn, Settings, UserPlus } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useStewardAuth } from "@/lib/hooks/use-session-auth";
 import { cn } from "@/lib/utils";
 
 interface SidebarBottomPanelProps {

@@ -22,7 +22,6 @@ import {
   DropdownMenuTrigger,
 } from "@elizaos/cloud-ui";
 import { useLogout, usePrivy } from "@privy-io/react-auth";
-import { useAuth as useStewardAuth } from "@stwd/react";
 import {
   BookOpen,
   Coins,
@@ -35,6 +34,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
+import { useStewardAuth } from "@/lib/hooks/use-session-auth";
 import { useCredits } from "@/lib/providers/CreditsProvider";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { FeedbackModal } from "./feedback-modal";

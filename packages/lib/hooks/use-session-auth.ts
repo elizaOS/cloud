@@ -1,13 +1,40 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
-import { useAuth as useStewardAuth } from "@stwd/react";
+import { useAuth as useStewardAuthRaw } from "@stwd/react";
 
 export type SessionAuthSource = "none" | "privy" | "steward" | "both";
 
 export type PrivySessionUser = ReturnType<typeof usePrivy>["user"];
-export type StewardSessionUser = ReturnType<typeof useStewardAuth>["user"];
+export type StewardSessionUser = { id: string; email: string; walletAddress?: string } | null;
 export type SessionUser = PrivySessionUser | StewardSessionUser;
+
+/** Default state when StewardProvider is not mounted */
+const STEWARD_AUTH_FALLBACK = {
+  isAuthenticated: false,
+  isLoading: false,
+  user: null as StewardSessionUser,
+  session: null,
+  signOut: () => {},
+  getToken: () => null,
+} as const;
+
+/**
+ * Safe wrapper around @stwd/react useAuth that returns fallback defaults
+ * when called outside <StewardProvider> (e.g. when steward auth is disabled).
+ *
+ * The try/catch is intentional — useAuth throws if the context is missing,
+ * and we need graceful degradation when StewardProvider is conditionally mounted.
+ */
+// biome-ignore lint/correctness/useHookAtTopLevel: intentional try/catch for missing provider
+export function useStewardAuth() {
+  try {
+    // biome-ignore lint/correctness/useHookAtTopLevel: see above
+    return useStewardAuthRaw();
+  } catch {
+    return STEWARD_AUTH_FALLBACK;
+  }
+}
 
 export interface SessionAuthState {
   ready: boolean;
@@ -46,7 +73,7 @@ export function useSessionAuth(): SessionAuthState {
     privyAuthenticated,
     stewardAuthenticated,
     privyUser,
-    stewardUser,
-    user: privyUser || stewardUser,
+    stewardUser: stewardUser as StewardSessionUser,
+    user: privyUser || (stewardUser as StewardSessionUser),
   };
 }

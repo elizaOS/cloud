@@ -10,10 +10,10 @@
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
-import { useAuth as useStewardAuth } from "@stwd/react";
 import { Lock } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useStewardAuth } from "@/lib/hooks/use-session-auth";
 import { cn } from "@/lib/utils";
 import type { SidebarItem } from "./sidebar-data";
 

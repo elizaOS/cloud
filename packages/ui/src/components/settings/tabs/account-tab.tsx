@@ -11,11 +11,11 @@
 
 import { BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
-import { useAuth as useStewardAuth } from "@stwd/react";
 import { ArrowUpRight, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useStewardAuth } from "@/lib/hooks/use-session-auth";
 import { useChatStore } from "@/lib/stores/chat-store";
 import type { UserWithOrganization } from "@/lib/types";
 import type { SettingsTab } from "../settings-page-client";
