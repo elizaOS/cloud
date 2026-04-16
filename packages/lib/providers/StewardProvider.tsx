@@ -33,14 +33,19 @@ function isPlaceholderValue(value: string | undefined): boolean {
 function AuthTokenSync({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, getToken, user } = useStewardAuth();
   const lastSyncedToken = useRef<string | null>(null);
+  const wasAuthenticated = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      lastSyncedToken.current = null;
-      // Clear the server-side cookie on sign out
-      fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
+      // Only clear cookies if we were previously authenticated (actual sign-out),
+      // NOT on initial mount when auth state hasn't loaded from localStorage yet.
+      if (wasAuthenticated.current) {
+        lastSyncedToken.current = null;
+        fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
+      }
       return;
     }
+    wasAuthenticated.current = true;
 
     const token = getToken();
     if (token && token !== lastSyncedToken.current) {
