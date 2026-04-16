@@ -1,7 +1,7 @@
 "use client";
 
 import { StewardProvider, useAuth as useStewardAuth } from "@stwd/react";
-import { StewardClient } from "@stwd/sdk";
+import { StewardAuth, StewardClient } from "@stwd/sdk";
 import { useEffect, useMemo, useRef } from "react";
 
 /**
@@ -61,20 +61,49 @@ function tokenIsExpired(token: string): boolean {
  * auth state (which can be slow/flaky to initialize from storage during
  * hydration) by reading localStorage directly.
  */
+/** How often to check token expiry and trigger refresh (ms) */
+const REFRESH_CHECK_INTERVAL_MS = 60_000; // 1 min
+/** Refresh when fewer than this many seconds remain */
+const REFRESH_AHEAD_SECS = 120;
+
+function tokenSecsRemaining(token: string): number | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const payload = JSON.parse(atob(padded));
+    if (!payload.exp) return null;
+    return payload.exp - Date.now() / 1000;
+  } catch {
+    return null;
+  }
+}
+
 function AuthTokenSync({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useStewardAuth();
   const lastSyncedToken = useRef<string | null>(null);
   const wasAuthenticated = useRef(false);
+  const authInstanceRef = useRef<InstanceType<typeof StewardAuth> | null>(null);
 
-  // Sync localStorage token -> cookie on mount and when token changes.
-  // isAuthenticated is in deps so we re-sync after provider finishes initializing.
+  const apiUrl = process.env.NEXT_PUBLIC_STEWARD_API_URL ?? "http://localhost:3200";
+  const tenantId = process.env.NEXT_PUBLIC_STEWARD_TENANT_ID;
+
+  // Create a standalone StewardAuth for refresh purposes (uses localStorage)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    authInstanceRef.current = new StewardAuth({
+      baseUrl: apiUrl,
+      ...(tenantId ? { tenantId } : {}),
+    });
+  }, [apiUrl, tenantId]);
+
+  // Sync localStorage token → cookie and keep it alive via auto-refresh
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional re-run trigger
   useEffect(() => {
-    const sync = () => {
+    const syncToken = () => {
       const token = readStoredToken();
       if (!token || tokenIsExpired(token)) {
-        // Only DELETE if we previously synced a token (actual sign-out),
-        // never on initial mount when nothing was ever synced.
         if (wasAuthenticated.current && lastSyncedToken.current) {
           lastSyncedToken.current = null;
           wasAuthenticated.current = false;
@@ -100,13 +129,41 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
       );
     };
 
-    sync();
+    const checkAndRefresh = async () => {
+      const token = readStoredToken();
+      if (!token) return;
 
-    // Also react to provider auth state changes (login/logout triggered via
-    // the @stwd/react provider will update localStorage).
-    const handler = () => sync();
+      const secs = tokenSecsRemaining(token);
+      if (secs !== null && secs < REFRESH_AHEAD_SECS && secs > 0) {
+        // Token is near expiry — refresh it
+        const auth = authInstanceRef.current;
+        if (!auth) return;
+        try {
+          const newSession = await auth.refreshSession();
+          if (newSession) {
+            // refreshSession already updated localStorage, now sync the new token to cookie
+            syncToken();
+          }
+        } catch (err) {
+          console.warn("[steward] Auto-refresh failed", err);
+        }
+      }
+    };
+
+    // Initial sync
+    syncToken();
+
+    // Periodic refresh check
+    const refreshInterval = setInterval(() => {
+      checkAndRefresh();
+    }, REFRESH_CHECK_INTERVAL_MS);
+
+    // Also sync on storage events (cross-tab, login flow)
+    const handler = () => syncToken();
     window.addEventListener("storage", handler);
+
     return () => {
+      clearInterval(refreshInterval);
       window.removeEventListener("storage", handler);
     };
   }, [isAuthenticated, user]);
