@@ -10,6 +10,7 @@
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@elizaos/cloud-ui";
 import { usePrivy } from "@privy-io/react-auth";
+import { useAuth as useStewardAuth } from "@stwd/react";
 import { Lock } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,7 +24,9 @@ interface SidebarNavigationItemProps {
 
 export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavigationItemProps) {
   const pathname = usePathname();
-  const { authenticated } = usePrivy();
+  const { authenticated: privyAuthenticated } = usePrivy();
+  const { isAuthenticated: stewardAuthenticated } = useStewardAuth();
+  const authenticated = privyAuthenticated || stewardAuthenticated;
   // Use exact match for dashboard and admin root; startsWith for other routes
   const isActive =
     item.href === "/dashboard" || item.href === "/dashboard/admin"
