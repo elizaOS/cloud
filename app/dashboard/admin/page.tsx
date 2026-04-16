@@ -286,9 +286,7 @@ export default function AdminPage() {
         <Ban className="h-16 w-16 text-destructive" />
         <h1 className="text-2xl font-bold">Access Denied</h1>
         <p className="text-muted-foreground">You don&apos;t have admin privileges.</p>
-        <p className="text-xs text-muted-foreground">
-          Current wallet: {wallets[0]?.address?.slice(0, 10)}...
-        </p>
+        <p className="text-xs text-muted-foreground">Not authorized for admin access.</p>
       </div>
     );
   }
