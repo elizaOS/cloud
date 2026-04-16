@@ -47,8 +47,33 @@ export default function StewardLoginSection() {
       .catch(() => {});
   }, [auth]);
 
-  // Check if already authenticated
+  // Handle OAuth callback: steward redirects back to /login with token+refreshToken
+  // in query params. We store them in localStorage (same keys the SDK uses) and
+  // redirect to the dashboard.
   useEffect(() => {
+    const token = searchParams.get("token");
+    const refreshToken = searchParams.get("refreshToken");
+    if (!token) return;
+
+    try {
+      localStorage.setItem("steward_session_token", token);
+      if (refreshToken) {
+        localStorage.setItem("steward_refresh_token", refreshToken);
+      }
+    } catch (err) {
+      console.warn("[steward] Failed to persist OAuth tokens", err);
+    }
+
+    setSessionCookie(token).then(() => {
+      // Strip the tokens from the URL before redirecting
+      window.location.href = getSafeReturnTo(searchParams);
+    });
+  }, [searchParams, setSessionCookie]);
+
+  // Check if already authenticated (e.g. page refresh while logged in)
+  useEffect(() => {
+    // Skip if we're processing an OAuth callback (handled above)
+    if (searchParams.get("token")) return;
     const session = auth.getSession();
     if (session?.token) {
       setSessionCookie(session.token).then(() => {
@@ -100,15 +125,15 @@ export default function StewardLoginSection() {
   async function handleOAuth(provider: string) {
     setLoading(provider as Provider);
     setError(null);
-    try {
-      const result = await auth.signInWithOAuth(provider, {
-        redirectUri: `${window.location.origin}/login`,
-      });
-      if (result.token) await handleSuccess(result.token);
-    } catch (e: any) {
-      setError(e?.message || `${provider} login failed`);
-      setLoading(null);
-    }
+    // Use the server-side redirect flow: steward does the full OAuth exchange
+    // and redirects back with token/refreshToken query params. We don't use the
+    // SDK's popup flow because it expects the client to do the code exchange.
+    const redirectUri = `${window.location.origin}/login`;
+    const params = new URLSearchParams({
+      redirect_uri: redirectUri,
+      tenantId: "elizacloud",
+    });
+    window.location.href = `${STEWARD_API_URL}/auth/oauth/${provider}/authorize?${params.toString()}`;
   }
 
   if (step === "success") {
