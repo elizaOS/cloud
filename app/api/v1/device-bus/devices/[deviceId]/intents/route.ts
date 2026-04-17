@@ -11,7 +11,7 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { dbRead, dbWrite } from "@/db/helpers";
 import { deviceIntents, devices } from "@/db/schemas";
@@ -40,9 +40,7 @@ export async function GET(
 
   const url = new URL(request.url);
   const sinceParam = url.searchParams.get("since");
-  const since = sinceParam
-    ? new Date(sinceParam)
-    : new Date(Date.now() - DEFAULT_LOOKBACK_MS);
+  const since = sinceParam ? new Date(sinceParam) : new Date(Date.now() - DEFAULT_LOOKBACK_MS);
 
   if (Number.isNaN(since.getTime())) {
     return NextResponse.json({ error: "Invalid 'since' parameter" }, { status: 400 });

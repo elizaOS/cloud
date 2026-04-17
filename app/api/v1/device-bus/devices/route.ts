@@ -6,7 +6,6 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { dbWrite } from "@/db/helpers";

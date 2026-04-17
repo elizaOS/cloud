@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from "@elizaos/cloud-ui";
 import { Calendar, CheckCircle, Loader2, Mail, Plus, Users, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface GoogleConnection {
@@ -37,7 +37,7 @@ export function GoogleConnection() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
-  const fetchConnections = async (signal?: AbortSignal) => {
+  const fetchConnections = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     const response = await fetch("/api/v1/oauth/connections?platform=google", { signal });
     if (signal?.aborted) return;
@@ -49,13 +49,13 @@ export function GoogleConnection() {
     const data = (await response.json()) as { connections?: GoogleConnection[] };
     setConnections(data.connections ?? []);
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     void fetchConnections(controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [fetchConnections]);
 
   const handleConnect = async () => {
     if (isConnecting) return;
