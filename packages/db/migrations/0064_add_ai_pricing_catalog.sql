@@ -1,4 +1,4 @@
-CREATE TABLE "ai_pricing_entries" (
+CREATE TABLE IF NOT EXISTS "ai_pricing_entries" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"billing_source" text NOT NULL,
 	"provider" text NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE "ai_pricing_entries" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ai_pricing_refresh_runs" (
+CREATE TABLE IF NOT EXISTS "ai_pricing_refresh_runs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"source" text NOT NULL,
 	"status" text NOT NULL,
@@ -41,8 +41,8 @@ CREATE TABLE "ai_pricing_refresh_runs" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX "ai_pricing_entries_lookup_idx" ON "ai_pricing_entries" USING btree ("billing_source","provider","model","product_family","charge_type","is_active");--> statement-breakpoint
-CREATE INDEX "ai_pricing_entries_dimension_idx" ON "ai_pricing_entries" USING btree ("dimension_key","priority");--> statement-breakpoint
-CREATE INDEX "ai_pricing_entries_freshness_idx" ON "ai_pricing_entries" USING btree ("source_kind","fetched_at","stale_after");--> statement-breakpoint
-CREATE INDEX "ai_pricing_refresh_runs_source_status_idx" ON "ai_pricing_refresh_runs" USING btree ("source","status");--> statement-breakpoint
-CREATE INDEX "ai_pricing_refresh_runs_started_idx" ON "ai_pricing_refresh_runs" USING btree ("started_at");
+CREATE INDEX IF NOT EXISTS "ai_pricing_entries_lookup_idx" ON "ai_pricing_entries" USING btree ("billing_source","provider","model","product_family","charge_type","is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_pricing_entries_dimension_idx" ON "ai_pricing_entries" USING btree ("dimension_key","priority");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_pricing_entries_freshness_idx" ON "ai_pricing_entries" USING btree ("source_kind","fetched_at","stale_after");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_pricing_refresh_runs_source_status_idx" ON "ai_pricing_refresh_runs" USING btree ("source","status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_pricing_refresh_runs_started_idx" ON "ai_pricing_refresh_runs" USING btree ("started_at");

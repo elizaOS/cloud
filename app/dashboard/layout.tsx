@@ -1,10 +1,10 @@
 "use client";
 
 import { PageHeaderProvider, ScrollArea } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import Header from "@/packages/ui/src/components/layout/header";
 import Sidebar from "@/packages/ui/src/components/layout/sidebar";
 import { OnboardingOverlay } from "@/packages/ui/src/components/onboarding/onboarding-overlay";
@@ -44,13 +44,9 @@ const AUTH_LOSS_GRACE_MS = 5000;
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { ready, authenticated: privyAuthenticated } = usePrivy();
-  // Steward auth: check if steward-token cookie exists (set by /api/auth/steward-session)
-  const [stewardAuthenticated, setStewardAuthenticated] = useState(false);
-  useEffect(() => {
-    setStewardAuthenticated(document.cookie.includes("steward-authed="));
-  }, []);
-  const authenticated = privyAuthenticated || stewardAuthenticated;
+  // Unified auth state (Privy + Steward). Reactive to cross-tab storage changes
+  // and steward-token-sync custom events, so no manual cookie polling needed.
+  const { ready, authenticated } = useSessionAuth();
   const router = useRouter();
   const pathname = usePathname();
   const _isAppCreatePage = pathname?.startsWith("/dashboard/apps/create");

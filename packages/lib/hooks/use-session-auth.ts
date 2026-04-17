@@ -1,8 +1,8 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
-import { useAuth as useStewardAuthRaw } from "@stwd/react";
-import { useEffect, useState } from "react";
+import { StewardAuthContext } from "@stwd/react";
+import { useContext, useEffect, useState } from "react";
 
 export type SessionAuthSource = "none" | "privy" | "steward" | "both";
 
@@ -71,13 +71,14 @@ function readStewardSessionFromStorage(): StewardSessionUser {
  * Safe wrapper around @stwd/react useAuth that returns fallback defaults
  * when called outside <StewardProvider>.
  */
+/**
+ * Safe wrapper around the Steward auth context that returns a fallback when
+ * StewardProvider is not mounted. Reads the context directly instead of
+ * calling useAuth() inside try/catch (which violates Rules of Hooks).
+ */
 export function useStewardAuth() {
-  try {
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional try/catch for missing provider
-    return useStewardAuthRaw();
-  } catch {
-    return STEWARD_AUTH_FALLBACK;
-  }
+  const ctx = useContext(StewardAuthContext);
+  return ctx ?? STEWARD_AUTH_FALLBACK;
 }
 
 export interface SessionAuthState {
