@@ -360,11 +360,10 @@ export class DockerSandboxProvider implements SandboxProvider {
     validateAgentName(agentName);
     validateAgentId(agentId);
 
-    // 2. Select target node via DockerNodeManager (least-loaded, DB-backed)
-    // TODO(PR-376): getAvailableNode + incrementAllocated + getUsedPorts are three
-    // sequential DB round-trips without a transaction boundary. In high-concurrency
-    // scenarios, capacity could change between queries. The UNIQUE port index and
-    // retry logic provide safety, but a proper transaction would be cleaner.
+    // 2. Select target node via DockerNodeManager (least-loaded, DB-backed).
+    // getAvailableNode + incrementAllocated + getUsedPorts are three sequential
+    // DB round-trips without a transaction boundary; the UNIQUE port index and
+    // retry logic provide safety against concurrent capacity changes.
     const dbNode = await dockerNodeManager.getAvailableNode();
 
     let nodeId: string;

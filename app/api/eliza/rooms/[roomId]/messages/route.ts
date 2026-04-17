@@ -6,7 +6,10 @@ import { roomsRepository } from "@/db/repositories";
 import type { AnonymousSession } from "@/db/schemas/anonymous-sessions";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
 import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -178,9 +181,30 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
 
     let result;
     try {
-      result = await agentRuntime.handleMessage(roomId, { text, attachments }, characterId, {
-        userId: user.id,
-        apiKey: apiKey?.key,
+      const userContext =
+        user.id && apiKey?.key
+          ? {
+              userId: user.id,
+              entityId: user.id,
+              organizationId: "default",
+              agentMode: AgentMode.CHAT,
+              apiKey: apiKey.key,
+              characterId,
+              isAnonymous: false,
+            }
+          : (() => {
+              const ctx = userContextService.createSystemContext(AgentMode.CHAT);
+              if (characterId) ctx.characterId = characterId;
+              return ctx;
+            })();
+
+      const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+      const messageHandler = createMessageHandler(runtime, userContext);
+      result = await messageHandler.process({
+        roomId,
+        text,
+        attachments,
+        characterId,
       });
     } catch (error) {
       if (reservation) {

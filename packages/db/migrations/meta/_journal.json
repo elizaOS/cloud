@@ -442,6 +442,13 @@
       "when": 1776499320000,
       "tag": "0067_allow_multiple_oauth_connections_per_user",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1776586320000,
+      "tag": "0068_add_remote_sessions",
+      "breakpoints": true
     }
   ]
 }

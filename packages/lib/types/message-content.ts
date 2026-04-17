@@ -119,8 +119,6 @@ export interface ElevenLabsVoice {
 /**
  * Extended metadata for dialogue messages in ElizaCloud.
  * Extends elizaOS standard metadata with UI and categorization fields.
- *
- * BACKWARDS COMPATIBLE: Works alongside legacy metadata formats.
  */
 export interface DialogueMetadata extends BaseMetadata {
   /** Official elizaOS type - always MESSAGE for dialogue */
@@ -146,16 +144,7 @@ export interface DialogueMetadata extends BaseMetadata {
 }
 
 /**
- * Legacy metadata format (for backwards compatibility)
- * @deprecated Use DialogueMetadata instead
- */
-export interface LegacyDialogueMetadata {
-  type: "user_message" | "agent_response_message" | "action_result";
-  [key: string]: unknown;
-}
-
-/**
- * Type guard to check if metadata is new DialogueMetadata format
+ * Type guard to check if metadata is DialogueMetadata format
  */
 export function isDialogueMetadata(metadata: unknown): metadata is DialogueMetadata {
   if (!metadata || typeof metadata !== "object") return false;
@@ -168,23 +157,9 @@ export function isDialogueMetadata(metadata: unknown): metadata is DialogueMetad
 }
 
 /**
- * Type guard to check if metadata is legacy format
- */
-export function isLegacyDialogueMetadata(metadata: unknown): metadata is LegacyDialogueMetadata {
-  if (!metadata || typeof metadata !== "object") return false;
-  const meta = metadata as Record<string, unknown>;
-  return (
-    typeof meta.type === "string" &&
-    ["user_message", "agent_response_message", "action_result"].includes(meta.type as string)
-  );
-}
-
-/**
- * Helper to check if a message should be visible in conversation logs
- * Supports both new and legacy formats for backwards compatibility
+ * Helper to check if a message should be visible in conversation logs.
  */
 export function isVisibleDialogueMessage(metadata: unknown, content?: unknown): boolean {
-  // Check content.type for action_result (all formats)
   if (content && typeof content === "object") {
     const c = content as Record<string, unknown>;
     if (c.type === "action_result") {
@@ -192,25 +167,10 @@ export function isVisibleDialogueMessage(metadata: unknown, content?: unknown): 
     }
   }
 
-  // Check metadata.type for action_result (legacy format)
-  if (metadata && typeof metadata === "object") {
-    const m = metadata as Record<string, unknown>;
-    if (m.type === "action_result") {
-      return false;
-    }
-  }
-
-  // New format
   if (isDialogueMetadata(metadata)) {
     return metadata.visibility !== "hidden" && metadata.dialogueType !== "action_result";
   }
 
-  // Legacy format
-  if (isLegacyDialogueMetadata(metadata)) {
-    return metadata.type === "user_message" || metadata.type === "agent_response_message";
-  }
-
-  // Fallback: check content.source
   if (content && typeof content === "object") {
     const c = content as Record<string, unknown>;
     return c.source === "user" || c.source === "agent";

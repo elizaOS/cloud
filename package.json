@@ -76,7 +76,8 @@
     "test:e2e:smoke": "node scripts/run-e2e-smoke.mjs",
     "test:e2e:miniapp": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/v1/miniapp-lifecycle.test.ts packages/tests/e2e/v1/app-monetization.test.ts packages/tests/e2e/v1/agent-publishing.test.ts packages/tests/e2e/v1/credits-billing.test.ts packages/tests/e2e/v1/affiliate-miniapp.test.ts --timeout 120000",
     "test:e2e:all": "bun run test:e2e:api && bun run test:e2e:v1 && bun run test:e2e:miniapp",
-    "test": "bun run test:repo-unit:bulk && bun run test:repo-unit:special && bun run test:repo-unit:isolated",
+    "test:secrets": "node ../../scripts/check-secret-hygiene.mjs",
+    "test": "bun run test:secrets && bun run test:repo-unit:bulk && bun run test:repo-unit:special && bun run test:repo-unit:isolated",
     "test:playwright": "playwright test",
     "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test packages/tests/playwright/auth-real.spec.ts --grep @auth-real --headed"
   },

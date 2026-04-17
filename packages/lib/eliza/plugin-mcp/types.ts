@@ -7,10 +7,6 @@ import type { Resource, ResourceTemplate, Tool } from "@modelcontextprotocol/sdk
 
 export const MCP_SERVICE_NAME = "mcp";
 export const DEFAULT_MCP_TIMEOUT_MS = 15000;
-/**
- * @deprecated Use DEFAULT_MCP_TIMEOUT_MS instead. Kept for backward compatibility.
- */
-export const DEFAULT_MCP_TIMEOUT_SECONDS = DEFAULT_MCP_TIMEOUT_MS;
 export const DEFAULT_MAX_RETRIES = 2;
 export const MAX_RECONNECT_ATTEMPTS = 5;
 export const BACKOFF_MULTIPLIER = 2;

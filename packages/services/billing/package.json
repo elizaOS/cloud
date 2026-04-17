@@ -1,0 +1,20 @@
+{
+  "name": "@elizaos/billing",
+  "version": "1.0.0",
+  "description": "Shared billing utilities for Eliza Cloud gateway services (platform markup arithmetic).",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./markup": "./src/markup.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.2",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

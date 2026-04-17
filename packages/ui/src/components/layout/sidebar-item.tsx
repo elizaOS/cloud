@@ -163,11 +163,8 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
     </>
   );
 
-  // Temporary escape hatch for routes still seeing auth/RSC navigation instability.
-  // For dashboard routes, prefer a full document navigation so client-side RSC transitions
-  // can't strand the UI behind the loading bar.
-  // TODO: Narrow this to only specific unstable routes once Privy + RSC interaction
-  // is stabilised, and restore client-side navigation for remaining dashboard links.
+  // For dashboard routes, prefer a full document navigation so client-side
+  // RSC transitions can't strand the UI behind the loading bar.
   const shouldHardNavigate = item.hardNavigate || item.href.startsWith("/dashboard");
   const linkElement = shouldHardNavigate ? (
     <a href={item.href} className={linkClasses} style={linkStyles}>

@@ -120,7 +120,6 @@ class MessageRouterService {
         .limit(1);
 
       if (phoneMapping.length === 0) {
-        // TODO: Phone-to-agent mapping will be added in next feature
         logger.debug("[MessageRouter] No phone number mapping found", {
           to: message.to,
         });

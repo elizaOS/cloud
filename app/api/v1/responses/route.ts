@@ -816,10 +816,10 @@ function normalizeGatewayModelId(model: string): string {
  * `/responses` endpoint, streaming the response back verbatim.
  *
  * Credit handling: we reserve credits based on estimateRequestCost (which
- * already applies a 50% safety buffer) and settle on completion. Accurate
- * reconciliation from the `response.completed` SSE event is a TODO — for
- * now the estimated amount stands, matching existing behavior for
- * streaming chat completions when usage parsing fails.
+ * already applies a 50% safety buffer) and settle on completion. The
+ * estimated amount stands when reconciliation from the `response.completed`
+ * SSE event is not yet available, matching existing behavior for streaming
+ * chat completions when usage parsing fails.
  */
 async function handleNativeResponsesPassthrough(
   body: Record<string, unknown>,

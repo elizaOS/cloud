@@ -182,9 +182,9 @@ export interface OAuthProviderConfig {
   credentialFields?: CredentialField[];
 
   /**
-   * Legacy routes for backwards compatibility.
-   * New providers should use generic routes: /api/v1/oauth/[platform]/...
-   * @deprecated Use generic routes for new providers
+   * Provider-specific routes used when `useGenericRoutes` is false.
+   * New providers should set `useGenericRoutes: true` and use the
+   * generic routes at /api/v1/oauth/[platform]/... instead.
    */
   routes?: {
     initiate: string;

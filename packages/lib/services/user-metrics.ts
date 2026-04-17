@@ -410,7 +410,6 @@ class UserMetricsService {
    *
    * Currently only writes the NULL-platform (aggregate) row. Per-platform
    * retention cohorts are supported by the schema but not yet computed.
-   * TODO: add per-platform retention when the dashboard needs it.
    */
   async computeRetentionCohorts(date: Date): Promise<void> {
     const dayStart = new Date(

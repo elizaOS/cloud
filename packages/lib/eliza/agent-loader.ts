@@ -245,9 +245,7 @@ export class AgentLoader {
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       // ElevenLabs settings (shared config)
       ...buildElevenLabsSettings(charSettings),
-      ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
-        ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
-        : {}),
+      ...(elizaCharacter.avatarUrl ? { avatarUrl: elizaCharacter.avatarUrl } : {}),
     };
 
     // createCharacter() normalizes all fields internally. The ElizaCharacter DB type

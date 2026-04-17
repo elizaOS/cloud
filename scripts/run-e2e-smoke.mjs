@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const cloudRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const truthyValues = new Set(["1", "true", "yes", "on"]);
 const defaultServerPort = Number.parseInt(process.env.TEST_SERVER_PORT?.trim() || "3000", 10);
+const defaultBaseUrl =
+  process.env.TEST_BASE_URL?.trim() || `http://localhost:${defaultServerPort}`;
 
 function envFlagEnabled(name) {
   const value = process.env[name]?.trim().toLowerCase();
@@ -59,7 +61,11 @@ const result = spawnSync(
   {
     cwd: cloudRoot,
     stdio: "inherit",
-    env: process.env,
+    env: {
+      ...process.env,
+      TEST_BASE_URL: defaultBaseUrl,
+      TEST_SERVER_URL: process.env.TEST_SERVER_URL?.trim() || defaultBaseUrl,
+    },
   },
 );
 

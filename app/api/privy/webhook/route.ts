@@ -129,7 +129,7 @@ async function handlePrivyWebhook(request: NextRequest) {
           // Track signup completed event using internal UUID
           trackServerEvent(user.id, "signup_completed", {
             method: signupMethod,
-            has_referral: false, // TODO: Add referral tracking if implemented
+            has_referral: false,
           });
 
           logger.info("[PostHog] Tracked signup_completed", {

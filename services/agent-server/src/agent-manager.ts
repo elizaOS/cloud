@@ -332,9 +332,8 @@ export class AgentManager {
         });
       }
 
-      // TODO(#55): remove cast once upstream @elizaos/core adds `metadata` to
-      // EnsureConnectionParams. The intersection narrows the cast to only the
-      // extra field so the compiler still checks the standard fields.
+      // The intersection narrows the cast to only the extra `metadata`
+      // field so the compiler still checks the standard fields.
       await rt.ensureConnection({
         entityId: uid,
         roomId,

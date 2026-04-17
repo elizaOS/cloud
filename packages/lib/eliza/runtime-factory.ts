@@ -1561,12 +1561,6 @@ class DbAdapterPool {
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
   }
-
-  /** @deprecated Use removeAdapter() or closeAdapter() instead. */
-  async invalidateAdapter(agentId: string): Promise<void> {
-    elizaLogger.warn(`[DbAdapterPool] invalidateAdapter() deprecated - use removeAdapter()`);
-    await this.closeAdapter(agentId);
-  }
 }
 
 const runtimeCache = new RuntimeCache();

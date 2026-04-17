@@ -26,7 +26,10 @@ import { agentStateCache, type RoomContext } from "@/lib/cache/agent-state-cache
 import { cache as cacheClient } from "@/lib/cache/client";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { CacheTTL } from "@/lib/cache/keys";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
 import { agentEventEmitter } from "@/lib/events/agent-events";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
@@ -296,9 +299,11 @@ class AgentsService {
     try {
       // Use specific character runtime if provided (e.g., from WhatsApp/SMS routing),
       // otherwise fall back to the default system runtime.
-      const runtime = characterId
-        ? await agentRuntime.getRuntimeForCharacter(characterId)
-        : await agentRuntime.getRuntime();
+      const userContext = userContextService.createSystemContext(AgentMode.CHAT);
+      if (characterId) {
+        userContext.characterId = characterId;
+      }
+      const runtime = await runtimeFactory.createRuntimeForUser(userContext);
 
       await agentEventEmitter.emitResponseStarted(roomId, runtime.agentId);
 
@@ -309,11 +314,13 @@ class AgentsService {
           title: attachment.filename,
           contentType: attachment.type === "image" ? ContentType.IMAGE : ContentType.DOCUMENT,
         })) ?? [];
-      const { message: agentMessage, usage: messageUsage } = await agentRuntime.handleMessage(
+      const messageHandler = createMessageHandler(runtime, userContext);
+      const { message: agentMessage, usage: messageUsage } = await messageHandler.process({
         roomId,
-        { text: message, attachments: mediaAttachments },
+        text: message,
+        attachments: mediaAttachments,
         characterId,
-      );
+      });
 
       await agentEventEmitter.emitResponseComplete(
         roomId,

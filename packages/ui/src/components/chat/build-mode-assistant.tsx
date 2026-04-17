@@ -432,7 +432,7 @@ export function BuildModeAssistant({
             topics: character.topics || [],
             style: character.style || { all: [], chat: [], post: [] },
             messageExamples: character.messageExamples || [],
-            avatarUrl: character.avatarUrl || character.avatar_url || "",
+            avatarUrl: character.avatarUrl || "",
           }
         : null;
 

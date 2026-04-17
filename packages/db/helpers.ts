@@ -66,16 +66,6 @@ export function useWriteDb<T>(fn: (db: Database) => T): T {
   return fn(dbWrite);
 }
 
-/**
- * Execute operation with automatic read/write detection
- * NOTE: This uses write by default for safety. Use useReadDb for reads.
- *
- * @deprecated Use useReadDb or useWriteDb explicitly
- */
-export function useDb<T>(fn: (db: Database) => T): T {
-  return fn(db);
-}
-
 // ============================================================================
 // Async Helpers (for Promise-returning operations)
 // ============================================================================

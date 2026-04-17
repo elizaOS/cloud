@@ -493,12 +493,9 @@ describe("Multi-step decision template", () => {
 // ─── MCP Timeout ─────────────────────────────────────────────────────────────
 
 describe("MCP timeout constant", () => {
-  test("DEFAULT_MCP_TIMEOUT_MS is 15000ms and the legacy alias still matches", async () => {
-    const { DEFAULT_MCP_TIMEOUT_MS, DEFAULT_MCP_TIMEOUT_SECONDS } = await import(
-      "@/lib/eliza/plugin-mcp/types"
-    );
+  test("DEFAULT_MCP_TIMEOUT_MS is 15000ms", async () => {
+    const { DEFAULT_MCP_TIMEOUT_MS } = await import("@/lib/eliza/plugin-mcp/types");
     expect(DEFAULT_MCP_TIMEOUT_MS).toBe(15000);
-    expect(DEFAULT_MCP_TIMEOUT_SECONDS).toBe(DEFAULT_MCP_TIMEOUT_MS);
   });
 
   test("other MCP constants unchanged", async () => {

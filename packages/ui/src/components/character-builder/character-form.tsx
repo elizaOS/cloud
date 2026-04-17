@@ -358,7 +358,7 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
             characterDescription={
               typeof character.bio === "string" ? character.bio : character.bio?.join(" ") || ""
             }
-            currentAvatarUrl={character.avatarUrl || character.avatar_url}
+            currentAvatarUrl={character.avatarUrl}
             onAvatarChange={(url) => updateField("avatarUrl", url)}
           />
         </div>

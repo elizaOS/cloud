@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { nextJsonFromCaughtError, ValidationError } from "@/lib/api/errors";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
 import { logger } from "@/lib/utils/logger";
@@ -41,15 +42,16 @@ export async function POST(
   } catch (error) {
     logger.error("Error completing CLI authentication:", error);
 
-    if (error instanceof Error) {
-      if (
-        error.message.includes("Invalid or expired session") ||
-        error.message.includes("already authenticated")
-      ) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
-      }
+    // Session-state errors from the service are client-driven, not server failures.
+    if (
+      error instanceof Error &&
+      (error.message.includes("Invalid or expired session") ||
+        error.message.includes("already authenticated"))
+    ) {
+      return nextJsonFromCaughtError(new ValidationError(error.message));
     }
 
-    return NextResponse.json({ error: "Failed to complete authentication" }, { status: 500 });
+    // Map AuthenticationError → 401, ForbiddenError → 403, else 500.
+    return nextJsonFromCaughtError(error);
   }
 }

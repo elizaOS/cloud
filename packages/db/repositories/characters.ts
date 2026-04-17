@@ -214,11 +214,7 @@ export class UserCharactersRepository {
     const isLowered = normalized === normalized.toLowerCase();
 
     // Primary: exact match (works for all chains after normalisation on write).
-    // Fallback (EVM only): lower(stored) = normalised catches legacy mixed-case rows.
-    // TODO: Remove the lower() fallback once all existing rows have been
-    //       back-filled with normalised token_address values. Track via a
-    //       migration that updates rows where token_address != lower(token_address)
-    //       for EVM chains, then drop this branch.
+    // Fallback (EVM only): lower(stored) = normalised catches mixed-case rows.
     const addressCondition = isLowered
       ? sql`(${userCharacters.token_address} = ${normalized} OR lower(${userCharacters.token_address}) = ${normalized})`
       : eq(userCharacters.token_address, normalized);

@@ -88,50 +88,9 @@ export function requireStripe(): Stripe {
   return getStripe();
 }
 
-function createDeferredErrorProxy(): unknown {
-  return new Proxy(() => {}, {
-    get() {
-      return createDeferredErrorProxy();
-    },
-    apply() {
-      throw stripeInitError || new Error("STRIPE_SECRET_KEY is not set in environment variables");
-    },
-  });
-}
-
-/**
- * Lazy-initialized Stripe client proxy.
- *
- * @deprecated Use `requireStripe()` instead for type-safe access.
- * This proxy allows builds to succeed without STRIPE_SECRET_KEY but provides
- * no TypeScript safety - calls will throw at runtime if not configured.
- *
- * @warning This is a Proxy object, NOT a real Stripe instance at build time.
- * TypeScript shows this as `Stripe`, but methods will throw at runtime if
- * STRIPE_SECRET_KEY is not configured.
- *
- * @throws {Error} When any method is invoked without STRIPE_SECRET_KEY configured
- */
-export const stripe: Stripe = new Proxy({} as Stripe, {
-  get(target, prop, receiver) {
-    if (typeof prop === "symbol") {
-      return undefined;
-    }
-    const instance = initStripe();
-    if (!instance) {
-      return createDeferredErrorProxy();
-    }
-    const value = Reflect.get(instance, prop, receiver);
-    if (typeof value === "function") {
-      return value.bind(instance);
-    }
-    return value;
-  },
-});
-
 /**
  * Check if Stripe is configured (has valid secret key).
- * Use this before accessing the `stripe` proxy to avoid runtime errors.
+ * Use this before calling `requireStripe()` to avoid runtime errors.
  */
 export function isStripeConfigured(): boolean {
   const key = process.env.STRIPE_SECRET_KEY?.trim();
