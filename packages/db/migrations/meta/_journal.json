@@ -435,6 +435,13 @@
       "when": 1776200216619,
       "tag": "0064_add_ai_pricing_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1776499320000,
+      "tag": "0067_allow_multiple_oauth_connections_per_user",
+      "breakpoints": true
     }
   ]
 }

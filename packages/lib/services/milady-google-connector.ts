@@ -870,6 +870,65 @@ function normalizeReplySubject(subject: string): string {
   return /^re:/i.test(trimmed) ? trimmed : `Re: ${trimmed}`;
 }
 
+function shapeConnectedStatus(
+  side: OAuthConnectionRole,
+  connection: NonNullable<
+    Awaited<ReturnType<typeof getScopedGoogleConnections>>[number]
+  >,
+  row: GoogleConnectionRow | null,
+): ManagedGoogleConnectorStatus {
+  const connected = connection.status === "active";
+  const reason = connected
+    ? "connected"
+    : connection.status === "expired" || connection.status === "error"
+      ? "needs_reauth"
+      : "disconnected";
+
+  return {
+    provider: "google",
+    side,
+    mode: "cloud_managed",
+    configured: true,
+    connected,
+    reason,
+    identity: {
+      id: connection.platformUserId,
+      email: connection.email ?? null,
+      name: connection.displayName ?? connection.username ?? null,
+      avatarUrl: connection.avatarUrl ?? null,
+    },
+    grantedCapabilities: scopesToCapabilities(connection.scopes),
+    grantedScopes: [...connection.scopes],
+    expiresAt: row?.token_expires_at?.toISOString() ?? null,
+    hasRefreshToken: Boolean(row?.refresh_token_secret_id),
+    connectionId: connection.id,
+    linkedAt: connection.linkedAt.toISOString(),
+    lastUsedAt: connection.lastUsedAt?.toISOString() ?? null,
+  };
+}
+
+function emptyStatus(
+  side: OAuthConnectionRole,
+  configured: boolean,
+): ManagedGoogleConnectorStatus {
+  return {
+    provider: "google",
+    side,
+    mode: "cloud_managed",
+    configured,
+    connected: false,
+    reason: configured ? "disconnected" : "config_missing",
+    identity: null,
+    grantedCapabilities: [],
+    grantedScopes: [],
+    expiresAt: null,
+    hasRefreshToken: false,
+    connectionId: null,
+    linkedAt: null,
+    lastUsedAt: null,
+  };
+}
+
 export async function getManagedGoogleConnectorStatus(args: {
   organizationId: string;
   userId: string;
@@ -879,22 +938,7 @@ export async function getManagedGoogleConnectorStatus(args: {
   const configured = provider ? isProviderConfigured(provider) : false;
 
   if (!configured) {
-    return {
-      provider: "google",
-      side: args.side,
-      mode: "cloud_managed",
-      configured: false,
-      connected: false,
-      reason: "config_missing",
-      identity: null,
-      grantedCapabilities: [],
-      grantedScopes: [],
-      expiresAt: null,
-      hasRefreshToken: false,
-      connectionId: null,
-      linkedAt: null,
-      lastUsedAt: null,
-    };
+    return emptyStatus(args.side, false);
   }
 
   const { activeConnection, latestConnection, activeRow, latestRow } =
@@ -903,52 +947,41 @@ export async function getManagedGoogleConnectorStatus(args: {
   const currentRow = activeRow ?? latestRow ?? null;
 
   if (!currentConnection) {
-    return {
-      provider: "google",
-      side: args.side,
-      mode: "cloud_managed",
-      configured: true,
-      connected: false,
-      reason: "disconnected",
-      identity: null,
-      grantedCapabilities: [],
-      grantedScopes: [],
-      expiresAt: null,
-      hasRefreshToken: false,
-      connectionId: null,
-      linkedAt: null,
-      lastUsedAt: null,
-    };
+    return emptyStatus(args.side, true);
   }
 
-  const connected = currentConnection.status === "active";
-  const reason = connected
-    ? "connected"
-    : currentConnection.status === "expired" || currentConnection.status === "error"
-      ? "needs_reauth"
-      : "disconnected";
+  return shapeConnectedStatus(args.side, currentConnection, currentRow);
+}
 
-  return {
-    provider: "google",
-    side: args.side,
-    mode: "cloud_managed",
-    configured: true,
-    connected,
-    reason,
-    identity: {
-      id: currentConnection.platformUserId,
-      email: currentConnection.email ?? null,
-      name: currentConnection.displayName ?? currentConnection.username ?? null,
-      avatarUrl: currentConnection.avatarUrl ?? null,
-    },
-    grantedCapabilities: scopesToCapabilities(currentConnection.scopes),
-    grantedScopes: [...currentConnection.scopes],
-    expiresAt: currentRow?.token_expires_at?.toISOString() ?? null,
-    hasRefreshToken: Boolean(currentRow?.refresh_token_secret_id),
-    connectionId: currentConnection.id,
-    linkedAt: currentConnection.linkedAt.toISOString(),
-    lastUsedAt: currentConnection.lastUsedAt?.toISOString() ?? null,
-  };
+export async function listManagedGoogleConnectorAccounts(args: {
+  organizationId: string;
+  userId: string;
+  side?: OAuthConnectionRole;
+}): Promise<ManagedGoogleConnectorStatus[]> {
+  const provider = getProvider("google");
+  const configured = provider ? isProviderConfigured(provider) : false;
+
+  if (!configured) {
+    return [];
+  }
+
+  const sides: OAuthConnectionRole[] = args.side ? [args.side] : ["owner", "agent"];
+  const results: ManagedGoogleConnectorStatus[] = [];
+
+  for (const side of sides) {
+    const connections = await getScopedGoogleConnections({
+      organizationId: args.organizationId,
+      userId: args.userId,
+      side,
+    });
+
+    for (const connection of connections) {
+      const row = await getConnectionRow(args.organizationId, connection.id);
+      results.push(shapeConnectedStatus(side, connection, row));
+    }
+  }
+
+  return results;
 }
 
 export async function initiateManagedGoogleConnection(args: {

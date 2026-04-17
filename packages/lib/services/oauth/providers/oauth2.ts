@@ -5,7 +5,7 @@
  * Works with standard OAuth 2.0 and supports provider-specific variations via config.
  */
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { dbWrite } from "@/db/client";
 import { writeTransaction } from "@/db/helpers";
 import { platformCredentials, platformCredentialTypeEnum } from "@/db/schemas/platform-credentials";
@@ -610,118 +610,11 @@ async function storeConnection(
     }
   };
 
-  const revokeConnectionsDb = async (
-    connections: Array<{
-      id: string;
-      organization_id: string;
-      platform_user_id: string;
-      access_token_secret_id: string | null;
-      refresh_token_secret_id: string | null;
-    }>,
-    reason: string,
-    db = dbWrite,
-  ) => {
-    if (connections.length === 0) return;
-
-    await db
-      .update(platformCredentials)
-      .set({
-        status: "revoked",
-        revoked_at: new Date(),
-        updated_at: new Date(),
-        user_id: null,
-        error_message: reason,
-        access_token_secret_id: null,
-        refresh_token_secret_id: null,
-      })
-      .where(
-        inArray(
-          platformCredentials.id,
-          connections.map((c) => c.id),
-        ),
-      );
-  };
-
-  const revokeConnectionsSecrets = async (
-    connections: Array<{
-      id: string;
-      organization_id: string;
-      platform_user_id: string;
-      access_token_secret_id: string | null;
-      refresh_token_secret_id: string | null;
-    }>,
-    reason: string,
-  ) => {
-    if (connections.length === 0) return;
-
-    const revokeAudit = {
-      actorType: "user" as const,
-      actorId: userId,
-      source: `oauth2-${provider.id}-revoke-duplicate`,
-    };
-
-    const secretsToDelete = connections.flatMap((connection) => {
-      const secrets: Array<{
-        secretId: string;
-        tokenType: string;
-        organizationId: string;
-        connectionId: string;
-      }> = [];
-
-      if (connection.access_token_secret_id) {
-        secrets.push({
-          secretId: connection.access_token_secret_id,
-          tokenType: "access_token",
-          organizationId: connection.organization_id,
-          connectionId: connection.id,
-        });
-      }
-
-      if (connection.refresh_token_secret_id) {
-        secrets.push({
-          secretId: connection.refresh_token_secret_id,
-          tokenType: "refresh_token",
-          organizationId: connection.organization_id,
-          connectionId: connection.id,
-        });
-      }
-
-      return secrets;
-    });
-
-    const deleteSecret = async (
-      secretId: string,
-      tokenType: string,
-      organizationId: string,
-      connectionId: string,
-    ) => {
-      try {
-        await secretsService.delete(secretId, organizationId, revokeAudit);
-      } catch (error) {
-        logger.warn(`[OAuth2] Failed to delete ${tokenType} secret during revoke`, {
-          providerId: provider.id,
-          connectionId,
-          secretId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    };
-
-    await Promise.all(
-      secretsToDelete.map((secret) =>
-        deleteSecret(secret.secretId, secret.tokenType, secret.organizationId, secret.connectionId),
-      ),
-    );
-
-    logger.info("[OAuth2] Revoked duplicate platform connections", {
-      providerId: provider.id,
-      userId,
-      connectionIds: connections.map((c) => c.id),
-      reason,
-    });
-  };
-
-  // Check if this platform user ID is already linked to a different user in the org
+  // Look up any existing row for this exact (org, platform, platform_user_id).
+  // Uniqueness at the DB layer is enforced by
+  // platform_credentials_platform_user_idx so there is at most one match. If
+  // the match belongs to a different user in the same org, reject — the same
+  // Google account cannot be linked by two different Milady users.
   const existingByPlatformUser = await dbWrite
     .select({
       id: platformCredentials.id,
@@ -735,7 +628,6 @@ async function storeConnection(
         eq(platformCredentials.organization_id, organizationId),
         eq(platformCredentials.platform, providerPlatform),
         eq(platformCredentials.platform_user_id, userInfo.id),
-        sql`${platformCredentials.user_id} IS NOT NULL`,
       ),
     )
     .limit(1);
@@ -755,71 +647,7 @@ async function storeConnection(
     throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED");
   }
 
-  // Fetch any existing connections for this user/platform (should be at most one after constraints)
-  const existingUserConnections = await dbWrite
-    .select({
-      id: platformCredentials.id,
-      organization_id: platformCredentials.organization_id,
-      platform_user_id: platformCredentials.platform_user_id,
-      access_token_secret_id: platformCredentials.access_token_secret_id,
-      refresh_token_secret_id: platformCredentials.refresh_token_secret_id,
-    })
-    .from(platformCredentials)
-    .where(
-      connectionUserId
-        ? and(
-            eq(platformCredentials.organization_id, organizationId),
-            eq(platformCredentials.user_id, connectionUserId),
-            eq(platformCredentials.platform, providerPlatform),
-          )
-        : and(
-            eq(platformCredentials.organization_id, organizationId),
-            sql`${platformCredentials.user_id} IS NULL`,
-            eq(platformCredentials.platform, providerPlatform),
-            sql`COALESCE(${platformCredentials.source_context}->>'miladyGoogleSide', 'owner') = ${connectionRole}`,
-          ),
-    )
-    .orderBy(
-      desc(
-        sql`COALESCE(${platformCredentials.linked_at}, ${platformCredentials.updated_at}, ${platformCredentials.created_at})`,
-      ),
-    );
-
-  const matchingUserConnection = existingUserConnections.find(
-    (connection) => connection.platform_user_id === userInfo.id,
-  );
-
-  let pendingRevocation:
-    | {
-        connections: Array<{
-          id: string;
-          organization_id: string;
-          platform_user_id: string;
-          access_token_secret_id: string | null;
-          refresh_token_secret_id: string | null;
-        }>;
-        reason: string;
-      }
-    | undefined;
-
-  if (matchingUserConnection) {
-    const duplicates = existingUserConnections.filter(
-      (connection) => connection.id !== matchingUserConnection.id,
-    );
-    if (duplicates.length > 0) {
-      pendingRevocation = {
-        connections: duplicates,
-        reason: "duplicate user/platform connection",
-      };
-    }
-  } else if (existingUserConnections.length > 0) {
-    pendingRevocation = {
-      connections: existingUserConnections,
-      reason: "replaced by new platform connection",
-    };
-  }
-
-  const existing = matchingUserConnection ? [matchingUserConnection] : existingByPlatformUser;
+  const existing = existingByPlatformUser;
 
   let accessTokenSecretId: string;
   let refreshTokenSecretId: string | undefined;
@@ -947,23 +775,10 @@ async function storeConnection(
     ? new Date(Date.now() + expiresInSeconds * 1000)
     : undefined;
 
-  let revokeFailed = false;
-  let revokeFailure: unknown;
   let insertBlocked = false;
 
-  // Upsert connection with cleanup on failure
   try {
     const connectionId = await writeTransaction(async (tx) => {
-      if (pendingRevocation) {
-        try {
-          await revokeConnectionsDb(pendingRevocation.connections, pendingRevocation.reason, tx);
-        } catch (revokeError) {
-          revokeFailed = true;
-          revokeFailure = revokeError;
-          throw revokeError;
-        }
-      }
-
       const result = await tx
         .insert(platformCredentials)
         .values({
@@ -1023,29 +838,14 @@ async function storeConnection(
       return result[0].id;
     });
 
-    if (pendingRevocation) {
-      await revokeConnectionsSecrets(pendingRevocation.connections, pendingRevocation.reason);
-    }
-
     return connectionId;
   } catch (error) {
-    if (revokeFailed) {
-      await cleanupNewlyCreatedSecrets("Revocation failed prior to insert");
-      throw revokeFailure ?? error;
-    }
-
     if (insertBlocked) {
       await cleanupNewlyCreatedSecrets("Database insert blocked by existing connection");
       throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED");
     }
 
     await cleanupNewlyCreatedSecrets("Database insert failed");
-    // Map unique constraint violation on user_platform_idx to a domain error
-    // This handles the race condition where a concurrent OAuth completion for the
-    // same user/platform inserts between our revoke and insert
-    if (error instanceof Error && error.message.includes("user_platform_idx")) {
-      throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED");
-    }
     throw error;
   }
 }
