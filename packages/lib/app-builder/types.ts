@@ -54,7 +54,7 @@ export interface MessageImagePreview {
 export interface Message {
   role: "user" | "assistant";
   content: string;
-  reasoning?: string; // Overall reasoning (deprecated - use operations.reasoning)
+  reasoning?: string; // Overall reasoning for the assistant message (shown above operations)
   operations?: MessageOperation[]; // Per-operation data with reasoning for accordions
   filesAffected?: string[];
   images?: MessageImagePreview[]; // Attached images for preview

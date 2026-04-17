@@ -1076,7 +1076,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         lastActionKey = dedupKey;
 
         if (!action) {
-          // Deprecated fallback: isFinish without an action
+          // Fallback: isFinish flag set without an explicit action
           if (isFinish) {
             logger.info(
               `[MultiStep] Task complete (isFinish) at iteration ${iterationCount}`,
@@ -1287,7 +1287,7 @@ export class CloudBootstrapMessageService implements IMessageService {
           break;
         }
 
-        // Deprecated fallback: isFinish flag without FINISH action
+        // Fallback: isFinish flag set without an explicit FINISH action
         if (isFinish) {
           logger.info(
             `[MultiStep] Task complete (isFinish fallback) at iteration ${iterationCount}`,
