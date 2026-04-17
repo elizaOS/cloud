@@ -872,9 +872,7 @@ function normalizeReplySubject(subject: string): string {
 
 function shapeConnectedStatus(
   side: OAuthConnectionRole,
-  connection: NonNullable<
-    Awaited<ReturnType<typeof getScopedGoogleConnections>>[number]
-  >,
+  connection: NonNullable<Awaited<ReturnType<typeof getScopedGoogleConnections>>[number]>,
   row: GoogleConnectionRow | null,
 ): ManagedGoogleConnectorStatus {
   const connected = connection.status === "active";
@@ -907,10 +905,7 @@ function shapeConnectedStatus(
   };
 }
 
-function emptyStatus(
-  side: OAuthConnectionRole,
-  configured: boolean,
-): ManagedGoogleConnectorStatus {
+function emptyStatus(side: OAuthConnectionRole, configured: boolean): ManagedGoogleConnectorStatus {
   return {
     provider: "google",
     side,

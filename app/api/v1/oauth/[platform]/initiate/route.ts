@@ -125,7 +125,8 @@ async function handleInitiate(request: NextRequest, context: RouteParams): Promi
       return NextResponse.json(
         {
           error: "INVALID_REDIRECT_URL",
-          message: "redirectUrl must be an absolute URL on an allowlisted origin or a relative path",
+          message:
+            "redirectUrl must be an absolute URL on an allowlisted origin or a relative path",
         },
         { status: 400 },
       );

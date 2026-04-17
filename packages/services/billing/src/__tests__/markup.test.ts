@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  applyMarkup,
-  applyMarkupCents,
-  DEFAULT_MARKUP_RATE,
-} from "../markup";
+import { applyMarkup, applyMarkupCents, DEFAULT_MARKUP_RATE } from "../markup";
 
 describe("applyMarkup", () => {
   it("applies the default 20% markup to a whole-dollar cost", () => {

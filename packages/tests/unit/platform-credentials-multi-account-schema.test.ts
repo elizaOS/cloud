@@ -5,17 +5,11 @@
  * to link multiple distinct Google accounts as separate rows.
  */
 
+import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "bun:test";
 
-const MIGRATIONS_DIR = join(
-  import.meta.dir,
-  "..",
-  "..",
-  "db",
-  "migrations",
-);
+const MIGRATIONS_DIR = join(import.meta.dir, "..", "..", "db", "migrations");
 
 function readMigration(tag: string): string {
   return readFileSync(join(MIGRATIONS_DIR, `${tag}.sql`), "utf8");

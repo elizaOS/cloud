@@ -20,15 +20,11 @@ export const twilioInboundCalls = pgTable(
     call_status: text("call_status").notNull(),
     agent_id: uuid("agent_id"),
     raw_payload: jsonb("raw_payload").notNull().default({}),
-    received_at: timestamp("received_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    received_at: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     toIdx: index("twilio_inbound_calls_to_idx").on(table.to_number),
-    receivedIdx: index("twilio_inbound_calls_received_idx").on(
-      table.received_at,
-    ),
+    receivedIdx: index("twilio_inbound_calls_received_idx").on(table.received_at),
   }),
 );
 

@@ -7,8 +7,7 @@ import { fileURLToPath } from "node:url";
 const cloudRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const truthyValues = new Set(["1", "true", "yes", "on"]);
 const defaultServerPort = Number.parseInt(process.env.TEST_SERVER_PORT?.trim() || "3000", 10);
-const defaultBaseUrl =
-  process.env.TEST_BASE_URL?.trim() || `http://localhost:${defaultServerPort}`;
+const defaultBaseUrl = process.env.TEST_BASE_URL?.trim() || `http://localhost:${defaultServerPort}`;
 
 function envFlagEnabled(name) {
   const value = process.env[name]?.trim().toLowerCase();

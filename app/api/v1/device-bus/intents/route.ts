@@ -12,9 +12,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { dbWrite } from "@/db/helpers";
 import { deviceIntents } from "@/db/schemas";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";

@@ -53,10 +53,7 @@ export async function POST(request: NextRequest) {
     const agentId = typeof body.agentId === "string" ? body.agentId.trim() : "";
     if (!agentId) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "agentId is required" },
-          { status: 400 },
-        ),
+        NextResponse.json({ success: false, error: "agentId is required" }, { status: 400 }),
         CORS_METHODS,
       );
     }
@@ -66,16 +63,10 @@ export async function POST(request: NextRequest) {
         ? body.requesterIdentity.trim()
         : user.id;
 
-    const sandbox = await miladySandboxesRepository.findByIdAndOrg(
-      agentId,
-      user.organization_id,
-    );
+    const sandbox = await miladySandboxesRepository.findByIdAndOrg(agentId, user.organization_id);
     if (!sandbox) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "Agent not found" },
-          { status: 404 },
-        ),
+        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
         CORS_METHODS,
       );
     }
@@ -106,10 +97,7 @@ export async function POST(request: NextRequest) {
       }),
       CORS_METHODS,
     );
-    response.headers.set(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate",
-    );
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     response.headers.set("Pragma", "no-cache");
     response.headers.set("Expires", "0");
     return response;

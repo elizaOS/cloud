@@ -19,24 +19,15 @@ export function OPTIONS() {
   return handleCorsOptions(CORS_METHODS);
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
 
-    const existing = await remoteSessionsRepository.findByIdAndOrg(
-      id,
-      user.organization_id,
-    );
+    const existing = await remoteSessionsRepository.findByIdAndOrg(id, user.organization_id);
     if (!existing) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "Session not found" },
-          { status: 404 },
-        ),
+        NextResponse.json({ success: false, error: "Session not found" }, { status: 404 }),
         CORS_METHODS,
       );
     }
@@ -51,16 +42,10 @@ export async function POST(
       );
     }
 
-    const revoked = await remoteSessionsRepository.revoke(
-      id,
-      user.organization_id,
-    );
+    const revoked = await remoteSessionsRepository.revoke(id, user.organization_id);
     if (!revoked) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "Revoke failed" },
-          { status: 409 },
-        ),
+        NextResponse.json({ success: false, error: "Revoke failed" }, { status: 409 }),
         CORS_METHODS,
       );
     }
