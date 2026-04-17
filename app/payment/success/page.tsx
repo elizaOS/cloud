@@ -1,10 +1,10 @@
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics/posthog";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
 /**
  * Payment Success Callback Page
@@ -21,7 +21,7 @@ import { trackEvent } from "@/lib/analytics/posthog";
 function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated } = useSessionAuth();
   const hasTracked = useRef(false);
 
   // Extract trackId once to use as stable dependency

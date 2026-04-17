@@ -9,9 +9,9 @@
 "use client";
 
 import { CornerBrackets } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { LogIn, Settings, UserPlus } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import { cn } from "@/lib/utils";
 
 interface SidebarBottomPanelProps {
@@ -19,11 +19,8 @@ interface SidebarBottomPanelProps {
   isCollapsed?: boolean;
 }
 
-export function SidebarBottomPanel({
-  className,
-  isCollapsed = false,
-}: SidebarBottomPanelProps) {
-  const { ready, authenticated, user } = usePrivy();
+export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBottomPanelProps) {
+  const { ready, authenticated, user } = useSessionAuth();
   const pathname = usePathname();
 
   // If not authenticated, show sign up/login CTA
@@ -61,9 +58,7 @@ export function SidebarBottomPanel({
 
         <div className="relative z-10 px-3 py-3">
           <div className="flex flex-col gap-2">
-            <p className="text-[10px] text-white/40 mb-1">
-              Sign up for full access
-            </p>
+            <p className="text-[10px] text-white/40 mb-1">Sign up for full access</p>
 
             <a
               href={loginHref}

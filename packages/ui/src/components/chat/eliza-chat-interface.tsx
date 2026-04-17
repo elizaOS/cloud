@@ -39,6 +39,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import type {
   ReasoningChunkData,
   StreamChunkData,
@@ -65,7 +66,6 @@ import {
   DropdownMenuTrigger,
 } from "@elizaos/cloud-ui";
 import { ContentType, type Media } from "@elizaos/core";
-import { usePrivy } from "@privy-io/react-auth";
 import {
   ADDITIONAL_IMAGE_MODELS,
   ADDITIONAL_MODELS,
@@ -168,7 +168,7 @@ export function ElizaChatInterface({
   } = useChatStore();
 
   // Check authentication status for features that require it
-  const { authenticated } = usePrivy();
+  const { authenticated } = useSessionAuth();
   const _router = useRouter();
 
   const [messages, setMessages] = useState<Message[]>([]);

@@ -43,6 +43,9 @@ async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
   let reservation: CreditReservation | undefined;
   let selectedModel = "fal-ai/veo3";
+  let quotedVideoCost:
+    | Awaited<ReturnType<typeof calculateVideoGenerationCostFromCatalog>>
+    | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -76,7 +79,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     const billingDefaults = getDefaultVideoBillingDimensions(model);
-    const quotedVideoCost = await calculateVideoGenerationCostFromCatalog({
+    quotedVideoCost = await calculateVideoGenerationCostFromCatalog({
       model,
       durationSeconds: billingDefaults.durationSeconds,
       dimensions: billingDefaults.dimensions,
@@ -129,8 +132,8 @@ async function handlePOST(request: NextRequest) {
 
     if (!data?.video?.url) {
       logger.error("[VIDEO GENERATION] No video URL in response:", data);
-      // Reconcile with 0 cost (full refund)
-      await reservation.reconcile(0);
+      // Partial charge (~10% of quoted cost) — fal.ai may still bill for compute
+      await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
       return NextResponse.json(
         { error: "No video URL was returned from the generation service" },
         { status: 500 },
@@ -142,17 +145,13 @@ async function handlePOST(request: NextRequest) {
     let blobFileSize: bigint | null = null;
 
     const fileExtension =
-      data.video.content_type?.split("/")[1] ||
-      data.video.file_name?.split(".").pop() ||
-      "mp4";
+      data.video.content_type?.split("/")[1] || data.video.file_name?.split(".").pop() || "mp4";
 
     try {
       // Always upload to our storage - videos come from Fal.ai
       if (!isFalAiUrl(data.video.url)) {
         // If for some reason it's not a Fal.ai URL, log a warning but still upload
-        console.warn(
-          `[VIDEO GENERATION] Unexpected non-Fal.ai URL: ${data.video.url}`,
-        );
+        console.warn(`[VIDEO GENERATION] Unexpected non-Fal.ai URL: ${data.video.url}`);
       }
 
       const uploadResult = await uploadFromUrl(data.video.url, {
@@ -165,12 +164,9 @@ async function handlePOST(request: NextRequest) {
       blobUrl = uploadResult.url;
       blobFileSize = BigInt(uploadResult.size);
     } catch (blobError) {
-      logger.error(
-        "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
-        blobError,
-      );
-      // Reconcile with 0 cost (full refund) - video generated but storage failed
-      await reservation.reconcile(0);
+      logger.error("[VIDEO GENERATION] Failed to upload to Vercel Blob:", blobError);
+      // Partial charge (~10% of quoted cost) — fal.ai already billed for the generation
+      await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
       return NextResponse.json(
         { error: "Failed to store video in our storage. Please try again." },
         { status: 500 },
@@ -260,13 +256,10 @@ async function handlePOST(request: NextRequest) {
           cost: billing.totalCost,
         })
         .catch((err) => {
-          logger.warn(
-            "[VIDEO GENERATION] Failed to send Discord notification",
-            {
-              generationId,
-              error: err instanceof Error ? err.message : "Unknown error",
-            },
-          );
+          logger.warn("[VIDEO GENERATION] Failed to send Discord notification", {
+            generationId,
+            error: err instanceof Error ? err.message : "Unknown error",
+          });
         });
     }
 
@@ -293,19 +286,17 @@ async function handlePOST(request: NextRequest) {
 
     const status = getErrorStatusCode(error);
     if (status !== 500) {
-      return NextResponse.json(
-        { error: getSafeErrorMessage(error) },
-        { status },
-      );
+      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
     }
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
-    // If reservation was made, refund the reservation when generation fails
-    if (reservation) {
+    // If reservation was made, charge ~10% — fal.ai may still bill for the compute attempt
+    if (reservation && quotedVideoCost) {
+      await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
+      logger.info("[VIDEO GENERATION] Partial charge applied after failure (~10% of quoted cost)");
+    } else if (reservation) {
       await reservation.reconcile(0);
-      logger.info("[VIDEO GENERATION] Credits refunded after failure");
     }
 
     try {
@@ -348,10 +339,7 @@ async function handlePOST(request: NextRequest) {
         });
       }
     } catch (authError) {
-      logger.error(
-        "[VIDEO GENERATION] Auth error during fallback logging:",
-        authError,
-      );
+      logger.error("[VIDEO GENERATION] Auth error during fallback logging:", authError);
     }
 
     return NextResponse.json(
@@ -365,10 +353,7 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-const rateLimitedHandlePOST = withRateLimit(
-  handlePOST,
-  RateLimitPresets.CRITICAL,
-);
+const rateLimitedHandlePOST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
 
 export async function POST(request: NextRequest) {
   try {

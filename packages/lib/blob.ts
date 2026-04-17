@@ -86,6 +86,12 @@ export async function uploadToBlob(
     ? `${folder}/${userId}/${timestamp}-${filename}`
     : `${folder}/${timestamp}-${filename}`;
 
+  // TODO: Vercel Blob only supports `access: "public"` as of 2026-04.
+  // Private blob access is in beta and not yet available for production use.
+  // All uploaded blobs are publicly accessible via their URL with no auth or expiry.
+  // The proper fix is an auth-gated proxy route that validates user sessions before
+  // serving blob content, but that requires a larger architectural change.
+  // See: https://vercel.com/docs/storage/vercel-blob#access
   const blob = await put(pathname, content, {
     access: "public",
     contentType,

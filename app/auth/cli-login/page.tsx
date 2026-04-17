@@ -1,19 +1,13 @@
 "use client";
 
 import { Button } from "@elizaos/cloud-ui/components/button";
-import { usePrivy } from "@privy-io/react-auth";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Key,
-  Loader2,
-  Terminal,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Key, Loader2, Terminal } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
 function CliLoginContent() {
-  const { authenticated, login, user, ready } = usePrivy();
+  const { authenticated, ready, user } = useSessionAuth();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
 
@@ -34,11 +28,8 @@ function CliLoginContent() {
   const [status, setStatus] = useState<
     "loading" | "waiting_auth" | "completing" | "success" | "error"
   >(initialStatus.status);
-  const [errorMessage, setErrorMessage] = useState<string>(
-    initialStatus.errorMessage,
-  );
+  const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const completeCliLogin = useCallback(async () => {
     if (!sessionId) {
@@ -50,15 +41,12 @@ function CliLoginContent() {
     setStatus("completing");
 
     try {
-      const response = await fetch(
-        `/api/auth/cli-session/${sessionId}/complete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+      const response = await fetch(`/api/auth/cli-session/${sessionId}/complete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -74,28 +62,20 @@ function CliLoginContent() {
 
       // Signal the opener window (Milady UI) that auth is complete
       try {
-        window.opener?.postMessage(
-          { type: "eliza-cloud-auth-complete", sessionId },
-          "*",
-        );
+        window.opener?.postMessage({ type: "eliza-cloud-auth-complete", sessionId }, "*");
       } catch {
         // opener may not be accessible (cross-origin policy or popup blocker)
       }
     } catch (error) {
       console.error("CLI login error:", error);
       setStatus("error");
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Network error. Please try again.",
-      );
+      setErrorMessage(error instanceof Error ? error.message : "Network error. Please try again.");
     }
   }, [sessionId]);
 
   // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
-    // Don't override "completing" or "success" states - they represent process progress
-    // that shouldn't be reset by initial status changes
+    // Don't override "completing" or "success" states
     if (status === "completing" || status === "success") {
       return;
     }
@@ -103,9 +83,7 @@ function CliLoginContent() {
     const nextStatus = initialStatus.status;
     const nextErrorMessage = initialStatus.errorMessage;
 
-    // Only update if status changed to avoid unnecessary renders
     if (status !== nextStatus || errorMessage !== nextErrorMessage) {
-      // Use setTimeout to avoid synchronous setState in effect
       const timer = setTimeout(() => {
         setStatus(nextStatus);
         setErrorMessage(nextErrorMessage);
@@ -117,13 +95,31 @@ function CliLoginContent() {
   // Separate effect for completing login when authenticated
   useEffect(() => {
     if (initialStatus.status === "loading" && authenticated && sessionId) {
-      // Use setTimeout to avoid synchronous setState in effect
       const timer = setTimeout(() => {
         completeCliLogin();
       }, 0);
       return () => clearTimeout(timer);
     }
   }, [initialStatus.status, authenticated, sessionId, completeCliLogin]);
+
+  const signInHref = useMemo(() => {
+    if (typeof window === "undefined") return "/login";
+    const returnTo = `/auth/cli-login${window.location.search}`;
+    return `/login?returnTo=${encodeURIComponent(returnTo)}`;
+  }, []);
+
+  // Pull email off the user object defensively — privy + steward user shapes differ
+  const userEmail: string | undefined = (() => {
+    if (!user) return undefined;
+    // steward user
+    if ("email" in user && typeof (user as { email?: unknown }).email === "string") {
+      return (user as { email: string }).email;
+    }
+    // privy user
+    const privyEmail = (user as { email?: { address?: string } | null })?.email?.address;
+    if (typeof privyEmail === "string") return privyEmail;
+    return undefined;
+  })();
 
   if (status === "loading") {
     return (
@@ -136,9 +132,7 @@ function CliLoginContent() {
             </div>
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-white">Loading...</h2>
-              <p className="text-sm text-neutral-500">
-                Preparing authentication
-              </p>
+              <p className="text-sm text-neutral-500">Preparing authentication</p>
             </div>
           </div>
         </div>
@@ -156,9 +150,7 @@ function CliLoginContent() {
               <AlertCircle className="h-7 w-7 text-red-500" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">
-                Authentication Error
-              </h2>
+              <h2 className="text-xl font-semibold text-white">Authentication Error</h2>
               <p className="text-sm text-neutral-500">{errorMessage}</p>
             </div>
             <Button
@@ -184,31 +176,26 @@ function CliLoginContent() {
               <Terminal className="h-7 w-7 text-[#FF5800]" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-white">
-                CLI Authentication
-              </h2>
+              <h2 className="text-xl font-semibold text-white">CLI Authentication</h2>
               <p className="text-sm text-neutral-500">
                 Sign in to connect your Milady app or CLI to Eliza Cloud
               </p>
             </div>
-            <Button
-              onClick={async () => {
-                setIsLoggingIn(true);
-                await login();
-                setTimeout(() => setIsLoggingIn(false), 1000);
-              }}
-              className="w-full h-11 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
-              disabled={!ready || isLoggingIn}
-            >
-              {!ready || isLoggingIn ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Loading...
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
+            <a href={signInHref} className="w-full">
+              <Button
+                className="w-full h-11 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
+                disabled={!ready}
+              >
+                {!ready ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Loading...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
+              </Button>
+            </a>
           </div>
         </div>
       </div>
@@ -225,9 +212,7 @@ function CliLoginContent() {
               <Key className="h-7 w-7 text-[#FF5800] animate-pulse" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">
-                Generating API Key
-              </h2>
+              <h2 className="text-xl font-semibold text-white">Generating API Key</h2>
               <p className="text-sm text-neutral-500">
                 Creating your credentials for CLI access...
               </p>
@@ -253,18 +238,14 @@ function CliLoginContent() {
               <CheckCircle2 className="h-7 w-7 text-green-500" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">
-                Authentication Complete!
-              </h2>
+              <h2 className="text-xl font-semibold text-white">Authentication Complete!</h2>
               <p className="text-sm text-neutral-500">
                 Your API key has been generated and sent to the CLI
               </p>
             </div>
 
             <div className="w-full rounded-xl bg-black/40 border border-white/10 p-4 space-y-3">
-              <p className="text-xs font-medium text-neutral-400">
-                API Key Details
-              </p>
+              <p className="text-xs font-medium text-neutral-400">API Key Details</p>
               <div className="text-sm space-y-2">
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Prefix</span>
@@ -272,9 +253,7 @@ function CliLoginContent() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Created for</span>
-                  <span className="text-white">
-                    {user?.email?.address || "Your account"}
-                  </span>
+                  <span className="text-white">{userEmail || "Your account"}</span>
                 </div>
               </div>
             </div>
@@ -304,7 +283,8 @@ function CliLoginContent() {
 
 /**
  * CLI login page for authenticating command-line tool users.
- * Handles Privy authentication and generates API keys for CLI access.
+ * Uses the shared session auth (Steward + Privy) to detect the active session,
+ * then generates an API key for CLI access.
  */
 export default function CliLoginPage() {
   return (
@@ -319,9 +299,7 @@ export default function CliLoginPage() {
               </div>
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold text-white">Loading...</h2>
-                <p className="text-sm text-neutral-500">
-                  Initializing authentication
-                </p>
+                <p className="text-sm text-neutral-500">Initializing authentication</p>
               </div>
             </div>
           </div>

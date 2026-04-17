@@ -11,11 +11,7 @@ import { PrivyClient } from "@privy-io/server-auth";
 import { Redis } from "@upstash/redis";
 import type { NextRequest } from "next/server";
 import { jsonError } from "@/lib/api/errors";
-import {
-  CORS_ALLOW_HEADERS,
-  CORS_ALLOW_METHODS,
-  CORS_MAX_AGE,
-} from "@/lib/cors-constants";
+import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS, CORS_MAX_AGE } from "@/lib/cors-constants";
 
 // Helper to create "next" response (continue to route handler)
 // Uses internal Next.js header that NextResponse.next() sets
@@ -57,10 +53,7 @@ function middlewareRedirect(
   // Set cookies to delete
   if (options?.deleteCookies) {
     for (const cookie of options.deleteCookies) {
-      headers.append(
-        "Set-Cookie",
-        `${cookie}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
-      );
+      headers.append("Set-Cookie", `${cookie}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
     }
   }
 
@@ -77,8 +70,7 @@ let redis: Redis | null = null;
 function getRedis(): Redis | null {
   if (redis) return redis;
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token =
-    process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (url && token) redis = new Redis({ url, token });
   return redis;
 }
@@ -107,9 +99,7 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
   const client = getRedis();
   if (!client) return null;
   try {
-    const cached = await client.get<CachedAuth | string>(
-      `proxy:auth:${hashToken(token)}`,
-    );
+    const cached = await client.get<CachedAuth | string>(`proxy:auth:${hashToken(token)}`);
     if (!cached) return null;
     // Handle both old string format and new object format
     if (typeof cached === "string") {
@@ -120,11 +110,7 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
       return JSON.parse(cached);
     }
     // Validate it's actually a CachedAuth object
-    if (
-      typeof cached === "object" &&
-      "valid" in cached &&
-      "cachedAt" in cached
-    ) {
+    if (typeof cached === "object" && "valid" in cached && "cachedAt" in cached) {
       return cached;
     }
     return null;
@@ -145,11 +131,7 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
   const client = getRedis();
   if (!client) return;
   try {
-    await client.setex(
-      `proxy:auth:${hashToken(token)}`,
-      AUTH_CACHE_TTL,
-      JSON.stringify(auth),
-    );
+    await client.setex(`proxy:auth:${hashToken(token)}`, AUTH_CACHE_TTL, JSON.stringify(auth));
   } catch (error) {
     // Log Redis write errors but don't block auth - caching is best-effort
     console.warn(
@@ -162,15 +144,11 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
 function isJwtExpiredError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const e = error as { code?: unknown; claim?: unknown; reason?: unknown };
-  return (
-    e.code === "ERR_JWT_EXPIRED" ||
-    (e.claim === "exp" && e.reason === "check_failed")
-  );
+  return e.code === "ERR_JWT_EXPIRED" || (e.claim === "exp" && e.reason === "check_failed");
 }
 
 function isInvalidOrMalformedJwtError(error: unknown): boolean {
-  if (!error || typeof error !== "object" || isJwtExpiredError(error))
-    return false;
+  if (!error || typeof error !== "object" || isJwtExpiredError(error)) return false;
 
   const e = error as { code?: unknown; name?: unknown; message?: unknown };
   const code = typeof e.code === "string" ? e.code : "";
@@ -202,9 +180,7 @@ function isObviouslyMalformedToken(token: string): boolean {
   }
 
   const segments = normalized.split(".");
-  return (
-    segments.length !== 3 || segments.some((segment) => segment.length === 0)
-  );
+  return segments.length !== 3 || segments.some((segment) => segment.length === 0);
 }
 
 function buildLoginRedirectUrl(request: NextRequest): URL {
@@ -226,17 +202,14 @@ function handleTokenFailure(
   options?: { clearCookies?: boolean },
 ): Response {
   if (pathname.startsWith("/api/")) {
-    const errorMessage =
-      reason === "expired" ? "Token expired" : "Invalid authentication token";
+    const errorMessage = reason === "expired" ? "Token expired" : "Invalid authentication token";
     return jsonError(errorMessage, 401, "authentication_required", {
       "X-Proxy-Time": `${Date.now() - startTime}ms`,
     });
   }
 
   return middlewareRedirect(buildLoginRedirectUrl(request), {
-    deleteCookies: options?.clearCookies
-      ? ["privy-token", "privy-id-token"]
-      : undefined,
+    deleteCookies: options?.clearCookies ? ["privy-token", "privy-id-token"] : undefined,
     headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
   });
 }
@@ -356,9 +329,8 @@ const sessionOnlyPathPatterns = [
 
 function isSessionOnlyPath(pathname: string): boolean {
   return (
-    sessionOnlyPaths.some(
-      (p) => pathname === p || pathname.startsWith(`${p}/`),
-    ) || sessionOnlyPathPatterns.some((pattern) => pattern.test(pathname))
+    sessionOnlyPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
+    sessionOnlyPathPatterns.some((pattern) => pattern.test(pathname))
   );
 }
 
@@ -401,34 +373,27 @@ export async function proxy(request: NextRequest) {
     const stewardToken = request.cookies.get("steward-token");
     const authToken = privyToken || stewardToken;
 
-    // Steward tokens are HS256 (verified by getCurrentUser, not Privy)
-    // Just pass them through the middleware without Privy verification
-    if (stewardToken && !privyToken && !bearerToken) {
-      return middlewareNext({
-        headers: {
-          "X-Proxy-Time": `${Date.now() - startTime}ms`,
-          "X-Auth-Source": "steward",
-        },
-      });
-    }
     const playwrightTestSession =
       process.env.PLAYWRIGHT_TEST_AUTH === "true"
         ? request.cookies.get(PLAYWRIGHT_TEST_SESSION_COOKIE_NAME)
         : undefined;
     const authHeader = request.headers.get("Authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+    // Steward tokens are HS256 (verified by getCurrentUser, not Privy)
+    // Just pass them through the middleware without Privy verification
+    if (stewardToken && !privyToken && !bearerToken) {
+      return middlewareNext({
+        headers: { "X-Proxy-Time": `${Date.now() - startTime}ms`, "X-Auth-Source": "steward" },
+      });
+    }
     const apiKey = request.headers.get("X-API-Key");
 
     // Wallet-sig passthrough only for paths that verify the signature (getTopupRecipient or verifyWalletSignature)
     const walletSig = request.headers.get("X-Wallet-Signature");
     const allowWalletPassthrough =
-      pathname.startsWith("/api/v1/topup") ||
-      pathname.startsWith("/api/v1/user/wallets");
-    const hasElizaBearer = Boolean(
-      bearerToken && bearerToken.startsWith("eliza_"),
-    );
+      pathname.startsWith("/api/v1/topup") || pathname.startsWith("/api/v1/user/wallets");
+    const hasElizaBearer = Boolean(bearerToken && bearerToken.startsWith("eliza_"));
     const programmaticAuth = Boolean(apiKey || hasElizaBearer);
     // Keys are verified in route handlers (DB), not in middleware — we only avoid burning Privy work.
     if (programmaticAuth || (walletSig && allowWalletPassthrough)) {
@@ -467,11 +432,7 @@ export async function proxy(request: NextRequest) {
     }
 
     if (isObviouslyMalformedToken(token)) {
-      await setCachedAuth(token, {
-        valid: false,
-        reason: "invalid",
-        cachedAt: Date.now(),
-      });
+      await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
       return handleTokenFailure(request, pathname, startTime, "invalid", {
         clearCookies: usingCookieToken,
       });
@@ -479,15 +440,9 @@ export async function proxy(request: NextRequest) {
 
     const cachedAuth = await getCachedAuth(token);
     if (cachedAuth && !cachedAuth.valid) {
-      return handleTokenFailure(
-        request,
-        pathname,
-        startTime,
-        cachedAuth.reason ?? "invalid",
-        {
-          clearCookies: usingCookieToken,
-        },
-      );
+      return handleTokenFailure(request, pathname, startTime, cachedAuth.reason ?? "invalid", {
+        clearCookies: usingCookieToken,
+      });
     }
 
     if (cachedAuth?.valid && cachedAuth.userId) {
@@ -521,28 +476,19 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    let user: Awaited<ReturnType<typeof privyClient.verifyAuthToken>> | null =
-      null;
+    let user: Awaited<ReturnType<typeof privyClient.verifyAuthToken>> | null = null;
     try {
       user = await privyClient.verifyAuthToken(token);
     } catch (error) {
       if (isJwtExpiredError(error)) {
-        await setCachedAuth(token, {
-          valid: false,
-          reason: "expired",
-          cachedAt: Date.now(),
-        });
+        await setCachedAuth(token, { valid: false, reason: "expired", cachedAt: Date.now() });
         return handleTokenFailure(request, pathname, startTime, "expired", {
           clearCookies: usingCookieToken,
         });
       }
 
       if (isInvalidOrMalformedJwtError(error)) {
-        await setCachedAuth(token, {
-          valid: false,
-          reason: "invalid",
-          cachedAt: Date.now(),
-        });
+        await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
         return handleTokenFailure(request, pathname, startTime, "invalid", {
           clearCookies: usingCookieToken,
         });
@@ -552,11 +498,7 @@ export async function proxy(request: NextRequest) {
     }
 
     if (!user) {
-      await setCachedAuth(token, {
-        valid: false,
-        reason: "invalid",
-        cachedAt: Date.now(),
-      });
+      await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
       return handleTokenFailure(request, pathname, startTime, "invalid", {
         clearCookies: usingCookieToken,
       });
@@ -566,8 +508,7 @@ export async function proxy(request: NextRequest) {
       valid: true,
       userId: user.userId,
       expiration:
-        typeof (user as unknown as { expiration?: unknown }).expiration ===
-        "number"
+        typeof (user as unknown as { expiration?: unknown }).expiration === "number"
           ? ((user as unknown as { expiration: number }).expiration as number)
           : undefined,
       cachedAt: Date.now(),
@@ -582,14 +523,9 @@ export async function proxy(request: NextRequest) {
   } catch (error) {
     console.error("Proxy auth error:", error);
     if (pathname.startsWith("/api/")) {
-      return jsonError(
-        "Authentication failed",
-        401,
-        "authentication_required",
-        {
-          "X-Proxy-Time": `${Date.now() - startTime}ms`,
-        },
-      );
+      return jsonError("Authentication failed", 401, "authentication_required", {
+        "X-Proxy-Time": `${Date.now() - startTime}ms`,
+      });
     }
     const url = request.nextUrl.clone();
     url.pathname = "/auth/error";
@@ -599,7 +535,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

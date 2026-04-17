@@ -1,8 +1,10 @@
 "use client";
 
+import { Alert, AlertDescription } from "@elizaos/cloud-ui";
 import { StewardAuth } from "@stwd/sdk";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertCircle } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const STEWARD_API_URL =
@@ -10,6 +12,17 @@ const STEWARD_API_URL =
 
 type AuthStep = "idle" | "loading" | "email-sent" | "success";
 type Provider = "passkey" | "email" | "google" | "discord" | "twitter";
+
+// Human-readable copy for callback failure reason codes returned by the
+// steward email/oauth callback. Unknown codes fall through to a generic
+// message (see CALLBACK_UNKNOWN_MESSAGE below).
+const CALLBACK_REASON_MESSAGES: Record<string, string> = {
+  invalid_token: "That login link is invalid. Try signing in again.",
+  expired_token: "That login link has expired. Request a new one below.",
+  email_mismatch: "The link doesn't match the email you entered. Try again.",
+  server_error: "Something went wrong on our end. Try again in a moment.",
+};
+const CALLBACK_UNKNOWN_MESSAGE = "Couldn't complete sign-in. Try again.";
 
 function getSafeReturnTo(sp: { get(n: string): string | null }): string {
   const r = sp.get("returnTo");
@@ -20,16 +33,21 @@ function getSafeReturnTo(sp: { get(n: string): string | null }): string {
 
 export default function StewardLoginSection() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const auth = useMemo(
     () => new StewardAuth({ baseUrl: STEWARD_API_URL, tenantId: "elizacloud" }),
     [],
   );
 
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<AuthStep>("idle");
   const [loading, setLoading] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [callbackError, setCallbackError] = useState<string | null>(null);
   const [providers, setProviders] = useState<Record<string, boolean>>({});
 
   const setSessionCookie = useCallback(async (token: string) => {
@@ -50,15 +68,102 @@ export default function StewardLoginSection() {
       .catch(() => {});
   }, [auth]);
 
-  // Check if already authenticated
+  // Handle OAuth callback: steward redirects back to /login with token+refreshToken
+  // in query params. We store them in localStorage (same keys the SDK uses) and
+  // redirect to the dashboard.
   useEffect(() => {
-    const session = auth.getSession();
-    if (session?.token) {
-      setSessionCookie(session.token).then(() => {
-        window.location.href = getSafeReturnTo(searchParams);
-      });
+    const token = searchParams.get("token");
+    const refreshToken = searchParams.get("refreshToken");
+    if (!token) return;
+
+    try {
+      localStorage.setItem("steward_session_token", token);
+      if (refreshToken) {
+        localStorage.setItem("steward_refresh_token", refreshToken);
+      }
+    } catch (err) {
+      console.warn("[steward] Failed to persist OAuth tokens", err);
     }
+
+    setSessionCookie(token).then(() => {
+      // Strip the tokens from the URL before redirecting
+      window.location.href = getSafeReturnTo(searchParams);
+    });
+  }, [searchParams, setSessionCookie]);
+
+  // Check if already authenticated (e.g. page refresh while logged in), or
+  // if we can recover a session via the refresh token. This is the common
+  // path for "came back from lunch, server middleware redirected me to
+  // /login because the 15-min access token expired" — we still have a
+  // 30-day refresh token in localStorage, try that before showing login UI.
+  useEffect(() => {
+    // Skip if we're processing an OAuth callback (handled above)
+    if (searchParams.get("token")) return;
+    // Skip if there's a callback error, let the user see it and retry
+    if (searchParams.get("error")) return;
+
+    let cancelled = false;
+
+    const tryRecoverSession = async () => {
+      // Fast path: SDK already has a valid (non-expired) session in memory.
+      const session = auth.getSession();
+      if (session?.token) {
+        await setSessionCookie(session.token);
+        if (!cancelled) window.location.href = getSafeReturnTo(searchParams);
+        return;
+      }
+
+      // Slow path: access token expired/missing but refresh token may still
+      // be good. Try refreshing — if it works, we can bounce the user back
+      // to their original destination without making them sign in again.
+      try {
+        const refreshed = await auth.refreshSession();
+        if (cancelled) return;
+        if (refreshed?.token) {
+          await setSessionCookie(refreshed.token);
+          if (!cancelled) window.location.href = getSafeReturnTo(searchParams);
+        }
+      } catch {
+        // No-op — refresh failed (no refresh token, or refresh token invalid).
+        // Fall through to the regular login UI.
+      }
+    };
+
+    void tryRecoverSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [auth, searchParams, setSessionCookie]);
+
+  // Handle failed callback: steward (or oauth) redirects back with
+  // ?error=...&reason=... on failure. Show a friendly inline banner, then
+  // strip the error params from the URL so a refresh doesn't re-show it.
+  useEffect(() => {
+    const errorCode = searchParams.get("error");
+    if (!errorCode) return;
+
+    const reason = searchParams.get("reason");
+    const message =
+      (reason && CALLBACK_REASON_MESSAGES[reason]) || CALLBACK_UNKNOWN_MESSAGE;
+    setCallbackError(message);
+
+    // Nice touch: if this was an email-link failure, they'll likely want to
+    // type their address again and retry.
+    if (errorCode === "email_auth_failed") {
+      emailInputRef.current?.focus();
+    }
+
+    // Strip error + reason from the URL without triggering a full reload,
+    // matching how the success path cleans token/refreshToken.
+    const remaining = new URLSearchParams(searchParams.toString());
+    remaining.delete("error");
+    remaining.delete("reason");
+    const qs = remaining.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+    // We intentionally only run this on mount / when error params first appear.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSuccess(token: string) {
     setStep("success");
@@ -103,15 +208,15 @@ export default function StewardLoginSection() {
   async function handleOAuth(provider: string) {
     setLoading(provider as Provider);
     setError(null);
-    try {
-      const result = await auth.signInWithOAuth(provider, {
-        redirectUri: `${window.location.origin}/login`,
-      });
-      if (result.token) await handleSuccess(result.token);
-    } catch (e: any) {
-      setError(e?.message || `${provider} login failed`);
-      setLoading(null);
-    }
+    // Use the server-side redirect flow: steward does the full OAuth exchange
+    // and redirects back with token/refreshToken query params. We don't use the
+    // SDK's popup flow because it expects the client to do the code exchange.
+    const redirectUri = `${window.location.origin}/login`;
+    const params = new URLSearchParams({
+      redirect_uri: redirectUri,
+      tenantId: "elizacloud",
+    });
+    window.location.href = `${STEWARD_API_URL}/auth/oauth/${provider}/authorize?${params.toString()}`;
   }
 
   if (step === "success") {
@@ -150,8 +255,17 @@ export default function StewardLoginSection() {
 
   return (
     <div className="space-y-4">
+      {/* Callback error banner (from failed email/oauth redirect) */}
+      {callbackError && (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertDescription>{callbackError}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Email input */}
       <input
+        ref={emailInputRef}
         type="email"
         placeholder="you@example.com"
         value={email}

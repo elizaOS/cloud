@@ -35,6 +35,15 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
+    // Non-httpOnly flag so client JS can detect steward auth
+    cookieStore.set("steward-authed", "1", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
     return NextResponse.json({ ok: true, userId: claims.userId });
   } catch {
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
@@ -48,5 +57,6 @@ export async function POST(request: NextRequest) {
 export async function DELETE() {
   const cookieStore = await cookies();
   cookieStore.delete("steward-token");
+  cookieStore.delete("steward-authed");
   return NextResponse.json({ ok: true });
 }

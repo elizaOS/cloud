@@ -78,7 +78,7 @@
         "@solana/web3.js": "^1.98.4",
         "@stripe/react-stripe-js": "^5.4.1",
         "@stripe/stripe-js": "^8.6.4",
-        "@stwd/react": "0.6.5",
+        "@stwd/react": "0.6.6",
         "@stwd/sdk": "0.7.2",
         "@tabler/icons-react": "^3.36.1",
         "@tailwindcss/postcss": "^4.1.18",
@@ -1589,7 +1589,7 @@
 
     "@stripe/stripe-js": ["@stripe/stripe-js@8.11.0", "", {}, "sha512-3fVF4z3efsgwgyj64nFK+6F4/vMw0mUXD2TBbOfftJtKVNx4JNv3CSfe1fY4DCtCk0JFp8/YPNcRkzgV0HJ8cg=="],
 
-    "@stwd/react": ["@stwd/react@0.6.5", "", { "dependencies": { "@stwd/sdk": "^0.7.0" }, "peerDependencies": { "react": ">=18.0.0", "react-dom": ">=18.0.0" } }, "sha512-B2Hz2xupnNS7g8m4HPmo4D5an0ZH9p7NilX5V+3gvzF2fN9lSZw1pXVeUS1mg5r2AZ6PblUzhv/0oNxrrTQ2Dg=="],
+    "@stwd/react": ["@stwd/react@0.6.6", "", { "dependencies": { "@stwd/sdk": "^0.7.0" }, "peerDependencies": { "react": ">=18.0.0", "react-dom": ">=18.0.0" } }, "sha512-M6ud+fD3SNFgAL3K4knpwI6UjPzLV8UFbi/SZEr/+OJ72InPWliJip2JBAJipUM0w8Jc11EzjzrZitMOUFkwtg=="],
 
     "@stwd/sdk": ["@stwd/sdk@0.7.2", "", {}, "sha512-qu1gyULCZ7YKAWGYQ8wkVDrvsxDJsn/ffVYjhR6HNCoBEoK29LW4Gwekxr2PprBMeAXsEtxhkDkyTj/5ly/W/Q=="],
 

@@ -104,13 +104,15 @@ export class GenerationsRepository {
   }
 
   /**
-   * Lists random completed images from all users (for explore/discover).
+   * Lists random completed images that users have explicitly marked as public.
+   * Only returns images where is_public = true to prevent leaking private generations.
    */
   async listRandomPublicImages(limit: number = 20): Promise<Generation[]> {
     return await dbRead.query.generations.findMany({
       where: and(
         eq(generations.status, "completed"),
         eq(generations.type, "image"),
+        eq(generations.is_public, true),
         sql`${generations.storage_url} IS NOT NULL`,
       ),
       orderBy: sql`RANDOM()`,

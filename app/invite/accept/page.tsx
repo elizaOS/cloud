@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { format } from "date-fns";
 import {
   AlertCircle,
@@ -26,6 +25,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
 interface InviteDetails {
   organization_name: string;
@@ -38,7 +38,7 @@ interface InviteDetails {
 function InviteAcceptContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { authenticated } = usePrivy();
+  const { authenticated } = useSessionAuth();
   const token = searchParams.get("token");
 
   const [isValidating, setIsValidating] = useState(true);
