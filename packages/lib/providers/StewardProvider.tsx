@@ -103,14 +103,22 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const syncToken = () => {
       const token = readStoredToken();
-      if (!token || tokenIsExpired(token)) {
+      if (!token) {
+        // No token at all — clear the server cookie if we had one
         if (wasAuthenticated.current && lastSyncedToken.current) {
           lastSyncedToken.current = null;
           wasAuthenticated.current = false;
-          fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
+          fetch("/api/auth/steward-session", { method: "DELETE" }).catch(
+            () => {},
+          );
         }
         return;
       }
+
+      // If the token is expired, don't push it to the server (the server would
+      // reject it anyway), but don't delete the cookie either — the refresh
+      // path may recover. Only explicit sign-out clears cookies.
+      if (tokenIsExpired(token)) return;
 
       if (token === lastSyncedToken.current) return;
       lastSyncedToken.current = token;
@@ -120,7 +128,9 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
-      }).catch((err) => console.warn("[steward] Failed to set session cookie", err));
+      }).catch((err) =>
+        console.warn("[steward] Failed to set session cookie", err),
+      );
 
       window.dispatchEvent(
         new CustomEvent("steward-token-sync", {
@@ -134,29 +144,56 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
       if (!token) return;
 
       const secs = tokenSecsRemaining(token);
-      if (secs !== null && secs < REFRESH_AHEAD_SECS && secs > 0) {
-        // Token is near expiry — refresh it
-        const auth = authInstanceRef.current;
-        if (!auth) return;
-        try {
-          const newSession = await auth.refreshSession();
-          if (newSession) {
-            // refreshSession already updated localStorage, now sync the new token to cookie
-            syncToken();
+
+      // Refresh eagerly when the token is within the lookahead window OR
+      // already expired (e.g. tab was idle longer than 15 min). Dropping
+      // the `secs > 0` guard is the key fix for the silent-logout bug:
+      // previously, once the access token expired we stopped trying to
+      // refresh even though the refresh token was still good.
+      if (secs !== null && secs >= REFRESH_AHEAD_SECS) return;
+
+      const auth = authInstanceRef.current;
+      if (!auth) return;
+
+      try {
+        const newSession = await auth.refreshSession();
+        if (newSession) {
+          // refreshSession already updated localStorage, now sync the new token to cookie
+          syncToken();
+        } else if (secs !== null && secs <= 0) {
+          // Refresh returned null AND the access token is truly expired —
+          // now it's safe to clear the server cookie; the user is logged out.
+          if (wasAuthenticated.current && lastSyncedToken.current) {
+            lastSyncedToken.current = null;
+            wasAuthenticated.current = false;
+            fetch("/api/auth/steward-session", { method: "DELETE" }).catch(
+              () => {},
+            );
           }
-        } catch (err) {
-          console.warn("[steward] Auto-refresh failed", err);
         }
+      } catch (err) {
+        console.warn("[steward] Auto-refresh failed", err);
       }
     };
 
-    // Initial sync
+    // Initial sync + eager refresh check (covers returning-from-idle tabs)
     syncToken();
+    void checkAndRefresh();
 
     // Periodic refresh check
     const refreshInterval = setInterval(() => {
-      checkAndRefresh();
+      void checkAndRefresh();
     }, REFRESH_CHECK_INTERVAL_MS);
+
+    // Run another refresh check whenever the tab becomes visible — covers
+    // the common case of coming back to a tab that was idle for > 15 min,
+    // since browsers throttle setInterval in background tabs.
+    const visibilityHandler = () => {
+      if (document.visibilityState === "visible") {
+        void checkAndRefresh();
+      }
+    };
+    document.addEventListener("visibilitychange", visibilityHandler);
 
     // Also sync on storage events (cross-tab, login flow)
     const handler = () => syncToken();
@@ -165,6 +202,7 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
     return () => {
       clearInterval(refreshInterval);
       window.removeEventListener("storage", handler);
+      document.removeEventListener("visibilitychange", visibilityHandler);
     };
   }, [isAuthenticated, user]);
 
