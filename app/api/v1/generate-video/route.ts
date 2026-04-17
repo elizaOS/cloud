@@ -43,6 +43,9 @@ async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
   let reservation: CreditReservation | undefined;
   let selectedModel = "fal-ai/veo3";
+  let quotedVideoCost:
+    | Awaited<ReturnType<typeof calculateVideoGenerationCostFromCatalog>>
+    | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -76,7 +79,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     const billingDefaults = getDefaultVideoBillingDimensions(model);
-    const quotedVideoCost = await calculateVideoGenerationCostFromCatalog({
+    quotedVideoCost = await calculateVideoGenerationCostFromCatalog({
       model,
       durationSeconds: billingDefaults.durationSeconds,
       dimensions: billingDefaults.dimensions,
@@ -289,9 +292,11 @@ async function handlePOST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
     // If reservation was made, charge ~10% — fal.ai may still bill for the compute attempt
-    if (reservation) {
+    if (reservation && quotedVideoCost) {
       await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
       logger.info("[VIDEO GENERATION] Partial charge applied after failure (~10% of quoted cost)");
+    } else if (reservation) {
+      await reservation.reconcile(0);
     }
 
     try {
