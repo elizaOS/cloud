@@ -9,12 +9,12 @@
  * follow-up.
  */
 
+import { and, eq, gt } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { and, eq, gt } from "drizzle-orm";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { dbRead, dbWrite } from "@/db/helpers";
 import { deviceIntents, devices } from "@/db/schemas";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 15;
