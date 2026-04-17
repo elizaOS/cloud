@@ -88,18 +88,49 @@ export default function StewardLoginSection() {
     });
   }, [searchParams, setSessionCookie]);
 
-  // Check if already authenticated (e.g. page refresh while logged in)
+  // Check if already authenticated (e.g. page refresh while logged in), or
+  // if we can recover a session via the refresh token. This is the common
+  // path for "came back from lunch, server middleware redirected me to
+  // /login because the 15-min access token expired" — we still have a
+  // 30-day refresh token in localStorage, try that before showing login UI.
   useEffect(() => {
     // Skip if we're processing an OAuth callback (handled above)
     if (searchParams.get("token")) return;
     // Skip if there's a callback error, let the user see it and retry
     if (searchParams.get("error")) return;
-    const session = auth.getSession();
-    if (session?.token) {
-      setSessionCookie(session.token).then(() => {
-        window.location.href = getSafeReturnTo(searchParams);
-      });
-    }
+
+    let cancelled = false;
+
+    const tryRecoverSession = async () => {
+      // Fast path: SDK already has a valid (non-expired) session in memory.
+      const session = auth.getSession();
+      if (session?.token) {
+        await setSessionCookie(session.token);
+        if (!cancelled) window.location.href = getSafeReturnTo(searchParams);
+        return;
+      }
+
+      // Slow path: access token expired/missing but refresh token may still
+      // be good. Try refreshing — if it works, we can bounce the user back
+      // to their original destination without making them sign in again.
+      try {
+        const refreshed = await auth.refreshSession();
+        if (cancelled) return;
+        if (refreshed?.token) {
+          await setSessionCookie(refreshed.token);
+          if (!cancelled) window.location.href = getSafeReturnTo(searchParams);
+        }
+      } catch {
+        // No-op — refresh failed (no refresh token, or refresh token invalid).
+        // Fall through to the regular login UI.
+      }
+    };
+
+    void tryRecoverSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [auth, searchParams, setSessionCookie]);
 
   // Handle failed callback: steward (or oauth) redirects back with
