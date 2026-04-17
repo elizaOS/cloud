@@ -11,8 +11,8 @@
 "use client";
 
 import { BrandButton } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { Clock, X, Zap } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -27,8 +27,16 @@ export function SignupPromptBanner({
   messagesLimit,
   onDismiss,
 }: SignupPromptBannerProps) {
-  const { login } = usePrivy();
+  const router = useRouter();
+  const pathname = usePathname();
   const [dismissed, setDismissed] = useState(false);
+
+  const login = () => {
+    const search =
+      typeof window !== "undefined" ? window.location.search : "";
+    const returnTo = encodeURIComponent(`${pathname}${search}`);
+    router.push(`/login?returnTo=${returnTo}`);
+  };
 
   const remaining = messagesLimit - messageCount;
 
