@@ -20,7 +20,11 @@ export async function POST(request: NextRequest) {
   // Support auth via query param for @solana/web3.js Connection which can't send headers
   const queryApiKey = request.nextUrl.searchParams.get("api_key");
   let authRequest = request;
-  if (queryApiKey && !request.headers.get("authorization") && !request.headers.get("X-API-Key")) {
+  if (
+    queryApiKey &&
+    !request.headers.get("authorization") &&
+    !request.headers.get("X-API-Key")
+  ) {
     const headers = new Headers(request.headers);
     headers.set("Authorization", `Bearer ${queryApiKey}`);
     authRequest = new NextRequest(request.url, {
@@ -51,7 +55,8 @@ export async function POST(request: NextRequest) {
   }
 
   if (requestCount > 0) {
-    const totalCost = proxyBillingService.getProxyCost("solana-rpc") * requestCount;
+    const totalCost =
+      proxyBillingService.getProxyCost("solana-rpc") * requestCount;
     const ok = await creditsService
       .deductCredits({
         organizationId: organization_id,
@@ -67,7 +72,10 @@ export async function POST(request: NextRequest) {
       .catch(() => ({ success: false }));
     if (!ok.success) {
       return Response.json(
-        { error: "Insufficient credits", topUpUrl: "https://www.elizacloud.ai/dashboard/billing" },
+        {
+          error: "Insufficient credits",
+          topUpUrl: "https://www.elizacloud.ai/dashboard/billing",
+        },
         { status: 402 },
       );
     }

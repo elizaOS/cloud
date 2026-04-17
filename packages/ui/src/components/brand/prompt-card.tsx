@@ -25,7 +25,9 @@ export function PromptCard({ prompt, onClick, className }: PromptCardProps) {
         className,
       )}
     >
-      <p className="text-sm text-white/70 group-hover:text-white/90">{prompt}</p>
+      <p className="text-sm text-white/70 group-hover:text-white/90">
+        {prompt}
+      </p>
       <ArrowUp className="absolute bottom-4 right-4 h-4 w-4 text-white/40 group-hover:text-white/70" />
     </button>
   );
@@ -38,11 +40,21 @@ interface PromptCardGridProps {
   className?: string;
 }
 
-export function PromptCardGrid({ prompts, onPromptClick, className }: PromptCardGridProps) {
+export function PromptCardGrid({
+  prompts,
+  onPromptClick,
+  className,
+}: PromptCardGridProps) {
   return (
-    <div className={cn("mt-6 grid grid-cols-1 md:grid-cols-3 gap-2", className)}>
+    <div
+      className={cn("mt-6 grid grid-cols-1 md:grid-cols-3 gap-2", className)}
+    >
       {prompts.map((prompt, index) => (
-        <PromptCard key={index} prompt={prompt} onClick={() => onPromptClick?.(prompt)} />
+        <PromptCard
+          key={index}
+          prompt={prompt}
+          onClick={() => onPromptClick?.(prompt)}
+        />
       ))}
     </div>
   );

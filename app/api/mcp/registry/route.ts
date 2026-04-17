@@ -172,7 +172,12 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     icon: "cloud",
     color: "#3B82F6",
     toolCount: 4,
-    features: ["get_current_weather", "get_weather_forecast", "compare_weather", "search_location"],
+    features: [
+      "get_current_weather",
+      "get_weather_forecast",
+      "compare_weather",
+      "search_location",
+    ],
     pricing: {
       type: "credits",
       description: "1-2 credits per request",
@@ -332,7 +337,12 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     icon: "git-branch",
     color: "#181717",
     toolCount: 45,
-    features: ["github_list_repos", "github_create_issue", "github_list_prs", "github_create_pr"],
+    features: [
+      "github_list_repos",
+      "github_create_issue",
+      "github_list_prs",
+      "github_create_pr",
+    ],
     pricing: {
       type: "free",
       description: "Requires GitHub OAuth connection",
@@ -407,24 +417,26 @@ export async function GET(request: NextRequest) {
     const { category, status, limit, search } = validationResult.data;
 
     // Process built-in registry entries
-    const builtInRegistry: BuiltInRegistryEntry[] = MCP_REGISTRY.map((entry) => ({
-      ...entry,
-      source: "platform" as const,
-      configTemplate: {
-        servers: Object.fromEntries(
-          Object.entries(entry.configTemplate.servers).map(([key, value]) => [
-            key,
-            {
-              ...value,
-              url: value.url.replace("${BASE_URL}", ""),
-            },
-          ]),
-        ),
-      },
-      fullEndpoint: entry.endpoint.startsWith("http")
-        ? entry.endpoint
-        : `${baseUrl}${entry.endpoint}`,
-    }));
+    const builtInRegistry: BuiltInRegistryEntry[] = MCP_REGISTRY.map(
+      (entry) => ({
+        ...entry,
+        source: "platform" as const,
+        configTemplate: {
+          servers: Object.fromEntries(
+            Object.entries(entry.configTemplate.servers).map(([key, value]) => [
+              key,
+              {
+                ...value,
+                url: value.url.replace("${BASE_URL}", ""),
+              },
+            ]),
+          ),
+        },
+        fullEndpoint: entry.endpoint.startsWith("http")
+          ? entry.endpoint
+          : `${baseUrl}${entry.endpoint}`,
+      }),
+    );
 
     // Fetch user MCPs (public, live)
     let userMcpRegistry: UserRegistryEntry[] = [];
@@ -455,7 +467,9 @@ export async function GET(request: NextRequest) {
 
     // Apply category filter with validated input
     if (category && category !== "all") {
-      filteredRegistry = filteredRegistry.filter((e) => e.category === category);
+      filteredRegistry = filteredRegistry.filter(
+        (e) => e.category === category,
+      );
     }
 
     // Apply status filter with validated input
@@ -501,7 +515,8 @@ export async function GET(request: NextRequest) {
     logger.error("[MCP Registry] Error:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to fetch registry",
+        error:
+          error instanceof Error ? error.message : "Failed to fetch registry",
       },
       { status: 500 },
     );

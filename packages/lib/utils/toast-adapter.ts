@@ -15,7 +15,10 @@ import { toast as sonnerToast } from "sonner";
  * @param options.mode - Toast type (success, error, or info).
  * @returns Toast ID for programmatic dismissal.
  */
-export const toast = (options: { message: string; mode: "success" | "error" | "info" }) => {
+export const toast = (options: {
+  message: string;
+  mode: "success" | "error" | "info";
+}) => {
   switch (options.mode) {
     case "success":
       return sonnerToast.success(options.message);

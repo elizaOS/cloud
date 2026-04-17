@@ -47,7 +47,10 @@ export async function GET(
 
   if (deductResult === null) {
     return Response.json(
-      { error: "Insufficient credits", topUpUrl: "https://www.elizacloud.ai/dashboard/billing" },
+      {
+        error: "Insufficient credits",
+        topUpUrl: "https://www.elizacloud.ai/dashboard/billing",
+      },
       { status: 402 },
     );
   }
@@ -73,7 +76,8 @@ export async function GET(
   return new Response(body, {
     status: upstreamResponse.status,
     headers: {
-      "Content-Type": upstreamResponse.headers.get("Content-Type") ?? "application/json",
+      "Content-Type":
+        upstreamResponse.headers.get("Content-Type") ?? "application/json",
     },
   });
 }

@@ -12,7 +12,10 @@
 import { and, desc, eq, isNotNull, type SQL, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { dbRead } from "@/db/helpers";
-import { type MiladySandboxStatus, miladySandboxes } from "@/db/schemas/milady-sandboxes";
+import {
+  type MiladySandboxStatus,
+  miladySandboxes,
+} from "@/db/schemas/milady-sandboxes";
 import { requireAdmin } from "@/lib/auth";
 import { getStewardAgent } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
@@ -78,7 +81,9 @@ export async function GET(request: NextRequest) {
           { status: 400 },
         );
       }
-      conditions.push(eq(miladySandboxes.status, statusFilter as MiladySandboxStatus));
+      conditions.push(
+        eq(miladySandboxes.status, statusFilter as MiladySandboxStatus),
+      );
     }
 
     if (nodeFilter) {

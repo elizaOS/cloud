@@ -13,9 +13,15 @@ export const contextSummaryProvider: Provider = {
   name: "SUMMARIZED_CONTEXT",
   description: "Provides summarized context from previous conversations",
   position: 96,
-  get: async (runtime: IAgentRuntime, message: Memory, _state: State): Promise<ProviderResult> => {
+  get: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+    _state: State,
+  ): Promise<ProviderResult> => {
     try {
-      const memoryService = runtime.getService("memory") as MemoryService | null;
+      const memoryService = runtime.getService(
+        "memory",
+      ) as MemoryService | null;
       if (!memoryService) {
         return {
           data: {},
@@ -24,7 +30,9 @@ export const contextSummaryProvider: Provider = {
         };
       }
 
-      const currentSummary = await memoryService.getCurrentSessionSummary(message.roomId);
+      const currentSummary = await memoryService.getCurrentSessionSummary(
+        message.roomId,
+      );
       if (!currentSummary) {
         return {
           data: {},
@@ -44,7 +52,10 @@ export const contextSummaryProvider: Provider = {
       }
 
       const sessionSummaries = addHeader("# Conversation Summary", summaryOnly);
-      const sessionSummariesWithTopics = addHeader("# Conversation Summary", summaryWithTopics);
+      const sessionSummariesWithTopics = addHeader(
+        "# Conversation Summary",
+        summaryWithTopics,
+      );
 
       return {
         data: {
@@ -57,7 +68,10 @@ export const contextSummaryProvider: Provider = {
       };
     } catch (error) {
       const err = error instanceof Error ? error.message : String(error);
-      logger.error({ src: "provider:memory", err }, "Error in contextSummaryProvider");
+      logger.error(
+        { src: "provider:memory", err },
+        "Error in contextSummaryProvider",
+      );
       return {
         data: {},
         values: { sessionSummaries: "", sessionSummariesWithTopics: "" },
@@ -71,9 +85,15 @@ export const longTermMemoryProvider: Provider = {
   name: "LONG_TERM_MEMORY",
   description: "Persistent facts and preferences about the user",
   position: 50,
-  get: async (runtime: IAgentRuntime, message: Memory, _state: State): Promise<ProviderResult> => {
+  get: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+    _state: State,
+  ): Promise<ProviderResult> => {
     try {
-      const memoryService = runtime.getService("memory") as MemoryService | null;
+      const memoryService = runtime.getService(
+        "memory",
+      ) as MemoryService | null;
       if (!memoryService || message.entityId === runtime.agentId) {
         return {
           data: { memoryCount: 0 },
@@ -82,7 +102,11 @@ export const longTermMemoryProvider: Provider = {
         };
       }
 
-      const memories = await memoryService.getLongTermMemories(message.entityId, undefined, 25);
+      const memories = await memoryService.getLongTermMemories(
+        message.entityId,
+        undefined,
+        25,
+      );
       if (memories.length === 0) {
         return {
           data: { memoryCount: 0 },
@@ -91,7 +115,8 @@ export const longTermMemoryProvider: Provider = {
         };
       }
 
-      const formattedMemories = await memoryService.getFormattedLongTermMemories(message.entityId);
+      const formattedMemories =
+        await memoryService.getFormattedLongTermMemories(message.entityId);
       const text = addHeader("# What I Know About You", formattedMemories);
 
       const categoryCounts = new Map<string, number>();
@@ -116,7 +141,10 @@ export const longTermMemoryProvider: Provider = {
       };
     } catch (error) {
       const err = error instanceof Error ? error.message : String(error);
-      logger.error({ src: "provider:memory", err }, "Error in longTermMemoryProvider");
+      logger.error(
+        { src: "provider:memory", err },
+        "Error in longTermMemoryProvider",
+      );
       return {
         data: { memoryCount: 0 },
         values: { longTermMemories: "" },

@@ -155,7 +155,9 @@ export function generateArticleSchema(
  * @param items - Array of breadcrumb items with name and URL.
  * @returns BreadcrumbList structured data object.
  */
-export function generateBreadcrumbSchema(items: Array<{ name: string; url: string }>) {
+export function generateBreadcrumbSchema(
+  items: Array<{ name: string; url: string }>,
+) {
   const baseUrl = getAppUrl();
 
   return {
@@ -176,7 +178,9 @@ export function generateBreadcrumbSchema(items: Array<{ name: string; url: strin
  * @param options - Structured data options.
  * @returns Structured data object matching the specified type.
  */
-export function generateStructuredData(options: StructuredDataOptions): Record<string, unknown> {
+export function generateStructuredData(
+  options: StructuredDataOptions,
+): Record<string, unknown> {
   const baseUrl = getAppUrl();
 
   switch (options.type) {

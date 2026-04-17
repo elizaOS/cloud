@@ -124,8 +124,13 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       console.error("Error starting recording:", err);
 
       if (err instanceof Error) {
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setError("Microphone permission denied. Please allow microphone access.");
+        if (
+          err.name === "NotAllowedError" ||
+          err.name === "PermissionDeniedError"
+        ) {
+          setError(
+            "Microphone permission denied. Please allow microphone access.",
+          );
         } else if (err.name === "NotFoundError") {
           setError("No microphone found. Please connect a microphone.");
         } else {

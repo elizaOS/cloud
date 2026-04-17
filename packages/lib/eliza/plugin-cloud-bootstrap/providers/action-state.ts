@@ -9,14 +9,20 @@ import {
 } from "@elizaos/core";
 import type { MultiStepActionResult } from "../types";
 
-function formatActionResult(result: MultiStepActionResult, index: number): string {
+function formatActionResult(
+  result: MultiStepActionResult,
+  index: number,
+): string {
   const actionName = result.data?.actionName || "Unknown Action";
   const status = result.success ? "Success" : "Failed";
   const lines = [`**${index + 1}. ${actionName}** - ${status}`];
 
   if (result.text) lines.push(`   Output: ${result.text}`);
   if (result.error) {
-    const errorStr = result.error instanceof Error ? result.error.message : String(result.error);
+    const errorStr =
+      result.error instanceof Error
+        ? result.error.message
+        : String(result.error);
     lines.push(`   Error: ${errorStr}`);
   }
   if (result.values && Object.keys(result.values).length > 0) {
@@ -37,7 +43,11 @@ function formatWorkingMemory(workingMemory: Record<string, unknown>): string {
   };
 
   return Object.entries(workingMemory)
-    .sort((a, b) => ((b[1] as MemEntry)?.timestamp || 0) - ((a[1] as MemEntry)?.timestamp || 0))
+    .sort(
+      (a, b) =>
+        ((b[1] as MemEntry)?.timestamp || 0) -
+        ((a[1] as MemEntry)?.timestamp || 0),
+    )
     .slice(0, 10)
     .map(([key, value]) => {
       const v = value as MemEntry;
@@ -60,7 +70,9 @@ function formatActionMemories(memories: Memory[]): string {
 
   return Array.from(groupedByRun.entries())
     .map(([runId, mems]) => {
-      const sorted = mems.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      const sorted = mems.sort(
+        (a, b) => (a.createdAt || 0) - (b.createdAt || 0),
+      );
       const runText = sorted
         .map((mem) => {
           const actionName = mem.content?.actionName || "Unknown";
@@ -69,7 +81,8 @@ function formatActionMemories(memories: Memory[]): string {
           const text = mem.content?.text || "";
           let line = `  - ${actionName} (${status})`;
           if (planStep) line += ` [${planStep}]`;
-          if (text && text !== `Executed action: ${actionName}`) line += `: ${text}`;
+          if (text && text !== `Executed action: ${actionName}`)
+            line += `: ${text}`;
           return line;
         })
         .join("\n");
@@ -81,23 +94,33 @@ function formatActionMemories(memories: Memory[]): string {
 
 export const actionStateProvider: Provider = {
   name: "ACTION_STATE",
-  description: "Previous action results and working memory from the current execution run",
+  description:
+    "Previous action results and working memory from the current execution run",
   position: 150,
 
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     // Check state.data first, then message metadata as fallback
     // This handles the timing issue where actionResults may be in message metadata
     // before state is fully composed
-    const messageMetadata = (message.content?.metadata || {}) as Record<string, unknown>;
+    const messageMetadata = (message.content?.metadata || {}) as Record<
+      string,
+      unknown
+    >;
     const actionResults = (state.data?.actionResults ||
       messageMetadata.actionResults ||
       []) as MultiStepActionResult[];
-    const workingMemory = (state.data?.workingMemory || {}) as Record<string, unknown>;
+    const workingMemory = (state.data?.workingMemory || {}) as Record<
+      string,
+      unknown
+    >;
 
     // Format action results
     const resultsText =
       actionResults.length > 0
-        ? addHeader("# Previous Action Results", actionResults.map(formatActionResult).join("\n\n"))
+        ? addHeader(
+            "# Previous Action Results",
+            actionResults.map(formatActionResult).join("\n\n"),
+          )
         : "No previous action results available.";
 
     // Format working memory
@@ -128,10 +151,15 @@ export const actionStateProvider: Provider = {
     // Format action history
     const actionMemoriesText =
       recentActionMemories.length > 0
-        ? addHeader("# Recent Action History", formatActionMemories(recentActionMemories))
+        ? addHeader(
+            "# Recent Action History",
+            formatActionMemories(recentActionMemories),
+          )
         : "";
 
-    const allText = [resultsText, memoryText, actionMemoriesText].filter(Boolean).join("\n\n");
+    const allText = [resultsText, memoryText, actionMemoriesText]
+      .filter(Boolean)
+      .join("\n\n");
 
     return {
       data: { actionResults, workingMemory, recentActionMemories },

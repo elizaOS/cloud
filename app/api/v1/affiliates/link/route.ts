@@ -1,9 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
+import {
+  getErrorStatusCode,
+  nextJsonFromCaughtErrorWithHeaders,
+} from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { ERRORS as AFFILIATE_ERRORS, affiliatesService } from "@/lib/services/affiliates";
+import {
+  ERRORS as AFFILIATE_ERRORS,
+  affiliatesService,
+} from "@/lib/services/affiliates";
 import { getCorsHeaders } from "@/lib/utils/cors";
 import { logger } from "@/lib/utils/logger";
 
@@ -41,7 +47,10 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       );
     }
 
-    const link = await affiliatesService.linkUserToAffiliateCode(user.id, validation.data.code);
+    const link = await affiliatesService.linkUserToAffiliateCode(
+      user.id,
+      validation.data.code,
+    );
 
     return NextResponse.json({ success: true, link }, { headers: corsHeaders });
   } catch (error: unknown) {
@@ -50,15 +59,24 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
         error.message === AFFILIATE_ERRORS.INVALID_CODE ||
         error.message === AFFILIATE_ERRORS.CODE_NOT_FOUND
       ) {
-        return NextResponse.json({ error: error.message }, { status: 404, headers: corsHeaders });
+        return NextResponse.json(
+          { error: error.message },
+          { status: 404, headers: corsHeaders },
+        );
       }
 
       if (error.message === AFFILIATE_ERRORS.SELF_REFERRAL) {
-        return NextResponse.json({ error: error.message }, { status: 400, headers: corsHeaders });
+        return NextResponse.json(
+          { error: error.message },
+          { status: 400, headers: corsHeaders },
+        );
       }
 
       if (error.message === AFFILIATE_ERRORS.ALREADY_LINKED) {
-        return NextResponse.json({ error: error.message }, { status: 409, headers: corsHeaders });
+        return NextResponse.json(
+          { error: error.message },
+          { status: 409, headers: corsHeaders },
+        );
       }
     }
 

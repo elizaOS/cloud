@@ -20,8 +20,18 @@ import {
   useSetPageHeader,
 } from "@elizaos/cloud-ui";
 import { format } from "date-fns";
-import { Activity, BarChart3, CalendarRange, Coins, ShieldCheck, TrendingUp } from "lucide-react";
-import type { EnhancedAnalyticsData, ProjectionsData } from "@/lib/actions/analytics-enhanced";
+import {
+  Activity,
+  BarChart3,
+  CalendarRange,
+  Coins,
+  ShieldCheck,
+  TrendingUp,
+} from "lucide-react";
+import type {
+  EnhancedAnalyticsData,
+  ProjectionsData,
+} from "@/lib/actions/analytics-enhanced";
 import { CostInsightsCard } from "./cost-insights-card";
 import { AnalyticsFilters } from "./filters";
 import { ModelBreakdown } from "./model-breakdown";
@@ -34,7 +44,10 @@ interface AnalyticsPageClientProps {
   projectionsData: ProjectionsData;
 }
 
-export function AnalyticsPageClient({ data, projectionsData }: AnalyticsPageClientProps) {
+export function AnalyticsPageClient({
+  data,
+  projectionsData,
+}: AnalyticsPageClientProps) {
   useSetPageHeader({
     title: "Analytics",
   });
@@ -57,7 +70,8 @@ export function AnalyticsPageClient({ data, projectionsData }: AnalyticsPageClie
       month: "Monthly",
     }[data.filters.granularity] || "Custom";
 
-  const totalTokens = data.overallStats.totalInputTokens + data.overallStats.totalOutputTokens;
+  const totalTokens =
+    data.overallStats.totalInputTokens + data.overallStats.totalOutputTokens;
 
   const averageCostPerRequest =
     data.overallStats.totalRequests > 0
@@ -65,7 +79,9 @@ export function AnalyticsPageClient({ data, projectionsData }: AnalyticsPageClie
       : 0;
 
   const averageTokensPerRequest =
-    data.overallStats.totalRequests > 0 ? totalTokens / data.overallStats.totalRequests : 0;
+    data.overallStats.totalRequests > 0
+      ? totalTokens / data.overallStats.totalRequests
+      : 0;
 
   const formatDelta = (value: number | undefined, digits = 1) => {
     if (value === undefined || Number.isNaN(value)) return undefined;
@@ -193,7 +209,10 @@ export function AnalyticsPageClient({ data, projectionsData }: AnalyticsPageClie
             <CornerBrackets size="sm" className="opacity-50" />
             <div className="relative z-10 space-y-4">
               <h3 className="text-base font-semibold text-white">Usage</h3>
-              <UsageChart data={data.timeSeriesData} granularity={data.filters.granularity} />
+              <UsageChart
+                data={data.timeSeriesData}
+                granularity={data.filters.granularity}
+              />
             </div>
           </BrandCard>
 
@@ -210,14 +229,20 @@ export function AnalyticsPageClient({ data, projectionsData }: AnalyticsPageClie
             defaultValue="breakdown"
             breakpoint="md"
           >
-            <BrandTabsContent value="breakdown" className="space-y-8 lg:space-y-10 mb-4">
+            <BrandTabsContent
+              value="breakdown"
+              className="space-y-8 lg:space-y-10 mb-4"
+            >
               <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
                 <ProviderBreakdown providers={data.providerBreakdown} />
                 <ModelBreakdown models={data.modelBreakdown} />
               </div>
             </BrandTabsContent>
 
-            <BrandTabsContent value="projections" className="space-y-8 lg:space-y-10">
+            <BrandTabsContent
+              value="projections"
+              className="space-y-8 lg:space-y-10"
+            >
               <ProjectionsChart data={projectionsData} />
             </BrandTabsContent>
           </BrandTabsResponsive>

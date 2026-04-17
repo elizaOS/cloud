@@ -41,7 +41,11 @@ export const GlowingStarsDescription = ({
   className?: string;
   children?: React.ReactNode;
 }) => {
-  return <p className={cn("text-base text-white max-w-[16rem]", className)}>{children}</p>;
+  return (
+    <p className={cn("text-base text-white max-w-[16rem]", className)}>
+      {children}
+    </p>
+  );
 };
 
 export const GlowingStarsTitle = ({
@@ -51,7 +55,11 @@ export const GlowingStarsTitle = ({
   className?: string;
   children?: React.ReactNode;
 }) => {
-  return <h2 className={cn("font-bold text-2xl text-[#eaeaea]", className)}>{children}</h2>;
+  return (
+    <h2 className={cn("font-bold text-2xl text-[#eaeaea]", className)}>
+      {children}
+    </h2>
+  );
 };
 
 export const Illustration = ({ mouseEnter }: { mouseEnter: boolean }) => {
@@ -64,7 +72,9 @@ export const Illustration = ({ mouseEnter }: { mouseEnter: boolean }) => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      highlightedStars.current = Array.from({ length: 5 }, () => Math.floor(Math.random() * stars));
+      highlightedStars.current = Array.from({ length: 5 }, () =>
+        Math.floor(Math.random() * stars),
+      );
       setGlowingStars([...highlightedStars.current]);
     }, 3000);
 
@@ -85,13 +95,18 @@ export const Illustration = ({ mouseEnter }: { mouseEnter: boolean }) => {
         const delay = (starIdx % 10) * 0.1;
         const staticDelay = starIdx * 0.01;
         return (
-          <div key={`matrix-col-${starIdx}}`} className="relative flex items-center justify-center">
+          <div
+            key={`matrix-col-${starIdx}}`}
+            className="relative flex items-center justify-center"
+          >
             <Star
               isGlowing={mouseEnter ? true : isGlowing}
               delay={mouseEnter ? staticDelay : delay}
             />
             {mouseEnter && <Glow delay={staticDelay} />}
-            <AnimatePresence mode="wait">{isGlowing && <Glow delay={delay} />}</AnimatePresence>
+            <AnimatePresence mode="wait">
+              {isGlowing && <Glow delay={delay} />}
+            </AnimatePresence>
           </div>
         );
       })}

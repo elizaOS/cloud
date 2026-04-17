@@ -42,7 +42,8 @@ function tagForPath(routePath: string) {
 }
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
   const discovered = await discoverPublicApiRoutes();
   const discoveredPaths: Record<string, OpenApiPathItem> = {};

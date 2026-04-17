@@ -74,7 +74,10 @@ export function getChannelTypeName(type: number): string {
  * Check if channel type is text-based (can send messages)
  */
 export function isTextChannel(type: number): boolean {
-  return type === DiscordChannelType.GuildText || type === DiscordChannelType.GuildAnnouncement;
+  return (
+    type === DiscordChannelType.GuildText ||
+    type === DiscordChannelType.GuildAnnouncement
+  );
 }
 
 /**
@@ -212,7 +215,9 @@ export function createLinkButton(label: string, url: string) {
 /**
  * Create an action row with buttons
  */
-export function createActionRow(buttons: Array<{ label: string; url: string }>) {
+export function createActionRow(
+  buttons: Array<{ label: string; url: string }>,
+) {
   return {
     type: 1 as const, // Action Row
     components: buttons.map((b) => createLinkButton(b.label, b.url)),
@@ -234,7 +239,8 @@ export function createEmbed(options: {
   const embed: Record<string, unknown> = {};
 
   if (options.title) embed.title = options.title;
-  if (options.description) embed.description = truncate(options.description, 4096);
+  if (options.description)
+    embed.description = truncate(options.description, 4096);
   if (options.url) embed.url = options.url;
   if (options.color !== undefined) embed.color = options.color;
   if (options.thumbnailUrl) embed.thumbnail = { url: options.thumbnailUrl };

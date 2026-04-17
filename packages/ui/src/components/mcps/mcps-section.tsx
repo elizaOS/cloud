@@ -84,9 +84,12 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
       searchQuery === "" ||
       server.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       server.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      server.features.some((f) => f.toLowerCase().includes(searchQuery.toLowerCase()));
+      server.features.some((f) =>
+        f.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
 
-    const matchesCategory = categoryFilter === "all" || server.category === categoryFilter;
+    const matchesCategory =
+      categoryFilter === "all" || server.category === categoryFilter;
 
     return matchesSearch && matchesCategory;
   });
@@ -189,7 +192,8 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
         toast.error(`Server returned ${mcpResponse.status}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Connection failed";
+      const errorMessage =
+        error instanceof Error ? error.message : "Connection failed";
       setTestResult(
         JSON.stringify(
           {
@@ -211,9 +215,9 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
       <div className="p-4 rounded-xl bg-white/5 border border-white/10">
         <h3 className="text-base font-medium text-white mb-1">What is MCP?</h3>
         <p className="text-sm text-white/60 mb-3">
-          The Model Context Protocol (MCP) is an open standard that enables AI assistants to
-          securely connect with data sources and tools. These MCP servers provide ready-to-use tools
-          for your AI agents.
+          The Model Context Protocol (MCP) is an open standard that enables AI
+          assistants to securely connect with data sources and tools. These MCP
+          servers provide ready-to-use tools for your AI agents.
         </p>
         <div className="flex flex-wrap gap-3 text-xs">
           <div className="flex items-center gap-1.5 text-white/50">
@@ -238,7 +242,10 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
           <span className="text-base text-white/50">({servers.length})</span>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" className="text-white/40 hover:text-white/70 transition-colors">
+              <button
+                type="button"
+                className="text-white/40 hover:text-white/70 transition-colors"
+              >
                 <HelpCircle className="h-4 w-4" />
               </button>
             </TooltipTrigger>
@@ -299,7 +306,10 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: index * 0.05 }}
               >
-                <MCPCard server={server} onSelect={() => setSelectedServer(server)} />
+                <MCPCard
+                  server={server}
+                  onSelect={() => setSelectedServer(server)}
+                />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -331,7 +341,12 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
                   >
                     {(() => {
                       const Icon = iconMap[selectedServer.icon] || Puzzle;
-                      return <Icon className="h-5 w-5" style={{ color: selectedServer.color }} />;
+                      return (
+                        <Icon
+                          className="h-5 w-5"
+                          style={{ color: selectedServer.color }}
+                        />
+                      );
                     })()}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -363,11 +378,18 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
                     </label>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 bg-white/5 border border-white/10 p-3 font-mono text-sm text-white/80 rounded-xl overflow-x-auto">
-                        {typeof window !== "undefined" ? window.location.origin : ""}
+                        {typeof window !== "undefined"
+                          ? window.location.origin
+                          : ""}
                         {selectedServer.endpoint}
                       </div>
                       <button
-                        onClick={() => copyEndpoint(selectedServer.endpoint, selectedServer.id)}
+                        onClick={() =>
+                          copyEndpoint(
+                            selectedServer.endpoint,
+                            selectedServer.id,
+                          )
+                        }
                         className="p-3 bg-white/5 border border-white/10 hover:border-white/30 transition-colors rounded-xl"
                       >
                         {copiedEndpoint === selectedServer.id ? (
@@ -454,8 +476,8 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
                       </span>
                     </div>
                     <p className="text-xs text-neutral-400">
-                      This MCP server supports accountless micropayments via the x402 protocol. Pay
-                      only for what you use
+                      This MCP server supports accountless micropayments via the
+                      x402 protocol. Pay only for what you use
                       {selectedServer.pricing.pricePerRequest &&
                         ` ($${selectedServer.pricing.pricePerRequest}/request)`}
                       . Powered by Coinbase CDP.
@@ -479,7 +501,10 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
                   <button
                     className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/70 hover:border-white/30 hover:text-white transition-colors rounded-xl text-sm"
                     onClick={() =>
-                      window.open("https://modelcontextprotocol.io/introduction", "_blank")
+                      window.open(
+                        "https://modelcontextprotocol.io/introduction",
+                        "_blank",
+                      )
                     }
                   >
                     <Terminal className="h-4 w-4" />
@@ -508,11 +533,21 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
 }
 
 // Individual MCP Card
-function MCPCard({ server, onSelect }: { server: McpServer; onSelect: () => void }) {
+function MCPCard({
+  server,
+  onSelect,
+}: {
+  server: McpServer;
+  onSelect: () => void;
+}) {
   const Icon = iconMap[server.icon] || Puzzle;
 
   return (
-    <button type="button" onClick={onSelect} className="block w-full h-full text-left">
+    <button
+      type="button"
+      onClick={onSelect}
+      className="block w-full h-full text-left"
+    >
       <div className="group relative h-full overflow-hidden rounded-xl bg-white/5 border border-white/10 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.07]">
         {/* Header */}
         <div className="p-4 pb-3">
@@ -585,7 +620,9 @@ function MCPCard({ server, onSelect }: { server: McpServer; onSelect: () => void
         <div className="px-4 py-3 border-t border-white/5">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5 text-white/40">
-              {server.pricing.type === "x402" && <Zap className="h-3 w-3 text-purple-400" />}
+              {server.pricing.type === "x402" && (
+                <Zap className="h-3 w-3 text-purple-400" />
+              )}
               <span>{server.pricing.description}</span>
             </div>
             <span className="text-white/30 group-hover:text-[#FF5800] transition-colors">
@@ -603,8 +640,12 @@ function MCPsEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[160px] md:min-h-[240px] gap-4 bg-neutral-900 rounded-xl">
       <Puzzle className="h-10 w-10 text-neutral-600" />
-      <h3 className="text-lg font-medium text-neutral-500">No MCPs match your search</h3>
-      <p className="text-sm text-neutral-600">Try adjusting your filters or search terms</p>
+      <h3 className="text-lg font-medium text-neutral-500">
+        No MCPs match your search
+      </h3>
+      <p className="text-sm text-neutral-600">
+        Try adjusting your filters or search terms
+      </p>
     </div>
   );
 }
@@ -638,7 +679,10 @@ export function MCPsSectionSkeleton() {
         <div className="h-10 w-full max-w-md bg-white/10 animate-pulse rounded-full" />
         <div className="flex gap-1.5">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-8 w-16 bg-white/10 animate-pulse rounded-full" />
+            <div
+              key={i}
+              className="h-8 w-16 bg-white/10 animate-pulse rounded-full"
+            />
           ))}
         </div>
       </div>
@@ -646,7 +690,10 @@ export function MCPsSectionSkeleton() {
       {/* Grid Skeleton */}
       <div className="grid gap-4 sm:grid-cols-2">
         {[...Array(4)].map((_, index) => (
-          <div key={index} className="overflow-hidden rounded-xl bg-white/5 border border-white/10">
+          <div
+            key={index}
+            className="overflow-hidden rounded-xl bg-white/5 border border-white/10"
+          >
             <div className="p-4 pb-3">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">

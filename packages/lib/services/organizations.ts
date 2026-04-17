@@ -56,8 +56,12 @@ export class OrganizationsService {
     return await organizationsRepository.findBySlug(slug);
   }
 
-  async getByStripeCustomerId(stripeCustomerId: string): Promise<Organization | undefined> {
-    return await organizationsRepository.findByStripeCustomerId(stripeCustomerId);
+  async getByStripeCustomerId(
+    stripeCustomerId: string,
+  ): Promise<Organization | undefined> {
+    return await organizationsRepository.findByStripeCustomerId(
+      stripeCustomerId,
+    );
   }
 
   async getWithUsers(id: string) {
@@ -68,7 +72,10 @@ export class OrganizationsService {
     return await organizationsRepository.create(data);
   }
 
-  async update(id: string, data: Partial<NewOrganization>): Promise<Organization | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewOrganization>,
+  ): Promise<Organization | undefined> {
     const result = await organizationsRepository.update(id, data);
     // Invalidate cache after update
     await this.invalidateCache(id);
@@ -79,7 +86,10 @@ export class OrganizationsService {
     organizationId: string,
     amount: number,
   ): Promise<{ success: boolean; newBalance: number }> {
-    const result = await organizationsRepository.updateCreditBalance(organizationId, amount);
+    const result = await organizationsRepository.updateCreditBalance(
+      organizationId,
+      amount,
+    );
     // Invalidate cache after balance change
     await this.invalidateCache(organizationId);
     return result;

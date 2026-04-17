@@ -5,8 +5,16 @@
  */
 
 import type { AdAccountStatus, AdPlatform } from "@/db/schemas/ad-accounts";
-import type { BudgetType, CampaignObjective, CampaignStatus } from "@/db/schemas/ad-campaigns";
-import type { CallToAction, CreativeStatus, CreativeType } from "@/db/schemas/ad-creatives";
+import type {
+  BudgetType,
+  CampaignObjective,
+  CampaignStatus,
+} from "@/db/schemas/ad-campaigns";
+import type {
+  CallToAction,
+  CreativeStatus,
+  CreativeType,
+} from "@/db/schemas/ad-creatives";
 
 export type {
   AdAccountStatus,
@@ -171,7 +179,9 @@ export interface AdProvider {
   /**
    * Validates ad account credentials.
    */
-  validateCredentials(credentials: AdAccountCredentials): Promise<AdProviderValidationResult>;
+  validateCredentials(
+    credentials: AdAccountCredentials,
+  ): Promise<AdProviderValidationResult>;
 
   /**
    * Refreshes access token if expired.
@@ -185,7 +195,9 @@ export interface AdProvider {
   /**
    * Lists available ad accounts for the authenticated user.
    */
-  listAdAccounts(credentials: AdAccountCredentials): Promise<Array<{ id: string; name: string }>>;
+  listAdAccounts(
+    credentials: AdAccountCredentials,
+  ): Promise<Array<{ id: string; name: string }>>;
 
   /**
    * Creates a campaign on the ad platform.
@@ -269,7 +281,10 @@ export const AD_CREDIT_RATES = {
   detailedAnalytics: 0.1,
 } as const;
 
-export function calculateSpendCredits(platform: AdPlatform, amount: number): number {
+export function calculateSpendCredits(
+  platform: AdPlatform,
+  amount: number,
+): number {
   const markup = AD_CREDIT_RATES.spendMarkup[platform] || 1.1;
   return amount * markup;
 }

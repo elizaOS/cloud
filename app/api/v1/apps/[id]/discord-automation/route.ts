@@ -29,7 +29,10 @@ const automationConfigSchema = z.object({
   agentCharacterId: z.string().uuid().optional(), // Character voice for posts
 });
 
-export async function GET(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function GET(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
@@ -47,11 +50,17 @@ export async function GET(request: NextRequest, { params }: RouteParams): Promis
       appId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Failed to get automation status" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to get automation status" },
+      { status: 500 },
+    );
   }
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function POST(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
@@ -66,7 +75,10 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
         { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   // Validate interval range - defaults are min=120, max=240
@@ -132,16 +144,25 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
       appId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Failed to enable automation" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to enable automation" },
+      { status: 500 },
+    );
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function DELETE(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   try {
-    await discordAppAutomationService.disableAutomation(user.organization_id, appId);
+    await discordAppAutomationService.disableAutomation(
+      user.organization_id,
+      appId,
+    );
 
     logger.info("[Discord Automation] Automation disabled", {
       appId,
@@ -157,6 +178,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams): Pro
       appId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Failed to disable automation" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to disable automation" },
+      { status: 500 },
+    );
   }
 }

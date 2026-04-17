@@ -22,14 +22,22 @@ export const miladyPairingTokens = pgTable(
     expected_origin: text("expected_origin").notNull(),
     expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
     used_at: timestamp("used_at", { withTimezone: true }),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
-    tokenHashIdx: index("milady_pairing_tokens_token_hash_idx").on(table.token_hash),
-    expiresAtIdx: index("milady_pairing_tokens_expires_at_idx").on(table.expires_at),
+    tokenHashIdx: index("milady_pairing_tokens_token_hash_idx").on(
+      table.token_hash,
+    ),
+    expiresAtIdx: index("milady_pairing_tokens_expires_at_idx").on(
+      table.expires_at,
+    ),
     agentIdx: index("milady_pairing_tokens_agent_id_idx").on(table.agent_id),
   }),
 );
 
 export type MiladyPairingToken = InferSelectModel<typeof miladyPairingTokens>;
-export type NewMiladyPairingToken = InferInsertModel<typeof miladyPairingTokens>;
+export type NewMiladyPairingToken = InferInsertModel<
+  typeof miladyPairingTokens
+>;

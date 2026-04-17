@@ -26,7 +26,10 @@ export interface CategoryDefinition {
   color: string;
 }
 
-export const CHARACTER_CATEGORIES: Record<Uppercase<CategoryId>, CategoryDefinition> = {
+export const CHARACTER_CATEGORIES: Record<
+  Uppercase<CategoryId>,
+  CategoryDefinition
+> = {
   ASSISTANT: {
     id: "assistant",
     name: "Assistants",
@@ -102,7 +105,9 @@ export const CATEGORY_ORDER: Array<keyof typeof CHARACTER_CATEGORIES> = [
  * @param id - Category ID.
  * @returns Category definition or undefined if not found.
  */
-export function getCategoryById(id: CategoryId): CategoryDefinition | undefined {
+export function getCategoryById(
+  id: CategoryId,
+): CategoryDefinition | undefined {
   const key = id.toUpperCase() as keyof typeof CHARACTER_CATEGORIES;
   return CHARACTER_CATEGORIES[key];
 }

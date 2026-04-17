@@ -23,7 +23,9 @@ export function isBrowser(): boolean {
 export function isMobileApp(): boolean {
   if (!isBrowser()) return false;
 
-  return process.env.NEXT_PUBLIC_IS_MOBILE_APP === "true" || isIOS() || isAndroid();
+  return (
+    process.env.NEXT_PUBLIC_IS_MOBILE_APP === "true" || isIOS() || isAndroid()
+  );
 }
 
 /**

@@ -50,7 +50,9 @@ export function useAppBuilderSTT(): UseAppBuilderSTTReturn {
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const _resolveTranscriptionRef = useRef<((value: string | null) => void) | null>(null);
+  const _resolveTranscriptionRef = useRef<
+    ((value: string | null) => void) | null
+  >(null);
 
   // Check browser support on mount
   useEffect(() => {
@@ -178,7 +180,10 @@ export function useAppBuilderSTT(): UseAppBuilderSTTReturn {
       console.error("[STT] Error starting recording:", err);
 
       if (err instanceof Error) {
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        if (
+          err.name === "NotAllowedError" ||
+          err.name === "PermissionDeniedError"
+        ) {
           setError("Microphone permission denied");
           toast.error("Microphone permission denied. Please allow access.");
         } else if (err.name === "NotFoundError") {
@@ -195,50 +200,53 @@ export function useAppBuilderSTT(): UseAppBuilderSTTReturn {
     }
   }, [updateAudioLevel]);
 
-  const processAudioAndTranscribe = useCallback(async (audioBlob: Blob): Promise<string | null> => {
-    setIsProcessing(true);
+  const processAudioAndTranscribe = useCallback(
+    async (audioBlob: Blob): Promise<string | null> => {
+      setIsProcessing(true);
 
-    try {
-      // Ensure proper audio format
-      const processedBlob = await ensureAudioFormat(audioBlob);
+      try {
+        // Ensure proper audio format
+        const processedBlob = await ensureAudioFormat(audioBlob);
 
-      // Create FormData
-      const formData = new FormData();
-      const audioFile = new File([processedBlob], "recording.webm", {
-        type: processedBlob.type || "audio/webm",
-      });
-      formData.append("audio", audioFile);
+        // Create FormData
+        const formData = new FormData();
+        const audioFile = new File([processedBlob], "recording.webm", {
+          type: processedBlob.type || "audio/webm",
+        });
+        formData.append("audio", audioFile);
 
-      // Call STT API
-      const response = await fetch("/api/elevenlabs/stt", {
-        method: "POST",
-        body: formData,
-      });
+        // Call STT API
+        const response = await fetch("/api/elevenlabs/stt", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.error || "Failed to transcribe audio";
-        toast.error(errorMsg);
-        console.error("[STT] API error:", errorData);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMsg = errorData.error || "Failed to transcribe audio";
+          toast.error(errorMsg);
+          console.error("[STT] API error:", errorData);
+          return null;
+        }
+
+        const { transcript } = await response.json();
+
+        if (!transcript || transcript.trim().length === 0) {
+          toast.error("No speech detected. Please try again.");
+          return null;
+        }
+
+        return transcript.trim();
+      } catch (err) {
+        console.error("[STT] Processing error:", err);
+        toast.error("Failed to process audio. Please try again.");
         return null;
+      } finally {
+        setIsProcessing(false);
       }
-
-      const { transcript } = await response.json();
-
-      if (!transcript || transcript.trim().length === 0) {
-        toast.error("No speech detected. Please try again.");
-        return null;
-      }
-
-      return transcript.trim();
-    } catch (err) {
-      console.error("[STT] Processing error:", err);
-      toast.error("Failed to process audio. Please try again.");
-      return null;
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const stopRecording = useCallback(async (): Promise<string | null> => {
     return new Promise((resolve) => {

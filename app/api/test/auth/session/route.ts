@@ -50,11 +50,17 @@ export async function POST(request: NextRequest) {
 
   const user = await usersService.getWithOrganization(apiKey.user_id);
   if (!user || !user.organization_id || !user.organization) {
-    return NextResponse.json({ error: "User organization not found" }, { status: 403 });
+    return NextResponse.json(
+      { error: "User organization not found" },
+      { status: 403 },
+    );
   }
 
   if (!user.is_active || !user.organization.is_active) {
-    return NextResponse.json({ error: "User or organization is inactive" }, { status: 403 });
+    return NextResponse.json(
+      { error: "User or organization is inactive" },
+      { status: 403 },
+    );
   }
 
   const token = createPlaywrightTestSessionToken(user.id, user.organization_id);

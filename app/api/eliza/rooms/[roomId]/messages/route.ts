@@ -10,7 +10,11 @@ import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
-import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
+import {
+  calculateCost,
+  estimateTokens,
+  getProviderFromModel,
+} from "@/lib/pricing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import {
@@ -26,7 +30,10 @@ import { logger } from "@/lib/utils/logger";
 export const maxDuration = 60;
 
 // POST /api/eliza/rooms/[roomId]/messages - Send a message
-export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
+export async function POST(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
   try {
     // Support both authenticated and anonymous users
     let user: UserWithOrganization;
@@ -45,7 +52,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
       let anonData = await getAnonymousUser();
 
       if (!anonData) {
-        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 },
+        );
       }
 
       user = anonData.user;
@@ -65,7 +75,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
 
     if (!roomId) {
       logger.error("[Eliza Messages API] Missing roomId");
-      return NextResponse.json({ error: "roomId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "roomId is required" },
+        { status: 400 },
+      );
     }
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
@@ -78,9 +91,12 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
 
     // Check if user is blocked due to moderation violations
     if (await contentModerationService.shouldBlockUser(user.id)) {
-      logger.warn("[Eliza Messages API] User blocked due to moderation violations", {
-        userId: user.id,
-      });
+      logger.warn(
+        "[Eliza Messages API] User blocked due to moderation violations",
+        {
+          userId: user.id,
+        },
+      );
       return NextResponse.json(
         {
           error:
@@ -91,18 +107,28 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    contentModerationService.moderateInBackground(text, user.id, roomId, (result) => {
-      logger.warn("[Eliza Messages API] Async moderation detected violation", {
-        userId: user.id,
-        roomId,
-        categories: result.flaggedCategories,
-        action: result.action,
-      });
-    });
+    contentModerationService.moderateInBackground(
+      text,
+      user.id,
+      roomId,
+      (result) => {
+        logger.warn(
+          "[Eliza Messages API] Async moderation detected violation",
+          {
+            userId: user.id,
+            roomId,
+            categories: result.flaggedCategories,
+            action: result.action,
+          },
+        );
+      },
+    );
 
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
-      const limitCheck = await checkAnonymousLimit(anonymousSession.session_token);
+      const limitCheck = await checkAnonymousLimit(
+        anonymousSession.session_token,
+      );
 
       if (!limitCheck.allowed) {
         const errorMessage =
@@ -140,10 +166,16 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     let reservation: CreditReservation | null = null;
     if (!isAnonymous) {
       if (!user.organization_id || !user.organization) {
-        logger.error("[Eliza Messages API] User has no organization - cannot proceed", {
-          userId: user.id,
-        });
-        return NextResponse.json({ error: "User has no organization" }, { status: 400 });
+        logger.error(
+          "[Eliza Messages API] User has no organization - cannot proceed",
+          {
+            userId: user.id,
+          },
+        );
+        return NextResponse.json(
+          { error: "User has no organization" },
+          { status: 400 },
+        );
       }
 
       try {
@@ -193,7 +225,9 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
               isAnonymous: false,
             }
           : (() => {
-              const ctx = userContextService.createSystemContext(AgentMode.CHAT);
+              const ctx = userContextService.createSystemContext(
+                AgentMode.CHAT,
+              );
               if (characterId) ctx.characterId = characterId;
               return ctx;
             })();
@@ -263,7 +297,9 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     // It will automatically generate a title after 4+ messages
 
     // Send to Discord thread if configured
-    const discordThreadId = room?.metadata?.discordThreadId as string | undefined;
+    const discordThreadId = room?.metadata?.discordThreadId as
+      | string
+      | undefined;
     if (discordThreadId) {
       try {
         const userMessage = `**${user.name || user.email || user.id}:** ${text}`;
@@ -289,7 +325,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
           threadId: discordThreadId,
         });
       } catch (error) {
-        logger.error("[Eliza Messages API] Failed to send to Discord thread:", error);
+        logger.error(
+          "[Eliza Messages API] Failed to send to Discord thread:",
+          error,
+        );
       }
     }
 
@@ -301,7 +340,8 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     logger.error("[Eliza Messages API] Error:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to process message",
+        error:
+          error instanceof Error ? error.message : "Failed to process message",
       },
       { status: 500 },
     );

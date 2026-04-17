@@ -76,7 +76,10 @@ async function walkRoutes(
       }
 
       // Next route handler file
-      if (ent.isFile() && (ent.name === "route.ts" || ent.name === "route.js")) {
+      if (
+        ent.isFile() &&
+        (ent.name === "route.ts" || ent.name === "route.js")
+      ) {
         out.push({ filePath: full, segments: relativeSegments });
       }
     }),
@@ -90,7 +93,10 @@ function extractMethods(source: string): HttpMethod[] {
   }
   for (const match of source.matchAll(METHOD_REEXPORT_RE)) {
     for (const exported of match[1].split(",")) {
-      const method = exported.trim().split(/\s+as\s+/i)[0]?.trim();
+      const method = exported
+        .trim()
+        .split(/\s+as\s+/i)[0]
+        ?.trim();
       if (
         method === "GET" ||
         method === "POST" ||

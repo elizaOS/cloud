@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
     const sessionId = searchParams.get("session_id");
 
     if (!sessionId) {
-      return NextResponse.json({ success: false, error: "Missing session_id" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Missing session_id" },
+        { status: 400 },
+      );
     }
 
     const [session] = await db
@@ -23,7 +26,10 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (!session) {
-      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
     }
 
     if (session.status === "expired" || new Date() > session.expires_at) {
@@ -53,6 +59,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[CLI Auth Poll] Error:", error);
-    return NextResponse.json({ success: false, error: "Failed to poll session" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Failed to poll session" },
+      { status: 500 },
+    );
   }
 }

@@ -12,10 +12,16 @@ import { getAppHost, getAppUrl } from "@/lib/utils/app-url";
  * Rate limit STRICT to prevent nonce flooding.
  */
 async function handler(request: NextRequest) {
-  const chainId = Number.parseInt(request.nextUrl.searchParams.get("chainId") ?? "1", 10);
+  const chainId = Number.parseInt(
+    request.nextUrl.searchParams.get("chainId") ?? "1",
+    10,
+  );
 
   if (!cache.isAvailable()) {
-    return NextResponse.json({ error: "Nonce storage unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Nonce storage unavailable" },
+      { status: 503 },
+    );
   }
 
   const nonce = crypto.randomBytes(16).toString("hex");

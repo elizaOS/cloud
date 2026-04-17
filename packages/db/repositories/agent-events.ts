@@ -28,7 +28,10 @@ export class AgentEventsRepository {
     });
   }
 
-  async listByAgent(agentId: string, filters?: AgentEventFilters): Promise<AgentEvent[]> {
+  async listByAgent(
+    agentId: string,
+    filters?: AgentEventFilters,
+  ): Promise<AgentEvent[]> {
     const conditions = [eq(agentEvents.agent_id, agentId)];
 
     if (filters?.eventTypes && filters.eventTypes.length > 0) {
@@ -93,7 +96,10 @@ export class AgentEventsRepository {
 
   async getLatestError(agentId: string): Promise<AgentEvent | undefined> {
     return await dbRead.query.agentEvents.findFirst({
-      where: and(eq(agentEvents.agent_id, agentId), eq(agentEvents.level, "error")),
+      where: and(
+        eq(agentEvents.agent_id, agentId),
+        eq(agentEvents.level, "error"),
+      ),
       orderBy: desc(agentEvents.created_at),
     });
   }

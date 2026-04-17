@@ -11,7 +11,9 @@ import { logger } from "@/lib/utils/logger";
  * @param organizationId - Organization ID.
  * @returns True if email can be sent.
  */
-export async function canSendLowCreditsEmail(organizationId: string): Promise<boolean> {
+export async function canSendLowCreditsEmail(
+  organizationId: string,
+): Promise<boolean> {
   const cacheKey = `low-credits-email-sent:${organizationId}`;
 
   const lastSent = await cache.get<{ sentAt: string }>(cacheKey);
@@ -32,12 +34,18 @@ export async function canSendLowCreditsEmail(organizationId: string): Promise<bo
  *
  * @param organizationId - Organization ID.
  */
-export async function markLowCreditsEmailSent(organizationId: string): Promise<void> {
+export async function markLowCreditsEmailSent(
+  organizationId: string,
+): Promise<void> {
   const cacheKey = `low-credits-email-sent:${organizationId}`;
   const cooldownHours = 24;
   const cooldownSeconds = cooldownHours * 60 * 60;
 
-  await cache.set(cacheKey, { sentAt: new Date().toISOString() }, cooldownSeconds);
+  await cache.set(
+    cacheKey,
+    { sentAt: new Date().toISOString() },
+    cooldownSeconds,
+  );
 
   logger.info("[EmailRateLimiter] Marked low credits email sent", {
     organizationId,

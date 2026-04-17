@@ -52,7 +52,8 @@ function hasUsableCacheConfig(): boolean {
   );
 }
 
-const shouldRun = hasUsableGatewayConfig() && hasUsableCronConfig() && hasUsableCacheConfig();
+const shouldRun =
+  hasUsableGatewayConfig() && hasUsableCronConfig() && hasUsableCacheConfig();
 
 async function readCachedCatalog(): Promise<CachedCatalog | null> {
   return await cache.get<CachedCatalog>(MODEL_CACHE_KEY);
@@ -121,7 +122,11 @@ describe.skipIf(!shouldRun)("Model catalog live server E2E", () => {
 
     expect(secondCached).not.toBeNull();
     expect(secondCached?.cachedAt).toBe(firstCached?.cachedAt);
-    expect(statusBody.models.every((model: { available: boolean }) => model.available)).toBe(true);
+    expect(
+      statusBody.models.every(
+        (model: { available: boolean }) => model.available,
+      ),
+    ).toBe(true);
   });
 
   test("refreshes the shared cache via the live cron endpoint", async () => {
@@ -136,13 +141,16 @@ describe.skipIf(!shouldRun)("Model catalog live server E2E", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    const cronResponse = await fetch(`${BASE_URL}/api/v1/cron/refresh-model-catalog`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${process.env.CRON_SECRET}`,
+    const cronResponse = await fetch(
+      `${BASE_URL}/api/v1/cron/refresh-model-catalog`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${process.env.CRON_SECRET}`,
+        },
+        signal: AbortSignal.timeout(TIMEOUT),
       },
-      signal: AbortSignal.timeout(TIMEOUT),
-    });
+    );
 
     expect(cronResponse.status).toBe(200);
 

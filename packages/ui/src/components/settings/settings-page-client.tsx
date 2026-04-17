@@ -40,7 +40,9 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get("tab") as SettingsTab | null;
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>(tabFromUrl || "general");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    tabFromUrl || "general",
+  );
 
   useEffect(() => {
     if (tabFromUrl) {

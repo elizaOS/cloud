@@ -80,113 +80,123 @@ async function cleanupTestEnvironment(): Promise<void> {
     await testRuntimeResult.cleanup();
   }
   if (testData && connectionString) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
+    await cleanupTestData(connectionString, testData.organization.id).catch(
+      () => {},
+    );
   }
   logTimings("MCP Loading Tests", timings);
   console.log("✅ Cleanup complete\n");
 }
 
-describe.skipIf(skipLiveModelSuite)("MCP Plugin Loading - Production Flow", () => {
-  beforeAll(setupTestEnvironment);
-  afterAll(cleanupTestEnvironment);
+describe.skipIf(skipLiveModelSuite)(
+  "MCP Plugin Loading - Production Flow",
+  () => {
+    beforeAll(setupTestEnvironment);
+    afterAll(cleanupTestEnvironment);
 
-  it("should create runtime with MCP plugin using RuntimeFactory", async () => {
-    startTimer("runtime_creation");
+    it("should create runtime with MCP plugin using RuntimeFactory", async () => {
+      startTimer("runtime_creation");
 
-    testRuntimeResult = await createTestRuntime({
-      testData,
-      characterId: testData.character?.id,
-      agentMode: "ASSISTANT" as any,
-      webSearchEnabled: false,
-    });
+      testRuntimeResult = await createTestRuntime({
+        testData,
+        characterId: testData.character?.id,
+        agentMode: "ASSISTANT" as any,
+        webSearchEnabled: false,
+      });
 
-    timings.runtimeCreation = endTimer("runtime_creation");
+      timings.runtimeCreation = endTimer("runtime_creation");
 
-    expect(testRuntimeResult).toBeDefined();
-    expect(testRuntimeResult.runtime).toBeDefined();
-    expect(testRuntimeResult.runtime.agentId).toBeDefined();
+      expect(testRuntimeResult).toBeDefined();
+      expect(testRuntimeResult.runtime).toBeDefined();
+      expect(testRuntimeResult.runtime.agentId).toBeDefined();
 
-    console.log(`\n✅ Runtime created in ${timings.runtimeCreation}ms`);
-    console.log(`   Agent ID: ${testRuntimeResult.runtime.agentId}`);
-    console.log(`   Character: ${testRuntimeResult.runtime.character?.name}`);
-  }, 120000);
+      console.log(`\n✅ Runtime created in ${timings.runtimeCreation}ms`);
+      console.log(`   Agent ID: ${testRuntimeResult.runtime.agentId}`);
+      console.log(`   Character: ${testRuntimeResult.runtime.character?.name}`);
+    }, 120000);
 
-  it("should have MCP service available", async () => {
-    startTimer("mcp_service_check");
+    it("should have MCP service available", async () => {
+      startTimer("mcp_service_check");
 
-    const mcpService = getMcpService(testRuntimeResult.runtime);
+      const mcpService = getMcpService(testRuntimeResult.runtime);
 
-    timings.mcpServiceCheck = endTimer("mcp_service_check");
+      timings.mcpServiceCheck = endTimer("mcp_service_check");
 
-    expect(mcpService).toBeDefined();
-    console.log(`\n✅ MCP service found in ${timings.mcpServiceCheck}ms`);
+      expect(mcpService).toBeDefined();
+      console.log(`\n✅ MCP service found in ${timings.mcpServiceCheck}ms`);
 
-    if (mcpService?.getServers) {
-      const servers = mcpService.getServers();
-      console.log(`   Servers: ${servers?.length || 0}`);
-    }
-  }, 10000);
+      if (mcpService?.getServers) {
+        const servers = mcpService.getServers();
+        console.log(`   Servers: ${servers?.length || 0}`);
+      }
+    }, 10000);
 
-  it("should wait for MCP initialization", async () => {
-    startTimer("mcp_init_wait");
+    it("should wait for MCP initialization", async () => {
+      startTimer("mcp_init_wait");
 
-    const isReady = await waitForMcpReady(testRuntimeResult.runtime, 15000);
+      const isReady = await waitForMcpReady(testRuntimeResult.runtime, 15000);
 
-    timings.mcpInitWait = endTimer("mcp_init_wait");
+      timings.mcpInitWait = endTimer("mcp_init_wait");
 
-    expect(isReady).toBe(true);
-    console.log(`\n✅ MCP initialized in ${timings.mcpInitWait}ms`);
+      expect(isReady).toBe(true);
+      console.log(`\n✅ MCP initialized in ${timings.mcpInitWait}ms`);
 
-    const mcpService = getMcpService(testRuntimeResult.runtime);
-    if (mcpService?.getTools) {
-      const tools = mcpService.getTools();
-      console.log(`   Tools available: ${tools?.length || 0}`);
-    }
-  }, 30000);
+      const mcpService = getMcpService(testRuntimeResult.runtime);
+      if (mcpService?.getTools) {
+        const tools = mcpService.getTools();
+        console.log(`   Tools available: ${tools?.length || 0}`);
+      }
+    }, 30000);
 
-  it("should create test user with elizaOS entities", async () => {
-    startTimer("user_creation");
+    it("should create test user with elizaOS entities", async () => {
+      startTimer("user_creation");
 
-    testUserContext = await createTestUser(testRuntimeResult.runtime, "MCPTestUser");
+      testUserContext = await createTestUser(
+        testRuntimeResult.runtime,
+        "MCPTestUser",
+      );
 
-    timings.userCreation = endTimer("user_creation");
+      timings.userCreation = endTimer("user_creation");
 
-    expect(testUserContext).toBeDefined();
-    expect(testUserContext.entityId).toBeDefined();
-    expect(testUserContext.roomId).toBeDefined();
-    expect(testUserContext.worldId).toBeDefined();
+      expect(testUserContext).toBeDefined();
+      expect(testUserContext.entityId).toBeDefined();
+      expect(testUserContext.roomId).toBeDefined();
+      expect(testUserContext.worldId).toBeDefined();
 
-    console.log(`\n✅ Test user created in ${timings.userCreation}ms`);
-    console.log(`   Entity ID: ${testUserContext.entityId}`);
-    console.log(`   Room ID: ${testUserContext.roomId}`);
-  }, 30000);
+      console.log(`\n✅ Test user created in ${timings.userCreation}ms`);
+      console.log(`   Entity ID: ${testUserContext.entityId}`);
+      console.log(`   Room ID: ${testUserContext.roomId}`);
+    }, 30000);
 
-  it("should process a message through the runtime", async () => {
-    startTimer("message_processing");
+    it("should process a message through the runtime", async () => {
+      startTimer("message_processing");
 
-    const result = await sendTestMessage(
-      testRuntimeResult.runtime,
-      testUserContext,
-      "Hello! What can you help me with?",
-      testData,
-      {
-        timeoutMs: 60000,
-      },
-    );
+      const result = await sendTestMessage(
+        testRuntimeResult.runtime,
+        testUserContext,
+        "Hello! What can you help me with?",
+        testData,
+        {
+          timeoutMs: 60000,
+        },
+      );
 
-    timings.messageProcessing = endTimer("message_processing");
+      timings.messageProcessing = endTimer("message_processing");
 
-    console.log(`\n📨 Message processed in ${result.duration}ms`);
-    console.log(`   Did respond: ${result.didRespond}`);
-    if (result.response) {
-      console.log(`   Response: ${result.response.text?.substring(0, 100)}...`);
-    }
-    if (result.error) {
-      console.log(`   Error: ${result.error}`);
-    }
+      console.log(`\n📨 Message processed in ${result.duration}ms`);
+      console.log(`   Did respond: ${result.didRespond}`);
+      if (result.response) {
+        console.log(
+          `   Response: ${result.response.text?.substring(0, 100)}...`,
+        );
+      }
+      if (result.error) {
+        console.log(`   Error: ${result.error}`);
+      }
 
-    expect(result.didRespond).toBe(true);
-    expect(result.response).toBeDefined();
-    expect(result.error).toBeUndefined();
-  }, 120000);
-});
+      expect(result.didRespond).toBe(true);
+      expect(result.response).toBeDefined();
+      expect(result.error).toBeUndefined();
+    }, 120000);
+  },
+);

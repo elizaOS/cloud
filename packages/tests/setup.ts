@@ -56,7 +56,9 @@ async function verifyLocalServerRunning(): Promise<void> {
   // 401/403 = server running but auth required (expected for some endpoints)
   // 200 = healthy
   // 5xx = server error (should still proceed, server is technically running)
-  console.log(`  ✅ Local server running at ${LOCAL_SERVER_URL} (status: ${response.status})`);
+  console.log(
+    `  ✅ Local server running at ${LOCAL_SERVER_URL} (status: ${response.status})`,
+  );
 }
 
 // Run verification synchronously at module load time

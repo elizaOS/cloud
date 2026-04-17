@@ -83,7 +83,8 @@ Special Commands:
 
   // Promote admin
   const walletAddress = args[0];
-  const role = (args[1] as "super_admin" | "moderator" | "viewer") || "moderator";
+  const role =
+    (args[1] as "super_admin" | "moderator" | "viewer") || "moderator";
   const notes = args.slice(2).join(" ") || undefined;
 
   // Validate wallet address format
@@ -97,7 +98,9 @@ Special Commands:
   // Validate role
   const validRoles = ["super_admin", "moderator", "viewer"];
   if (!validRoles.includes(role)) {
-    console.error(`❌ Error: Invalid role. Must be one of: ${validRoles.join(", ")}`);
+    console.error(
+      `❌ Error: Invalid role. Must be one of: ${validRoles.join(", ")}`,
+    );
     process.exit(1);
   }
 

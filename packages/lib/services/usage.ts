@@ -17,8 +17,14 @@ export class UsageService {
     return await usageRecordsRepository.findById(id);
   }
 
-  async listByOrganization(organizationId: string, limit?: number): Promise<UsageRecord[]> {
-    return await usageRecordsRepository.listByOrganization(organizationId, limit);
+  async listByOrganization(
+    organizationId: string,
+    limit?: number,
+  ): Promise<UsageRecord[]> {
+    return await usageRecordsRepository.listByOrganization(
+      organizationId,
+      limit,
+    );
   }
 
   async listByOrganizationAndDateRange(
@@ -38,7 +44,11 @@ export class UsageService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<UsageStats> {
-    return await usageRecordsRepository.getStatsByOrganization(organizationId, startDate, endDate);
+    return await usageRecordsRepository.getStatsByOrganization(
+      organizationId,
+      startDate,
+      endDate,
+    );
   }
 
   async create(data: NewUsageRecord): Promise<UsageRecord> {
@@ -61,7 +71,11 @@ export class UsageService {
       totalCost: number;
     }>
   > {
-    return await usageRecordsRepository.getByModel(organizationId, startDate, endDate);
+    return await usageRecordsRepository.getByModel(
+      organizationId,
+      startDate,
+      endDate,
+    );
   }
 
   /**

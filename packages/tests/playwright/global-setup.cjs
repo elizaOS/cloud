@@ -54,7 +54,9 @@ function getFirstExternalIpv4Address() {
 
 function getLocalDockerDatabaseUrl(env = process.env) {
   const host =
-    env.LOCAL_DOCKER_DB_HOST || getFirstExternalIpv4Address() || DEFAULT_LOCAL_DOCKER_DB_HOST;
+    env.LOCAL_DOCKER_DB_HOST ||
+    getFirstExternalIpv4Address() ||
+    DEFAULT_LOCAL_DOCKER_DB_HOST;
   const port = env.LOCAL_DOCKER_DB_PORT || DEFAULT_LOCAL_DOCKER_DB_PORT;
 
   return `postgresql://${LOCAL_DOCKER_DB_USER}:${LOCAL_DOCKER_DB_PASSWORD}@${host}:${port}/${LOCAL_DOCKER_DB_NAME}`;
@@ -106,14 +108,17 @@ function loadPlaywrightEnv() {
   }
 
   const shouldPreferLocalDockerDb =
-    process.env.CI !== "true" && process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK !== "1";
+    process.env.CI !== "true" &&
+    process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK !== "1";
   const localDockerDatabaseUrl = getLocalDockerDatabaseUrl({
     ...process.env,
     LOCAL_DOCKER_DB_HOST: process.env.LOCAL_DOCKER_DB_HOST || "localhost",
   });
   const testDatabaseUrl =
     process.env.TEST_DATABASE_URL ||
-    (shouldPreferLocalDockerDb ? localDockerDatabaseUrl : process.env.DATABASE_URL);
+    (shouldPreferLocalDockerDb
+      ? localDockerDatabaseUrl
+      : process.env.DATABASE_URL);
 
   if (testDatabaseUrl) {
     process.env.TEST_DATABASE_URL = testDatabaseUrl;
@@ -125,9 +130,12 @@ function loadPlaywrightEnv() {
 }
 
 function getDatabaseUrl() {
-  const connectionString = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
+  const connectionString =
+    process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error("TEST_DATABASE_URL or DATABASE_URL is required for live auth bootstrap");
+    throw new Error(
+      "TEST_DATABASE_URL or DATABASE_URL is required for live auth bootstrap",
+    );
   }
   return connectionString;
 }
@@ -140,7 +148,11 @@ function getApiKeyPrefix(key) {
   return key.slice(0, 12);
 }
 
-function createPlaywrightTestSessionToken(userId, organizationId, env = process.env) {
+function createPlaywrightTestSessionToken(
+  userId,
+  organizationId,
+  env = process.env,
+) {
   const secret = env.PLAYWRIGHT_TEST_AUTH_SECRET?.trim();
   if (env.PLAYWRIGHT_TEST_AUTH !== "true" || !secret || secret.length < 16) {
     throw new Error("Playwright test auth is not enabled");
@@ -152,7 +164,10 @@ function createPlaywrightTestSessionToken(userId, organizationId, env = process.
     exp: Math.floor(Date.now() / 1000) + PLAYWRIGHT_TEST_SESSION_TTL_SECONDS,
   };
   const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
-  const signature = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(payload)
+    .digest("base64url");
   return `${payload}.${signature}`;
 }
 
@@ -227,7 +242,13 @@ async function upsertUser(client, organizationId) {
               updated_at = NOW()
         WHERE id = $1
         RETURNING id`,
-      [existingUsers.rows[0].id, TEST_USER_EMAIL, TEST_USER_NAME, organizationId, TEST_USER_WALLET],
+      [
+        existingUsers.rows[0].id,
+        TEST_USER_EMAIL,
+        TEST_USER_NAME,
+        organizationId,
+        TEST_USER_WALLET,
+      ],
     );
 
     return result.rows[0].id;
@@ -249,7 +270,13 @@ async function upsertUser(client, organizationId) {
      )
      VALUES ($1, $2, $3, $4, 'owner', false, true, true, $5, 'evm', true)
      RETURNING id`,
-    [TEST_USER_ID, TEST_USER_EMAIL, TEST_USER_NAME, organizationId, TEST_USER_WALLET],
+    [
+      TEST_USER_ID,
+      TEST_USER_EMAIL,
+      TEST_USER_NAME,
+      organizationId,
+      TEST_USER_WALLET,
+    ],
   );
 
   return result.rows[0].id;
@@ -335,7 +362,10 @@ async function bootstrapLocalTestAuth() {
 
     await client.query("COMMIT");
 
-    const sessionToken = createPlaywrightTestSessionToken(userId, organizationId);
+    const sessionToken = createPlaywrightTestSessionToken(
+      userId,
+      organizationId,
+    );
 
     process.env.TEST_API_KEY = apiKey;
     process.env.TEST_USER_ID = userId;

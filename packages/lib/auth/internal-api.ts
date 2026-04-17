@@ -7,7 +7,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { isJWKSConfigured } from "./jwks";
-import { extractBearerToken, type InternalJWTPayload, verifyInternalToken } from "./jwt-internal";
+import {
+  extractBearerToken,
+  type InternalJWTPayload,
+  verifyInternalToken,
+} from "./jwt-internal";
 
 // Log config issues once at startup, not on every request
 if (!isJWKSConfigured() && process.env.NODE_ENV !== "test") {
@@ -67,9 +71,16 @@ export async function validateInternalJWTAsync(
  * The auth result is passed to the handler for access to pod identity.
  */
 export function withInternalAuth<T>(
-  handler: (request: NextRequest, auth: InternalAuthResult, ...args: unknown[]) => Promise<T>,
+  handler: (
+    request: NextRequest,
+    auth: InternalAuthResult,
+    ...args: unknown[]
+  ) => Promise<T>,
 ) {
-  return async (request: NextRequest, ...args: unknown[]): Promise<T | NextResponse> => {
+  return async (
+    request: NextRequest,
+    ...args: unknown[]
+  ): Promise<T | NextResponse> => {
     const authResult = await validateInternalJWTAsync(request);
     if (authResult instanceof NextResponse) {
       return authResult;

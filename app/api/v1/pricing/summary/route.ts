@@ -59,17 +59,24 @@ export async function GET() {
   );
 
   const ttsCosts = await Promise.all(
-    ["elevenlabs/eleven_flash_v2_5", "elevenlabs/eleven_multilingual_v2"].map(async (model) => {
-      const cost = await calculateTTSCostFromCatalog({ model, characterCount: 1000 });
-      return cost.totalCost;
-    }),
+    ["elevenlabs/eleven_flash_v2_5", "elevenlabs/eleven_multilingual_v2"].map(
+      async (model) => {
+        const cost = await calculateTTSCostFromCatalog({
+          model,
+          characterCount: 1000,
+        });
+        return cost.totalCost;
+      },
+    ),
   );
 
   const sttCost = await calculateSTTCostFromCatalog({
     model: "elevenlabs/scribe_v1",
     durationSeconds: 60,
   });
-  const instantClone = await calculateVoiceCloneCostFromCatalog({ cloneType: "instant" });
+  const instantClone = await calculateVoiceCloneCostFromCatalog({
+    cloneType: "instant",
+  });
   const professionalClone = await calculateVoiceCloneCostFromCatalog({
     cloneType: "professional",
   });

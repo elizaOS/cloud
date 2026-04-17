@@ -25,7 +25,10 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-async function handleTwilioWebhook(request: NextRequest, context: RouteParams): Promise<Response> {
+async function handleTwilioWebhook(
+  request: NextRequest,
+  context: RouteParams,
+): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
@@ -61,23 +64,38 @@ async function handleTwilioWebhook(request: NextRequest, context: RouteParams): 
 
     // Verify signature - only skip if explicitly disabled AND not in production
     const isProduction = process.env.NODE_ENV === "production";
-    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
+    const skipVerification =
+      process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
     const authToken = await twilioAutomationService.getAuthToken(orgId);
 
     if (process.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
-      logger.error("[TwilioWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production", { orgId });
+      logger.error(
+        "[TwilioWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production",
+        { orgId },
+      );
     }
 
     if (skipVerification) {
-      logger.warn("[TwilioWebhook] Signature validation disabled (non-production)", { orgId });
+      logger.warn(
+        "[TwilioWebhook] Signature validation disabled (non-production)",
+        { orgId },
+      );
     } else if (!authToken) {
-      logger.error("[TwilioWebhook] No auth token configured - rejecting webhook", { orgId });
+      logger.error(
+        "[TwilioWebhook] No auth token configured - rejecting webhook",
+        { orgId },
+      );
       return new NextResponse("Webhook not configured", { status: 500 });
     } else {
       const signature = request.headers.get("X-Twilio-Signature") || "";
       const url = request.url;
 
-      const isValid = await verifyTwilioSignature(authToken, signature, url, webhookData);
+      const isValid = await verifyTwilioSignature(
+        authToken,
+        signature,
+        url,
+        webhookData,
+      );
 
       if (!isValid) {
         logger.warn("[TwilioWebhook] Signature validation failed", { orgId });
@@ -92,12 +110,15 @@ async function handleTwilioWebhook(request: NextRequest, context: RouteParams): 
         orgId,
         messageSid: event.MessageSid,
       });
-      return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        status: 200,
-        headers: {
-          "Content-Type": "application/xml",
+      return new NextResponse(
+        '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/xml",
+          },
         },
-      });
+      );
     }
 
     // Log the event
@@ -117,12 +138,15 @@ async function handleTwilioWebhook(request: NextRequest, context: RouteParams): 
     await markAsProcessed(idempotencyKey, "twilio");
 
     // Return TwiML response (empty response acknowledges receipt)
-    return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-      status: 200,
-      headers: {
-        "Content-Type": "application/xml",
+    return new NextResponse(
+      '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/xml",
+        },
       },
-    });
+    );
   } catch (error) {
     logger.error("[TwilioWebhook] Error processing webhook", {
       orgId,
@@ -134,16 +158,23 @@ async function handleTwilioWebhook(request: NextRequest, context: RouteParams): 
 
 // Export POST handler with rate limiting (100 requests/min per IP)
 // Uses AGGRESSIVE preset for webhook endpoints
-export const POST = withRateLimit(handleTwilioWebhook, RateLimitPresets.AGGRESSIVE);
+export const POST = withRateLimit(
+  handleTwilioWebhook,
+  RateLimitPresets.AGGRESSIVE,
+);
 
 /**
  * Handle incoming SMS message from Twilio
  */
-async function handleIncomingMessage(orgId: string, event: TwilioWebhookEvent): Promise<void> {
-  const [{ messageRouterService }, { miladyGatewayRouterService }] = await Promise.all([
-    import("@/lib/services/message-router"),
-    import("@/lib/services/milady-gateway-router"),
-  ]);
+async function handleIncomingMessage(
+  orgId: string,
+  event: TwilioWebhookEvent,
+): Promise<void> {
+  const [{ messageRouterService }, { miladyGatewayRouterService }] =
+    await Promise.all([
+      import("@/lib/services/message-router"),
+      import("@/lib/services/milady-gateway-router"),
+    ]);
 
   const from = event.From;
   const to = event.To;

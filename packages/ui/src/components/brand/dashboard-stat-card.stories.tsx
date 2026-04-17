@@ -18,7 +18,11 @@ export default meta;
 type Story = StoryObj<typeof DashboardStatCard>;
 
 export const Default: Story = {
-  args: { label: "Total Users", value: "1,234", icon: <Users className="h-5 w-5" /> },
+  args: {
+    label: "Total Users",
+    value: "1,234",
+    icon: <Users className="h-5 w-5" />,
+  },
 };
 
 export const WithAccent: Story = {
@@ -43,7 +47,17 @@ export const WithHelper: Story = {
 export const AllAccents: Story = {
   render: () => (
     <div style={{ display: "grid", gap: 12 }}>
-      {(["orange", "amber", "blue", "emerald", "red", "violet", "white"] as const).map((accent) => (
+      {(
+        [
+          "orange",
+          "amber",
+          "blue",
+          "emerald",
+          "red",
+          "violet",
+          "white",
+        ] as const
+      ).map((accent) => (
         <DashboardStatCard
           key={accent}
           label={accent}

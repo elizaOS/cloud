@@ -21,14 +21,17 @@ function parseIntEnv(name: string, defaultValue: number): number {
   if (value === undefined) return defaultValue;
   const parsed = parseInt(value, 10);
   if (Number.isNaN(parsed)) {
-    throw new Error(`Invalid ${name} environment variable: "${value}" is not a valid integer`);
+    throw new Error(
+      `Invalid ${name} environment variable: "${value}" is not a valid integer`,
+    );
   }
   return parsed;
 }
 
 const VOICE_AUDIO_TTL_SECONDS = parseIntEnv("VOICE_AUDIO_TTL_SECONDS", 3600);
 
-const VOICE_STORAGE_PATH_PREFIX = process.env.VOICE_STORAGE_PATH_PREFIX ?? "discord-voice";
+const VOICE_STORAGE_PATH_PREFIX =
+  process.env.VOICE_STORAGE_PATH_PREFIX ?? "discord-voice";
 
 const CLEANUP_INTERVAL_MS = parseIntEnv("VOICE_CLEANUP_INTERVAL_MS", 900_000); // 15 minutes
 
@@ -67,7 +70,10 @@ export interface VoiceAttachmentMetadata {
  * Checks if an attachment is a voice message.
  */
 function isVoiceAttachment(attachment: Attachment): boolean {
-  return attachment.contentType?.startsWith("audio/") || attachment.name?.endsWith(".ogg");
+  return (
+    attachment.contentType?.startsWith("audio/") ||
+    attachment.name?.endsWith(".ogg")
+  );
 }
 
 /**
@@ -244,12 +250,16 @@ export class VoiceMessageHandler {
           expires_at: result.value.expiresAt.toISOString(),
           size: result.value.size,
           content_type: result.value.contentType,
-          filename: voiceAttachments[index].name ?? `voice-${voiceAttachments[index].id}.ogg`,
+          filename:
+            voiceAttachments[index].name ??
+            `voice-${voiceAttachments[index].id}.ogg`,
         });
       } else {
         const attachmentId = voiceAttachments[index].id;
         const errorMessage =
-          result.reason instanceof Error ? result.reason.message : String(result.reason);
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason);
         failed.push({ attachmentId, error: errorMessage });
         logger.error("Failed to process voice attachment", {
           connectionId,
@@ -316,7 +326,9 @@ export class VoiceMessageHandler {
       return 0;
     }
 
-    const deleteResults = await Promise.allSettled(expiredBlobs.map((blob) => del(blob.url)));
+    const deleteResults = await Promise.allSettled(
+      expiredBlobs.map((blob) => del(blob.url)),
+    );
 
     let deletedCount = 0;
     const failed: Array<{ url: string; error: string }> = [];
@@ -332,7 +344,9 @@ export class VoiceMessageHandler {
       } else {
         const blob = expiredBlobs[index];
         const errorMessage =
-          result.reason instanceof Error ? result.reason.message : String(result.reason);
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason);
         failed.push({ url: blob.url, error: errorMessage });
         logger.error("Failed to delete expired voice audio file", {
           url: blob.url,

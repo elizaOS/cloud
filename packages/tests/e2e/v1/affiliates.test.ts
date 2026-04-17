@@ -21,10 +21,15 @@ describe("Affiliates API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())("GET /api/v1/affiliates returns data with auth", async () => {
-    const response = await api.get("/api/v1/affiliates", { authenticated: true });
-    expect(response.status).toBe(200);
-  });
+  test.skipIf(!api.hasApiKey())(
+    "GET /api/v1/affiliates returns data with auth",
+    async () => {
+      const response = await api.get("/api/v1/affiliates", {
+        authenticated: true,
+      });
+      expect(response.status).toBe(200);
+    },
+  );
 
   test.skipIf(!api.hasApiKey())(
     "Affiliate SKU end-to-end: AI inference with X-Affiliate-Code credits owner",
@@ -37,16 +42,22 @@ describe("Affiliates API", () => {
       );
       expect([200, 400]).toContain(createRes.status);
 
-      const getRes = await api.get("/api/v1/affiliates", { authenticated: true });
+      const getRes = await api.get("/api/v1/affiliates", {
+        authenticated: true,
+      });
       expect(getRes.status).toBe(200);
       const getBody = (await getRes.json()) as any;
       const affiliateCode = getBody.code?.code;
       expect(affiliateCode).toBeTruthy();
 
       // 2. Initial earnings check
-      const initialUserRes = await api.get("/api/v1/user", { authenticated: true });
+      const initialUserRes = await api.get("/api/v1/user", {
+        authenticated: true,
+      });
       const initialUserBody = (await initialUserRes.json()) as any;
-      const initialEarnings = Number(initialUserBody.user?.redeemable_earnings || 0);
+      const initialEarnings = Number(
+        initialUserBody.user?.redeemable_earnings || 0,
+      );
 
       // 3. Perform AI inference with X-Affiliate-Code
       const chatRes = await api.post(
@@ -69,9 +80,13 @@ describe("Affiliates API", () => {
       expect(chatRes.status).toBe(200);
 
       // 4. Verify earnings increased
-      const finalUserRes = await api.get("/api/v1/user", { authenticated: true });
+      const finalUserRes = await api.get("/api/v1/user", {
+        authenticated: true,
+      });
       const finalUserBody = (await finalUserRes.json()) as any;
-      const finalEarnings = Number(finalUserBody.user?.redeemable_earnings || 0);
+      const finalEarnings = Number(
+        finalUserBody.user?.redeemable_earnings || 0,
+      );
 
       expect(finalEarnings).toBeGreaterThan(initialEarnings);
     },
@@ -91,14 +106,17 @@ describe("Referrals API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())("POST /api/v1/referrals/apply with invalid code", async () => {
-    const response = await api.post(
-      "/api/v1/referrals/apply",
-      { code: "NONEXISTENT" },
-      { authenticated: true },
-    );
-    expect([200, 400, 404]).toContain(response.status);
-  });
+  test.skipIf(!api.hasApiKey())(
+    "POST /api/v1/referrals/apply with invalid code",
+    async () => {
+      const response = await api.post(
+        "/api/v1/referrals/apply",
+        { code: "NONEXISTENT" },
+        { authenticated: true },
+      );
+      expect([200, 400, 404]).toContain(response.status);
+    },
+  );
 
   test.skipIf(!api.hasApiKey())(
     "GET /api/v1/referrals returns flat code payload with auth",
@@ -115,7 +133,9 @@ describe("Referrals API", () => {
       expect(typeof body.total_referrals).toBe("number");
       expect(typeof body.is_active).toBe("boolean");
 
-      const second = await api.get("/api/v1/referrals", { authenticated: true });
+      const second = await api.get("/api/v1/referrals", {
+        authenticated: true,
+      });
       expect(second.status).toBe(200);
       const body2 = (await second.json()) as { code: string };
       expect(body2.code).toBe(body.code);

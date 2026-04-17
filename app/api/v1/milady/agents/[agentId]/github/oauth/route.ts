@@ -5,7 +5,10 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 // redirect-validation not needed — GitHub uses generic OAuth callback which
 // restricts to ALLOWED_REDIRECT_PATHS; we always redirect to a cloud path.
-import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
+import {
+  getProvider,
+  isProviderConfigured,
+} from "@/lib/services/oauth/provider-registry";
 import { initiateOAuth2 } from "@/lib/services/oauth/providers";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 
@@ -74,10 +77,16 @@ export async function POST(
       );
     }
 
-    const sandbox = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const sandbox = await miladySandboxService.getAgent(
+      agentId,
+      user.organization_id,
+    );
     if (!sandbox) {
       return applyCorsHeaders(
-        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
+        NextResponse.json(
+          { success: false, error: "Agent not found" },
+          { status: 404 },
+        ),
         CORS_METHODS,
       );
     }
@@ -87,7 +96,11 @@ export async function POST(
     if (!parsed.success) {
       return applyCorsHeaders(
         NextResponse.json(
-          { success: false, error: "Invalid request", details: parsed.error.issues },
+          {
+            success: false,
+            error: "Invalid request",
+            details: parsed.error.issues,
+          },
           { status: 400 },
         ),
         CORS_METHODS,
@@ -95,10 +108,15 @@ export async function POST(
     }
 
     const scopes = parsed.data.scopes || provider.defaultScopes || [];
-    const redirectUrl = resolveManagedReturnUrl(agentId, user.organization_id, user.id, {
-      postMessage: parsed.data.postMessage,
-      returnUrl: parsed.data.returnUrl,
-    });
+    const redirectUrl = resolveManagedReturnUrl(
+      agentId,
+      user.organization_id,
+      user.id,
+      {
+        postMessage: parsed.data.postMessage,
+        returnUrl: parsed.data.returnUrl,
+      },
+    );
 
     const result = await initiateOAuth2(provider, {
       organizationId: user.organization_id,

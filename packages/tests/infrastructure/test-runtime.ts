@@ -52,7 +52,9 @@ import type { UserContext } from "../../lib/eliza/user-context";
 import type { TestDataSet } from "./test-data-factory";
 
 // Type for the runtime returned by RuntimeFactory
-export type TestRuntime = Awaited<ReturnType<typeof RuntimeFactoryType.createRuntimeForUser>>;
+export type TestRuntime = Awaited<
+  ReturnType<typeof RuntimeFactoryType.createRuntimeForUser>
+>;
 
 /**
  * Result from createTestRuntime including cleanup function
@@ -111,7 +113,9 @@ function validateTestData(testData: TestDataSet): void {
   }
 
   if (!testData.user) {
-    throw new Error("[TestRuntime] Test user is required. Test data must include a valid user.");
+    throw new Error(
+      "[TestRuntime] Test user is required. Test data must include a valid user.",
+    );
   }
 
   if (!testData.apiKey?.key) {
@@ -127,7 +131,10 @@ function validateTestData(testData: TestDataSet): void {
   }
 
   // Block anonymous users in tests (unless explicitly testing anonymous flow)
-  if (testData.user.isAnonymous && process.env.TEST_BLOCK_ANONYMOUS !== "false") {
+  if (
+    testData.user.isAnonymous &&
+    process.env.TEST_BLOCK_ANONYMOUS !== "false"
+  ) {
     throw new Error(
       "[TestRuntime] Anonymous users are BLOCKED in tests.\n" +
         "Tests must use properly created test users with valid API keys.\n" +
@@ -188,7 +195,9 @@ export async function createTestRuntime(
     },
     cleanup: async () => {
       try {
-        const { invalidateRuntime } = await import("../../lib/eliza/runtime-factory");
+        const { invalidateRuntime } = await import(
+          "../../lib/eliza/runtime-factory"
+        );
         await invalidateRuntime(runtime.agentId);
       } catch (e) {
         console.warn(`[TestRuntime] Cleanup warning: ${e}`);
@@ -228,7 +237,10 @@ export function buildUserContext(
   } = {},
 ): UserContext {
   // Validate we're not creating anonymous context
-  if (testData.user.isAnonymous && process.env.TEST_BLOCK_ANONYMOUS !== "false") {
+  if (
+    testData.user.isAnonymous &&
+    process.env.TEST_BLOCK_ANONYMOUS !== "false"
+  ) {
     throw new Error(
       "[TestRuntime] Cannot build UserContext for anonymous user.\n" +
         "Tests must use authenticated users. Set TEST_BLOCK_ANONYMOUS=false to override.",
@@ -288,7 +300,8 @@ export async function createTestUser(
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes("duplicate") && !msg.includes("unique constraint")) throw error;
+    if (!msg.includes("duplicate") && !msg.includes("unique constraint"))
+      throw error;
   }
 
   // Ensure room exists
@@ -305,7 +318,8 @@ export async function createTestUser(
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes("duplicate") && !msg.includes("unique constraint")) throw error;
+    if (!msg.includes("duplicate") && !msg.includes("unique constraint"))
+      throw error;
   }
 
   // Ensure agent entity exists
@@ -321,7 +335,8 @@ export async function createTestUser(
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes("duplicate") && !msg.includes("unique constraint")) throw error;
+    if (!msg.includes("duplicate") && !msg.includes("unique constraint"))
+      throw error;
   }
 
   // Ensure user entity exists
@@ -334,7 +349,8 @@ export async function createTestUser(
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes("duplicate") && !msg.includes("unique constraint")) throw error;
+    if (!msg.includes("duplicate") && !msg.includes("unique constraint"))
+      throw error;
   }
 
   // Ensure participants
@@ -406,11 +422,18 @@ export async function sendTestMessage(
   options: SendTestMessageOptions = {},
 ): Promise<TestMessageResult> {
   const startTime = Date.now();
-  const { timeoutMs = 120000, debug, onStreamChunk, onReasoningChunk } = options;
+  const {
+    timeoutMs = 120000,
+    debug,
+    onStreamChunk,
+    onReasoningChunk,
+  } = options;
 
   // Import debug utilities if debug is enabled
   let getLatestDebugTrace: (() => DebugTrace | undefined) | undefined;
-  let renderDebugTrace: ((trace: DebugTrace, view?: DebugRenderView) => string) | undefined;
+  let renderDebugTrace:
+    | ((trace: DebugTrace, view?: DebugRenderView) => string)
+    | undefined;
   let clearDebugTraces: (() => void) | undefined;
 
   if (debug?.enabled) {
@@ -424,7 +447,9 @@ export async function sendTestMessage(
   }
 
   // Import the production message handler
-  const { createMessageHandler } = await import("../../lib/eliza/message-handler");
+  const { createMessageHandler } = await import(
+    "../../lib/eliza/message-handler"
+  );
   const { AgentMode } = await import("../../lib/eliza/agent-mode-types");
 
   // Build proper UserContext like production does
@@ -446,7 +471,9 @@ export async function sendTestMessage(
   let error: string | undefined;
 
   try {
-    const { AgentMode: AgentModeEnum } = await import("../../lib/eliza/agent-mode-types");
+    const { AgentMode: AgentModeEnum } = await import(
+      "../../lib/eliza/agent-mode-types"
+    );
 
     // Process message through handler - this emits MESSAGE_RECEIVED event
     // which triggers plugin-assistant's handleMessage()
@@ -467,7 +494,10 @@ export async function sendTestMessage(
           : undefined,
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Message processing timeout")), timeoutMs),
+        setTimeout(
+          () => reject(new Error("Message processing timeout")),
+          timeoutMs,
+        ),
       ),
     ]);
 
@@ -491,7 +521,10 @@ export async function sendTestMessage(
   if (debug?.enabled && getLatestDebugTrace && renderDebugTrace) {
     debugTrace = getLatestDebugTrace();
     if (debugTrace) {
-      debugMarkdown = renderDebugTrace(debugTrace, debug.renderView ?? "summary");
+      debugMarkdown = renderDebugTrace(
+        debugTrace,
+        debug.renderView ?? "summary",
+      );
     }
   }
 
@@ -523,7 +556,10 @@ export function getMcpService(runtime: TestRuntime): {
 /**
  * Wait for MCP service to be fully initialized
  */
-export async function waitForMcpReady(runtime: TestRuntime, timeoutMs = 10000): Promise<boolean> {
+export async function waitForMcpReady(
+  runtime: TestRuntime,
+  timeoutMs = 10000,
+): Promise<boolean> {
   const startTime = Date.now();
   while (Date.now() - startTime < timeoutMs) {
     const mcpService = getMcpService(runtime);

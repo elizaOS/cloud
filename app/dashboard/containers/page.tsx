@@ -1,4 +1,8 @@
-import { ContainersEmptyState, ContainersSkeleton, DashboardStatCard } from "@elizaos/cloud-ui";
+import {
+  ContainersEmptyState,
+  ContainersSkeleton,
+  DashboardStatCard,
+} from "@elizaos/cloud-ui";
 import { Activity, AlertCircle, Server, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -30,7 +34,10 @@ export default async function ContainersPage() {
     stopped: containers.filter((c) => c.status === "stopped").length,
     failed: containers.filter((c) => c.status === "failed").length,
     building: containers.filter(
-      (c) => c.status === "building" || c.status === "deploying" || c.status === "pending",
+      (c) =>
+        c.status === "building" ||
+        c.status === "deploying" ||
+        c.status === "pending",
     ).length,
   };
 

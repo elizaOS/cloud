@@ -61,7 +61,9 @@ export function ApiKeysSummary({ summary }: ApiKeysSummaryProps) {
           </div>
           <div>
             <div className="text-2xl font-semibold text-white mt-2">
-              {typeof item.value === "string" ? item.value : numberFormatter.format(item.value)}
+              {typeof item.value === "string"
+                ? item.value
+                : numberFormatter.format(item.value)}
             </div>
             <p className="text-xs text-white/60 mt-1">{item.description}</p>
           </div>

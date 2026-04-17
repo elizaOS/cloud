@@ -29,20 +29,32 @@ export async function GET(request: NextRequest) {
   // PERFORMANCE: Parallelized all data fetches including 24h usage stats
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [generationStats, userCharacters, containers, apiKeys, userRooms, usageStats] =
-    await Promise.all([
-      generationsService.getStats(organizationId),
-      charactersService.listByUser(user.id),
-      listContainers(organizationId),
-      apiKeysService.listByOrganization(organizationId),
-      roomsService.getRoomsForEntity(user.id),
-      usageService.getStatsByOrganization(organizationId, twentyFourHoursAgo, new Date()),
-    ]);
+  const [
+    generationStats,
+    userCharacters,
+    containers,
+    apiKeys,
+    userRooms,
+    usageStats,
+  ] = await Promise.all([
+    generationsService.getStats(organizationId),
+    charactersService.listByUser(user.id),
+    listContainers(organizationId),
+    apiKeysService.listByOrganization(organizationId),
+    roomsService.getRoomsForEntity(user.id),
+    usageService.getStatsByOrganization(
+      organizationId,
+      twentyFourHoursAgo,
+      new Date(),
+    ),
+  ]);
 
   const chatRoomCount = userRooms.length;
   const totalGenerations = generationStats.totalGenerations;
-  const imageGenerations = generationStats.byType.find((t) => t.type === "image")?.count || 0;
-  const videoGenerations = generationStats.byType.find((t) => t.type === "video")?.count || 0;
+  const imageGenerations =
+    generationStats.byType.find((t) => t.type === "image")?.count || 0;
+  const videoGenerations =
+    generationStats.byType.find((t) => t.type === "video")?.count || 0;
   const apiCalls24h = usageStats.totalRequests;
 
   // Fetch agent stats in batch
@@ -60,7 +72,9 @@ export async function GET(request: NextRequest) {
   if (characterIds.length > 0) {
     try {
       const statsMap =
-        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(characterIds);
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+          characterIds,
+        );
       statsMap.forEach((stats, id) => {
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,

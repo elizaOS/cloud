@@ -45,12 +45,19 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
   });
 
   test("returns null for Anthropic model that does not support extended thinking", () => {
-    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-3-haiku", {});
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-3-haiku",
+      {},
+    );
     expect(result).toBeNull();
   });
 
   test("uses per-agent budget when provided for supported Anthropic model", () => {
-    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {}, 5000);
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      {},
+      5000,
+    );
     expect(result).toBe(5000);
   });
 
@@ -64,14 +71,20 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
   });
 
   test("falls back to env budget when per-agent budget is undefined", () => {
-    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {
-      [COT_ENV_KEY]: "8000",
-    });
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      {
+        [COT_ENV_KEY]: "8000",
+      },
+    );
     expect(result).toBe(8000);
   });
 
   test("returns null when both per-agent and env budgets are unset", () => {
-    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {});
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      {},
+    );
     expect(result).toBeNull();
   });
 
@@ -94,17 +107,23 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
   });
 
   test("clamps env fallback budget to max cap", () => {
-    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {
-      [COT_ENV_KEY]: "15000",
-      [COT_MAX_ENV_KEY]: "10000",
-    });
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      {
+        [COT_ENV_KEY]: "15000",
+        [COT_MAX_ENV_KEY]: "10000",
+      },
+    );
     expect(result).toBe(10000);
   });
 
   test("returns null when env budget is 0 (explicitly disabled)", () => {
-    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-sonnet-4", {
-      [COT_ENV_KEY]: "0",
-    });
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-sonnet-4",
+      {
+        [COT_ENV_KEY]: "0",
+      },
+    );
     expect(result).toBeNull();
   });
 
@@ -156,39 +175,49 @@ describe("anthropic COT env", () => {
     });
 
     test("positive integer → number", () => {
-      expect(parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "1024" })).toBe(1024);
-      expect(parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: " 2048 " })).toBe(2048);
+      expect(parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "1024" })).toBe(
+        1024,
+      );
+      expect(parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: " 2048 " })).toBe(
+        2048,
+      );
     });
 
     test("invalid non-empty throws", () => {
-      expect(() => parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "abc" })).toThrow(
-        /non-negative integer/,
-      );
-      expect(() => parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "12.5" })).toThrow(
-        /non-negative integer/,
-      );
-      expect(() => parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "12x" })).toThrow(
-        /non-negative integer/,
-      );
+      expect(() =>
+        parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "abc" }),
+      ).toThrow(/non-negative integer/);
+      expect(() =>
+        parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "12.5" }),
+      ).toThrow(/non-negative integer/);
+      expect(() =>
+        parseAnthropicCotBudgetFromEnv({ [COT_ENV_KEY]: "12x" }),
+      ).toThrow(/non-negative integer/);
     });
   });
 
   describe("anthropicThinkingProviderOptions", () => {
     test("non-anthropic model → {}", () => {
       expect(anthropicThinkingProviderOptions("gpt-4o", {})).toEqual({});
-      expect(anthropicThinkingProviderOptions("openai/gpt-4o", { [COT_ENV_KEY]: "1024" })).toEqual(
-        {},
-      );
+      expect(
+        anthropicThinkingProviderOptions("openai/gpt-4o", {
+          [COT_ENV_KEY]: "1024",
+        }),
+      ).toEqual({});
     });
 
     test("anthropic model + budget → thinking enabled", () => {
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env)).toEqual({
+      expect(
+        anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env),
+      ).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
         },
       });
-      expect(anthropicThinkingProviderOptions("claude-sonnet-4-5-20250929", env)).toEqual({
+      expect(
+        anthropicThinkingProviderOptions("claude-sonnet-4-5-20250929", env),
+      ).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
         },
@@ -196,17 +225,27 @@ describe("anthropic COT env", () => {
     });
 
     test("anthropic model + no budget → {}", () => {
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", {})).toEqual({});
+      expect(
+        anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", {}),
+      ).toEqual({});
     });
 
     test("per-agent 0 disables despite env default", () => {
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env, 0)).toEqual({});
+      expect(
+        anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env, 0),
+      ).toEqual({});
     });
 
     test("per-agent budget overrides env default", () => {
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env, 2048)).toEqual({
+      expect(
+        anthropicThinkingProviderOptions(
+          "anthropic/claude-sonnet-4.6",
+          env,
+          2048,
+        ),
+      ).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 2048 } },
         },
@@ -215,7 +254,13 @@ describe("anthropic COT env", () => {
 
     test("ANTHROPIC_COT_BUDGET_MAX clamps per-agent budget", () => {
       const env = { [COT_ENV_KEY]: "1024", [COT_MAX_ENV_KEY]: "500" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env, 9000)).toEqual({
+      expect(
+        anthropicThinkingProviderOptions(
+          "anthropic/claude-sonnet-4.6",
+          env,
+          9000,
+        ),
+      ).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 500 } },
         },
@@ -224,7 +269,9 @@ describe("anthropic COT env", () => {
 
     test("ANTHROPIC_COT_BUDGET_MAX clamps env default when no per-agent override", () => {
       const env = { [COT_ENV_KEY]: "9000", [COT_MAX_ENV_KEY]: "1000" };
-      expect(anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env)).toEqual({
+      expect(
+        anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env),
+      ).toEqual({
         providerOptions: {
           anthropic: { thinking: { type: "enabled", budgetTokens: 1000 } },
         },
@@ -236,7 +283,9 @@ describe("anthropic COT env", () => {
     test("aliases mergeProviderOptions(undefined, anthropicThinking…)", () => {
       expect(mergeAnthropicCotProviderOptions("openai/gpt-4o", {})).toEqual({});
       const env = { [COT_ENV_KEY]: "1024" };
-      expect(mergeAnthropicCotProviderOptions("anthropic/claude-sonnet-4.6", env)).toEqual(
+      expect(
+        mergeAnthropicCotProviderOptions("anthropic/claude-sonnet-4.6", env),
+      ).toEqual(
         mergeProviderOptions(
           undefined,
           anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env),
@@ -249,7 +298,10 @@ describe("anthropic COT env", () => {
     test("gateway order + anthropic when Claude + budget", () => {
       const env = { [COT_ENV_KEY]: "1024" };
       expect(
-        mergeGatewayGroqPreferenceWithAnthropicCot("anthropic/claude-sonnet-4.6", env),
+        mergeGatewayGroqPreferenceWithAnthropicCot(
+          "anthropic/claude-sonnet-4.6",
+          env,
+        ),
       ).toEqual(
         mergeProviderOptions(
           { providerOptions: { gateway: { order: ["groq"] } } },
@@ -262,9 +314,18 @@ describe("anthropic COT env", () => {
 
 describe("mergeGoogleImageModalitiesWithAnthropicCot", () => {
   test("matches explicit google merge + anthropic fragment", () => {
-    expect(mergeGoogleImageModalitiesWithAnthropicCot("google/gemini-2.5-flash-image", {})).toEqual(
+    expect(
+      mergeGoogleImageModalitiesWithAnthropicCot(
+        "google/gemini-2.5-flash-image",
+        {},
+      ),
+    ).toEqual(
       mergeProviderOptions(
-        { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } },
+        {
+          providerOptions: {
+            google: { responseModalities: ["TEXT", "IMAGE"] },
+          },
+        },
         anthropicThinkingProviderOptions("google/gemini-2.5-flash-image", {}),
       ),
     );
@@ -277,7 +338,9 @@ describe("parseAnthropicCotBudgetMaxFromEnv", () => {
   });
 
   test("positive → cap", () => {
-    expect(parseAnthropicCotBudgetMaxFromEnv({ [COT_MAX_ENV_KEY]: "8192" })).toBe(8192);
+    expect(
+      parseAnthropicCotBudgetMaxFromEnv({ [COT_MAX_ENV_KEY]: "8192" }),
+    ).toBe(8192);
   });
 });
 
@@ -293,18 +356,28 @@ describe("parseThinkingBudgetFromCharacterSettings", () => {
   });
 
   test("integer ≥ 0", () => {
-    expect(parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 0 })).toBe(0);
-    expect(parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 42 })).toBe(
-      42,
-    );
+    expect(
+      parseThinkingBudgetFromCharacterSettings({
+        anthropicThinkingBudgetTokens: 0,
+      }),
+    ).toBe(0);
+    expect(
+      parseThinkingBudgetFromCharacterSettings({
+        anthropicThinkingBudgetTokens: 42,
+      }),
+    ).toBe(42);
   });
 
   test("float input is rejected", () => {
     expect(
-      parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 4000.9 }),
+      parseThinkingBudgetFromCharacterSettings({
+        anthropicThinkingBudgetTokens: 4000.9,
+      }),
     ).toBeUndefined();
     expect(
-      parseThinkingBudgetFromCharacterSettings({ anthropicThinkingBudgetTokens: 1.1 }),
+      parseThinkingBudgetFromCharacterSettings({
+        anthropicThinkingBudgetTokens: 1.1,
+      }),
     ).toBeUndefined();
   });
 });
@@ -320,7 +393,9 @@ describe("supportsExtendedThinking", () => {
     expect(supportsExtendedThinking("claude-3-7-sonnet")).toBe(true);
     expect(supportsExtendedThinking("anthropic/claude-3-7-sonnet")).toBe(true);
     expect(supportsExtendedThinking("claude-3-7-sonnet-20250219")).toBe(true);
-    expect(supportsExtendedThinking("anthropic/claude-3-7-sonnet-latest")).toBe(true);
+    expect(supportsExtendedThinking("anthropic/claude-3-7-sonnet-latest")).toBe(
+      true,
+    );
   });
 
   test("returns false for Claude 3 Opus", () => {
@@ -337,7 +412,9 @@ describe("supportsExtendedThinking", () => {
     expect(supportsExtendedThinking("claude-opus-4")).toBe(true);
     expect(supportsExtendedThinking("anthropic/claude-opus-4")).toBe(true);
     expect(supportsExtendedThinking("claude-opus-4-20250514")).toBe(true);
-    expect(supportsExtendedThinking("anthropic/claude-opus-4-latest")).toBe(true);
+    expect(supportsExtendedThinking("anthropic/claude-opus-4-latest")).toBe(
+      true,
+    );
   });
 
   test("returns false for Claude Haiku (does not support thinking)", () => {
@@ -364,8 +441,14 @@ describe("mergeProviderOptions", () => {
 
   test("preserves google and adds anthropic", () => {
     const merged = mergeProviderOptions(
-      { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } },
-      { providerOptions: { anthropic: { thinking: { type: "enabled", budgetTokens: 512 } } } },
+      {
+        providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } },
+      },
+      {
+        providerOptions: {
+          anthropic: { thinking: { type: "enabled", budgetTokens: 512 } },
+        },
+      },
     );
     expect(merged).toEqual({
       providerOptions: {
@@ -378,7 +461,11 @@ describe("mergeProviderOptions", () => {
   test("merges gateway.order with anthropic", () => {
     const merged = mergeProviderOptions(
       { providerOptions: { gateway: { order: ["groq"] } } },
-      { providerOptions: { anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } } } },
+      {
+        providerOptions: {
+          anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
+        },
+      },
     );
     expect(merged).toEqual({
       providerOptions: {
@@ -391,7 +478,11 @@ describe("mergeProviderOptions", () => {
   test("both sides anthropic → later wins shallow fields", () => {
     const merged = mergeProviderOptions(
       { providerOptions: { anthropic: { sendReasoning: false } } },
-      { providerOptions: { anthropic: { thinking: { type: "enabled", budgetTokens: 100 } } } },
+      {
+        providerOptions: {
+          anthropic: { thinking: { type: "enabled", budgetTokens: 100 } },
+        },
+      },
     );
     expect(merged.providerOptions.anthropic).toEqual({
       sendReasoning: false,
@@ -403,11 +494,17 @@ describe("mergeProviderOptions", () => {
     // Note: Only gateway, anthropic, and google keys are deep-merged.
     // Other provider keys (e.g. openai, mistral) are clobbered by outer spread.
     const merged = mergeProviderOptions(
-      { providerOptions: { openai: { organizationId: "org-123", projectId: "proj-456" } } },
+      {
+        providerOptions: {
+          openai: { organizationId: "org-123", projectId: "proj-456" },
+        },
+      },
       { providerOptions: { openai: { organizationId: "org-789" } } },
     );
     // The entire openai object from extra replaces base — projectId is lost
-    expect(merged.providerOptions.openai).toEqual({ organizationId: "org-789" });
+    expect(merged.providerOptions.openai).toEqual({
+      organizationId: "org-789",
+    });
   });
 
   test("documents that non-deep-merged keys drop base fields on conflict", () => {
@@ -420,6 +517,8 @@ describe("mergeProviderOptions", () => {
     );
     // safeMode is lost because mistral isn't deep-merged
     expect(merged.providerOptions.mistral).toEqual({ apiKey: "key-2" });
-    expect((merged.providerOptions.mistral as { safeMode?: boolean }).safeMode).toBeUndefined();
+    expect(
+      (merged.providerOptions.mistral as { safeMode?: boolean }).safeMode,
+    ).toBeUndefined();
   });
 });

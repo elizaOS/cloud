@@ -2,7 +2,11 @@ import { put } from "@vercel/blob";
 import { and, desc, eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import type { NewUserVoice, VoiceCloningJob } from "@/db/schemas/user-voices";
-import { userVoices, voiceCloningJobs, voiceSamples } from "@/db/schemas/user-voices";
+import {
+  userVoices,
+  voiceCloningJobs,
+  voiceSamples,
+} from "@/db/schemas/user-voices";
 import { logger } from "@/lib/utils/logger";
 import { calculateVoiceCloneCostFromCatalog } from "./ai-pricing";
 import { getElevenLabsService } from "./elevenlabs";
@@ -51,8 +55,18 @@ export class VoiceCloningService {
   /**
    * Create a voice clone (instant or professional)
    */
-  async createVoiceClone(params: CreateVoiceCloneParams): Promise<VoiceCloneResult> {
-    const { organizationId, userId, name, description, cloneType, files, settings = {} } = params;
+  async createVoiceClone(
+    params: CreateVoiceCloneParams,
+  ): Promise<VoiceCloneResult> {
+    const {
+      organizationId,
+      userId,
+      name,
+      description,
+      cloneType,
+      files,
+      settings = {},
+    } = params;
 
     logger.info(`[VoiceCloning] Starting ${cloneType} voice clone: ${name}`, {
       organizationId,
@@ -128,9 +142,12 @@ export class VoiceCloningService {
           }),
         );
       } else {
-        logger.info("[VoiceCloning] Skipping blob storage (no token configured)", {
-          jobId: job.id,
-        });
+        logger.info(
+          "[VoiceCloning] Skipping blob storage (no token configured)",
+          {
+            jobId: job.id,
+          },
+        );
       }
 
       logger.info("[VoiceCloning] Creating voice in ElevenLabs", {
@@ -213,7 +230,8 @@ export class VoiceCloningService {
 
       return { userVoice, job: updatedJob };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
 
       // Only update job status if job was created
       if (job) {
@@ -232,9 +250,12 @@ export class VoiceCloningService {
           })
           .where(eq(voiceCloningJobs.id, job.id));
       } else {
-        logger.error("[VoiceCloning] Error creating voice clone (before job creation)", {
-          error: errorMessage,
-        });
+        logger.error(
+          "[VoiceCloning] Error creating voice clone (before job creation)",
+          {
+            error: errorMessage,
+          },
+        );
       }
 
       throw error;
@@ -278,7 +299,12 @@ export class VoiceCloningService {
     const [voice] = await dbRead
       .select()
       .from(userVoices)
-      .where(and(eq(userVoices.id, voiceId), eq(userVoices.organizationId, organizationId)));
+      .where(
+        and(
+          eq(userVoices.id, voiceId),
+          eq(userVoices.organizationId, organizationId),
+        ),
+      );
 
     if (!voice) {
       return null;
@@ -313,7 +339,12 @@ export class VoiceCloningService {
         ...updates,
         updatedAt: new Date(),
       })
-      .where(and(eq(userVoices.id, voiceId), eq(userVoices.organizationId, organizationId)))
+      .where(
+        and(
+          eq(userVoices.id, voiceId),
+          eq(userVoices.organizationId, organizationId),
+        ),
+      )
       .returning();
 
     if (!updatedVoice) {
@@ -371,7 +402,10 @@ export class VoiceCloningService {
    */
   async incrementUsageCount(voiceId: string): Promise<void> {
     // Get current voice
-    const [voice] = await dbRead.select().from(userVoices).where(eq(userVoices.id, voiceId));
+    const [voice] = await dbRead
+      .select()
+      .from(userVoices)
+      .where(eq(userVoices.id, voiceId));
 
     if (voice) {
       await dbWrite
@@ -393,7 +427,10 @@ export class VoiceCloningService {
       .select()
       .from(voiceCloningJobs)
       .where(
-        and(eq(voiceCloningJobs.id, jobId), eq(voiceCloningJobs.organizationId, organizationId)),
+        and(
+          eq(voiceCloningJobs.id, jobId),
+          eq(voiceCloningJobs.organizationId, organizationId),
+        ),
       );
 
     return job || null;
@@ -435,7 +472,9 @@ export class VoiceCloningService {
       // Check file type - allow any audio/* or specific types
       const isValidType =
         file.type.startsWith("audio/") ||
-        this.ALLOWED_TYPES.some((type) => file.type.includes(type.split(";")[0]));
+        this.ALLOWED_TYPES.some((type) =>
+          file.type.includes(type.split(";")[0]),
+        );
 
       if (!isValidType) {
         throw new Error(
@@ -454,7 +493,9 @@ export class VoiceCloningService {
     const maxTotalSize = this.MAX_FILE_SIZE * 10; // Max 100MB total
 
     if (totalSize > maxTotalSize) {
-      throw new Error(`Total file size exceeds maximum of ${maxTotalSize / 1024 / 1024}MB`);
+      throw new Error(
+        `Total file size exceeds maximum of ${maxTotalSize / 1024 / 1024}MB`,
+      );
     }
   }
 }

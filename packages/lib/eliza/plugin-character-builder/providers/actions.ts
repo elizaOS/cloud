@@ -1,4 +1,10 @@
-import type { Action, IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
+import type {
+  Action,
+  IAgentRuntime,
+  Memory,
+  Provider,
+  State,
+} from "@elizaos/core";
 import { addHeader, formatActions } from "@elizaos/core";
 
 /**

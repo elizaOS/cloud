@@ -209,7 +209,9 @@ export function getPromptPreset(name: PromptPresetName): PromptPreset {
  * Get preset from environment variable or return null
  */
 export function getPresetFromEnv(): PromptPreset | null {
-  const presetName = process.env.APP_PROMPT_PRESET as PromptPresetName | undefined;
+  const presetName = process.env.APP_PROMPT_PRESET as
+    | PromptPresetName
+    | undefined;
   if (!presetName) return null;
 
   if (!(presetName in promptPresets)) {
@@ -240,16 +242,24 @@ export function mergePromptConfig(
     ...preset,
     ...config,
     // Merge text fields by concatenation if both exist
-    systemPrefix: [preset?.systemPrefix, config?.systemPrefix].filter(Boolean).join("\n"),
-    systemSuffix: [preset?.systemSuffix, config?.systemSuffix].filter(Boolean).join("\n"),
-    responseStyle: [preset?.responseStyle, config?.responseStyle].filter(Boolean).join("\n"),
+    systemPrefix: [preset?.systemPrefix, config?.systemPrefix]
+      .filter(Boolean)
+      .join("\n"),
+    systemSuffix: [preset?.systemSuffix, config?.systemSuffix]
+      .filter(Boolean)
+      .join("\n"),
+    responseStyle: [preset?.responseStyle, config?.responseStyle]
+      .filter(Boolean)
+      .join("\n"),
   };
 }
 
 /**
  * Generate flirtiness style directive based on level
  */
-export function getFlirtinessDirective(level: PromptConfig["flirtiness"]): string {
+export function getFlirtinessDirective(
+  level: PromptConfig["flirtiness"],
+): string {
   switch (level) {
     case "high":
       return `
@@ -302,8 +312,14 @@ This isn't a professional interaction - it's a personal, romantic one.
     : "";
 
   return {
-    appSystemPrefix: [config.systemPrefix, romanticDirective].filter(Boolean).join("\n").trim(),
-    appSystemSuffix: [config.systemSuffix, flirtinessDirective].filter(Boolean).join("\n").trim(),
+    appSystemPrefix: [config.systemPrefix, romanticDirective]
+      .filter(Boolean)
+      .join("\n")
+      .trim(),
+    appSystemSuffix: [config.systemSuffix, flirtinessDirective]
+      .filter(Boolean)
+      .join("\n")
+      .trim(),
     appResponseStyle: (config.responseStyle || "").trim(),
   };
 }

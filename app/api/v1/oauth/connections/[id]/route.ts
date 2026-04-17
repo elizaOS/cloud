@@ -6,7 +6,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { Errors, internalErrorResponse, OAuthError, oauthService } from "@/lib/services/oauth";
+import {
+  Errors,
+  internalErrorResponse,
+  OAuthError,
+  oauthService,
+} from "@/lib/services/oauth";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import { logger } from "@/lib/utils/logger";
 
@@ -18,11 +23,19 @@ async function getAccessibleConnection(
   userId: string,
   connectionId: string,
 ) {
-  const connections = await oauthService.listConnections({ organizationId, userId });
-  return connections.find((connection) => connection.id === connectionId) || null;
+  const connections = await oauthService.listConnections({
+    organizationId,
+    userId,
+  });
+  return (
+    connections.find((connection) => connection.id === connectionId) || null
+  );
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id: connectionId } = await params;
   let organizationId: string | undefined;
 
@@ -35,7 +48,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       connectionId,
     });
 
-    const connection = await getAccessibleConnection(organizationId, user.id, connectionId);
+    const connection = await getAccessibleConnection(
+      organizationId,
+      user.id,
+      connectionId,
+    );
 
     if (!connection) {
       const error = Errors.connectionNotFound(connectionId);
@@ -61,10 +78,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     if (error instanceof OAuthError) {
-      return NextResponse.json(error.toResponse(), { status: error.httpStatus });
+      return NextResponse.json(error.toResponse(), {
+        status: error.httpStatus,
+      });
     }
 
-    return NextResponse.json(internalErrorResponse("Failed to get connection"), { status: 500 });
+    return NextResponse.json(
+      internalErrorResponse("Failed to get connection"),
+      { status: 500 },
+    );
   }
 }
 
@@ -86,7 +108,11 @@ export async function DELETE(
       connectionId,
     });
 
-    const connection = await getAccessibleConnection(organizationId, userId, connectionId);
+    const connection = await getAccessibleConnection(
+      organizationId,
+      userId,
+      connectionId,
+    );
     if (!connection) {
       const error = Errors.connectionNotFound(connectionId);
       return NextResponse.json(error.toResponse(), { status: 404 });
@@ -97,7 +123,9 @@ export async function DELETE(
       connectionId: connection.id,
     });
 
-    await invalidateOAuthState(organizationId, "oauth", userId, { skipVersionBump: true });
+    await invalidateOAuthState(organizationId, "oauth", userId, {
+      skipVersionBump: true,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -112,9 +140,14 @@ export async function DELETE(
     }
 
     if (error instanceof OAuthError) {
-      return NextResponse.json(error.toResponse(), { status: error.httpStatus });
+      return NextResponse.json(error.toResponse(), {
+        status: error.httpStatus,
+      });
     }
 
-    return NextResponse.json(internalErrorResponse("Failed to revoke connection"), { status: 500 });
+    return NextResponse.json(
+      internalErrorResponse("Failed to revoke connection"),
+      { status: 500 },
+    );
   }
 }

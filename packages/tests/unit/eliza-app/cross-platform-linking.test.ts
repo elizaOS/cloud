@@ -144,19 +144,23 @@ function updateUser(id: string, data: Partial<User>): User {
   // Check unique constraints for updated fields
   if (data.telegram_id && data.telegram_id !== user.telegram_id) {
     const existing = findByTelegramId(data.telegram_id);
-    if (existing && existing.id !== id) throw new Error("unique constraint: telegram_id");
+    if (existing && existing.id !== id)
+      throw new Error("unique constraint: telegram_id");
   }
   if (data.discord_id && data.discord_id !== user.discord_id) {
     const existing = findByDiscordId(data.discord_id);
-    if (existing && existing.id !== id) throw new Error("unique constraint: discord_id");
+    if (existing && existing.id !== id)
+      throw new Error("unique constraint: discord_id");
   }
   if (data.whatsapp_id && data.whatsapp_id !== user.whatsapp_id) {
     const existing = findByWhatsAppId(data.whatsapp_id);
-    if (existing && existing.id !== id) throw new Error("unique constraint: whatsapp_id");
+    if (existing && existing.id !== id)
+      throw new Error("unique constraint: whatsapp_id");
   }
   if (data.phone_number && data.phone_number !== user.phone_number) {
     const existing = findByPhone(data.phone_number);
-    if (existing && existing.id !== id) throw new Error("unique constraint: phone_number");
+    if (existing && existing.id !== id)
+      throw new Error("unique constraint: phone_number");
   }
 
   Object.assign(user, data);
@@ -200,14 +204,19 @@ function findOrCreateByTelegramWithPhone(
       updateUser(existingTelegram.id, {
         phone_number: phoneNumber,
         phone_verified: true,
-        telegram_username: telegramData.username || existingTelegram.telegram_username,
+        telegram_username:
+          telegramData.username || existingTelegram.telegram_username,
         telegram_first_name: telegramData.first_name,
       });
     } else if (existingTelegram.phone_number !== phoneNumber) {
       throw new Error("PHONE_MISMATCH");
     }
     const user = findById(existingTelegram.id)!;
-    return { user, organization: findOrgById(user.organization_id)!, isNew: false };
+    return {
+      user,
+      organization: findOrgById(user.organization_id)!,
+      isNew: false,
+    };
   }
 
   // Step 2: Check by phone_number
@@ -222,7 +231,11 @@ function findOrCreateByTelegramWithPhone(
       telegram_first_name: telegramData.first_name,
     });
     const user = findById(existingPhone.id)!;
-    return { user, organization: findOrgById(user.organization_id)!, isNew: false };
+    return {
+      user,
+      organization: findOrgById(user.organization_id)!,
+      isNew: false,
+    };
   }
 
   // Step 3: Create new
@@ -234,7 +247,11 @@ function findOrCreateByTelegramWithPhone(
     phone_verified: true,
     name: telegramData.first_name,
   });
-  return { user, organization: findOrgById(user.organization_id)!, isNew: true };
+  return {
+    user,
+    organization: findOrgById(user.organization_id)!,
+    isNew: true,
+  };
 }
 
 /**
@@ -272,7 +289,11 @@ function findOrCreateByDiscordId(
       updateUser(existingDiscord.id, updates);
     }
     const user = findById(existingDiscord.id)!;
-    return { user, organization: findOrgById(user.organization_id)!, isNew: false };
+    return {
+      user,
+      organization: findOrgById(user.organization_id)!,
+      isNew: false,
+    };
   }
 
   // Step 2: Check by phone_number (NEW - cross-platform linking)
@@ -289,7 +310,11 @@ function findOrCreateByDiscordId(
         discord_avatar_url: discordData.avatarUrl ?? null,
       });
       const user = findById(existingPhone.id)!;
-      return { user, organization: findOrgById(user.organization_id)!, isNew: false };
+      return {
+        user,
+        organization: findOrgById(user.organization_id)!,
+        isNew: false,
+      };
     }
   }
 
@@ -304,7 +329,11 @@ function findOrCreateByDiscordId(
     phone_verified: !!phoneNumber,
     name: displayName,
   });
-  return { user, organization: findOrgById(user.organization_id)!, isNew: true };
+  return {
+    user,
+    organization: findOrgById(user.organization_id)!,
+    isNew: true,
+  };
 }
 
 /**
@@ -313,7 +342,11 @@ function findOrCreateByDiscordId(
 function findOrCreateByPhone(phoneNumber: string): FindOrCreateResult {
   const existing = findByPhone(phoneNumber);
   if (existing) {
-    return { user: existing, organization: findOrgById(existing.organization_id)!, isNew: false };
+    return {
+      user: existing,
+      organization: findOrgById(existing.organization_id)!,
+      isNew: false,
+    };
   }
   const lastFour = phoneNumber.slice(-4);
   const user = createUser({
@@ -321,18 +354,28 @@ function findOrCreateByPhone(phoneNumber: string): FindOrCreateResult {
     phone_verified: true,
     name: `User ***${lastFour}`,
   });
-  return { user, organization: findOrgById(user.organization_id)!, isNew: true };
+  return {
+    user,
+    organization: findOrgById(user.organization_id)!,
+    isNew: true,
+  };
 }
 
 /**
  * Simulates linkTelegramToUser from user-service.ts (session-based linking)
  */
-function linkTelegramToUser(userId: string, telegramData: TelegramData): LinkResult {
+function linkTelegramToUser(
+  userId: string,
+  telegramData: TelegramData,
+): LinkResult {
   const telegramId = String(telegramData.id);
   const existingTelegram = findByTelegramId(telegramId);
 
   if (existingTelegram && existingTelegram.id !== userId) {
-    return { success: false, error: "This Telegram account is already linked to another account" };
+    return {
+      success: false,
+      error: "This Telegram account is already linked to another account",
+    };
   }
   if (existingTelegram && existingTelegram.id === userId) {
     return { success: true }; // Idempotent
@@ -346,7 +389,10 @@ function linkTelegramToUser(userId: string, telegramData: TelegramData): LinkRes
     });
     return { success: true };
   } catch {
-    return { success: false, error: "This Telegram account is already linked to another account" };
+    return {
+      success: false,
+      error: "This Telegram account is already linked to another account",
+    };
   }
 }
 
@@ -365,7 +411,10 @@ function linkDiscordToUser(
   const existingDiscord = findByDiscordId(discordData.discordId);
 
   if (existingDiscord && existingDiscord.id !== userId) {
-    return { success: false, error: "This Discord account is already linked to another account" };
+    return {
+      success: false,
+      error: "This Discord account is already linked to another account",
+    };
   }
   if (existingDiscord && existingDiscord.id === userId) {
     return { success: true }; // Idempotent
@@ -380,7 +429,10 @@ function linkDiscordToUser(
     });
     return { success: true };
   } catch {
-    return { success: false, error: "This Discord account is already linked to another account" };
+    return {
+      success: false,
+      error: "This Discord account is already linked to another account",
+    };
   }
 }
 
@@ -391,14 +443,20 @@ function linkPhoneToUser(userId: string, phoneNumber: string): LinkResult {
   const existingPhone = findByPhone(phoneNumber);
   if (existingPhone) {
     if (existingPhone.id === userId) return { success: true };
-    return { success: false, error: "This phone number is already linked to another account" };
+    return {
+      success: false,
+      error: "This phone number is already linked to another account",
+    };
   }
 
   try {
     updateUser(userId, { phone_number: phoneNumber, phone_verified: true });
     return { success: true };
   } catch {
-    return { success: false, error: "This phone number is already linked to another account" };
+    return {
+      success: false,
+      error: "This phone number is already linked to another account",
+    };
   }
 }
 
@@ -406,7 +464,10 @@ function linkPhoneToUser(userId: string, phoneNumber: string): LinkResult {
  * Simulates findOrCreateByWhatsAppId from user-service.ts
  * 3-step lookup: whatsapp_id → phone (auto-derived) → create
  */
-function findOrCreateByWhatsAppId(whatsappId: string, profileName?: string): FindOrCreateResult {
+function findOrCreateByWhatsAppId(
+  whatsappId: string,
+  profileName?: string,
+): FindOrCreateResult {
   const derivedPhone = `+${whatsappId.replace(/\D/g, "")}`;
 
   // Step 1: Check by whatsapp_id
@@ -456,7 +517,10 @@ function linkWhatsAppToUser(
   const existingWhatsApp = findByWhatsAppId(whatsappData.whatsappId);
 
   if (existingWhatsApp && existingWhatsApp.id !== userId) {
-    return { success: false, error: "This WhatsApp account is already linked to another account" };
+    return {
+      success: false,
+      error: "This WhatsApp account is already linked to another account",
+    };
   }
   if (existingWhatsApp && existingWhatsApp.id === userId) {
     return { success: true }; // Idempotent
@@ -469,7 +533,10 @@ function linkWhatsAppToUser(
     });
     return { success: true };
   } catch {
-    return { success: false, error: "This WhatsApp account is already linked to another account" };
+    return {
+      success: false,
+      error: "This WhatsApp account is already linked to another account",
+    };
   }
 }
 
@@ -477,8 +544,15 @@ function linkWhatsAppToUser(
 // Test data constants
 // =============================================================================
 
-const TELEGRAM_USER: TelegramData = { id: 12345678, first_name: "Alice", username: "alice_tg" };
-const DISCORD_USER: DiscordData = { username: "alice_discord", globalName: "Alice D" };
+const TELEGRAM_USER: TelegramData = {
+  id: 12345678,
+  first_name: "Alice",
+  username: "alice_tg",
+};
+const DISCORD_USER: DiscordData = {
+  username: "alice_discord",
+  globalName: "Alice D",
+};
 const DISCORD_ID = "987654321012345678";
 const PHONE = "+14155551234";
 
@@ -945,9 +1019,9 @@ describe("Cross-Platform Account Linking", () => {
       findOrCreateByTelegramWithPhone(TELEGRAM_USER, PHONE_A);
 
       // Try to re-auth with same Telegram but different phone → should throw PHONE_MISMATCH
-      expect(() => findOrCreateByTelegramWithPhone(TELEGRAM_USER, PHONE_B)).toThrow(
-        "PHONE_MISMATCH",
-      );
+      expect(() =>
+        findOrCreateByTelegramWithPhone(TELEGRAM_USER, PHONE_B),
+      ).toThrow("PHONE_MISMATCH");
 
       expect(users.length).toBe(1);
     });
@@ -1083,9 +1157,9 @@ describe("Cross-Platform Account Linking", () => {
 
       findOrCreateByDiscordId(DISCORD_ID_A, { username: "userA" }, PHONE);
 
-      expect(() => findOrCreateByDiscordId(DISCORD_ID_B, { username: "userB" }, PHONE)).toThrow(
-        "DISCORD_ALREADY_LINKED",
-      );
+      expect(() =>
+        findOrCreateByDiscordId(DISCORD_ID_B, { username: "userB" }, PHONE),
+      ).toThrow("DISCORD_ALREADY_LINKED");
     });
   });
 
@@ -1154,7 +1228,10 @@ describe("Cross-Platform Account Linking", () => {
     });
 
     test("links WhatsApp to existing phone user (Telegram-first)", () => {
-      const r1 = findOrCreateByTelegramWithPhone(TELEGRAM_USER, WA_DERIVED_PHONE);
+      const r1 = findOrCreateByTelegramWithPhone(
+        TELEGRAM_USER,
+        WA_DERIVED_PHONE,
+      );
       expect(r1.user.whatsapp_id).toBeNull();
 
       const r2 = findOrCreateByWhatsAppId(WA_ID, WA_NAME);
@@ -1181,12 +1258,19 @@ describe("Cross-Platform Account Linking", () => {
       expect(r1.isNew).toBe(true);
 
       // Step 2: Telegram with same phone
-      const r2 = findOrCreateByTelegramWithPhone(TELEGRAM_USER, WA_DERIVED_PHONE);
+      const r2 = findOrCreateByTelegramWithPhone(
+        TELEGRAM_USER,
+        WA_DERIVED_PHONE,
+      );
       expect(r2.isNew).toBe(false);
       expect(r2.user.id).toBe(r1.user.id);
 
       // Step 3: Discord with same phone
-      const r3 = findOrCreateByDiscordId(DISCORD_ID, DISCORD_USER, WA_DERIVED_PHONE);
+      const r3 = findOrCreateByDiscordId(
+        DISCORD_ID,
+        DISCORD_USER,
+        WA_DERIVED_PHONE,
+      );
       expect(r3.isNew).toBe(false);
       expect(r3.user.id).toBe(r1.user.id);
 

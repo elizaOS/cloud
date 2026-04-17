@@ -19,7 +19,11 @@ import { ChatSidebar } from "@/packages/ui/src/components/layout/chat-sidebar";
  * @param children - The page content to render.
  * @returns The rendered layout with sidebar and content area.
  */
-export default function ChatBuildLayout({ children }: { children: React.ReactNode }) {
+export default function ChatBuildLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
@@ -33,7 +37,9 @@ export default function ChatBuildLayout({ children }: { children: React.ReactNod
   return (
     <div className="dashboard-theme flex h-screen w-full overflow-hidden bg-neutral-950">
       {/* Chat Sidebar - hidden in build mode */}
-      {!isBuildPage && <ChatSidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />}
+      {!isBuildPage && (
+        <ChatSidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
+      )}
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden relative">

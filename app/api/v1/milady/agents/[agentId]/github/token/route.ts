@@ -35,7 +35,10 @@ export async function GET(
     if (!result) {
       return applyCorsHeaders(
         NextResponse.json(
-          { success: false, error: "No GitHub connection found for this agent" },
+          {
+            success: false,
+            error: "No GitHub connection found for this agent",
+          },
           { status: 404 },
         ),
         CORS_METHODS,

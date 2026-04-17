@@ -11,14 +11,20 @@ export const dynamic = "force-dynamic";
  * Get a specific character by ID.
  * Supports both Privy session and API key authentication.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
   const character = await charactersService.getByIdForUser(id, user.id);
 
   if (!character) {
-    return NextResponse.json({ success: false, error: "Character not found" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "Character not found" },
+      { status: 404 },
+    );
   }
 
   return NextResponse.json({ success: true, data: { character } });

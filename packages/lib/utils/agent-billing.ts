@@ -73,12 +73,17 @@ export const ESTIMATED_COSTS = {
  * Check if agent/org can afford an operation BEFORE executing it.
  * This is a non-locking check - actual deduction happens post-execution.
  */
-export async function preCheckBilling(context: BillingContext): Promise<PreBillResult> {
+export async function preCheckBilling(
+  context: BillingContext,
+): Promise<PreBillResult> {
   const { agentId, organizationId, estimatedCost } = context;
 
   // If agent has a budget, check that first
   if (agentId) {
-    const budgetCheck = await agentBudgetService.checkBudget(agentId, estimatedCost);
+    const budgetCheck = await agentBudgetService.checkBudget(
+      agentId,
+      estimatedCost,
+    );
 
     if (budgetCheck.canProceed) {
       return {
@@ -102,10 +107,13 @@ export async function preCheckBilling(context: BillingContext): Promise<PreBillR
 
     // If agent has no budget at all (not initialized), fall through to org credits
     if (budgetCheck.availableBudget === 0) {
-      logger.debug("[AgentBilling] No agent budget, falling back to org credits", {
-        agentId,
-        organizationId,
-      });
+      logger.debug(
+        "[AgentBilling] No agent budget, falling back to org credits",
+        {
+          agentId,
+          organizationId,
+        },
+      );
     } else {
       // Agent has budget but insufficient
       return {
@@ -307,6 +315,8 @@ export async function estimateLLMCost(
 /**
  * Get estimated cost for a known operation type
  */
-export function getEstimatedCost(operation: keyof typeof ESTIMATED_COSTS): number {
+export function getEstimatedCost(
+  operation: keyof typeof ESTIMATED_COSTS,
+): number {
   return ESTIMATED_COSTS[operation];
 }

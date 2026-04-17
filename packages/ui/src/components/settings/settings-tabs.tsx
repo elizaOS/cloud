@@ -9,8 +9,22 @@
 
 "use client";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@elizaos/cloud-ui";
-import { BarChart3, Building2, CreditCard, Key, Link2, PieChart, User } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@elizaos/cloud-ui";
+import {
+  BarChart3,
+  Building2,
+  CreditCard,
+  Key,
+  Link2,
+  PieChart,
+  User,
+} from "lucide-react";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import type { SettingsTab } from "./settings-page-client";
@@ -49,7 +63,10 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
     <>
       {/* Mobile Dropdown */}
       <div className="block md:hidden w-full mb-6">
-        <Select value={activeTab} onValueChange={(value) => onTabChange(value as SettingsTab)}>
+        <Select
+          value={activeTab}
+          onValueChange={(value) => onTabChange(value as SettingsTab)}
+        >
           <SelectTrigger className="w-full h-12 rounded-sm border border-brand-surface bg-[rgba(0,0,0,0.4)] backdrop-blur-sm text-white">
             <SelectValue>
               <div className="flex items-center gap-2">
@@ -103,7 +120,12 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
                   : "hover:bg-[rgba(255,255,255,0.03)]",
               )}
             >
-              <Icon className={cn("h-4 w-4", isActive ? "text-white" : "text-[#A2A2A2]")} />
+              <Icon
+                className={cn(
+                  "h-4 w-4",
+                  isActive ? "text-white" : "text-[#A2A2A2]",
+                )}
+              />
               <span
                 className={cn(
                   "text-sm font-medium font-mono tracking-tight",

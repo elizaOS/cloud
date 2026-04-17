@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -34,7 +35,10 @@ export async function OPTIONS() {
  *
  * Only returns non-sensitive information like name, description, logo.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const { id } = await params;
 
@@ -51,7 +55,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         is_approved: apps.is_approved,
       })
       .from(apps)
-      .where(and(eq(apps.id, id), eq(apps.is_active, true), eq(apps.is_approved, true)))
+      .where(
+        and(
+          eq(apps.id, id),
+          eq(apps.is_active, true),
+          eq(apps.is_approved, true),
+        ),
+      )
       .limit(1);
 
     if (!app) {

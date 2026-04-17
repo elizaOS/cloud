@@ -10,9 +10,20 @@
  * Requires: TEST_API_KEY env var pointing at a live Cloud account.
  */
 
-import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import * as api from "../helpers/api-client";
-import { createTestApp, deleteTestApp, enableMonetization } from "../helpers/app-lifecycle";
+import {
+  createTestApp,
+  deleteTestApp,
+  enableMonetization,
+} from "../helpers/app-lifecycle";
 
 setDefaultTimeout(30_000);
 
@@ -105,9 +116,12 @@ describe.skipIf(!api.hasApiKey())("App Credits", () => {
   });
 
   test("GET /api/v1/app-credits/balance returns app credit balance", async () => {
-    const response = await api.get(`/api/v1/app-credits/balance?app_id=${appId}`, {
-      authenticated: true,
-    });
+    const response = await api.get(
+      `/api/v1/app-credits/balance?app_id=${appId}`,
+      {
+        authenticated: true,
+      },
+    );
     expect(response.status).toBe(200);
 
     const body = (await response.json()) as any;

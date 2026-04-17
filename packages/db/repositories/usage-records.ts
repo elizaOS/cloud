@@ -1,7 +1,11 @@
 import { and, desc, eq, gte, lte, type SQL, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import { organizations } from "../schemas/organizations";
-import { type NewUsageRecord, type UsageRecord, usageRecords } from "../schemas/usage-records";
+import {
+  type NewUsageRecord,
+  type UsageRecord,
+  usageRecords,
+} from "../schemas/usage-records";
 import { users } from "../schemas/users";
 
 export type { NewUsageRecord, UsageRecord };
@@ -128,7 +132,10 @@ export class UsageRecordsRepository {
   /**
    * Lists usage records for an organization, ordered by creation date.
    */
-  async listByOrganization(organizationId: string, limit?: number): Promise<UsageRecord[]> {
+  async listByOrganization(
+    organizationId: string,
+    limit?: number,
+  ): Promise<UsageRecord[]> {
     return await dbRead.query.usageRecords.findMany({
       where: eq(usageRecords.organization_id, organizationId),
       orderBy: desc(usageRecords.created_at),
@@ -162,7 +169,9 @@ export class UsageRecordsRepository {
     startDate?: Date,
     endDate?: Date,
   ): Promise<UsageStats> {
-    const conditions: SQL[] = [eq(usageRecords.organization_id, organizationId)];
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
 
     if (startDate) {
       conditions.push(sql`${usageRecords.created_at} >= ${startDate}`);
@@ -306,7 +315,9 @@ export class UsageRecordsRepository {
   ): Promise<UserUsageBreakdown[]> {
     const { startDate, endDate, limit = 50 } = options || {};
 
-    const conditions: SQL[] = [eq(usageRecords.organization_id, organizationId)];
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
 
     if (startDate) {
       conditions.push(sql`${usageRecords.created_at} >= ${startDate}`);
@@ -330,7 +341,11 @@ export class UsageRecordsRepository {
       .leftJoin(users, eq(usageRecords.user_id, users.id))
       .where(and(...conditions))
       .groupBy(usageRecords.user_id, users.name, users.email)
-      .orderBy(desc(sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`))
+      .orderBy(
+        desc(
+          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`,
+        ),
+      )
       .limit(limit);
 
     return result
@@ -374,7 +389,9 @@ export class UsageRecordsRepository {
     const projectedMonthlyBurn = currentDailyBurn * 30;
     const creditBalance = orgData?.credit_balance || 0;
     const daysUntilBalanceZero =
-      currentDailyBurn > 0 ? Math.floor(Number(creditBalance) / currentDailyBurn) : null;
+      currentDailyBurn > 0
+        ? Math.floor(Number(creditBalance) / currentDailyBurn)
+        : null;
 
     return {
       currentDailyBurn,
@@ -392,7 +409,9 @@ export class UsageRecordsRepository {
     organizationId: string,
     options?: { startDate?: Date; endDate?: Date },
   ): Promise<ProviderBreakdown[]> {
-    const conditions: SQL[] = [eq(usageRecords.organization_id, organizationId)];
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
 
     if (options?.startDate) {
       conditions.push(sql`${usageRecords.created_at} >= ${options.startDate}`);
@@ -416,9 +435,16 @@ export class UsageRecordsRepository {
       .from(usageRecords)
       .where(and(...conditions))
       .groupBy(usageRecords.provider)
-      .orderBy(desc(sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`));
+      .orderBy(
+        desc(
+          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`,
+        ),
+      );
 
-    const totalCost = result.reduce((sum, row) => sum + Number(row.totalCost || 0), 0);
+    const totalCost = result.reduce(
+      (sum, row) => sum + Number(row.totalCost || 0),
+      0,
+    );
 
     return result.map((row) => ({
       provider: row.provider,
@@ -426,7 +452,8 @@ export class UsageRecordsRepository {
       totalCost: Number(row.totalCost || 0),
       totalTokens: row.totalTokens,
       successRate: row.successRate,
-      percentage: totalCost > 0 ? (Number(row.totalCost || 0) / totalCost) * 100 : 0,
+      percentage:
+        totalCost > 0 ? (Number(row.totalCost || 0) / totalCost) * 100 : 0,
     }));
   }
 
@@ -439,7 +466,9 @@ export class UsageRecordsRepository {
   ): Promise<ModelBreakdown[]> {
     const { startDate, endDate, limit = 50 } = options || {};
 
-    const conditions: SQL[] = [eq(usageRecords.organization_id, organizationId)];
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
 
     if (startDate) {
       conditions.push(sql`${usageRecords.created_at} >= ${startDate}`);
@@ -464,7 +493,11 @@ export class UsageRecordsRepository {
       .from(usageRecords)
       .where(and(...conditions))
       .groupBy(usageRecords.model, usageRecords.provider)
-      .orderBy(desc(sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`))
+      .orderBy(
+        desc(
+          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`,
+        ),
+      )
       .limit(limit);
 
     return result.map((row) => ({
@@ -473,7 +506,8 @@ export class UsageRecordsRepository {
       totalRequests: row.totalRequests,
       totalCost: row.totalCost,
       totalTokens: row.totalTokens,
-      avgCostPerToken: row.totalTokens > 0 ? row.totalCost / row.totalTokens : 0,
+      avgCostPerToken:
+        row.totalTokens > 0 ? row.totalCost / row.totalTokens : 0,
       successRate: row.successRate,
     }));
   }
@@ -487,8 +521,16 @@ export class UsageRecordsRepository {
     previousPeriod: { startDate: Date; endDate: Date },
   ): Promise<TrendData> {
     const [currentStats, previousStats] = await Promise.all([
-      this.getStatsByOrganization(organizationId, currentPeriod.startDate, currentPeriod.endDate),
-      this.getStatsByOrganization(organizationId, previousPeriod.startDate, previousPeriod.endDate),
+      this.getStatsByOrganization(
+        organizationId,
+        currentPeriod.startDate,
+        currentPeriod.endDate,
+      ),
+      this.getStatsByOrganization(
+        organizationId,
+        previousPeriod.startDate,
+        previousPeriod.endDate,
+      ),
     ]);
 
     const calculateChange = (current: number, previous: number): number => {
@@ -497,17 +539,27 @@ export class UsageRecordsRepository {
     };
 
     const periodDays = Math.ceil(
-      (currentPeriod.endDate.getTime() - currentPeriod.startDate.getTime()) / (1000 * 60 * 60 * 24),
+      (currentPeriod.endDate.getTime() - currentPeriod.startDate.getTime()) /
+        (1000 * 60 * 60 * 24),
     );
 
     return {
-      requestsChange: calculateChange(currentStats.totalRequests, previousStats.totalRequests),
-      costChange: calculateChange(Number(currentStats.totalCost), Number(previousStats.totalCost)),
+      requestsChange: calculateChange(
+        currentStats.totalRequests,
+        previousStats.totalRequests,
+      ),
+      costChange: calculateChange(
+        Number(currentStats.totalCost),
+        Number(previousStats.totalCost),
+      ),
       tokensChange: calculateChange(
         currentStats.totalInputTokens + currentStats.totalOutputTokens,
         previousStats.totalInputTokens + previousStats.totalOutputTokens,
       ),
-      successRateChange: calculateChange(currentStats.successRate, previousStats.successRate),
+      successRateChange: calculateChange(
+        currentStats.successRate,
+        previousStats.successRate,
+      ),
       period: `${periodDays}d`,
     };
   }
@@ -536,7 +588,9 @@ export class UsageRecordsRepository {
       offset = 0,
     } = options || {};
 
-    const conditions: SQL[] = [eq(usageRecords.organization_id, organizationId)];
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
 
     if (startDate) {
       conditions.push(sql`${usageRecords.created_at} >= ${startDate}`);
@@ -595,7 +649,10 @@ export class UsageRecordsRepository {
    * Creates a new usage record.
    */
   async create(data: NewUsageRecord): Promise<UsageRecord> {
-    const [record] = await dbWrite.insert(usageRecords).values(data).returning();
+    const [record] = await dbWrite
+      .insert(usageRecords)
+      .values(data)
+      .returning();
     return record;
   }
 
@@ -605,7 +662,10 @@ export class UsageRecordsRepository {
   async update(
     id: string,
     data: Partial<
-      Pick<UsageRecord, "is_successful" | "error_message" | "duration_ms" | "metadata">
+      Pick<
+        UsageRecord,
+        "is_successful" | "error_message" | "duration_ms" | "metadata"
+      >
     >,
   ): Promise<UsageRecord | undefined> {
     const [record] = await dbWrite

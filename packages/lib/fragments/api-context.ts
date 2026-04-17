@@ -4,7 +4,10 @@
  * Builds context from API endpoint discovery for inclusion in generation prompts
  */
 
-import { API_ENDPOINTS, type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
+import {
+  API_ENDPOINTS,
+  type ApiEndpoint,
+} from "@/lib/swagger/endpoint-discovery";
 
 export interface ApiContextOptions {
   categories?: string[];
@@ -16,8 +19,15 @@ export interface ApiContextOptions {
 /**
  * Build API documentation context for LLM prompts
  */
-export async function buildApiContext(options: ApiContextOptions = {}): Promise<string> {
-  const { categories = [], tags = [], limit = 50, includeExamples = true } = options;
+export async function buildApiContext(
+  options: ApiContextOptions = {},
+): Promise<string> {
+  const {
+    categories = [],
+    tags = [],
+    limit = 50,
+    includeExamples = true,
+  } = options;
 
   let filteredEndpoints = API_ENDPOINTS;
 
@@ -77,7 +87,9 @@ export async function buildApiContext(options: ApiContextOptions = {}): Promise<
         for (const param of endpoint.parameters.body) {
           const required = param.required ? " (required)" : " (optional)";
           const example =
-            includeExamples && param.example ? `\n  Example: ${JSON.stringify(param.example)}` : "";
+            includeExamples && param.example
+              ? `\n  Example: ${JSON.stringify(param.example)}`
+              : "";
           paramSections.push(
             `- \`${param.name}\` (${param.type})${required}: ${param.description}${example}`,
           );
@@ -89,7 +101,9 @@ export async function buildApiContext(options: ApiContextOptions = {}): Promise<
         for (const param of endpoint.parameters.query) {
           const required = param.required ? " (required)" : " (optional)";
           const example =
-            includeExamples && param.example ? `\n  Example: ${JSON.stringify(param.example)}` : "";
+            includeExamples && param.example
+              ? `\n  Example: ${JSON.stringify(param.example)}`
+              : "";
           paramSections.push(
             `- \`${param.name}\` (${param.type})${required}: ${param.description}${example}`,
           );

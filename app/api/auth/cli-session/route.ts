@@ -45,7 +45,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error("Error creating CLI auth session:", error);
     return applyCorsHeaders(
-      NextResponse.json({ error: "Failed to create authentication session" }, { status: 500 }),
+      NextResponse.json(
+        { error: "Failed to create authentication session" },
+        { status: 500 },
+      ),
       CORS_METHODS,
     );
   }

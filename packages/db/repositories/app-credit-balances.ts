@@ -31,9 +31,15 @@ export class AppCreditBalancesRepository {
   /**
    * Finds an app credit balance by app ID and user ID.
    */
-  async findByAppAndUser(appId: string, userId: string): Promise<AppCreditBalance | undefined> {
+  async findByAppAndUser(
+    appId: string,
+    userId: string,
+  ): Promise<AppCreditBalance | undefined> {
     return await dbRead.query.appCreditBalances.findFirst({
-      where: and(eq(appCreditBalances.app_id, appId), eq(appCreditBalances.user_id, userId)),
+      where: and(
+        eq(appCreditBalances.app_id, appId),
+        eq(appCreditBalances.user_id, userId),
+      ),
     });
   }
 
@@ -102,7 +108,10 @@ export class AppCreditBalancesRepository {
    * Creates a new app credit balance record.
    */
   async create(data: NewAppCreditBalance): Promise<AppCreditBalance> {
-    const [balance] = await dbWrite.insert(appCreditBalances).values(data).returning();
+    const [balance] = await dbWrite
+      .insert(appCreditBalances)
+      .values(data)
+      .returning();
     return balance;
   }
 
@@ -142,7 +151,10 @@ export class AppCreditBalancesRepository {
   }> {
     return await dbWrite.transaction(async (tx) => {
       const balance = await tx.query.appCreditBalances.findFirst({
-        where: and(eq(appCreditBalances.app_id, appId), eq(appCreditBalances.user_id, userId)),
+        where: and(
+          eq(appCreditBalances.app_id, appId),
+          eq(appCreditBalances.user_id, userId),
+        ),
       });
 
       if (!balance) {
@@ -170,7 +182,12 @@ export class AppCreditBalancesRepository {
           total_purchased: sql`${appCreditBalances.total_purchased} + ${amount}`,
           updated_at: new Date(),
         })
-        .where(and(eq(appCreditBalances.app_id, appId), eq(appCreditBalances.user_id, userId)))
+        .where(
+          and(
+            eq(appCreditBalances.app_id, appId),
+            eq(appCreditBalances.user_id, userId),
+          ),
+        )
         .returning();
 
       return {
@@ -199,7 +216,12 @@ export class AppCreditBalancesRepository {
       const [balance] = await tx
         .select()
         .from(appCreditBalances)
-        .where(and(eq(appCreditBalances.app_id, appId), eq(appCreditBalances.user_id, userId)))
+        .where(
+          and(
+            eq(appCreditBalances.app_id, appId),
+            eq(appCreditBalances.user_id, userId),
+          ),
+        )
         .for("update");
 
       if (!balance) {
@@ -228,7 +250,12 @@ export class AppCreditBalancesRepository {
           total_spent: sql`${appCreditBalances.total_spent} + ${amount}`,
           updated_at: new Date(),
         })
-        .where(and(eq(appCreditBalances.app_id, appId), eq(appCreditBalances.user_id, userId)))
+        .where(
+          and(
+            eq(appCreditBalances.app_id, appId),
+            eq(appCreditBalances.user_id, userId),
+          ),
+        )
         .returning();
 
       return {

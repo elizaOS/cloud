@@ -27,7 +27,8 @@ export class AnthropicMcpCompatibility extends McpToolCompatibility {
     constraints: Record<string, unknown>,
   ): string {
     const hints: string[] = [];
-    if (constraints.additionalProperties === false) hints.push("Only use the specified properties");
+    if (constraints.additionalProperties === false)
+      hints.push("Only use the specified properties");
     if (constraints.format === "date-time") hints.push("Use ISO 8601 format");
     if (constraints.pattern) hints.push(`Must match: ${constraints.pattern}`);
 

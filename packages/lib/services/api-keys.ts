@@ -5,7 +5,11 @@
  */
 
 import crypto from "crypto";
-import { type ApiKey, apiKeysRepository, type NewApiKey } from "@/db/repositories";
+import {
+  type ApiKey,
+  apiKeysRepository,
+  type NewApiKey,
+} from "@/db/repositories";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { API_KEY_PREFIX_LENGTH } from "@/lib/pricing";
@@ -79,7 +83,9 @@ export class ApiKeysService {
     return await apiKeysRepository.listByOrganization(organizationId);
   }
 
-  async create(data: Omit<NewApiKey, "key" | "key_hash" | "key_prefix">): Promise<{
+  async create(
+    data: Omit<NewApiKey, "key" | "key_hash" | "key_prefix">,
+  ): Promise<{
     apiKey: ApiKey;
     plainKey: string;
   }> {
@@ -98,7 +104,10 @@ export class ApiKeysService {
     };
   }
 
-  async update(id: string, data: Partial<NewApiKey>): Promise<ApiKey | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewApiKey>,
+  ): Promise<ApiKey | undefined> {
     // Get the key first to invalidate cache
     const existing = await apiKeysRepository.findById(id);
     if (existing) {
@@ -123,7 +132,10 @@ export class ApiKeysService {
   }
 
   async deactivateUserKeysByName(userId: string, name: string): Promise<void> {
-    const existingKeys = await apiKeysRepository.findByUserAndName(userId, name);
+    const existingKeys = await apiKeysRepository.findByUserAndName(
+      userId,
+      name,
+    );
 
     for (const key of existingKeys) {
       await this.invalidateCache(key.key_hash);

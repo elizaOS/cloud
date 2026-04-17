@@ -1,6 +1,9 @@
 import { anthropic as anthropicProvider } from "@ai-sdk/anthropic";
 
-const SUPPORTED_ANTHROPIC_WEB_SEARCH_MODELS = ["claude-sonnet-4-6", "claude-opus-4-6"] as const;
+const SUPPORTED_ANTHROPIC_WEB_SEARCH_MODELS = [
+  "claude-sonnet-4-6",
+  "claude-opus-4-6",
+] as const;
 
 const MAX_ANTHROPIC_WEB_SEARCH_MAX_USES = 10;
 
@@ -16,7 +19,8 @@ export function supportsAnthropicWebSearch(model: string): boolean {
   const normalized = normalizeModelName(model);
   return SUPPORTED_ANTHROPIC_WEB_SEARCH_MODELS.some(
     (supportedModel) =>
-      normalized === supportedModel || normalized.startsWith(`${supportedModel}-`),
+      normalized === supportedModel ||
+      normalized.startsWith(`${supportedModel}-`),
   );
 }
 
@@ -25,7 +29,9 @@ export function isAnthropicWebSearchEnabled(
   model: string,
   enabled: boolean,
 ): boolean {
-  return enabled && provider === "anthropic" && supportsAnthropicWebSearch(model);
+  return (
+    enabled && provider === "anthropic" && supportsAnthropicWebSearch(model)
+  );
 }
 
 function resolveWebSearchMaxUses(maxUses: number | undefined): number {
@@ -33,7 +39,10 @@ function resolveWebSearchMaxUses(maxUses: number | undefined): number {
     return DEFAULT_ANTHROPIC_WEB_SEARCH_MAX_USES;
   }
 
-  return Math.min(Math.max(Math.trunc(maxUses), 1), MAX_ANTHROPIC_WEB_SEARCH_MAX_USES);
+  return Math.min(
+    Math.max(Math.trunc(maxUses), 1),
+    MAX_ANTHROPIC_WEB_SEARCH_MAX_USES,
+  );
 }
 
 export function buildProviderNativeWebSearchTools({
@@ -47,7 +56,12 @@ export function buildProviderNativeWebSearchTools({
   enabled: boolean;
   maxUses?: number;
 }):
-  | { tools: Record<string, ReturnType<typeof anthropicProvider.tools.webSearch_20260209>> }
+  | {
+      tools: Record<
+        string,
+        ReturnType<typeof anthropicProvider.tools.webSearch_20260209>
+      >;
+    }
   | Record<string, never> {
   if (!isAnthropicWebSearchEnabled(provider, model, enabled)) {
     return {};

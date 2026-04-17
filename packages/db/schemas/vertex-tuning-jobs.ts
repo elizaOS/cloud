@@ -49,9 +49,12 @@ export const vertexTuningJobs = pgTable(
     base_model: text("base_model").notNull(),
     slot: vertexTuningSlotEnum("slot").notNull(),
     scope: vertexTuningScopeEnum("scope").notNull(),
-    organization_id: uuid("organization_id").references(() => organizations.id, {
-      onDelete: "cascade",
-    }),
+    organization_id: uuid("organization_id").references(
+      () => organizations.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
     user_id: uuid("user_id").references(() => users.id, {
       onDelete: "cascade",
     }),
@@ -65,7 +68,9 @@ export const vertexTuningJobs = pgTable(
     recommended_model_id: text("recommended_model_id"),
     tuned_model_display_name: text("tuned_model_display_name"),
     tuned_model_endpoint_name: text("tuned_model_endpoint_name"),
-    status: vertexTuningJobStateEnum("status").notNull().default("JOB_STATE_PENDING"),
+    status: vertexTuningJobStateEnum("status")
+      .notNull()
+      .default("JOB_STATE_PENDING"),
     error_code: integer("error_code"),
     error_message: text("error_message"),
     model_preference_patch: jsonb("model_preference_patch")
@@ -76,22 +81,35 @@ export const vertexTuningJobs = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default({}),
-    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     completed_at: timestamp("completed_at", { withTimezone: true }),
   },
   (table) => ({
-    vertex_job_name_idx: uniqueIndex("vertex_tuning_jobs_vertex_job_name_idx").on(
-      table.vertex_job_name,
-    ),
+    vertex_job_name_idx: uniqueIndex(
+      "vertex_tuning_jobs_vertex_job_name_idx",
+    ).on(table.vertex_job_name),
     status_idx: index("vertex_tuning_jobs_status_idx").on(table.status),
     scope_idx: index("vertex_tuning_jobs_scope_idx").on(table.scope),
-    organization_idx: index("vertex_tuning_jobs_organization_idx").on(table.organization_id),
+    organization_idx: index("vertex_tuning_jobs_organization_idx").on(
+      table.organization_id,
+    ),
     user_idx: index("vertex_tuning_jobs_user_idx").on(table.user_id),
-    created_by_idx: index("vertex_tuning_jobs_created_by_idx").on(table.created_by_user_id),
+    created_by_idx: index("vertex_tuning_jobs_created_by_idx").on(
+      table.created_by_user_id,
+    ),
     slot_idx: index("vertex_tuning_jobs_slot_idx").on(table.slot),
-    created_at_idx: index("vertex_tuning_jobs_created_at_idx").on(table.created_at),
+    created_at_idx: index("vertex_tuning_jobs_created_at_idx").on(
+      table.created_at,
+    ),
     scope_owner_check: check(
       "vertex_tuning_jobs_scope_owner_check",
       sql`(
@@ -104,4 +122,6 @@ export const vertexTuningJobs = pgTable(
 );
 
 export type VertexTuningJobRecord = InferSelectModel<typeof vertexTuningJobs>;
-export type NewVertexTuningJobRecord = InferInsertModel<typeof vertexTuningJobs>;
+export type NewVertexTuningJobRecord = InferInsertModel<
+  typeof vertexTuningJobs
+>;

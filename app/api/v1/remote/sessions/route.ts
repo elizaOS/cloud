@@ -35,10 +35,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const sandbox = await miladySandboxesRepository.findByIdAndOrg(agentId, user.organization_id);
+    const sandbox = await miladySandboxesRepository.findByIdAndOrg(
+      agentId,
+      user.organization_id,
+    );
     if (!sandbox) {
       return applyCorsHeaders(
-        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
+        NextResponse.json(
+          { success: false, error: "Agent not found" },
+          { status: 404 },
+        ),
         CORS_METHODS,
       );
     }

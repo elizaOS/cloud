@@ -36,7 +36,8 @@ const getInitialCredits = (): number => {
   return DEFAULT_INITIAL_CREDITS;
 };
 
-const STEWARD_IDENTITY_UNIQUE_CONSTRAINT = "user_identities_steward_user_id_unique";
+const STEWARD_IDENTITY_UNIQUE_CONSTRAINT =
+  "user_identities_steward_user_id_unique";
 
 function extractErrorMetadata(candidate: unknown): {
   code?: string;
@@ -56,12 +57,20 @@ function extractErrorMetadata(candidate: unknown): {
   };
 
   return {
-    code: typeof typedCandidate.code === "string" ? typedCandidate.code : undefined,
+    code:
+      typeof typedCandidate.code === "string" ? typedCandidate.code : undefined,
     constraint:
-      typeof typedCandidate.constraint === "string" ? typedCandidate.constraint : undefined,
-    detail: typeof typedCandidate.detail === "string" ? typedCandidate.detail : undefined,
+      typeof typedCandidate.constraint === "string"
+        ? typedCandidate.constraint
+        : undefined,
+    detail:
+      typeof typedCandidate.detail === "string"
+        ? typedCandidate.detail
+        : undefined,
     message:
-      typeof typedCandidate.message === "string" ? typedCandidate.message : String(candidate),
+      typeof typedCandidate.message === "string"
+        ? typedCandidate.message
+        : String(candidate),
   };
 }
 
@@ -71,8 +80,10 @@ function isRecoverableStewardProjectionConflict(error: unknown): boolean {
   }
 
   const errorMetadata = extractErrorMetadata(error);
-  const causeMetadata = "cause" in error ? extractErrorMetadata(error.cause) : { message: "" };
-  const isUniqueViolation = errorMetadata.code === "23505" || causeMetadata.code === "23505";
+  const causeMetadata =
+    "cause" in error ? extractErrorMetadata(error.cause) : { message: "" };
+  const isUniqueViolation =
+    errorMetadata.code === "23505" || causeMetadata.code === "23505";
   const hasExactStewardConstraint =
     errorMetadata.constraint === STEWARD_IDENTITY_UNIQUE_CONSTRAINT ||
     causeMetadata.constraint === STEWARD_IDENTITY_UNIQUE_CONSTRAINT;
@@ -90,7 +101,8 @@ async function recoverCanonicalStewardUser(
     return false;
   }
 
-  const projection = await usersService.getStewardIdentityForWrite(stewardUserId);
+  const projection =
+    await usersService.getStewardIdentityForWrite(stewardUserId);
   if (!projection || projection.user_id !== expectedUserId) {
     return false;
   }
@@ -100,12 +112,15 @@ async function recoverCanonicalStewardUser(
     return false;
   }
 
-  logger.warn("[StewardSync] Recovered from stale Steward identity projection conflict", {
-    context,
-    expectedUserId,
-    stewardUserId,
-    error: error instanceof Error ? error.message : String(error),
-  });
+  logger.warn(
+    "[StewardSync] Recovered from stale Steward identity projection conflict",
+    {
+      context,
+      expectedUserId,
+      stewardUserId,
+      error: error instanceof Error ? error.message : String(error),
+    },
+  );
 
   return true;
 }
@@ -121,8 +136,14 @@ async function rollbackCreatedUserSafely(
     logger.error("[StewardSync] Failed to roll back newly created user", {
       context,
       userId,
-      originalError: originalError instanceof Error ? originalError.message : String(originalError),
-      rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+      originalError:
+        originalError instanceof Error
+          ? originalError.message
+          : String(originalError),
+      rollbackError:
+        rollbackError instanceof Error
+          ? rollbackError.message
+          : String(rollbackError),
     });
   }
 }
@@ -141,8 +162,14 @@ async function restorePreviousStewardUserIdSafely(
     logger.error("[StewardSync] Failed to restore previous Steward user ID", {
       userId,
       previousStewardUserId,
-      originalError: originalError instanceof Error ? originalError.message : String(originalError),
-      rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+      originalError:
+        originalError instanceof Error
+          ? originalError.message
+          : String(originalError),
+      rollbackError:
+        rollbackError instanceof Error
+          ? rollbackError.message
+          : String(rollbackError),
     });
   }
 }
@@ -213,11 +240,14 @@ export async function syncUserFromSteward(
     try {
       await usersService.upsertStewardIdentity(user.id, stewardUserId);
     } catch (error) {
-      logger.warn("[StewardSync] Failed to repair Steward identity projection for existing user", {
-        userId: user.id,
-        stewardUserId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        "[StewardSync] Failed to repair Steward identity projection for existing user",
+        {
+          userId: user.id,
+          stewardUserId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
     }
 
     // Update user fields if anything changed
@@ -269,7 +299,12 @@ export async function syncUserFromSteward(
       } catch (error) {
         const recovered =
           newUser &&
-          (await recoverCanonicalStewardUser(newUser.id, stewardUserId, "invite", error));
+          (await recoverCanonicalStewardUser(
+            newUser.id,
+            stewardUserId,
+            "invite",
+            error,
+          ));
 
         if (newUser && !recovered) {
           await rollbackCreatedUserSafely(newUser.id, "invite", error);
@@ -279,7 +314,8 @@ export async function syncUserFromSteward(
         }
       }
 
-      const userWithOrg = await usersService.getByStewardIdForWrite(stewardUserId);
+      const userWithOrg =
+        await usersService.getByStewardIdForWrite(stewardUserId);
 
       if (!userWithOrg) {
         throw new Error(
@@ -287,7 +323,10 @@ export async function syncUserFromSteward(
         );
       }
 
-      await organizationInvitesRepository.markAsAccepted(pendingInvite.id, userWithOrg.id);
+      await organizationInvitesRepository.markAsAccepted(
+        pendingInvite.id,
+        userWithOrg.id,
+      );
 
       // Log to Discord (fire-and-forget)
       discordService
@@ -312,7 +351,8 @@ export async function syncUserFromSteward(
 
   // ── 3. Email already taken (account linking) ─────────────────────────
   if (email) {
-    const existingByEmail = await usersService.getByEmailWithOrganization(email);
+    const existingByEmail =
+      await usersService.getByEmailWithOrganization(email);
 
     if (existingByEmail && existingByEmail.steward_user_id !== stewardUserId) {
       logger.info(
@@ -326,15 +366,25 @@ export async function syncUserFromSteward(
       });
 
       try {
-        await usersService.upsertStewardIdentity(existingByEmail.id, stewardUserId);
+        await usersService.upsertStewardIdentity(
+          existingByEmail.id,
+          stewardUserId,
+        );
       } catch (error) {
-        await restorePreviousStewardUserIdSafely(existingByEmail.id, previousStewardUserId, error);
+        await restorePreviousStewardUserIdSafely(
+          existingByEmail.id,
+          previousStewardUserId,
+          error,
+        );
         throw error;
       }
 
-      const linkedUser = await usersService.getByStewardIdForWrite(stewardUserId);
+      const linkedUser =
+        await usersService.getByStewardIdForWrite(stewardUserId);
       if (!linkedUser) {
-        throw new Error(`Failed to fetch user after Steward account linking for ${email}`);
+        throw new Error(
+          `Failed to fetch user after Steward account linking for ${email}`,
+        );
       }
       return linkedUser;
     }
@@ -354,7 +404,9 @@ export async function syncUserFromSteward(
     const timestamp = Date.now().toString(36).slice(-4);
     orgSlug = `${sanitized}-${timestamp}${random}`;
   } else {
-    throw new Error(`Cannot generate organization slug for Steward user ${stewardUserId}`);
+    throw new Error(
+      `Cannot generate organization slug for Steward user ${stewardUserId}`,
+    );
   }
 
   // Ensure slug uniqueness
@@ -366,7 +418,9 @@ export async function syncUserFromSteward(
         `Failed to generate unique organization slug for Steward user ${stewardUserId}`,
       );
     }
-    orgSlug = email ? generateSlugFromEmail(email) : generateSlugFromWallet(walletAddress!);
+    orgSlug = email
+      ? generateSlugFromEmail(email)
+      : generateSlugFromWallet(walletAddress!);
   }
 
   // Create organization with zero balance initially
@@ -431,7 +485,9 @@ export async function syncUserFromSteward(
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         if (attempt > 0) {
-          await new Promise((resolve) => setTimeout(resolve, 50 * 2 ** (attempt - 1)));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 50 * 2 ** (attempt - 1)),
+          );
         }
 
         existingUser = await usersService.getByStewardIdForWrite(stewardUserId);
@@ -452,7 +508,10 @@ export async function syncUserFromSteward(
               updated_at: new Date(),
             });
             try {
-              await usersService.upsertStewardIdentity(existingUser.id, stewardUserId);
+              await usersService.upsertStewardIdentity(
+                existingUser.id,
+                stewardUserId,
+              );
             } catch (upsertError) {
               await usersService.update(existingUser.id, {
                 steward_user_id: previousStewardUserId,
@@ -461,9 +520,12 @@ export async function syncUserFromSteward(
               throw upsertError;
             }
             await organizationsService.delete(organization.id);
-            const linkedUser = await usersService.getByStewardIdForWrite(stewardUserId);
+            const linkedUser =
+              await usersService.getByStewardIdForWrite(stewardUserId);
             if (!linkedUser) {
-              throw new Error(`Failed to fetch user after Steward account linking for ${email}`);
+              throw new Error(
+                `Failed to fetch user after Steward account linking for ${email}`,
+              );
             }
             return linkedUser;
           }
@@ -515,7 +577,9 @@ export async function syncUserFromSteward(
   const userWithOrg = await usersService.getByStewardIdForWrite(stewardUserId);
 
   if (!userWithOrg) {
-    throw new Error(`Failed to fetch newly created Steward user ${stewardUserId}`);
+    throw new Error(
+      `Failed to fetch newly created Steward user ${stewardUserId}`,
+    );
   }
 
   // Send welcome email (fire-and-forget)
@@ -558,7 +622,10 @@ export async function syncUserFromSteward(
   void ensureUserHasApiKey(userWithOrg.id, userWithOrg.organization?.id || "");
 
   // Auto-create default Eliza character (fire-and-forget)
-  void ensureDefaultCharacter(userWithOrg.id, userWithOrg.organization?.id || "");
+  void ensureDefaultCharacter(
+    userWithOrg.id,
+    userWithOrg.organization?.id || "",
+  );
 
   return userWithOrg;
 }
@@ -566,14 +633,20 @@ export async function syncUserFromSteward(
 /**
  * Ensures a user has a default API key for programmatic access.
  */
-async function ensureUserHasApiKey(userId: string, organizationId: string): Promise<void> {
+async function ensureUserHasApiKey(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
   if (!userId?.trim() || !organizationId?.trim()) {
-    logger.warn("[StewardSync] Invalid userId or organizationId, skipping API key creation");
+    logger.warn(
+      "[StewardSync] Invalid userId or organizationId, skipping API key creation",
+    );
     return;
   }
 
   try {
-    const existingKeys = await apiKeysService.listByOrganization(organizationId);
+    const existingKeys =
+      await apiKeysService.listByOrganization(organizationId);
     if (existingKeys.some((key) => key.user_id === userId)) {
       return;
     }
@@ -595,9 +668,14 @@ async function ensureUserHasApiKey(userId: string, organizationId: string): Prom
 /**
  * Ensures a new account starts with a default Eliza character.
  */
-async function ensureDefaultCharacter(userId: string, organizationId: string): Promise<void> {
+async function ensureDefaultCharacter(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
   if (!userId?.trim() || !organizationId?.trim()) {
-    logger.warn("[StewardSync] Invalid userId or organizationId, skipping default character");
+    logger.warn(
+      "[StewardSync] Invalid userId or organizationId, skipping default character",
+    );
     return;
   }
 
@@ -614,7 +692,9 @@ async function ensureDefaultCharacter(userId: string, organizationId: string): P
       organization_id: organizationId,
     });
 
-    logger.info(`[StewardSync] Created default Eliza character for user ${userId}`);
+    logger.info(
+      `[StewardSync] Created default Eliza character for user ${userId}`,
+    );
   } catch (error) {
     logger.error("[StewardSync] Error creating default character", {
       userId,

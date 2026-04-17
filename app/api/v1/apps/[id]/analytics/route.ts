@@ -18,14 +18,20 @@ import { logger } from "@/lib/utils/logger";
  * @param params - Route parameters containing the app ID.
  * @returns Analytics data and total statistics for the specified period.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
     const { searchParams } = new URL(request.url);
 
     // Parse query parameters
-    const periodType = (searchParams.get("period") || "daily") as "hourly" | "daily" | "monthly";
+    const periodType = (searchParams.get("period") || "daily") as
+      | "hourly"
+      | "daily"
+      | "monthly";
     const startDate = searchParams.get("start_date")
       ? new Date(searchParams.get("start_date")!)
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default: 30 days ago
@@ -57,7 +63,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Get analytics
-    const analytics = await appsService.getAnalytics(id, periodType, startDate, endDate);
+    const analytics = await appsService.getAnalytics(
+      id,
+      periodType,
+      startDate,
+      endDate,
+    );
 
     // Get total stats
     const totalStats = await appsService.getTotalStats(id);
@@ -77,7 +88,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get app analytics",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get app analytics",
       },
       { status: 500 },
     );

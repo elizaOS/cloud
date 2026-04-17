@@ -113,8 +113,13 @@ export class AnonymousSessionsRepository {
    *
    * @throws Error if session not found.
    */
-  async incrementHourlyCount(sessionId: string): Promise<{ allowed: boolean; remaining: number }> {
-    const hourlyLimit = Number.parseInt(process.env.ANON_HOURLY_LIMIT || "10", 10);
+  async incrementHourlyCount(
+    sessionId: string,
+  ): Promise<{ allowed: boolean; remaining: number }> {
+    const hourlyLimit = Number.parseInt(
+      process.env.ANON_HOURLY_LIMIT || "10",
+      10,
+    );
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 

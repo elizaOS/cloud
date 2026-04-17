@@ -63,7 +63,14 @@ if (typeof window === "undefined") {
       closePath() {}
       moveTo(x: number, y: number) {}
       lineTo(x: number, y: number) {}
-      bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number) {}
+      bezierCurveTo(
+        cp1x: number,
+        cp1y: number,
+        cp2x: number,
+        cp2y: number,
+        x: number,
+        y: number,
+      ) {}
       quadraticCurveTo(cpx: number, cpy: number, x: number, y: number) {}
       arc(
         x: number,
@@ -89,23 +96,24 @@ if (typeof window === "undefined") {
 
   // Polyfill OffscreenCanvas if needed
   if (typeof globalThis.OffscreenCanvas === "undefined") {
-    (globalThis as Record<string, unknown>).OffscreenCanvas = class OffscreenCanvas {
-      width: number;
-      height: number;
+    (globalThis as Record<string, unknown>).OffscreenCanvas =
+      class OffscreenCanvas {
+        width: number;
+        height: number;
 
-      constructor(width: number, height: number) {
-        this.width = width;
-        this.height = height;
-      }
+        constructor(width: number, height: number) {
+          this.width = width;
+          this.height = height;
+        }
 
-      getContext(contextType: string) {
-        return null;
-      }
+        getContext(contextType: string) {
+          return null;
+        }
 
-      convertToBlob() {
-        return Promise.resolve(new Blob());
-      }
-    };
+        convertToBlob() {
+          return Promise.resolve(new Blob());
+        }
+      };
   }
 }
 

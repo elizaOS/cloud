@@ -10,7 +10,9 @@ import { logger } from "@/lib/utils/logger";
  * @param roomId - The room ID to generate title for
  * @returns The generated title, or null if title generation was skipped
  */
-export async function generateRoomTitle(roomId: string): Promise<string | null> {
+export async function generateRoomTitle(
+  roomId: string,
+): Promise<string | null> {
   const room = await roomsRepository.findById(roomId);
 
   if (!room) {
@@ -103,7 +105,11 @@ function generateFallbackTitle(message: string): string {
   }
 
   // Question patterns
-  if (/^(what|how|why|when|where|who|can|could|would|should|is|are|do|does)/i.test(cleaned)) {
+  if (
+    /^(what|how|why|when|where|who|can|could|would|should|is|are|do|does)/i.test(
+      cleaned,
+    )
+  ) {
     const words = message.trim().split(/\s+/).slice(0, 6);
     if (words.length >= 3) {
       return capitalizeFirst(words.slice(0, 5).join(" "));

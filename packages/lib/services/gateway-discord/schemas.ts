@@ -125,6 +125,8 @@ export const FailoverRequestSchema = z.object({
 
 // Type exports
 export type DiscordEventPayload = z.infer<typeof DiscordEventPayloadSchema>;
-export type ConnectionStatusUpdate = z.infer<typeof ConnectionStatusUpdateSchema>;
+export type ConnectionStatusUpdate = z.infer<
+  typeof ConnectionStatusUpdateSchema
+>;
 export type FailoverRequest = z.infer<typeof FailoverRequestSchema>;
 export type MessageCreateData = z.infer<typeof MessageCreateDataSchema>;

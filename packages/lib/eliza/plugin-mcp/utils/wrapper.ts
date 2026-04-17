@@ -43,7 +43,8 @@ export async function withModelRetry<T>({
   const maxRetries = getMaxRetries(runtime);
 
   try {
-    const parsed = typeof input === "string" ? parseJSON<unknown>(input) : input;
+    const parsed =
+      typeof input === "string" ? parseJSON<unknown>(input) : input;
     const result = validationFn(parsed);
     if (!result.success) throw new Error(result.error);
     return result.data as T;
@@ -52,8 +53,15 @@ export async function withModelRetry<T>({
     logger.error({ error }, "[Retry] Parse failed");
 
     if (retryCount < maxRetries) {
-      const feedback = createFeedbackPromptFn(input, error, state, message.content.text || "");
-      const retry = await runtime.useModel(ModelType.OBJECT_LARGE, { prompt: feedback });
+      const feedback = createFeedbackPromptFn(
+        input,
+        error,
+        state,
+        message.content.text || "",
+      );
+      const retry = await runtime.useModel(ModelType.OBJECT_LARGE, {
+        prompt: feedback,
+      });
       return withModelRetry({
         runtime,
         input: retry,
@@ -86,7 +94,12 @@ function getMaxRetries(runtime: IAgentRuntime): number {
       | boolean
       | number
       | null;
-    if (mcp && typeof mcp === "object" && "maxRetries" in mcp && mcp.maxRetries !== undefined) {
+    if (
+      mcp &&
+      typeof mcp === "object" &&
+      "maxRetries" in mcp &&
+      mcp.maxRetries !== undefined
+    ) {
       const val = Number(mcp.maxRetries);
       if (!isNaN(val) && val >= 0) return val;
     }

@@ -61,7 +61,9 @@ export async function provisionStewardPlatformUser(
     signal: AbortSignal.timeout(10_000),
   });
 
-  const payload = (await response.json().catch(() => null)) as StewardPlatformUserResponse | null;
+  const payload = (await response
+    .json()
+    .catch(() => null)) as StewardPlatformUserResponse | null;
 
   if (!response.ok || !payload?.ok) {
     const errorMessage =

@@ -18,7 +18,8 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
+    const { user } =
+      await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json(
@@ -41,10 +42,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof miladyGoogleRouteDeps.MiladyGoogleConnectorError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to send Gmail reply." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to send Gmail reply.",
+      },
       { status: 500 },
     );
   }

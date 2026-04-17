@@ -194,7 +194,9 @@ export function useSandboxListPoll(
     previousStatusesRef.current = statusMap;
   }, [sandboxes]);
 
-  const hasActiveAgents = sandboxes.some((sb) => ACTIVE_STATES.has(sb.status as SandboxStatus));
+  const hasActiveAgents = sandboxes.some((sb) =>
+    ACTIVE_STATES.has(sb.status as SandboxStatus),
+  );
 
   useEffect(() => {
     if (!hasActiveAgents) {
@@ -231,7 +233,10 @@ export function useSandboxListPoll(
             ACTIVE_STATES.has(prevStatus as SandboxStatus) &&
             newStatus === "running"
           ) {
-            callbackRef.current?.(agent.id, agent.agentName ?? agent.agent_name);
+            callbackRef.current?.(
+              agent.id,
+              agent.agentName ?? agent.agent_name,
+            );
           }
 
           previousStatusesRef.current.set(agent.id, newStatus);

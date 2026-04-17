@@ -8,7 +8,11 @@ import { Loader2 } from "lucide-react";
 import * as React from "react";
 import { cn } from "../lib/utils";
 
-type ConnectionStatus = "loading" | "not-configured" | "connected" | "disconnected";
+type ConnectionStatus =
+  | "loading"
+  | "not-configured"
+  | "connected"
+  | "disconnected";
 
 interface ConnectionCardProps {
   /** Integration name (e.g. "Discord Bot") */
@@ -46,7 +50,12 @@ function ConnectionCard({
 }: ConnectionCardProps) {
   if (status === "loading") {
     return (
-      <div className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}>
+      <div
+        className={cn(
+          "rounded-lg border bg-card text-card-foreground shadow-sm",
+          className,
+        )}
+      >
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -57,7 +66,10 @@ function ConnectionCard({
   return (
     <div
       data-slot="connection-card"
-      className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}
+      className={cn(
+        "rounded-lg border bg-card text-card-foreground shadow-sm",
+        className,
+      )}
     >
       {/* Header */}
       <div className="flex flex-col space-y-1.5 p-6">
@@ -68,7 +80,9 @@ function ConnectionCard({
               {name}
             </h3>
             <p className="text-sm text-muted-foreground mt-1.5">
-              {status === "not-configured" ? `${name} integration is not configured` : description}
+              {status === "not-configured"
+                ? `${name} integration is not configured`
+                : description}
             </p>
           </div>
           {status === "connected" && statusBadge}
@@ -79,7 +93,9 @@ function ConnectionCard({
       <div className="p-6 pt-0">
         {status === "not-configured" && (
           <div className="p-4 bg-muted rounded-lg">
-            <p className="text-sm text-muted-foreground">{notConfiguredMessage}</p>
+            <p className="text-sm text-muted-foreground">
+              {notConfiguredMessage}
+            </p>
           </div>
         )}
         {status === "connected" && connectedContent}

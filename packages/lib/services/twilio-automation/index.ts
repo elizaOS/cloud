@@ -16,7 +16,9 @@ import {
 
 // Use ELIZA_API_URL (ngrok) for local dev webhooks, otherwise NEXT_PUBLIC_APP_URL
 const WEBHOOK_BASE_URL =
-  process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  process.env.ELIZA_API_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "https://www.elizacloud.ai";
 
 // Cache TTL for connection status (5 minutes)
 const STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -128,7 +130,12 @@ class TwilioAutomationService {
           const existingSecrets = await secretsService.list(organizationId);
           const existingSecret = existingSecrets.find((s) => s.name === name);
           if (existingSecret) {
-            await secretsService.rotate(existingSecret.id, organizationId, value, audit);
+            await secretsService.rotate(
+              existingSecret.id,
+              organizationId,
+              value,
+              audit,
+            );
           } else {
             throw err; // Re-throw if we can't find it
           }
@@ -154,14 +161,21 @@ class TwilioAutomationService {
   /**
    * Remove Twilio credentials (disconnect).
    */
-  async removeCredentials(organizationId: string, userId: string): Promise<void> {
+  async removeCredentials(
+    organizationId: string,
+    userId: string,
+  ): Promise<void> {
     const audit = {
       actorType: "user" as const,
       actorId: userId,
       source: "twilio-automation",
     };
 
-    const secretNames = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"];
+    const secretNames = [
+      "TWILIO_ACCOUNT_SID",
+      "TWILIO_AUTH_TOKEN",
+      "TWILIO_PHONE_NUMBER",
+    ];
 
     // Get all secrets once (not inside the loop) for efficiency
     const existingSecrets = await secretsService.list(organizationId);
@@ -177,12 +191,19 @@ class TwilioAutomationService {
             organizationId,
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          if (message.includes("Secret not found") || message.includes("Failed to delete secret")) {
-            logger.debug("[TwilioAutomation] Secret already removed during disconnect", {
-              name,
-              organizationId,
-            });
+          const message =
+            error instanceof Error ? error.message : String(error);
+          if (
+            message.includes("Secret not found") ||
+            message.includes("Failed to delete secret")
+          ) {
+            logger.debug(
+              "[TwilioAutomation] Secret already removed during disconnect",
+              {
+                name,
+                organizationId,
+              },
+            );
             continue;
           }
           throw error;
@@ -266,7 +287,8 @@ class TwilioAutomationService {
       connected: false,
       configured: true,
       phoneNumber: phoneNumber || undefined,
-      error: validation.error || "Credentials may be invalid. Try reconnecting.",
+      error:
+        validation.error || "Credentials may be invalid. Try reconnecting.",
     };
     // Cache with shorter TTL for error state (1 minute)
     this.statusCache.set(organizationId, {

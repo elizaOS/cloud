@@ -68,7 +68,9 @@ export const moderationViolations = pgTable(
   (table) => ({
     userIdIdx: index("moderation_violations_user_id_idx").on(table.userId),
     actionIdx: index("moderation_violations_action_idx").on(table.action),
-    createdAtIdx: index("moderation_violations_created_at_idx").on(table.createdAt),
+    createdAtIdx: index("moderation_violations_created_at_idx").on(
+      table.createdAt,
+    ),
     roomIdIdx: index("moderation_violations_room_id_idx").on(table.roomId),
   }),
 );
@@ -114,7 +116,9 @@ export const userModerationStatus = pgTable(
   (table) => ({
     userIdIdx: index("user_moderation_status_user_id_idx").on(table.userId),
     statusIdx: index("user_moderation_status_status_idx").on(table.status),
-    riskScoreIdx: index("user_moderation_status_risk_score_idx").on(table.riskScore),
+    riskScoreIdx: index("user_moderation_status_risk_score_idx").on(
+      table.riskScore,
+    ),
     totalViolationsIdx: index("user_moderation_status_total_violations_idx").on(
       table.totalViolations,
     ),
@@ -122,7 +126,13 @@ export const userModerationStatus = pgTable(
 );
 
 export type ModerationViolation = InferSelectModel<typeof moderationViolations>;
-export type NewModerationViolation = InferInsertModel<typeof moderationViolations>;
+export type NewModerationViolation = InferInsertModel<
+  typeof moderationViolations
+>;
 
-export type UserModerationStatus = InferSelectModel<typeof userModerationStatus>;
-export type NewUserModerationStatus = InferInsertModel<typeof userModerationStatus>;
+export type UserModerationStatus = InferSelectModel<
+  typeof userModerationStatus
+>;
+export type NewUserModerationStatus = InferInsertModel<
+  typeof userModerationStatus
+>;

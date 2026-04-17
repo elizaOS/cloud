@@ -66,7 +66,10 @@ export class AdAccountsRepository {
     return account;
   }
 
-  async update(id: string, data: Partial<NewAdAccount>): Promise<AdAccount | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewAdAccount>,
+  ): Promise<AdAccount | undefined> {
     const [updated] = await db
       .update(adAccounts)
       .set({ ...data, updated_at: new Date() })
@@ -75,7 +78,10 @@ export class AdAccountsRepository {
     return updated;
   }
 
-  async updateStatus(id: string, status: AdAccountStatus): Promise<AdAccount | undefined> {
+  async updateStatus(
+    id: string,
+    status: AdAccountStatus,
+  ): Promise<AdAccount | undefined> {
     return this.update(id, { status });
   }
 

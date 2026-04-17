@@ -20,10 +20,17 @@ import {
 
 export interface McpToolAction extends Omit<Action, "parameters"> {
   parameters?: ActionParameter[];
-  _mcpMeta: { serverName: string; toolName: string; originalSchema: Tool["inputSchema"] };
+  _mcpMeta: {
+    serverName: string;
+    toolName: string;
+    originalSchema: Tool["inputSchema"];
+  };
 }
 
-function extractParams(message: Memory, state?: State): Record<string, unknown> {
+function extractParams(
+  message: Memory,
+  state?: State,
+): Record<string, unknown> {
   const content = message.content as Record<string, unknown>;
   return (
     (content.actionParams as Record<string, unknown>) ||
@@ -60,10 +67,19 @@ export function createMcpToolAction(
       if (svc.isLazyConnection(serverName)) return true;
 
       const server = svc.getServers().find((s) => s.name === serverName);
-      return server?.status === "connected" && !!server.tools?.some((t) => t.name === tool.name);
+      return (
+        server?.status === "connected" &&
+        !!server.tools?.some((t) => t.name === tool.name)
+      );
     },
 
-    handler: async (runtime, message, state, _options, callback): Promise<ActionResult> => {
+    handler: async (
+      runtime,
+      message,
+      state,
+      _options,
+      callback,
+    ): Promise<ActionResult> => {
       const svc = runtime.getService<McpService>(MCP_SERVICE_NAME);
       if (!svc) {
         return {
@@ -74,12 +90,18 @@ export function createMcpToolAction(
       }
 
       const params = extractParams(message, state);
-      logger.info({ serverName, toolName: tool.name, params }, `[MCP] Executing ${actionName}`);
+      logger.info(
+        { serverName, toolName: tool.name, params },
+        `[MCP] Executing ${actionName}`,
+      );
 
       const errors = validateParamsAgainstSchema(params, tool.inputSchema);
       const missing = errors.filter((e) => e.startsWith("Missing required"));
       if (missing.length > 0) {
-        logger.error({ missing, params }, `[MCP] Missing required params for ${actionName}`);
+        logger.error(
+          { missing, params },
+          `[MCP] Missing required params for ${actionName}`,
+        );
         return {
           success: false,
           error: missing.join(", "),
@@ -89,7 +111,10 @@ export function createMcpToolAction(
 
       const warnings = errors.filter((e) => !e.startsWith("Missing required"));
       if (warnings.length > 0) {
-        logger.warn({ warnings, params }, `[MCP] Type warnings for ${actionName}`);
+        logger.warn(
+          { warnings, params },
+          `[MCP] Type warnings for ${actionName}`,
+        );
       }
 
       const result = await svc.callTool(serverName, tool.name, params);
@@ -102,7 +127,10 @@ export function createMcpToolAction(
       );
 
       if (result.isError) {
-        logger.error({ serverName, toolName: tool.name, output: toolOutput }, "[MCP] Tool error");
+        logger.error(
+          { serverName, toolName: tool.name, output: toolOutput },
+          "[MCP] Tool error",
+        );
         return {
           success: false,
           error: toolOutput || "Tool execution failed",
@@ -118,7 +146,10 @@ export function createMcpToolAction(
       }
 
       if (callback && hasAttachments && attachments.length > 0) {
-        await callback({ text: `Executed ${serverName}/${tool.name}`, attachments });
+        await callback({
+          text: `Executed ${serverName}/${tool.name}`,
+          attachments,
+        });
       }
 
       return {
@@ -147,12 +178,19 @@ export function createMcpToolAction(
         { name: "{{user}}", content: { text: `Can you use ${tool.name}?` } },
         {
           name: "{{assistant}}",
-          content: { text: `I'll execute ${tool.name} for you.`, actions: [actionName] },
+          content: {
+            text: `I'll execute ${tool.name} for you.`,
+            actions: [actionName],
+          },
         },
       ],
     ],
 
-    _mcpMeta: { serverName, toolName: tool.name, originalSchema: tool.inputSchema },
+    _mcpMeta: {
+      serverName,
+      toolName: tool.name,
+      originalSchema: tool.inputSchema,
+    },
   };
 }
 
@@ -178,8 +216,13 @@ export function createMcpToolActions(
   return actions;
 }
 
-export function isMcpToolAction(action: Action | McpToolAction): action is McpToolAction {
-  return "_mcpMeta" in action && typeof (action as McpToolAction)._mcpMeta === "object";
+export function isMcpToolAction(
+  action: Action | McpToolAction,
+): action is McpToolAction {
+  return (
+    "_mcpMeta" in action &&
+    typeof (action as McpToolAction)._mcpMeta === "object"
+  );
 }
 
 export function getMcpToolActionsForServer(
@@ -187,6 +230,7 @@ export function getMcpToolActionsForServer(
   serverName: string,
 ): McpToolAction[] {
   return actions.filter(
-    (a): a is McpToolAction => isMcpToolAction(a) && a._mcpMeta.serverName === serverName,
+    (a): a is McpToolAction =>
+      isMcpToolAction(a) && a._mcpMeta.serverName === serverName,
   );
 }

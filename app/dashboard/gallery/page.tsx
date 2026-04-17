@@ -5,7 +5,8 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Gallery",
-  description: "View and manage all your AI-generated content including images and videos",
+  description:
+    "View and manage all your AI-generated content including images and videos",
 };
 
 /**

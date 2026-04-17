@@ -1,6 +1,10 @@
 import { and, count, desc, eq, sql, sum } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
-import { type Generation, generations, type NewGeneration } from "../schemas/generations";
+import {
+  type Generation,
+  generations,
+  type NewGeneration,
+} from "../schemas/generations";
 
 export type { Generation, NewGeneration };
 
@@ -36,7 +40,10 @@ export class GenerationsRepository {
   /**
    * Lists generations for an organization, ordered by creation date.
    */
-  async listByOrganization(organizationId: string, limit?: number): Promise<Generation[]> {
+  async listByOrganization(
+    organizationId: string,
+    limit?: number,
+  ): Promise<Generation[]> {
     return await dbRead.query.generations.findMany({
       where: eq(generations.organization_id, organizationId),
       orderBy: desc(generations.created_at),
@@ -53,7 +60,10 @@ export class GenerationsRepository {
     limit?: number,
   ): Promise<Generation[]> {
     return await dbRead.query.generations.findMany({
-      where: and(eq(generations.organization_id, organizationId), eq(generations.type, type)),
+      where: and(
+        eq(generations.organization_id, organizationId),
+        eq(generations.type, type),
+      ),
       orderBy: desc(generations.created_at),
       limit,
     });
@@ -180,14 +190,20 @@ export class GenerationsRepository {
    * Creates a new generation record.
    */
   async create(data: NewGeneration): Promise<Generation> {
-    const [generation] = await dbWrite.insert(generations).values(data).returning();
+    const [generation] = await dbWrite
+      .insert(generations)
+      .values(data)
+      .returning();
     return generation;
   }
 
   /**
    * Updates an existing generation.
    */
-  async update(id: string, data: Partial<NewGeneration>): Promise<Generation | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewGeneration>,
+  ): Promise<Generation | undefined> {
     const [updated] = await dbWrite
       .update(generations)
       .set({

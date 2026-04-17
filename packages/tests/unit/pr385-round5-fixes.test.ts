@@ -17,68 +17,92 @@ import { describe, expect, test } from "bun:test";
 
 describe("handleCompatError — narrowed Invalid heuristic", () => {
   test("'Invalid API key' → 401", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("Invalid API key"));
     expect(res.status).toBe(401);
   });
 
   test("'Invalid token' → 401", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("Invalid token"));
     expect(res.status).toBe(401);
   });
 
   test("'Invalid credentials' → 401", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("Invalid credentials"));
     expect(res.status).toBe(401);
   });
 
   test("'Invalid service key' → 401", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("Invalid service key"));
     expect(res.status).toBe(401);
   });
 
   test("'Invalid agent config' → 500 (not 401)", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("Invalid agent config"));
     expect(res.status).toBe(500);
   });
 
   test("'Invalid JSON body' → 500 (not 401)", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("Invalid JSON body"));
     expect(res.status).toBe(500);
   });
 
   test("'Invalid request data' → 500 (not 401)", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("Invalid request data"));
     expect(res.status).toBe(500);
   });
 
   test("'Invalid parameter: limit must be positive' → 500 (not 401)", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
-    const res = handleCompatError(new Error("Invalid parameter: limit must be positive"));
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
+    const res = handleCompatError(
+      new Error("Invalid parameter: limit must be positive"),
+    );
     expect(res.status).toBe(500);
   });
 
   // Existing behaviour preserved
   test("'Unauthorized' → 401 (unchanged)", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("Unauthorized"));
     expect(res.status).toBe(401);
   });
 
   test("'Forbidden access' → 403 (unchanged)", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("Forbidden access"));
     expect(res.status).toBe(403);
   });
 
   test("generic error → 500 (unchanged)", async () => {
-    const { handleCompatError } = await import("../../../app/api/compat/_lib/error-handler");
+    const { handleCompatError } = await import(
+      "../../../app/api/compat/_lib/error-handler"
+    );
     const res = handleCompatError(new Error("db connection lost"));
     expect(res.status).toBe(500);
   });
@@ -128,13 +152,21 @@ describe("waifu-bridge slugFromUserId determinism", () => {
       .replace(/[^a-zA-Z0-9-]/g, "-")
       .toLowerCase()
       .slice(0, 40);
-    const hash = crypto.createHash("sha256").update(userId).digest("hex").slice(0, 16);
+    const hash = crypto
+      .createHash("sha256")
+      .update(userId)
+      .digest("hex")
+      .slice(0, 16);
     return `${base}-${hash}`;
   }
 
   test("same userId always produces the same slug", () => {
-    const slug1 = slugFromUserId("waifu:0xABCDEF1234567890abcdef1234567890abcdef12");
-    const slug2 = slugFromUserId("waifu:0xABCDEF1234567890abcdef1234567890abcdef12");
+    const slug1 = slugFromUserId(
+      "waifu:0xABCDEF1234567890abcdef1234567890abcdef12",
+    );
+    const slug2 = slugFromUserId(
+      "waifu:0xABCDEF1234567890abcdef1234567890abcdef12",
+    );
     expect(slug1).toBe(slug2);
   });
 
@@ -273,7 +305,10 @@ describe("suspend route — org-scoped getAgent structural check", () => {
   test("suspend route source contains getAgent call", async () => {
     const fs = require("fs");
     const source = fs.readFileSync(
-      require("path").resolve(__dirname, "../../../app/api/compat/agents/[id]/suspend/route.ts"),
+      require("path").resolve(
+        __dirname,
+        "../../../app/api/compat/agents/[id]/suspend/route.ts",
+      ),
       "utf-8",
     );
     // The call may be split across multiple lines; check key fragments
@@ -289,11 +324,17 @@ describe("suspend route — org-scoped getAgent structural check", () => {
     const fs = require("fs");
     const path = require("path");
     const suspendSrc = fs.readFileSync(
-      path.resolve(__dirname, "../../../app/api/compat/agents/[id]/suspend/route.ts"),
+      path.resolve(
+        __dirname,
+        "../../../app/api/compat/agents/[id]/suspend/route.ts",
+      ),
       "utf-8",
     );
     const resumeSrc = fs.readFileSync(
-      path.resolve(__dirname, "../../../app/api/compat/agents/[id]/resume/route.ts"),
+      path.resolve(
+        __dirname,
+        "../../../app/api/compat/agents/[id]/resume/route.ts",
+      ),
       "utf-8",
     );
     // Both should have the getAgentForWrite pre-check (call may span multiple lines)

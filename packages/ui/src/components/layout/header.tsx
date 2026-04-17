@@ -36,7 +36,8 @@ function HeaderComponent({
 
   // Build login URL with returnTo to preserve current location (including query params like characterId)
   const loginUrl = (() => {
-    const fullUrl = pathname + (typeof window !== "undefined" ? window.location.search : "");
+    const fullUrl =
+      pathname + (typeof window !== "undefined" ? window.location.search : "");
     return `/login?returnTo=${encodeURIComponent(fullUrl)}`;
   })();
 
@@ -72,7 +73,10 @@ function HeaderComponent({
         {/* Show signup button for anonymous users, otherwise user menu */}
         {isAnonymous ? (
           <a href={loginUrl}>
-            <BrandButton variant="primary" className="gap-2 h-8 px-3 md:h-10 md:px-4">
+            <BrandButton
+              variant="primary"
+              className="gap-2 h-8 px-3 md:h-10 md:px-4"
+            >
               <LogIn className="h-4 w-4" />
               <span className="hidden md:inline">Sign Up Free</span>
               <span className="md:hidden">Sign Up</span>

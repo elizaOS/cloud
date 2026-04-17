@@ -8,8 +8,14 @@ import {
   vertexTunedModels,
   vertexTuningJobs,
 } from "@/db/schemas";
-import type { ModelPreferenceKey, ModelPreferences } from "@/lib/eliza/model-preferences";
-import { mergeModelPreferences, normalizeModelPreferences } from "@/lib/eliza/model-preferences";
+import type {
+  ModelPreferenceKey,
+  ModelPreferences,
+} from "@/lib/eliza/model-preferences";
+import {
+  mergeModelPreferences,
+  normalizeModelPreferences,
+} from "@/lib/eliza/model-preferences";
 import { logger } from "@/lib/utils/logger";
 import { isValidUUID } from "@/lib/utils/validation";
 import {
@@ -37,7 +43,8 @@ type NormalizedScopeOwner = {
   userId?: string;
 };
 
-export interface RecordSubmittedVertexTuningJobInput extends AssignmentScopeOwner {
+export interface RecordSubmittedVertexTuningJobInput
+  extends AssignmentScopeOwner {
   vertexJobName: string;
   projectId: string;
   region: string;
@@ -78,7 +85,9 @@ function isTerminalJobState(state: TuningJob["state"]): boolean {
   );
 }
 
-function normalizeScopeOwner(input: AssignmentScopeOwner): NormalizedScopeOwner {
+function normalizeScopeOwner(
+  input: AssignmentScopeOwner,
+): NormalizedScopeOwner {
   const organizationId = input.organizationId?.trim();
   const userId = input.userId?.trim();
 
@@ -87,12 +96,16 @@ function normalizeScopeOwner(input: AssignmentScopeOwner): NormalizedScopeOwner 
       return { scope: "global", organizationId: undefined, userId: undefined };
     case "organization":
       if (!organizationId || !isValidUUID(organizationId)) {
-        throw new Error("organizationId is required for organization-scoped tuned models");
+        throw new Error(
+          "organizationId is required for organization-scoped tuned models",
+        );
       }
       return { scope: "organization", organizationId, userId: undefined };
     case "user":
       if (!organizationId || !isValidUUID(organizationId)) {
-        throw new Error("organizationId is required for user-scoped tuned models");
+        throw new Error(
+          "organizationId is required for user-scoped tuned models",
+        );
       }
       if (!userId || !isValidUUID(userId)) {
         throw new Error("userId is required for user-scoped tuned models");
@@ -115,7 +128,10 @@ function buildVisibilityCondition(viewer: ViewerScope) {
 
   if (viewer.userId && isValidUUID(viewer.userId)) {
     clauses.push(
-      and(eq(vertexTuningJobs.scope, "user"), eq(vertexTuningJobs.user_id, viewer.userId))!,
+      and(
+        eq(vertexTuningJobs.scope, "user"),
+        eq(vertexTuningJobs.user_id, viewer.userId),
+      )!,
     );
   }
 
@@ -181,7 +197,10 @@ function getScopePriority(scope: VertexTuningScope): number {
   }
 }
 
-function getRecommendedModelId(remoteJob: TuningJob, fallbackDisplayName: string): string {
+function getRecommendedModelId(
+  remoteJob: TuningJob,
+  fallbackDisplayName: string,
+): string {
   return (
     remoteJob.tunedModelEndpointName?.trim() ||
     remoteJob.tunedModelDisplayName?.trim() ||
@@ -203,7 +222,9 @@ export class VertexModelRegistryService {
       scope: owner.scope,
       ownerId: owner.userId ?? owner.organizationId,
     });
-    const completedAt = isTerminalJobState(input.remoteJob.state) ? new Date() : null;
+    const completedAt = isTerminalJobState(input.remoteJob.state)
+      ? new Date()
+      : null;
 
     const [job] = await dbWrite
       .insert(vertexTuningJobs)
@@ -231,8 +252,14 @@ export class VertexModelRegistryService {
         status: input.remoteJob.state,
         error_code: input.remoteJob.error?.code,
         error_message: input.remoteJob.error?.message,
-        model_preference_patch: patch.modelPreferences as Record<string, string>,
-        last_remote_payload: input.remoteJob as unknown as Record<string, unknown>,
+        model_preference_patch: patch.modelPreferences as Record<
+          string,
+          string
+        >,
+        last_remote_payload: input.remoteJob as unknown as Record<
+          string,
+          unknown
+        >,
         metadata: input.metadata ?? {},
         completed_at: completedAt,
         created_at: new Date(input.remoteJob.createTime),
@@ -263,8 +290,14 @@ export class VertexModelRegistryService {
           status: input.remoteJob.state,
           error_code: input.remoteJob.error?.code,
           error_message: input.remoteJob.error?.message,
-          model_preference_patch: patch.modelPreferences as Record<string, string>,
-          last_remote_payload: input.remoteJob as unknown as Record<string, unknown>,
+          model_preference_patch: patch.modelPreferences as Record<
+            string,
+            string
+          >,
+          last_remote_payload: input.remoteJob as unknown as Record<
+            string,
+            unknown
+          >,
           metadata: input.metadata ?? {},
           completed_at: completedAt,
           updated_at: new Date(input.remoteJob.updateTime),
@@ -299,7 +332,10 @@ export class VertexModelRegistryService {
     }
 
     const remoteJob = await getTuningJobStatus(job.vertex_job_name);
-    const recommendedModelId = getRecommendedModelId(remoteJob, job.display_name);
+    const recommendedModelId = getRecommendedModelId(
+      remoteJob,
+      job.display_name,
+    );
     const [updatedJob] = await dbWrite
       .update(vertexTuningJobs)
       .set({
@@ -359,7 +395,13 @@ export class VertexModelRegistryService {
       slot?: VertexTuningSlot;
       limit?: number;
     } = {},
-  ): Promise<Array<VertexTunedModelRecord & { activeAssignments: VertexModelAssignmentRecord[] }>> {
+  ): Promise<
+    Array<
+      VertexTunedModelRecord & {
+        activeAssignments: VertexModelAssignmentRecord[];
+      }
+    >
+  > {
     const conditions = [buildModelVisibilityCondition(viewer)];
 
     if (filters.scope) {
@@ -382,7 +424,10 @@ export class VertexModelRegistryService {
       limit: filters.limit ? filters.limit * 4 : undefined,
     });
 
-    const assignmentsByModelId = new Map<string, VertexModelAssignmentRecord[]>();
+    const assignmentsByModelId = new Map<
+      string,
+      VertexModelAssignmentRecord[]
+    >();
     for (const item of visibleAssignments) {
       const existing = assignmentsByModelId.get(item.tunedModel.id) ?? [];
       existing.push(item.assignment);
@@ -422,7 +467,10 @@ export class VertexModelRegistryService {
         tunedModel: vertexTunedModels,
       })
       .from(vertexModelAssignments)
-      .innerJoin(vertexTunedModels, eq(vertexModelAssignments.tuned_model_id, vertexTunedModels.id))
+      .innerJoin(
+        vertexTunedModels,
+        eq(vertexModelAssignments.tuned_model_id, vertexTunedModels.id),
+      )
       .where(and(...conditions))
       .orderBy(desc(vertexModelAssignments.activated_at))
       .limit(filters.limit ?? 100);
@@ -559,25 +607,34 @@ export class VertexModelRegistryService {
     return result.length;
   }
 
-  async resolveModelPreferences(viewer: ViewerScope): Promise<ResolvedModelPreferences> {
+  async resolveModelPreferences(
+    viewer: ViewerScope,
+  ): Promise<ResolvedModelPreferences> {
     const assignments = await this.listVisibleAssignments(viewer, {
       activeOnly: true,
       limit: 32,
     });
 
     const sortedAssignments = assignments.sort((a, b) => {
-      const scopeDiff = getScopePriority(a.assignment.scope) - getScopePriority(b.assignment.scope);
+      const scopeDiff =
+        getScopePriority(a.assignment.scope) -
+        getScopePriority(b.assignment.scope);
       if (scopeDiff !== 0) {
         return scopeDiff;
       }
-      return a.assignment.activated_at.getTime() - b.assignment.activated_at.getTime();
+      return (
+        a.assignment.activated_at.getTime() -
+        b.assignment.activated_at.getTime()
+      );
     });
 
     const sources: ResolvedModelPreferences["sources"] = {};
     let merged: ModelPreferences | undefined;
 
     for (const assignment of sortedAssignments) {
-      const normalized = normalizeModelPreferences(assignment.tunedModel.model_preferences);
+      const normalized = normalizeModelPreferences(
+        assignment.tunedModel.model_preferences,
+      );
       if (!normalized) {
         continue;
       }
@@ -603,7 +660,10 @@ export class VertexModelRegistryService {
     job: VertexTuningJobRecord,
     remoteJob: TuningJob,
   ): Promise<VertexTunedModelRecord> {
-    const recommendedModelId = getRecommendedModelId(remoteJob, job.display_name);
+    const recommendedModelId = getRecommendedModelId(
+      remoteJob,
+      job.display_name,
+    );
     const modelPreferences =
       buildVertexModelPreferencePatch({
         slot: job.slot,

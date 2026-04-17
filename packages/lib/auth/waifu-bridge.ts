@@ -12,7 +12,11 @@ import { organizationsService } from "@/lib/services/organizations";
 import { usersService } from "@/lib/services/users";
 import type { UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
-import { isServiceJwtEnabled, type ServiceJwtPayload, verifyServiceJwt } from "./service-jwt";
+import {
+  isServiceJwtEnabled,
+  type ServiceJwtPayload,
+  verifyServiceJwt,
+} from "./service-jwt";
 
 export interface WaifuBridgeAuthResult {
   user: UserWithOrganization & {
@@ -81,7 +85,11 @@ function slugFromUserId(userId: string): string {
     .replace(/[^a-zA-Z0-9-]/g, "-")
     .toLowerCase()
     .slice(0, 40);
-  const hash = crypto.createHash("sha256").update(userId).digest("hex").slice(0, 16);
+  const hash = crypto
+    .createHash("sha256")
+    .update(userId)
+    .digest("hex")
+    .slice(0, 16);
   return `${base}-${hash}`;
 }
 
@@ -166,10 +174,13 @@ async function resolveServiceUser(
           orgErr.message.includes("23505"));
       if (!isConflict) throw orgErr;
 
-      logger.info("[waifu-bridge] Concurrent org creation detected, resolving existing org", {
-        serviceId,
-        slug,
-      });
+      logger.info(
+        "[waifu-bridge] Concurrent org creation detected, resolving existing org",
+        {
+          serviceId,
+          slug,
+        },
+      );
 
       // Another request won the race and may have created the user too —
       // re-check before falling through to user creation.
@@ -215,9 +226,12 @@ async function resolveServiceUser(
         err.message.includes("23505"));
     if (!isConflict) throw err;
 
-    logger.info("[waifu-bridge] Concurrent user creation detected, re-fetching", {
-      serviceId,
-    });
+    logger.info(
+      "[waifu-bridge] Concurrent user creation detected, re-fetching",
+      {
+        serviceId,
+      },
+    );
 
     const existing = await usersService.getByPrivyId(serviceId);
     if (existing?.organization_id && existing?.organization) {
@@ -225,7 +239,8 @@ async function resolveServiceUser(
     }
     // If wallet-based, try that path too
     if (walletAddr) {
-      const walletUser = await usersService.getByWalletAddressWithOrganization(walletAddr);
+      const walletUser =
+        await usersService.getByWalletAddressWithOrganization(walletAddr);
       if (walletUser?.organization_id && walletUser?.organization) {
         return walletUser as WaifuBridgeAuthResult["user"];
       }
@@ -243,7 +258,9 @@ async function resolveServiceUser(
 
   const fullUser = await usersService.getWithOrganization(newUser.id);
   if (!fullUser?.organization_id || !fullUser?.organization) {
-    throw new ForbiddenError("Failed to provision service account for waifu-core bridge");
+    throw new ForbiddenError(
+      "Failed to provision service account for waifu-core bridge",
+    );
   }
 
   return fullUser as WaifuBridgeAuthResult["user"];

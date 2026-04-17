@@ -8,7 +8,9 @@
  */
 
 const STEWARD_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
-const PLATFORM_KEY = (process.env.STEWARD_PLATFORM_KEYS ?? "").split(",")[0].trim();
+const PLATFORM_KEY = (process.env.STEWARD_PLATFORM_KEYS ?? "")
+  .split(",")[0]
+  .trim();
 
 if (!PLATFORM_KEY) {
   console.error("STEWARD_PLATFORM_KEYS is required");

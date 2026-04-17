@@ -142,7 +142,8 @@ Alex: Analysis paralysis. Pick reversible and iterate.
 
 export const characterGuideProvider: Provider = {
   name: "CHARACTER_GUIDE",
-  description: "Lightweight character field reference with JSON to prompt mapping",
+  description:
+    "Lightweight character field reference with JSON to prompt mapping",
   get: async (_runtime: IAgentRuntime, _message: Memory, _state: State) => {
     return {
       values: {

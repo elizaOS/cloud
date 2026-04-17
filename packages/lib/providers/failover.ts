@@ -33,7 +33,10 @@ export async function withProviderFallback(
   } catch (error) {
     if (fallbackFn && isRetryableProviderError(error)) {
       const status = (error as { status: number }).status;
-      logger.warn("[Provider Failover] Primary provider returned %d, trying fallback", status);
+      logger.warn(
+        "[Provider Failover] Primary provider returned %d, trying fallback",
+        status,
+      );
       return await fallbackFn();
     }
     throw error;

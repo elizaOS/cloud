@@ -27,8 +27,10 @@ import {
 // Tests
 // ---------------------------------------------------------------------------
 
-const sandboxProviderModuleUrl = new URL("../../lib/services/sandbox-provider.ts", import.meta.url)
-  .href;
+const sandboxProviderModuleUrl = new URL(
+  "../../lib/services/sandbox-provider.ts",
+  import.meta.url,
+).href;
 
 function runSandboxProviderFactory(providerEnv?: string) {
   const env = { ...process.env };
@@ -69,7 +71,9 @@ function runSandboxProviderFactory(providerEnv?: string) {
   expect(result.exitCode).toBe(0);
   expect(stderr).toBe("");
 
-  return JSON.parse(stdout) as { ok: true; name: string | null } | { ok: false; message: string };
+  return JSON.parse(stdout) as
+    | { ok: true; name: string | null }
+    | { ok: false; message: string };
 }
 
 describe("Docker Infrastructure - Pure Functions", () => {
@@ -140,7 +144,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("throws for shell injection chars (semicolon, space)", () => {
-      expect(() => validateAgentId("agent;rm -rf /")).toThrow(/Invalid agent ID/);
+      expect(() => validateAgentId("agent;rm -rf /")).toThrow(
+        /Invalid agent ID/,
+      );
     });
 
     test("throws for trailing newline", () => {
@@ -197,15 +203,21 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("throws for control characters (null byte)", () => {
-      expect(() => validateAgentName("agent\x00name")).toThrow(/control characters/);
+      expect(() => validateAgentName("agent\x00name")).toThrow(
+        /control characters/,
+      );
     });
 
     test("throws for control characters (newline)", () => {
-      expect(() => validateAgentName("agent\nname")).toThrow(/control characters/);
+      expect(() => validateAgentName("agent\nname")).toThrow(
+        /control characters/,
+      );
     });
 
     test("throws for control characters (tab)", () => {
-      expect(() => validateAgentName("agent\tname")).toThrow(/control characters/);
+      expect(() => validateAgentName("agent\tname")).toThrow(
+        /control characters/,
+      );
     });
   });
 
@@ -218,26 +230,36 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("rejects empty keys", () => {
-      expect(() => validateEnvKey("")).toThrow(/Invalid environment variable key/);
+      expect(() => validateEnvKey("")).toThrow(
+        /Invalid environment variable key/,
+      );
     });
 
     test("rejects keys starting with a digit", () => {
-      expect(() => validateEnvKey("1SECRET")).toThrow(/Invalid environment variable key/);
+      expect(() => validateEnvKey("1SECRET")).toThrow(
+        /Invalid environment variable key/,
+      );
     });
 
     test("rejects punctuation", () => {
-      expect(() => validateEnvKey("JWT-SECRET")).toThrow(/Invalid environment variable key/);
+      expect(() => validateEnvKey("JWT-SECRET")).toThrow(
+        /Invalid environment variable key/,
+      );
     });
 
     test("rejects trailing newlines", () => {
-      expect(() => validateEnvKey("JWT_SECRET\n")).toThrow(/Invalid environment variable key/);
+      expect(() => validateEnvKey("JWT_SECRET\n")).toThrow(
+        /Invalid environment variable key/,
+      );
     });
   });
 
   // -------------------------------------------------------------------------
   describe("validateEnvValue", () => {
     test("accepts printable values", () => {
-      expect(() => validateEnvValue("JWT_SECRET", "hello-world_123")).not.toThrow();
+      expect(() =>
+        validateEnvValue("JWT_SECRET", "hello-world_123"),
+      ).not.toThrow();
     });
 
     test("accepts UUIDs, URLs, and base64-like tokens", () => {
@@ -262,7 +284,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("rejects tabs", () => {
-      expect(() => validateEnvValue("JWT_SECRET", "abc\tdef")).toThrow(/control characters/);
+      expect(() => validateEnvValue("JWT_SECRET", "abc\tdef")).toThrow(
+        /control characters/,
+      );
     });
   });
 
@@ -270,7 +294,10 @@ describe("Docker Infrastructure - Pure Functions", () => {
   describe("resolveStewardContainerUrl", () => {
     test("preserves explicit STEWARD_CONTAINER_URL overrides", () => {
       expect(
-        resolveStewardContainerUrl("http://localhost:3200", "http://steward.internal:9999"),
+        resolveStewardContainerUrl(
+          "http://localhost:3200",
+          "http://steward.internal:9999",
+        ),
       ).toBe("http://steward.internal:9999");
     });
 
@@ -284,14 +311,18 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("passes through non-loopback URLs unchanged", () => {
-      expect(resolveStewardContainerUrl("http://10.0.0.8:3200")).toBe("http://10.0.0.8:3200");
+      expect(resolveStewardContainerUrl("http://10.0.0.8:3200")).toBe(
+        "http://10.0.0.8:3200",
+      );
     });
   });
 
   // -------------------------------------------------------------------------
   describe("requiresDockerHostGateway", () => {
     test("returns true for host.docker.internal", () => {
-      expect(requiresDockerHostGateway("http://host.docker.internal:3200")).toBe(true);
+      expect(
+        requiresDockerHostGateway("http://host.docker.internal:3200"),
+      ).toBe(true);
     });
 
     test("returns false for non-host-gateway URLs", () => {
@@ -318,9 +349,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("rejects non-hex output", () => {
-      expect(() => extractDockerCreateContainerId("container created successfully")).toThrow(
-        /invalid container id/,
-      );
+      expect(() =>
+        extractDockerCreateContainerId("container created successfully"),
+      ).toThrow(/invalid container id/);
     });
   });
 
@@ -354,7 +385,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("throws when all ports in range are excluded", () => {
-      expect(() => allocatePort(10, 13, new Set([10, 11, 12]))).toThrow(/No available ports/);
+      expect(() => allocatePort(10, 13, new Set([10, 11, 12]))).toThrow(
+        /No available ports/,
+      );
     });
 
     test("works with an empty exclusion set", () => {
@@ -380,9 +413,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("throws when the derived Docker container name would be too long", () => {
-      expect(() => getContainerName("a".repeat(MAX_AGENT_ID_LENGTH + 1))).toThrow(
-        /Invalid agent ID/,
-      );
+      expect(() =>
+        getContainerName("a".repeat(MAX_AGENT_ID_LENGTH + 1)),
+      ).toThrow(/Invalid agent ID/);
     });
 
     test("rejects an agentId that would exceed the Docker container name limit", () => {
@@ -398,7 +431,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("rejects invalid leading characters", () => {
-      expect(() => validateContainerName("-bad")).toThrow(/Invalid container name/);
+      expect(() => validateContainerName("-bad")).toThrow(
+        /Invalid container name/,
+      );
     });
   });
 
@@ -418,8 +453,12 @@ describe("Docker Infrastructure - Pure Functions", () => {
     });
 
     test("rejects traversal and repeated separators", () => {
-      expect(() => validateVolumePath("/data//agents/test")).toThrow(/normalized/);
-      expect(() => validateVolumePath("/data/../agents/test")).toThrow(/normalized/);
+      expect(() => validateVolumePath("/data//agents/test")).toThrow(
+        /normalized/,
+      );
+      expect(() => validateVolumePath("/data/../agents/test")).toThrow(
+        /normalized/,
+      );
     });
   });
 
@@ -468,7 +507,9 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     test("throws when env var is not set", () => {
       delete process.env.MILADY_DOCKER_NODES;
-      expect(() => parseDockerNodes()).toThrow(/MILADY_DOCKER_NODES env var is not set/);
+      expect(() => parseDockerNodes()).toThrow(
+        /MILADY_DOCKER_NODES env var is not set/,
+      );
     });
 
     test("throws when all entries are invalid", () => {
@@ -509,7 +550,8 @@ describe("Docker Infrastructure - Pure Functions", () => {
       const result = runSandboxProviderFactory("unknown");
       expect(result).toEqual({
         ok: false,
-        message: 'Unknown sandbox provider: "unknown". Supported values: vercel, docker',
+        message:
+          'Unknown sandbox provider: "unknown". Supported values: vercel, docker',
       });
     });
 

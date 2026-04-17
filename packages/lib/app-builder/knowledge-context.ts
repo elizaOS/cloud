@@ -1427,7 +1427,9 @@ export async function buildKnowledgeContext(
 
   // SDK Reference
   const sdkReference =
-    tierConfig.includes.sdk === "compact" ? SDK_REFERENCE_COMPACT : SDK_REFERENCE_FULL;
+    tierConfig.includes.sdk === "compact"
+      ? SDK_REFERENCE_COMPACT
+      : SDK_REFERENCE_FULL;
 
   // Component Catalog
   let componentCatalog = "";
@@ -1480,7 +1482,9 @@ export async function buildKnowledgeContext(
   };
 }
 
-function getDefaultPatterns(tierConfig: (typeof TIER_CONFIG)[ContextTier]): PatternType[] {
+function getDefaultPatterns(
+  tierConfig: (typeof TIER_CONFIG)[ContextTier],
+): PatternType[] {
   if (tierConfig.includes.patterns === "none") return [];
   if (tierConfig.includes.patterns === "common") {
     return ["streaming-chat", "credits-display", "dashboard-layout"];
@@ -1587,7 +1591,10 @@ export const metadata: Metadata = {
 /**
  * Smart tier selection based on prompt analysis
  */
-export function selectContextTier(prompt: string, templateType?: string): ContextTier {
+export function selectContextTier(
+  prompt: string,
+  templateType?: string,
+): ContextTier {
   const lowerPrompt = prompt.toLowerCase();
 
   // Keywords that suggest need for comprehensive context
@@ -1636,7 +1643,8 @@ export function selectContextTier(prompt: string, templateType?: string): Contex
     "saas-starter",
     "ai-tool",
   ];
-  const isComplexTemplate = templateType && complexTemplates.includes(templateType);
+  const isComplexTemplate =
+    templateType && complexTemplates.includes(templateType);
 
   if (isComplexTemplate || (hasComplex && !hasSimple)) {
     return "comprehensive";

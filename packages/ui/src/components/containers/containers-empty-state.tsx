@@ -35,7 +35,9 @@ export function ContainersEmptyState() {
             )}
           >
             <span className="text-neutral-600 select-none">$</span>
-            <code className="text-sm text-neutral-300 flex-1 font-mono">{cmd}</code>
+            <code className="text-sm text-neutral-300 flex-1 font-mono">
+              {cmd}
+            </code>
             <button
               onClick={() => handleCopy(cmd, index)}
               className="text-neutral-600 hover:text-neutral-300 transition-colors"

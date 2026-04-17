@@ -83,7 +83,9 @@ class DiscordService {
     const channelId = process.env.DISCORD_CHANNEL_ID;
 
     if (!botToken || !channelId) {
-      logger.warn("[DiscordService] Not configured. Set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID");
+      logger.warn(
+        "[DiscordService] Not configured. Set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID",
+      );
       this.initialized = false;
       return;
     }
@@ -97,7 +99,10 @@ class DiscordService {
   /**
    * Send a message to Discord
    */
-  async send(options: DiscordMessageOptions, channelId?: string): Promise<boolean> {
+  async send(
+    options: DiscordMessageOptions,
+    channelId?: string,
+  ): Promise<boolean> {
     this.initialize();
 
     if (!this.initialized || !this.rest || !this.defaultChannelId) {
@@ -121,7 +126,10 @@ class DiscordService {
   /**
    * Send a message to a specific channel
    */
-  async sendToChannel(channelId: string, options: DiscordMessageOptions): Promise<boolean> {
+  async sendToChannel(
+    channelId: string,
+    options: DiscordMessageOptions,
+  ): Promise<boolean> {
     return this.send(options, channelId);
   }
 
@@ -164,9 +172,12 @@ class DiscordService {
       threadData.message = { content: data.message };
     }
 
-    const response = (await this.rest.post(Routes.threads(this.defaultChannelId), {
-      body: threadData,
-    })) as { id: string };
+    const response = (await this.rest.post(
+      Routes.threads(this.defaultChannelId),
+      {
+        body: threadData,
+      },
+    )) as { id: string };
 
     logger.info(`[DiscordService] Thread created: ${response.id}`);
 
@@ -264,7 +275,9 @@ class DiscordService {
       },
       {
         name: "New Organization",
-        value: userData.isNewOrganization ? "✅ Yes" : "❌ No (Joined via invite)",
+        value: userData.isNewOrganization
+          ? "✅ Yes"
+          : "❌ No (Joined via invite)",
         inline: true,
       },
     );
@@ -355,7 +368,9 @@ class DiscordService {
     const fields: DiscordEmbedField[] = [
       {
         name: "Prompt",
-        value: videoData.prompt.slice(0, 200) + (videoData.prompt.length > 200 ? "..." : ""),
+        value:
+          videoData.prompt.slice(0, 200) +
+          (videoData.prompt.length > 200 ? "..." : ""),
         inline: false,
       },
       {
@@ -466,7 +481,9 @@ class DiscordService {
     const fields: DiscordEmbedField[] = [
       {
         name: "Prompt",
-        value: imageData.prompt.slice(0, 200) + (imageData.prompt.length > 200 ? "..." : ""),
+        value:
+          imageData.prompt.slice(0, 200) +
+          (imageData.prompt.length > 200 ? "..." : ""),
         inline: false,
       },
       {
@@ -588,7 +605,9 @@ class DiscordService {
     if (appData.description) {
       fields.push({
         name: "Description",
-        value: appData.description.slice(0, 200) + (appData.description.length > 200 ? "..." : ""),
+        value:
+          appData.description.slice(0, 200) +
+          (appData.description.length > 200 ? "..." : ""),
         inline: false,
       });
     }
@@ -652,7 +671,8 @@ class DiscordService {
     isUpdate: boolean;
     stackName?: string;
   }): Promise<boolean> {
-    const instanceType = containerData.architecture === "arm64" ? "t4g.small" : "t3.small";
+    const instanceType =
+      containerData.architecture === "arm64" ? "t4g.small" : "t3.small";
 
     const fields: DiscordEmbedField[] = [
       {
@@ -744,7 +764,9 @@ class DiscordService {
     });
 
     const embed: DiscordEmbed = {
-      title: containerData.isUpdate ? "🐳 Container Updated" : "🐳 New Container Launched",
+      title: containerData.isUpdate
+        ? "🐳 Container Updated"
+        : "🐳 New Container Launched",
       description: containerData.isUpdate
         ? `A container has been updated and redeployed on Eliza Cloud!`
         : `A new container has been launched on Eliza Cloud!`,
@@ -817,7 +839,9 @@ class DiscordService {
         name: "Plugins",
         value:
           characterData.plugins.slice(0, 5).join(", ") +
-          (characterData.plugins.length > 5 ? `, +${characterData.plugins.length - 5} more` : ""),
+          (characterData.plugins.length > 5
+            ? `, +${characterData.plugins.length - 5} more`
+            : ""),
         inline: false,
       });
     }
@@ -977,7 +1001,10 @@ class DiscordService {
 
     const embed: DiscordEmbed = {
       title: `${celebration.emoji} ${celebration.title}`,
-      description: celebration.message.replace("{amount}", paymentData.amount.toFixed(2)),
+      description: celebration.message.replace(
+        "{amount}",
+        paymentData.amount.toFixed(2),
+      ),
       color: celebration.color,
       fields,
       timestamp: new Date().toISOString(),
@@ -1011,7 +1038,8 @@ class DiscordService {
       return {
         emoji: "🎰",
         title: "MASSIVE PAYMENT RECEIVED!",
-        message: "🚀 **HUGE WIN!** A payment of **$${amount}** just landed! 🎊🎉🎈",
+        message:
+          "🚀 **HUGE WIN!** A payment of **$${amount}** just landed! 🎊🎉🎈",
         announcement: "💎💎💎 **WHALE ALERT** 💎💎💎",
         color: 0xffd700, // Gold
       };
@@ -1020,7 +1048,8 @@ class DiscordService {
       return {
         emoji: "🎉",
         title: "Big Payment Received!",
-        message: "🔥 A solid **$${amount}** payment just came through! Nice! 🔥",
+        message:
+          "🔥 A solid **$${amount}** payment just came through! Nice! 🔥",
         announcement: "🎊 **Cha-ching!** Big money incoming!",
         color: 0x00ff88, // Bright green
       };

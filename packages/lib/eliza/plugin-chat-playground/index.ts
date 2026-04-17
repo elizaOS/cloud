@@ -1,4 +1,9 @@
-import { EventType, logger, type MessagePayload, type Plugin } from "@elizaos/core";
+import {
+  EventType,
+  logger,
+  type MessagePayload,
+  type Plugin,
+} from "@elizaos/core";
 import { roomTitleEvaluator } from "../shared/evaluators/room-title";
 import { appConfigProvider } from "../shared/providers/app-config";
 import { characterProvider } from "../shared/providers/character";
@@ -14,8 +19,9 @@ export const chatPlaygroundPlugin: Plugin = {
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
         // Extract onStreamChunk if present (added by eliza-cloud message handler)
-        const onStreamChunk = (payload as MessagePayload & { onStreamChunk?: StreamChunkCallback })
-          .onStreamChunk;
+        const onStreamChunk = (
+          payload as MessagePayload & { onStreamChunk?: StreamChunkCallback }
+        ).onStreamChunk;
         logger.info(
           `[Playground] Message received in room ${payload.message.roomId}, streaming=${!!onStreamChunk}`,
         );

@@ -21,7 +21,9 @@ export interface CreditGateResult {
  * Returns `{ allowed: true }` if `credit_balance >= MINIMUM_DEPOSIT`,
  * otherwise returns a user-facing error message directing them to add funds.
  */
-export async function checkMiladyCreditGate(organizationId: string): Promise<CreditGateResult> {
+export async function checkMiladyCreditGate(
+  organizationId: string,
+): Promise<CreditGateResult> {
   try {
     const org = await organizationsRepository.findById(organizationId);
     if (!org) {

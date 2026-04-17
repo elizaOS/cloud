@@ -20,8 +20,14 @@ interface MonacoJsonEditorProps {
   isValid: boolean;
 }
 
-export function MonacoJsonEditor({ value, onChange, isValid }: MonacoJsonEditorProps) {
-  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
+export function MonacoJsonEditor({
+  value,
+  onChange,
+  isValid,
+}: MonacoJsonEditorProps) {
+  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(
+    null,
+  );
 
   const handleEditorDidMount = (
     editor: monacoEditor.editor.IStandaloneCodeEditor,

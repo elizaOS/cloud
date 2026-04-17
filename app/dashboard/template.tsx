@@ -9,7 +9,11 @@ import { motion } from "motion/react";
  * @param children - The page content to render with animations.
  * @returns The animated page content.
  */
-export default function DashboardTemplate({ children }: { children: React.ReactNode }) {
+export default function DashboardTemplate({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}

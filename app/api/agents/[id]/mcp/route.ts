@@ -24,7 +24,11 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS } from "@/lib/cors-constants";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
+import {
+  calculateCost,
+  estimateTokens,
+  getProviderFromModel,
+} from "@/lib/pricing";
 import {
   mergeAnthropicCotProviderOptions,
   parseThinkingBudgetFromCharacterSettings,
@@ -33,7 +37,10 @@ import {
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
-import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -63,9 +70,15 @@ const MCPRequestSchema = z.object({
  * GET /api/agents/{id}/mcp
  * Returns MCP server metadata
  */
-async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handleGET(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
   if (!ctx) {
-    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Missing route context" },
+      { status: 500 },
+    );
   }
   const { id } = await ctx.params;
 
@@ -75,11 +88,17 @@ async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: stri
   }
 
   if (!character.is_public || !character.mcp_enabled) {
-    return NextResponse.json({ error: "MCP not accessible for this agent" }, { status: 403 });
+    return NextResponse.json(
+      { error: "MCP not accessible for this agent" },
+      { status: 403 },
+    );
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
-  const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const bioText = Array.isArray(character.bio)
+    ? character.bio.join("\n")
+    : character.bio;
 
   const markupPct = Number(character.inference_markup_percentage || 0);
 
@@ -144,9 +163,15 @@ async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: stri
  * POST /api/agents/{id}/mcp
  * MCP protocol handler
  */
-async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePOST(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
   if (!ctx) {
-    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Missing route context" },
+      { status: 500 },
+    );
   }
   const { id } = await ctx.params;
 
@@ -190,7 +215,9 @@ async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: str
   const { method, params, id: rpcId } = validation.data;
 
   // Authenticate with API key or session
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
+    () => null,
+  );
 
   if (!authResult) {
     return NextResponse.json(
@@ -298,7 +325,9 @@ async function handleToolCall(
   };
 
   if (name === "get_info") {
-    const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
+    const bioText = Array.isArray(character.bio)
+      ? character.bio.join("\n")
+      : character.bio;
 
     return NextResponse.json({
       jsonrpc: "2.0",
@@ -333,8 +362,11 @@ async function handleToolCall(
       });
     }
 
-    const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
-    const systemPrompt = character.system || `You are ${character.name}. ${bioText}`;
+    const bioText = Array.isArray(character.bio)
+      ? character.bio.join("\n")
+      : character.bio;
+    const systemPrompt =
+      character.system || `You are ${character.name}. ${bioText}`;
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
@@ -346,7 +378,9 @@ async function handleToolCall(
     const markupPct = Number(character.inference_markup_percentage || 0);
 
     // Resolve effective thinking budget before reservation (applies ANTHROPIC_COT_BUDGET_MAX cap)
-    const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
+    const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(
+      character.settings,
+    );
     const effectiveThinkingBudget = resolveAnthropicThinkingBudgetTokens(
       model,
       process.env,
@@ -390,7 +424,8 @@ async function handleToolCall(
     // Anthropic API requires maxOutputTokens >= budgetTokens when thinking is enabled
     // Also need to reserve capacity for actual response generation beyond thinking
     const maxOutputTokens = effectiveThinkingBudget
-      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, effectiveThinkingBudget) + DEFAULT_MIN_OUTPUT_TOKENS
+      ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, effectiveThinkingBudget) +
+        DEFAULT_MIN_OUTPUT_TOKENS
       : undefined;
 
     try {
@@ -398,7 +433,11 @@ async function handleToolCall(
         model: gateway.languageModel(model),
         messages,
         ...(maxOutputTokens && { maxOutputTokens }),
-        ...mergeAnthropicCotProviderOptions(model, process.env, agentThinkingBudget),
+        ...mergeAnthropicCotProviderOptions(
+          model,
+          process.env,
+          agentThinkingBudget,
+        ),
       });
 
       let fullText = "";
@@ -431,11 +470,14 @@ async function handleToolCall(
           protocol: "mcp",
         });
 
-        logger.info("[Agent MCP] Creator earnings credited to redeemable balance", {
-          agentId: character.id,
-          ownerId: character.user_id,
-          earnings: actualCreatorMarkup,
-        });
+        logger.info(
+          "[Agent MCP] Creator earnings credited to redeemable balance",
+          {
+            agentId: character.id,
+            ownerId: character.user_id,
+            earnings: actualCreatorMarkup,
+          },
+        );
       }
 
       // Reconcile with actual cost (handles refund or overage)

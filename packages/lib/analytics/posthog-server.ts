@@ -7,7 +7,11 @@
 
 import { PostHog } from "posthog-node";
 import { logger } from "@/lib/utils/logger";
-import type { AdHocEventProperties, EventProperties, PostHogEvent } from "./posthog";
+import type {
+  AdHocEventProperties,
+  EventProperties,
+  PostHogEvent,
+} from "./posthog";
 
 let posthogClient: PostHog | null = null;
 
@@ -84,7 +88,10 @@ export interface ServerUserProperties {
   [key: string]: string | number | boolean | undefined;
 }
 
-export function identifyServerUser(distinctId: string, properties: ServerUserProperties): void {
+export function identifyServerUser(
+  distinctId: string,
+  properties: ServerUserProperties,
+): void {
   const client = getPostHogClient();
   if (!client) return;
 

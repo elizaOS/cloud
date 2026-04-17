@@ -52,7 +52,9 @@ async function main() {
 
   for (const [prefix, files] of trackedFilesByPrefix) {
     if (files.length > 1) {
-      errors.push(`Duplicate journal-tracked migration prefix ${prefix}: ${files.join(", ")}`);
+      errors.push(
+        `Duplicate journal-tracked migration prefix ${prefix}: ${files.join(", ")}`,
+      );
     }
   }
 

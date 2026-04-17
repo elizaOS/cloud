@@ -13,11 +13,13 @@ export const metadata: Metadata = {
     default: "Eliza Cloud Documentation",
     template: "%s | Eliza Cloud",
   },
-  description: "Documentation for Eliza Cloud, including APIs, MCPs, agents, and deployment.",
+  description:
+    "Documentation for Eliza Cloud, including APIs, MCPs, agents, and deployment.",
   keywords: ["elizaOS", "AI agents", "cloud platform", "documentation", "API"],
   openGraph: {
     title: "Eliza Cloud Documentation",
-    description: "Documentation for Eliza Cloud, including APIs, MCPs, agents, and deployment.",
+    description:
+      "Documentation for Eliza Cloud, including APIs, MCPs, agents, and deployment.",
     siteName: "Eliza Cloud",
     type: "website",
     images: [
@@ -32,7 +34,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Eliza Cloud Documentation",
-    description: "Documentation for Eliza Cloud, including APIs, MCPs, agents, and deployment.",
+    description:
+      "Documentation for Eliza Cloud, including APIs, MCPs, agents, and deployment.",
     images: ["/cloudlogo.png"],
     creator: "@elizaos",
     site: "@elizaos",

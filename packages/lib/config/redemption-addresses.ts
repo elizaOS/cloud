@@ -24,7 +24,10 @@ import type { SupportedNetwork } from "@/lib/services/eliza-token-price";
  * Known exchange hot wallet addresses by network.
  * These are frequently-used deposit addresses that may reject unexpected tokens.
  */
-export const KNOWN_EXCHANGE_ADDRESSES: Record<SupportedNetwork, Record<string, string>> = {
+export const KNOWN_EXCHANGE_ADDRESSES: Record<
+  SupportedNetwork,
+  Record<string, string>
+> = {
   ethereum: {
     // Coinbase
     "0x71660c4005ba85c37ccec55d0c4493e66fe775d3": "Coinbase",
@@ -121,7 +124,10 @@ export interface AddressCheckResult {
 /**
  * Check if an address is a known exchange or custodial wallet.
  */
-export function checkKnownAddress(address: string, network: SupportedNetwork): AddressCheckResult {
+export function checkKnownAddress(
+  address: string,
+  network: SupportedNetwork,
+): AddressCheckResult {
   const normalizedAddress = address.toLowerCase();
   const networkAddresses = KNOWN_EXCHANGE_ADDRESSES[network];
 

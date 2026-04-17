@@ -22,12 +22,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Verify the guild belongs to this organization
-  const guild = await discordAutomationService.getGuild(user.organization_id, guildId);
+  const guild = await discordAutomationService.getGuild(
+    user.organization_id,
+    guildId,
+  );
   if (!guild) {
     return NextResponse.json({ error: "Guild not found" }, { status: 404 });
   }
 
-  const channels = await discordAutomationService.getChannels(user.organization_id, guildId);
+  const channels = await discordAutomationService.getChannels(
+    user.organization_id,
+    guildId,
+  );
 
   return NextResponse.json({
     channels: channels.map((c) => ({

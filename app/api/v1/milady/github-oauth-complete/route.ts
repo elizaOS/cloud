@@ -26,7 +26,8 @@ export const dynamic = "force-dynamic";
  * 4. The connection is validated against the org_id before reading
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const dashboardUrl = `${baseUrl}/dashboard/settings?tab=agents`;
 
   const agentId = request.nextUrl.searchParams.get("agent_id");
@@ -100,7 +101,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   }
 
-  if (!agentId || !organizationId || !userId || !connectionId || githubConnected !== "true") {
+  if (
+    !agentId ||
+    !organizationId ||
+    !userId ||
+    !connectionId ||
+    githubConnected !== "true"
+  ) {
     logger.warn("[managed-github] OAuth completion missing required params", {
       hasAgentId: !!agentId,
       hasOrgId: !!organizationId,
@@ -116,7 +123,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     // Validate agent belongs to the org that initiated the OAuth flow
-    const sandbox = await miladySandboxesRepository.findByIdAndOrg(agentId, organizationId);
+    const sandbox = await miladySandboxesRepository.findByIdAndOrg(
+      agentId,
+      organizationId,
+    );
     if (!sandbox) {
       logger.error("[managed-github] Agent not found or org mismatch", {
         agentId,
@@ -204,7 +214,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
     return respond({
       status: "error",
-      message: error instanceof Error ? error.message : "Failed to link GitHub to agent",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to link GitHub to agent",
     });
   }
 }

@@ -20,7 +20,10 @@ const postSchema = z.object({
   text: z.string().max(2000).optional(),
 });
 
-export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function POST(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
@@ -35,7 +38,10 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
         { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -68,6 +74,9 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
       appId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Failed to post announcement" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to post announcement" },
+      { status: 500 },
+    );
   }
 }

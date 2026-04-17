@@ -30,10 +30,14 @@ export interface ParsedResponse {
  * @param items - Items to parse (string, array, or undefined).
  * @returns Array of parsed item strings.
  */
-export function parsePlannedItems(items: string | string[] | undefined): string[] {
+export function parsePlannedItems(
+  items: string | string[] | undefined,
+): string[] {
   if (!items) return [];
 
-  const itemArray = Array.isArray(items) ? items : items.split(",").map((item) => item.trim());
+  const itemArray = Array.isArray(items)
+    ? items
+    : items.split(",").map((item) => item.trim());
 
   return itemArray.filter((item) => item && item !== "");
 }
@@ -45,5 +49,8 @@ export function parsePlannedItems(items: string | string[] | undefined): string[
  * @returns True if plan indicates immediate response.
  */
 export function canRespondImmediately(plan: ParsedPlan | null): boolean {
-  return plan?.canRespondNow?.toUpperCase() === "YES" || plan?.canRespondNow === "true";
+  return (
+    plan?.canRespondNow?.toUpperCase() === "YES" ||
+    plan?.canRespondNow === "true"
+  );
 }

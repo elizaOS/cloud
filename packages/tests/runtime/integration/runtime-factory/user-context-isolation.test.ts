@@ -68,17 +68,21 @@ async function cleanupEnvironment(): Promise<void> {
   console.log("\n🧹 Cleaning up...");
 
   // Invalidate any cached runtimes
-  await invalidateRuntime("b850bc30-45f8-0041-a00a-83df46d8555d").catch(() => {});
+  await invalidateRuntime("b850bc30-45f8-0041-a00a-83df46d8555d").catch(
+    () => {},
+  );
 
   if (testDataUser1) {
-    await cleanupTestData(connectionString, testDataUser1.organization.id).catch((err) =>
-      console.warn(`Cleanup warning: ${err}`),
-    );
+    await cleanupTestData(
+      connectionString,
+      testDataUser1.organization.id,
+    ).catch((err) => console.warn(`Cleanup warning: ${err}`));
   }
   if (testDataUser2) {
-    await cleanupTestData(connectionString, testDataUser2.organization.id).catch((err) =>
-      console.warn(`Cleanup warning: ${err}`),
-    );
+    await cleanupTestData(
+      connectionString,
+      testDataUser2.organization.id,
+    ).catch((err) => console.warn(`Cleanup warning: ${err}`));
   }
 }
 
@@ -110,7 +114,10 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
       const result = await client.query(
         "SELECT settings FROM agents WHERE id = 'b850bc30-45f8-0041-a00a-83df46d8555d'",
       );
-      const settings = (result.rows[0]?.settings || {}) as Record<string, unknown>;
+      const settings = (result.rows[0]?.settings || {}) as Record<
+        string,
+        unknown
+      >;
 
       // Remove user-specific settings
       delete settings.ELIZAOS_API_KEY;
@@ -173,9 +180,13 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
     const runtime1 = await runtimeFactory.createRuntimeForUser(userContext1);
 
     // Verify User 1's settings
-    expect(runtime1.getSetting("ELIZAOS_API_KEY")).toBe(testDataUser1.apiKey.key);
+    expect(runtime1.getSetting("ELIZAOS_API_KEY")).toBe(
+      testDataUser1.apiKey.key,
+    );
     expect(runtime1.getSetting("USER_ID")).toBe(testDataUser1.user.id);
-    console.log(`✅ User 1 runtime created (API: ${testDataUser1.apiKey.key.substring(0, 15)}...)`);
+    console.log(
+      `✅ User 1 runtime created (API: ${testDataUser1.apiKey.key.substring(0, 15)}...)`,
+    );
 
     await invalidateRuntime(runtime1.agentId as string);
 
@@ -246,7 +257,9 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
 
   it("should not leak MCP settings between users with different OAuth states", async () => {
     // Helper to get MCP settings the way McpService does
-    const getMcpSettings = (runtime: any): Record<string, unknown> | undefined => {
+    const getMcpSettings = (
+      runtime: any,
+    ): Record<string, unknown> | undefined => {
       return runtime.character?.settings?.mcp || runtime.settings?.mcp;
     };
 
@@ -270,7 +283,9 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
     expect(googleServer1?.url).toContain("/api/mcps/google/streamable-http");
     expect(googleServer1?.headers?.["X-API-Key"]).toBeUndefined();
 
-    console.log("✅ User 1 (with OAuth) has Google MCP enabled without persisted API key");
+    console.log(
+      "✅ User 1 (with OAuth) has Google MCP enabled without persisted API key",
+    );
 
     await invalidateRuntime(runtime1.agentId as string);
 

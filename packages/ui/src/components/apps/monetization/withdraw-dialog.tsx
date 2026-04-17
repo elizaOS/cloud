@@ -16,7 +16,13 @@ import {
   Input,
 } from "@elizaos/cloud-ui";
 import confetti from "canvas-confetti";
-import { AlertCircle, ArrowRight, CheckCircle2, Loader2, Wallet } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  Wallet,
+} from "lucide-react";
 import { useCallback, useState } from "react";
 
 interface WithdrawDialogProps {
@@ -44,7 +50,8 @@ export function WithdrawDialog({
   const [newBalance, setNewBalance] = useState(0);
 
   const parsedAmount = parseFloat(amount) || 0;
-  const isValidAmount = parsedAmount >= payoutThreshold && parsedAmount <= withdrawableBalance;
+  const isValidAmount =
+    parsedAmount >= payoutThreshold && parsedAmount <= withdrawableBalance;
 
   const triggerConfetti = useCallback(() => {
     // Fire confetti from both sides
@@ -154,15 +161,17 @@ export function WithdrawDialog({
                 Withdraw Earnings
               </DialogTitle>
               <DialogDescription className="text-neutral-400">
-                Mark earnings as withdrawn. These funds are already in your redeemable balance and
-                can be redeemed as elizaOS tokens.
+                Mark earnings as withdrawn. These funds are already in your
+                redeemable balance and can be redeemed as elizaOS tokens.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               {/* Balance display */}
               <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-white/10">
-                <span className="text-sm text-neutral-400">Available Balance</span>
+                <span className="text-sm text-neutral-400">
+                  Available Balance
+                </span>
                 <span className="text-lg font-mono font-semibold text-emerald-400">
                   ${withdrawableBalance.toFixed(2)}
                 </span>
@@ -170,7 +179,9 @@ export function WithdrawDialog({
 
               {/* Amount input */}
               <div className="space-y-2">
-                <label className="text-xs text-neutral-400">Withdrawal Amount</label>
+                <label className="text-xs text-neutral-400">
+                  Withdrawal Amount
+                </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">
                     $
@@ -186,7 +197,9 @@ export function WithdrawDialog({
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-neutral-500">Minimum: ${payoutThreshold.toFixed(2)}</span>
+                  <span className="text-neutral-500">
+                    Minimum: ${payoutThreshold.toFixed(2)}
+                  </span>
                   <button
                     onClick={() => setAmount(withdrawableBalance.toFixed(2))}
                     className="text-[#FF5800] hover:text-[#FF5800]/80 transition-colors"
@@ -232,8 +245,12 @@ export function WithdrawDialog({
             <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center">
               <Loader2 className="h-8 w-8 text-[#FF5800] animate-spin" />
             </div>
-            <h3 className="text-lg font-medium text-white mb-2">Processing Withdrawal</h3>
-            <p className="text-sm text-neutral-400">This may take a few moments...</p>
+            <h3 className="text-lg font-medium text-white mb-2">
+              Processing Withdrawal
+            </h3>
+            <p className="text-sm text-neutral-400">
+              This may take a few moments...
+            </p>
           </div>
         )}
 
@@ -242,14 +259,22 @@ export function WithdrawDialog({
             <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center bg-emerald-500/10 rounded-full border border-emerald-500/30">
               <CheckCircle2 className="h-8 w-8 text-emerald-400" />
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">Withdrawal Complete!</h3>
-            <p className="text-neutral-400 mb-2">${parsedAmount.toFixed(2)} marked as withdrawn</p>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              Withdrawal Complete!
+            </h3>
+            <p className="text-neutral-400 mb-2">
+              ${parsedAmount.toFixed(2)} marked as withdrawn
+            </p>
             <p className="text-xs text-neutral-500 mb-4">
               Visit your Earnings page to redeem as elizaOS tokens
             </p>
             <div className="inline-block p-3 bg-black/30 rounded-lg border border-white/10">
-              <span className="text-xs text-neutral-500">Remaining App Balance</span>
-              <p className="text-lg font-mono font-semibold text-white">${newBalance.toFixed(2)}</p>
+              <span className="text-xs text-neutral-500">
+                Remaining App Balance
+              </span>
+              <p className="text-lg font-mono font-semibold text-white">
+                ${newBalance.toFixed(2)}
+              </p>
             </div>
             <DialogFooter className="mt-6">
               <Button
@@ -267,7 +292,9 @@ export function WithdrawDialog({
             <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center bg-red-500/10 rounded-full border border-red-500/30">
               <AlertCircle className="h-8 w-8 text-red-400" />
             </div>
-            <h3 className="text-lg font-medium text-white mb-2">Withdrawal Failed</h3>
+            <h3 className="text-lg font-medium text-white mb-2">
+              Withdrawal Failed
+            </h3>
             <p className="text-sm text-red-400 mb-4">{error}</p>
             <DialogFooter className="flex gap-2 justify-center">
               <Button

@@ -58,7 +58,9 @@ async function setupTestEnvironment(): Promise<void> {
 
   const connected = await verifyConnection();
   if (!connected) {
-    throw new Error("Cannot connect to database. Make sure DATABASE_URL is set.");
+    throw new Error(
+      "Cannot connect to database. Make sure DATABASE_URL is set.",
+    );
   }
   connectionString = getConnectionString();
   console.log("Database connected");
@@ -80,8 +82,8 @@ async function setupTestEnvironment(): Promise<void> {
 async function cleanupTestEnvironment(): Promise<void> {
   console.log("\nCleaning up config change race condition test...");
   if (testData && connectionString) {
-    await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
-      console.warn(`Data cleanup warning: ${err}`),
+    await cleanupTestData(connectionString, testData.organization.id).catch(
+      (err) => console.warn(`Data cleanup warning: ${err}`),
     );
   }
 }
@@ -112,7 +114,8 @@ describe.skipIf(!hasDatabaseUrl)("Mode Switching During Operations", () => {
         webSearchEnabled: false,
       });
 
-      const assistantRuntime = await runtimeFactory.createRuntimeForUser(assistantContext);
+      const assistantRuntime =
+        await runtimeFactory.createRuntimeForUser(assistantContext);
       const agentId = assistantRuntime.agentId as string;
       console.log(`Created ASSISTANT runtime: ${agentId}`);
 
@@ -126,13 +129,19 @@ describe.skipIf(!hasDatabaseUrl)("Mode Switching During Operations", () => {
       const operations: Promise<void>[] = [];
 
       // Simulate multiple database operations like an evaluator would make
-      const simulateEvaluatorOperations = async (label: string): Promise<void> => {
+      const simulateEvaluatorOperations = async (
+        label: string,
+      ): Promise<void> => {
         try {
           console.log(`${label}: Starting simulated evaluator operations...`);
 
           // Simulate runtime.countMemories()
           await assistantRuntime
-            .countMemories("00000000-0000-0000-0000-000000000001" as any, false, "messages")
+            .countMemories(
+              "00000000-0000-0000-0000-000000000001" as any,
+              false,
+              "messages",
+            )
             .catch(() => {}); // May fail if room doesn't exist, that's OK
 
           // Simulate runtime.getMemories()
@@ -165,7 +174,9 @@ describe.skipIf(!hasDatabaseUrl)("Mode Switching During Operations", () => {
       // Trigger mode change (invalidation) while operations are running
       const invalidationPromise = (async () => {
         await new Promise((r) => setTimeout(r, 50)); // Let operations start
-        console.log("\n>>> Triggering invalidation (simulating mode switch) <<<");
+        console.log(
+          "\n>>> Triggering invalidation (simulating mode switch) <<<",
+        );
         await invalidateRuntime(agentId);
         console.log(">>> Invalidation complete <<<\n");
       })();
@@ -200,7 +211,9 @@ describe.skipIf(!hasDatabaseUrl)("Mode Switching During Operations", () => {
 
       // With the fix, no pool errors should occur
       const poolErrors = errors.filter(
-        (err) => err.toLowerCase().includes("pool") || err.toLowerCase().includes("cannot use"),
+        (err) =>
+          err.toLowerCase().includes("pool") ||
+          err.toLowerCase().includes("cannot use"),
       );
       expect(poolErrors.length).toBe(0);
     },
@@ -257,7 +270,9 @@ describe.skipIf(!hasDatabaseUrl)("Mode Switching During Operations", () => {
 
       // No pool errors should occur
       const poolErrors = errors.filter(
-        (err) => err.toLowerCase().includes("pool") || err.toLowerCase().includes("cannot use"),
+        (err) =>
+          err.toLowerCase().includes("pool") ||
+          err.toLowerCase().includes("cannot use"),
       );
       expect(poolErrors.length).toBe(0);
     },
@@ -292,7 +307,9 @@ describe.skipIf(!hasDatabaseUrl)("Service Access During Invalidation", () => {
 
       // Get knowledge service if available
       const knowledgeService = runtime.getService("knowledge");
-      console.log(`Knowledge service: ${knowledgeService ? "available" : "not available"}`);
+      console.log(
+        `Knowledge service: ${knowledgeService ? "available" : "not available"}`,
+      );
 
       const errors: string[] = [];
 
@@ -327,7 +344,9 @@ describe.skipIf(!hasDatabaseUrl)("Service Access During Invalidation", () => {
 
       // Pool errors should not occur with the fix
       const poolErrors = errors.filter(
-        (err) => err.toLowerCase().includes("pool") || err.toLowerCase().includes("cannot use"),
+        (err) =>
+          err.toLowerCase().includes("pool") ||
+          err.toLowerCase().includes("cannot use"),
       );
       expect(poolErrors.length).toBe(0);
     },
@@ -362,7 +381,11 @@ describe.skipIf(!hasDatabaseUrl)("Service Access During Invalidation", () => {
 
             // Simulate memory operations
             await runtime
-              .countMemories("00000000-0000-0000-0000-000000000001" as any, false, "messages")
+              .countMemories(
+                "00000000-0000-0000-0000-000000000001" as any,
+                false,
+                "messages",
+              )
               .catch(() => {}); // Room may not exist
 
             // Real DB query
@@ -376,7 +399,11 @@ describe.skipIf(!hasDatabaseUrl)("Service Access During Invalidation", () => {
       };
 
       // Multiple memory operation streams
-      const ops = [memoryOps("Stream1"), memoryOps("Stream2"), memoryOps("Stream3")];
+      const ops = [
+        memoryOps("Stream1"),
+        memoryOps("Stream2"),
+        memoryOps("Stream3"),
+      ];
 
       // Invalidation during operations
       const invalidation = async (): Promise<void> => {
@@ -387,7 +414,9 @@ describe.skipIf(!hasDatabaseUrl)("Service Access During Invalidation", () => {
 
       await Promise.all([...ops, invalidation()]);
 
-      console.log(`\nResults: ${successes.length} successes, ${errors.length} errors`);
+      console.log(
+        `\nResults: ${successes.length} successes, ${errors.length} errors`,
+      );
       if (errors.length > 0) {
         errors.forEach((e) => console.log(`  ${e}`));
       } else {
@@ -396,7 +425,9 @@ describe.skipIf(!hasDatabaseUrl)("Service Access During Invalidation", () => {
 
       // No pool errors with the fix
       const poolErrors = errors.filter(
-        (err) => err.toLowerCase().includes("pool") || err.toLowerCase().includes("cannot use"),
+        (err) =>
+          err.toLowerCase().includes("pool") ||
+          err.toLowerCase().includes("cannot use"),
       );
       expect(poolErrors.length).toBe(0);
     },
@@ -463,7 +494,9 @@ describe.skipIf(!hasDatabaseUrl)("Concurrent Configuration Changes", () => {
 
       // No pool errors
       const poolErrors = errors.filter(
-        (err) => err.toLowerCase().includes("pool") || err.toLowerCase().includes("cannot use"),
+        (err) =>
+          err.toLowerCase().includes("pool") ||
+          err.toLowerCase().includes("cannot use"),
       );
       expect(poolErrors.length).toBe(0);
     },
@@ -477,7 +510,9 @@ describe.skipIf(!hasDatabaseUrl)("Concurrent Configuration Changes", () => {
     "should handle plugin configuration changes during queries",
     async () => {
       if (!hasTavilyApiKey) {
-        console.log("Skipping plugin config webSearch case: TAVILY_API_KEY not set");
+        console.log(
+          "Skipping plugin config webSearch case: TAVILY_API_KEY not set",
+        );
         return;
       }
 
@@ -548,7 +583,9 @@ describe.skipIf(!hasDatabaseUrl)("Concurrent Configuration Changes", () => {
 
       // No pool errors
       const poolErrors = errors.filter(
-        (err) => err.toLowerCase().includes("pool") || err.toLowerCase().includes("cannot use"),
+        (err) =>
+          err.toLowerCase().includes("pool") ||
+          err.toLowerCase().includes("cannot use"),
       );
       expect(poolErrors.length).toBe(0);
     },
@@ -595,7 +632,9 @@ describe.skipIf(!hasDatabaseUrl)("Long-Running Operation Simulation", () => {
 
           // Step 1: runtime.countMemories() - line 215 in evaluator
           console.log("  [Evaluator] Step 1: countMemories");
-          await runtime.countMemories(testUser.roomId, false, "messages").catch(() => {});
+          await runtime
+            .countMemories(testUser.roomId, false, "messages")
+            .catch(() => {});
           completedSteps.push("countMemories_1");
 
           // Small delay (simulating processing)
@@ -635,7 +674,9 @@ describe.skipIf(!hasDatabaseUrl)("Long-Running Operation Simulation", () => {
 
           // Step 7: runtime.countMemories() again - line 332
           console.log("  [Evaluator] Step 7: Final countMemories");
-          await runtime.countMemories(testUser.roomId, false, "messages").catch(() => {});
+          await runtime
+            .countMemories(testUser.roomId, false, "messages")
+            .catch(() => {});
           completedSteps.push("countMemories_2");
 
           // Step 8: Update checkpoint - line 337
@@ -671,7 +712,9 @@ describe.skipIf(!hasDatabaseUrl)("Long-Running Operation Simulation", () => {
         errors.forEach((e) => console.log(`  ${e}`));
 
         const hasPoolError = errors.some(
-          (err) => err.toLowerCase().includes("pool") || err.toLowerCase().includes("cannot use"),
+          (err) =>
+            err.toLowerCase().includes("pool") ||
+            err.toLowerCase().includes("cannot use"),
         );
 
         if (hasPoolError) {
@@ -684,7 +727,9 @@ describe.skipIf(!hasDatabaseUrl)("Long-Running Operation Simulation", () => {
 
       // With the fix, no pool errors should occur
       const poolErrors = errors.filter(
-        (err) => err.toLowerCase().includes("pool") || err.toLowerCase().includes("cannot use"),
+        (err) =>
+          err.toLowerCase().includes("pool") ||
+          err.toLowerCase().includes("cannot use"),
       );
       expect(poolErrors.length).toBe(0);
     },

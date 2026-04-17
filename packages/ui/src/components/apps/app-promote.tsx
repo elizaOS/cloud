@@ -36,7 +36,9 @@ interface AdAccount {
 
 export function AppPromote({ app }: AppPromoteProps) {
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
-  const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(null);
+  const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(
+    null,
+  );
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
@@ -213,7 +215,9 @@ export function AppPromote({ app }: AppPromoteProps) {
             {suggestions.tips.map((tip, index) => (
               <div key={index} className="flex items-start gap-2">
                 <div className="w-5 h-5 rounded-full bg-[#FF5800]/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-[#FF5800] text-[10px] font-semibold">{index + 1}</span>
+                  <span className="text-[#FF5800] text-[10px] font-semibold">
+                    {index + 1}
+                  </span>
                 </div>
                 <p className="text-xs text-neutral-300">{tip}</p>
               </div>
@@ -224,7 +228,8 @@ export function AppPromote({ app }: AppPromoteProps) {
             <div className="flex items-center justify-between text-xs">
               <span className="text-neutral-500">Estimated budget range:</span>
               <span className="text-white font-medium">
-                ${suggestions.estimatedBudget.min} - ${suggestions.estimatedBudget.max}
+                ${suggestions.estimatedBudget.min} - $
+                {suggestions.estimatedBudget.max}
               </span>
             </div>
           </div>
@@ -234,7 +239,9 @@ export function AppPromote({ app }: AppPromoteProps) {
       {/* Connected Ad Accounts */}
       <div className="bg-neutral-900 rounded-xl p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-white">Connected Ad Accounts</h3>
+          <h3 className="text-sm font-medium text-white">
+            Connected Ad Accounts
+          </h3>
           <Button
             variant="outline"
             size="sm"
@@ -264,12 +271,21 @@ export function AppPromote({ app }: AppPromoteProps) {
                 className="flex items-center justify-between p-3 rounded-lg bg-black/30 border border-white/5"
               >
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="capitalize text-xs border-white/20">
+                  <Badge
+                    variant="outline"
+                    className="capitalize text-xs border-white/20"
+                  >
                     {account.platform}
                   </Badge>
-                  <span className="text-sm text-white">{account.accountName}</span>
+                  <span className="text-sm text-white">
+                    {account.accountName}
+                  </span>
                 </div>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-lg"
+                >
                   <ExternalLink className="h-4 w-4" />
                 </Button>
               </div>

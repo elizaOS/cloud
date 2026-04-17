@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  await twitterAutomationService.removeCredentials(user.organization_id, user.id);
+  await twitterAutomationService.removeCredentials(
+    user.organization_id,
+    user.id,
+  );
 
   await invalidateOAuthState(user.organization_id, "twitter", user.id);
 

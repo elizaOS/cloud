@@ -36,7 +36,9 @@ export const organizationBilling = pgTable(
     stripe_default_payment_method: text("stripe_default_payment_method"),
 
     // Auto top-up
-    auto_top_up_enabled: boolean("auto_top_up_enabled").default(false).notNull(),
+    auto_top_up_enabled: boolean("auto_top_up_enabled")
+      .default(false)
+      .notNull(),
     auto_top_up_amount: numeric("auto_top_up_amount", {
       precision: 12,
       scale: 6,
@@ -52,8 +54,12 @@ export const organizationBilling = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("org_billing_organization_idx").on(table.organization_id),
-    stripe_customer_idx: index("org_billing_stripe_customer_idx").on(table.stripe_customer_id),
+    organization_idx: index("org_billing_organization_idx").on(
+      table.organization_id,
+    ),
+    stripe_customer_idx: index("org_billing_stripe_customer_idx").on(
+      table.stripe_customer_id,
+    ),
     auto_top_up_enabled_idx: index("org_billing_auto_top_up_enabled_idx").on(
       table.auto_top_up_enabled,
     ),
@@ -62,4 +68,6 @@ export const organizationBilling = pgTable(
 
 // Type inference
 export type OrganizationBilling = InferSelectModel<typeof organizationBilling>;
-export type NewOrganizationBilling = InferInsertModel<typeof organizationBilling>;
+export type NewOrganizationBilling = InferInsertModel<
+  typeof organizationBilling
+>;

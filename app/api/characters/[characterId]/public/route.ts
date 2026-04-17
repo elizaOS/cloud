@@ -32,7 +32,10 @@ export async function GET(
 
     if (!character) {
       logger.warn(`[Public Character API] Character not found: ${characterId}`);
-      return NextResponse.json({ success: false, error: "Character not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Character not found" },
+        { status: 404 },
+      );
     }
 
     // Only return cloud-source characters (not miniapp-only characters)
@@ -50,16 +53,20 @@ export async function GET(
     const isPublic = character.is_public === true;
 
     // Check if this is a claimable affiliate character
-    const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+    const claimCheck =
+      await charactersService.isClaimableAffiliateCharacter(characterId);
     const isClaimableAffiliate = claimCheck.claimable;
 
     // Only return info if: character is public, user is owner, or it's a claimable affiliate
     if (!isPublic && !isOwner && !isClaimableAffiliate) {
-      logger.warn(`[Public Character API] Access denied to private character: ${characterId}`, {
-        userId: user?.id,
-        characterOwnerId: character.user_id,
-        isPublic: character.is_public,
-      });
+      logger.warn(
+        `[Public Character API] Access denied to private character: ${characterId}`,
+        {
+          userId: user?.id,
+          characterOwnerId: character.user_id,
+          isPublic: character.is_public,
+        },
+      );
       return NextResponse.json(
         { success: false, error: "Character not available" },
         { status: 404 },
@@ -84,11 +91,14 @@ export async function GET(
       monetizationEnabled: character.monetization_enabled,
     };
 
-    logger.debug(`[Public Character API] Returning public info for: ${characterId}`, {
-      isPublic,
-      isOwner,
-      isClaimableAffiliate,
-    });
+    logger.debug(
+      `[Public Character API] Returning public info for: ${characterId}`,
+      {
+        isPublic,
+        isOwner,
+        isClaimableAffiliate,
+      },
+    );
 
     return NextResponse.json({
       success: true,

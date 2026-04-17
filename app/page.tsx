@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
-import { generateOrganizationSchema, generateWebApplicationSchema } from "@/lib/seo";
+import {
+  generateOrganizationSchema,
+  generateWebApplicationSchema,
+} from "@/lib/seo";
 import { LandingPage } from "@/packages/ui/src/components/landing/landing-page-new";
 
 interface HomeProps {
@@ -25,7 +28,9 @@ export default async function Home({ searchParams }: HomeProps) {
   // This handles cases where Stripe might redirect to the wrong URL
   if (params.session_id) {
     const from = params.from || "settings";
-    redirect(`/dashboard/billing/success?session_id=${params.session_id}&from=${from}`);
+    redirect(
+      `/dashboard/billing/success?session_id=${params.session_id}&from=${from}`,
+    );
   }
 
   const organizationSchema = generateOrganizationSchema();

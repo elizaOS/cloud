@@ -2,7 +2,11 @@ import type { NextRequest } from "next/server";
 import type { UserWithOrganization } from "@/db/repositories/users";
 import type { ApiKey } from "@/db/schemas/api-keys";
 
-export type AuthLevel = "session" | "sessionWithOrg" | "apiKey" | "apiKeyWithOrg";
+export type AuthLevel =
+  | "session"
+  | "sessionWithOrg"
+  | "apiKey"
+  | "apiKeyWithOrg";
 
 export interface CacheConfig {
   maxTTL: number;
@@ -46,7 +50,10 @@ export interface ServiceConfig {
   auth: AuthLevel;
   rateLimit?: RateLimitConfig;
   cache?: CacheConfig;
-  getCost: (body: ProxyRequestBody, searchParams: URLSearchParams) => Promise<number>;
+  getCost: (
+    body: ProxyRequestBody,
+    searchParams: URLSearchParams,
+  ) => Promise<number>;
 }
 
 export interface HandlerContext {

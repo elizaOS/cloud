@@ -17,7 +17,11 @@ function buildResponse(
   plainKey: string,
   address: string,
   isNewAccount: boolean,
-  user: { id: string; wallet_address: string | null; organization_id: string | null },
+  user: {
+    id: string;
+    wallet_address: string | null;
+    organization_id: string | null;
+  },
   org: Organization | null,
 ) {
   return NextResponse.json({
@@ -40,12 +44,18 @@ function buildResponse(
  */
 async function handler(request: NextRequest) {
   if (!cache.isAvailable()) {
-    return NextResponse.json({ error: "Service temporarily unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Service temporarily unavailable" },
+      { status: 503 },
+    );
   }
 
   const body = (await request.json().catch(() => null)) as VerifyBody | null;
   if (!body?.message || !body?.signature) {
-    return NextResponse.json({ error: "message and signature are required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "message and signature are required" },
+      { status: 400 },
+    );
   }
 
   let address: string;
@@ -56,7 +66,10 @@ async function handler(request: NextRequest) {
     logger.warn("[SIWE Verify] Validation failed", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: "SIWE verification failed" }, { status: 401 });
+    return NextResponse.json(
+      { error: "SIWE verification failed" },
+      { status: 401 },
+    );
   }
 
   const { user, isNewAccount } = await findOrCreateUserByWalletAddress(address);
@@ -78,7 +91,13 @@ async function handler(request: NextRequest) {
     is_active: true,
   });
 
-  return buildResponse(plainKey, address, isNewAccount, user, user.organization ?? null);
+  return buildResponse(
+    plainKey,
+    address,
+    isNewAccount,
+    user,
+    user.organization ?? null,
+  );
 }
 
 export const POST = withRateLimit(handler, RateLimitPresets.STRICT);

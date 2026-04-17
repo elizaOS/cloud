@@ -47,7 +47,9 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
 
-    const rateLimited = await enforceMcpOrganizationRateLimit(authResult.user.organization_id!);
+    const rateLimited = await enforceMcpOrganizationRateLimit(
+      authResult.user.organization_id!,
+    );
     if (rateLimited) return rateLimited;
 
     // Call MCP handler with auth context (lazy-loaded)
@@ -73,7 +75,10 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
 
     const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    if (mcpResponse.headers && typeof mcpResponse.headers.forEach === "function") {
+    if (
+      mcpResponse.headers &&
+      typeof mcpResponse.headers.forEach === "function"
+    ) {
       mcpResponse.headers.forEach((value: string, key: string) => {
         headers[key] = value;
       });

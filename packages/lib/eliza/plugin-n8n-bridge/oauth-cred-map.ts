@@ -28,7 +28,9 @@ const PLATFORM_PREFIXES: Record<string, string[]> = {
 
 // Pre-computed reverse: sorted longest-prefix-first for correct matching
 const PREFIX_TO_PLATFORM: [string, string][] = Object.entries(PLATFORM_PREFIXES)
-  .flatMap(([platform, prefixes]) => prefixes.map((p): [string, string] => [p, platform]))
+  .flatMap(([platform, prefixes]) =>
+    prefixes.map((p): [string, string] => [p, platform]),
+  )
   .sort((a, b) => b[0].length - a[0].length);
 
 /**

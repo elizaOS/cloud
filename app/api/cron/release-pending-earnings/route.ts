@@ -22,7 +22,10 @@ import { timingSafeEqual } from "crypto";
 import { and, gt, lte, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { dbRead, dbWrite } from "@/db/client";
-import { appEarnings, appEarningsTransactions } from "@/db/schemas/app-earnings";
+import {
+  appEarnings,
+  appEarningsTransactions,
+} from "@/db/schemas/app-earnings";
 import { VESTING_CONFIG } from "@/lib/config/redemption-addresses";
 import { logger } from "@/lib/utils/logger";
 
@@ -43,7 +46,9 @@ function verifyCronSecret(request: NextRequest): boolean {
     return false;
   }
 
-  const providedSecret = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+  const providedSecret = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : authHeader;
 
   // SECURITY: Timing-safe comparison to prevent timing attacks
   try {
@@ -73,7 +78,9 @@ export async function GET(request: NextRequest) {
   let totalReleased = 0;
 
   // Calculate cutoff date for standard earnings (7 days ago)
-  const cutoffDate = new Date(Date.now() - VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS);
+  const cutoffDate = new Date(
+    Date.now() - VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS,
+  );
 
   // Find all apps with pending balances where earnings are old enough
   // We look at the oldest transaction to determine if balance can be released
@@ -153,7 +160,8 @@ export async function GET(request: NextRequest) {
         description: `Vesting release: $${amountToRelease.toFixed(2)} now withdrawable`,
         metadata: {
           released_at: new Date().toISOString(),
-          vesting_period_days: VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS / (24 * 60 * 60 * 1000),
+          vesting_period_days:
+            VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS / (24 * 60 * 60 * 1000),
         },
       });
     });

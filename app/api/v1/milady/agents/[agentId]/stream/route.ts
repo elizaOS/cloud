@@ -48,10 +48,16 @@ export async function POST(
     const parsed = streamRequestSchema.safeParse(body);
     if (!parsed.success) {
       return applyCorsHeaders(
-        new Response(JSON.stringify({ error: "Invalid request", details: parsed.error.issues }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify({
+            error: "Invalid request",
+            details: parsed.error.issues,
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
         CORS_METHODS,
       );
     }

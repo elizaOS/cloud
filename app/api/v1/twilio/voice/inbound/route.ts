@@ -43,7 +43,10 @@ export function verifyTwilioSignature(
 ): boolean {
   const sorted = Object.keys(params).sort();
   const data = url + sorted.map((key) => `${key}${params[key]}`).join("");
-  const computed = crypto.createHmac("sha1", authToken).update(data).digest("base64");
+  const computed = crypto
+    .createHmac("sha1", authToken)
+    .update(data)
+    .digest("base64");
   const a = Buffer.from(computed, "utf8");
   const b = Buffer.from(signature, "utf8");
   if (a.length !== b.length) return false;
@@ -73,13 +76,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
   if (!authToken) {
-    logger.warn("[twilio-voice-inbound] TWILIO_AUTH_TOKEN not configured — refusing call");
-    return new NextResponse("Twilio auth token not configured", { status: 503 });
+    logger.warn(
+      "[twilio-voice-inbound] TWILIO_AUTH_TOKEN not configured — refusing call",
+    );
+    return new NextResponse("Twilio auth token not configured", {
+      status: 503,
+    });
   }
 
   const signature = request.headers.get("x-twilio-signature") ?? "";
   const fullUrl = resolveForwardedUrl(request);
-  if (!signature || !verifyTwilioSignature(authToken, signature, fullUrl, params)) {
+  if (
+    !signature ||
+    !verifyTwilioSignature(authToken, signature, fullUrl, params)
+  ) {
     logger.warn("[twilio-voice-inbound] signature verification failed", {
       url: fullUrl,
     });

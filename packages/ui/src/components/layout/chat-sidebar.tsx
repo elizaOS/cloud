@@ -64,7 +64,11 @@ interface OperationState {
   loadingRoomId: string | null;
 }
 
-export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebarProps) {
+export function ChatSidebar({
+  className,
+  isOpen = false,
+  onToggle,
+}: ChatSidebarProps) {
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
 
@@ -114,9 +118,12 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
 
     const fetchShareStatus = async () => {
       try {
-        const res = await fetch(`/api/my-agents/characters/${selectedCharacterId}/share`, {
-          signal: controller.signal,
-        });
+        const res = await fetch(
+          `/api/my-agents/characters/${selectedCharacterId}/share`,
+          {
+            signal: controller.signal,
+          },
+        );
 
         if (cancelled) return;
 
@@ -161,14 +168,19 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
     setIsPublic(newIsPublic);
 
     try {
-      const response = await fetch(`/api/my-agents/characters/${selectedCharacterId}/share`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublic: newIsPublic }),
-      });
+      const response = await fetch(
+        `/api/my-agents/characters/${selectedCharacterId}/share`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPublic: newIsPublic }),
+        },
+      );
 
       if (response.ok) {
-        toast.success(newIsPublic ? "Agent is now public" : "Agent is now private");
+        toast.success(
+          newIsPublic ? "Agent is now public" : "Agent is now private",
+        );
       } else {
         setIsPublic(!newIsPublic);
         toast.error("Failed to update visibility");
@@ -184,7 +196,9 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
   // Copy share link
   const handleCopyShareLink = async () => {
     if (!selectedCharacterId) return;
-    const character = availableCharacters.find((c) => c.id === selectedCharacterId);
+    const character = availableCharacters.find(
+      (c) => c.id === selectedCharacterId,
+    );
     // Use username if available, otherwise fall back to character ID
     const shareUrl = character?.username
       ? `${window.location.origin}/chat/@${character.username}`
@@ -204,13 +218,17 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
 
     if (!selectedCharacterId) {
       // Show rooms with no character assignment OR default Eliza ID
-      return rooms.filter((room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID);
+      return rooms.filter(
+        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID,
+      );
     }
     return rooms.filter((room) => room.characterId === selectedCharacterId);
   }, [rooms, selectedCharacterId]);
 
   // Find selected character details
-  const selectedCharacter = availableCharacters.find((c) => c.id === selectedCharacterId);
+  const selectedCharacter = availableCharacters.find(
+    (c) => c.id === selectedCharacterId,
+  );
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -261,7 +279,11 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
 
   // Clear loading state when roomId changes
   useEffect(() => {
-    if (roomId && operationState.loadingRoomId && roomId === operationState.loadingRoomId) {
+    if (
+      roomId &&
+      operationState.loadingRoomId &&
+      roomId === operationState.loadingRoomId
+    ) {
       // Small delay to show the loading state
       const timer = setTimeout(() => {
         updateOperation({ loadingRoomId: null });
@@ -289,7 +311,10 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
     <>
       {/* Mobile Backdrop */}
       {isMobile && isOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={onToggle} />
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={onToggle}
+        />
       )}
 
       {/* Sidebar Container — always w-72 on desktop */}
@@ -303,7 +328,10 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
       >
         {/* Header with Logo and Collapse Toggle */}
         <div className="relative flex h-14 mb-2 shrink-0 grow-0 items-center justify-between px-3">
-          <a href="/dashboard" className="flex items-center gap-2 hover:opacity-80 relative z-10">
+          <a
+            href="/dashboard"
+            className="flex items-center gap-2 hover:opacity-80 relative z-10"
+          >
             <ElizaCloudLockup
               logoClassName={isMobile ? "h-4" : "h-5"}
               textClassName="text-[9px] md:text-[10px]"
@@ -340,11 +368,13 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
             <div className="text-sm font-medium text-white truncate">
               {selectedCharacter?.name || "Create New Agent"}
             </div>
-            {selectedCharacter && !isOwner && selectedCharacter.creatorUsername && (
-              <span className="text-[10px] text-white/40 truncate">
-                by @{selectedCharacter.creatorUsername}
-              </span>
-            )}
+            {selectedCharacter &&
+              !isOwner &&
+              selectedCharacter.creatorUsername && (
+                <span className="text-[10px] text-white/40 truncate">
+                  by @{selectedCharacter.creatorUsername}
+                </span>
+              )}
           </div>
           {/* Settings Dropdown - Owner only */}
           {selectedCharacter && isOwner && (
@@ -364,7 +394,9 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
                   asChild
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer transition-colors"
                 >
-                  <a href={`/dashboard/build?characterId=${selectedCharacterId}`}>
+                  <a
+                    href={`/dashboard/build?characterId=${selectedCharacterId}`}
+                  >
                     <Wrench className="h-4 w-4" />
                     Edit Agent
                   </a>
@@ -453,7 +485,8 @@ export function ChatSidebar({ className, isOpen = false, onToggle }: ChatSidebar
                       "group relative w-full text-left rounded-lg transition-all duration-200",
                       "hover:bg-white/5",
                       roomId === room.id && "bg-white/10",
-                      (isDeleting || isLoading) && "opacity-50 pointer-events-none",
+                      (isDeleting || isLoading) &&
+                        "opacity-50 pointer-events-none",
                     )}
                   >
                     <div className="relative">

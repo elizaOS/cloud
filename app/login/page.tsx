@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
-const STEWARD_AUTH_ENABLED = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
+const STEWARD_AUTH_ENABLED =
+  process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
 
 // Dynamic imports: only load the section that's needed.
 // ssr: false prevents Privy hooks from executing during SSR or when Privy is unconfigured.
@@ -80,7 +81,9 @@ function LoginPageContent() {
         <div className="space-y-6">
           <div className="space-y-2 text-center">
             <h1 className="text-2xl font-semibold text-white">Welcome back</h1>
-            <p className="text-sm text-neutral-500">Sign in to your Eliza Cloud account</p>
+            <p className="text-sm text-neutral-500">
+              Sign in to your Eliza Cloud account
+            </p>
           </div>
           <StewardLoginSection />
           <p className="text-center text-xs text-neutral-500 pt-4 border-t border-white/10">

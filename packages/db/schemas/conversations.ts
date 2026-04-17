@@ -24,9 +24,12 @@ export const conversations = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     // Allow NULL for anonymous users who don't have organizations
-    organization_id: uuid("organization_id").references(() => organizations.id, {
-      onDelete: "cascade",
-    }),
+    organization_id: uuid("organization_id").references(
+      () => organizations.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
     user_id: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -52,13 +55,17 @@ export const conversations = pgTable(
       }),
     status: text("status").notNull().default("active"),
     message_count: integer("message_count").notNull().default(0),
-    total_cost: numeric("total_cost", { precision: 10, scale: 2 }).notNull().default("0.00"),
+    total_cost: numeric("total_cost", { precision: 10, scale: 2 })
+      .notNull()
+      .default("0.00"),
     last_message_at: timestamp("last_message_at"),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("conversations_organization_idx").on(table.organization_id),
+    organization_idx: index("conversations_organization_idx").on(
+      table.organization_id,
+    ),
     user_idx: index("conversations_user_idx").on(table.user_id),
     updated_idx: index("conversations_updated_idx").on(table.updated_at),
     status_idx: index("conversations_status_idx").on(table.status),
@@ -93,7 +100,9 @@ export const conversationMessages = pgTable(
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
-    conversation_idx: index("conv_messages_conversation_idx").on(table.conversation_id),
+    conversation_idx: index("conv_messages_conversation_idx").on(
+      table.conversation_id,
+    ),
     sequence_idx: index("conv_messages_sequence_idx").on(
       table.conversation_id,
       table.sequence_number,
@@ -106,4 +115,6 @@ export const conversationMessages = pgTable(
 export type Conversation = InferSelectModel<typeof conversations>;
 export type NewConversation = InferInsertModel<typeof conversations>;
 export type ConversationMessage = InferSelectModel<typeof conversationMessages>;
-export type NewConversationMessage = InferInsertModel<typeof conversationMessages>;
+export type NewConversationMessage = InferInsertModel<
+  typeof conversationMessages
+>;

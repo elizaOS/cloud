@@ -117,7 +117,10 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "Invalid JSON body" },
+      { status: 400 },
+    );
   }
 
   const parsed = createNodeSchema.safeParse(body);
@@ -132,7 +135,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { nodeId, hostname, sshPort, capacity, sshUser, hostKeyFingerprint } = parsed.data;
+  const { nodeId, hostname, sshPort, capacity, sshUser, hostKeyFingerprint } =
+    parsed.data;
 
   try {
     // Check for duplicate nodeId

@@ -7,12 +7,16 @@ function normalizeHost(host: string): string {
   return host.trim().toLowerCase();
 }
 
-export function getIndexableHosts(env: NodeJS.ProcessEnv = process.env): string[] {
+export function getIndexableHosts(
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
   const configuredHosts = env.NEXT_PUBLIC_INDEXABLE_HOSTS?.split(",")
     .map((host) => normalizeHost(host))
     .filter(Boolean);
 
-  return configuredHosts?.length ? configuredHosts : [...DEFAULT_INDEXABLE_HOSTS];
+  return configuredHosts?.length
+    ? configuredHosts
+    : [...DEFAULT_INDEXABLE_HOSTS];
 }
 
 export function shouldIndexSite(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -39,7 +43,9 @@ export function getRobotsMetadata(
   };
 }
 
-export function generateRobotsFile(env: NodeJS.ProcessEnv = process.env): MetadataRoute.Robots {
+export function generateRobotsFile(
+  env: NodeJS.ProcessEnv = process.env,
+): MetadataRoute.Robots {
   const index = shouldIndexSite(env);
   const appUrl = getAppUrl(env);
 

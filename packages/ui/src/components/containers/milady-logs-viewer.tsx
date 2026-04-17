@@ -13,7 +13,14 @@ import {
   SelectValue,
   Skeleton,
 } from "@elizaos/cloud-ui";
-import { Copy, Download, FileText, RefreshCw, Search, Terminal } from "lucide-react";
+import {
+  Copy,
+  Download,
+  FileText,
+  RefreshCw,
+  Search,
+  Terminal,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -42,11 +49,14 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 };
 
 const STATUS_MESSAGES: Record<string, string> = {
-  pending: "This agent has not been provisioned yet, so there are no bridge logs to show.",
-  provisioning: "The agent is provisioning. Logs may appear once the bridge finishes starting.",
+  pending:
+    "This agent has not been provisioned yet, so there are no bridge logs to show.",
+  provisioning:
+    "The agent is provisioning. Logs may appear once the bridge finishes starting.",
   stopped:
     "The agent is stopped. The bridge log viewer only shows logs while the agent is running.",
-  disconnected: "The agent is disconnected, so live bridge logs may be stale or unavailable.",
+  disconnected:
+    "The agent is disconnected, so live bridge logs may be stale or unavailable.",
   error:
     "The agent is in an error state. If the app logs are empty, check the admin Docker logs below for infrastructure details.",
 };
@@ -90,13 +100,18 @@ export function MiladyLogsViewer({
 
     try {
       const params = new URLSearchParams({ tail });
-      const response = await fetch(`/api/compat/agents/${agentId}/logs?${params}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/compat/agents/${agentId}/logs?${params}`,
+        {
+          cache: "no-store",
+        },
+      );
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok || !(payload as { success?: boolean }).success) {
-        throw new Error((payload as { error?: string }).error ?? `HTTP ${response.status}`);
+        throw new Error(
+          (payload as { error?: string }).error ?? `HTTP ${response.status}`,
+        );
       }
 
       const raw =
@@ -127,7 +142,9 @@ export function MiladyLogsViewer({
   const filteredLines = useMemo(
     () =>
       logsState.lines.filter(
-        (line) => !searchQuery || line.toLowerCase().includes(searchQuery.toLowerCase()),
+        (line) =>
+          !searchQuery ||
+          line.toLowerCase().includes(searchQuery.toLowerCase()),
       ),
     [logsState.lines, searchQuery],
   );
@@ -169,22 +186,27 @@ export function MiladyLogsViewer({
               </h2>
               <Badge
                 variant="outline"
-                className={STATUS_BADGE_STYLES[status] ?? STATUS_BADGE_STYLES.stopped}
+                className={
+                  STATUS_BADGE_STYLES[status] ?? STATUS_BADGE_STYLES.stopped
+                }
               >
                 {status}
               </Badge>
             </div>
             <p className="text-sm text-white/60">
-              User-facing app logs from the agent bridge for {agentName || "this agent"}.
+              User-facing app logs from the agent bridge for{" "}
+              {agentName || "this agent"}.
             </p>
             {showAdvancedHint && (
               <p className="mt-1 text-xs text-white/40">
-                Raw container output stays separate in the admin Docker logs panel below.
+                Raw container output stays separate in the admin Docker logs
+                panel below.
               </p>
             )}
             {logsState.fetchedAt && (
               <p className="mt-1 text-xs text-white/40">
-                Refreshed at {new Date(logsState.fetchedAt).toLocaleTimeString()}
+                Refreshed at{" "}
+                {new Date(logsState.fetchedAt).toLocaleTimeString()}
               </p>
             )}
           </div>
@@ -202,8 +224,15 @@ export function MiladyLogsViewer({
                 <SelectItem value="2000">2000 lines</SelectItem>
               </SelectContent>
             </Select>
-            <BrandButton variant="outline" size="sm" onClick={fetchLogs} title="Refresh logs">
-              <RefreshCw className={`h-4 w-4 ${logsState.loading ? "animate-spin" : ""}`} />
+            <BrandButton
+              variant="outline"
+              size="sm"
+              onClick={fetchLogs}
+              title="Refresh logs"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${logsState.loading ? "animate-spin" : ""}`}
+              />
             </BrandButton>
             <BrandButton
               variant="outline"
@@ -245,7 +274,10 @@ export function MiladyLogsViewer({
         </div>
 
         {searchQuery && (
-          <p className="text-xs text-white/50" style={{ fontFamily: "var(--font-roboto-mono)" }}>
+          <p
+            className="text-xs text-white/50"
+            style={{ fontFamily: "var(--font-roboto-mono)" }}
+          >
             {filteredLines.length} / {logsState.lines.length} lines
           </p>
         )}
@@ -261,7 +293,12 @@ export function MiladyLogsViewer({
             <Terminal className="mx-auto mb-3 h-8 w-8 text-neutral-600" />
             <p className="mb-1 text-sm text-red-400">Failed to fetch logs</p>
             <p className="text-xs text-white/40">{logsState.error}</p>
-            <BrandButton variant="outline" size="sm" onClick={fetchLogs} className="mt-4">
+            <BrandButton
+              variant="outline"
+              size="sm"
+              onClick={fetchLogs}
+              className="mt-4"
+            >
               <RefreshCw className="mr-2 h-4 w-4" />
               Retry
             </BrandButton>

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
+import {
+  getErrorStatusCode,
+  nextJsonFromCaughtErrorWithHeaders,
+} from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   assertAllowedAbsoluteRedirectUrl,
@@ -152,9 +155,11 @@ export async function POST(request: NextRequest) {
       { headers: corsHeaders },
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Failed to create checkout";
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to create checkout";
     const isValidationError =
-      errorMessage.includes("Invalid success_url") || errorMessage.includes("Invalid cancel_url");
+      errorMessage.includes("Invalid success_url") ||
+      errorMessage.includes("Invalid cancel_url");
 
     if (isValidationError) {
       return NextResponse.json(

@@ -71,7 +71,10 @@ export class ContainersService {
     return await containersRepository.checkQuota(organizationId);
   }
 
-  async createWithQuotaCheck(data: NewContainer, transaction?: Database): Promise<Container> {
+  async createWithQuotaCheck(
+    data: NewContainer,
+    transaction?: Database,
+  ): Promise<Container> {
     return await containersRepository.createWithQuotaCheck(data, transaction);
   }
 
@@ -98,10 +101,14 @@ export const listContainers = (organizationId: string) =>
 export const getContainer = (id: string, organizationId: string) =>
   containersService.getById(id, organizationId);
 
-export const createContainer = (data: NewContainer) => containersService.create(data);
+export const createContainer = (data: NewContainer) =>
+  containersService.create(data);
 
-export const updateContainer = (id: string, organizationId: string, data: Partial<NewContainer>) =>
-  containersService.update(id, organizationId, data);
+export const updateContainer = (
+  id: string,
+  organizationId: string,
+  data: Partial<NewContainer>,
+) => containersService.update(id, organizationId, data);
 
 export const deleteContainer = (id: string, organizationId: string) =>
   containersService.delete(id, organizationId);
@@ -181,10 +188,16 @@ export const updateContainerStatus = async (
   return container;
 };
 
-export const updateContainerHealth = (id: string) => containersService.updateHealthCheck(id);
+export const updateContainerHealth = (id: string) =>
+  containersService.updateHealthCheck(id);
 
 export const createContainerWithCreditDeduction = (
   containerData: NewContainer,
   userId: string,
   deploymentCost: number,
-) => containersService.createContainerWithCreditDeduction(containerData, userId, deploymentCost);
+) =>
+  containersService.createContainerWithCreditDeduction(
+    containerData,
+    userId,
+    deploymentCost,
+  );

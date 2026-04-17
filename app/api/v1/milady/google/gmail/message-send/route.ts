@@ -17,11 +17,15 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
+    const { user } =
+      await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid Gmail message send request.", details: parsed.error.issues },
+        {
+          error: "Invalid Gmail message send request.",
+          details: parsed.error.issues,
+        },
         { status: 400 },
       );
     }
@@ -39,10 +43,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof miladyGoogleRouteDeps.MiladyGoogleConnectorError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to send Gmail message." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to send Gmail message.",
+      },
       { status: 500 },
     );
   }

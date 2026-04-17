@@ -15,7 +15,11 @@ import { Button } from "@elizaos/cloud-ui";
 import { ArrowUp, ImageIcon, Loader2, Mic, Square, X } from "lucide-react";
 import Image from "next/image";
 import { memo, useCallback, useEffect, useRef } from "react";
-import { type ImageAttachment, useChatInput, useModelSelection } from "@/lib/app-builder/store";
+import {
+  type ImageAttachment,
+  useChatInput,
+  useModelSelection,
+} from "@/lib/app-builder/store";
 import { cn } from "@/lib/utils";
 import { ModelSelector } from "./model-selector";
 import { useAppBuilderSTT } from "./use-app-builder-stt";
@@ -59,7 +63,10 @@ const AudioWaveform = memo(function AudioWaveform({
         // Use deterministic "random" factor based on bar index
         const randomFactor = barRandomFactors[i] ?? 0.8;
         const height = isRecording
-          ? Math.max(baseHeight, (audioLevel * 0.7 + waveOffset) * (0.6 + randomFactor * 0.4))
+          ? Math.max(
+              baseHeight,
+              (audioLevel * 0.7 + waveOffset) * (0.6 + randomFactor * 0.4),
+            )
           : baseHeight;
 
         return (
@@ -78,7 +85,11 @@ const AudioWaveform = memo(function AudioWaveform({
 });
 
 // Recording timer display
-const RecordingTimer = memo(function RecordingTimer({ seconds }: { seconds: number }) {
+const RecordingTimer = memo(function RecordingTimer({
+  seconds,
+}: {
+  seconds: number;
+}) {
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return (
@@ -107,7 +118,9 @@ const ImagePreview = memo(function ImagePreview({
           key={img.id}
           className={cn(
             "relative group rounded-lg overflow-hidden border bg-white/[0.04]",
-            img.uploadStatus === "error" ? "border-red-500/50" : "border-white/[0.1]",
+            img.uploadStatus === "error"
+              ? "border-red-500/50"
+              : "border-white/[0.1]",
           )}
         >
           <Image
@@ -127,7 +140,8 @@ const ImagePreview = memo(function ImagePreview({
             </button>
           )}
           {/* Loading/uploading indicator */}
-          {(img.uploadStatus === "pending" || img.uploadStatus === "uploading") && (
+          {(img.uploadStatus === "pending" ||
+            img.uploadStatus === "uploading") && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <Loader2 className="h-4 w-4 animate-spin text-white/70" />
             </div>
@@ -217,7 +231,9 @@ const ImageUploadButton = memo(function ImageUploadButton({
         <ImageIcon
           className={cn(
             "h-4 w-4 xl:h-3.5 xl:w-3.5 transition-colors",
-            imageCount > 0 ? "text-[#FF5800]" : "text-white/50 group-hover:text-white/70",
+            imageCount > 0
+              ? "text-[#FF5800]"
+              : "text-white/50 group-hover:text-white/70",
           )}
         />
         {imageCount > 0 && (
@@ -343,7 +359,9 @@ const ChatInputInner = memo(function ChatInputInner({
   const removeImage = useChatInput((state) => state.removeImage);
   const setImageBase64 = useChatInput((state) => state.setImageBase64);
   const setImageBlobUrl = useChatInput((state) => state.setImageBlobUrl);
-  const setImageUploadStatus = useChatInput((state) => state.setImageUploadStatus);
+  const setImageUploadStatus = useChatInput(
+    (state) => state.setImageUploadStatus,
+  );
   const selectedModel = useModelSelection((state) => state.selectedModel);
   const setSelectedModel = useModelSelection((state) => state.setSelectedModel);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -392,7 +410,11 @@ const ChatInputInner = memo(function ChatInputInner({
         }
       } catch (error) {
         console.error("Failed to upload image to blob storage:", error);
-        setImageUploadStatus(id, "error", error instanceof Error ? error.message : "Upload failed");
+        setImageUploadStatus(
+          id,
+          "error",
+          error instanceof Error ? error.message : "Upload failed",
+        );
       }
     },
     [setImageBlobUrl, setImageUploadStatus],
@@ -441,7 +463,14 @@ const ChatInputInner = memo(function ChatInputInner({
         }
       }
     },
-    [images.length, addImage, removeImage, setImageBase64, fileToBase64, uploadToBlob],
+    [
+      images.length,
+      addImage,
+      removeImage,
+      setImageBase64,
+      fileToBase64,
+      uploadToBlob,
+    ],
   );
 
   // Cleanup preview URLs when component unmounts
@@ -525,7 +554,8 @@ const ChatInputInner = memo(function ChatInputInner({
     (img) => img.base64 && (img.blobUrl || img.uploadStatus === "uploading"),
   );
   const allImagesUploaded = images.every((img) => img.blobUrl);
-  const canSend = hasContent && allImagesReady && (images.length === 0 || allImagesUploaded);
+  const canSend =
+    hasContent && allImagesReady && (images.length === 0 || allImagesUploaded);
 
   return (
     <div className="flex-shrink-0 p-2 xl:p-4 border-t border-white/[0.04] bg-[#0a0a0b]">
@@ -572,7 +602,11 @@ const ChatInputInner = memo(function ChatInputInner({
         )}
 
         {/* Image previews */}
-        <ImagePreview images={images} onRemove={removeImage} disabled={isDisabled} />
+        <ImagePreview
+          images={images}
+          onRemove={removeImage}
+          disabled={isDisabled}
+        />
 
         {/* Textarea */}
         <textarea
@@ -594,7 +628,8 @@ const ChatInputInner = memo(function ChatInputInner({
           disabled={isDisabled}
           className={cn(
             "w-full bg-transparent px-3 xl:px-4 pt-2.5 xl:pt-3 pb-2 text-[13px] xl:text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed",
-            stt.isRecording && "placeholder:text-white/70 placeholder:animate-pulse",
+            stt.isRecording &&
+              "placeholder:text-white/70 placeholder:animate-pulse",
           )}
           style={{ minHeight: "44px", maxHeight: "100px" }}
         />

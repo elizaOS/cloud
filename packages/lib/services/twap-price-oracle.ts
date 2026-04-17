@@ -146,7 +146,11 @@ export class TWAPPriceOracle {
    * Record a new price sample for TWAP calculation.
    * Should be called periodically by a cron job.
    */
-  async recordPriceSample(network: SupportedNetwork, price: number, source: string): Promise<void> {
+  async recordPriceSample(
+    network: SupportedNetwork,
+    price: number,
+    source: string,
+  ): Promise<void> {
     const now = new Date();
 
     await dbWrite.insert(elizaTokenPrices).values({
@@ -183,7 +187,10 @@ export class TWAPPriceOracle {
       })
       .from(elizaTokenPrices)
       .where(
-        and(eq(elizaTokenPrices.network, network), gte(elizaTokenPrices.fetched_at, windowStart)),
+        and(
+          eq(elizaTokenPrices.network, network),
+          gte(elizaTokenPrices.fetched_at, windowStart),
+        ),
       )
       .orderBy(desc(elizaTokenPrices.fetched_at));
 
@@ -208,7 +215,8 @@ export class TWAPPriceOracle {
 
     // Calculate volatility (standard deviation / mean)
     const mean = twapPrice;
-    const variance = prices.reduce((sum, p) => sum + (p - mean) ** 2, 0) / prices.length;
+    const variance =
+      prices.reduce((sum, p) => sum + (p - mean) ** 2, 0) / prices.length;
     const stdDev = Math.sqrt(variance);
     const volatility = stdDev / mean;
 
@@ -292,7 +300,8 @@ export class TWAPPriceOracle {
     const elizaAmount = usdValue / twap.twapPrice;
 
     // 7. Check if large redemption requires delay
-    const requiresDelay = usdValue >= SYSTEM_LIMITS.LARGE_REDEMPTION_THRESHOLD_USD;
+    const requiresDelay =
+      usdValue >= SYSTEM_LIMITS.LARGE_REDEMPTION_THRESHOLD_USD;
     const delayUntil = requiresDelay
       ? new Date(Date.now() + SYSTEM_LIMITS.LARGE_REDEMPTION_DELAY_MS)
       : undefined;
@@ -304,8 +313,10 @@ export class TWAPPriceOracle {
     }
 
     // 8. Check system-wide limits
-    const hourlyRemaining = SYSTEM_LIMITS.MAX_HOURLY_REDEMPTION_USD - systemHealth.hourlyVolumeUsd;
-    const dailyRemaining = SYSTEM_LIMITS.MAX_DAILY_REDEMPTION_USD - systemHealth.dailyVolumeUsd;
+    const hourlyRemaining =
+      SYSTEM_LIMITS.MAX_HOURLY_REDEMPTION_USD - systemHealth.hourlyVolumeUsd;
+    const dailyRemaining =
+      SYSTEM_LIMITS.MAX_DAILY_REDEMPTION_USD - systemHealth.dailyVolumeUsd;
 
     if (usdValue > hourlyRemaining) {
       return {
@@ -322,7 +333,9 @@ export class TWAPPriceOracle {
     }
 
     if (hourlyRemaining < SYSTEM_LIMITS.MAX_HOURLY_REDEMPTION_USD * 0.2) {
-      warnings.push(`Only $${hourlyRemaining.toFixed(0)} remaining in hourly limit`);
+      warnings.push(
+        `Only $${hourlyRemaining.toFixed(0)} remaining in hourly limit`,
+      );
     }
 
     const expiresAt = new Date(Date.now() + TWAP_CONFIG.QUOTE_VALIDITY_MS);
@@ -365,7 +378,9 @@ export class TWAPPriceOracle {
     const now = new Date();
     const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const velocityWindow = new Date(now.getTime() - SYSTEM_LIMITS.VELOCITY_LIMIT_WINDOW_MS);
+    const velocityWindow = new Date(
+      now.getTime() - SYSTEM_LIMITS.VELOCITY_LIMIT_WINDOW_MS,
+    );
 
     // Get hourly volume from token_redemptions table
     const hourlyResult = await dbRead.execute(sql`
@@ -389,9 +404,15 @@ export class TWAPPriceOracle {
       AND created_at >= ${velocityWindow}
     `);
 
-    const hourlyVolumeUsd = Number((hourlyResult.rows[0] as { total: string })?.total || 0);
-    const dailyVolumeUsd = Number((dailyResult.rows[0] as { total: string })?.total || 0);
-    const recentRedemptionCount = Number((velocityResult.rows[0] as { count: string })?.count || 0);
+    const hourlyVolumeUsd = Number(
+      (hourlyResult.rows[0] as { total: string })?.total || 0,
+    );
+    const dailyVolumeUsd = Number(
+      (dailyResult.rows[0] as { total: string })?.total || 0,
+    );
+    const recentRedemptionCount = Number(
+      (velocityResult.rows[0] as { count: string })?.count || 0,
+    );
 
     let canProcessRedemptions = true;
     let pauseReason: string | undefined;

@@ -19,7 +19,9 @@ describe("Provider Registry", () => {
   let resolveRequestedScopes: PR["resolveRequestedScopes"];
 
   beforeEach(async () => {
-    const m = await import(`@/lib/services/oauth/provider-registry?t=${Date.now()}`);
+    const m = await import(
+      `@/lib/services/oauth/provider-registry?t=${Date.now()}`
+    );
     getProvider = m.getProvider;
     getAllProviderIds = m.getAllProviderIds;
     getConfiguredProviders = m.getConfiguredProviders;
@@ -73,7 +75,9 @@ describe("Provider Registry", () => {
 
       it("should require GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET", () => {
         expect(OAUTH_PROVIDERS.google.envVars).toContain("GOOGLE_CLIENT_ID");
-        expect(OAUTH_PROVIDERS.google.envVars).toContain("GOOGLE_CLIENT_SECRET");
+        expect(OAUTH_PROVIDERS.google.envVars).toContain(
+          "GOOGLE_CLIENT_SECRET",
+        );
       });
 
       it("should use platform_credentials storage", () => {
@@ -99,7 +103,9 @@ describe("Provider Registry", () => {
 
       it("should require Twitter API keys", () => {
         expect(OAUTH_PROVIDERS.twitter.envVars).toContain("TWITTER_API_KEY");
-        expect(OAUTH_PROVIDERS.twitter.envVars).toContain("TWITTER_API_SECRET_KEY");
+        expect(OAUTH_PROVIDERS.twitter.envVars).toContain(
+          "TWITTER_API_SECRET_KEY",
+        );
       });
 
       it("should use secrets storage", () => {
@@ -108,12 +114,18 @@ describe("Provider Registry", () => {
 
       it("should have secret patterns defined", () => {
         expect(OAUTH_PROVIDERS.twitter.secretPatterns).toBeDefined();
-        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.accessToken).toBe("TWITTER_ACCESS_TOKEN");
+        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.accessToken).toBe(
+          "TWITTER_ACCESS_TOKEN",
+        );
         expect(OAUTH_PROVIDERS.twitter.secretPatterns!.accessTokenSecret).toBe(
           "TWITTER_ACCESS_TOKEN_SECRET",
         );
-        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.username).toBe("TWITTER_USERNAME");
-        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.userId).toBe("TWITTER_USER_ID");
+        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.username).toBe(
+          "TWITTER_USERNAME",
+        );
+        expect(OAUTH_PROVIDERS.twitter.secretPatterns!.userId).toBe(
+          "TWITTER_USER_ID",
+        );
       });
     });
 
@@ -132,9 +144,15 @@ describe("Provider Registry", () => {
 
       it("should have secret patterns defined", () => {
         expect(OAUTH_PROVIDERS.twilio.secretPatterns).toBeDefined();
-        expect(OAUTH_PROVIDERS.twilio.secretPatterns!.accountSid).toBe("TWILIO_ACCOUNT_SID");
-        expect(OAUTH_PROVIDERS.twilio.secretPatterns!.authToken).toBe("TWILIO_AUTH_TOKEN");
-        expect(OAUTH_PROVIDERS.twilio.secretPatterns!.phoneNumber).toBe("TWILIO_PHONE_NUMBER");
+        expect(OAUTH_PROVIDERS.twilio.secretPatterns!.accountSid).toBe(
+          "TWILIO_ACCOUNT_SID",
+        );
+        expect(OAUTH_PROVIDERS.twilio.secretPatterns!.authToken).toBe(
+          "TWILIO_AUTH_TOKEN",
+        );
+        expect(OAUTH_PROVIDERS.twilio.secretPatterns!.phoneNumber).toBe(
+          "TWILIO_PHONE_NUMBER",
+        );
       });
 
       it("should have empty callback route (API key platforms)", () => {
@@ -157,9 +175,15 @@ describe("Provider Registry", () => {
 
       it("should have secret patterns defined", () => {
         expect(OAUTH_PROVIDERS.blooio.secretPatterns).toBeDefined();
-        expect(OAUTH_PROVIDERS.blooio.secretPatterns!.apiKey).toBe("BLOOIO_API_KEY");
-        expect(OAUTH_PROVIDERS.blooio.secretPatterns!.webhookSecret).toBe("BLOOIO_WEBHOOK_SECRET");
-        expect(OAUTH_PROVIDERS.blooio.secretPatterns!.fromNumber).toBe("BLOOIO_FROM_NUMBER");
+        expect(OAUTH_PROVIDERS.blooio.secretPatterns!.apiKey).toBe(
+          "BLOOIO_API_KEY",
+        );
+        expect(OAUTH_PROVIDERS.blooio.secretPatterns!.webhookSecret).toBe(
+          "BLOOIO_WEBHOOK_SECRET",
+        );
+        expect(OAUTH_PROVIDERS.blooio.secretPatterns!.fromNumber).toBe(
+          "BLOOIO_FROM_NUMBER",
+        );
       });
     });
   });
@@ -212,10 +236,9 @@ describe("Provider Registry", () => {
         defaultScopes: ["scope:a"],
       };
 
-      expect(resolveRequestedScopes(provider, [" scope:a ", "scope:b", "scope:a"])).toEqual([
-        "scope:a",
-        "scope:b",
-      ]);
+      expect(
+        resolveRequestedScopes(provider, [" scope:a ", "scope:b", "scope:a"]),
+      ).toEqual(["scope:a", "scope:b"]);
     });
 
     it("rejects requested scopes outside the allowlist", () => {
@@ -225,9 +248,9 @@ describe("Provider Registry", () => {
         defaultScopes: ["scope:a"],
       };
 
-      expect(() => resolveRequestedScopes(provider, ["scope:a", "scope:admin"])).toThrow(
-        "Requested scopes are not allowed",
-      );
+      expect(() =>
+        resolveRequestedScopes(provider, ["scope:a", "scope:admin"]),
+      ).toThrow("Requested scopes are not allowed");
     });
   });
 

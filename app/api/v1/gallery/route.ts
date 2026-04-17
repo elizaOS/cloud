@@ -89,7 +89,9 @@ export async function GET(request: NextRequest) {
     logger.error("[GALLERY API] Error:", error);
     const status = getErrorStatusCode(error);
     const errorMessage =
-      status === 500 ? "Failed to fetch gallery items" : getSafeErrorMessage(error);
+      status === 500
+        ? "Failed to fetch gallery items"
+        : getSafeErrorMessage(error);
 
     return NextResponse.json({ error: errorMessage }, { status });
   }

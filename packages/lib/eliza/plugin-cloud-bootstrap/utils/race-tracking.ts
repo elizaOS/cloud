@@ -7,11 +7,18 @@ function raceKey(agentId: string, roomId: string): string {
   return `cloud-bootstrap:latest-response:${agentId}:${roomId}`;
 }
 
-function getLocalResponseId(agentId: string, roomId: string): string | undefined {
+function getLocalResponseId(
+  agentId: string,
+  roomId: string,
+): string | undefined {
   return localLatestResponseIds.get(agentId)?.get(roomId);
 }
 
-function setLocalResponseId(agentId: string, roomId: string, responseId: string): void {
+function setLocalResponseId(
+  agentId: string,
+  roomId: string,
+  responseId: string,
+): void {
   if (!localLatestResponseIds.has(agentId)) {
     localLatestResponseIds.set(agentId, new Map<string, string>());
   }
@@ -37,7 +44,11 @@ export async function setLatestResponseId(
   responseId: string,
 ): Promise<void> {
   setLocalResponseId(agentId, roomId, responseId);
-  await cache.set(raceKey(agentId, roomId), responseId, RESPONSE_ID_TTL_SECONDS);
+  await cache.set(
+    raceKey(agentId, roomId),
+    responseId,
+    RESPONSE_ID_TTL_SECONDS,
+  );
 }
 
 export async function getLatestResponseId(

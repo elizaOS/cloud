@@ -4,7 +4,8 @@ import { config } from "dotenv";
 const preservedHarnessEnv = {
   CACHE_ENABLED: process.env.CACHE_ENABLED,
   DATABASE_URL: process.env.DATABASE_URL,
-  DISABLE_LOCAL_DOCKER_DB_FALLBACK: process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK,
+  DISABLE_LOCAL_DOCKER_DB_FALLBACK:
+    process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   NODE_ENV: process.env.NODE_ENV,
   REDIS_URL: process.env.REDIS_URL,
@@ -30,7 +31,9 @@ for (const [key, value] of Object.entries(preservedHarnessEnv)) {
 console.log("[Test Setup] Environment loaded");
 
 const SERVER_URL =
-  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
+  process.env.TEST_BASE_URL ||
+  process.env.TEST_SERVER_URL ||
+  "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
 const TEST_APP_ID = process.env.TEST_APP_ID || "test_app_id";
 
@@ -133,32 +136,43 @@ describe("Telegram Disconnect API", () => {
 
 describe("App Telegram Automation API", () => {
   test("GET returns 401 without auth", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/apps/${TEST_APP_ID}/telegram-automation`);
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/apps/${TEST_APP_ID}/telegram-automation`,
+    );
     expect(res.status).toBe(401);
   });
 
   test("GET returns 404 for non-existent app", async () => {
     if (!apiKeyValid) return;
-    const res = await fetchWithAuth(`/api/v1/apps/non-existent-app/telegram-automation`);
+    const res = await fetchWithAuth(
+      `/api/v1/apps/non-existent-app/telegram-automation`,
+    );
     expect(res.status).toBe(404);
     const data = await res.json();
     expect(data).toHaveProperty("error", "App not found");
   });
 
   test("POST returns 401 without auth", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/apps/${TEST_APP_ID}/telegram-automation`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: true }),
-    });
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/apps/${TEST_APP_ID}/telegram-automation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true }),
+      },
+    );
     expect(res.status).toBe(401);
   });
 
   test("POST validates announceIntervalMin must be >= 30", async () => {
     if (!apiKeyValid) return;
-    const res = await fetchWithAuth(`/api/v1/apps/${TEST_APP_ID}/telegram-automation`, "POST", {
-      announceIntervalMin: 10,
-    });
+    const res = await fetchWithAuth(
+      `/api/v1/apps/${TEST_APP_ID}/telegram-automation`,
+      "POST",
+      {
+        announceIntervalMin: 10,
+      },
+    );
     // Either 400 (validation) or 404 (app not found)
     expect([400, 404]).toContain(res.status);
     if (res.status === 400) {
@@ -169,9 +183,13 @@ describe("App Telegram Automation API", () => {
 
   test("POST validates announceIntervalMax must be <= 1440", async () => {
     if (!apiKeyValid) return;
-    const res = await fetchWithAuth(`/api/v1/apps/${TEST_APP_ID}/telegram-automation`, "POST", {
-      announceIntervalMax: 2000,
-    });
+    const res = await fetchWithAuth(
+      `/api/v1/apps/${TEST_APP_ID}/telegram-automation`,
+      "POST",
+      {
+        announceIntervalMax: 2000,
+      },
+    );
     expect([400, 404]).toContain(res.status);
     if (res.status === 400) {
       const data = await res.json();
@@ -180,20 +198,26 @@ describe("App Telegram Automation API", () => {
   });
 
   test("DELETE returns 401 without auth", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/apps/${TEST_APP_ID}/telegram-automation`, {
-      method: "DELETE",
-    });
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/apps/${TEST_APP_ID}/telegram-automation`,
+      {
+        method: "DELETE",
+      },
+    );
     expect(res.status).toBe(401);
   });
 });
 
 describe("App Telegram Post API", () => {
   test("POST returns 401 without auth", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/apps/${TEST_APP_ID}/telegram-automation/post`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: "Test message" }),
-    });
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/apps/${TEST_APP_ID}/telegram-automation/post`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "Test message" }),
+      },
+    );
     expect(res.status).toBe(401);
   });
 
@@ -227,11 +251,14 @@ describe("App Telegram Post API", () => {
 
 describe("Telegram Webhook API", () => {
   test("returns 404 or 401 for unknown organization", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/telegram/webhook/unknown-org-id`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ update_id: 12345 }),
-    });
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/telegram/webhook/unknown-org-id`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ update_id: 12345 }),
+      },
+    );
     // Webhook may return auth failure, not found, or server error for unknown org
     expect([401, 404, 500]).toContain(res.status);
   });
@@ -259,9 +286,13 @@ describe("Telegram API Input Validation", () => {
   test("app automation validates welcomeMessage max length", async () => {
     if (!apiKeyValid) return;
     const longMessage = "a".repeat(501);
-    const res = await fetchWithAuth(`/api/v1/apps/${TEST_APP_ID}/telegram-automation`, "POST", {
-      welcomeMessage: longMessage,
-    });
+    const res = await fetchWithAuth(
+      `/api/v1/apps/${TEST_APP_ID}/telegram-automation`,
+      "POST",
+      {
+        welcomeMessage: longMessage,
+      },
+    );
     expect([400, 404]).toContain(res.status);
     if (res.status === 400) {
       const data = await res.json();
@@ -272,9 +303,13 @@ describe("Telegram API Input Validation", () => {
   test("app automation validates vibeStyle max length", async () => {
     if (!apiKeyValid) return;
     const longStyle = "a".repeat(101);
-    const res = await fetchWithAuth(`/api/v1/apps/${TEST_APP_ID}/telegram-automation`, "POST", {
-      vibeStyle: longStyle,
-    });
+    const res = await fetchWithAuth(
+      `/api/v1/apps/${TEST_APP_ID}/telegram-automation`,
+      "POST",
+      {
+        vibeStyle: longStyle,
+      },
+    );
     expect([400, 404]).toContain(res.status);
     if (res.status === 400) {
       const data = await res.json();
@@ -284,10 +319,14 @@ describe("Telegram API Input Validation", () => {
 
   test("app automation rejects min > max interval", async () => {
     if (!apiKeyValid) return;
-    const res = await fetchWithAuth(`/api/v1/apps/${TEST_APP_ID}/telegram-automation`, "POST", {
-      announceIntervalMin: 200,
-      announceIntervalMax: 100,
-    });
+    const res = await fetchWithAuth(
+      `/api/v1/apps/${TEST_APP_ID}/telegram-automation`,
+      "POST",
+      {
+        announceIntervalMin: 200,
+        announceIntervalMax: 100,
+      },
+    );
     expect([400, 404]).toContain(res.status);
     if (res.status === 400) {
       const data = await res.json();

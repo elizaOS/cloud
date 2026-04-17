@@ -135,7 +135,10 @@ describe("catalog merging", () => {
     );
 
     expect(merged).toHaveLength(2);
-    expect(merged.map((model) => model.id)).toEqual(["openai/gpt-5.4", "groq/compound"]);
+    expect(merged.map((model) => model.id)).toEqual([
+      "openai/gpt-5.4",
+      "groq/compound",
+    ]);
   });
 });
 

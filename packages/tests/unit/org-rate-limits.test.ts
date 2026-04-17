@@ -298,31 +298,46 @@ describe("Org Rate Limits — Endpoint Mapping", () => {
 
 describe("Org Rate Limits — Route Wiring", () => {
   test("chat/completions calls enforceOrgRateLimit with 'completions'", () => {
-    const source = readFileSync(join(REPO_ROOT, "app/api/v1/chat/completions/route.ts"), "utf8");
+    const source = readFileSync(
+      join(REPO_ROOT, "app/api/v1/chat/completions/route.ts"),
+      "utf8",
+    );
     expect(source).toMatch(/enforceOrgRateLimit\s*\(/);
     expect(source).toMatch(/["']completions["']/);
   });
 
   test("embeddings calls enforceOrgRateLimit with 'embeddings'", () => {
-    const source = readFileSync(join(REPO_ROOT, "app/api/v1/embeddings/route.ts"), "utf8");
+    const source = readFileSync(
+      join(REPO_ROOT, "app/api/v1/embeddings/route.ts"),
+      "utf8",
+    );
     expect(source).toMatch(/enforceOrgRateLimit\s*\(/);
     expect(source).toMatch(/["']embeddings["']/);
   });
 
   test("responses calls enforceOrgRateLimit with 'completions' (shared counter)", () => {
-    const source = readFileSync(join(REPO_ROOT, "app/api/v1/responses/route.ts"), "utf8");
+    const source = readFileSync(
+      join(REPO_ROOT, "app/api/v1/responses/route.ts"),
+      "utf8",
+    );
     expect(source).toMatch(/enforceOrgRateLimit\s*\(/);
     // Intentionally shares completions counter
     expect(source).toMatch(/["']completions["']/);
   });
 
   test("responses guards anonymous users (null org_id check)", () => {
-    const source = readFileSync(join(REPO_ROOT, "app/api/v1/responses/route.ts"), "utf8");
+    const source = readFileSync(
+      join(REPO_ROOT, "app/api/v1/responses/route.ts"),
+      "utf8",
+    );
     expect(source).toMatch(/if\s*\(\s*user\.organization_id\s*\)/);
   });
 
   test("stripe webhook invalidates tier cache", () => {
-    const source = readFileSync(join(REPO_ROOT, "app/api/stripe/webhook/route.ts"), "utf8");
+    const source = readFileSync(
+      join(REPO_ROOT, "app/api/stripe/webhook/route.ts"),
+      "utf8",
+    );
     expect(source).toMatch(/invalidateOrgTierCache/);
   });
 

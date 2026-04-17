@@ -19,7 +19,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const body = await request.json().catch(() => ({}));
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const defaultRedirectPath = "/dashboard/settings?tab=connections";
   const safeRedirectTarget = resolveSafeRedirectTarget(
     typeof body.redirectUrl === "string" ? body.redirectUrl : undefined,

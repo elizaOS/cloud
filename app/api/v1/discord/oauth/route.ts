@@ -17,7 +17,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Check if Discord is configured
   if (!discordAutomationService.isOAuthConfigured()) {
-    return NextResponse.json({ error: "Discord integration not configured" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Discord integration not configured" },
+      { status: 503 },
+    );
   }
 
   const { searchParams } = new URL(request.url);

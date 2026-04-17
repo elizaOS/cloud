@@ -53,11 +53,16 @@ class DiscordAuthService {
    * @param redirectUri - The redirect_uri used in the original authorization request
    * @returns Discord user data, or null if verification fails
    */
-  async verifyOAuthCode(code: string, redirectUri: string): Promise<DiscordUserData | null> {
+  async verifyOAuthCode(
+    code: string,
+    redirectUri: string,
+  ): Promise<DiscordUserData | null> {
     const { applicationId, clientSecret } = elizaAppConfig.discord;
 
     if (!applicationId || !clientSecret) {
-      logger.error("[DiscordAuth] Application ID or client secret not configured");
+      logger.error(
+        "[DiscordAuth] Application ID or client secret not configured",
+      );
       return null;
     }
 
@@ -89,7 +94,9 @@ class DiscordAuthService {
 
       const rawToken = await tokenResponse.json();
       if (!rawToken.access_token) {
-        logger.error("[DiscordAuth] Invalid token response - missing access_token");
+        logger.error(
+          "[DiscordAuth] Invalid token response - missing access_token",
+        );
         return null;
       }
       tokenData = rawToken as DiscordTokenResponse;

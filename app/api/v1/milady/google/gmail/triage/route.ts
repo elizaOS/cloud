@@ -7,14 +7,20 @@ export const maxDuration = 30;
 
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
+    const { user } =
+      await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const rawSide = request.nextUrl.searchParams.get("side");
     const rawMaxResults = request.nextUrl.searchParams.get("maxResults");
     if (rawSide !== null && rawSide !== "owner" && rawSide !== "agent") {
-      return NextResponse.json({ error: "side must be owner or agent." }, { status: 400 });
+      return NextResponse.json(
+        { error: "side must be owner or agent." },
+        { status: 400 },
+      );
     }
     const maxResults =
-      rawMaxResults && rawMaxResults.trim().length > 0 ? Number.parseInt(rawMaxResults, 10) : 12;
+      rawMaxResults && rawMaxResults.trim().length > 0
+        ? Number.parseInt(rawMaxResults, 10)
+        : 12;
     if (!Number.isFinite(maxResults) || maxResults <= 0) {
       return NextResponse.json(
         { error: "maxResults must be a positive integer." },
@@ -32,10 +38,18 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     if (error instanceof miladyGoogleRouteDeps.MiladyGoogleConnectorError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch Gmail triage." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch Gmail triage.",
+      },
       { status: 500 },
     );
   }

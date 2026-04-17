@@ -29,9 +29,14 @@ export function MiladyPricingBanner({
   idleCount,
   creditBalance,
 }: MiladyPricingBannerProps) {
-  const totalMonthlyCost = runningCount * MONTHLY_RUNNING_COST + idleCount * MONTHLY_IDLE_COST;
+  const totalMonthlyCost =
+    runningCount * MONTHLY_RUNNING_COST + idleCount * MONTHLY_IDLE_COST;
 
-  const hoursRemaining = estimateHoursRemaining(creditBalance, runningCount, idleCount);
+  const hoursRemaining = estimateHoursRemaining(
+    creditBalance,
+    runningCount,
+    idleCount,
+  );
 
   const isLowBalance = creditBalance < MILADY_PRICING.LOW_CREDIT_WARNING;
   const hasAgents = runningCount + idleCount > 0;
@@ -65,7 +70,9 @@ export function MiladyPricingBanner({
           <div className="bg-black/60 p-3.5 space-y-1.5">
             <div className="flex items-center gap-1.5">
               <Zap className="h-3 w-3 text-emerald-400" />
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Running</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+                Running
+              </p>
             </div>
             <p className="text-base font-mono font-semibold text-white tabular-nums">
               {formatHourlyRate(MILADY_PRICING.RUNNING_HOURLY_RATE)}
@@ -79,7 +86,9 @@ export function MiladyPricingBanner({
           <div className="bg-black/60 p-3.5 space-y-1.5">
             <div className="flex items-center gap-1.5">
               <TrendingDown className="h-3 w-3 text-blue-400" />
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Idle</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+                Idle
+              </p>
             </div>
             <p className="text-base font-mono font-semibold text-white tabular-nums">
               {formatHourlyRate(MILADY_PRICING.IDLE_HOURLY_RATE)}
@@ -93,13 +102,17 @@ export function MiladyPricingBanner({
           <div className="bg-black/60 p-3.5 space-y-1.5">
             <div className="flex items-center gap-1.5">
               <DollarSign className="h-3 w-3 text-[#FF5800]" />
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Your Cost</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+                Your Cost
+              </p>
             </div>
             <p className="text-base font-mono font-semibold text-white tabular-nums">
               {hasAgents ? `${formatUSD(totalMonthlyCost)}/mo` : "—"}
             </p>
             <p className="text-[10px] text-white/30 font-mono">
-              {hasAgents ? `${runningCount} running · ${idleCount} idle` : "No agents"}
+              {hasAgents
+                ? `${runningCount} running · ${idleCount} idle`
+                : "No agents"}
             </p>
           </div>
 
@@ -107,7 +120,9 @@ export function MiladyPricingBanner({
           <div className="bg-black/60 p-3.5 space-y-1.5">
             <div className="flex items-center gap-1.5">
               <Clock className="h-3 w-3 text-white/50" />
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Remaining</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+                Remaining
+              </p>
             </div>
             <p
               className={`text-base font-mono font-semibold tabular-nums ${

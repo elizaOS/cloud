@@ -129,15 +129,18 @@ export const tiktokAdsProvider: AdProvider = {
     refreshToken?: string;
     expiresAt?: Date;
   }> {
-    const response = await fetch(`${TIKTOK_ADS_BASE_URL}/oauth2/refresh_token/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        app_id: process.env.TIKTOK_ADS_APP_ID,
-        secret: process.env.TIKTOK_ADS_APP_SECRET,
-        refresh_token: refreshToken,
-      }),
-    });
+    const response = await fetch(
+      `${TIKTOK_ADS_BASE_URL}/oauth2/refresh_token/`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          app_id: process.env.TIKTOK_ADS_APP_ID,
+          secret: process.env.TIKTOK_ADS_APP_SECRET,
+          refresh_token: refreshToken,
+        }),
+      },
+    );
 
     const json = (await response.json()) as TikTokAdsResponse<{
       access_token: string;
@@ -152,7 +155,9 @@ export const tiktokAdsProvider: AdProvider = {
     return {
       accessToken: json.data.access_token,
       refreshToken: json.data.refresh_token,
-      expiresAt: new Date(Date.now() + json.data.refresh_token_expires_in * 1000),
+      expiresAt: new Date(
+        Date.now() + json.data.refresh_token_expires_in * 1000,
+      ),
     };
   },
 
@@ -196,7 +201,10 @@ export const tiktokAdsProvider: AdProvider = {
           advertiser_id: accountId,
           campaign_name: input.name,
           objective_type: objective,
-          budget_mode: input.budgetType === "daily" ? "BUDGET_MODE_DAY" : "BUDGET_MODE_TOTAL",
+          budget_mode:
+            input.budgetType === "daily"
+              ? "BUDGET_MODE_DAY"
+              : "BUDGET_MODE_TOTAL",
           budget: budgetCents,
           operation_status: "DISABLE", // Start paused
         }),
@@ -258,14 +266,18 @@ export const tiktokAdsProvider: AdProvider = {
     }
     const [advertiserId, campaignId] = parts;
 
-    await tiktokAdsRequest("/campaign/update/status/", credentials.accessToken, {
-      method: "POST",
-      body: JSON.stringify({
-        advertiser_id: advertiserId,
-        campaign_ids: [campaignId],
-        operation_status: "DISABLE",
-      }),
-    });
+    await tiktokAdsRequest(
+      "/campaign/update/status/",
+      credentials.accessToken,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          advertiser_id: advertiserId,
+          campaign_ids: [campaignId],
+          operation_status: "DISABLE",
+        }),
+      },
+    );
 
     return { success: true, externalCampaignId };
   },
@@ -280,14 +292,18 @@ export const tiktokAdsProvider: AdProvider = {
     }
     const [advertiserId, campaignId] = parts;
 
-    await tiktokAdsRequest("/campaign/update/status/", credentials.accessToken, {
-      method: "POST",
-      body: JSON.stringify({
-        advertiser_id: advertiserId,
-        campaign_ids: [campaignId],
-        operation_status: "ENABLE",
-      }),
-    });
+    await tiktokAdsRequest(
+      "/campaign/update/status/",
+      credentials.accessToken,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          advertiser_id: advertiserId,
+          campaign_ids: [campaignId],
+          operation_status: "ENABLE",
+        }),
+      },
+    );
 
     return { success: true, externalCampaignId };
   },
@@ -302,14 +318,18 @@ export const tiktokAdsProvider: AdProvider = {
     }
     const [advertiserId, campaignId] = parts;
 
-    await tiktokAdsRequest("/campaign/update/status/", credentials.accessToken, {
-      method: "POST",
-      body: JSON.stringify({
-        advertiser_id: advertiserId,
-        campaign_ids: [campaignId],
-        operation_status: "DELETE",
-      }),
-    });
+    await tiktokAdsRequest(
+      "/campaign/update/status/",
+      credentials.accessToken,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          advertiser_id: advertiserId,
+          campaign_ids: [campaignId],
+          operation_status: "DELETE",
+        }),
+      },
+    );
 
     return { success: true };
   },
@@ -393,7 +413,8 @@ export const tiktokAdsProvider: AdProvider = {
     }
     const [advertiserId, campaignId] = parts;
 
-    const startDate = dateRange?.start || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const startDate =
+      dateRange?.start || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const endDate = dateRange?.end || new Date();
 
     const data = await tiktokAdsRequest<{
@@ -412,7 +433,12 @@ export const tiktokAdsProvider: AdProvider = {
         campaign_ids: JSON.stringify([campaignId]),
         data_level: "AUCTION_CAMPAIGN",
         dimensions: JSON.stringify(["campaign_id"]),
-        metrics: JSON.stringify(["spend", "impressions", "clicks", "conversion"]),
+        metrics: JSON.stringify([
+          "spend",
+          "impressions",
+          "clicks",
+          "conversion",
+        ]),
         start_date: startDate.toISOString().split("T")[0],
         end_date: endDate.toISOString().split("T")[0],
         report_type: "BASIC",

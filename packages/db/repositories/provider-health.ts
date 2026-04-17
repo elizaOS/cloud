@@ -58,7 +58,10 @@ export class ProviderHealthRepository {
       return updated;
     }
 
-    const [created] = await dbWrite.insert(providerHealth).values(data).returning();
+    const [created] = await dbWrite
+      .insert(providerHealth)
+      .values(data)
+      .returning();
     return created;
   }
 

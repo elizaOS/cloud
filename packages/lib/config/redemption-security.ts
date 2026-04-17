@@ -180,7 +180,10 @@ export const MONITORING = {
  * @param twapPrice - The TWAP price of elizaOS in USD
  * @returns The elizaOS tokens the user will receive
  */
-export function calculateEffectiveTokens(usdValue: number, twapPrice: number): number {
+export function calculateEffectiveTokens(
+  usdValue: number,
+  twapPrice: number,
+): number {
   // Apply safety spread (user gets slightly less than theoretical)
   const effectiveUsd = usdValue * (1 - ARBITRAGE_PROTECTION.SAFETY_SPREAD);
   return effectiveUsd / twapPrice;

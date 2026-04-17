@@ -18,7 +18,10 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { generateDefaultAvatarUrl, getAvailableAvatarStyles } from "@/lib/utils/default-avatar";
+import {
+  generateDefaultAvatarUrl,
+  getAvailableAvatarStyles,
+} from "@/lib/utils/default-avatar";
 import { AvatarUpload, type AvatarUploadRef } from "./avatar-upload";
 
 interface AvatarGeneratorProps {
@@ -86,7 +89,9 @@ export function AvatarGenerator({
       }
     } catch (error) {
       console.error("Error generating AI avatar:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to generate AI avatar");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate AI avatar",
+      );
     } finally {
       setIsGeneratingAI(false);
     }
@@ -170,7 +175,9 @@ export function AvatarGenerator({
                     draggable={false}
                     sizes="160px"
                   />
-                  {isSelected && <div className="absolute inset-0 bg-[#FF5800]/20" />}
+                  {isSelected && (
+                    <div className="absolute inset-0 bg-[#FF5800]/20" />
+                  )}
                 </button>
               );
             })}

@@ -59,10 +59,14 @@ export function CharacterIntroPage({
   const isAnyLoading = isLoading || parentLoading;
 
   // Extract bio text
-  const bioText = Array.isArray(character.bio) ? character.bio.join(" ") : character.bio;
+  const bioText = Array.isArray(character.bio)
+    ? character.bio.join(" ")
+    : character.bio;
 
   // Get vibe from character metadata
-  const characterData = character.character_data as Record<string, unknown> | undefined;
+  const characterData = character.character_data as
+    | Record<string, unknown>
+    | undefined;
   const affiliate = characterData?.affiliate as
     | { vibe?: string; [key: string]: unknown }
     | undefined;
@@ -147,7 +151,9 @@ export function CharacterIntroPage({
                 </div>
 
                 {/* Bio */}
-                <p className="text-lg max-w-xl leading-relaxed text-muted-foreground">{bioText}</p>
+                <p className="text-lg max-w-xl leading-relaxed text-muted-foreground">
+                  {bioText}
+                </p>
 
                 {/* CTA Button */}
                 <motion.div

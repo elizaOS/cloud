@@ -1,6 +1,12 @@
 "use client";
 
-import { Alert, AlertDescription, Badge, Button, Card } from "@elizaos/cloud-ui";
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+} from "@elizaos/cloud-ui";
 import { InfoIcon, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -58,8 +64,13 @@ export function ChatInterface({
   const router = useRouter();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
   const [_isLoadingSessionData, setIsLoadingSessionData] = useState(false);
-  const { setSelectedCharacterId, setAnonymousSessionToken, loadRooms, setRoomId, roomId } =
-    useChatStore();
+  const {
+    setSelectedCharacterId,
+    setAnonymousSessionToken,
+    loadRooms,
+    setRoomId,
+    roomId,
+  } = useChatStore();
   const isAnonymous = !user && !!session;
 
   // Use refs for initialization tracking to avoid re-renders and infinite loops
@@ -78,7 +89,9 @@ export function ChatInterface({
     const fetchLatestSessionData = async () => {
       setIsLoadingSessionData(true);
       try {
-        const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
+        const response = await fetch(
+          `/api/anonymous-session?token=${sessionTokenFromUrl}`,
+        );
 
         if (response.ok) {
           const data = await response.json();
@@ -113,7 +126,9 @@ export function ChatInterface({
   const onMessageSent = useCallback(async () => {
     if (isAnonymous && sessionTokenFromUrl) {
       try {
-        const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
+        const response = await fetch(
+          `/api/anonymous-session?token=${sessionTokenFromUrl}`,
+        );
 
         if (response.ok) {
           const data = await response.json();
@@ -127,11 +142,14 @@ export function ChatInterface({
       }
     }
   }, [isAnonymous, sessionTokenFromUrl]);
-  const messagesRemaining = session ? session.messagesLimit - messageCount : Infinity;
+  const messagesRemaining = session
+    ? session.messagesLimit - messageCount
+    : Infinity;
   const progress = session ? (messageCount / session.messagesLimit) * 100 : 0;
 
   // Show signup prompt after 2 messages (encouraging earlier)
-  const shouldShowSoftPrompt = isAnonymous && messageCount >= 2 && messagesRemaining > 0;
+  const shouldShowSoftPrompt =
+    isAnonymous && messageCount >= 2 && messagesRemaining > 0;
 
   // Hard paywall when no messages remaining (5 messages for free users)
   const shouldShowPaywall = isAnonymous && messagesRemaining <= 0;
@@ -157,7 +175,8 @@ export function ChatInterface({
     // Clear room if:
     // 1. Character changed within same component instance, OR
     // 2. On mount with a stale roomId (doesn't belong to current character)
-    const characterChanged = previousCharacterId && previousCharacterId !== character.id;
+    const characterChanged =
+      previousCharacterId && previousCharacterId !== character.id;
     const hasStaleRoom = currentRoomId && !roomIsValidForCharacter;
 
     if (characterChanged || hasStaleRoom) {
@@ -225,7 +244,9 @@ export function ChatInterface({
         const currentRooms = useChatStore.getState().rooms;
 
         // Find an existing room for this character
-        const existingRoom = currentRooms.find((room) => room.characterId === character.id);
+        const existingRoom = currentRooms.find(
+          (room) => room.characterId === character.id,
+        );
 
         if (existingRoom) {
           setRoomId(existingRoom.id);
@@ -273,7 +294,9 @@ export function ChatInterface({
 
   const handleUpgrade = () => {
     toast.info("Redirecting to signup...");
-    router.push(`/login?redirect=/chat/${character.id}&session=${session?.token}`);
+    router.push(
+      `/login?redirect=/chat/${character.id}&session=${session?.token}`,
+    );
   };
 
   // Paywall view
@@ -291,7 +314,9 @@ export function ChatInterface({
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold">Log in to save {character.name}</h2>
+            <h2 className="text-2xl font-bold">
+              Log in to save {character.name}
+            </h2>
             <p className="text-muted-foreground">
               Create a free account to keep chatting and save your character
             </p>
@@ -339,7 +364,9 @@ export function ChatInterface({
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-3">
-                <Badge variant="secondary">{messagesRemaining} messages left</Badge>
+                <Badge variant="secondary">
+                  {messagesRemaining} messages left
+                </Badge>
                 <div className="w-32 h-2 rounded-full overflow-hidden bg-muted">
                   <div
                     className="h-full transition-all duration-300 bg-primary"
@@ -363,9 +390,14 @@ export function ChatInterface({
             <Alert className="border-primary/50 bg-primary/5">
               <Sparkles className="h-4 w-4" />
               <AlertDescription>
-                Enjoying the conversation? Sign up for free to get unlimited messages and save your
-                chat history.
-                <Button size="sm" variant="link" onClick={handleUpgrade} className="ml-2">
+                Enjoying the conversation? Sign up for free to get unlimited
+                messages and save your chat history.
+                <Button
+                  size="sm"
+                  variant="link"
+                  onClick={handleUpgrade}
+                  className="ml-2"
+                >
                   Sign up free →
                 </Button>
               </AlertDescription>

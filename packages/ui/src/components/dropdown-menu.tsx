@@ -10,7 +10,9 @@ import { cn } from "../lib/utils";
  * Dropdown menu root component.
  * Wraps Radix UI DropdownMenu primitive.
  */
-function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+function DropdownMenu({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
 }
 
@@ -20,7 +22,9 @@ function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrim
 function DropdownMenuPortal({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
-  return <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />;
+  return (
+    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
+  );
 }
 
 /**
@@ -29,7 +33,12 @@ function DropdownMenuPortal({
 function DropdownMenuTrigger({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
-  return <DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />;
+  return (
+    <DropdownMenuPrimitive.Trigger
+      data-slot="dropdown-menu-trigger"
+      {...props}
+    />
+  );
 }
 
 /**
@@ -60,8 +69,12 @@ function DropdownMenuContent({
 /**
  * Group of dropdown menu items for logical organization.
  */
-function DropdownMenuGroup({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
-  return <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />;
+function DropdownMenuGroup({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
+  return (
+    <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
+  );
 }
 
 /**
@@ -132,7 +145,12 @@ function DropdownMenuCheckboxItem({
 function DropdownMenuRadioGroup({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>) {
-  return <DropdownMenuPrimitive.RadioGroup data-slot="dropdown-menu-radio-group" {...props} />;
+  return (
+    <DropdownMenuPrimitive.RadioGroup
+      data-slot="dropdown-menu-radio-group"
+      {...props}
+    />
+  );
 }
 
 /**
@@ -208,11 +226,17 @@ function DropdownMenuSeparator({
  * Keyboard shortcut display for dropdown menu items.
  * Styled with muted foreground and wide letter spacing.
  */
-function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<"span">) {
+function DropdownMenuShortcut({
+  className,
+  ...props
+}: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="dropdown-menu-shortcut"
-      className={cn("ml-auto text-xs tracking-[0.24em] text-white/35", className)}
+      className={cn(
+        "ml-auto text-xs tracking-[0.24em] text-white/35",
+        className,
+      )}
       {...props}
     />
   );
@@ -221,7 +245,9 @@ function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<"spa
 /**
  * Submenu container for nested dropdown menus.
  */
-function DropdownMenuSub({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
+function DropdownMenuSub({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
   return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />;
 }
 

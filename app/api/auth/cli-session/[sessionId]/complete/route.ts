@@ -17,7 +17,10 @@ export async function POST(
     const { sessionId } = await params;
 
     if (!sessionId) {
-      return NextResponse.json({ error: "Session ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Session ID is required" },
+        { status: 400 },
+      );
     }
 
     // Require user to be authenticated via Privy

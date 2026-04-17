@@ -62,7 +62,10 @@ export interface ElevenLabsSnapshotEntry {
   modelId: string;
   provider: "elevenlabs";
   billingSource: "elevenlabs";
-  productFamily: Exclude<PricingProductFamily, "language" | "embedding" | "image" | "video">;
+  productFamily: Exclude<
+    PricingProductFamily,
+    "language" | "embedding" | "image" | "video"
+  >;
   chargeType: string;
   unit: PricingChargeUnit;
   unitPrice: number;
@@ -174,7 +177,8 @@ export const SUPPORTED_VIDEO_MODELS: SupportedVideoModelDefinition[] = [
     provider: "fal",
     billingSource: "fal",
     label: "Kling 3 Standard",
-    pageUrl: "https://fal.ai/models/fal-ai/kling-video/v3/standard/text-to-video",
+    pageUrl:
+      "https://fal.ai/models/fal-ai/kling-video/v3/standard/text-to-video",
     pricingParser: "kling",
     defaultParameters: {
       durationSeconds: 5,
@@ -213,7 +217,8 @@ export const SUPPORTED_VIDEO_MODELS: SupportedVideoModelDefinition[] = [
     provider: "fal",
     billingSource: "fal",
     label: "Hailuo 2.3 Standard",
-    pageUrl: "https://fal.ai/models/fal-ai/minimax/hailuo-2.3/standard/text-to-video",
+    pageUrl:
+      "https://fal.ai/models/fal-ai/minimax/hailuo-2.3/standard/text-to-video",
     pricingParser: "hailuo_standard",
     defaultParameters: {
       durationSeconds: 6,
@@ -224,7 +229,8 @@ export const SUPPORTED_VIDEO_MODELS: SupportedVideoModelDefinition[] = [
     provider: "fal",
     billingSource: "fal",
     label: "Hailuo 2.3 Pro",
-    pageUrl: "https://fal.ai/models/fal-ai/minimax/hailuo-2.3/pro/text-to-video",
+    pageUrl:
+      "https://fal.ai/models/fal-ai/minimax/hailuo-2.3/pro/text-to-video",
     pricingParser: "hailuo_pro",
     defaultParameters: {
       durationSeconds: 6,
@@ -398,8 +404,12 @@ export const ELEVENLABS_SNAPSHOT_PRICING: ElevenLabsSnapshotEntry[] = [
   },
 ] as const;
 
-export const SUPPORTED_VIDEO_MODEL_IDS = SUPPORTED_VIDEO_MODELS.map((model) => model.modelId);
-export const SUPPORTED_IMAGE_MODEL_IDS = SUPPORTED_IMAGE_MODELS.map((model) => model.modelId);
+export const SUPPORTED_VIDEO_MODEL_IDS = SUPPORTED_VIDEO_MODELS.map(
+  (model) => model.modelId,
+);
+export const SUPPORTED_IMAGE_MODEL_IDS = SUPPORTED_IMAGE_MODELS.map(
+  (model) => model.modelId,
+);
 
 export function getSupportedVideoModelDefinition(modelId: string) {
   return SUPPORTED_VIDEO_MODELS.find((model) => model.modelId === modelId);

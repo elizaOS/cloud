@@ -30,7 +30,8 @@ const patchRequestSchema = z.object({
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
+    const { user } =
+      await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const { eventId } = await params;
     const parsed = patchRequestSchema.safeParse(await request.json());
     if (!parsed.success) {
@@ -61,11 +62,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   } catch (error) {
     if (error instanceof miladyGoogleRouteDeps.MiladyGoogleConnectorError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to update Google Calendar event.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update Google Calendar event.",
       },
       { status: 500 },
     );
@@ -74,7 +81,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
+    const { user } =
+      await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const { eventId } = await params;
     const sideRaw = request.nextUrl.searchParams.get("side");
     const calendarIdRaw = request.nextUrl.searchParams.get("calendarId");
@@ -102,11 +110,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     );
   } catch (error) {
     if (error instanceof miladyGoogleRouteDeps.MiladyGoogleConnectorError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to delete Google Calendar event.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete Google Calendar event.",
       },
       { status: 500 },
     );

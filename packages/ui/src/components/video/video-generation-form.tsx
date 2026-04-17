@@ -41,7 +41,11 @@ interface VideoGenerationFormProps {
   models: VideoModelOption[];
   referenceUrl: string;
   onReferenceChange: (value: string) => void;
-  onGenerate?: (payload: { prompt: string; model: string; referenceUrl?: string }) => void;
+  onGenerate?: (payload: {
+    prompt: string;
+    model: string;
+    referenceUrl?: string;
+  }) => void;
   isSubmitting?: boolean;
   errorMessage?: string | null;
   statusMessage?: string | null;
@@ -205,8 +209,13 @@ export function VideoGenerationForm({
               )}
             </span>
           </button>
-          <div className="space-y-1 text-center text-xs font-mono text-white/50" aria-live="polite">
-            {statusMessage ? <p className="text-white/80">{statusMessage}</p> : null}
+          <div
+            className="space-y-1 text-center text-xs font-mono text-white/50"
+            aria-live="polite"
+          >
+            {statusMessage ? (
+              <p className="text-white/80">{statusMessage}</p>
+            ) : null}
           </div>
         </div>
       </form>

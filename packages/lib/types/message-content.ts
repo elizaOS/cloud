@@ -36,7 +36,9 @@ export function hasAttachments(
 /**
  * Type guard to check if content has text
  */
-export function hasText(content: unknown): content is MessageContent & { text: string } {
+export function hasText(
+  content: unknown,
+): content is MessageContent & { text: string } {
   return (
     typeof content === "object" &&
     content !== null &&
@@ -146,7 +148,9 @@ export interface DialogueMetadata extends BaseMetadata {
 /**
  * Type guard to check if metadata is DialogueMetadata format
  */
-export function isDialogueMetadata(metadata: unknown): metadata is DialogueMetadata {
+export function isDialogueMetadata(
+  metadata: unknown,
+): metadata is DialogueMetadata {
   if (!metadata || typeof metadata !== "object") return false;
   const meta = metadata as Record<string, unknown>;
   return (
@@ -159,7 +163,10 @@ export function isDialogueMetadata(metadata: unknown): metadata is DialogueMetad
 /**
  * Helper to check if a message should be visible in conversation logs.
  */
-export function isVisibleDialogueMessage(metadata: unknown, content?: unknown): boolean {
+export function isVisibleDialogueMessage(
+  metadata: unknown,
+  content?: unknown,
+): boolean {
   if (content && typeof content === "object") {
     const c = content as Record<string, unknown>;
     if (c.type === "action_result") {
@@ -168,7 +175,10 @@ export function isVisibleDialogueMessage(metadata: unknown, content?: unknown): 
   }
 
   if (isDialogueMetadata(metadata)) {
-    return metadata.visibility !== "hidden" && metadata.dialogueType !== "action_result";
+    return (
+      metadata.visibility !== "hidden" &&
+      metadata.dialogueType !== "action_result"
+    );
   }
 
   if (content && typeof content === "object") {

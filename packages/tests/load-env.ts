@@ -4,7 +4,10 @@
  */
 import { config } from "dotenv";
 import { resolve } from "path";
-import { applyDatabaseUrlFallback, getLocalDockerDatabaseUrl } from "@/db/database-url";
+import {
+  applyDatabaseUrlFallback,
+  getLocalDockerDatabaseUrl,
+} from "@/db/database-url";
 
 const root = resolve(import.meta.dir, "..");
 const workspaceRoot = resolve(root, "..");
@@ -30,7 +33,8 @@ if (process.env.SKIP_DB_DEPENDENT === "1") {
   delete process.env.TEST_DATABASE_URL;
 } else {
   const shouldPreferLocalDockerDb =
-    process.env.CI !== "true" && process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK !== "1";
+    process.env.CI !== "true" &&
+    process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK !== "1";
   const localDockerDatabaseUrl = getLocalDockerDatabaseUrl({
     ...process.env,
     LOCAL_DOCKER_DB_HOST: process.env.LOCAL_DOCKER_DB_HOST || "localhost",
@@ -38,7 +42,9 @@ if (process.env.SKIP_DB_DEPENDENT === "1") {
 
   const testDatabaseUrl =
     process.env.TEST_DATABASE_URL ||
-    (shouldPreferLocalDockerDb ? localDockerDatabaseUrl : process.env.DATABASE_URL);
+    (shouldPreferLocalDockerDb
+      ? localDockerDatabaseUrl
+      : process.env.DATABASE_URL);
 
   if (testDatabaseUrl) {
     process.env.TEST_DATABASE_URL = testDatabaseUrl;

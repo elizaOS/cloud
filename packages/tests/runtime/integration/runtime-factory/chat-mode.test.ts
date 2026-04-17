@@ -88,8 +88,8 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - CHAT Mode", () => {
       );
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
-        console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch(
+        (err) => console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("CHAT Mode Tests", timings);
@@ -116,9 +116,15 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - CHAT Mode", () => {
     testUser = await createTestUser(runtime, "ChatTestUser");
 
     startTimer("chat_message");
-    const result = await sendTestMessage(runtime, testUser, "Hello! How are you?", testData, {
-      timeoutMs: 60000,
-    });
+    const result = await sendTestMessage(
+      runtime,
+      testUser,
+      "Hello! How are you?",
+      testData,
+      {
+        timeoutMs: 60000,
+      },
+    );
     timings.chatMessage = endTimer("chat_message");
 
     console.log(

@@ -12,7 +12,8 @@ import PrivyProvider from "@/lib/providers/PrivyProvider";
 import { StewardAuthProvider } from "@/lib/providers/StewardProvider";
 import { getRobotsMetadata } from "@/lib/seo";
 
-const stewardAuthEnabled = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
+const stewardAuthEnabled =
+  process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
 
 /**
  * Conditionally wraps children in StewardAuthProvider when enabled.
@@ -75,7 +76,9 @@ const sfPro = localFont({
  */
 const baseUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
 const shouldEnableVercelAnalytics = process.env.VERCEL === "1";
 const robots = getRobotsMetadata();
 
@@ -107,7 +110,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Eliza Cloud - Managed Hosting for AI Agents",
-    description: "Managed hosting, provisioning, billing, and deployment for AI agents",
+    description:
+      "Managed hosting, provisioning, billing, and deployment for AI agents",
     url: "/",
     siteName: "Eliza Cloud",
     type: "website",
@@ -124,7 +128,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Eliza Cloud",
-    description: "Managed hosting, provisioning, billing, and deployment for AI agents",
+    description:
+      "Managed hosting, provisioning, billing, and deployment for AI agents",
     images: ["/cloudlogo.png"],
   },
   robots,

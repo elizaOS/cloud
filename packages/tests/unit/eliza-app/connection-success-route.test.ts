@@ -6,11 +6,15 @@ import { GET as connectionSuccessGet } from "@/app/api/eliza-app/auth/connection
 describe("connection success route", () => {
   test("redirects web connections back to dashboard chat", async () => {
     const response = await connectionSuccessGet(
-      new NextRequest("https://elizacloud.ai/api/eliza-app/auth/connection-success?platform=web"),
+      new NextRequest(
+        "https://elizacloud.ai/api/eliza-app/auth/connection-success?platform=web",
+      ),
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://elizacloud.ai/dashboard/chat");
+    expect(response.headers.get("location")).toBe(
+      "https://elizacloud.ai/dashboard/chat",
+    );
   });
 
   test("renders a platform-specific success page for messaging channels", async () => {

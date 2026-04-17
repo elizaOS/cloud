@@ -14,7 +14,11 @@ import type { NewUserSession, UserSession } from "@/db/schemas/user-sessions";
  * @returns A 32-character SHA-256 hash
  */
 function hashSessionToken(token: string): string {
-  return crypto.createHash("sha256").update(token).digest("hex").substring(0, 32);
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex")
+    .substring(0, 32);
 }
 
 /**
@@ -68,7 +72,9 @@ class UserSessionsService {
     return await userSessionsRepository.findById(id);
   }
 
-  async getActiveByToken(sessionToken: string): Promise<UserSession | undefined> {
+  async getActiveByToken(
+    sessionToken: string,
+  ): Promise<UserSession | undefined> {
     const hashedToken = normalizeToken(sessionToken);
     return await userSessionsRepository.findActiveByToken(hashedToken);
   }
@@ -77,8 +83,14 @@ class UserSessionsService {
     return await userSessionsRepository.listActiveByUser(userId);
   }
 
-  async listByOrganization(organizationId: string, limit?: number): Promise<UserSession[]> {
-    return await userSessionsRepository.listByOrganization(organizationId, limit);
+  async listByOrganization(
+    organizationId: string,
+    limit?: number,
+  ): Promise<UserSession[]> {
+    return await userSessionsRepository.listByOrganization(
+      organizationId,
+      limit,
+    );
   }
 
   async create(params: CreateSessionParams): Promise<UserSession> {
@@ -101,7 +113,8 @@ class UserSessionsService {
   }
 
   async trackUsage(params: TrackUsageParams): Promise<UserSession | undefined> {
-    const { session_token, credits_used, requests_made, tokens_consumed } = params;
+    const { session_token, credits_used, requests_made, tokens_consumed } =
+      params;
     const hashedToken = normalizeToken(session_token);
 
     return await userSessionsRepository.incrementMetrics(hashedToken, {

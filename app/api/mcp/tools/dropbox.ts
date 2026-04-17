@@ -25,7 +25,9 @@ async function getDropboxToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("Dropbox account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "Dropbox account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
@@ -42,11 +44,15 @@ async function dropboxRpc(endpoint: string, body?: object) {
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`https://api.dropboxapi.com${endpoint}`, options);
+  const response = await fetch(
+    `https://api.dropboxapi.com${endpoint}`,
+    options,
+  );
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    const summary = error.error_summary || error.error?.[".tag"] || `HTTP ${response.status}`;
+    const summary =
+      error.error_summary || error.error?.[".tag"] || `HTTP ${response.status}`;
     throw new Error(`Dropbox API error: ${summary}`);
   }
 
@@ -80,7 +86,8 @@ export function registerDropboxTools(server: McpServer): void {
         if (!active) {
           return jsonResponse({
             connected: false,
-            message: "Dropbox not connected. Connect in Settings > Connections.",
+            message:
+              "Dropbox not connected. Connect in Settings > Connections.",
           });
         }
         return jsonResponse({
@@ -132,11 +139,22 @@ export function registerDropboxTools(server: McpServer): void {
   server.registerTool(
     "dropbox_list_folder",
     {
-      description: "List files and folders in a Dropbox directory. Use empty string for root.",
+      description:
+        "List files and folders in a Dropbox directory. Use empty string for root.",
       inputSchema: {
-        path: z.string().describe('Folder path (empty string "" for root, or "/path/to/folder")'),
+        path: z
+          .string()
+          .describe(
+            'Folder path (empty string "" for root, or "/path/to/folder")',
+          ),
         recursive: z.boolean().optional().describe("List recursively"),
-        limit: z.number().int().min(1).max(2000).optional().describe("Max entries to return"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(2000)
+          .optional()
+          .describe("Max entries to return"),
       },
     },
     async ({ path, recursive, limit }) => {
@@ -155,14 +173,20 @@ export function registerDropboxTools(server: McpServer): void {
   server.registerTool(
     "dropbox_list_folder_continue",
     {
-      description: "Continue listing files using cursor from a previous list_folder call",
+      description:
+        "Continue listing files using cursor from a previous list_folder call",
       inputSchema: {
-        cursor: z.string().min(1).describe("Cursor from previous list_folder response"),
+        cursor: z
+          .string()
+          .min(1)
+          .describe("Cursor from previous list_folder response"),
       },
     },
     async ({ cursor }) => {
       try {
-        const data = await dropboxRpc("/2/files/list_folder/continue", { cursor });
+        const data = await dropboxRpc("/2/files/list_folder/continue", {
+          cursor,
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to continue listing"));
@@ -182,7 +206,8 @@ export function registerDropboxTools(server: McpServer): void {
     async ({ path, include_media_info }) => {
       try {
         const body: Record<string, unknown> = { path };
-        if (include_media_info !== undefined) body.include_media_info = include_media_info;
+        if (include_media_info !== undefined)
+          body.include_media_info = include_media_info;
         const data = await dropboxRpc("/2/files/get_metadata", body);
         return jsonResponse(data);
       } catch (error) {
@@ -223,8 +248,14 @@ export function registerDropboxTools(server: McpServer): void {
     {
       description: "Create a new folder in Dropbox",
       inputSchema: {
-        path: z.string().min(1).describe("Path for the new folder (e.g. /Documents/NewFolder)"),
-        autorename: z.boolean().optional().describe("Auto-rename if folder exists"),
+        path: z
+          .string()
+          .min(1)
+          .describe("Path for the new folder (e.g. /Documents/NewFolder)"),
+        autorename: z
+          .boolean()
+          .optional()
+          .describe("Auto-rename if folder exists"),
       },
     },
     async ({ path, autorename }) => {
@@ -245,12 +276,17 @@ export function registerDropboxTools(server: McpServer): void {
       description:
         "Upload/create a text file in Dropbox. Use for creating new files with text content.",
       inputSchema: {
-        path: z.string().min(1).describe("File path including name (e.g. /Documents/notes.txt)"),
+        path: z
+          .string()
+          .min(1)
+          .describe("File path including name (e.g. /Documents/notes.txt)"),
         content: z.string().describe("Text content of the file"),
         mode: z
           .enum(["add", "overwrite"])
           .optional()
-          .describe("'add' to avoid overwriting (default), 'overwrite' to replace existing"),
+          .describe(
+            "'add' to avoid overwriting (default), 'overwrite' to replace existing",
+          ),
         autorename: z
           .boolean()
           .optional()
@@ -263,19 +299,24 @@ export function registerDropboxTools(server: McpServer): void {
         const apiArg: Record<string, unknown> = { path, mode: mode || "add" };
         if (autorename !== undefined) apiArg.autorename = autorename;
 
-        const response = await fetch("https://content.dropboxapi.com/2/files/upload", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/octet-stream",
-            "Dropbox-API-Arg": JSON.stringify(apiArg),
+        const response = await fetch(
+          "https://content.dropboxapi.com/2/files/upload",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/octet-stream",
+              "Dropbox-API-Arg": JSON.stringify(apiArg),
+            },
+            body: content,
           },
-          body: content,
-        });
+        );
 
         if (!response.ok) {
           const error = await response.json().catch(() => ({}));
-          throw new Error(error.error_summary || `Upload failed: ${response.status}`);
+          throw new Error(
+            error.error_summary || `Upload failed: ${response.status}`,
+          );
         }
 
         const data = await response.json();
@@ -358,7 +399,9 @@ export function registerDropboxTools(server: McpServer): void {
       description: "Create a shared link for a file or folder",
       inputSchema: {
         path: z.string().min(1).describe("File or folder path"),
-        requested_visibility: z.enum(["public", "team_only", "password"]).optional(),
+        requested_visibility: z
+          .enum(["public", "team_only", "password"])
+          .optional(),
       },
     },
     async ({ path, requested_visibility }) => {
@@ -367,7 +410,10 @@ export function registerDropboxTools(server: McpServer): void {
         if (requested_visibility) {
           body.settings = { requested_visibility };
         }
-        const data = await dropboxRpc("/2/sharing/create_shared_link_with_settings", body);
+        const data = await dropboxRpc(
+          "/2/sharing/create_shared_link_with_settings",
+          body,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create shared link"));
@@ -380,7 +426,10 @@ export function registerDropboxTools(server: McpServer): void {
     {
       description: "List shared links for a file/folder or all shared links",
       inputSchema: {
-        path: z.string().optional().describe("File/folder path (omit for all shared links)"),
+        path: z
+          .string()
+          .optional()
+          .describe("File/folder path (omit for all shared links)"),
         cursor: z.string().optional().describe("Cursor for pagination"),
         direct_only: z.boolean().optional(),
       },

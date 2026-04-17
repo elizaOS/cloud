@@ -12,17 +12,26 @@ class DiscordGuildsRepository {
       .select()
       .from(discordGuilds)
       .where(
-        and(eq(discordGuilds.organization_id, organizationId), eq(discordGuilds.is_active, true)),
+        and(
+          eq(discordGuilds.organization_id, organizationId),
+          eq(discordGuilds.is_active, true),
+        ),
       )
       .orderBy(desc(discordGuilds.bot_joined_at));
   }
 
-  async findByGuildId(organizationId: string, guildId: string): Promise<DiscordGuild | undefined> {
+  async findByGuildId(
+    organizationId: string,
+    guildId: string,
+  ): Promise<DiscordGuild | undefined> {
     const results = await dbRead
       .select()
       .from(discordGuilds)
       .where(
-        and(eq(discordGuilds.organization_id, organizationId), eq(discordGuilds.guild_id, guildId)),
+        and(
+          eq(discordGuilds.organization_id, organizationId),
+          eq(discordGuilds.guild_id, guildId),
+        ),
       )
       .limit(1);
     return results[0];
@@ -31,7 +40,10 @@ class DiscordGuildsRepository {
   async upsert(
     data: Omit<NewDiscordGuild, "id" | "created_at" | "updated_at">,
   ): Promise<DiscordGuild> {
-    const existing = await this.findByGuildId(data.organization_id, data.guild_id);
+    const existing = await this.findByGuildId(
+      data.organization_id,
+      data.guild_id,
+    );
 
     if (existing) {
       const [updated] = await dbWrite
@@ -49,7 +61,10 @@ class DiscordGuildsRepository {
       return updated;
     }
 
-    const [created] = await dbWrite.insert(discordGuilds).values(data).returning();
+    const [created] = await dbWrite
+      .insert(discordGuilds)
+      .values(data)
+      .returning();
     return created;
   }
 
@@ -57,7 +72,10 @@ class DiscordGuildsRepository {
     await dbWrite
       .delete(discordGuilds)
       .where(
-        and(eq(discordGuilds.organization_id, organizationId), eq(discordGuilds.guild_id, guildId)),
+        and(
+          eq(discordGuilds.organization_id, organizationId),
+          eq(discordGuilds.guild_id, guildId),
+        ),
       );
   }
 
@@ -69,12 +87,17 @@ class DiscordGuildsRepository {
         updated_at: new Date(),
       })
       .where(
-        and(eq(discordGuilds.organization_id, organizationId), eq(discordGuilds.guild_id, guildId)),
+        and(
+          eq(discordGuilds.organization_id, organizationId),
+          eq(discordGuilds.guild_id, guildId),
+        ),
       );
   }
 
   async deleteByOrganization(organizationId: string): Promise<void> {
-    await dbWrite.delete(discordGuilds).where(eq(discordGuilds.organization_id, organizationId));
+    await dbWrite
+      .delete(discordGuilds)
+      .where(eq(discordGuilds.organization_id, organizationId));
   }
 }
 

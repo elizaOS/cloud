@@ -53,7 +53,10 @@ export interface MessageResult {
   usage?: UsageInfo;
 }
 
-export type StreamChunkCallback = (chunk: string, messageId?: UUID) => Promise<void>;
+export type StreamChunkCallback = (
+  chunk: string,
+  messageId?: UUID,
+) => Promise<void>;
 
 export type ReasoningChunkCallback = (
   chunk: string,
@@ -79,7 +82,14 @@ export class MessageHandler {
   ) {}
 
   async process(options: MessageOptions): Promise<MessageResult> {
-    const { roomId, text, attachments, agentModeConfig, onStreamChunk, onReasoningChunk } = options;
+    const {
+      roomId,
+      text,
+      attachments,
+      agentModeConfig,
+      onStreamChunk,
+      onReasoningChunk,
+    } = options;
     const entityId = this.userContext.userId;
     const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
 
@@ -99,7 +109,10 @@ export class MessageHandler {
     const callback = async (content: Content) => {
       if (content.text) {
         responseMemory = {
-          id: createUniqueUuid(this.runtime, (userMessage.id ?? uuidv4()) as UUID),
+          id: createUniqueUuid(
+            this.runtime,
+            (userMessage.id ?? uuidv4()) as UUID,
+          ),
           entityId: this.runtime.agentId,
           agentId: this.runtime.agentId,
           roomId: roomId as UUID,
@@ -173,7 +186,10 @@ export class MessageHandler {
 
       if (!responseMemory && result && result.responseContent) {
         responseMemory = {
-          id: createUniqueUuid(this.runtime, (userMessage.id ?? uuidv4()) as UUID),
+          id: createUniqueUuid(
+            this.runtime,
+            (userMessage.id ?? uuidv4()) as UUID,
+          ),
           entityId: this.runtime.agentId,
           agentId: this.runtime.agentId,
           roomId: roomId as UUID,
@@ -227,20 +243,32 @@ export class MessageHandler {
       typeof responseMemory.content === "string"
         ? responseMemory.content
         : responseMemory.content?.text || "";
-    this.sendToDiscordThread(roomId, text, responseText, options.characterId).catch((e) => {
-      elizaLogger.warn(`[MessageHandler] Discord thread sync failed for room ${roomId}: ${e}`);
+    this.sendToDiscordThread(
+      roomId,
+      text,
+      responseText,
+      options.characterId,
+    ).catch((e) => {
+      elizaLogger.warn(
+        `[MessageHandler] Discord thread sync failed for room ${roomId}: ${e}`,
+      );
     });
 
     // PERF: Fire-and-forget room title generation -- don't block the response.
     // Title generation makes a separate LLM call (1-3s) that the user doesn't need to wait for.
     generateRoomTitle(roomId).catch((e) => {
-      elizaLogger.warn(`[MessageHandler] Room title generation failed for room ${roomId}: ${e}`);
+      elizaLogger.warn(
+        `[MessageHandler] Room title generation failed for room ${roomId}: ${e}`,
+      );
     });
 
     return { message: responseMemory, usage };
   }
 
-  private async ensureConnectionForCloud(roomId: string, entityId: string): Promise<void> {
+  private async ensureConnectionForCloud(
+    roomId: string,
+    entityId: string,
+  ): Promise<void> {
     if (await connectionCache.isEstablished(roomId, entityId)) return;
 
     const entityUuid = stringToUuid(entityId) as UUID;
@@ -249,10 +277,15 @@ export class MessageHandler {
     const serverId = stringToUuid("eliza-server") as UUID;
 
     const displayName =
-      this.userContext.name || this.userContext.email || this.userContext.userId || "User";
-    const names = [this.userContext.name, this.userContext.email, displayName].filter(
-      Boolean,
-    ) as string[];
+      this.userContext.name ||
+      this.userContext.email ||
+      this.userContext.userId ||
+      "User";
+    const names = [
+      this.userContext.name,
+      this.userContext.email,
+      displayName,
+    ].filter(Boolean) as string[];
 
     await Promise.all([
       this.ensureWorldExists(worldId, serverId),
@@ -270,7 +303,10 @@ export class MessageHandler {
     });
   }
 
-  private async ensureWorldExists(worldId: UUID, serverId: UUID): Promise<void> {
+  private async ensureWorldExists(
+    worldId: UUID,
+    serverId: UUID,
+  ): Promise<void> {
     try {
       await this.runtime.ensureWorldExists({
         id: worldId,
@@ -370,9 +406,9 @@ export class MessageHandler {
         }
       }
     } else {
-      const mergedNames = [...new Set([...(existingEntity.names || []), ...names])].filter(
-        Boolean,
-      ) as string[];
+      const mergedNames = [
+        ...new Set([...(existingEntity.names || []), ...names]),
+      ].filter(Boolean) as string[];
       const mergedMetadata = {
         ...existingEntity.metadata,
         web: {
@@ -396,13 +432,18 @@ export class MessageHandler {
     }
   }
 
-  private async ensureParticipants(roomId: UUID, entityUuid: UUID): Promise<void> {
+  private async ensureParticipants(
+    roomId: UUID,
+    entityUuid: UUID,
+  ): Promise<void> {
     await Promise.all([
-      this.runtime.ensureParticipantInRoom(this.runtime.agentId, roomId).catch((e) => {
-        elizaLogger.warn(
-          `[MessageHandler] Agent participant setup failed for room ${roomId} - messages may not be attributed correctly: ${e}`,
-        );
-      }),
+      this.runtime
+        .ensureParticipantInRoom(this.runtime.agentId, roomId)
+        .catch((e) => {
+          elizaLogger.warn(
+            `[MessageHandler] Agent participant setup failed for room ${roomId} - messages may not be attributed correctly: ${e}`,
+          );
+        }),
       this.runtime.ensureParticipantInRoom(entityUuid, roomId).catch((e) => {
         elizaLogger.warn(
           `[MessageHandler] User participant setup failed for entity ${entityUuid} in room ${roomId}: ${e}`,
@@ -449,7 +490,9 @@ export class MessageHandler {
   private async incrementAnonymousMessageCount(): Promise<void> {
     if (!this.userContext.sessionToken) return;
 
-    const session = await anonymousSessionsService.getByToken(this.userContext.sessionToken);
+    const session = await anonymousSessionsService.getByToken(
+      this.userContext.sessionToken,
+    );
 
     if (session) {
       await anonymousSessionsService.incrementMessageCount(session.id);
@@ -463,7 +506,9 @@ export class MessageHandler {
     characterId?: string,
   ): Promise<void> {
     const room = await roomsRepository.findById(roomId);
-    const roomMetadata = room?.metadata as { discordThreadId?: string } | undefined;
+    const roomMetadata = room?.metadata as
+      | { discordThreadId?: string }
+      | undefined;
     const threadId = roomMetadata?.discordThreadId;
     if (!threadId) return;
 
@@ -477,7 +522,10 @@ export class MessageHandler {
       threadId,
       `**${this.userContext.name || this.userContext.email || this.userContext.entityId}:** ${userText}`,
     );
-    await discordService.sendToThread(threadId, `**🤖 ${characterName}:** ${agentResponse}`);
+    await discordService.sendToThread(
+      threadId,
+      `**🤖 ${characterName}:** ${agentResponse}`,
+    );
   }
 }
 

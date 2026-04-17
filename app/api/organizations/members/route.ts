@@ -25,7 +25,9 @@ async function handleGET(request: NextRequest) {
       );
     }
 
-    const members = await usersService.listByOrganization(user.organization_id!);
+    const members = await usersService.listByOrganization(
+      user.organization_id!,
+    );
 
     return NextResponse.json({
       success: true,
@@ -47,7 +49,8 @@ async function handleGET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch members",
+        error:
+          error instanceof Error ? error.message : "Failed to fetch members",
       },
       { status: 500 },
     );

@@ -11,7 +11,8 @@ import {
 } from "./milady-agent-config";
 
 const DISCORD_OWNER_USER_IDS_ENV_KEY = "MILADY_DISCORD_OWNER_USER_IDS_JSON";
-export const DISCORD_DEVELOPER_PORTAL_URL = "https://discord.com/developers/applications";
+export const DISCORD_DEVELOPER_PORTAL_URL =
+  "https://discord.com/developers/applications";
 export const MANAGED_DISCORD_GATEWAY_AGENT_NAME = "Milady Discord Gateway";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -20,7 +21,10 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function ensureRecord(parent: Record<string, unknown>, key: string): Record<string, unknown> {
+function ensureRecord(
+  parent: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> {
   const existing = asRecord(parent[key]);
   if (existing) {
     return existing;
@@ -131,11 +135,16 @@ function toStatus(
 }
 
 export class ManagedMiladyDiscordService {
-  async ensureGatewayAgent(params: { organizationId: string; userId: string }): Promise<{
+  async ensureGatewayAgent(params: {
+    organizationId: string;
+    userId: string;
+  }): Promise<{
     created: boolean;
     sandbox: Awaited<ReturnType<typeof miladySandboxesRepository.create>>;
   }> {
-    const sandboxes = await miladySandboxesRepository.listByOrganization(params.organizationId);
+    const sandboxes = await miladySandboxesRepository.listByOrganization(
+      params.organizationId,
+    );
     const existingGateway = sandboxes.find((sandbox) =>
       readManagedMiladyDiscordGateway(
         (sandbox.agent_config as Record<string, unknown> | null) ?? {},
@@ -196,10 +205,13 @@ export class ManagedMiladyDiscordService {
     organizationId: string;
     binding: ManagedMiladyDiscordBinding;
   }): Promise<{ restarted: boolean; status: ManagedMiladyDiscordStatus }> {
-    const conflictingGuildLinks = await miladySandboxesRepository.findByManagedDiscordGuildId(
-      params.binding.guildId,
+    const conflictingGuildLinks =
+      await miladySandboxesRepository.findByManagedDiscordGuildId(
+        params.binding.guildId,
+      );
+    const conflict = conflictingGuildLinks.find(
+      (sandbox) => sandbox.id !== params.agentId,
     );
-    const conflict = conflictingGuildLinks.find((sandbox) => sandbox.id !== params.agentId);
     if (conflict) {
       throw new Error("Discord server is already linked to another agent");
     }
@@ -216,8 +228,14 @@ export class ManagedMiladyDiscordService {
       (sandbox.agent_config as Record<string, unknown> | null) ?? {},
       params.binding,
     );
-    nextConfig = withDiscordConnectorAdmin(nextConfig, params.binding.adminDiscordUserId);
-    nextConfig = withDiscordOwnerIdentity(nextConfig, params.binding.adminDiscordUserId);
+    nextConfig = withDiscordConnectorAdmin(
+      nextConfig,
+      params.binding.adminDiscordUserId,
+    );
+    nextConfig = withDiscordOwnerIdentity(
+      nextConfig,
+      params.binding.adminDiscordUserId,
+    );
 
     await miladySandboxesRepository.update(sandbox.id, {
       agent_config: nextConfig,
@@ -225,12 +243,18 @@ export class ManagedMiladyDiscordService {
 
     let restarted = false;
     if (sandbox.status === "running") {
-      const shutdown = await miladySandboxService.shutdown(sandbox.id, params.organizationId);
+      const shutdown = await miladySandboxService.shutdown(
+        sandbox.id,
+        params.organizationId,
+      );
       if (!shutdown.success) {
         throw new Error(shutdown.error || "Failed to restart agent");
       }
 
-      const provision = await miladySandboxService.provision(sandbox.id, params.organizationId);
+      const provision = await miladySandboxService.provision(
+        sandbox.id,
+        params.organizationId,
+      );
       if (!provision.success) {
         throw new Error(provision.error || "Failed to restart agent");
       }
@@ -277,23 +301,32 @@ export class ManagedMiladyDiscordService {
 
     let restarted = false;
     if (sandbox.status === "running") {
-      const shutdown = await miladySandboxService.shutdown(sandbox.id, params.organizationId);
+      const shutdown = await miladySandboxService.shutdown(
+        sandbox.id,
+        params.organizationId,
+      );
       if (!shutdown.success) {
         throw new Error(shutdown.error || "Failed to restart agent");
       }
 
-      const provision = await miladySandboxService.provision(sandbox.id, params.organizationId);
+      const provision = await miladySandboxService.provision(
+        sandbox.id,
+        params.organizationId,
+      );
       if (!provision.success) {
         throw new Error(provision.error || "Failed to restart agent");
       }
       restarted = true;
     }
 
-    logger.info("[managed-discord] Unlinked Discord from managed Milady agent", {
-      agentId: sandbox.id,
-      organizationId: params.organizationId,
-      restarted,
-    });
+    logger.info(
+      "[managed-discord] Unlinked Discord from managed Milady agent",
+      {
+        agentId: sandbox.id,
+        organizationId: params.organizationId,
+        restarted,
+      },
+    );
 
     return {
       restarted,

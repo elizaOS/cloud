@@ -52,7 +52,10 @@ export async function POST(
   // Get agent
   const agent = await charactersService.getById(agentId);
   if (!agent) {
-    return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "Agent not found" },
+      { status: 404 },
+    );
   }
 
   // Check ownership
@@ -90,7 +93,8 @@ export async function POST(
 
   // Check if already published
   if (agent.is_public) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
     return NextResponse.json({
       success: true,
       message: "Agent is already published",
@@ -122,7 +126,8 @@ export async function POST(
 
   await charactersService.invalidateCache(agentId);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
   logger.info("[Agent Publish API] Agent published", {
     agentId,
@@ -159,11 +164,17 @@ export async function DELETE(
 
   const agent = await charactersService.getById(agentId);
   if (!agent) {
-    return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "Agent not found" },
+      { status: 404 },
+    );
   }
 
   if (agent.user_id !== user.id) {
-    return NextResponse.json({ success: false, error: "Not authorized" }, { status: 403 });
+    return NextResponse.json(
+      { success: false, error: "Not authorized" },
+      { status: 403 },
+    );
   }
 
   // Make agent private

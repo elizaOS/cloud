@@ -7,7 +7,12 @@
 
 export type OAuthProviderType = "oauth2" | "oauth1a" | "api_key";
 
-export type OAuthConnectionStatus = "pending" | "active" | "expired" | "revoked" | "error";
+export type OAuthConnectionStatus =
+  | "pending"
+  | "active"
+  | "expired"
+  | "revoked"
+  | "error";
 
 export type OAuthConnectionSource = "platform_credentials" | "secrets";
 

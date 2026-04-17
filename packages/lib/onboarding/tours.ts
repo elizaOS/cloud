@@ -26,7 +26,8 @@ export const BUILD_TOUR: OnboardingTour = {
     {
       target: "[data-onboarding='build-save']",
       title: "Save Your Agent",
-      description: "Once you're happy with your agent, click here to save it and start chatting!",
+      description:
+        "Once you're happy with your agent, click here to save it and start chatting!",
       placement: "bottom",
     },
   ],

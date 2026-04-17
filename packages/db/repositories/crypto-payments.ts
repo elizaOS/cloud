@@ -25,14 +25,18 @@ export class CryptoPaymentsRepository {
     });
   }
 
-  async findByPaymentAddress(address: string): Promise<CryptoPayment | undefined> {
+  async findByPaymentAddress(
+    address: string,
+  ): Promise<CryptoPayment | undefined> {
     return await dbRead.query.cryptoPayments.findFirst({
       where: eq(cryptoPayments.payment_address, address),
       orderBy: desc(cryptoPayments.created_at),
     });
   }
 
-  async findByTransactionHash(txHash: string): Promise<CryptoPayment | undefined> {
+  async findByTransactionHash(
+    txHash: string,
+  ): Promise<CryptoPayment | undefined> {
     return await dbRead.query.cryptoPayments.findFirst({
       where: eq(cryptoPayments.transaction_hash, txHash),
     });
@@ -47,9 +51,14 @@ export class CryptoPaymentsRepository {
     return payment;
   }
 
-  async findPendingByAddress(address: string): Promise<CryptoPayment | undefined> {
+  async findPendingByAddress(
+    address: string,
+  ): Promise<CryptoPayment | undefined> {
     return await dbRead.query.cryptoPayments.findFirst({
-      where: and(eq(cryptoPayments.payment_address, address), eq(cryptoPayments.status, "pending")),
+      where: and(
+        eq(cryptoPayments.payment_address, address),
+        eq(cryptoPayments.status, "pending"),
+      ),
     });
   }
 
@@ -69,7 +78,10 @@ export class CryptoPaymentsRepository {
 
   async listExpiredPendingPayments(): Promise<CryptoPayment[]> {
     return await dbRead.query.cryptoPayments.findMany({
-      where: and(eq(cryptoPayments.status, "pending"), lt(cryptoPayments.expires_at, new Date())),
+      where: and(
+        eq(cryptoPayments.status, "pending"),
+        lt(cryptoPayments.expires_at, new Date()),
+      ),
     });
   }
 
@@ -89,7 +101,10 @@ export class CryptoPaymentsRepository {
     return payment;
   }
 
-  async update(id: string, data: Partial<NewCryptoPayment>): Promise<CryptoPayment | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewCryptoPayment>,
+  ): Promise<CryptoPayment | undefined> {
     const [payment] = await dbWrite
       .update(cryptoPayments)
       .set({
@@ -134,13 +149,18 @@ export class CryptoPaymentsRepository {
     return payment;
   }
 
-  async markAsFailed(id: string, reason?: string): Promise<CryptoPayment | undefined> {
+  async markAsFailed(
+    id: string,
+    reason?: string,
+  ): Promise<CryptoPayment | undefined> {
     const existing = await this.findById(id);
     const [payment] = await dbWrite
       .update(cryptoPayments)
       .set({
         status: "failed",
-        metadata: reason ? { ...existing?.metadata, failureReason: reason } : existing?.metadata,
+        metadata: reason
+          ? { ...existing?.metadata, failureReason: reason }
+          : existing?.metadata,
         updated_at: new Date(),
       })
       .where(eq(cryptoPayments.id, id))

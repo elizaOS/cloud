@@ -47,7 +47,9 @@ export function MicrosoftConnection() {
   const fetchStatus = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/v1/oauth/connections?platform=microsoft");
+      const response = await fetch(
+        "/api/v1/oauth/connections?platform=microsoft",
+      );
       const data = await response.json();
       const connections: MicrosoftConnection[] = data.connections || [];
       const activeConnection = connections.find((c) => c.status === "active");
@@ -70,13 +72,18 @@ export function MicrosoftConnection() {
     const loadStatus = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("/api/v1/oauth/connections?platform=microsoft", {
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          "/api/v1/oauth/connections?platform=microsoft",
+          {
+            signal: controller.signal,
+          },
+        );
         if (!controller.signal.aborted) {
           const data = await response.json();
           const connections: MicrosoftConnection[] = data.connections || [];
-          const activeConnection = connections.find((c) => c.status === "active");
+          const activeConnection = connections.find(
+            (c) => c.status === "active",
+          );
 
           setStatus({
             connected: !!activeConnection,
@@ -130,9 +137,12 @@ export function MicrosoftConnection() {
     setIsDisconnecting(true);
 
     try {
-      const response = await fetch(`/api/v1/oauth/connections/${status.connectionId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/v1/oauth/connections/${status.connectionId}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (response.ok) {
         toast.success("Microsoft account disconnected");
@@ -185,7 +195,11 @@ export function MicrosoftConnection() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <svg className="h-5 w-5" viewBox="0 0 23 23" aria-label="Microsoft">
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 23 23"
+                aria-label="Microsoft"
+              >
                 <path fill="#f35325" d="M1 1h10v10H1z" />
                 <path fill="#81bc06" d="M12 1h10v10H12z" />
                 <path fill="#05a6f0" d="M1 12h10v10H1z" />
@@ -214,7 +228,9 @@ export function MicrosoftConnection() {
               </div>
               <div className="flex-1">
                 <div className="font-semibold">{status.email}</div>
-                <div className="text-sm text-muted-foreground">Microsoft Account Connected</div>
+                <div className="text-sm text-muted-foreground">
+                  Microsoft Account Connected
+                </div>
               </div>
             </div>
 
@@ -247,7 +263,9 @@ export function MicrosoftConnection() {
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t">
-              <div className="text-sm text-muted-foreground">Used for workflow automation</div>
+              <div className="text-sm text-muted-foreground">
+                Used for workflow automation
+              </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -266,10 +284,13 @@ export function MicrosoftConnection() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Disconnect Microsoft Account?</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      Disconnect Microsoft Account?
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will revoke access to Outlook Mail and Calendar. Any active automations
-                      using Microsoft services will stop working until you reconnect.
+                      This will revoke access to Outlook Mail and Calendar. Any
+                      active automations using Microsoft services will stop
+                      working until you reconnect.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -291,7 +312,9 @@ export function MicrosoftConnection() {
               <div className="p-3 bg-muted rounded-lg text-center">
                 <Mail className="h-6 w-6 mx-auto mb-2 text-blue-500" />
                 <p className="text-sm font-medium">Outlook</p>
-                <p className="text-xs text-muted-foreground">Send & read emails</p>
+                <p className="text-xs text-muted-foreground">
+                  Send & read emails
+                </p>
               </div>
               <div className="p-3 bg-muted rounded-lg text-center">
                 <Calendar className="h-6 w-6 mx-auto mb-2 text-blue-500" />
@@ -301,7 +324,9 @@ export function MicrosoftConnection() {
             </div>
 
             <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">What you can do with Microsoft integration:</h4>
+              <h4 className="font-medium mb-2">
+                What you can do with Microsoft integration:
+              </h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Send AI-generated emails via Outlook</li>
                 <li>• Schedule and manage calendar events</li>
@@ -310,7 +335,11 @@ export function MicrosoftConnection() {
               </ul>
             </div>
 
-            <Button onClick={handleConnect} disabled={isConnecting} className="w-full">
+            <Button
+              onClick={handleConnect}
+              disabled={isConnecting}
+              className="w-full"
+            >
               {isConnecting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -318,7 +347,11 @@ export function MicrosoftConnection() {
                 </>
               ) : (
                 <>
-                  <svg className="h-4 w-4 mr-2" viewBox="0 0 23 23" aria-hidden="true">
+                  <svg
+                    className="h-4 w-4 mr-2"
+                    viewBox="0 0 23 23"
+                    aria-hidden="true"
+                  >
                     <path fill="currentColor" d="M1 1h10v10H1z" />
                     <path fill="currentColor" d="M12 1h10v10H12z" />
                     <path fill="currentColor" d="M1 12h10v10H1z" />

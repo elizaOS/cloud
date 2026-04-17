@@ -34,34 +34,61 @@ describe("WhatsApp Webhook GET (Verification Handshake)", () => {
   }
 
   test("returns challenge when verification succeeds", () => {
-    const result = simulateVerification("subscribe", VERIFY_TOKEN, "123456", VERIFY_TOKEN);
+    const result = simulateVerification(
+      "subscribe",
+      VERIFY_TOKEN,
+      "123456",
+      VERIFY_TOKEN,
+    );
     expect(result).toBe("123456");
   });
 
   test("returns null for wrong mode", () => {
-    const result = simulateVerification("unsubscribe", VERIFY_TOKEN, "123456", VERIFY_TOKEN);
+    const result = simulateVerification(
+      "unsubscribe",
+      VERIFY_TOKEN,
+      "123456",
+      VERIFY_TOKEN,
+    );
     expect(result).toBeNull();
   });
 
   test("returns null for wrong verify token", () => {
-    const result = simulateVerification("subscribe", "wrong_token", "123456", VERIFY_TOKEN);
+    const result = simulateVerification(
+      "subscribe",
+      "wrong_token",
+      "123456",
+      VERIFY_TOKEN,
+    );
     expect(result).toBeNull();
   });
 
   test("returns null for missing challenge", () => {
-    const result = simulateVerification("subscribe", VERIFY_TOKEN, null, VERIFY_TOKEN);
+    const result = simulateVerification(
+      "subscribe",
+      VERIFY_TOKEN,
+      null,
+      VERIFY_TOKEN,
+    );
     expect(result).toBeNull();
   });
 
   test("returns null for null mode", () => {
-    const result = simulateVerification(null, VERIFY_TOKEN, "123456", VERIFY_TOKEN);
+    const result = simulateVerification(
+      null,
+      VERIFY_TOKEN,
+      "123456",
+      VERIFY_TOKEN,
+    );
     expect(result).toBeNull();
   });
 });
 
 describe("WhatsApp Webhook POST (Message Processing)", () => {
   function makeSignature(body: string): string {
-    return "sha256=" + createHmac("sha256", APP_SECRET).update(body).digest("hex");
+    return (
+      "sha256=" + createHmac("sha256", APP_SECRET).update(body).digest("hex")
+    );
   }
 
   test("validates signature and extracts messages", () => {
@@ -78,7 +105,9 @@ describe("WhatsApp Webhook POST (Message Processing)", () => {
                   display_phone_number: "+14245074963",
                   phone_number_id: "phone_123",
                 },
-                contacts: [{ profile: { name: "Test User" }, wa_id: "14155551234" }],
+                contacts: [
+                  { profile: { name: "Test User" }, wa_id: "14155551234" },
+                ],
                 messages: [
                   {
                     id: "wamid.test123",
@@ -116,8 +145,11 @@ describe("WhatsApp Webhook POST (Message Processing)", () => {
 
   test("rejects message with invalid signature", () => {
     const body = '{"object":"whatsapp_business_account","entry":[]}';
-    const fakeSignature = "sha256=0000000000000000000000000000000000000000000000000000000000000000";
-    expect(verifyWhatsAppSignature(APP_SECRET, fakeSignature, body)).toBe(false);
+    const fakeSignature =
+      "sha256=0000000000000000000000000000000000000000000000000000000000000000";
+    expect(verifyWhatsAppSignature(APP_SECRET, fakeSignature, body)).toBe(
+      false,
+    );
   });
 
   test("handles payload with no messages (status update)", () => {
@@ -168,7 +200,9 @@ describe("WhatsApp Webhook POST (Message Processing)", () => {
                   display_phone_number: "+14245074963",
                   phone_number_id: "phone_123",
                 },
-                contacts: [{ profile: { name: "Photo User" }, wa_id: "14155551234" }],
+                contacts: [
+                  { profile: { name: "Photo User" }, wa_id: "14155551234" },
+                ],
                 messages: [
                   {
                     id: "wamid.img123",

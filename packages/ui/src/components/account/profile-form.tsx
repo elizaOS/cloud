@@ -19,7 +19,16 @@ import {
   CornerBrackets,
   Input,
 } from "@elizaos/cloud-ui";
-import { Check, ImagePlus, Loader2, Mail, Shield, Upload, User, X } from "lucide-react";
+import {
+  Check,
+  ImagePlus,
+  Loader2,
+  Mail,
+  Shield,
+  Upload,
+  User,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition } from "react";
@@ -28,7 +37,12 @@ import { updateEmail, updateProfile, uploadAvatar } from "@/app/actions/users";
 import type { UserWithOrganization } from "@/lib/types";
 
 // Constants for validation
-const VALID_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const VALID_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 interface ProfileFormProps {
@@ -50,7 +64,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const getInitials = (name: string | null, email: string | null, walletAddress: string | null) => {
+  const getInitials = (
+    name: string | null,
+    email: string | null,
+    walletAddress: string | null,
+  ) => {
     if (name) {
       return name
         .split(" ")
@@ -229,7 +247,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <User className="h-5 w-5 text-[#FF5800]" />
-            <h3 className="text-lg font-bold text-white">Profile Information</h3>
+            <h3 className="text-lg font-bold text-white">
+              Profile Information
+            </h3>
           </div>
           <p className="text-sm text-white/60">
             Update your profile information and manage your account settings
@@ -249,7 +269,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
               </label>
             </div>
             <p className="text-xs text-white/60 mb-3">
-              Adding an email allows you to receive important notifications and updates.
+              Adding an email allows you to receive important notifications and
+              updates.
             </p>
             <form onSubmit={handleEmailSubmit} className="space-y-3">
               <Input
@@ -301,7 +322,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
               className="rounded-none border-white/10 bg-black/60 text-white/50"
             />
             <p className="text-xs text-white/50">
-              Email cannot be changed. Please contact support if you need to update this.
+              Email cannot be changed. Please contact support if you need to
+              update this.
             </p>
           </div>
         )}
@@ -310,10 +332,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
           <div className="space-y-2 p-4 border border-green-500/40 bg-green-500/5 rounded-none">
             <div className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-green-400" />
-              <p className="text-sm font-medium text-green-400">Email Added Successfully!</p>
+              <p className="text-sm font-medium text-green-400">
+                Email Added Successfully!
+              </p>
             </div>
             <p className="text-xs text-white/60">
-              Your email has been added and will appear here after the page refreshes.
+              Your email has been added and will appear here after the page
+              refreshes.
             </p>
           </div>
         )}
@@ -387,7 +412,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 p-3 rounded-lg border border-[#FF5800]/30 bg-[#FF5800]/5">
                     <div className="flex-1">
-                      <p className="text-sm text-white font-medium truncate">{pendingFile.name}</p>
+                      <p className="text-sm text-white font-medium truncate">
+                        {pendingFile.name}
+                      </p>
                       <p className="text-xs text-white/50">
                         {(pendingFile.size / 1024).toFixed(1)} KB
                       </p>
@@ -432,7 +459,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   role="button"
                   tabIndex={0}
                   onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && fileInputRef.current?.click()
+                  }
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
@@ -452,7 +481,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   ) : (
                     <>
                       <Upload className="h-5 w-5 text-white/50" />
-                      <span className="text-sm text-white/70">Click or drag image to upload</span>
+                      <span className="text-sm text-white/70">
+                        Click or drag image to upload
+                      </span>
                     </>
                   )}
                 </div>
@@ -542,14 +573,21 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
           {/* Messages */}
           {error && (
-            <Alert variant="destructive" className="rounded-none border-rose-500/40 bg-rose-500/10">
-              <AlertDescription className="text-rose-400">{error}</AlertDescription>
+            <Alert
+              variant="destructive"
+              className="rounded-none border-rose-500/40 bg-rose-500/10"
+            >
+              <AlertDescription className="text-rose-400">
+                {error}
+              </AlertDescription>
             </Alert>
           )}
 
           {success && (
             <Alert className="rounded-none border-green-500/40 bg-green-500/10">
-              <AlertDescription className="text-green-400">{success}</AlertDescription>
+              <AlertDescription className="text-green-400">
+                {success}
+              </AlertDescription>
             </Alert>
           )}
 

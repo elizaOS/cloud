@@ -1,7 +1,10 @@
 import type { TextGenerationModelType, UUID } from "@elizaos/core";
 
 export type JsonPrimitive = string | number | boolean | null;
-export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  | JsonPrimitive
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 
 export enum LongTermMemoryCategory {
   EPISODIC = "episodic",
@@ -72,7 +75,10 @@ export interface SummaryResult {
 
 export interface MemoryStorageProvider {
   storeLongTermMemory(
-    memory: Omit<LongTermMemory, "id" | "createdAt" | "updatedAt" | "accessCount">,
+    memory: Omit<
+      LongTermMemory,
+      "id" | "createdAt" | "updatedAt" | "accessCount"
+    >,
   ): Promise<LongTermMemory>;
 
   getLongTermMemories(
@@ -85,7 +91,9 @@ export interface MemoryStorageProvider {
     id: UUID,
     agentId: UUID,
     entityId: UUID,
-    updates: Partial<Omit<LongTermMemory, "id" | "agentId" | "entityId" | "createdAt">>,
+    updates: Partial<
+      Omit<LongTermMemory, "id" | "agentId" | "entityId" | "createdAt">
+    >,
   ): Promise<void>;
 
   deleteLongTermMemory(id: UUID, agentId: UUID, entityId: UUID): Promise<void>;
@@ -94,14 +102,26 @@ export interface MemoryStorageProvider {
     summary: Omit<SessionSummary, "id" | "createdAt" | "updatedAt">,
   ): Promise<SessionSummary>;
 
-  getCurrentSessionSummary(agentId: UUID, roomId: UUID): Promise<SessionSummary | null>;
+  getCurrentSessionSummary(
+    agentId: UUID,
+    roomId: UUID,
+  ): Promise<SessionSummary | null>;
 
   updateSessionSummary(
     id: UUID,
     agentId: UUID,
     roomId: UUID,
-    updates: Partial<Omit<SessionSummary, "id" | "agentId" | "roomId" | "createdAt" | "updatedAt">>,
+    updates: Partial<
+      Omit<
+        SessionSummary,
+        "id" | "agentId" | "roomId" | "createdAt" | "updatedAt"
+      >
+    >,
   ): Promise<void>;
 
-  getSessionSummaries(agentId: UUID, roomId: UUID, limit?: number): Promise<SessionSummary[]>;
+  getSessionSummaries(
+    agentId: UUID,
+    roomId: UUID,
+    limit?: number,
+  ): Promise<SessionSummary[]>;
 }

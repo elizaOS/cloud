@@ -6,6 +6,10 @@ export const metadata: Metadata = {
     "Accept your organization invitation to join an Eliza Cloud workspace and collaborate with your team.",
 };
 
-export default function InviteAcceptLayout({ children }: { children: React.ReactNode }) {
+export default function InviteAcceptLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return children;
 }

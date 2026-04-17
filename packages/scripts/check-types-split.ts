@@ -51,15 +51,25 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
 async function getDirectoriesToCheck(): Promise<string[]> {
   const libSubdirs = await splitIntoSubdirectories("packages/lib");
   const appSubdirs = await splitIntoSubdirectories("app");
-  const componentSubdirs = await splitIntoSubdirectories("packages/ui/src/components");
+  const componentSubdirs = await splitIntoSubdirectories(
+    "packages/ui/src/components",
+  );
 
   return ["packages/db", ...libSubdirs, ...componentSubdirs, ...appSubdirs];
 }
 
-async function createTempTsconfig(directory: string, baseTsconfig: object): Promise<string> {
+async function createTempTsconfig(
+  directory: string,
+  baseTsconfig: object,
+): Promise<string> {
   const safeDirectoryName = directory.replace(/[\\/]/g, ".");
   const workspaceRoot = process.cwd();
-  const tempDir = join(workspaceRoot, "node_modules", ".cache", "check-types-split");
+  const tempDir = join(
+    workspaceRoot,
+    "node_modules",
+    ".cache",
+    "check-types-split",
+  );
   await mkdir(tempDir, { recursive: true });
   const tempPath = join(
     tempDir,
@@ -110,7 +120,10 @@ async function createTempTsconfig(directory: string, baseTsconfig: object): Prom
   return tempPath;
 }
 
-async function checkDirectory(directory: string, baseTsconfig: object): Promise<CheckResult> {
+async function checkDirectory(
+  directory: string,
+  baseTsconfig: object,
+): Promise<CheckResult> {
   const start = Date.now();
   let tempConfigPath: string | null = null;
 
@@ -142,7 +155,9 @@ async function checkDirectory(directory: string, baseTsconfig: object): Promise<
           error.message
         : String(error);
 
-    console.log(`   ✗ ${directory}/ has errors (${(duration / 1000).toFixed(1)}s)`);
+    console.log(
+      `   ✗ ${directory}/ has errors (${(duration / 1000).toFixed(1)}s)`,
+    );
 
     return { directory, success: false, output, duration };
   } finally {

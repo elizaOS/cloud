@@ -16,7 +16,9 @@ describe("Anonymous Session API", () => {
     const body = (await response.json()) as any;
     expect(body).toBeDefined();
     // Should return some form of session identifier
-    expect(body.sessionToken || body.token || body.session || body.userId).toBeTruthy();
+    expect(
+      body.sessionToken || body.token || body.session || body.userId,
+    ).toBeTruthy();
   });
 
   test("GET /api/anonymous-session returns session data when cookie exists", async () => {

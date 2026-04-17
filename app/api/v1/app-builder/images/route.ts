@@ -93,7 +93,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes("Invalid")) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 },
+      );
     }
     if (getErrorStatusCode(error) >= 500) {
       logger.error("Error in image upload", { error });

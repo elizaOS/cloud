@@ -83,7 +83,10 @@ export class ApiKeysRepository {
   /**
    * Updates an existing API key.
    */
-  async update(id: string, data: Partial<NewApiKey>): Promise<ApiKey | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewApiKey>,
+  ): Promise<ApiKey | undefined> {
     const [updated] = await dbWrite
       .update(apiKeys)
       .set({
@@ -125,7 +128,13 @@ export class ApiKeysRepository {
         is_active: false,
         updated_at: new Date(),
       })
-      .where(and(eq(apiKeys.user_id, userId), eq(apiKeys.name, name), eq(apiKeys.is_active, true)));
+      .where(
+        and(
+          eq(apiKeys.user_id, userId),
+          eq(apiKeys.name, name),
+          eq(apiKeys.is_active, true),
+        ),
+      );
   }
 }
 

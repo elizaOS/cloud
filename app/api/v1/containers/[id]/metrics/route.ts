@@ -3,7 +3,10 @@
  * Fetches CloudWatch metrics for ECS containers
  */
 
-import { CloudWatchClient, GetMetricStatisticsCommand } from "@aws-sdk/client-cloudwatch";
+import {
+  CloudWatchClient,
+  GetMetricStatisticsCommand,
+} from "@aws-sdk/client-cloudwatch";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getContainer } from "@/lib/services/containers";
@@ -29,7 +32,10 @@ interface ContainerMetrics {
  * @param params - Route parameters containing the container ID.
  * @returns Container metrics with utilization data.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const { id } = await params;
     const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -92,7 +98,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch container metrics",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch container metrics",
       },
       { status: 500 },
     );
@@ -137,21 +146,57 @@ async function getContainerMetrics(
   const serviceName = container.ecs_service_arn.split("/").pop() || "";
 
   // Fetch multiple metrics in parallel
-  const [cpuData, memoryData, networkRxData, networkTxData] = await Promise.allSettled([
-    fetchMetric(client, "CPUUtilization", clusterName, serviceName, startTime, now),
-    fetchMetric(client, "MemoryUtilization", clusterName, serviceName, startTime, now),
-    fetchMetric(client, "NetworkRxBytes", clusterName, serviceName, startTime, now),
-    fetchMetric(client, "NetworkTxBytes", clusterName, serviceName, startTime, now),
-  ]);
+  const [cpuData, memoryData, networkRxData, networkTxData] =
+    await Promise.allSettled([
+      fetchMetric(
+        client,
+        "CPUUtilization",
+        clusterName,
+        serviceName,
+        startTime,
+        now,
+      ),
+      fetchMetric(
+        client,
+        "MemoryUtilization",
+        clusterName,
+        serviceName,
+        startTime,
+        now,
+      ),
+      fetchMetric(
+        client,
+        "NetworkRxBytes",
+        clusterName,
+        serviceName,
+        startTime,
+        now,
+      ),
+      fetchMetric(
+        client,
+        "NetworkTxBytes",
+        clusterName,
+        serviceName,
+        startTime,
+        now,
+      ),
+    ]);
 
   // Extract values with fallbacks
-  const cpu_utilization = cpuData.status === "fulfilled" && cpuData.value ? cpuData.value : 0;
+  const cpu_utilization =
+    cpuData.status === "fulfilled" && cpuData.value ? cpuData.value : 0;
   const memory_utilization =
-    memoryData.status === "fulfilled" && memoryData.value ? memoryData.value : 0;
+    memoryData.status === "fulfilled" && memoryData.value
+      ? memoryData.value
+      : 0;
   const network_rx_bytes =
-    networkRxData.status === "fulfilled" && networkRxData.value ? networkRxData.value : 0;
+    networkRxData.status === "fulfilled" && networkRxData.value
+      ? networkRxData.value
+      : 0;
   const network_tx_bytes =
-    networkTxData.status === "fulfilled" && networkTxData.value ? networkTxData.value : 0;
+    networkTxData.status === "fulfilled" && networkTxData.value
+      ? networkTxData.value
+      : 0;
 
   return {
     cpu_utilization,
@@ -206,7 +251,10 @@ async function fetchMetric(
 
     // Get the latest datapoint
     const latest = datapoints.reduce((prev, current) => {
-      return (current.Timestamp || new Date(0)) > (prev.Timestamp || new Date(0)) ? current : prev;
+      return (current.Timestamp || new Date(0)) >
+        (prev.Timestamp || new Date(0))
+        ? current
+        : prev;
     });
 
     return latest.Average || 0;

@@ -20,7 +20,11 @@ import Decimal from "decimal.js";
 import { eq, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
-import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
+import {
+  calculateCost,
+  estimateRequestCost,
+  getProviderFromModel,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { creditsService } from "./credits";
 import { redeemableEarningsService } from "./redeemable-earnings";
@@ -79,7 +83,9 @@ class AgentMonetizationService {
   /**
    * Get agent monetization info
    */
-  async getAgentMonetization(agentId: string): Promise<AgentMonetizationInfo | null> {
+  async getAgentMonetization(
+    agentId: string,
+  ): Promise<AgentMonetizationInfo | null> {
     const agent = await dbRead.query.userCharacters.findFirst({
       where: eq(userCharacters.id, agentId),
     });
@@ -108,7 +114,9 @@ class AgentMonetizationService {
     monetizationEnabled: boolean,
   ): Promise<{ baseCost: number; creatorMarkup: number; totalCost: number }> {
     const baseCost = await estimateRequestCost(model, messages);
-    const creatorMarkup = monetizationEnabled ? baseCost * (markupPercentage / 100) : 0;
+    const creatorMarkup = monetizationEnabled
+      ? baseCost * (markupPercentage / 100)
+      : 0;
     const totalCost = baseCost + creatorMarkup;
 
     return { baseCost, creatorMarkup, totalCost };
@@ -159,8 +167,16 @@ class AgentMonetizationService {
   async recordCreatorEarnings(
     params: RecordEarningsParams,
   ): Promise<{ success: boolean; error?: string }> {
-    const { agentId, agentName, ownerId, earnings, consumerOrgId, model, tokens, protocol } =
-      params;
+    const {
+      agentId,
+      agentName,
+      ownerId,
+      earnings,
+      consumerOrgId,
+      model,
+      tokens,
+      protocol,
+    } = params;
 
     if (earnings <= 0) {
       return { success: true }; // No earnings to record
@@ -254,7 +270,9 @@ class AgentMonetizationService {
       usage.outputTokens,
     );
 
-    const actualCreatorMarkup = monetizationEnabled ? actualBaseCost * (markupPercentage / 100) : 0;
+    const actualCreatorMarkup = monetizationEnabled
+      ? actualBaseCost * (markupPercentage / 100)
+      : 0;
     const actualTotal = actualBaseCost + actualCreatorMarkup;
 
     // Record creator earnings if monetization is enabled
@@ -408,7 +426,10 @@ class AgentMonetizationService {
     );
 
     const topAgents = monetizedAgents
-      .sort((a, b) => Number(b.total_creator_earnings) - Number(a.total_creator_earnings))
+      .sort(
+        (a, b) =>
+          Number(b.total_creator_earnings) - Number(a.total_creator_earnings),
+      )
       .slice(0, 5)
       .map((a) => ({
         id: a.id,

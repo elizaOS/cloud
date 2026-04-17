@@ -7,9 +7,11 @@ import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
 
 const updateMemberSchema = z.object({
-  role: z.enum(["admin", "member"]).refine((val) => val === "admin" || val === "member", {
-    message: "Role must be 'admin' or 'member'",
-  }),
+  role: z
+    .enum(["admin", "member"])
+    .refine((val) => val === "admin" || val === "member", {
+      message: "Role must be 'admin' or 'member'",
+    }),
 });
 
 /**
@@ -39,7 +41,10 @@ async function handlePATCH(
     }
 
     if (!context?.params) {
-      return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Invalid request" },
+        { status: 400 },
+      );
     }
 
     const { userId } = await context.params;
@@ -133,7 +138,8 @@ async function handlePATCH(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to update member",
+        error:
+          error instanceof Error ? error.message : "Failed to update member",
       },
       { status: 500 },
     );
@@ -167,7 +173,10 @@ async function handleDELETE(
     }
 
     if (!context?.params) {
-      return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Invalid request" },
+        { status: 400 },
+      );
     }
 
     const { userId } = await context.params;
@@ -238,7 +247,8 @@ async function handleDELETE(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to remove member",
+        error:
+          error instanceof Error ? error.message : "Failed to remove member",
       },
       { status: 500 },
     );

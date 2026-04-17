@@ -7,7 +7,10 @@ import {
 } from "@/db/schemas/discord-channels";
 
 class DiscordChannelsRepository {
-  async findByGuild(organizationId: string, guildId: string): Promise<DiscordChannel[]> {
+  async findByGuild(
+    organizationId: string,
+    guildId: string,
+  ): Promise<DiscordChannel[]> {
     return dbRead
       .select()
       .from(discordChannels)
@@ -37,7 +40,10 @@ class DiscordChannelsRepository {
     return results[0];
   }
 
-  async findSendableByGuild(organizationId: string, guildId: string): Promise<DiscordChannel[]> {
+  async findSendableByGuild(
+    organizationId: string,
+    guildId: string,
+  ): Promise<DiscordChannel[]> {
     return dbRead
       .select()
       .from(discordChannels)
@@ -54,7 +60,10 @@ class DiscordChannelsRepository {
   async upsert(
     data: Omit<NewDiscordChannel, "id" | "created_at" | "updated_at">,
   ): Promise<DiscordChannel> {
-    const existing = await this.findByChannelId(data.organization_id, data.channel_id);
+    const existing = await this.findByChannelId(
+      data.organization_id,
+      data.channel_id,
+    );
 
     if (existing) {
       const [updated] = await dbWrite
@@ -75,7 +84,10 @@ class DiscordChannelsRepository {
       return updated;
     }
 
-    const [created] = await dbWrite.insert(discordChannels).values(data).returning();
+    const [created] = await dbWrite
+      .insert(discordChannels)
+      .values(data)
+      .returning();
     return created;
   }
 

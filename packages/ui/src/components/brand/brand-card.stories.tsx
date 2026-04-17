@@ -10,7 +10,13 @@ const meta: Meta<typeof BrandCard> = {
   tags: ["autodocs"],
   decorators: [
     (Story) => (
-      <div style={{ backgroundColor: "#0a0a0a", padding: "2rem", maxWidth: "400px" }}>
+      <div
+        style={{
+          backgroundColor: "#0a0a0a",
+          padding: "2rem",
+          maxWidth: "400px",
+        }}
+      >
         <Story />
       </div>
     ),

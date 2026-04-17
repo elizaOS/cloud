@@ -120,7 +120,9 @@ export function UploadsTab({
             description: `${data.successCount} file(s) uploaded. They will be processed when you save the character.`,
           });
           setSelectedFiles([]);
-          const fileInput = document.getElementById("uploads-tab-file-input") as HTMLInputElement;
+          const fileInput = document.getElementById(
+            "uploads-tab-file-input",
+          ) as HTMLInputElement;
           if (fileInput) fileInput.value = "";
         } else {
           const data = await response.json().catch(() => ({}));
@@ -152,7 +154,9 @@ export function UploadsTab({
         fetchDocuments();
 
         setSelectedFiles([]);
-        const fileInput = document.getElementById("uploads-tab-file-input") as HTMLInputElement;
+        const fileInput = document.getElementById(
+          "uploads-tab-file-input",
+        ) as HTMLInputElement;
         if (fileInput) fileInput.value = "";
       } else {
         const data = await response.json().catch(() => ({}));
@@ -187,7 +191,10 @@ export function UploadsTab({
   const handleDelete = async (documentId: string) => {
     if (!characterId) return;
 
-    const url = new URL(`/api/v1/knowledge/${documentId}`, window.location.origin);
+    const url = new URL(
+      `/api/v1/knowledge/${documentId}`,
+      window.location.origin,
+    );
     url.searchParams.set("characterId", characterId);
 
     const response = await fetch(url.toString(), {
@@ -243,7 +250,9 @@ export function UploadsTab({
 
   const getDocumentName = (doc: KnowledgeDocument): string => {
     return (
-      doc.metadata?.fileName || doc.metadata?.originalFilename || `Document ${doc.id.slice(0, 8)}`
+      doc.metadata?.fileName ||
+      doc.metadata?.originalFilename ||
+      `Document ${doc.id.slice(0, 8)}`
     );
   };
 
@@ -299,7 +308,9 @@ export function UploadsTab({
                   <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
                 </div>
                 <div>
-                  <p className="text-sm text-white/80 font-medium mb-1">Uploading files...</p>
+                  <p className="text-sm text-white/80 font-medium mb-1">
+                    Uploading files...
+                  </p>
                   <p className="text-xs text-white/50">Please wait</p>
                 </div>
               </div>
@@ -329,7 +340,8 @@ export function UploadsTab({
             {displayCount > 0 && (
               <span className="text-sm font-medium text-white/70">
                 {displayCount} {isPreUploadMode ? "file" : "document"}
-                {displayCount !== 1 ? "s" : ""} {isPreUploadMode ? "ready to process" : "uploaded"}
+                {displayCount !== 1 ? "s" : ""}{" "}
+                {isPreUploadMode ? "ready to process" : "uploaded"}
               </span>
             )}
             {!isPreUploadMode && (
@@ -340,7 +352,9 @@ export function UploadsTab({
                 disabled={loading}
                 className="text-white/50 hover:text-white hover:bg-white/10 rounded-xl ml-auto"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                />
                 Refresh
               </Button>
             )}
@@ -402,7 +416,9 @@ export function UploadsTab({
                         <p className="text-sm font-medium text-white/90 truncate">
                           {getDocumentName(doc)}
                         </p>
-                        <p className="text-xs text-white/50">{getDocumentAge(doc)}</p>
+                        <p className="text-xs text-white/50">
+                          {getDocumentAge(doc)}
+                        </p>
                       </div>
                     </div>
                     <Button

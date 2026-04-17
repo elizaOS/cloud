@@ -8,14 +8,27 @@
  */
 
 import { Badge } from "@elizaos/cloud-ui";
-import { AlertCircle, ArrowLeft, Cloud, ExternalLink, Server, Terminal } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Cloud,
+  ExternalLink,
+  Server,
+  Terminal,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
-import { formatHourlyRate, formatMonthlyEstimate } from "@/lib/constants/milady-pricing-display";
-import { statusBadgeColor, statusDotColor } from "@/lib/constants/sandbox-status";
+import {
+  formatHourlyRate,
+  formatMonthlyEstimate,
+} from "@/lib/constants/milady-pricing-display";
+import {
+  statusBadgeColor,
+  statusDotColor,
+} from "@/lib/constants/sandbox-status";
 import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
 import { adminService } from "@/lib/services/admin";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
@@ -32,7 +45,9 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { id } = await params;
   return {
     title: `Agent ${id.slice(0, 8)} — Instances`,
@@ -43,12 +58,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 function formatDate(date: Date | string | null): string {
   if (!date) return "—";
   const d = new Date(date);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function formatTime(date: Date | string | null): string {
   if (!date) return "";
-  return new Date(date).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return new Date(date).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatRelativeShort(date: Date | string | null): string {
@@ -76,7 +98,11 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   } catch (err) {
     // Relation/table missing or row not found → redirect; anything else → rethrow
     const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("does not exist") || msg.includes("not found") || msg.includes("relation")) {
+    if (
+      msg.includes("does not exist") ||
+      msg.includes("not found") ||
+      msg.includes("relation")
+    ) {
       redirect("/dashboard/milady");
     }
     throw err;
@@ -90,7 +116,9 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
 
   const isDockerBacked = !!agent.node_id;
   const webUiUrl = getPreferredMiladyAgentWebUiUrl(agent);
-  const sshCommand = agent.headscale_ip ? `ssh root@${agent.headscale_ip}` : null;
+  const sshCommand = agent.headscale_ip
+    ? `ssh root@${agent.headscale_ip}`
+    : null;
 
   const badgeColor = statusBadgeColor(agent.status);
   const dotColor = statusDotColor(agent.status);
@@ -109,7 +137,9 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           <span>Instances</span>
         </Link>
 
-        {webUiUrl && agent.status === "running" && <MiladyConnectButton agentId={agent.id} />}
+        {webUiUrl && agent.status === "running" && (
+          <MiladyConnectButton agentId={agent.id} />
+        )}
       </div>
 
       {/* ── Agent header ── */}
@@ -130,15 +160,24 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
               >
                 {agent.agent_name ?? "Unnamed Agent"}
               </h1>
-              <Badge variant="outline" className={`${badgeColor} text-xs font-medium px-2 py-0.5`}>
-                <span className={`inline-block size-1.5 rounded-full mr-1.5 ${dotColor}`} />
+              <Badge
+                variant="outline"
+                className={`${badgeColor} text-xs font-medium px-2 py-0.5`}
+              >
+                <span
+                  className={`inline-block size-1.5 rounded-full mr-1.5 ${dotColor}`}
+                />
                 {agent.status}
               </Badge>
             </div>
             <div className="flex items-center gap-3 text-xs text-white/35">
               <span className="font-mono tabular-nums">{agent.id}</span>
               <span className="inline-flex items-center gap-1">
-                {isDockerBacked ? <Server className="h-3 w-3" /> : <Cloud className="h-3 w-3" />}
+                {isDockerBacked ? (
+                  <Server className="h-3 w-3" />
+                ) : (
+                  <Cloud className="h-3 w-3" />
+                )}
                 {isDockerBacked ? "Docker" : "Sandbox"}
               </span>
             </div>
@@ -149,7 +188,9 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       {/* ── Key info strip ── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-px bg-white/5 border border-white/10">
         <div className="bg-black/60 p-4 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Status</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
+            Status
+          </p>
           <p
             className="text-lg font-medium text-white capitalize tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -158,7 +199,9 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           </p>
         </div>
         <div className="bg-black/60 p-4 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Database</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
+            Database
+          </p>
           <p
             className="text-lg font-medium text-white tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -174,7 +217,9 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         </div>
         {/* Cost */}
         <div className="bg-black/60 p-4 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Cost</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
+            Cost
+          </p>
           <p
             className="text-lg font-medium text-white tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -197,17 +242,23 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           )}
         </div>
         <div className="bg-black/60 p-4 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Created</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
+            Created
+          </p>
           <p
             className="text-lg font-medium text-white tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
           >
             {formatDate(agent.created_at)}
           </p>
-          <p className="text-[10px] text-white/30 tabular-nums">{formatTime(agent.created_at)}</p>
+          <p className="text-[10px] text-white/30 tabular-nums">
+            {formatTime(agent.created_at)}
+          </p>
         </div>
         <div className="bg-black/60 p-4 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Last Heartbeat</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
+            Last Heartbeat
+          </p>
           <p
             className="text-lg font-medium text-white tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -232,7 +283,8 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
             <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-red-400">
-                Error ({agent.error_count} occurrence{agent.error_count !== 1 ? "s" : ""})
+                Error ({agent.error_count} occurrence
+                {agent.error_count !== 1 ? "s" : ""})
               </p>
               <p className="text-sm text-red-400/70">{agent.error_message}</p>
             </div>
@@ -251,16 +303,37 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 border border-white/10">
               <InfoCell label="Node" value={agent.node_id ?? "—"} mono />
-              <InfoCell label="Container" value={agent.container_name ?? "—"} mono />
-              <InfoCell label="Docker Image" value={agent.docker_image ?? "—"} mono />
+              <InfoCell
+                label="Container"
+                value={agent.container_name ?? "—"}
+                mono
+              />
+              <InfoCell
+                label="Docker Image"
+                value={agent.docker_image ?? "—"}
+                mono
+              />
               {agent.headscale_ip && (
-                <InfoCell label="VPN IP" value={agent.headscale_ip} mono accent="emerald" />
+                <InfoCell
+                  label="VPN IP"
+                  value={agent.headscale_ip}
+                  mono
+                  accent="emerald"
+                />
               )}
               {agent.bridge_port && (
-                <InfoCell label="Bridge Port" value={String(agent.bridge_port)} mono />
+                <InfoCell
+                  label="Bridge Port"
+                  value={String(agent.bridge_port)}
+                  mono
+                />
               )}
               {agent.web_ui_port && (
-                <InfoCell label="Web UI Port" value={String(agent.web_ui_port)} mono />
+                <InfoCell
+                  label="Web UI Port"
+                  value={String(agent.web_ui_port)}
+                  mono
+                />
               )}
             </div>
 
@@ -269,7 +342,9 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
                 <span className="text-[11px] uppercase tracking-widest text-white/35 shrink-0">
                   Web UI
                 </span>
-                <span className="text-white/50 font-mono text-xs break-all">{webUiUrl}</span>
+                <span className="text-white/50 font-mono text-xs break-all">
+                  {webUiUrl}
+                </span>
               </div>
             )}
           </section>
@@ -394,7 +469,9 @@ function InfoCell({
 
   return (
     <div className="bg-black/60 p-4 space-y-1 min-w-0">
-      <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">{label}</p>
+      <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
+        {label}
+      </p>
       <p
         className={`text-sm font-medium ${valueColor} break-all ${mono ? "font-mono" : ""}`}
         style={mono ? { fontFamily: "var(--font-roboto-mono)" } : undefined}

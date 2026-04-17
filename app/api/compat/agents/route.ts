@@ -4,7 +4,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { envelope, toCompatAgent, toCompatCreateResult } from "@/lib/api/compat-envelope";
+import {
+  envelope,
+  toCompatAgent,
+  toCompatCreateResult,
+} from "@/lib/api/compat-envelope";
 import { stripReservedMiladyConfigKeys } from "@/lib/services/milady-agent-config";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
@@ -60,7 +64,9 @@ export async function POST(request: NextRequest) {
 
     // Strip reserved __milady* keys from user-supplied agentConfig to prevent
     // callers from spoofing internal lifecycle flags.
-    const sanitizedConfig = stripReservedMiladyConfigKeys(parsed.data.agentConfig);
+    const sanitizedConfig = stripReservedMiladyConfigKeys(
+      parsed.data.agentConfig,
+    );
 
     let agent = await miladySandboxService.createAgent({
       organizationId: user.organization_id,
@@ -78,7 +84,10 @@ export async function POST(request: NextRequest) {
     let provisionWarning: string | undefined;
     if (process.env.WAIFU_AUTO_PROVISION === "true") {
       try {
-        const result = await miladySandboxService.provision(agent.id, user.organization_id);
+        const result = await miladySandboxService.provision(
+          agent.id,
+          user.organization_id,
+        );
         if (result.success && result.sandboxRecord) {
           agent = result.sandboxRecord;
         } else if (!result.success) {
@@ -104,7 +113,10 @@ export async function POST(request: NextRequest) {
       ? { ...envelope(data), warning: provisionWarning }
       : envelope(data);
 
-    return withCompatCors(NextResponse.json(responseBody, { status: 201 }), CORS_METHODS);
+    return withCompatCors(
+      NextResponse.json(responseBody, { status: 201 }),
+      CORS_METHODS,
+    );
   } catch (err) {
     return handleCompatError(err, CORS_METHODS);
   }

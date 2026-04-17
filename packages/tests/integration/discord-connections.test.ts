@@ -15,7 +15,8 @@ import { config } from "dotenv";
 const preservedHarnessEnv = {
   CACHE_ENABLED: process.env.CACHE_ENABLED,
   DATABASE_URL: process.env.DATABASE_URL,
-  DISABLE_LOCAL_DOCKER_DB_FALLBACK: process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK,
+  DISABLE_LOCAL_DOCKER_DB_FALLBACK:
+    process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   NODE_ENV: process.env.NODE_ENV,
   REDIS_URL: process.env.REDIS_URL,
@@ -39,7 +40,9 @@ for (const [key, value] of Object.entries(preservedHarnessEnv)) {
 }
 
 const SERVER_URL =
-  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
+  process.env.TEST_BASE_URL ||
+  process.env.TEST_SERVER_URL ||
+  "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
 const TEST_CHARACTER_ID = process.env.TEST_CHARACTER_ID;
 
@@ -51,7 +54,9 @@ let hasTestCharacter = false;
 
 beforeAll(async () => {
   if (!API_KEY) {
-    console.log("[Discord Connections Tests] No TEST_API_KEY set - auth tests will skip");
+    console.log(
+      "[Discord Connections Tests] No TEST_API_KEY set - auth tests will skip",
+    );
     return;
   }
 
@@ -67,7 +72,9 @@ beforeAll(async () => {
   if (TEST_CHARACTER_ID) {
     hasTestCharacter = true;
   } else {
-    console.log("[Discord Connections Tests] No TEST_CHARACTER_ID set - creation tests will skip");
+    console.log(
+      "[Discord Connections Tests] No TEST_CHARACTER_ID set - creation tests will skip",
+    );
   }
 });
 
@@ -329,11 +336,15 @@ describe("Discord Connections Get by ID API", () => {
 
     // First create a connection
     const applicationId = `test-get-${Date.now()}`;
-    const createRes = await fetchWithAuth("/api/v1/discord/connections", "POST", {
-      applicationId,
-      botToken: `test-token-${Date.now()}`,
-      characterId: TEST_CHARACTER_ID,
-    });
+    const createRes = await fetchWithAuth(
+      "/api/v1/discord/connections",
+      "POST",
+      {
+        applicationId,
+        botToken: `test-token-${Date.now()}`,
+        characterId: TEST_CHARACTER_ID,
+      },
+    );
 
     if (createRes.status !== 200) return;
 
@@ -342,7 +353,9 @@ describe("Discord Connections Get by ID API", () => {
     createdConnectionIds.push(connectionId);
 
     // Now get the connection
-    const res = await fetchWithAuth(`/api/v1/discord/connections/${connectionId}`);
+    const res = await fetchWithAuth(
+      `/api/v1/discord/connections/${connectionId}`,
+    );
     expect(res.status).toBe(200);
 
     const data = await res.json();
@@ -381,11 +394,15 @@ describe("Discord Connections Update API", () => {
     if (!apiKeyValid || !hasTestCharacter) return;
 
     // First create a connection
-    const createRes = await fetchWithAuth("/api/v1/discord/connections", "POST", {
-      applicationId: `test-update-${Date.now()}`,
-      botToken: `test-token-${Date.now()}`,
-      characterId: TEST_CHARACTER_ID,
-    });
+    const createRes = await fetchWithAuth(
+      "/api/v1/discord/connections",
+      "POST",
+      {
+        applicationId: `test-update-${Date.now()}`,
+        botToken: `test-token-${Date.now()}`,
+        characterId: TEST_CHARACTER_ID,
+      },
+    );
 
     if (createRes.status !== 200) return;
 
@@ -394,9 +411,13 @@ describe("Discord Connections Update API", () => {
     createdConnectionIds.push(connectionId);
 
     // Update the connection
-    const res = await fetchWithAuth(`/api/v1/discord/connections/${connectionId}`, "PATCH", {
-      isActive: false,
-    });
+    const res = await fetchWithAuth(
+      `/api/v1/discord/connections/${connectionId}`,
+      "PATCH",
+      {
+        isActive: false,
+      },
+    );
     expect(res.status).toBe(200);
 
     const data = await res.json();
@@ -408,12 +429,16 @@ describe("Discord Connections Update API", () => {
     if (!apiKeyValid || !hasTestCharacter) return;
 
     // First create a connection
-    const createRes = await fetchWithAuth("/api/v1/discord/connections", "POST", {
-      applicationId: `test-update-meta-${Date.now()}`,
-      botToken: `test-token-${Date.now()}`,
-      characterId: TEST_CHARACTER_ID,
-      metadata: { responseMode: "always" },
-    });
+    const createRes = await fetchWithAuth(
+      "/api/v1/discord/connections",
+      "POST",
+      {
+        applicationId: `test-update-meta-${Date.now()}`,
+        botToken: `test-token-${Date.now()}`,
+        characterId: TEST_CHARACTER_ID,
+        metadata: { responseMode: "always" },
+      },
+    );
 
     if (createRes.status !== 200) return;
 
@@ -422,9 +447,13 @@ describe("Discord Connections Update API", () => {
     createdConnectionIds.push(connectionId);
 
     // Update the metadata
-    const res = await fetchWithAuth(`/api/v1/discord/connections/${connectionId}`, "PATCH", {
-      metadata: { responseMode: "mention" },
-    });
+    const res = await fetchWithAuth(
+      `/api/v1/discord/connections/${connectionId}`,
+      "PATCH",
+      {
+        metadata: { responseMode: "mention" },
+      },
+    );
     expect(res.status).toBe(200);
 
     const data = await res.json();
@@ -456,11 +485,15 @@ describe("Discord Connections Delete API", () => {
     if (!apiKeyValid || !hasTestCharacter) return;
 
     // First create a connection
-    const createRes = await fetchWithAuth("/api/v1/discord/connections", "POST", {
-      applicationId: `test-delete-${Date.now()}`,
-      botToken: `test-token-${Date.now()}`,
-      characterId: TEST_CHARACTER_ID,
-    });
+    const createRes = await fetchWithAuth(
+      "/api/v1/discord/connections",
+      "POST",
+      {
+        applicationId: `test-delete-${Date.now()}`,
+        botToken: `test-token-${Date.now()}`,
+        characterId: TEST_CHARACTER_ID,
+      },
+    );
 
     if (createRes.status !== 200) return;
 
@@ -468,7 +501,10 @@ describe("Discord Connections Delete API", () => {
     const connectionId = createData.connection.id;
 
     // Delete the connection
-    const res = await fetchWithAuth(`/api/v1/discord/connections/${connectionId}`, "DELETE");
+    const res = await fetchWithAuth(
+      `/api/v1/discord/connections/${connectionId}`,
+      "DELETE",
+    );
     expect(res.status).toBe(200);
 
     const data = await res.json();
@@ -476,7 +512,9 @@ describe("Discord Connections Delete API", () => {
     expect(data).toHaveProperty("message");
 
     // Verify it's deleted
-    const getRes = await fetchWithAuth(`/api/v1/discord/connections/${connectionId}`);
+    const getRes = await fetchWithAuth(
+      `/api/v1/discord/connections/${connectionId}`,
+    );
     expect(getRes.status).toBe(404);
   });
 });

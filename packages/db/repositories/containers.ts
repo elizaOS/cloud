@@ -87,11 +87,19 @@ export class ContainersRepository {
   /**
    * Finds a container by ID within an organization.
    */
-  async findById(id: string, organizationId: string): Promise<Container | null> {
+  async findById(
+    id: string,
+    organizationId: string,
+  ): Promise<Container | null> {
     const results = await dbRead
       .select()
       .from(containers)
-      .where(and(eq(containers.id, id), eq(containers.organization_id, organizationId)))
+      .where(
+        and(
+          eq(containers.id, id),
+          eq(containers.organization_id, organizationId),
+        ),
+      )
       .limit(1);
 
     return results[0] || null;
@@ -175,7 +183,9 @@ export class ContainersRepository {
       allowed,
       current: count,
       max: maxContainers,
-      error: allowed ? undefined : `Container quota exceeded (${count}/${maxContainers})`,
+      error: allowed
+        ? undefined
+        : `Container quota exceeded (${count}/${maxContainers})`,
     };
   }
 
@@ -212,7 +222,12 @@ export class ContainersRepository {
         ...data,
         updated_at: new Date(),
       })
-      .where(and(eq(containers.id, id), eq(containers.organization_id, organizationId)))
+      .where(
+        and(
+          eq(containers.id, id),
+          eq(containers.organization_id, organizationId),
+        ),
+      )
       .returning();
 
     return updated || null;
@@ -224,7 +239,12 @@ export class ContainersRepository {
   async delete(id: string, organizationId: string): Promise<boolean> {
     const results = await dbWrite
       .delete(containers)
-      .where(and(eq(containers.id, id), eq(containers.organization_id, organizationId)))
+      .where(
+        and(
+          eq(containers.id, id),
+          eq(containers.organization_id, organizationId),
+        ),
+      )
       .returning();
 
     return results.length > 0;
@@ -273,7 +293,10 @@ export class ContainersRepository {
    * Prevents race conditions where multiple concurrent requests could bypass quota limits.
    * Uses row-level locking (FOR UPDATE) to ensure atomicity.
    */
-  async createWithQuotaCheck(data: NewContainer, transaction?: Database): Promise<Container> {
+  async createWithQuotaCheck(
+    data: NewContainer,
+    transaction?: Database,
+  ): Promise<Container> {
     const executeInTransaction = async (tx: Database) => {
       // 1. Lock the organization row to prevent concurrent quota checks
       const [org] = await tx
@@ -352,7 +375,10 @@ export class ContainersRepository {
   ): Promise<{ container: Container; newBalance: number }> {
     return await dbWrite.transaction(async (tx) => {
       // Create container with quota check
-      const container = await this.createWithQuotaCheck(containerData, tx as typeof dbWrite);
+      const container = await this.createWithQuotaCheck(
+        containerData,
+        tx as typeof dbWrite,
+      );
 
       // Check and deduct credits
       const org = await tx.query.organizations.findFirst({

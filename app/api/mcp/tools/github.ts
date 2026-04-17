@@ -25,7 +25,9 @@ async function getGitHubToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("GitHub account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "GitHub account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
@@ -57,7 +59,9 @@ function errMsg(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function buildQuery(params: Record<string, string | number | boolean | undefined>) {
+function buildQuery(
+  params: Record<string, string | number | boolean | undefined>,
+) {
   const sp = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined) sp.set(key, String(value));
@@ -218,7 +222,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}`, { method: "DELETE" });
+        const data = await githubFetch(`/repos/${owner}/${repo}`, {
+          method: "DELETE",
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete repo"));
@@ -245,7 +251,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, ...params }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/issues${buildQuery(params)}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/issues${buildQuery(params)}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list issues"));
@@ -265,7 +273,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, issue_number }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/issues/${issue_number}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/issues/${issue_number}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get issue"));
@@ -318,10 +328,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, issue_number, ...rest }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/issues/${issue_number}`, {
-          method: "PATCH",
-          body: JSON.stringify(rest),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/issues/${issue_number}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify(rest),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update issue"));
@@ -341,10 +354,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, issue_number }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/issues/${issue_number}`, {
-          method: "PATCH",
-          body: JSON.stringify({ state: "closed" }),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/issues/${issue_number}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ state: "closed" }),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to close issue"));
@@ -365,10 +381,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, issue_number, lock_reason }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/issues/${issue_number}/lock`, {
-          method: "PUT",
-          body: lock_reason ? JSON.stringify({ lock_reason }) : undefined,
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/issues/${issue_number}/lock`,
+          {
+            method: "PUT",
+            body: lock_reason ? JSON.stringify({ lock_reason }) : undefined,
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to lock issue"));
@@ -413,10 +432,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, issue_number, body }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/issues/${issue_number}/comments`, {
-          method: "POST",
-          body: JSON.stringify({ body }),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/issues/${issue_number}/comments`,
+          {
+            method: "POST",
+            body: JSON.stringify({ body }),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create issue comment"));
@@ -437,10 +459,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, comment_id, body }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/issues/comments/${comment_id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ body }),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/issues/comments/${comment_id}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ body }),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update issue comment"));
@@ -460,9 +485,12 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, comment_id }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/issues/comments/${comment_id}`, {
-          method: "DELETE",
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/issues/comments/${comment_id}`,
+          {
+            method: "DELETE",
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete issue comment"));
@@ -488,7 +516,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, ...params }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/pulls${buildQuery(params)}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/pulls${buildQuery(params)}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list PRs"));
@@ -508,7 +538,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, pull_number }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/pulls/${pull_number}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/pulls/${pull_number}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get PR"));
@@ -560,10 +592,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, pull_number, ...rest }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/pulls/${pull_number}`, {
-          method: "PATCH",
-          body: JSON.stringify(rest),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/pulls/${pull_number}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify(rest),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update PR"));
@@ -584,12 +619,26 @@ export function registerGitHubTools(server: McpServer): void {
         merge_method: z.string().optional(),
       },
     },
-    async ({ owner, repo, pull_number, commit_title, commit_message, merge_method }) => {
+    async ({
+      owner,
+      repo,
+      pull_number,
+      commit_title,
+      commit_message,
+      merge_method,
+    }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/pulls/${pull_number}/merge`, {
-          method: "PUT",
-          body: JSON.stringify({ commit_title, commit_message, merge_method }),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/pulls/${pull_number}/merge`,
+          {
+            method: "PUT",
+            body: JSON.stringify({
+              commit_title,
+              commit_message,
+              merge_method,
+            }),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to merge PR"));
@@ -636,10 +685,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, pull_number, body, event, comments }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/pulls/${pull_number}/reviews`, {
-          method: "POST",
-          body: JSON.stringify({ body, event, comments }),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/pulls/${pull_number}/reviews`,
+          {
+            method: "POST",
+            body: JSON.stringify({ body, event, comments }),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create PR review"));
@@ -763,7 +815,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, ...params }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/milestones${buildQuery(params)}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/milestones${buildQuery(params)}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list milestones"));
@@ -813,10 +867,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, milestone_number, ...rest }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/milestones/${milestone_number}`, {
-          method: "PATCH",
-          body: JSON.stringify(rest),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/milestones/${milestone_number}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify(rest),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update milestone"));
@@ -836,9 +893,12 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, milestone_number }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/milestones/${milestone_number}`, {
-          method: "DELETE",
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/milestones/${milestone_number}`,
+          {
+            method: "DELETE",
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete milestone"));
@@ -857,7 +917,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ per_page, page }) => {
       try {
-        const data = await githubFetch(`/user/orgs${buildQuery({ per_page, page })}`);
+        const data = await githubFetch(
+          `/user/orgs${buildQuery({ per_page, page })}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list orgs"));
@@ -895,7 +957,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ org, per_page, page }) => {
       try {
-        const data = await githubFetch(`/orgs/${org}/members${buildQuery({ per_page, page })}`);
+        const data = await githubFetch(
+          `/orgs/${org}/members${buildQuery({ per_page, page })}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list org members"));
@@ -915,7 +979,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ org, per_page, page }) => {
       try {
-        const data = await githubFetch(`/orgs/${org}/teams${buildQuery({ per_page, page })}`);
+        const data = await githubFetch(
+          `/orgs/${org}/teams${buildQuery({ per_page, page })}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list teams"));
@@ -1022,9 +1088,12 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, branch }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
-          method: "DELETE",
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/git/refs/heads/${branch}`,
+          {
+            method: "DELETE",
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete branch"));
@@ -1050,7 +1119,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, ...params }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/commits${buildQuery(params)}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/commits${buildQuery(params)}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list commits"));
@@ -1070,7 +1141,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, ref }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/commits/${ref}`);
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/commits/${ref}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get commit"));
@@ -1116,13 +1189,31 @@ export function registerGitHubTools(server: McpServer): void {
         author: z.record(z.string(), z.any()).optional(),
       },
     },
-    async ({ owner, repo, path, message, content, branch, committer, author }) => {
+    async ({
+      owner,
+      repo,
+      path,
+      message,
+      content,
+      branch,
+      committer,
+      author,
+    }) => {
       try {
         const encodedContent = Buffer.from(content).toString("base64");
-        const data = await githubFetch(`/repos/${owner}/${repo}/contents/${path}`, {
-          method: "PUT",
-          body: JSON.stringify({ message, content: encodedContent, branch, committer, author }),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/contents/${path}`,
+          {
+            method: "PUT",
+            body: JSON.stringify({
+              message,
+              content: encodedContent,
+              branch,
+              committer,
+              author,
+            }),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create file"));
@@ -1146,20 +1237,33 @@ export function registerGitHubTools(server: McpServer): void {
         author: z.record(z.string(), z.any()).optional(),
       },
     },
-    async ({ owner, repo, path, message, content, sha, branch, committer, author }) => {
+    async ({
+      owner,
+      repo,
+      path,
+      message,
+      content,
+      sha,
+      branch,
+      committer,
+      author,
+    }) => {
       try {
         const encodedContent = Buffer.from(content).toString("base64");
-        const data = await githubFetch(`/repos/${owner}/${repo}/contents/${path}`, {
-          method: "PUT",
-          body: JSON.stringify({
-            message,
-            content: encodedContent,
-            sha,
-            branch,
-            committer,
-            author,
-          }),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/contents/${path}`,
+          {
+            method: "PUT",
+            body: JSON.stringify({
+              message,
+              content: encodedContent,
+              sha,
+              branch,
+              committer,
+              author,
+            }),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update file"));
@@ -1184,10 +1288,13 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, path, message, sha, branch, committer, author }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/contents/${path}`, {
-          method: "DELETE",
-          body: JSON.stringify({ message, sha, branch, committer, author }),
-        });
+        const data = await githubFetch(
+          `/repos/${owner}/${repo}/contents/${path}`,
+          {
+            method: "DELETE",
+            body: JSON.stringify({ message, sha, branch, committer, author }),
+          },
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete file"));

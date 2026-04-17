@@ -31,7 +31,11 @@ import {
 import { Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { type ClientApiKey, copyApiKeyToClipboard, listClientApiKeys } from "@/lib/client/api-keys";
+import {
+  type ClientApiKey,
+  copyApiKeyToClipboard,
+  listClientApiKeys,
+} from "@/lib/client/api-keys";
 import type { UserWithOrganization } from "@/lib/types";
 
 interface ApisTabProps {
@@ -153,7 +157,9 @@ export function ApisTab({ user }: ApisTabProps) {
       await copyApiKeyToClipboard(apiKey);
       toast.success("Full API key copied to clipboard");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to copy API key");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to copy API key",
+      );
     }
   };
 
@@ -164,7 +170,9 @@ export function ApisTab({ user }: ApisTabProps) {
       await copyApiKeyToClipboard(modalState.newlyCreatedKey);
       toast.success("Full API key copied to clipboard");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to copy API key");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to copy API key",
+      );
     }
   };
 
@@ -206,14 +214,20 @@ export function ApisTab({ user }: ApisTabProps) {
             <div className="flex flex-col gap-2 max-w-[850px]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-base font-mono text-[#e1e1e1] uppercase">API keys</h3>
+                <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
+                  API keys
+                </h3>
               </div>
               <div className="text-xs md:text-sm font-mono text-[#858585] tracking-tight space-y-2">
-                <p>You have permission to view and manage all API Keys in this project.</p>
                 <p>
-                  Do not share your API Key with others or expose it in the browser or other
-                  client-side code. To protect your account&apos;s security, Eliza may automatically
-                  disable any API Key that has leaked publicly.
+                  You have permission to view and manage all API Keys in this
+                  project.
+                </p>
+                <p>
+                  Do not share your API Key with others or expose it in the
+                  browser or other client-side code. To protect your
+                  account&apos;s security, Eliza may automatically disable any
+                  API Key that has leaked publicly.
                 </p>
                 <p>
                   View usage per Key on the{" "}
@@ -273,17 +287,23 @@ export function ApisTab({ user }: ApisTabProps) {
                             {apiKey.name}
                           </h4>
                           <span className="px-2 py-0.5 bg-[rgba(255,88,0,0.25)] border border-[#FF5800]/40 text-[#FF5800] text-xs font-mono uppercase flex-shrink-0">
-                            {apiKey.permissions.length > 0 ? apiKey.permissions.join(", ") : "All"}
+                            {apiKey.permissions.length > 0
+                              ? apiKey.permissions.join(", ")
+                              : "All"}
                           </span>
                         </div>
                         {apiKey.description && (
-                          <p className="text-xs font-mono text-white/40">{apiKey.description}</p>
+                          <p className="text-xs font-mono text-white/40">
+                            {apiKey.description}
+                          </p>
                         )}
                       </div>
 
                       {/* Secret Key with Copy */}
                       <div className="space-y-2">
-                        <p className="text-xs font-mono text-white/40 uppercase">Secret Key</p>
+                        <p className="text-xs font-mono text-white/40 uppercase">
+                          Secret Key
+                        </p>
                         <div className="flex items-center gap-2">
                           <div className="bg-[rgba(255,255,255,0.03)] border border-white/10 px-3 py-2 flex-1">
                             <p className="text-sm font-mono text-white/80 break-all">
@@ -303,21 +323,30 @@ export function ApisTab({ user }: ApisTabProps) {
                       {/* Info Grid */}
                       <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/10">
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">Created</p>
+                          <p className="text-xs font-mono text-white/40 uppercase">
+                            Created
+                          </p>
                           <p className="text-xs font-mono text-white/80">
-                            {new Date(apiKey.created_at).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            {new Date(apiKey.created_at).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
                           </p>
                         </div>
 
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">Last used</p>
+                          <p className="text-xs font-mono text-white/40 uppercase">
+                            Last used
+                          </p>
                           <p className="text-xs font-mono text-white/80">
                             {apiKey.last_used_at
-                              ? new Date(apiKey.last_used_at).toLocaleDateString("en-US", {
+                              ? new Date(
+                                  apiKey.last_used_at,
+                                ).toLocaleDateString("en-US", {
                                   year: "numeric",
                                   month: "short",
                                   day: "numeric",
@@ -327,14 +356,18 @@ export function ApisTab({ user }: ApisTabProps) {
                         </div>
 
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">Usage Count</p>
+                          <p className="text-xs font-mono text-white/40 uppercase">
+                            Usage Count
+                          </p>
                           <p className="text-xs font-mono text-white/80">
                             {apiKey.usage_count.toLocaleString()}
                           </p>
                         </div>
 
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">Status</p>
+                          <p className="text-xs font-mono text-white/40 uppercase">
+                            Status
+                          </p>
                           <p className="text-xs font-mono text-white/80">
                             {apiKey.is_active ? (
                               <span className="text-green-400">Active</span>
@@ -349,19 +382,25 @@ export function ApisTab({ user }: ApisTabProps) {
                       <div className="flex items-center gap-2 pt-2 border-t border-white/10">
                         <button
                           type="button"
-                          onClick={() => handleDeleteKey(apiKey.id, apiKey.name)}
+                          onClick={() =>
+                            handleDeleteKey(apiKey.id, apiKey.name)
+                          }
                           disabled={operationState.deletingKeyId === apiKey.id}
                           className="flex-1 px-4 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                           {operationState.deletingKeyId === apiKey.id ? (
                             <>
                               <Loader2 className="h-4 w-4 animate-spin text-[#EB4335]" />
-                              <span className="text-xs font-mono text-[#EB4335]">Deleting...</span>
+                              <span className="text-xs font-mono text-[#EB4335]">
+                                Deleting...
+                              </span>
                             </>
                           ) : (
                             <>
                               <Trash2 className="h-4 w-4 text-[#EB4335]" />
-                              <span className="text-xs font-mono text-[#EB4335]">Delete</span>
+                              <span className="text-xs font-mono text-[#EB4335]">
+                                Delete
+                              </span>
                             </>
                           )}
                         </button>
@@ -423,21 +462,30 @@ export function ApisTab({ user }: ApisTabProps) {
                           {/* Metadata */}
                           <div className="flex gap-6">
                             <div className="space-y-1">
-                              <p className="text-xs font-mono text-white/40 uppercase">Created</p>
+                              <p className="text-xs font-mono text-white/40 uppercase">
+                                Created
+                              </p>
                               <p className="text-xs font-mono text-white/80">
-                                {new Date(apiKey.created_at).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })}
+                                {new Date(apiKey.created_at).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  },
+                                )}
                               </p>
                             </div>
 
                             <div className="space-y-1">
-                              <p className="text-xs font-mono text-white/40 uppercase">Last Used</p>
+                              <p className="text-xs font-mono text-white/40 uppercase">
+                                Last Used
+                              </p>
                               <p className="text-xs font-mono text-white/80">
                                 {apiKey.last_used_at
-                                  ? new Date(apiKey.last_used_at).toLocaleDateString("en-US", {
+                                  ? new Date(
+                                      apiKey.last_used_at,
+                                    ).toLocaleDateString("en-US", {
                                       year: "numeric",
                                       month: "short",
                                       day: "numeric",
@@ -447,7 +495,9 @@ export function ApisTab({ user }: ApisTabProps) {
                             </div>
 
                             <div className="space-y-1">
-                              <p className="text-xs font-mono text-white/40 uppercase">Usage</p>
+                              <p className="text-xs font-mono text-white/40 uppercase">
+                                Usage
+                              </p>
                               <p className="text-xs font-mono text-white/80">
                                 {apiKey.usage_count.toLocaleString()}
                               </p>
@@ -457,8 +507,12 @@ export function ApisTab({ user }: ApisTabProps) {
                           {/* Delete Action */}
                           <button
                             type="button"
-                            onClick={() => handleDeleteKey(apiKey.id, apiKey.name)}
-                            disabled={operationState.deletingKeyId === apiKey.id}
+                            onClick={() =>
+                              handleDeleteKey(apiKey.id, apiKey.name)
+                            }
+                            disabled={
+                              operationState.deletingKeyId === apiKey.id
+                            }
                             className="px-3 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50 group"
                             title="Delete API key"
                           >
@@ -482,11 +536,15 @@ export function ApisTab({ user }: ApisTabProps) {
       {/* Create Key Dialog */}
       <Dialog
         open={modalState.showCreateModal}
-        onOpenChange={(open) => !open && updateModal({ showCreateModal: false })}
+        onOpenChange={(open) =>
+          !open && updateModal({ showCreateModal: false })
+        }
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-mono uppercase">Create API Key</DialogTitle>
+            <DialogTitle className="font-mono uppercase">
+              Create API Key
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -501,7 +559,9 @@ export function ApisTab({ user }: ApisTabProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-white font-mono text-sm">Description (optional)</Label>
+              <Label className="text-white font-mono text-sm">
+                Description (optional)
+              </Label>
               <Textarea
                 value={formState.description}
                 onChange={(e) => updateForm({ description: e.target.value })}
@@ -556,7 +616,9 @@ export function ApisTab({ user }: ApisTabProps) {
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-mono uppercase">Save Your API Key</DialogTitle>
+            <DialogTitle className="font-mono uppercase">
+              Save Your API Key
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-[rgba(255,88,0,0.1)] border border-[#FF5800] p-4">
@@ -579,7 +641,9 @@ export function ApisTab({ user }: ApisTabProps) {
                   title="Copy to clipboard"
                 >
                   <Copy className="h-5 w-5 text-black" />
-                  <span className="text-black font-mono text-sm sm:hidden">Copy</span>
+                  <span className="text-black font-mono text-sm sm:hidden">
+                    Copy
+                  </span>
                 </button>
               </div>
             </div>
@@ -587,7 +651,9 @@ export function ApisTab({ user }: ApisTabProps) {
           <DialogFooter>
             <button
               type="button"
-              onClick={() => updateModal({ showKeyModal: false, newlyCreatedKey: null })}
+              onClick={() =>
+                updateModal({ showKeyModal: false, newlyCreatedKey: null })
+              }
               className="relative bg-[#e1e1e1] px-6 py-3 overflow-hidden hover:bg-white transition-colors"
             >
               <div
@@ -614,8 +680,8 @@ export function ApisTab({ user }: ApisTabProps) {
           <AlertDialogHeaderComp>
             <AlertDialogTitleComp>Delete API Key</AlertDialogTitleComp>
             <AlertDialogDescComp>
-              Are you sure you want to delete the API key "{deleteTarget?.name}"? This action cannot
-              be undone.
+              Are you sure you want to delete the API key "{deleteTarget?.name}
+              "? This action cannot be undone.
             </AlertDialogDescComp>
           </AlertDialogHeaderComp>
           <AlertDialogFooterComp>

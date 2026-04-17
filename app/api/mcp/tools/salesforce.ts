@@ -34,7 +34,9 @@ async function getSalesforceToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("Salesforce account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "Salesforce account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
@@ -42,13 +44,19 @@ async function getSalesforceToken(): Promise<string> {
  * Resolve the Salesforce instance URL for an org.
  * Calls the userinfo endpoint and extracts the custom_domain or profile base URL.
  */
-async function resolveInstanceUrl(token: string, orgId: string): Promise<string> {
+async function resolveInstanceUrl(
+  token: string,
+  orgId: string,
+): Promise<string> {
   const cached = instanceUrlCache.get(orgId);
   if (cached && cached.expiresAt > Date.now()) return cached.url;
 
-  const res = await fetch("https://login.salesforce.com/services/oauth2/userinfo", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await fetch(
+    "https://login.salesforce.com/services/oauth2/userinfo",
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
 
   if (!res.ok) {
     throw new Error(`Failed to resolve Salesforce instance URL: ${res.status}`);
@@ -65,11 +73,16 @@ async function resolveInstanceUrl(token: string, orgId: string): Promise<string>
   }
 
   if (!instanceUrl) {
-    throw new Error("Could not determine Salesforce instance URL from userinfo response");
+    throw new Error(
+      "Could not determine Salesforce instance URL from userinfo response",
+    );
   }
 
   instanceUrl = instanceUrl.replace(/\/$/, "");
-  instanceUrlCache.set(orgId, { url: instanceUrl, expiresAt: Date.now() + INSTANCE_URL_TTL_MS });
+  instanceUrlCache.set(orgId, {
+    url: instanceUrl,
+    expiresAt: Date.now() + INSTANCE_URL_TTL_MS,
+  });
 
   return instanceUrl;
 }
@@ -135,7 +148,8 @@ export function registerSalesforceTools(server: McpServer): void {
         if (!active) {
           return jsonResponse({
             connected: false,
-            message: "Salesforce not connected. Connect in Settings > Connections.",
+            message:
+              "Salesforce not connected. Connect in Settings > Connections.",
           });
         }
         return jsonResponse({
@@ -247,7 +261,9 @@ export function registerSalesforceTools(server: McpServer): void {
     },
     async () => {
       try {
-        const data = await salesforceFetch(`/services/data/${SALESFORCE_API_VERSION}/sobjects`);
+        const data = await salesforceFetch(
+          `/services/data/${SALESFORCE_API_VERSION}/sobjects`,
+        );
         const objects = data.sobjects?.map((obj: Record<string, unknown>) => ({
           name: obj.name,
           label: obj.label,
@@ -297,7 +313,8 @@ export function registerSalesforceTools(server: McpServer): void {
                   .filter((v: Record<string, unknown>) => v.active)
                   .map((v: Record<string, unknown>) => v.value)
               : undefined,
-          referenceTo: (f.referenceTo as string[])?.length > 0 ? f.referenceTo : undefined,
+          referenceTo:
+            (f.referenceTo as string[])?.length > 0 ? f.referenceTo : undefined,
         }));
         return jsonResponse({
           name: data.name,
@@ -320,12 +337,20 @@ export function registerSalesforceTools(server: McpServer): void {
       description:
         "Get a single Salesforce record by its ID. Optionally specify which fields to return.",
       inputSchema: {
-        objectName: z.string().min(1).describe("API name of the SObject, e.g. Account, Contact"),
-        recordId: z.string().min(1).describe("The 15 or 18-character Salesforce record ID"),
+        objectName: z
+          .string()
+          .min(1)
+          .describe("API name of the SObject, e.g. Account, Contact"),
+        recordId: z
+          .string()
+          .min(1)
+          .describe("The 15 or 18-character Salesforce record ID"),
         fields: z
           .array(z.string())
           .optional()
-          .describe("Specific fields to return. If omitted, returns all accessible fields."),
+          .describe(
+            "Specific fields to return. If omitted, returns all accessible fields.",
+          ),
       },
     },
     async ({ objectName, recordId, fields }) => {
@@ -369,7 +394,10 @@ export function registerSalesforceTools(server: McpServer): void {
             body: JSON.stringify(fields),
           },
         );
-        logger.info("[SalesforceMCP] Record created", { objectName, id: data.id });
+        logger.info("[SalesforceMCP] Record created", {
+          objectName,
+          id: data.id,
+        });
         return jsonResponse({ success: data.success, id: data.id });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create record"));
@@ -384,11 +412,16 @@ export function registerSalesforceTools(server: McpServer): void {
       description:
         "Update fields on an existing Salesforce record. Only include the fields you want to change.",
       inputSchema: {
-        objectName: z.string().min(1).describe("API name of the SObject, e.g. Account, Contact"),
+        objectName: z
+          .string()
+          .min(1)
+          .describe("API name of the SObject, e.g. Account, Contact"),
         recordId: z.string().min(1).describe("The record ID to update"),
         fields: z
           .record(z.any())
-          .describe("Fields to update, e.g. { Industry: 'Finance', Phone: '555-1234' }"),
+          .describe(
+            "Fields to update, e.g. { Industry: 'Finance', Phone: '555-1234' }",
+          ),
       },
     },
     async ({ objectName, recordId, fields }) => {
@@ -414,7 +447,10 @@ export function registerSalesforceTools(server: McpServer): void {
     {
       description: "Delete a Salesforce record by its ID.",
       inputSchema: {
-        objectName: z.string().min(1).describe("API name of the SObject, e.g. Account, Contact"),
+        objectName: z
+          .string()
+          .min(1)
+          .describe("API name of the SObject, e.g. Account, Contact"),
         recordId: z.string().min(1).describe("The record ID to delete"),
       },
     },
@@ -436,12 +472,15 @@ export function registerSalesforceTools(server: McpServer): void {
   server.registerTool(
     "salesforce_recent_records",
     {
-      description: "Get recently viewed records for a specific Salesforce object type.",
+      description:
+        "Get recently viewed records for a specific Salesforce object type.",
       inputSchema: {
         objectName: z
           .string()
           .min(1)
-          .describe("API name of the SObject, e.g. Account, Contact, Opportunity"),
+          .describe(
+            "API name of the SObject, e.g. Account, Contact, Opportunity",
+          ),
         limit: z
           .number()
           .int()

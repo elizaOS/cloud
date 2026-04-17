@@ -13,8 +13,15 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { generateElizaAppEntityId, generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
-import { isValidEmail, maskEmailForLogging, normalizeEmail } from "@/lib/utils/email-validation";
+import {
+  generateElizaAppEntityId,
+  generateElizaAppRoomId,
+} from "@/lib/utils/deterministic-uuid";
+import {
+  isValidEmail,
+  maskEmailForLogging,
+  normalizeEmail,
+} from "@/lib/utils/email-validation";
 import {
   isValidE164,
   normalizePhoneNumber,
@@ -33,9 +40,12 @@ function extractMessagesFromWebhook(): {
   const telegramMatch = telegramWebhook.match(
     /Welcome! To chat with Eliza, please connect your Telegram first[\s\S]*?get-started/,
   );
-  const hasTelegramEmoji = telegramWebhook.includes("👋") && (telegramMatch?.length ?? 0) > 0;
+  const hasTelegramEmoji =
+    telegramWebhook.includes("👋") && (telegramMatch?.length ?? 0) > 0;
 
-  const statusMatch = telegramWebhook.match(/Not connected yet[\s\S]*?get-started/);
+  const statusMatch = telegramWebhook.match(
+    /Not connected yet[\s\S]*?get-started/,
+  );
 
   return {
     telegramRejection:
@@ -93,7 +103,13 @@ describe("Phone Normalization - ACTUAL normalizePhoneNumber()", () => {
   });
 
   test("same phone in different formats normalizes to same value", () => {
-    const formats = ["+14155551234", "14155551234", "4155551234", "(415) 555-1234", "415-555-1234"];
+    const formats = [
+      "+14155551234",
+      "14155551234",
+      "4155551234",
+      "(415) 555-1234",
+      "415-555-1234",
+    ];
 
     const normalized = formats.map((f) => normalizePhoneNumber(f));
     const unique = [...new Set(normalized)];
@@ -144,25 +160,55 @@ describe("Room ID Generation - ACTUAL generateElizaAppRoomId()", () => {
   const TEST_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
   test("generates valid UUID format", () => {
-    const roomId = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "123456789");
-    expect(roomId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    const roomId = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "123456789",
+    );
+    expect(roomId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
   });
 
   test("same inputs produce same room ID (deterministic)", () => {
-    const roomId1 = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "123456789");
-    const roomId2 = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "123456789");
+    const roomId1 = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "123456789",
+    );
+    const roomId2 = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "123456789",
+    );
     expect(roomId1).toBe(roomId2);
   });
 
   test("different users get different room IDs", () => {
-    const roomId1 = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "111111111");
-    const roomId2 = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "222222222");
+    const roomId1 = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "111111111",
+    );
+    const roomId2 = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "222222222",
+    );
     expect(roomId1).not.toBe(roomId2);
   });
 
   test("same user on different platforms gets different room IDs", () => {
-    const telegramRoom = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "user123");
-    const imessageRoom = generateElizaAppRoomId("imessage", TEST_AGENT_ID, "user123");
+    const telegramRoom = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "user123",
+    );
+    const imessageRoom = generateElizaAppRoomId(
+      "imessage",
+      TEST_AGENT_ID,
+      "user123",
+    );
     expect(telegramRoom).not.toBe(imessageRoom);
   });
 
@@ -172,7 +218,11 @@ describe("Room ID Generation - ACTUAL generateElizaAppRoomId()", () => {
     const expectedHash = createHash("sha256").update(input).digest("hex");
     const expectedUuid = `${expectedHash.slice(0, 8)}-${expectedHash.slice(8, 12)}-${expectedHash.slice(12, 16)}-${expectedHash.slice(16, 20)}-${expectedHash.slice(20, 32)}`;
 
-    const actualRoomId = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "123456789");
+    const actualRoomId = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "123456789",
+    );
     expect(actualRoomId).toBe(expectedUuid);
   });
 });
@@ -180,7 +230,9 @@ describe("Room ID Generation - ACTUAL generateElizaAppRoomId()", () => {
 describe("Entity ID Generation - ACTUAL generateElizaAppEntityId()", () => {
   test("generates valid UUID format", () => {
     const entityId = generateElizaAppEntityId("telegram", "223116693");
-    expect(entityId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(entityId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
   });
 
   test("same identifier produces same entity ID", () => {
@@ -203,7 +255,9 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
 
   test("Telegram rejection message exists in webhook (OAuth enforcement)", () => {
     expect(messages.telegramRejection).not.toBe("");
-    expect(messages.telegramRejection.toLowerCase()).toContain("connect your telegram");
+    expect(messages.telegramRejection.toLowerCase()).toContain(
+      "connect your telegram",
+    );
   });
 
   test("Telegram rejection message includes get-started URL", () => {
@@ -212,7 +266,9 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
 
   test("Status not connected message exists in webhook", () => {
     expect(messages.statusNotConnected).not.toBe("");
-    expect(messages.statusNotConnected.toLowerCase()).toContain("not connected");
+    expect(messages.statusNotConnected.toLowerCase()).toContain(
+      "not connected",
+    );
   });
 
   test("Telegram rejection message is welcoming (contains emoji)", () => {
@@ -252,7 +308,10 @@ describe("Unified EntityId Architecture", () => {
     const telegramUserId = "223116693";
     const phoneNumber = "+14155551234";
 
-    const oldTelegramEntityId = generateElizaAppEntityId("telegram", telegramUserId);
+    const oldTelegramEntityId = generateElizaAppEntityId(
+      "telegram",
+      telegramUserId,
+    );
     const oldPhoneEntityId = generateElizaAppEntityId("imessage", phoneNumber);
 
     // They would be different - which is the BUG we fixed
@@ -302,7 +361,8 @@ describe("Command Detection - Verified Against Webhook", () => {
 
   test("command detection matches webhook logic", () => {
     const isCommand = (text: string) => text.startsWith("/");
-    const parseCommand = (text: string) => text.trim().split(" ")[0].toLowerCase();
+    const parseCommand = (text: string) =>
+      text.trim().split(" ")[0].toLowerCase();
 
     expect(isCommand("/start")).toBe(true);
     expect(isCommand("/help")).toBe(true);
@@ -414,7 +474,9 @@ describe("Email Validation - ACTUAL isValidEmail()", () => {
 describe("Email Normalization - ACTUAL normalizeEmail()", () => {
   test("lowercases and trims", () => {
     expect(normalizeEmail("User@Example.COM")).toBe("user@example.com");
-    expect(normalizeEmail("  BERTA.BENJAMIN@gmail.com  ")).toBe("berta.benjamin@gmail.com");
+    expect(normalizeEmail("  BERTA.BENJAMIN@gmail.com  ")).toBe(
+      "berta.benjamin@gmail.com",
+    );
     expect(normalizeEmail("TEST@GMAIL.COM")).toBe("test@gmail.com");
   });
 });
@@ -422,7 +484,9 @@ describe("Email Normalization - ACTUAL normalizeEmail()", () => {
 describe("Email Masking - ACTUAL maskEmailForLogging()", () => {
   test("standard emails (5+ char prefix)", () => {
     expect(maskEmailForLogging("benjamin@gmail.com")).toBe("be***in@gmail.com");
-    expect(maskEmailForLogging("berta.benjamin@icloud.com")).toBe("be***in@icloud.com");
+    expect(maskEmailForLogging("berta.benjamin@icloud.com")).toBe(
+      "be***in@icloud.com",
+    );
   });
 
   test("short prefixes (3-4 chars)", () => {

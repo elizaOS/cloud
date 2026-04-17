@@ -54,7 +54,9 @@ describe("database URL fallback", () => {
       DISABLE_LOCAL_DOCKER_DB_FALLBACK: undefined,
     };
 
-    expect(resolveDatabaseUrl(env)).toBe("postgresql://test:pass@localhost:5432/test");
+    expect(resolveDatabaseUrl(env)).toBe(
+      "postgresql://test:pass@localhost:5432/test",
+    );
   });
 
   test("exposes the canonical localhost Docker URL constant", () => {
@@ -69,7 +71,9 @@ describe("database URL fallback", () => {
         LOCAL_DOCKER_DB_HOST: "docker.local",
         LOCAL_DOCKER_DB_PORT: "55432",
       }),
-    ).toBe("postgresql://eliza_dev:local_dev_password@docker.local:55432/eliza_dev");
+    ).toBe(
+      "postgresql://eliza_dev:local_dev_password@docker.local:55432/eliza_dev",
+    );
   });
 
   test("does not fall back in CI or production", () => {
@@ -108,7 +112,9 @@ describe("database URL fallback", () => {
 
     const applied = applyDatabaseUrlFallback(process.env as StringEnv);
 
-    expect(applied).toBe("postgresql://eliza_dev:local_dev_password@docker.test:5439/eliza_dev");
+    expect(applied).toBe(
+      "postgresql://eliza_dev:local_dev_password@docker.test:5439/eliza_dev",
+    );
     expect((process.env as StringEnv).DATABASE_URL).toBe(
       "postgresql://eliza_dev:local_dev_password@docker.test:5439/eliza_dev",
     );

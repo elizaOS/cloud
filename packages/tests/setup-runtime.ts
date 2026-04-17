@@ -5,7 +5,10 @@
  * Creates test fixtures, runs tests, cleans up after.
  */
 
-import { getConnectionString, verifyConnection } from "./infrastructure/local-database";
+import {
+  getConnectionString,
+  verifyConnection,
+} from "./infrastructure/local-database";
 import {
   cleanupTestData,
   createTestDataSet,
@@ -21,7 +24,9 @@ let isSetup = false;
  */
 export function getTestData(): TestDataSet {
   if (!globalTestData) {
-    throw new Error("Test data not initialized. Call setupTestEnvironment() first.");
+    throw new Error(
+      "Test data not initialized. Call setupTestEnvironment() first.",
+    );
   }
   return globalTestData;
 }
@@ -55,7 +60,9 @@ export interface SetupOptions {
  * Setup the test environment
  * Call this in beforeAll() of your test suite
  */
-export async function setupTestEnvironment(options: SetupOptions = {}): Promise<void> {
+export async function setupTestEnvironment(
+  options: SetupOptions = {},
+): Promise<void> {
   if (isSetup) {
     console.log("[Setup] Environment already initialized, skipping...");
     return;

@@ -121,7 +121,10 @@ describe("Blooio Signature Verification", () => {
   }
 
   test("valid signature passes verification", () => {
-    const payload = JSON.stringify({ event: "message.received", text: "Hello" });
+    const payload = JSON.stringify({
+      event: "message.received",
+      text: "Hello",
+    });
     const signature = generateBlooioSignature(payload, WEBHOOK_SECRET);
     const expectedSignature = generateBlooioSignature(payload, WEBHOOK_SECRET);
 
@@ -129,11 +132,23 @@ describe("Blooio Signature Verification", () => {
   });
 
   test("tampered payload fails verification", () => {
-    const originalPayload = JSON.stringify({ event: "message.received", text: "Hello" });
-    const tamperedPayload = JSON.stringify({ event: "message.received", text: "Hacked" });
+    const originalPayload = JSON.stringify({
+      event: "message.received",
+      text: "Hello",
+    });
+    const tamperedPayload = JSON.stringify({
+      event: "message.received",
+      text: "Hacked",
+    });
 
-    const originalSignature = generateBlooioSignature(originalPayload, WEBHOOK_SECRET);
-    const tamperedSignature = generateBlooioSignature(tamperedPayload, WEBHOOK_SECRET);
+    const originalSignature = generateBlooioSignature(
+      originalPayload,
+      WEBHOOK_SECRET,
+    );
+    const tamperedSignature = generateBlooioSignature(
+      tamperedPayload,
+      WEBHOOK_SECRET,
+    );
 
     expect(originalSignature).not.toBe(tamperedSignature);
   });

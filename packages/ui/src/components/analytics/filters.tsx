@@ -33,10 +33,13 @@ export function AnalyticsFilters() {
       return undefined;
     }
 
-    const diffInDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const diffInDays = Math.round(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
 
     const now = new Date();
-    const isAlignedWithNow = Math.abs(end.getTime() - now.getTime()) < 1000 * 60 * 60;
+    const isAlignedWithNow =
+      Math.abs(end.getTime() - now.getTime()) < 1000 * 60 * 60;
 
     if (diffInDays === 7 && isAlignedWithNow) return "7d";
     if (diffInDays === 30 && isAlignedWithNow) return "30d";
@@ -63,7 +66,9 @@ export function AnalyticsFilters() {
     <div className="flex flex-col gap-5 md:gap-6 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-wrap items-center gap-4 md:gap-5">
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wide text-white/50">Aggregation</p>
+          <p className="text-xs uppercase tracking-wide text-white/50">
+            Aggregation
+          </p>
           <Select
             value={granularity}
             onValueChange={(value) => updateFilters({ granularity: value })}
@@ -125,7 +130,9 @@ export function AnalyticsFilters() {
               )}
               onClick={() => {
                 const now = new Date();
-                const start = new Date(now.getTime() - preset.days * 24 * 60 * 60 * 1000);
+                const start = new Date(
+                  now.getTime() - preset.days * 24 * 60 * 60 * 1000,
+                );
 
                 updateFilters({
                   startDate: start.toISOString(),

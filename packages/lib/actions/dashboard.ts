@@ -110,20 +110,23 @@ async function fetchDashboardDataInternal(
   const organizationId = user.organization_id!;
 
   // Fetch only the data rendered on the dashboard home.
-  const [generationStats, userCharacters, apiKeys, userRooms, apps, org] = await Promise.all([
-    generationsService.getStats(organizationId),
-    charactersService.listByUser(user.id),
-    apiKeysService.listByOrganization(organizationId),
-    roomsService.getRoomsForEntity(user.id),
-    appsService.listByOrganization(organizationId),
-    organizationsRepository.findById(organizationId),
-  ]);
+  const [generationStats, userCharacters, apiKeys, userRooms, apps, org] =
+    await Promise.all([
+      generationsService.getStats(organizationId),
+      charactersService.listByUser(user.id),
+      apiKeysService.listByOrganization(organizationId),
+      roomsService.getRoomsForEntity(user.id),
+      appsService.listByOrganization(organizationId),
+      organizationsRepository.findById(organizationId),
+    ]);
 
   const chatRoomCount = userRooms.length;
 
   const totalGenerations = generationStats.totalGenerations;
-  const imageGenerations = generationStats.byType.find((t) => t.type === "image")?.count || 0;
-  const videoGenerations = generationStats.byType.find((t) => t.type === "video")?.count || 0;
+  const imageGenerations =
+    generationStats.byType.find((t) => t.type === "image")?.count || 0;
+  const videoGenerations =
+    generationStats.byType.find((t) => t.type === "video")?.count || 0;
 
   // Get actual 24h API call count from usage records
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -141,7 +144,9 @@ async function fetchDashboardDataInternal(
   if (characterIds.length > 0) {
     try {
       const statsMap =
-        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(characterIds);
+        await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+          characterIds,
+        );
       statsMap.forEach((stats, id) => {
         // Note: Both `status` (from AgentStats) and `deploymentStatus` (added by DashboardAgentStats)
         // are required - they have the same value but satisfy different type requirements
@@ -217,8 +222,10 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const cacheKey = CacheKeys.org.dashboard(organizationId);
 
   // Use stale-while-revalidate pattern
-  const data = await cacheClient.getWithSWR(cacheKey, CacheStaleTTL.org.dashboard, () =>
-    fetchDashboardDataInternal(user),
+  const data = await cacheClient.getWithSWR(
+    cacheKey,
+    CacheStaleTTL.org.dashboard,
+    () => fetchDashboardDataInternal(user),
   );
 
   // Fallback to direct fetch if cache returns null

@@ -21,7 +21,9 @@ describe("mapCredTypeToCloudPlatform", () => {
   test("maps google credentials to google", () => {
     expect(mapCredTypeToCloudPlatform("googleSheetsOAuth2Api")).toBe("google");
     expect(mapCredTypeToCloudPlatform("googleDriveOAuth2Api")).toBe("google");
-    expect(mapCredTypeToCloudPlatform("googleCalendarOAuth2Api")).toBe("google");
+    expect(mapCredTypeToCloudPlatform("googleCalendarOAuth2Api")).toBe(
+      "google",
+    );
     expect(mapCredTypeToCloudPlatform("googleDocsOAuth2Api")).toBe("google");
     expect(mapCredTypeToCloudPlatform("googleApi")).toBe("google");
   });

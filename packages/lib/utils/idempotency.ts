@@ -38,7 +38,10 @@ export async function isAlreadyProcessed(key: string): Promise<boolean> {
 
     return true;
   } catch (error) {
-    logger.error("[Idempotency] Error checking key", { key, error: getErrorMessage(error) });
+    logger.error("[Idempotency] Error checking key", {
+      key,
+      error: getErrorMessage(error),
+    });
     return false;
   }
 }
@@ -49,7 +52,10 @@ export async function isAlreadyProcessed(key: string): Promise<boolean> {
  * Unlike isAlreadyProcessed + markAsProcessed, this is a single atomic operation
  * with no TOCTOU race window.
  */
-export async function tryClaimForProcessing(key: string, source = "unknown"): Promise<boolean> {
+export async function tryClaimForProcessing(
+  key: string,
+  source = "unknown",
+): Promise<boolean> {
   try {
     const expires_at = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
     const rows = await dbWrite
@@ -78,14 +84,20 @@ export async function releaseProcessingClaim(key: string): Promise<void> {
   try {
     await dbWrite.delete(idempotencyKeys).where(eq(idempotencyKeys.key, key));
   } catch (error) {
-    logger.error("[Idempotency] Error releasing claim", { key, error: getErrorMessage(error) });
+    logger.error("[Idempotency] Error releasing claim", {
+      key,
+      error: getErrorMessage(error),
+    });
   }
 }
 
 /**
  * Mark a message as processed. Uses upsert to handle race conditions.
  */
-export async function markAsProcessed(key: string, source = "unknown"): Promise<void> {
+export async function markAsProcessed(
+  key: string,
+  source = "unknown",
+): Promise<void> {
   try {
     const expires_at = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
     await dbWrite
@@ -93,7 +105,11 @@ export async function markAsProcessed(key: string, source = "unknown"): Promise<
       .values({ key, source, expires_at })
       .onConflictDoUpdate({ target: idempotencyKeys.key, set: { expires_at } });
   } catch (error) {
-    logger.error("[Idempotency] Error marking key", { key, source, error: getErrorMessage(error) });
+    logger.error("[Idempotency] Error marking key", {
+      key,
+      source,
+      error: getErrorMessage(error),
+    });
   }
 }
 
@@ -108,7 +124,9 @@ export async function getProcessedMessagesCount(): Promise<number> {
       .where(gt(idempotencyKeys.expires_at, new Date()));
     return result?.count ?? 0;
   } catch (error) {
-    logger.error("[Idempotency] Error getting count", { error: getErrorMessage(error) });
+    logger.error("[Idempotency] Error getting count", {
+      error: getErrorMessage(error),
+    });
     return 0;
   }
 }
@@ -124,11 +142,15 @@ export async function cleanupExpiredKeys(): Promise<number> {
       .returning({ id: idempotencyKeys.id });
 
     if (deleted.length > 0) {
-      logger.info("[Idempotency] Cleaned up expired keys", { count: deleted.length });
+      logger.info("[Idempotency] Cleaned up expired keys", {
+        count: deleted.length,
+      });
     }
     return deleted.length;
   } catch (error) {
-    logger.error("[Idempotency] Error cleaning up", { error: getErrorMessage(error) });
+    logger.error("[Idempotency] Error cleaning up", {
+      error: getErrorMessage(error),
+    });
     return 0;
   }
 }
@@ -138,6 +160,8 @@ export async function clearProcessedMessages(): Promise<void> {
   try {
     await dbWrite.delete(idempotencyKeys);
   } catch (error) {
-    logger.error("[Idempotency] Error clearing keys", { error: getErrorMessage(error) });
+    logger.error("[Idempotency] Error clearing keys", {
+      error: getErrorMessage(error),
+    });
   }
 }

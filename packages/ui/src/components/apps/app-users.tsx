@@ -2,7 +2,14 @@
 
 import { Avatar, AvatarFallback, Button } from "@elizaos/cloud-ui";
 import { formatDistanceToNow } from "date-fns";
-import { Activity, DollarSign, Globe, Loader2, RefreshCw, Users as UsersIcon } from "lucide-react";
+import {
+  Activity,
+  DollarSign,
+  Globe,
+  Loader2,
+  RefreshCw,
+  Users as UsersIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 interface AppUserDisplay {
@@ -34,10 +41,15 @@ export function AppUsers({ appId }: AppUsersProps) {
     try {
       const [usersRes, visitorsRes] = await Promise.all([
         fetch(`/api/v1/apps/${appId}/users?limit=50`),
-        fetch(`/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=50`),
+        fetch(
+          `/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=50`,
+        ),
       ]);
 
-      const [usersData, visitorsData] = await Promise.all([usersRes.json(), visitorsRes.json()]);
+      const [usersData, visitorsData] = await Promise.all([
+        usersRes.json(),
+        visitorsRes.json(),
+      ]);
 
       if (usersData.success) {
         setUsers(usersData.users);
@@ -156,7 +168,9 @@ export function AppUsers({ appId }: AppUsersProps) {
               disabled={isLoading}
               className="h-8 w-8 p-0"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
             </Button>
           </div>
 
@@ -177,13 +191,20 @@ export function AppUsers({ appId }: AppUsersProps) {
               </thead>
               <tbody>
                 {visitors.map((visitor, index) => (
-                  <tr key={visitor.ip} className="border-b border-white/5 hover:bg-white/5">
+                  <tr
+                    key={visitor.ip}
+                    className="border-b border-white/5 hover:bg-white/5"
+                  >
                     <td className="py-2 px-3">
                       <div className="flex items-center gap-2">
                         <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white/5">
-                          <span className="text-neutral-500 text-[10px]">{index + 1}</span>
+                          <span className="text-neutral-500 text-[10px]">
+                            {index + 1}
+                          </span>
                         </div>
-                        <code className="text-white font-mono text-xs">{visitor.ip}</code>
+                        <code className="text-white font-mono text-xs">
+                          {visitor.ip}
+                        </code>
                       </div>
                     </td>
                     <td className="py-2 px-3 text-right text-white text-xs font-medium">

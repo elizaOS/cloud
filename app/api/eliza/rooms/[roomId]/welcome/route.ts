@@ -17,7 +17,10 @@ const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
  *
  * Body: { text: string }
  */
-export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
+export async function POST(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
   const { roomId } = await ctx.params;
   const body = await request.json();
   const { text } = body;
@@ -35,7 +38,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
   } catch {
     const anonData = await getAnonymousUser();
     if (!anonData) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
     }
     userId = anonData.user.id;
   }
@@ -68,7 +74,9 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
     },
   });
 
-  logger.info(`[Welcome API] Stored welcome message: ${messageId} in room ${roomId}`);
+  logger.info(
+    `[Welcome API] Stored welcome message: ${messageId} in room ${roomId}`,
+  );
 
   return NextResponse.json({
     success: true,
@@ -81,7 +89,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
  *
  * Clears all messages from a room (used to reset edit mode rooms).
  */
-export async function DELETE(request: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
   const { roomId } = await ctx.params;
 
   // Support both authenticated and anonymous users
@@ -93,7 +104,10 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ room
   } catch {
     const anonData = await getAnonymousUser();
     if (!anonData) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
     }
     userId = anonData.user.id;
   }

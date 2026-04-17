@@ -5,7 +5,14 @@
 
 "use client";
 
-import { Calculator, Coins, DollarSign, TrendingUp, Users, Zap } from "lucide-react";
+import {
+  Calculator,
+  Coins,
+  DollarSign,
+  TrendingUp,
+  Users,
+  Zap,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Slider } from "../slider";
@@ -87,7 +94,9 @@ export function EarningsSimulator({
               <DollarSign className="h-3 w-3" />
               Avg. Spend per User
             </span>
-            <span className="text-sm font-mono text-white">${spendPerUser}</span>
+            <span className="text-sm font-mono text-white">
+              ${spendPerUser}
+            </span>
           </div>
           <Slider
             value={[spendPerUser]}
@@ -117,7 +126,9 @@ export function EarningsSimulator({
         {/* Total Spend */}
         <div className="flex items-center justify-between text-sm">
           <span className="text-neutral-400">Total User Spend</span>
-          <span className="font-mono text-neutral-300">${calculations.totalSpend.toFixed(2)}</span>
+          <span className="font-mono text-neutral-300">
+            ${calculations.totalSpend.toFixed(2)}
+          </span>
         </div>
 
         {/* Inference earnings */}

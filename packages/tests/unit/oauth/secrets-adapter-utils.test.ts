@@ -72,7 +72,9 @@ describe("Secrets Adapter Utils", () => {
     it("should handle partial matches correctly", () => {
       // Should not match if platform is just a prefix
       expect(ownsConnectionId("twi", "twitter:org-123")).toBe(false);
-      expect(ownsConnectionId("twitter", "twitter_variant:org-123")).toBe(false);
+      expect(ownsConnectionId("twitter", "twitter_variant:org-123")).toBe(
+        false,
+      );
     });
 
     it("should handle edge cases", () => {
@@ -121,7 +123,11 @@ describe("Secrets Adapter Utils", () => {
 
     it("should throw when connection ID is a UUID (wrong format)", () => {
       expect(() => {
-        verifyConnectionId("twitter", "org-123", "550e8400-e29b-41d4-a716-446655440000");
+        verifyConnectionId(
+          "twitter",
+          "org-123",
+          "550e8400-e29b-41d4-a716-446655440000",
+        );
       }).toThrow();
     });
   });
@@ -132,7 +138,11 @@ describe("Secrets Adapter Utils", () => {
       const oneHourAgo = new Date(now.getTime() - 3600000);
       const oneDayAgo = new Date(now.getTime() - 86400000);
 
-      const secrets = [{ created_at: now }, { created_at: oneHourAgo }, { created_at: oneDayAgo }];
+      const secrets = [
+        { created_at: now },
+        { created_at: oneHourAgo },
+        { created_at: oneDayAgo },
+      ];
 
       const earliest = getEarliestSecretDate(secrets);
       expect(earliest.getTime()).toBe(oneDayAgo.getTime());
@@ -167,7 +177,11 @@ describe("Secrets Adapter Utils", () => {
 
     it("should handle identical dates", () => {
       const date = new Date("2024-01-15");
-      const secrets = [{ created_at: date }, { created_at: date }, { created_at: date }];
+      const secrets = [
+        { created_at: date },
+        { created_at: date },
+        { created_at: date },
+      ];
 
       const earliest = getEarliestSecretDate(secrets);
       expect(earliest.getTime()).toBe(date.getTime());

@@ -69,7 +69,9 @@ const SIZE_PRESETS = [
   { label: "Wide", width: 1280, height: 768, icon: RectangleHorizontal },
 ];
 
-export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAdvancedProps) {
+export function ImageGeneratorAdvanced({
+  initialHistory = [],
+}: ImageGeneratorAdvancedProps) {
   // Convert initial history to GeneratedImage format
   const convertedHistory: GeneratedImage[] = initialHistory.map((item) => ({
     id: item.id,
@@ -345,7 +347,10 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
   );
 
   return (
-    <div ref={containerRef} className="flex flex-col h-full w-full scroll-smooth">
+    <div
+      ref={containerRef}
+      className="flex flex-col h-full w-full scroll-smooth"
+    >
       {/* Scroll anchor */}
       <div ref={topAnchorRef} className="absolute top-0" />
 
@@ -365,7 +370,8 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                 <div
                   className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                   style={{
-                    animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    animation:
+                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                     boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                     filter: "blur(0.5px)",
                   }}
@@ -377,9 +383,15 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
             {sourceImage && (
               <div className="flex items-center gap-3 px-4 pt-3 pb-2 border-b border-white/[0.06]">
                 <div className="relative h-12 w-12 rounded overflow-hidden bg-black/40">
-                  <img src={sourceImage} alt="Reference" className="h-full w-full object-cover" />
+                  <img
+                    src={sourceImage}
+                    alt="Reference"
+                    className="h-full w-full object-cover"
+                  />
                 </div>
-                <span className="text-xs font-mono text-white/50">Reference image</span>
+                <span className="text-xs font-mono text-white/50">
+                  Reference image
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -443,7 +455,10 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
 
                 {/* Size Selector Dropdown */}
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild disabled={requestState.isLoading}>
+                  <DropdownMenuTrigger
+                    asChild
+                    disabled={requestState.isLoading}
+                  >
                     <Button
                       type="button"
                       variant="ghost"
@@ -453,7 +468,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                       {currentSizePreset ? (
                         <>
                           <currentSizePreset.icon className="h-3.5 w-3.5 text-white/50" />
-                          <span className="text-sm text-white/50">{currentSizePreset.label}</span>
+                          <span className="text-sm text-white/50">
+                            {currentSizePreset.label}
+                          </span>
                         </>
                       ) : (
                         <>
@@ -486,7 +503,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                       <DropdownMenuItem
                         key={preset.label}
                         className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
-                        onSelect={() => selectSizePreset(preset.width, preset.height)}
+                        onSelect={() =>
+                          selectSizePreset(preset.width, preset.height)
+                        }
                       >
                         <div className="flex items-center gap-3">
                           <preset.icon className="h-4 w-4 text-white/50" />
@@ -497,9 +516,10 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                             </span>
                           </div>
                         </div>
-                        {settings.width === preset.width && settings.height === preset.height && (
-                          <Check className="h-4 w-4 text-[#FF5800]" />
-                        )}
+                        {settings.width === preset.width &&
+                          settings.height === preset.height && (
+                            <Check className="h-4 w-4 text-[#FF5800]" />
+                          )}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -507,7 +527,10 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
 
                 {/* Advanced Settings Dropdown */}
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild disabled={requestState.isLoading}>
+                  <DropdownMenuTrigger
+                    asChild
+                    disabled={requestState.isLoading}
+                  >
                     <Button
                       type="button"
                       variant="ghost"
@@ -515,7 +538,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                       className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:pointer-events-none"
                     >
                       <SlidersHorizontal className="h-3.5 w-3.5 text-white/50" />
-                      <span className="text-sm text-white/50 hidden sm:inline">Settings</span>
+                      <span className="text-sm text-white/50 hidden sm:inline">
+                        Settings
+                      </span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
@@ -528,8 +553,12 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                       {/* Steps */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-mono text-white/60">Steps</label>
-                          <span className="text-xs font-mono text-white">{settings.steps}</span>
+                          <label className="text-xs font-mono text-white/60">
+                            Steps
+                          </label>
+                          <span className="text-xs font-mono text-white">
+                            {settings.steps}
+                          </span>
                         </div>
                         <Slider
                           value={[settings.steps]}
@@ -546,7 +575,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                       {/* Guidance Scale */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-mono text-white/60">Guidance Scale</label>
+                          <label className="text-xs font-mono text-white/60">
+                            Guidance Scale
+                          </label>
                           <span className="text-xs font-mono text-white">
                             {settings.guidanceScale.toFixed(1)}
                           </span>
@@ -569,8 +600,12 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                       {/* Number of Images */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-mono text-white/60">Images</label>
-                          <span className="text-xs font-mono text-white">{numImages}</span>
+                          <label className="text-xs font-mono text-white/60">
+                            Images
+                          </label>
+                          <span className="text-xs font-mono text-white">
+                            {numImages}
+                          </span>
                         </div>
                         <Slider
                           value={[numImages]}
@@ -620,7 +655,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
         <div className="flex items-center gap-8 mb-6">
           <button
             type="button"
-            onClick={() => setUiState((prev) => ({ ...prev, activeTab: "creations" }))}
+            onClick={() =>
+              setUiState((prev) => ({ ...prev, activeTab: "creations" }))
+            }
             className={`text-base font-medium transition-colors ${
               uiState.activeTab === "creations"
                 ? "text-[#FF5800]"
@@ -631,7 +668,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
           </button>
           <button
             type="button"
-            onClick={() => setUiState((prev) => ({ ...prev, activeTab: "explore" }))}
+            onClick={() =>
+              setUiState((prev) => ({ ...prev, activeTab: "explore" }))
+            }
             className={`flex items-center gap-2 text-base font-medium transition-colors ${
               uiState.activeTab === "explore"
                 ? "text-[#FF5800]"
@@ -652,7 +691,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                   <div className="relative aspect-square w-full flex items-center justify-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="h-8 w-8 text-[#FF5800] animate-spin" />
-                      <span className="text-xs font-mono text-white/50">Generating...</span>
+                      <span className="text-xs font-mono text-white/50">
+                        Generating...
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -762,7 +803,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
 
                   {/* Prompt text at bottom */}
                   <div className="absolute bottom-0 left-0 right-0 p-2 md:p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <p className="text-xs font-mono line-clamp-2 leading-relaxed">{image.prompt}</p>
+                    <p className="text-xs font-mono line-clamp-2 leading-relaxed">
+                      {image.prompt}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -802,7 +845,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
           ) : exploreState.error ? (
             <BrandCard className="relative border-dashed border-rose-500/40">
               <div className="relative z-10 p-8 text-center">
-                <p className="text-sm font-mono text-rose-400">{exploreState.error}</p>
+                <p className="text-sm font-mono text-rose-400">
+                  {exploreState.error}
+                </p>
               </div>
             </BrandCard>
           ) : exploreState.images.length > 0 ? (
@@ -884,7 +929,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
 
                   {/* Prompt text at bottom */}
                   <div className="absolute bottom-0 left-0 right-0 p-2 md:p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <p className="text-xs font-mono line-clamp-2 leading-relaxed">{image.prompt}</p>
+                    <p className="text-xs font-mono line-clamp-2 leading-relaxed">
+                      {image.prompt}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -913,7 +960,8 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
       <Dialog
         open={!!uiState.selectedExploreImage}
         onOpenChange={(open) => {
-          if (!open) setUiState((prev) => ({ ...prev, selectedExploreImage: null }));
+          if (!open)
+            setUiState((prev) => ({ ...prev, selectedExploreImage: null }));
         }}
       >
         <DialogContent
@@ -952,7 +1000,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
               <div className="flex-1 p-8 space-y-6">
                 {/* Prompt Section */}
                 <div className="space-y-3">
-                  <label className="text-xs text-white/50 uppercase tracking-wide">Prompt</label>
+                  <label className="text-xs text-white/50 uppercase tracking-wide">
+                    Prompt
+                  </label>
                   <p className="text-base text-white leading-relaxed">
                     {uiState.selectedExploreImage.prompt}
                   </p>
@@ -966,7 +1016,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                       <button
                         type="button"
                         onClick={() => {
-                          setSourceImage(uiState.selectedExploreImage?.url ?? "");
+                          setSourceImage(
+                            uiState.selectedExploreImage?.url ?? "",
+                          );
                           setUiState((prev) => ({
                             ...prev,
                             selectedExploreImage: null,
@@ -1018,8 +1070,12 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                   {/* Model */}
                   {uiState.selectedExploreImage.model && (
                     <div className="space-y-1">
-                      <label className="text-xs text-white/50 uppercase tracking-wide">Model</label>
-                      <p className="text-sm text-white">{uiState.selectedExploreImage.model}</p>
+                      <label className="text-xs text-white/50 uppercase tracking-wide">
+                        Model
+                      </label>
+                      <p className="text-sm text-white">
+                        {uiState.selectedExploreImage.model}
+                      </p>
                     </div>
                   )}
 
@@ -1031,8 +1087,11 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                       </label>
                       <p className="text-sm text-white">
                         {(() => {
-                          const w = uiState.selectedExploreImage.dimensions?.width ?? 1;
-                          const h = uiState.selectedExploreImage.dimensions?.height ?? 1;
+                          const w =
+                            uiState.selectedExploreImage.dimensions?.width ?? 1;
+                          const h =
+                            uiState.selectedExploreImage.dimensions?.height ??
+                            1;
                           const gcd = (a: number, b: number): number =>
                             b === 0 ? a : gcd(b, a % b);
                           const d = gcd(w, h);
@@ -1062,7 +1121,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                         File Type
                       </label>
                       <p className="text-sm text-white">
-                        {uiState.selectedExploreImage.mimeType.split("/")[1]?.toUpperCase()}
+                        {uiState.selectedExploreImage.mimeType
+                          .split("/")[1]
+                          ?.toUpperCase()}
                       </p>
                     </div>
                   )}
@@ -1076,7 +1137,9 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
       {/* Fullscreen Image Modal */}
       <Dialog
         open={uiState.isFullscreenOpen}
-        onOpenChange={(open) => setUiState((prev) => ({ ...prev, isFullscreenOpen: open }))}
+        onOpenChange={(open) =>
+          setUiState((prev) => ({ ...prev, isFullscreenOpen: open }))
+        }
       >
         <DialogContent
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
@@ -1098,8 +1161,8 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                       imageState.currentImage.url
                     }
                     alt={
-                      imageState.currentImages[imageState.currentIndex]?.prompt ??
-                      imageState.currentImage.prompt
+                      imageState.currentImages[imageState.currentIndex]
+                        ?.prompt ?? imageState.currentImage.prompt
                     }
                     width={3000}
                     height={3000}
@@ -1116,30 +1179,35 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                 {/* Image info overlay */}
                 <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-4 pt-6 pb-4 md:px-6 md:pt-10 md:pb-6 lg:px-8 lg:pt-12 lg:pb-8 space-y-2 md:space-y-3 max-h-[50vh] overflow-y-auto">
                   <p className="text-xs md:text-sm font-mono text-white/90 leading-relaxed max-w-3xl break-words">
-                    {imageState.currentImages[imageState.currentIndex]?.prompt ??
-                      imageState.currentImage.prompt}
+                    {imageState.currentImages[imageState.currentIndex]
+                      ?.prompt ?? imageState.currentImage.prompt}
                   </p>
                   <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span className="bg-white/10 px-2 py-1 font-mono text-white whitespace-nowrap">
-                      {imageState.currentImages[imageState.currentIndex]?.settings.width ??
+                      {imageState.currentImages[imageState.currentIndex]
+                        ?.settings.width ??
                         imageState.currentImage.settings.width}
                       ×
-                      {imageState.currentImages[imageState.currentIndex]?.settings.height ??
+                      {imageState.currentImages[imageState.currentIndex]
+                        ?.settings.height ??
                         imageState.currentImage.settings.height}
                     </span>
                     <span className="bg-white/10 px-2 py-1 font-mono text-white whitespace-nowrap">
-                      {imageState.currentImages[imageState.currentIndex]?.settings.steps ??
+                      {imageState.currentImages[imageState.currentIndex]
+                        ?.settings.steps ??
                         imageState.currentImage.settings.steps}{" "}
                       steps
                     </span>
                     <span className="bg-white/10 px-2 py-1 font-mono text-white whitespace-nowrap">
                       CFG{" "}
-                      {imageState.currentImages[imageState.currentIndex]?.settings.guidanceScale ??
+                      {imageState.currentImages[imageState.currentIndex]
+                        ?.settings.guidanceScale ??
                         imageState.currentImage.settings.guidanceScale}
                     </span>
                     {imageState.currentImages.length > 1 && (
                       <span className="bg-[#FF580020] border border-[#FF5800]/40 px-2 py-1 font-mono text-[#FF5800] whitespace-nowrap">
-                        {imageState.currentIndex + 1}/{imageState.currentImages.length}
+                        {imageState.currentIndex + 1}/
+                        {imageState.currentImages.length}
                       </span>
                     )}
                   </div>
@@ -1169,7 +1237,8 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                         type="button"
                         onClick={() => {
                           const newIndex =
-                            imageState.currentIndex < imageState.currentImages.length - 1
+                            imageState.currentIndex <
+                            imageState.currentImages.length - 1
                               ? imageState.currentIndex + 1
                               : 0;
                           setImageState((prev) => ({

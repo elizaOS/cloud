@@ -43,7 +43,9 @@ export const Default: StoryObj = {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+          <AlertDialogAction className="bg-red-600 hover:bg-red-700">
+            Delete
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -71,13 +73,15 @@ export const Destructive: StoryObj = {
         <AlertDialogHeader>
           <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to remove this member from your organization? They will lose
-            access immediately.
+            Are you sure you want to remove this member from your organization?
+            They will lose access immediately.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction className="bg-red-600 hover:bg-red-700">Remove</AlertDialogAction>
+          <AlertDialogAction className="bg-red-600 hover:bg-red-700">
+            Remove
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

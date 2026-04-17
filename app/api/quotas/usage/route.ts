@@ -15,7 +15,9 @@ async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    const usage = await usageQuotasService.getCurrentUsage(user.organization_id);
+    const usage = await usageQuotasService.getCurrentUsage(
+      user.organization_id,
+    );
 
     return NextResponse.json({
       success: true,
@@ -27,7 +29,10 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch quota usage",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch quota usage",
       },
       { status: 500 },
     );

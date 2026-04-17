@@ -17,7 +17,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
-  const campaign = await advertisingService.startCampaign(id, user.organization_id!);
+  const campaign = await advertisingService.startCampaign(
+    id,
+    user.organization_id!,
+  );
 
   logger.info("[Advertising API] Campaign started", { campaignId: id });
 

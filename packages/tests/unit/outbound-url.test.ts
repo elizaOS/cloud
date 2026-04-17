@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-const moduleUrl = new URL("../../lib/security/outbound-url.ts", import.meta.url).href;
+const moduleUrl = new URL("../../lib/security/outbound-url.ts", import.meta.url)
+  .href;
 
 function runIsolatedSnippet(source: string) {
   return Bun.spawnSync({
@@ -27,7 +28,9 @@ describe("outbound URL safety", () => {
     `);
 
     expect(result.exitCode).toBe(1);
-    expect(new TextDecoder().decode(result.stderr)).toMatch(/private|reserved|localhost/i);
+    expect(new TextDecoder().decode(result.stderr)).toMatch(
+      /private|reserved|localhost/i,
+    );
 
     const linkLocal = runIsolatedSnippet(`
       const mod = await import(${JSON.stringify(`${moduleUrl}?case=linklocal`)});
@@ -43,7 +46,9 @@ describe("outbound URL safety", () => {
     `);
 
     expect(linkLocal.exitCode).toBe(1);
-    expect(new TextDecoder().decode(linkLocal.stderr)).toMatch(/private|reserved/i);
+    expect(new TextDecoder().decode(linkLocal.stderr)).toMatch(
+      /private|reserved/i,
+    );
   });
 
   test("classifies private IPv4 destinations as forbidden", () => {
@@ -74,7 +79,9 @@ describe("outbound URL safety", () => {
     `);
 
     expect(result.exitCode).toBe(0);
-    expect(new TextDecoder().decode(result.stdout).trim()).toBe("https://93.184.216.34/mcp");
+    expect(new TextDecoder().decode(result.stdout).trim()).toBe(
+      "https://93.184.216.34/mcp",
+    );
   });
 
   test("rejects URLs that embed credentials", () => {

@@ -85,7 +85,9 @@ function normalizeMessages(
 /**
  * Extract text content from message parts.
  */
-function extractTextFromParts(parts: Array<{ type: string; text?: string }>): string {
+function extractTextFromParts(
+  parts: Array<{ type: string; text?: string }>,
+): string {
   return parts.map((p) => (p.type === "text" ? p.text : "")).join("");
 }
 
@@ -160,7 +162,10 @@ async function handlePOST(req: NextRequest) {
 
     // Validate messages array is not empty
     if (!rawMessages || rawMessages.length === 0) {
-      return NextResponse.json({ error: "Messages array cannot be empty" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Messages array cannot be empty" },
+        { status: 400 },
+      );
     }
 
     // Normalize messages to UIMessage format (handles both OpenAI and UIMessage formats)
@@ -168,7 +173,10 @@ async function handlePOST(req: NextRequest) {
     try {
       messages = normalizeMessages(rawMessages);
     } catch (error) {
-      if (error instanceof Error && error.message.includes("Invalid message role")) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Invalid message role")
+      ) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
       throw error;
@@ -177,7 +185,8 @@ async function handlePOST(req: NextRequest) {
     // Don't pass agent/conversation UUIDs to resolveModel — they're not tier
     // names or model IDs and would be treated as a custom model, causing
     // "model not found" errors (see elizaOS/eliza#6331).
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const tierOrModel = tier || (id && !UUID_RE.test(id) ? id : undefined);
     const modelConfig = resolveModel(tierOrModel);
     const selectedModel = modelConfig.modelId;
@@ -194,7 +203,10 @@ async function handlePOST(req: NextRequest) {
     const conversationId = metadata?.conversationId;
 
     if (!hasLanguageModelProviderConfigured(selectedModel)) {
-      return NextResponse.json({ error: getAiProviderConfigurationError() }, { status: 503 });
+      return NextResponse.json(
+        { error: getAiProviderConfigurationError() },
+        { status: 503 },
+      );
     }
 
     // Check if user is blocked due to moderation violations
@@ -232,7 +244,9 @@ async function handlePOST(req: NextRequest) {
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
       // Check message limit for anonymous users
-      const limitCheck = await checkAnonymousLimit(anonymousSession.session_token);
+      const limitCheck = await checkAnonymousLimit(
+        anonymousSession.session_token,
+      );
 
       if (!limitCheck.allowed) {
         const errorMessage =
@@ -267,11 +281,14 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Reserve credits BEFORE making API call (prevents TOCTOU race condition)
-    let reservation: CreditReservation = creditsService.createAnonymousReservation();
+    let reservation: CreditReservation =
+      creditsService.createAnonymousReservation();
     const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     if (!isAnonymous && user.organization_id) {
-      const messageText = messages.map((m) => extractTextFromParts(m.parts)).join(" ");
+      const messageText = messages
+        .map((m) => extractTextFromParts(m.parts))
+        .join(" ");
       const estimatedInputTokens = estimateTokens(messageText);
 
       try {
@@ -305,10 +322,16 @@ async function handlePOST(req: NextRequest) {
     // for actual response generation on top of the thinking budget.
     // Default minimum output tokens to allow for actual response generation (consistent with MCP endpoint)
     const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
-    const cotBudget = resolveAnthropicThinkingBudgetTokens(selectedModel, process.env);
+    const cotBudget = resolveAnthropicThinkingBudgetTokens(
+      selectedModel,
+      process.env,
+    );
     const effectiveMaxOutputTokens =
       cotBudget != null
-        ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, cotBudget + DEFAULT_MIN_OUTPUT_TOKENS)
+        ? Math.max(
+            DEFAULT_MIN_OUTPUT_TOKENS,
+            cotBudget + DEFAULT_MIN_OUTPUT_TOKENS,
+          )
         : undefined;
 
     const result = streamText({
@@ -318,8 +341,14 @@ async function handlePOST(req: NextRequest) {
       messages: await convertToModelMessages(messages),
       abortSignal: req.signal,
       timeout: routeTimeoutMs,
-      ...(effectiveMaxOutputTokens != null ? { maxOutputTokens: effectiveMaxOutputTokens } : {}),
-      ...mergeAnthropicCotProviderOptions(selectedModel, process.env, cotBudget ?? undefined),
+      ...(effectiveMaxOutputTokens != null
+        ? { maxOutputTokens: effectiveMaxOutputTokens }
+        : {}),
+      ...mergeAnthropicCotProviderOptions(
+        selectedModel,
+        process.env,
+        cotBudget ?? undefined,
+      ),
       onFinish: async ({ text, usage }) => {
         try {
           if (!usage) {
@@ -329,12 +358,18 @@ async function handlePOST(req: NextRequest) {
 
           // Increment message count AFTER successful completion (for anonymous users)
           if (isAnonymous && anonymousSession) {
-            await anonymousSessionsService.incrementMessageCount(anonymousSession.id);
+            await anonymousSessionsService.incrementMessageCount(
+              anonymousSession.id,
+            );
 
-            logger.info("chat-api", "Incremented anonymous message count after success", {
-              sessionId: anonymousSession.id,
-              newCount: anonymousSession.message_count + 1,
-            });
+            logger.info(
+              "chat-api",
+              "Incremented anonymous message count after success",
+              {
+                sessionId: anonymousSession.id,
+                newCount: anonymousSession.message_count + 1,
+              },
+            );
           }
 
           const userMessage = messages[messages.length - 1];
@@ -411,7 +446,9 @@ async function handlePOST(req: NextRequest) {
 
             if (apiKey) {
               const lastMessageParts = messages[messages.length - 1]?.parts;
-              const userPrompt = lastMessageParts ? extractTextFromParts(lastMessageParts) : "";
+              const userPrompt = lastMessageParts
+                ? extractTextFromParts(lastMessageParts)
+                : "";
               await generationsService.create({
                 organization_id: user.organization_id,
                 user_id: user.id,
@@ -431,7 +468,8 @@ async function handlePOST(req: NextRequest) {
                   text: text,
                   inputTokens: usage.inputTokens,
                   outputTokens: usage.outputTokens,
-                  totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                  totalTokens:
+                    (usage.inputTokens || 0) + (usage.outputTokens || 0),
                 },
               });
             }
@@ -444,9 +482,13 @@ async function handlePOST(req: NextRequest) {
           });
         } catch (error) {
           await settleReservation?.(0);
-          logger.error("chat-api", "Error persisting messages or deducting credits", {
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
+          logger.error(
+            "chat-api",
+            "Error persisting messages or deducting credits",
+            {
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+          );
 
           if (usage && user.organization_id) {
             try {
@@ -462,12 +504,15 @@ async function handlePOST(req: NextRequest) {
                 input_cost: String(0),
                 output_cost: String(0),
                 is_successful: false,
-                error_message: error instanceof Error ? error.message : "Unknown error",
+                error_message:
+                  error instanceof Error ? error.message : "Unknown error",
               });
 
               if (apiKey) {
                 const lastMessageParts = messages[messages.length - 1]?.parts;
-                const userPrompt = lastMessageParts ? extractTextFromParts(lastMessageParts) : "";
+                const userPrompt = lastMessageParts
+                  ? extractTextFromParts(lastMessageParts)
+                  : "";
                 await generationsService.create({
                   organization_id: user.organization_id,
                   user_id: user.id,
@@ -477,14 +522,18 @@ async function handlePOST(req: NextRequest) {
                   provider: provider,
                   prompt: userPrompt,
                   status: "failed",
-                  error: error instanceof Error ? error.message : "Unknown error",
+                  error:
+                    error instanceof Error ? error.message : "Unknown error",
                   usage_record_id: errorUsageRecord.id,
                   completed_at: new Date(),
                 });
               }
             } catch (usageError) {
               logger.error("chat-api", "Error creating usage record", {
-                error: usageError instanceof Error ? usageError.message : "Unknown error",
+                error:
+                  usageError instanceof Error
+                    ? usageError.message
+                    : "Unknown error",
               });
             }
           }
@@ -508,7 +557,10 @@ async function handlePOST(req: NextRequest) {
     const status = getErrorStatusCode(error);
     return new Response(
       JSON.stringify({
-        error: status === 500 ? "Failed to process chat" : getSafeErrorMessage(error),
+        error:
+          status === 500
+            ? "Failed to process chat"
+            : getSafeErrorMessage(error),
       }),
       {
         status,

@@ -31,6 +31,8 @@ export async function getKnowledgeService(
   return null;
 }
 
-export async function hasKnowledgeService(runtime: AgentRuntime): Promise<boolean> {
+export async function hasKnowledgeService(
+  runtime: AgentRuntime,
+): Promise<boolean> {
   return (await getKnowledgeService(runtime)) !== null;
 }

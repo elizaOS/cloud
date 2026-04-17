@@ -43,8 +43,14 @@ export const organizations = pgTable(
     stripe_payment_method_id: text("stripe_payment_method_id"),
     stripe_default_payment_method: text("stripe_default_payment_method"),
     auto_top_up_enabled: boolean("auto_top_up_enabled").default(false),
-    auto_top_up_threshold: numeric("auto_top_up_threshold", { precision: 10, scale: 2 }),
-    auto_top_up_amount: numeric("auto_top_up_amount", { precision: 10, scale: 2 }),
+    auto_top_up_threshold: numeric("auto_top_up_threshold", {
+      precision: 10,
+      scale: 2,
+    }),
+    auto_top_up_amount: numeric("auto_top_up_amount", {
+      precision: 10,
+      scale: 2,
+    }),
 
     // Steward auth tenant credentials for this organization.
     // Populated when an org is onboarded onto Steward-backed auth.

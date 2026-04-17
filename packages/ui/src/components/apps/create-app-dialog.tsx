@@ -183,7 +183,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
     !nameValidation.isChecking &&
     nameValidation.isAvailable !== false;
 
-  const isDescriptionValid = formData.description.length >= MIN_DESCRIPTION_LENGTH;
+  const isDescriptionValid =
+    formData.description.length >= MIN_DESCRIPTION_LENGTH;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,7 +196,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          allowed_origins: allowedOrigins.length > 0 ? allowedOrigins : [formData.app_url],
+          allowed_origins:
+            allowedOrigins.length > 0 ? allowedOrigins : [formData.app_url],
           features_enabled: formData.features,
         }),
       });
@@ -215,12 +217,14 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
       });
 
       toast.success("App created successfully!", {
-        description: "Your API key has been generated. Make sure to save it securely.",
+        description:
+          "Your API key has been generated. Make sure to save it securely.",
       });
     } catch (error) {
       console.error("Error creating app:", error);
       toast.error("Failed to create app", {
-        description: error instanceof Error ? error.message : "Please try again",
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsLoading(false);
@@ -299,8 +303,17 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             <div>
               <Label className="text-xs text-white/60">API Key</Label>
               <div className="flex gap-2 mt-1">
-                <Input value={createdApp.apiKey} readOnly className="font-mono text-sm" />
-                <Button type="button" variant="outline" onClick={copyApiKey} className="shrink-0">
+                <Input
+                  value={createdApp.apiKey}
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={copyApiKey}
+                  className="shrink-0"
+                >
                   {copied ? (
                     <Check className="h-4 w-4 text-green-500" />
                   ) : (
@@ -312,12 +325,18 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button onClick={handleClose} variant="outline" className="w-full sm:w-auto">
+            <Button
+              onClick={handleClose}
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
               Go to Overview
             </Button>
             <Button
               onClick={() => {
-                router.push(`/dashboard/apps/${createdApp.appId}?tab=monetization`);
+                router.push(
+                  `/dashboard/apps/${createdApp.appId}?tab=monetization`,
+                );
                 onOpenChange(false);
               }}
               className="bg-gradient-to-r from-[#FF5800] to-purple-600 w-full sm:w-auto"
@@ -336,8 +355,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
         <DialogHeader>
           <DialogTitle>Create New App</DialogTitle>
           <DialogDescription>
-            Create an app to integrate Eliza Cloud services into your website or application.
-            You&apos;ll receive an API key for authentication.
+            Create an app to integrate Eliza Cloud services into your website or
+            application. You&apos;ll receive an API key for authentication.
           </DialogDescription>
         </DialogHeader>
 
@@ -361,25 +380,31 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                         Available
                       </span>
                     )}
-                  {!nameValidation.isChecking && nameValidation.isAvailable === false && (
-                    <span className="flex items-center gap-1 text-xs text-red-400">
-                      <AlertCircle className="h-3 w-3" />
-                      Taken
-                    </span>
-                  )}
-                  <span className="text-xs text-white/40">{formData.name.length}/100</span>
+                  {!nameValidation.isChecking &&
+                    nameValidation.isAvailable === false && (
+                      <span className="flex items-center gap-1 text-xs text-red-400">
+                        <AlertCircle className="h-3 w-3" />
+                        Taken
+                      </span>
+                    )}
+                  <span className="text-xs text-white/40">
+                    {formData.name.length}/100
+                  </span>
                 </div>
               </div>
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="My Awesome App"
                 maxLength={100}
                 className={
                   nameValidation.error
                     ? "border-red-500/50 focus:border-red-500"
-                    : nameValidation.isAvailable === true && formData.name.trim().length >= 2
+                    : nameValidation.isAvailable === true &&
+                        formData.name.trim().length >= 2
                       ? "border-emerald-500/30 focus:border-emerald-500"
                       : ""
                 }
@@ -420,13 +445,16 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                       : "text-white/40"
                   }`}
                 >
-                  {formData.description.length} characters (min {MIN_DESCRIPTION_LENGTH})
+                  {formData.description.length} characters (min{" "}
+                  {MIN_DESCRIPTION_LENGTH})
                 </span>
               </div>
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="A brief description of your app... (minimum 10 characters)"
                 rows={3}
                 className={
@@ -442,8 +470,10 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 formData.description.length < MIN_DESCRIPTION_LENGTH && (
                   <p className="text-xs text-amber-400 flex items-center gap-1.5">
                     <AlertCircle className="h-3.5 w-3.5" />
-                    Description must be at least {MIN_DESCRIPTION_LENGTH} characters (
-                    {MIN_DESCRIPTION_LENGTH - formData.description.length} more needed)
+                    Description must be at least {MIN_DESCRIPTION_LENGTH}{" "}
+                    characters (
+                    {MIN_DESCRIPTION_LENGTH - formData.description.length} more
+                    needed)
                   </p>
                 )}
             </div>
@@ -456,7 +486,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 id="app_url"
                 type="url"
                 value={formData.app_url}
-                onChange={(e) => setFormData({ ...formData, app_url: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, app_url: e.target.value })
+                }
                 placeholder="https://myapp.com"
                 required
               />
@@ -470,7 +502,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 id="website_url"
                 type="url"
                 value={formData.website_url}
-                onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, website_url: e.target.value })
+                }
                 placeholder="https://website.com"
               />
             </div>
@@ -483,7 +517,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 id="contact_email"
                 type="email"
                 value={formData.contact_email}
-                onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, contact_email: e.target.value })
+                }
                 placeholder="contact@myapp.com"
               />
             </div>
@@ -500,8 +536,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="text-xs">
-                      Specify which domains can make requests with your API key. Leave empty to only
-                      allow the app URL.
+                      Specify which domains can make requests with your API key.
+                      Leave empty to only allow the app URL.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -527,7 +563,11 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             {allowedOrigins.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {allowedOrigins.map((origin) => (
-                  <Badge key={origin} variant="secondary" className="flex items-center gap-1">
+                  <Badge
+                    key={origin}
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
                     {origin}
                     <button
                       type="button"
@@ -552,7 +592,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                     <HelpCircle className="w-4 h-4 text-white/60 cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="text-xs">Select which Eliza Cloud features this app can access</p>
+                    <p className="text-xs">
+                      Select which Eliza Cloud features this app can access
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -568,7 +610,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 embedding: "Embeddings",
               }).map(([key, label]) => {
                 const Icon = featureIcons[key as keyof typeof featureIcons];
-                const isChecked = formData.features[key as keyof typeof formData.features];
+                const isChecked =
+                  formData.features[key as keyof typeof formData.features];
 
                 return (
                   <div
@@ -601,7 +644,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             <div className="flex-1">
               <Label htmlFor="affiliate">Generate Affiliate Code</Label>
               <p className="text-xs text-white/60 mt-1">
-                Create a unique affiliate code to track user signups from your app
+                Create a unique affiliate code to track user signups from your
+                app
               </p>
             </div>
             <Switch
@@ -625,7 +669,10 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             <Button
               type="submit"
               disabled={
-                isLoading || !isNameValid || !isDescriptionValid || nameValidation.isChecking
+                isLoading ||
+                !isNameValid ||
+                !isDescriptionValid ||
+                nameValidation.isChecking
               }
               className="bg-gradient-to-r from-[#FF5800] to-purple-600"
             >

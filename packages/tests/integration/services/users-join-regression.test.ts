@@ -5,7 +5,14 @@
  * These assertions intentionally read from primary because they verify the
  * post-write hydrated shape, not replica propagation timing.
  */
-import { afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { dbWrite } from "@/db/helpers";

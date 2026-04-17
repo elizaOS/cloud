@@ -152,10 +152,16 @@ export async function verifyTwilioSignature(
       false,
       ["sign"],
     );
-    const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+    const signatureBuffer = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(data),
+    );
 
     // Convert to base64
-    const computedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+    const computedSignature = btoa(
+      String.fromCharCode(...new Uint8Array(signatureBuffer)),
+    );
 
     // Use constant-time comparison to prevent timing attacks
     // Pad both strings to the same length to avoid timing leaks from length differences
@@ -167,7 +173,10 @@ export async function verifyTwilioSignature(
 
     // timingSafeEqual requires same length buffers - we've ensured this above
     // Also verify actual lengths match (after constant-time comparison)
-    const signaturesMatch = crypto.timingSafeEqual(computedBuffer, expectedBuffer);
+    const signaturesMatch = crypto.timingSafeEqual(
+      computedBuffer,
+      expectedBuffer,
+    );
     const lengthsMatch = computedSignature.length === signature.length;
     return signaturesMatch && lengthsMatch;
   } catch {
@@ -206,7 +215,8 @@ export function isValidMediaUrl(url: string): boolean {
     }
     // Must be from allowed domain
     return ALLOWED_MEDIA_DOMAINS.some(
-      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
+      (domain) =>
+        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
     );
   } catch {
     return false;

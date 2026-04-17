@@ -41,7 +41,10 @@ export async function DELETE(
     const status = getErrorStatusCode(error);
     return NextResponse.json(
       {
-        error: status === 500 ? "Failed to delete API key" : getSafeErrorMessage(error),
+        error:
+          status === 500
+            ? "Failed to delete API key"
+            : getSafeErrorMessage(error),
       },
       { status },
     );
@@ -57,7 +60,10 @@ export async function DELETE(
  * @param params - Route parameters containing the API key ID.
  * @returns Updated API key details.
  */
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -73,8 +79,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const body = await request.json();
-    const { name, description, permissions, rate_limit, is_active, expires_at } =
-      updateApiKeySchema.parse(body);
+    const {
+      name,
+      description,
+      permissions,
+      rate_limit,
+      is_active,
+      expires_at,
+    } = updateApiKeySchema.parse(body);
 
     const updatedKey = await apiKeysService.update(id, {
       ...(name !== undefined && { name }),
@@ -86,7 +98,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     });
 
     if (!updatedKey) {
-      return NextResponse.json({ error: "Failed to update API key" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to update API key" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json(
@@ -117,7 +132,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const status = getErrorStatusCode(error);
     return NextResponse.json(
       {
-        error: status === 500 ? "Failed to update API key" : getSafeErrorMessage(error),
+        error:
+          status === 500
+            ? "Failed to update API key"
+            : getSafeErrorMessage(error),
       },
       { status },
     );

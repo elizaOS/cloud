@@ -48,7 +48,8 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
     podName: pod_name,
   });
 
-  const released = await discordConnectionsRepository.clearPodAssignments(pod_name);
+  const released =
+    await discordConnectionsRepository.clearPodAssignments(pod_name);
 
   logger.info("[Gateway Shutdown] Released connections", {
     podName: pod_name,

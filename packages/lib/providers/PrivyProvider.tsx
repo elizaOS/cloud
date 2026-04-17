@@ -27,7 +27,10 @@ type SolanaConnectors = ReturnType<typeof toSolanaWalletConnectors>;
 // Create Solana wallet connectors once globally to prevent
 // WalletConnect double-initialization in React Strict Mode and during HMR
 const getSolanaConnectors = (): SolanaConnectors => {
-  const globalCache = globalThis as unknown as Record<string, SolanaConnectors | undefined>;
+  const globalCache = globalThis as unknown as Record<
+    string,
+    SolanaConnectors | undefined
+  >;
 
   if (globalCache[SOLANA_CONNECTORS_KEY]) {
     return globalCache[SOLANA_CONNECTORS_KEY];
@@ -139,7 +142,11 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
   return children;
 }
 
-export default function PrivyProvider({ children }: { children: React.ReactNode }) {
+export default function PrivyProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const hasLoggedPrivyConfigError = useRef(false);
 
   // Memoize the config to prevent unnecessary re-renders (must be before early return)
@@ -160,7 +167,13 @@ export default function PrivyProvider({ children }: { children: React.ReactNode 
         walletChainType: "ethereum-and-solana",
         theme: "dark",
         accentColor: "#6366F1",
-        walletList: ["metamask", "phantom", "coinbase_wallet", "rabby_wallet", "okx_wallet"],
+        walletList: [
+          "metamask",
+          "phantom",
+          "coinbase_wallet",
+          "rabby_wallet",
+          "okx_wallet",
+        ],
       },
       externalWallets: {
         solana: {
@@ -175,12 +188,19 @@ export default function PrivyProvider({ children }: { children: React.ReactNode 
   // Check if Privy App ID is configured
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
-  const playwrightTestAuthEnabled = process.env.NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH === "true";
-  const stewardAuthEnabled = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
-  const resolvedClientId = isPlaceholderPrivyValue(clientId) ? undefined : clientId?.trim();
+  const playwrightTestAuthEnabled =
+    process.env.NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH === "true";
+  const stewardAuthEnabled =
+    process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
+  const resolvedClientId = isPlaceholderPrivyValue(clientId)
+    ? undefined
+    : clientId?.trim();
   const hasValidAppId =
-    typeof appId === "string" && appId.trim().length === 25 && !isPlaceholderPrivyValue(appId);
-  const shouldUseFallbackPrivyContext = stewardAuthEnabled || playwrightTestAuthEnabled;
+    typeof appId === "string" &&
+    appId.trim().length === 25 &&
+    !isPlaceholderPrivyValue(appId);
+  const shouldUseFallbackPrivyContext =
+    stewardAuthEnabled || playwrightTestAuthEnabled;
 
   useEffect(() => {
     if (
@@ -204,7 +224,10 @@ export default function PrivyProvider({ children }: { children: React.ReactNode 
     // simply report unauthenticated.
     if (shouldUseFallbackPrivyContext) {
       return (
-        <PrivyProviderReactAuth appId="cm00000000000000000000000" config={privyConfig}>
+        <PrivyProviderReactAuth
+          appId="cm00000000000000000000000"
+          config={privyConfig}
+        >
           {children}
         </PrivyProviderReactAuth>
       );
@@ -212,7 +235,9 @@ export default function PrivyProvider({ children }: { children: React.ReactNode 
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600">Configuration Error</h1>
+          <h1 className="text-2xl font-bold text-red-600">
+            Configuration Error
+          </h1>
           <p className="mt-2">Privy configuration is missing.</p>
           <p className="text-sm text-gray-500 mt-1">
             Please set NEXT_PUBLIC_PRIVY_APP_ID in your environment variables.
@@ -223,7 +248,11 @@ export default function PrivyProvider({ children }: { children: React.ReactNode 
   }
 
   return (
-    <PrivyProviderReactAuth appId={appId} clientId={resolvedClientId} config={privyConfig}>
+    <PrivyProviderReactAuth
+      appId={appId}
+      clientId={resolvedClientId}
+      config={privyConfig}
+    >
       <PrivyAuthWrapper>{children}</PrivyAuthWrapper>
     </PrivyProviderReactAuth>
   );

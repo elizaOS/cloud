@@ -18,7 +18,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
-  const creatives = await advertisingService.listCreatives(id, user.organization_id!);
+  const creatives = await advertisingService.listCreatives(
+    id,
+    user.organization_id!,
+  );
 
   return NextResponse.json({
     creatives: creatives.map((c) => ({
@@ -56,17 +59,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const creative = await advertisingService.createCreative(user.organization_id!, {
-    campaignId: id,
-    name: parsed.data.name,
-    type: parsed.data.type,
-    headline: parsed.data.headline,
-    primaryText: parsed.data.primaryText,
-    description: parsed.data.description,
-    callToAction: parsed.data.callToAction,
-    destinationUrl: parsed.data.destinationUrl,
-    media: parsed.data.media,
-  });
+  const creative = await advertisingService.createCreative(
+    user.organization_id!,
+    {
+      campaignId: id,
+      name: parsed.data.name,
+      type: parsed.data.type,
+      headline: parsed.data.headline,
+      primaryText: parsed.data.primaryText,
+      description: parsed.data.description,
+      callToAction: parsed.data.callToAction,
+      destinationUrl: parsed.data.destinationUrl,
+      media: parsed.data.media,
+    },
+  );
 
   logger.info("[Advertising API] Creative created", {
     creativeId: creative.id,

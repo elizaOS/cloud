@@ -31,7 +31,9 @@ export function splitMessage(text: string, maxLength = 4096): string[] {
   return chunks;
 }
 
-export function createInlineKeyboard(buttons: Array<{ text: string; url: string }>): {
+export function createInlineKeyboard(
+  buttons: Array<{ text: string; url: string }>,
+): {
   inline_keyboard: Array<Array<{ text: string; url: string }>>;
 } {
   return {
@@ -42,7 +44,9 @@ export function createInlineKeyboard(buttons: Array<{ text: string; url: string 
 export function createMultiRowKeyboard(
   rows: Array<Array<{ text: string; url?: string; callback_data?: string }>>,
 ): {
-  inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>>;
+  inline_keyboard: Array<
+    Array<{ text: string; url?: string; callback_data?: string }>
+  >;
 } {
   return { inline_keyboard: rows };
 }
@@ -83,9 +87,16 @@ export const TELEGRAM_RATE_LIMITS = {
   MAX_CAPTION_LENGTH: 1024,
 } as const;
 
-export type TelegramUpdateType = "message" | "edited_message" | "channel_post" | "callback_query";
+export type TelegramUpdateType =
+  | "message"
+  | "edited_message"
+  | "channel_post"
+  | "callback_query";
 
-export function extractMessageText(message: { text?: string; caption?: string }): string {
+export function extractMessageText(message: {
+  text?: string;
+  caption?: string;
+}): string {
   return message.text || message.caption || "";
 }
 

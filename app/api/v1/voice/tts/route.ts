@@ -65,7 +65,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (text.length === 0) {
-      return NextResponse.json({ error: "Text cannot be empty" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Text cannot be empty" },
+        { status: 400 },
+      );
     }
 
     if (text.length > MAX_TEXT_LENGTH) {
@@ -77,7 +80,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info(`[Voice TTS API] Generating speech for user ${user.id}: ${text.length} chars`);
+    logger.info(
+      `[Voice TTS API] Generating speech for user ${user.id}: ${text.length} chars`,
+    );
 
     let userVoiceId: string | null = null;
     let voiceName: string | null = null;
@@ -119,7 +124,8 @@ export async function POST(request: NextRequest) {
       characterCount: text.length,
     });
     const estimatedCost = isCustomVoice
-      ? Math.round(ttsCost.totalCost * CUSTOM_VOICE_TTS_MARKUP * 1_000_000) / 1_000_000
+      ? Math.round(ttsCost.totalCost * CUSTOM_VOICE_TTS_MARKUP * 1_000_000) /
+        1_000_000
       : ttsCost.totalCost;
 
     try {
@@ -167,10 +173,14 @@ export async function POST(request: NextRequest) {
       {
         totalCost: estimatedCost,
         baseTotalCost: isCustomVoice
-          ? Math.round(ttsCost.baseTotalCost * CUSTOM_VOICE_TTS_MARKUP * 1_000_000) / 1_000_000
+          ? Math.round(
+              ttsCost.baseTotalCost * CUSTOM_VOICE_TTS_MARKUP * 1_000_000,
+            ) / 1_000_000
           : ttsCost.baseTotalCost,
         platformMarkup: isCustomVoice
-          ? Math.round(ttsCost.platformMarkup * CUSTOM_VOICE_TTS_MARKUP * 1_000_000) / 1_000_000
+          ? Math.round(
+              ttsCost.platformMarkup * CUSTOM_VOICE_TTS_MARKUP * 1_000_000,
+            ) / 1_000_000
           : ttsCost.platformMarkup,
       },
       reservation,
@@ -271,7 +281,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (errorMessage.includes("elevenlabs_api_key")) {
-      return NextResponse.json({ error: "Service not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Service not configured" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json(

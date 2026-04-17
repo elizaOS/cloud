@@ -6,7 +6,11 @@
  */
 
 import plugin from "@elizaos/plugin-sql/node";
-import { longTermMemories, memoryAccessLogs, sessionSummaries } from "./advanced-memory";
+import {
+  longTermMemories,
+  memoryAccessLogs,
+  sessionSummaries,
+} from "./advanced-memory";
 
 /**
  * Re-exported elizaOS plugin-sql tables.
@@ -29,7 +33,10 @@ export const {
   messageServerTable,
   channelTable,
   channelParticipantsTable,
-} = (plugin as unknown as { schema: Record<string, any> }).schema as Record<string, any>;
+} = (plugin as unknown as { schema: Record<string, any> }).schema as Record<
+  string,
+  any
+>;
 
 /**
  * Re-exported elizaOS memory plugin tables.

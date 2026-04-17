@@ -30,17 +30,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   if (body.guildId) {
     // Disconnect specific guild
-    const guild = await discordAutomationService.getGuild(user.organization_id, body.guildId);
+    const guild = await discordAutomationService.getGuild(
+      user.organization_id,
+      body.guildId,
+    );
     if (!guild) {
       return NextResponse.json({ error: "Guild not found" }, { status: 404 });
     }
 
-    const result = await discordAutomationService.disconnect(user.organization_id, body.guildId);
+    const result = await discordAutomationService.disconnect(
+      user.organization_id,
+      body.guildId,
+    );
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });

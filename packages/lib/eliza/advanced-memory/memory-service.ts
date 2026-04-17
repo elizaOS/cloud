@@ -82,15 +82,23 @@ export class MemoryService extends Service {
 
     const threshold = runtime.getSetting("MEMORY_SUMMARIZATION_THRESHOLD");
     if (threshold) {
-      this.memoryConfig.shortTermSummarizationThreshold = Number.parseInt(String(threshold), 10);
+      this.memoryConfig.shortTermSummarizationThreshold = Number.parseInt(
+        String(threshold),
+        10,
+      );
     }
 
     const retainRecent = runtime.getSetting("MEMORY_RETAIN_RECENT");
     if (retainRecent) {
-      this.memoryConfig.shortTermRetainRecent = Number.parseInt(String(retainRecent), 10);
+      this.memoryConfig.shortTermRetainRecent = Number.parseInt(
+        String(retainRecent),
+        10,
+      );
     }
 
-    const summarizationInterval = runtime.getSetting("MEMORY_SUMMARIZATION_INTERVAL");
+    const summarizationInterval = runtime.getSetting(
+      "MEMORY_SUMMARIZATION_INTERVAL",
+    );
     if (summarizationInterval) {
       this.memoryConfig.shortTermSummarizationInterval = Number.parseInt(
         String(summarizationInterval),
@@ -100,7 +108,10 @@ export class MemoryService extends Service {
 
     const maxNewMessages = runtime.getSetting("MEMORY_MAX_NEW_MESSAGES");
     if (maxNewMessages) {
-      this.memoryConfig.summaryMaxNewMessages = Number.parseInt(String(maxNewMessages), 10);
+      this.memoryConfig.summaryMaxNewMessages = Number.parseInt(
+        String(maxNewMessages),
+        10,
+      );
     }
 
     const longTermEnabled = runtime.getSetting("MEMORY_LONG_TERM_ENABLED");
@@ -110,14 +121,18 @@ export class MemoryService extends Service {
       this.memoryConfig.longTermExtractionEnabled = true;
     }
 
-    const confidenceThreshold = runtime.getSetting("MEMORY_CONFIDENCE_THRESHOLD");
+    const confidenceThreshold = runtime.getSetting(
+      "MEMORY_CONFIDENCE_THRESHOLD",
+    );
     if (confidenceThreshold) {
       this.memoryConfig.longTermConfidenceThreshold = Number.parseFloat(
         String(confidenceThreshold),
       );
     }
 
-    const extractionThreshold = runtime.getSetting("MEMORY_EXTRACTION_THRESHOLD");
+    const extractionThreshold = runtime.getSetting(
+      "MEMORY_EXTRACTION_THRESHOLD",
+    );
     if (extractionThreshold) {
       this.memoryConfig.longTermExtractionThreshold = Number.parseInt(
         String(extractionThreshold),
@@ -135,7 +150,8 @@ export class MemoryService extends Service {
 
     logger.debug(
       {
-        summarizationThreshold: this.memoryConfig.shortTermSummarizationThreshold,
+        summarizationThreshold:
+          this.memoryConfig.shortTermSummarizationThreshold,
         summarizationInterval: this.memoryConfig.shortTermSummarizationInterval,
         maxNewMessages: this.memoryConfig.summaryMaxNewMessages,
         retainRecent: this.memoryConfig.shortTermRetainRecent,
@@ -180,9 +196,15 @@ export class MemoryService extends Service {
       unique: boolean;
       tableName: string;
     }) => Promise<number>;
-    type LegacyCounter = (roomId: UUID, unique?: boolean, tableName?: string) => Promise<number>;
+    type LegacyCounter = (
+      roomId: UUID,
+      unique?: boolean,
+      tableName?: string,
+    ) => Promise<number>;
 
-    const counter = this.runtime.countMemories as unknown as ModernCounter | LegacyCounter;
+    const counter = this.runtime.countMemories as unknown as
+      | ModernCounter
+      | LegacyCounter;
     if (counter.length >= 2) {
       return (counter as LegacyCounter)(roomId, false, "messages");
     }
@@ -225,7 +247,10 @@ export class MemoryService extends Service {
     return `memory:extraction:${entityId}:${roomId}`;
   }
 
-  async getLastExtractionCheckpoint(entityId: UUID, roomId: UUID): Promise<number> {
+  async getLastExtractionCheckpoint(
+    entityId: UUID,
+    roomId: UUID,
+  ): Promise<number> {
     const key = this.getExtractionKey(entityId, roomId);
     const cached = this.lastExtractionCheckpoints.get(key);
     if (cached !== undefined) {
@@ -235,12 +260,17 @@ export class MemoryService extends Service {
     try {
       const checkpoint = await this.runtime.getCache(key);
       const messageCount =
-        typeof checkpoint === "number" && Number.isFinite(checkpoint) ? checkpoint : 0;
+        typeof checkpoint === "number" && Number.isFinite(checkpoint)
+          ? checkpoint
+          : 0;
       this.lastExtractionCheckpoints.set(key, messageCount);
       return messageCount;
     } catch (error) {
       const err = error instanceof Error ? error.message : String(error);
-      logger.warn({ src: "service:memory", err }, "Failed to get extraction checkpoint from cache");
+      logger.warn(
+        { src: "service:memory", err },
+        "Failed to get extraction checkpoint from cache",
+      );
       return 0;
     }
   }
@@ -280,13 +310,22 @@ export class MemoryService extends Service {
       return false;
     }
 
-    const lastCheckpoint = await this.getLastExtractionCheckpoint(entityId, roomId);
-    const currentCheckpoint = Math.floor(currentMessageCount / interval) * interval;
-    return currentMessageCount >= threshold && currentCheckpoint > lastCheckpoint;
+    const lastCheckpoint = await this.getLastExtractionCheckpoint(
+      entityId,
+      roomId,
+    );
+    const currentCheckpoint =
+      Math.floor(currentMessageCount / interval) * interval;
+    return (
+      currentMessageCount >= threshold && currentCheckpoint > lastCheckpoint
+    );
   }
 
   async storeLongTermMemory(
-    memory: Omit<LongTermMemory, "id" | "createdAt" | "updatedAt" | "accessCount">,
+    memory: Omit<
+      LongTermMemory,
+      "id" | "createdAt" | "updatedAt" | "accessCount"
+    >,
   ): Promise<LongTermMemory> {
     return (await this.getStorage()).storeLongTermMemory(memory);
   }
@@ -299,16 +338,22 @@ export class MemoryService extends Service {
     if (limit <= 0) {
       return [];
     }
-    return (await this.getStorage()).getLongTermMemories(this.runtime.agentId, entityId, {
-      category,
-      limit,
-    });
+    return (await this.getStorage()).getLongTermMemories(
+      this.runtime.agentId,
+      entityId,
+      {
+        category,
+        limit,
+      },
+    );
   }
 
   async updateLongTermMemory(
     id: UUID,
     entityId: UUID,
-    updates: Partial<Omit<LongTermMemory, "id" | "agentId" | "entityId" | "createdAt">>,
+    updates: Partial<
+      Omit<LongTermMemory, "id" | "agentId" | "entityId" | "createdAt">
+    >,
   ): Promise<void> {
     await (await this.getStorage()).updateLongTermMemory(
       id,
@@ -319,11 +364,18 @@ export class MemoryService extends Service {
   }
 
   async deleteLongTermMemory(id: UUID, entityId: UUID): Promise<void> {
-    await (await this.getStorage()).deleteLongTermMemory(id, this.runtime.agentId, entityId);
+    await (await this.getStorage()).deleteLongTermMemory(
+      id,
+      this.runtime.agentId,
+      entityId,
+    );
   }
 
   async getCurrentSessionSummary(roomId: UUID): Promise<SessionSummary | null> {
-    return (await this.getStorage()).getCurrentSessionSummary(this.runtime.agentId, roomId);
+    return (await this.getStorage()).getCurrentSessionSummary(
+      this.runtime.agentId,
+      roomId,
+    );
   }
 
   async storeSessionSummary(
@@ -335,13 +387,30 @@ export class MemoryService extends Service {
   async updateSessionSummary(
     id: UUID,
     roomId: UUID,
-    updates: Partial<Omit<SessionSummary, "id" | "agentId" | "roomId" | "createdAt" | "updatedAt">>,
+    updates: Partial<
+      Omit<
+        SessionSummary,
+        "id" | "agentId" | "roomId" | "createdAt" | "updatedAt"
+      >
+    >,
   ): Promise<void> {
-    await (await this.getStorage()).updateSessionSummary(id, this.runtime.agentId, roomId, updates);
+    await (await this.getStorage()).updateSessionSummary(
+      id,
+      this.runtime.agentId,
+      roomId,
+      updates,
+    );
   }
 
-  async getSessionSummaries(roomId: UUID, limit = 5): Promise<SessionSummary[]> {
-    return (await this.getStorage()).getSessionSummaries(this.runtime.agentId, roomId, limit);
+  async getSessionSummaries(
+    roomId: UUID,
+    limit = 5,
+  ): Promise<SessionSummary[]> {
+    return (await this.getStorage()).getSessionSummaries(
+      this.runtime.agentId,
+      roomId,
+      limit,
+    );
   }
 
   async searchLongTermMemories(
@@ -363,13 +432,20 @@ export class MemoryService extends Service {
     }
 
     try {
-      const candidates = await this.getLongTermMemories(entityId, undefined, 200);
+      const candidates = await this.getLongTermMemories(
+        entityId,
+        undefined,
+        200,
+      );
       const scored: Array<{ memory: LongTermMemory; similarity: number }> = [];
       for (const memory of candidates) {
         if ((memory.embedding?.length ?? 0) === 0) {
           continue;
         }
-        const similarity = cosineSimilarity(memory.embedding ?? [], queryEmbedding);
+        const similarity = cosineSimilarity(
+          memory.embedding ?? [],
+          queryEmbedding,
+        );
         if (similarity < matchThreshold) {
           continue;
         }
@@ -382,7 +458,10 @@ export class MemoryService extends Service {
           continue;
         }
         let index = 0;
-        while (index < scored.length && scored[index]!.similarity > similarity) {
+        while (
+          index < scored.length &&
+          scored[index]!.similarity > similarity
+        ) {
           index += 1;
         }
         scored.splice(index, 0, { memory, similarity });
@@ -425,7 +504,9 @@ export class MemoryService extends Service {
         .split("_")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
-      const items = categoryMemories.map((memory) => `- ${memory.content}`).join("\n");
+      const items = categoryMemories
+        .map((memory) => `- ${memory.content}`)
+        .join("\n");
       sections.push(`**${categoryName}**:\n${items}`);
     }
 

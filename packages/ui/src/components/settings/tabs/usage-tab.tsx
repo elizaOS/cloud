@@ -80,7 +80,10 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
           : [];
         const burn = transactions
           .filter((t) => Number(t.amount) < 0)
-          .reduce((sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)), 0);
+          .reduce(
+            (sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)),
+            0,
+          );
 
         setDailyBurn(burn);
       } catch (error) {
@@ -160,13 +163,16 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                 </h3>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
-                Monitor how your team is consuming credits and track associated costs.
+                Monitor how your team is consuming credits and track associated
+                costs.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Info className="h-4 w-4 text-[#848484] flex-shrink-0" />
-              <p className="text-xs md:text-sm text-[#848484]">Last updated: just now</p>
+              <p className="text-xs md:text-sm text-[#848484]">
+                Last updated: just now
+              </p>
             </div>
           </div>
 
@@ -175,11 +181,15 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
             {/* Credits Remaining */}
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 w-full">
-                <p className="text-sm md:text-base font-mono text-white">Credits Remaining</p>
+                <p className="text-sm md:text-base font-mono text-white">
+                  Credits Remaining
+                </p>
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
                 ) : (
-                  <p className="text-xs text-[#FF5800]">${dailyBurn.toFixed(2)} daily burn</p>
+                  <p className="text-xs text-[#FF5800]">
+                    ${dailyBurn.toFixed(2)} daily burn
+                  </p>
                 )}
               </div>
 
@@ -192,25 +202,33 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                     ${creditsRemaining.toFixed(2)}
                   </p>
                 </div>
-                <p className="text-sm text-white/60">Current organization&apos;s credit balance</p>
+                <p className="text-sm text-white/60">
+                  Current organization&apos;s credit balance
+                </p>
               </div>
             </div>
 
             {/* Current Session */}
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <p className="text-sm md:text-base font-mono text-white">Current Session</p>
+                <p className="text-sm md:text-base font-mono text-white">
+                  Current Session
+                </p>
                 {sessionLoading && !sessionStats ? (
                   <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
                 ) : (
-                  <p className="text-xs text-[#848484]">Updates every 30 seconds</p>
+                  <p className="text-xs text-[#848484]">
+                    Updates every 30 seconds
+                  </p>
                 )}
               </div>
 
               {sessionStats ? (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
                   <div className="space-y-1">
-                    <p className="text-xs text-white/60 font-mono">Credits Used</p>
+                    <p className="text-xs text-white/60 font-mono">
+                      Credits Used
+                    </p>
                     <p className="text-base md:text-lg font-mono text-white">
                       ${sessionStats.credits_used.toFixed(2)}
                     </p>
@@ -253,8 +271,8 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                 </h3>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
-                Configure weekly credit limits to control spending across all models or specific
-                models.
+                Configure weekly credit limits to control spending across all
+                models or specific models.
               </p>
             </div>
 
@@ -264,7 +282,9 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
               ) : (
                 <>
                   <Info className="h-4 w-4 text-[#848484] flex-shrink-0" />
-                  <p className="text-xs md:text-sm text-[#848484]">Updates every 60 seconds</p>
+                  <p className="text-xs md:text-sm text-[#848484]">
+                    Updates every 60 seconds
+                  </p>
                 </>
               )}
             </div>
@@ -274,7 +294,9 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
           <div className="space-y-0 w-full">
             {/* All models */}
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4">
-              <p className="text-sm md:text-base font-mono text-white">All models</p>
+              <p className="text-sm md:text-base font-mono text-white">
+                All models
+              </p>
 
               <div className="space-y-1">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
@@ -304,44 +326,49 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
 
             {/* Model-specific limits */}
             {quotaUsage && Object.keys(quotaUsage.modelSpecific).length > 0 ? (
-              Object.entries(quotaUsage.modelSpecific).map(([modelName, modelQuota]) => (
-                <div
-                  key={modelName}
-                  className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4"
-                >
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm md:text-base font-mono text-white capitalize">
-                      {modelName}
-                    </p>
-                    <Info className="h-4 w-4 text-[#FF5800]/60 flex-shrink-0" />
-                  </div>
+              Object.entries(quotaUsage.modelSpecific).map(
+                ([modelName, modelQuota]) => (
+                  <div
+                    key={modelName}
+                    className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm md:text-base font-mono text-white capitalize">
+                        {modelName}
+                      </p>
+                      <Info className="h-4 w-4 text-[#FF5800]/60 flex-shrink-0" />
+                    </div>
 
-                  <div className="space-y-1">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
-                      <div className="flex-1 w-full relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
-                        <div
-                          className="absolute inset-0 bg-[#FF5800]/20"
-                          style={{
-                            width: `${Math.min(100, (modelQuota.used / modelQuota.limit) * 100)}%`,
-                          }}
-                        />
+                    <div className="space-y-1">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+                        <div className="flex-1 w-full relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
+                          <div
+                            className="absolute inset-0 bg-[#FF5800]/20"
+                            style={{
+                              width: `${Math.min(100, (modelQuota.used / modelQuota.limit) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs sm:text-sm md:text-base font-mono text-white tracking-tight whitespace-nowrap">
+                          ${modelQuota.used.toFixed(2)} / $
+                          {modelQuota.limit.toFixed(2)}
+                        </p>
                       </div>
-                      <p className="text-xs sm:text-sm md:text-base font-mono text-white tracking-tight whitespace-nowrap">
-                        ${modelQuota.used.toFixed(2)} / ${modelQuota.limit.toFixed(2)}
+                      <p className="text-xs md:text-sm text-white/60">
+                        {((modelQuota.used / modelQuota.limit) * 100).toFixed(
+                          1,
+                        )}
+                        % of weekly limit used
                       </p>
                     </div>
-                    <p className="text-xs md:text-sm text-white/60">
-                      {((modelQuota.used / modelQuota.limit) * 100).toFixed(1)}% of weekly limit
-                      used
-                    </p>
                   </div>
-                </div>
-              ))
+                ),
+              )
             ) : !quotaUsage?.global.limit ? (
               <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4">
                 <p className="text-xs md:text-sm text-white/60">
-                  No model-specific limits configured. Contact your administrator to set up weekly
-                  quotas.
+                  No model-specific limits configured. Contact your
+                  administrator to set up weekly quotas.
                 </p>
               </div>
             ) : null}
@@ -364,7 +391,8 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                 </h3>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
-                Key items from spend automations, quota monitors, and provider health.
+                Key items from spend automations, quota monitors, and provider
+                health.
               </p>
             </div>
           </div>
@@ -373,7 +401,9 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
           <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-2">
             <div className="flex items-center gap-2">
               <p className="text-sm md:text-base font-mono text-white">
-                {creditsRemaining > 10 ? "All systems operational" : "Low credit balance"}
+                {creditsRemaining > 10
+                  ? "All systems operational"
+                  : "Low credit balance"}
               </p>
               <Info
                 className={`h-4 w-4 flex-shrink-0 ${creditsRemaining > 10 ? "text-[#FF5800]" : "text-yellow-500"}`}

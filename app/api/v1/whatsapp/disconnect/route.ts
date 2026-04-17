@@ -17,7 +17,10 @@ async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
-    await whatsappAutomationService.removeCredentials(user.organization_id, user.id);
+    await whatsappAutomationService.removeCredentials(
+      user.organization_id,
+      user.id,
+    );
 
     logger.info("[WhatsApp Disconnect] Credentials removed", {
       organizationId: user.organization_id,
@@ -33,7 +36,10 @@ async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       organizationId: user.organization_id,
     });
-    return NextResponse.json({ error: "Failed to disconnect WhatsApp" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to disconnect WhatsApp" },
+      { status: 500 },
+    );
   }
 }
 

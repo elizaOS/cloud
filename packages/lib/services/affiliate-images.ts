@@ -74,7 +74,10 @@ function isVercelBlobUrl(str: string): boolean {
  * @param timeoutMs - Timeout in milliseconds.
  * @returns Upload result.
  */
-async function uploadWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+async function uploadWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
   const timeout = new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error("Upload timeout")), timeoutMs);
   });
@@ -100,7 +103,9 @@ async function uploadSingleImage(
   const filename = `${prefix}-${Date.now()}.png`;
 
   if (isBase64DataUrl(imageData)) {
-    logger.debug(`[AffiliateImages] Uploading base64 image ${index} to blob storage`);
+    logger.debug(
+      `[AffiliateImages] Uploading base64 image ${index} to blob storage`,
+    );
     const result = await uploadWithTimeout(
       uploadBase64Image(imageData, {
         filename,
@@ -114,11 +119,15 @@ async function uploadSingleImage(
     return result.url;
   } else if (isValidHttpUrl(imageData)) {
     if (isVercelBlobUrl(imageData)) {
-      logger.debug(`[AffiliateImages] URL image ${index} already on Vercel Blob`);
+      logger.debug(
+        `[AffiliateImages] URL image ${index} already on Vercel Blob`,
+      );
       return imageData;
     }
 
-    logger.info(`[AffiliateImages] Re-uploading external URL ${index} to blob storage`);
+    logger.info(
+      `[AffiliateImages] Re-uploading external URL ${index} to blob storage`,
+    );
     const result = await uploadWithTimeout(
       uploadFromUrl(imageData, {
         filename,
@@ -203,7 +212,9 @@ export async function processAffiliateImages(
   );
 
   const imagesToProcess = uniqueImages.slice(0, MAX_IMAGES);
-  logger.info(`[AffiliateImages] Processing ${imagesToProcess.length} unique images`);
+  logger.info(
+    `[AffiliateImages] Processing ${imagesToProcess.length} unique images`,
+  );
 
   const chunks: Array<typeof imagesToProcess> = [];
   for (let i = 0; i < imagesToProcess.length; i += MAX_CONCURRENT_UPLOADS) {
@@ -213,7 +224,12 @@ export async function processAffiliateImages(
   let processedIndex = 0;
   for (const chunk of chunks) {
     const uploadPromises = chunk.map((img, chunkIndex) =>
-      uploadSingleImage(img.data, processedIndex + chunkIndex, characterId, img.isAvatar),
+      uploadSingleImage(
+        img.data,
+        processedIndex + chunkIndex,
+        characterId,
+        img.isAvatar,
+      ),
     );
 
     const results = await Promise.all(uploadPromises);
@@ -238,11 +254,15 @@ export async function processAffiliateImages(
 
   if (!result.avatarUrl && result.referenceImageUrls.length > 0) {
     result.avatarUrl = result.referenceImageUrls[0];
-    logger.info("[AffiliateImages] Using first reference image as avatar fallback");
+    logger.info(
+      "[AffiliateImages] Using first reference image as avatar fallback",
+    );
   }
 
   logger.info("[AffiliateImages] Processing complete", {
-    avatarUrl: result.avatarUrl ? result.avatarUrl.substring(0, 60) + "..." : null,
+    avatarUrl: result.avatarUrl
+      ? result.avatarUrl.substring(0, 60) + "..."
+      : null,
     referenceCount: result.referenceImageUrls.length,
     failedCount: result.failedUploads,
   });
@@ -250,7 +270,9 @@ export async function processAffiliateImages(
   return result;
 }
 
-export function buildAffiliateImageReferences(urls: string[]): AffiliateImageReference[] {
+export function buildAffiliateImageReferences(
+  urls: string[],
+): AffiliateImageReference[] {
   return urls.map((url, index) => ({
     url,
     isProfilePic: index === 0,
@@ -266,7 +288,9 @@ export function extractSafeImageUrls(
   const imageUrls = affiliateData.imageUrls;
   if (!Array.isArray(imageUrls)) return [];
 
-  return imageUrls.filter((url): url is string => typeof url === "string" && isValidHttpUrl(url));
+  return imageUrls.filter(
+    (url): url is string => typeof url === "string" && isValidHttpUrl(url),
+  );
 }
 
 export function hasValidReferenceImages(

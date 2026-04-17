@@ -66,11 +66,17 @@ const TIER_THRESHOLDS: ReadonlyArray<
 ];
 
 /** Sorted highest-first at module load for threshold matching. */
-const SORTED_THRESHOLDS = [...TIER_THRESHOLDS].sort((a, b) => b.minSpend - a.minSpend);
+const SORTED_THRESHOLDS = [...TIER_THRESHOLDS].sort(
+  (a, b) => b.minSpend - a.minSpend,
+);
 const FREE_TIER = SORTED_THRESHOLDS[SORTED_THRESHOLDS.length - 1];
 
 /** Credit transaction metadata types that represent free/bonus credits (excluded from spend). */
-const FREE_CREDIT_TYPES = ["initial_free_credits", "wallet_signup", "signup_code_bonus"];
+const FREE_CREDIT_TYPES = [
+  "initial_free_credits",
+  "wallet_signup",
+  "signup_code_bonus",
+];
 
 const TIER_CACHE_TTL_SECONDS = 3600; // 1h
 const tierCacheKey = (orgId: string) => `orgtier:${orgId}:v1`;
@@ -105,10 +111,13 @@ export async function recalculateOrgTier(orgId: string): Promise<OrgTierData> {
         ),
       ),
     orgRateLimitOverridesRepository.findByOrganizationId(orgId).catch((err) => {
-      logger.warn("[OrgRateLimits] Failed to load overrides, using tier defaults", {
-        orgId,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      logger.warn(
+        "[OrgRateLimits] Failed to load overrides, using tier defaults",
+        {
+          orgId,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      );
       return undefined;
     }),
   ]);
@@ -116,7 +125,8 @@ export async function recalculateOrgTier(orgId: string): Promise<OrgTierData> {
   const totalSpend = Number.parseFloat(creditResult[0]?.totalSpend ?? "0");
 
   // 2. Match tier (first threshold where totalSpend >= minSpend)
-  const matchedTier = SORTED_THRESHOLDS.find((t) => totalSpend >= t.minSpend) ?? FREE_TIER;
+  const matchedTier =
+    SORTED_THRESHOLDS.find((t) => totalSpend >= t.minSpend) ?? FREE_TIER;
 
   // 3. Merge override non-null fields
   let tierData: OrgTierData = {
@@ -146,10 +156,13 @@ export async function recalculateOrgTier(orgId: string): Promise<OrgTierData> {
   try {
     await cache.set(tierCacheKey(orgId), tierData, TIER_CACHE_TTL_SECONDS);
   } catch (err) {
-    logger.warn("[OrgRateLimits] Failed to cache tier, will re-query on next request", {
-      orgId,
-      error: err instanceof Error ? err.message : String(err),
-    });
+    logger.warn(
+      "[OrgRateLimits] Failed to cache tier, will re-query on next request",
+      {
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    );
   }
 
   logger.debug("[OrgRateLimits] Tier computed", {

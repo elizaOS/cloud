@@ -66,7 +66,9 @@ export function BuildPageClient({
 
     if (initialCharacterId) {
       // Editing existing agent
-      const character = initialCharacters.find((c) => c.id === initialCharacterId);
+      const character = initialCharacters.find(
+        (c) => c.id === initialCharacterId,
+      );
       trackEvent("agent_edit_started", {
         agent_id: initialCharacterId,
         agent_name: character?.name,
@@ -103,7 +105,13 @@ export function BuildPageClient({
       characters,
       selectedCharacterId: initialCharacterId || null,
     });
-  }, [initialCharacters, initialCharacterId, initializeState, isAuthenticated, userId]);
+  }, [
+    initialCharacters,
+    initialCharacterId,
+    initializeState,
+    isAuthenticated,
+    userId,
+  ]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {
@@ -116,7 +124,8 @@ export function BuildPageClient({
               messageCount: result.session.message_count ?? 0,
               messagesLimit: result.session.messages_limit ?? 3,
               remainingMessages:
-                (result.session.messages_limit ?? 3) - (result.session.message_count ?? 0),
+                (result.session.messages_limit ?? 3) -
+                (result.session.message_count ?? 0),
             });
             // Store session token in chat store so it gets passed with messages
             if (result.session.session_token) {
@@ -125,14 +134,22 @@ export function BuildPageClient({
           }
         })
         .catch((error) => {
-          console.error("[BuildPageClient] Failed to create anonymous session:", error);
+          console.error(
+            "[BuildPageClient] Failed to create anonymous session:",
+            error,
+          );
         })
         .finally(() => {
           // Always set loading to false regardless of success/failure
           setIsLoadingSession(false);
         });
     }
-  }, [isAuthenticated, anonymousSession, isLoadingSession, setAnonymousSessionToken]);
+  }, [
+    isAuthenticated,
+    anonymousSession,
+    isLoadingSession,
+    setAnonymousSessionToken,
+  ]);
 
   // Intercept in-app navigation when there are unsaved changes
   useEffect(() => {
@@ -244,7 +261,9 @@ export function BuildPageClient({
               <TriangleAlert className="text-amber-500 h-6 w-6" />
             </div>
             <div className="text-center">
-              <h2 className="text-lg font-medium text-white">Unsaved changes</h2>
+              <h2 className="text-lg font-medium text-white">
+                Unsaved changes
+              </h2>
               <p className="text-sm text-white/50 mt-1">
                 Your changes will be lost if you leave without saving.
               </p>

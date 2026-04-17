@@ -94,11 +94,15 @@ export class CloudFormationService {
       // Local development (from lib/services/)
       path.join(__dirname, "../../scripts/cloudformation/per-user-stack.json"),
       // Build output (from .next/server/)
-      path.join(__dirname, "../../../scripts/cloudformation/per-user-stack.json"),
+      path.join(
+        __dirname,
+        "../../../scripts/cloudformation/per-user-stack.json",
+      ),
     ];
 
     // Find the first path that exists
-    this.templatePath = possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0];
+    this.templatePath =
+      possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0];
   }
 
   /**
@@ -162,21 +166,29 @@ export class CloudFormationService {
     maxRetries: number = 3,
     delayMs: number = 1000,
   ): Promise<T> {
-    logger.info(`[CloudFormation withRetry] Starting operation with ${maxRetries} max retries`);
+    logger.info(
+      `[CloudFormation withRetry] Starting operation with ${maxRetries} max retries`,
+    );
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        logger.info(`[CloudFormation withRetry] Attempt ${attempt}/${maxRetries}`);
+        logger.info(
+          `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries}`,
+        );
         const result = await operation();
         logger.info(`[CloudFormation withRetry] Attempt ${attempt} succeeded`);
         return result;
       } catch (error: unknown) {
         // Don't retry validation errors
         if (error instanceof Error && error.name === "ValidationError") {
-          logger.error(`[CloudFormation withRetry] ValidationError, not retrying:`, error.message);
+          logger.error(
+            `[CloudFormation withRetry] ValidationError, not retrying:`,
+            error.message,
+          );
           throw error;
         }
 
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         logger.error(
           `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries} failed:`,
           errorMessage,
@@ -220,20 +232,32 @@ export class CloudFormationService {
       );
 
       // Load template and parse as JSON for dynamic modification
-      const templateJson = JSON.parse(fs.readFileSync(this.templatePath, "utf-8"));
+      const templateJson = JSON.parse(
+        fs.readFileSync(this.templatePath, "utf-8"),
+      );
 
       // Inject environment variables into container definition if provided
-      if (config.environmentVars && Object.keys(config.environmentVars).length > 0) {
-        const envArray = Object.entries(config.environmentVars).map(([name, value]) => ({
-          Name: name,
-          Value: value,
-        }));
+      if (
+        config.environmentVars &&
+        Object.keys(config.environmentVars).length > 0
+      ) {
+        const envArray = Object.entries(config.environmentVars).map(
+          ([name, value]) => ({
+            Name: name,
+            Value: value,
+          }),
+        );
 
         // Find the TaskDefinition resource and inject environment variables
-        if (templateJson.Resources?.TaskDefinition?.Properties?.ContainerDefinitions?.[0]) {
+        if (
+          templateJson.Resources?.TaskDefinition?.Properties
+            ?.ContainerDefinitions?.[0]
+        ) {
           templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
             envArray;
-          logger.info(`Injected ${envArray.length} environment variables into task definition`);
+          logger.info(
+            `Injected ${envArray.length} environment variables into task definition`,
+          );
         }
       }
 
@@ -271,7 +295,9 @@ export class CloudFormationService {
             ParameterKey: "Architecture",
             // Translate x86_64 to amd64 for CloudFormation (underscores not allowed in mapping keys)
             ParameterValue:
-              config.architecture === "x86_64" ? "amd64" : config.architecture || "arm64",
+              config.architecture === "x86_64"
+                ? "amd64"
+                : config.architecture || "arm64",
           },
           { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
           {
@@ -321,7 +347,10 @@ export class CloudFormationService {
         return response.StackId!;
       } catch (createError) {
         logger.error(`❌ [CloudFormation] CreateStack API call failed:`, {
-          error: createError instanceof Error ? createError.message : String(createError),
+          error:
+            createError instanceof Error
+              ? createError.message
+              : String(createError),
           stack: createError instanceof Error ? createError.stack : undefined,
           name: createError instanceof Error ? createError.name : undefined,
         });
@@ -342,17 +371,27 @@ export class CloudFormationService {
       const stackName = this.getStackName(config.userId, config.projectName);
 
       // Load template and parse as JSON for dynamic modification
-      const templateJson = JSON.parse(fs.readFileSync(this.templatePath, "utf-8"));
+      const templateJson = JSON.parse(
+        fs.readFileSync(this.templatePath, "utf-8"),
+      );
 
       // Inject environment variables into container definition if provided
-      if (config.environmentVars && Object.keys(config.environmentVars).length > 0) {
-        const envArray = Object.entries(config.environmentVars).map(([name, value]) => ({
-          Name: name,
-          Value: value,
-        }));
+      if (
+        config.environmentVars &&
+        Object.keys(config.environmentVars).length > 0
+      ) {
+        const envArray = Object.entries(config.environmentVars).map(
+          ([name, value]) => ({
+            Name: name,
+            Value: value,
+          }),
+        );
 
         // Find the TaskDefinition resource and inject environment variables
-        if (templateJson.Resources?.TaskDefinition?.Properties?.ContainerDefinitions?.[0]) {
+        if (
+          templateJson.Resources?.TaskDefinition?.Properties
+            ?.ContainerDefinitions?.[0]
+        ) {
           templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
             envArray;
           logger.info(
@@ -368,7 +407,10 @@ export class CloudFormationService {
       const sharedOutputs = await this.getSharedInfrastructureOutputs();
 
       // Get current ALB priority for this stack (don't allocate a new one for updates)
-      const currentStack = await this.getStack(config.userId, config.projectName);
+      const currentStack = await this.getStack(
+        config.userId,
+        config.projectName,
+      );
       let albPriority: number;
 
       if (!currentStack) {
@@ -382,7 +424,9 @@ export class CloudFormationService {
       if (priorityParam?.ParameterValue) {
         albPriority = parseInt(priorityParam.ParameterValue, 10);
       } else {
-        throw new Error(`Unable to find existing ALB priority for stack ${stackName}`);
+        throw new Error(
+          `Unable to find existing ALB priority for stack ${stackName}`,
+        );
       }
 
       const command = new UpdateStackCommand({
@@ -413,7 +457,9 @@ export class CloudFormationService {
             ParameterKey: "Architecture",
             // Translate x86_64 to amd64 for CloudFormation (underscores not allowed in mapping keys)
             ParameterValue:
-              config.architecture === "x86_64" ? "amd64" : config.architecture || "arm64",
+              config.architecture === "x86_64"
+                ? "amd64"
+                : config.architecture || "arm64",
           },
           { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
           {
@@ -510,7 +556,9 @@ export class CloudFormationService {
 
         const failureMessage =
           failureDetails.length > 0
-            ? failureDetails.map((f) => `\n  • ${f.resource}: ${f.reason}`).join("")
+            ? failureDetails
+                .map((f) => `\n  • ${f.resource}: ${f.reason}`)
+                .join("")
             : "\n  (No detailed failure events found - check AWS CloudFormation console)";
 
         throw new Error(
@@ -525,7 +573,9 @@ export class CloudFormationService {
       await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
     }
 
-    throw new Error(`Stack ${stackName} creation timeout after ${timeoutMinutes} minutes`);
+    throw new Error(
+      `Stack ${stackName} creation timeout after ${timeoutMinutes} minutes`,
+    );
   }
 
   /**
@@ -560,7 +610,8 @@ export class CloudFormationService {
           .slice(0, 10);
 
         return rollbackEvents.map((event) => ({
-          resource: `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
+          resource:
+            `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
           reason: event.ResourceStatusReason || "No reason provided",
           status: event.ResourceStatus || "Unknown",
         }));
@@ -569,7 +620,8 @@ export class CloudFormationService {
       return failedEvents
         .slice(0, 10) // Get top 10 failures
         .map((event) => ({
-          resource: `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
+          resource:
+            `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
           reason: event.ResourceStatusReason || "No reason provided",
           status: event.ResourceStatus || "Unknown",
         }));
@@ -599,7 +651,8 @@ export class CloudFormationService {
       // AWS throws ValidationError if stack doesn't exist
       if (
         error instanceof Error &&
-        (error.name === "ValidationError" || error.message.includes("does not exist"))
+        (error.name === "ValidationError" ||
+          error.message.includes("does not exist"))
       ) {
         return null;
       }
@@ -610,7 +663,10 @@ export class CloudFormationService {
   /**
    * Get stack outputs
    */
-  async getStackOutputs(userId: string, projectName: string): Promise<StackOutputs | null> {
+  async getStackOutputs(
+    userId: string,
+    projectName: string,
+  ): Promise<StackOutputs | null> {
     const stack = await this.getStack(userId, projectName);
 
     if (!stack || !stack.Outputs) {
@@ -682,14 +738,20 @@ export class CloudFormationService {
 
       if (status === "DELETE_FAILED") {
         const failureReason = stack.StackStatusReason || "Unknown failure";
-        throw new Error(`Stack ${stackName} deletion failed. Reason: ${failureReason}`);
+        throw new Error(
+          `Stack ${stackName} deletion failed. Reason: ${failureReason}`,
+        );
       }
 
-      logger.info(`Stack ${stackName} status: ${status}, waiting for deletion...`);
+      logger.info(
+        `Stack ${stackName} status: ${status}, waiting for deletion...`,
+      );
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
 
-    throw new Error(`Stack ${stackName} deletion timeout after ${timeoutMinutes} minutes`);
+    throw new Error(
+      `Stack ${stackName} deletion timeout after ${timeoutMinutes} minutes`,
+    );
   }
 
   /**
@@ -723,7 +785,9 @@ export class CloudFormationService {
       const getOutput = (key: string): string => {
         const output = stack.Outputs!.find((o) => o.OutputKey === key);
         if (!output?.OutputValue) {
-          throw new Error(`Missing output ${key} in shared infrastructure stack`);
+          throw new Error(
+            `Missing output ${key} in shared infrastructure stack`,
+          );
         }
         return output.OutputValue;
       };
@@ -738,8 +802,12 @@ export class CloudFormationService {
         albSecurityGroupId: getOutput("ALBSecurityGroupId"),
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error("Failed to get shared infrastructure outputs:", errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.error(
+        "Failed to get shared infrastructure outputs:",
+        errorMessage,
+      );
       throw new Error(
         `Cannot provision user stack: shared infrastructure not deployed. Run deploy-shared.sh first.`,
       );
@@ -797,7 +865,9 @@ export class CloudFormationService {
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
 
-    throw new Error(`Stack ${stackName} update timeout after ${timeoutMinutes} minutes`);
+    throw new Error(
+      `Stack ${stackName} update timeout after ${timeoutMinutes} minutes`,
+    );
   }
 }
 

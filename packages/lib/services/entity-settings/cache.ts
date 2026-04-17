@@ -50,7 +50,10 @@ interface SettingsCacheValue {
   sources: Record<string, EntitySettingSource>;
 }
 
-const inMemorySettingsCache = new InMemoryLRUCache<SettingsCacheValue>(200, 60_000);
+const inMemorySettingsCache = new InMemoryLRUCache<SettingsCacheValue>(
+  200,
+  60_000,
+);
 
 /**
  * Build cache key for entity settings
@@ -107,7 +110,10 @@ export class EntitySettingsCache {
     const inMemory = inMemorySettingsCache.get(key);
     if (inMemory) {
       logger.debug(`[EntitySettingsCache] In-memory cache HIT: ${key}`);
-      return { settings: new Map(inMemory.settings), sources: { ...inMemory.sources } };
+      return {
+        settings: new Map(inMemory.settings),
+        sources: { ...inMemory.sources },
+      };
     }
 
     // Fall back to Redis
@@ -157,7 +163,9 @@ export class EntitySettingsCache {
 
     await cache.set(key, cached, this.ttlSeconds);
 
-    logger.debug(`[EntitySettingsCache] Cached ${settings.size} settings for ${key}`);
+    logger.debug(
+      `[EntitySettingsCache] Cached ${settings.size} settings for ${key}`,
+    );
   }
 
   /**
@@ -194,7 +202,9 @@ export class EntitySettingsCache {
     const pattern = buildUserPattern(userId);
     await cache.delPattern(pattern);
 
-    logger.info(`[EntitySettingsCache] Invalidated all settings for user ${userId}`);
+    logger.info(
+      `[EntitySettingsCache] Invalidated all settings for user ${userId}`,
+    );
   }
 }
 

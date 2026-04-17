@@ -16,7 +16,10 @@ import { logger } from "@/lib/utils/logger";
  * Uses agentsService to get agent display info
  * Requires the authenticated user to be a participant of the room
  */
-export async function GET(request: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
   // Get authenticated user ID
   let userId: string;
 
@@ -27,7 +30,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ roomId:
     // Fallback to anonymous user
     const anonData = await getAnonymousUser();
     if (!anonData) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
     }
     userId = anonData.user.id;
   }
@@ -54,7 +60,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ roomId:
 
   // Use rooms service to get room with messages (pure DB query)
   // Service handles filtering (hidden/action_result) and deduplication
-  const roomData = await roomsService.getRoomWithMessages(roomId, limit ? parseInt(limit) : 50);
+  const roomData = await roomsService.getRoomWithMessages(
+    roomId,
+    limit ? parseInt(limit) : 50,
+  );
 
   // If room doesn't exist in Eliza tables, check if it's a conversation
   // that hasn't had any messages yet (room is created on first message)
@@ -121,7 +130,9 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ roomId:
     };
   });
 
-  logger.info(`[Eliza Room API] ✅ Returning ${messages.length} messages for room ${roomId}`);
+  logger.info(
+    `[Eliza Room API] ✅ Returning ${messages.length} messages for room ${roomId}`,
+  );
 
   // Get agent display info from database (no runtime needed!)
   // PERFORMANCE: Try character ID first, fallback to room's agentId
@@ -158,7 +169,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ roomId:
  * Pure database operation - no runtime needed
  * Requires the authenticated user to be a participant of the room
  */
-export async function PATCH(request: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
+export async function PATCH(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
   // Get authenticated user ID
   let userId: string;
 
@@ -169,7 +183,10 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ roomI
     // Fallback to anonymous user
     const anonData = await getAnonymousUser();
     if (!anonData) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
     }
     userId = anonData.user.id;
   }
@@ -198,11 +215,17 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ roomI
   };
 
   if (!body.metadata && !body.name) {
-    return NextResponse.json({ error: "metadata or name is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "metadata or name is required" },
+      { status: 400 },
+    );
   }
 
   if (body.metadata && typeof body.metadata !== "object") {
-    return NextResponse.json({ error: "metadata must be an object" }, { status: 400 });
+    return NextResponse.json(
+      { error: "metadata must be an object" },
+      { status: 400 },
+    );
   }
 
   if (body.metadata) {
@@ -213,7 +236,10 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ roomI
     await roomsRepository.update(roomId, { name: body.name });
   }
 
-  const updatedFields = [body.metadata && "metadata", body.name && "name"].filter(Boolean);
+  const updatedFields = [
+    body.metadata && "metadata",
+    body.name && "name",
+  ].filter(Boolean);
 
   logger.info("[Eliza Room API] ✓ Room updated successfully:", roomId);
 
@@ -230,7 +256,10 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ roomI
  * Pure database operation - no runtime needed
  * Requires the authenticated user to be a participant of the room
  */
-export async function DELETE(request: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
   // Get authenticated user ID
   let userId: string;
 
@@ -241,7 +270,10 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ room
     // Fallback to anonymous user
     const anonData = await getAnonymousUser();
     if (!anonData) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 },
+      );
     }
     userId = anonData.user.id;
   }

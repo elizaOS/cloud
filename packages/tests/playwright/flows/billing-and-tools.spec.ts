@@ -39,7 +39,9 @@ test.describe("API Key Management Flow", () => {
 
     const criticalErrors = errors.filter(
       (e) =>
-        !e.includes("WalletConnect") && !e.includes("hydration") && !e.includes("ResizeObserver"),
+        !e.includes("WalletConnect") &&
+        !e.includes("hydration") &&
+        !e.includes("ResizeObserver"),
     );
     expect(criticalErrors).toHaveLength(0);
   });

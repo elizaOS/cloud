@@ -183,7 +183,8 @@ async function getAllowedMethods(): Promise<Set<string>> {
     logger.debug("[Solana RPC] Allowed methods cache miss, querying database");
 
     // Query database for active methods
-    const pricingRecords = await servicePricingRepository.listByService("solana-rpc");
+    const pricingRecords =
+      await servicePricingRepository.listByService("solana-rpc");
     const activeMethods = pricingRecords
       .filter((record) => record.is_active)
       .map((record) => record.method);
@@ -194,7 +195,11 @@ async function getAllowedMethods(): Promise<Set<string>> {
     }
 
     // Cache the result
-    await cache.set(ALLOWED_METHODS_CACHE_KEY, activeMethods, ALLOWED_METHODS_CACHE_TTL);
+    await cache.set(
+      ALLOWED_METHODS_CACHE_KEY,
+      activeMethods,
+      ALLOWED_METHODS_CACHE_TTL,
+    );
 
     logger.info("[Solana RPC] Loaded allowed methods from database", {
       count: activeMethods.length,
@@ -204,10 +209,13 @@ async function getAllowedMethods(): Promise<Set<string>> {
     return new Set(activeMethods);
   } catch (error) {
     // Database or cache failure - use hardcoded fallback
-    logger.error("[Solana RPC] Failed to load allowed methods from database, using fallback", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      fallback_count: HARDCODED_FALLBACK_METHODS.size,
-    });
+    logger.error(
+      "[Solana RPC] Failed to load allowed methods from database, using fallback",
+      {
+        error: error instanceof Error ? error.message : "Unknown error",
+        fallback_count: HARDCODED_FALLBACK_METHODS.size,
+      },
+    );
 
     return HARDCODED_FALLBACK_METHODS;
   }
@@ -237,7 +245,9 @@ async function extractMethodFromBody(body: ProxyRequestBody): Promise<string> {
       throw new Error("Invalid JSON-RPC batch: empty array");
     }
     if (body.length > PROXY_CONFIG.MAX_BATCH_SIZE) {
-      throw new Error(`Invalid JSON-RPC batch: maximum ${PROXY_CONFIG.MAX_BATCH_SIZE} requests`);
+      throw new Error(
+        `Invalid JSON-RPC batch: maximum ${PROXY_CONFIG.MAX_BATCH_SIZE} requests`,
+      );
     }
     return "_batch";
   }
@@ -285,7 +295,10 @@ async function calculateBatchCost(body: JsonRpcBatchRequest): Promise<number> {
     })),
   );
 
-  return costs.reduce((total, { method, cost }) => total + cost * methodCounts.get(method)!, 0);
+  return costs.reduce(
+    (total, { method, cost }) => total + cost * methodCounts.get(method)!,
+    0,
+  );
 }
 
 export const solanaRpcConfig: ServiceConfig = {
@@ -331,7 +344,10 @@ function sanitizeUrl(url: string): string {
 //   • success → circuit closes (state deleted)
 //   • failure → circuit re-opens immediately (failures still >= threshold)
 // ---------------------------------------------------------------------------
-const circuitBreaker = new Map<string, { failures: number; openUntil: number }>();
+const circuitBreaker = new Map<
+  string,
+  { failures: number; openUntil: number }
+>();
 
 function isCircuitOpen(network: string): boolean {
   const cb = circuitBreaker.get(network);
@@ -433,7 +449,11 @@ async function fetchWithRetry(
       fetchLogs.push({
         attempt,
         url: sanitized,
-        error: isTimeout ? "TimeoutError" : error instanceof Error ? error.message : String(error),
+        error: isTimeout
+          ? "TimeoutError"
+          : error instanceof Error
+            ? error.message
+            : String(error),
         durationMs: Date.now() - start,
       });
 
@@ -443,7 +463,11 @@ async function fetchWithRetry(
 
     if (attempt < maxAttempts) {
       const delayMs = Math.min(initialDelay * 2 ** (attempt - 1), maxDelay);
-      logger.warn("[Solana RPC] Retrying", { attempt, delayMs, url: sanitized });
+      logger.warn("[Solana RPC] Retrying", {
+        attempt,
+        delayMs,
+        url: sanitized,
+      });
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
@@ -452,7 +476,10 @@ async function fetchWithRetry(
   throw lastError!;
 }
 
-export const solanaRpcHandler: ServiceHandler = async ({ body, searchParams }) => {
+export const solanaRpcHandler: ServiceHandler = async ({
+  body,
+  searchParams,
+}) => {
   if (!body) {
     throw new Error("Invalid JSON-RPC request: body is required");
   }
@@ -484,7 +511,9 @@ export const solanaRpcHandler: ServiceHandler = async ({ body, searchParams }) =
   }
 
   const primaryBaseUrl =
-    network === "mainnet" ? PROXY_CONFIG.HELIUS_MAINNET_URL : PROXY_CONFIG.HELIUS_DEVNET_URL;
+    network === "mainnet"
+      ? PROXY_CONFIG.HELIUS_MAINNET_URL
+      : PROXY_CONFIG.HELIUS_DEVNET_URL;
 
   const fallbackBaseUrl =
     network === "mainnet"
@@ -502,9 +531,15 @@ export const solanaRpcHandler: ServiceHandler = async ({ body, searchParams }) =
     const primary = await fetchWithRetry(primaryUrl, rpcBody, maxRetries);
     fetchLogs.push(...primary.fetchLogs);
 
-    if (primary.response.ok || (primary.response.status >= 400 && primary.response.status < 500)) {
+    if (
+      primary.response.ok ||
+      (primary.response.status >= 400 && primary.response.status < 500)
+    ) {
       recordCircuitSuccess(network);
-      return { response: primary.response, usageMetadata: { fetch_logs: fetchLogs } };
+      return {
+        response: primary.response,
+        usageMetadata: { fetch_logs: fetchLogs },
+      };
     }
 
     primaryStatus = primary.response.status;
@@ -539,7 +574,10 @@ export const solanaRpcHandler: ServiceHandler = async ({ body, searchParams }) =
       if (fallback.response.ok) {
         logger.info("[Solana RPC] Fallback succeeded");
         recordCircuitSuccess(network);
-        return { response: fallback.response, usageMetadata: { fetch_logs: fetchLogs } };
+        return {
+          response: fallback.response,
+          usageMetadata: { fetch_logs: fetchLogs },
+        };
       }
 
       const fallbackError = await fallback.response.text();

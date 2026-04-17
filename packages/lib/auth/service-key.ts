@@ -26,7 +26,9 @@ export interface ServiceKeyIdentity {
  * Returns null when the header is missing or invalid.
  * Throws when env vars are misconfigured.
  */
-export function validateServiceKey(request: NextRequest): ServiceKeyIdentity | null {
+export function validateServiceKey(
+  request: NextRequest,
+): ServiceKeyIdentity | null {
   const header = request.headers.get("X-Service-Key");
   if (!header || header.trim().length === 0) {
     return null;
@@ -34,7 +36,9 @@ export function validateServiceKey(request: NextRequest): ServiceKeyIdentity | n
 
   const expectedKey = process.env.WAIFU_SERVICE_KEY;
   if (!expectedKey || expectedKey.trim().length === 0) {
-    logger.warn("[service-key] WAIFU_SERVICE_KEY is not configured — rejecting service key auth");
+    logger.warn(
+      "[service-key] WAIFU_SERVICE_KEY is not configured — rejecting service key auth",
+    );
     return null;
   }
 
@@ -42,8 +46,14 @@ export function validateServiceKey(request: NextRequest): ServiceKeyIdentity | n
   // Comparing digests instead of raw values avoids leaking the
   // expected key's length through early-exit on size mismatch.
   const hmacKey = crypto.randomBytes(32);
-  const headerDigest = crypto.createHmac("sha256", hmacKey).update(header).digest();
-  const expectedDigest = crypto.createHmac("sha256", hmacKey).update(expectedKey).digest();
+  const headerDigest = crypto
+    .createHmac("sha256", hmacKey)
+    .update(header)
+    .digest();
+  const expectedDigest = crypto
+    .createHmac("sha256", hmacKey)
+    .update(expectedKey)
+    .digest();
 
   if (!crypto.timingSafeEqual(headerDigest, expectedDigest)) {
     logger.warn("[service-key] Invalid service key presented");

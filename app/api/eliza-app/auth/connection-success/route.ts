@@ -79,7 +79,10 @@ function buildHtml(platform: string): string {
 </html>`;
 }
 
-function buildElizaAppHtml(provider: string, connectionId: string | null): string {
+function buildElizaAppHtml(
+  provider: string,
+  connectionId: string | null,
+): string {
   const providerLabel = PROVIDER_LABELS[provider] ?? "Your account";
   const payload = JSON.stringify({
     type: "eliza-app-oauth-complete",
@@ -181,7 +184,8 @@ function buildElizaAppHtml(provider: string, connectionId: string | null): strin
 export async function GET(request: NextRequest) {
   const source = request.nextUrl.searchParams.get("source");
   if (source === "eliza-app") {
-    const provider = request.nextUrl.searchParams.get("platform") || "connection";
+    const provider =
+      request.nextUrl.searchParams.get("platform") || "connection";
     const connectionId = request.nextUrl.searchParams.get("connection_id");
 
     return new NextResponse(buildElizaAppHtml(provider, connectionId), {

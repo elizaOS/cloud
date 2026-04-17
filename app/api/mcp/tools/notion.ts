@@ -25,7 +25,9 @@ async function getNotionToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("Notion account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "Notion account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
@@ -106,7 +108,13 @@ export function registerNotionTools(server: McpServer): void {
       try {
         const data = await notionFetch("/v1/search", {
           method: "POST",
-          body: JSON.stringify({ query, filter, sort, start_cursor, page_size }),
+          body: JSON.stringify({
+            query,
+            filter,
+            sort,
+            start_cursor,
+            page_size,
+          }),
         });
         return jsonResponse(data);
       } catch (error) {
@@ -143,7 +151,10 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ body }) => {
       try {
-        const data = await notionFetch("/v1/pages", { method: "POST", body: JSON.stringify(body) });
+        const data = await notionFetch("/v1/pages", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create page"));
@@ -291,7 +302,9 @@ export function registerNotionTools(server: McpServer): void {
     },
     async ({ id }) => {
       try {
-        const data = await notionFetch(`/v1/blocks/${id}`, { method: "DELETE" });
+        const data = await notionFetch(`/v1/blocks/${id}`, {
+          method: "DELETE",
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete block"));

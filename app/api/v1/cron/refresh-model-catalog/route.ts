@@ -39,7 +39,10 @@ async function handleRefresh(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Model catalog refresh failed",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Model catalog refresh failed",
       },
       { status: 500 },
     );

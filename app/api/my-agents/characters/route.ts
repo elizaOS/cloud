@@ -51,7 +51,10 @@ export async function GET(request: NextRequest) {
 
     // Pagination
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get("limit") || "30", 10)));
+    const limit = Math.min(
+      1000,
+      Math.max(1, parseInt(searchParams.get("limit") || "30", 10)),
+    );
 
     logger.debug("[My Agents API] Search request:", {
       userId: user.id,
@@ -72,8 +75,10 @@ export async function GET(request: NextRequest) {
       characters = characters.filter(
         (char) =>
           char.name.toLowerCase().includes(query) ||
-          (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
-          (Array.isArray(char.bio) && char.bio.some((b) => b.toLowerCase().includes(query))),
+          (typeof char.bio === "string" &&
+            char.bio.toLowerCase().includes(query)) ||
+          (Array.isArray(char.bio) &&
+            char.bio.some((b) => b.toLowerCase().includes(query))),
       );
     }
 

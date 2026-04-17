@@ -59,7 +59,9 @@ function safeJsonParse(
 ): unknown {
   // Check size limit (100KB default)
   if (jsonString.length > maxSize) {
-    throw new Error(`JSON string too large: ${jsonString.length} bytes (max: ${maxSize})`);
+    throw new Error(
+      `JSON string too large: ${jsonString.length} bytes (max: ${maxSize})`,
+    );
   }
 
   // Parse JSON
@@ -67,7 +69,9 @@ function safeJsonParse(
   try {
     parsed = JSON.parse(jsonString);
   } catch (error) {
-    throw new Error(`Invalid JSON: ${error instanceof Error ? error.message : "Parse error"}`);
+    throw new Error(
+      `Invalid JSON: ${error instanceof Error ? error.message : "Parse error"}`,
+    );
   }
 
   // Check depth limit
@@ -97,7 +101,10 @@ function safeJsonParse(
  * Transform MCP settings by expanding pathname URLs to full URLs
  * Used when returning settings to the client for display/testing
  */
-function transformMcpUrlsForDisplay(mcpSettings: McpSettings, request: NextRequest): McpSettings {
+function transformMcpUrlsForDisplay(
+  mcpSettings: McpSettings,
+  request: NextRequest,
+): McpSettings {
   if (!mcpSettings?.servers) {
     return mcpSettings;
   }
@@ -114,7 +121,9 @@ function transformMcpUrlsForDisplay(mcpSettings: McpSettings, request: NextReque
     transformedServers[serverId] = {
       ...serverConfig,
       // If URL starts with /, prepend baseUrl for display; otherwise use as-is
-      url: serverConfig.url.startsWith("/") ? `${baseUrl}${serverConfig.url}` : serverConfig.url,
+      url: serverConfig.url.startsWith("/")
+        ? `${baseUrl}${serverConfig.url}`
+        : serverConfig.url,
     };
   }
 
@@ -160,7 +169,10 @@ function parseMcpSettings(mcpSetting: unknown): McpSettings {
  * @param ctx - Route context containing the character ID parameter.
  * @returns MCP settings with server configurations and plugin status.
  */
-export async function GET(request: NextRequest, ctx: { params: Promise<{ characterId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  ctx: { params: Promise<{ characterId: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKey(request);
     const { characterId } = await ctx.params;
@@ -169,11 +181,17 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ charact
     const character = await charactersService.getById(characterId);
 
     if (!character) {
-      return NextResponse.json({ error: "Character not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Character not found" },
+        { status: 404 },
+      );
     }
 
     // Check ownership
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -199,7 +217,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ charact
     const pluginMcpEnabled = plugins.includes("@elizaos/plugin-mcp");
 
     // Transform pathnames to full URLs for display/testing in the UI
-    const mcpSettingsForDisplay = transformMcpUrlsForDisplay(mcpSettings, request);
+    const mcpSettingsForDisplay = transformMcpUrlsForDisplay(
+      mcpSettings,
+      request,
+    );
 
     return NextResponse.json({
       characterId,
@@ -212,7 +233,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ charact
     logger.error("[Characters/MCPs] Error getting MCP config:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to get MCP configuration",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get MCP configuration",
       },
       { status: 500 },
     );
@@ -228,7 +252,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ charact
  * @param ctx - Route context containing the character ID parameter.
  * @returns Updated MCP settings and server list.
  */
-export async function PUT(request: NextRequest, ctx: { params: Promise<{ characterId: string }> }) {
+export async function PUT(
+  request: NextRequest,
+  ctx: { params: Promise<{ characterId: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKey(request);
     const { characterId } = await ctx.params;
@@ -261,11 +288,17 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ charact
     const character = await charactersService.getById(characterId);
 
     if (!character) {
-      return NextResponse.json({ error: "Character not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Character not found" },
+        { status: 404 },
+      );
     }
 
     // Check ownership
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -299,9 +332,13 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ charact
     // CRITICAL FIX: Invalidate any cached character data
     // This ensures the next runtime creation will use fresh MCP settings
     try {
-      const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
+      const { invalidateCharacterCache } = await import(
+        "@/lib/cache/character-cache"
+      );
       await invalidateCharacterCache(characterId);
-      logger.info(`[Characters/MCPs] Invalidated cache for character ${characterId}`);
+      logger.info(
+        `[Characters/MCPs] Invalidated cache for character ${characterId}`,
+      );
     } catch (cacheError) {
       // Don't fail the update if cache invalidation fails
       logger.warn(`[Characters/MCPs] Failed to invalidate cache:`, cacheError);
@@ -323,7 +360,10 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ charact
     logger.error("[Characters/MCPs] Error updating MCP config:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to update MCP configuration",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update MCP configuration",
       },
       { status: 500 },
     );
@@ -375,11 +415,17 @@ export async function POST(
     const character = await charactersService.getById(characterId);
 
     if (!character) {
-      return NextResponse.json({ error: "Character not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Character not found" },
+        { status: 404 },
+      );
     }
 
     // Check ownership
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -426,14 +472,20 @@ export async function POST(
 
     // CRITICAL FIX: Invalidate any cached character data
     try {
-      const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
+      const { invalidateCharacterCache } = await import(
+        "@/lib/cache/character-cache"
+      );
       await invalidateCharacterCache(characterId);
-      logger.info(`[Characters/MCPs] Invalidated cache for character ${characterId}`);
+      logger.info(
+        `[Characters/MCPs] Invalidated cache for character ${characterId}`,
+      );
     } catch (cacheError) {
       logger.warn(`[Characters/MCPs] Failed to invalidate cache:`, cacheError);
     }
 
-    logger.info(`[Characters/MCPs] Added MCP server ${serverId} to character ${characterId}`);
+    logger.info(
+      `[Characters/MCPs] Added MCP server ${serverId} to character ${characterId}`,
+    );
 
     return NextResponse.json({
       success: true,
@@ -446,7 +498,8 @@ export async function POST(
     logger.error("[Characters/MCPs] Error adding MCP server:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to add MCP server",
+        error:
+          error instanceof Error ? error.message : "Failed to add MCP server",
       },
       { status: 500 },
     );
@@ -474,18 +527,27 @@ export async function DELETE(
     const serverId = request.nextUrl.searchParams.get("serverId");
 
     if (!serverId) {
-      return NextResponse.json({ error: "Missing serverId query parameter" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing serverId query parameter" },
+        { status: 400 },
+      );
     }
 
     // Get character
     const character = await charactersService.getById(characterId);
 
     if (!character) {
-      return NextResponse.json({ error: "Character not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Character not found" },
+        { status: 404 },
+      );
     }
 
     // Check ownership
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -534,14 +596,20 @@ export async function DELETE(
 
     // CRITICAL FIX: Invalidate any cached character data
     try {
-      const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
+      const { invalidateCharacterCache } = await import(
+        "@/lib/cache/character-cache"
+      );
       await invalidateCharacterCache(characterId);
-      logger.info(`[Characters/MCPs] Invalidated cache for character ${characterId}`);
+      logger.info(
+        `[Characters/MCPs] Invalidated cache for character ${characterId}`,
+      );
     } catch (cacheError) {
       logger.warn(`[Characters/MCPs] Failed to invalidate cache:`, cacheError);
     }
 
-    logger.info(`[Characters/MCPs] Removed MCP server ${serverId} from character ${characterId}`);
+    logger.info(
+      `[Characters/MCPs] Removed MCP server ${serverId} from character ${characterId}`,
+    );
 
     return NextResponse.json({
       success: true,
@@ -554,7 +622,10 @@ export async function DELETE(
     logger.error("[Characters/MCPs] Error removing MCP server:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to remove MCP server",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to remove MCP server",
       },
       { status: 500 },
     );

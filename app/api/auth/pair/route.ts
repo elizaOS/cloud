@@ -22,19 +22,28 @@ async function handler(request: NextRequest) {
     const token = body?.token;
 
     if (!token) {
-      return NextResponse.json({ error: "Pairing code required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Pairing code required" },
+        { status: 400 },
+      );
     }
 
     const origin = request.headers.get("origin") ?? null;
     if (!origin) {
-      return NextResponse.json({ error: "Origin header required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Origin header required" },
+        { status: 400 },
+      );
     }
 
     const tokenService = getPairingTokenService();
     const pairingToken = await tokenService.validateToken(token, origin);
 
     if (!pairingToken) {
-      return NextResponse.json({ error: "Invalid or expired pairing code" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid or expired pairing code" },
+        { status: 401 },
+      );
     }
 
     // Look up the sandbox scoped to the org to prevent cross-org access
@@ -61,7 +70,10 @@ async function handler(request: NextRequest) {
       agentName: sandbox.agent_name ?? "Agent",
     });
 
-    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate",
+    );
 
     return response;
   } catch (err: unknown) {

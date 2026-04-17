@@ -16,7 +16,9 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 
 const SERVER_URL =
-  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
+  process.env.TEST_BASE_URL ||
+  process.env.TEST_SERVER_URL ||
+  "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
 const TIMEOUT = 15000;
 
@@ -52,7 +54,9 @@ beforeAll(async () => {
   apiKeyValid = res.status !== 401;
 
   if (!apiKeyValid) {
-    console.log("[Twitter Tests] TEST_API_KEY is invalid - auth tests will skip");
+    console.log(
+      "[Twitter Tests] TEST_API_KEY is invalid - auth tests will skip",
+    );
   } else {
     console.log("[Twitter Tests] TEST_API_KEY is valid");
   }
@@ -145,7 +149,9 @@ describe("App Twitter Automation API", () => {
   const FAKE_APP_ID = "00000000-0000-0000-0000-000000000000";
 
   test("GET returns 401 without auth", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/twitter-automation`);
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/twitter-automation`,
+    );
     expect(res.status).toBe(401);
   });
 
@@ -155,17 +161,22 @@ describe("App Twitter Automation API", () => {
       return;
     }
 
-    const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/twitter-automation`);
+    const res = await fetchWithAuth(
+      `/api/v1/apps/${FAKE_APP_ID}/twitter-automation`,
+    );
     // App not found should return 500 (throws error internally)
     expect(res.status).toBe(500);
   });
 
   test("POST returns 401 without auth", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/twitter-automation`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: true }),
-    });
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/twitter-automation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true }),
+      },
+    );
     expect(res.status).toBe(401);
   });
 
@@ -204,9 +215,12 @@ describe("App Twitter Automation API", () => {
   });
 
   test("DELETE returns 401 without auth", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/twitter-automation`, {
-      method: "DELETE",
-    });
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/twitter-automation`,
+      {
+        method: "DELETE",
+      },
+    );
     expect(res.status).toBe(401);
   });
 });
@@ -215,11 +229,14 @@ describe("App Twitter Post API", () => {
   const FAKE_APP_ID = "00000000-0000-0000-0000-000000000000";
 
   test("POST returns 401 without auth", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/twitter-automation/post`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/twitter-automation/post`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
     expect(res.status).toBe(401);
   });
 
@@ -230,9 +247,13 @@ describe("App Twitter Post API", () => {
     }
 
     const longText = "a".repeat(281);
-    const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/twitter-automation/post`, "POST", {
-      text: longText,
-    });
+    const res = await fetchWithAuth(
+      `/api/v1/apps/${FAKE_APP_ID}/twitter-automation/post`,
+      "POST",
+      {
+        text: longText,
+      },
+    );
     expect(res.status).toBe(400);
 
     const data = await res.json();
@@ -245,9 +266,13 @@ describe("App Twitter Post API", () => {
       return;
     }
 
-    const res = await fetchWithAuth(`/api/v1/apps/${FAKE_APP_ID}/twitter-automation/post`, "POST", {
-      text: "Test tweet",
-    });
+    const res = await fetchWithAuth(
+      `/api/v1/apps/${FAKE_APP_ID}/twitter-automation/post`,
+      "POST",
+      {
+        text: "Test tweet",
+      },
+    );
     expect(res.status).toBe(404);
 
     const data = await res.json();

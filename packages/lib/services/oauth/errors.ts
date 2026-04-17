@@ -194,7 +194,8 @@ export const Errors = {
       retryAfter,
     ),
 
-  internalError: (message: string) => new OAuthError(OAuthErrorCode.INTERNAL_ERROR, message, false),
+  internalError: (message: string) =>
+    new OAuthError(OAuthErrorCode.INTERNAL_ERROR, message, false),
 };
 
 /** Create a standard internal error response */

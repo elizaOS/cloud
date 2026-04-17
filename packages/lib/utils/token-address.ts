@@ -81,7 +81,10 @@ function shouldLowercase(address: string, chain?: string | null): boolean {
  * @param chain   Optional chain identifier (e.g. "ethereum", "solana").
  * @returns Normalised address string, or the original if no normalisation applies.
  */
-export function normalizeTokenAddress(address: string, chain?: string | null): string {
+export function normalizeTokenAddress(
+  address: string,
+  chain?: string | null,
+): string {
   if (shouldLowercase(address, chain)) {
     return address.toLowerCase();
   }

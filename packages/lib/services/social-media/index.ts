@@ -30,7 +30,11 @@ import { slackProvider } from "./providers/slack";
 import { telegramProvider } from "./providers/telegram";
 import { tiktokProvider } from "./providers/tiktok";
 import { twitterProvider } from "./providers/twitter";
-import { getRefreshGuidance, needsRefresh, refreshToken } from "./token-refresh";
+import {
+  getRefreshGuidance,
+  needsRefresh,
+  refreshToken,
+} from "./token-refresh";
 
 const POST_CREDIT_COST = 0.01;
 
@@ -83,7 +87,8 @@ class SocialMediaService {
       .where(and(...conditions))
       .limit(1);
 
-    if (!credential) return this.getCredentialsFromSecrets(organizationId, platform);
+    if (!credential)
+      return this.getCredentialsFromSecrets(organizationId, platform);
 
     // Handle manual credentials (Bluesky app password, Telegram bot token)
     if (credential.api_key_secret_id) {
@@ -91,7 +96,8 @@ class SocialMediaService {
         credential.api_key_secret_id,
         organizationId,
       );
-      if (!apiKey) return this.getCredentialsFromSecrets(organizationId, platform);
+      if (!apiKey)
+        return this.getCredentialsFromSecrets(organizationId, platform);
 
       if (platform === "bluesky") {
         return {
@@ -113,14 +119,21 @@ class SocialMediaService {
     // Handle OAuth credentials
     const [accessToken, storedRefreshToken] = await Promise.all([
       credential.access_token_secret_id
-        ? secretsService.getDecryptedValue(credential.access_token_secret_id, organizationId)
+        ? secretsService.getDecryptedValue(
+            credential.access_token_secret_id,
+            organizationId,
+          )
         : undefined,
       credential.refresh_token_secret_id
-        ? secretsService.getDecryptedValue(credential.refresh_token_secret_id, organizationId)
+        ? secretsService.getDecryptedValue(
+            credential.refresh_token_secret_id,
+            organizationId,
+          )
         : undefined,
     ]);
 
-    if (!accessToken) return this.getCredentialsFromSecrets(organizationId, platform);
+    if (!accessToken)
+      return this.getCredentialsFromSecrets(organizationId, platform);
 
     let credentials: SocialCredentials = {
       platform,
@@ -141,10 +154,14 @@ class SocialMediaService {
 
     // Auto-refresh if token is expired
     if (needsRefresh(credentials)) {
-      const refreshed = await refreshToken(platform, credentials).catch((err) => {
-        logger.warn(`[SocialMedia] Token refresh failed for ${platform}: ${err.message}`);
-        return null;
-      });
+      const refreshed = await refreshToken(platform, credentials).catch(
+        (err) => {
+          logger.warn(
+            `[SocialMedia] Token refresh failed for ${platform}: ${err.message}`,
+          );
+          return null;
+        },
+      );
 
       if (refreshed) {
         credentials = {
@@ -152,9 +169,13 @@ class SocialMediaService {
           accessToken: refreshed.accessToken,
           refreshToken: refreshed.refreshToken,
         };
-        this.updateStoredToken(organizationId, credential.id, refreshed).catch((err) => {
-          logger.error(`[SocialMedia] Failed to persist refreshed token: ${err.message}`);
-        });
+        this.updateStoredToken(organizationId, credential.id, refreshed).catch(
+          (err) => {
+            logger.error(
+              `[SocialMedia] Failed to persist refreshed token: ${err.message}`,
+            );
+          },
+        );
         logger.info(`[SocialMedia] Token refreshed for ${platform}`);
       } else {
         throw new Error(`Token expired. ${getRefreshGuidance(platform)}`);
@@ -253,7 +274,10 @@ class SocialMediaService {
         };
       }
       case "telegram": {
-        const botToken = await secretsService.get(organizationId, `${prefix}_BOT_TOKEN`);
+        const botToken = await secretsService.get(
+          organizationId,
+          `${prefix}_BOT_TOKEN`,
+        );
         if (!botToken) return null;
         return { platform, botToken };
       }
@@ -269,7 +293,10 @@ class SocialMediaService {
       }
       case "tiktok":
       case "linkedin": {
-        const accessToken = await secretsService.get(organizationId, `${prefix}_ACCESS_TOKEN`);
+        const accessToken = await secretsService.get(
+          organizationId,
+          `${prefix}_ACCESS_TOKEN`,
+        );
         if (!accessToken) return null;
         return { platform, accessToken };
       }
@@ -314,7 +341,14 @@ class SocialMediaService {
   }
 
   async createPost(input: CreatePostInput): Promise<MultiPlatformPostResult> {
-    const { organizationId, userId, content, platforms, platformOptions, credentialIds } = input;
+    const {
+      organizationId,
+      userId,
+      content,
+      platforms,
+      platformOptions,
+      credentialIds,
+    } = input;
 
     logger.info("[SocialMedia] Creating post", {
       organizationId,
@@ -330,7 +364,8 @@ class SocialMediaService {
       metadata: { userId, platforms },
     });
 
-    if (!deduction.success) throw new Error(`Insufficient credits: need $${totalCost.toFixed(4)}`);
+    if (!deduction.success)
+      throw new Error(`Insufficient credits: need $${totalCost.toFixed(4)}`);
 
     const results = await Promise.all(
       platforms.map(async (platform): Promise<PostResult> => {
@@ -355,7 +390,11 @@ class SocialMediaService {
           };
 
         try {
-          return await provider.createPost(credentials, content, platformOptions);
+          return await provider.createPost(
+            credentials,
+            content,
+            platformOptions,
+          );
         } catch (error) {
           const errorMessage = extractErrorMessage(error);
           logger.error("[SocialMedia] Post failed", {
@@ -418,12 +457,15 @@ class SocialMediaService {
       platform,
       credentialId,
     );
-    if (!credentials) return { success: false, error: `No credentials found for ${platform}` };
+    if (!credentials)
+      return { success: false, error: `No credentials found for ${platform}` };
 
     return provider.deletePost(credentials, postId);
   }
 
-  async getPostAnalytics(input: GetAnalyticsInput): Promise<PostAnalytics | null> {
+  async getPostAnalytics(
+    input: GetAnalyticsInput,
+  ): Promise<PostAnalytics | null> {
     const { organizationId, platform, postId, credentialId } = input;
     if (!postId) throw new Error("postId is required for post analytics");
 
@@ -465,7 +507,8 @@ class SocialMediaService {
     credentialId?: string,
   ): Promise<{ mediaId: string; url?: string }> {
     const provider = this.getProvider(platform);
-    if (!provider.uploadMedia) throw new Error(`Media upload not supported for ${platform}`);
+    if (!provider.uploadMedia)
+      throw new Error(`Media upload not supported for ${platform}`);
 
     const credentials = await this.getCredentialsForPlatform(
       organizationId,
@@ -512,9 +555,15 @@ class SocialMediaService {
       metadata: { platform, postId },
     });
 
-    if (!deduction.success) return { platform, success: false, error: "Insufficient credits" };
+    if (!deduction.success)
+      return { platform, success: false, error: "Insufficient credits" };
 
-    const result = await provider.replyToPost(credentials, postId, content, options);
+    const result = await provider.replyToPost(
+      credentials,
+      postId,
+      content,
+      options,
+    );
 
     if (!result.success) {
       await creditsService.refundCredits({
@@ -535,14 +584,16 @@ class SocialMediaService {
     credentialId?: string,
   ): Promise<{ success: boolean; error?: string }> {
     const provider = this.getProvider(platform);
-    if (!provider.likePost) return { success: false, error: `Like not supported for ${platform}` };
+    if (!provider.likePost)
+      return { success: false, error: `Like not supported for ${platform}` };
 
     const credentials = await this.getCredentialsForPlatform(
       organizationId,
       platform,
       credentialId,
     );
-    if (!credentials) return { success: false, error: `No credentials found for ${platform}` };
+    if (!credentials)
+      return { success: false, error: `No credentials found for ${platform}` };
 
     return provider.likePost(credentials, postId);
   }
@@ -594,7 +645,8 @@ class SocialMediaService {
       platform,
       credentialId,
     );
-    if (!credentials) return { valid: false, error: `No credentials found for ${platform}` };
+    if (!credentials)
+      return { valid: false, error: `No credentials found for ${platform}` };
 
     return provider.validateCredentials(credentials);
   }

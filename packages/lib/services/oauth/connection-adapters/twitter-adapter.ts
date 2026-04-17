@@ -30,7 +30,9 @@ export const twitterAdapter: ConnectionAdapter = {
 
   async listConnections(organizationId: string): Promise<OAuthConnection[]> {
     const platformSecrets = await fetchPlatformSecrets(organizationId, PREFIX);
-    const hasAccessToken = platformSecrets.some((s) => s.name === PATTERNS.accessToken);
+    const hasAccessToken = platformSecrets.some(
+      (s) => s.name === PATTERNS.accessToken,
+    );
 
     if (!hasAccessToken) return [];
 
@@ -40,21 +42,35 @@ export const twitterAdapter: ConnectionAdapter = {
     ]);
 
     return [
-      createSecretsConnection(PLATFORM, organizationId, getEarliestSecretDate(platformSecrets), {
-        platformUserId: userId || "unknown",
-        username: username || undefined,
-        displayName: username ? `@${username}` : undefined,
-      }),
+      createSecretsConnection(
+        PLATFORM,
+        organizationId,
+        getEarliestSecretDate(platformSecrets),
+        {
+          platformUserId: userId || "unknown",
+          username: username || undefined,
+          displayName: username ? `@${username}` : undefined,
+        },
+      ),
     ];
   },
 
-  async getToken(organizationId: string, connectionId: string): Promise<TokenResult> {
+  async getToken(
+    organizationId: string,
+    connectionId: string,
+  ): Promise<TokenResult> {
     verifyConnectionId(PLATFORM, organizationId, connectionId);
 
-    const accessToken = await getSecretValue(organizationId, PATTERNS.accessToken!);
+    const accessToken = await getSecretValue(
+      organizationId,
+      PATTERNS.accessToken!,
+    );
     if (!accessToken) throw Errors.platformNotConnected(PLATFORM);
 
-    const accessTokenSecret = await getSecretValue(organizationId, PATTERNS.accessTokenSecret!);
+    const accessTokenSecret = await getSecretValue(
+      organizationId,
+      PATTERNS.accessTokenSecret!,
+    );
     await updateSecretAccessTime(organizationId, PATTERNS.accessToken!);
 
     return {
@@ -68,7 +84,11 @@ export const twitterAdapter: ConnectionAdapter = {
 
   async revoke(organizationId: string, connectionId: string): Promise<void> {
     verifyConnectionId(PLATFORM, organizationId, connectionId);
-    const count = await deletePlatformSecrets(organizationId, PREFIX, "oauth-service");
+    const count = await deletePlatformSecrets(
+      organizationId,
+      PREFIX,
+      "oauth-service",
+    );
     logger.info("[TwitterAdapter] Connection revoked", {
       connectionId,
       organizationId,

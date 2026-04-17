@@ -18,7 +18,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@elizaos/cloud-ui";
-import { Calendar, CheckCircle, Loader2, Mail, Plus, Users, XCircle } from "lucide-react";
+import {
+  Calendar,
+  CheckCircle,
+  Loader2,
+  Mail,
+  Plus,
+  Users,
+  XCircle,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -39,14 +47,18 @@ export function GoogleConnection() {
 
   const fetchConnections = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
-    const response = await fetch("/api/v1/oauth/connections?platform=google", { signal });
+    const response = await fetch("/api/v1/oauth/connections?platform=google", {
+      signal,
+    });
     if (signal?.aborted) return;
     if (!response.ok) {
       toast.error("Failed to fetch Google connections");
       setIsLoading(false);
       return;
     }
-    const data = (await response.json()) as { connections?: GoogleConnection[] };
+    const data = (await response.json()) as {
+      connections?: GoogleConnection[];
+    };
     setConnections(data.connections ?? []);
     setIsLoading(false);
   }, []);
@@ -69,7 +81,10 @@ export function GoogleConnection() {
       }),
     });
 
-    const data = (await response.json()) as { authUrl?: string; error?: string };
+    const data = (await response.json()) as {
+      authUrl?: string;
+      error?: string;
+    };
     if (response.ok && data.authUrl) {
       window.location.href = data.authUrl;
       return;
@@ -90,7 +105,9 @@ export function GoogleConnection() {
       toast.success("Google account disconnected");
       await fetchConnections();
     } else {
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
       toast.error(data.error || "Failed to disconnect");
     }
 
@@ -186,12 +203,18 @@ export function GoogleConnection() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold truncate">
-                      {connection.email || connection.displayName || connection.id}
+                      {connection.email ||
+                        connection.displayName ||
+                        connection.id}
                     </div>
                     {connection.scopes && connection.scopes.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {connection.scopes.map((scope) => (
-                          <Badge key={scope} variant="outline" className="text-xs">
+                          <Badge
+                            key={scope}
+                            variant="outline"
+                            className="text-xs"
+                          >
                             {getScopeIcon(scope)}
                             <span className="ml-1">{getScopeName(scope)}</span>
                           </Badge>
@@ -221,8 +244,8 @@ export function GoogleConnection() {
                           Disconnect {connection.email || "Google account"}?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will revoke access for this account. Other connected Google accounts
-                          will continue to work.
+                          This will revoke access for this account. Other
+                          connected Google accounts will continue to work.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -265,7 +288,9 @@ export function GoogleConnection() {
               <div className="p-3 bg-muted rounded-lg text-center">
                 <Mail className="h-6 w-6 mx-auto mb-2 text-red-500" />
                 <p className="text-sm font-medium">Gmail</p>
-                <p className="text-xs text-muted-foreground">Send & read emails</p>
+                <p className="text-xs text-muted-foreground">
+                  Send & read emails
+                </p>
               </div>
               <div className="p-3 bg-muted rounded-lg text-center">
                 <Calendar className="h-6 w-6 mx-auto mb-2 text-blue-500" />
@@ -280,7 +305,9 @@ export function GoogleConnection() {
             </div>
 
             <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">What you can do with Google integration:</h4>
+              <h4 className="font-medium mb-2">
+                What you can do with Google integration:
+              </h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Send AI-generated emails on your behalf</li>
                 <li>• Schedule and manage calendar events</li>
@@ -289,7 +316,11 @@ export function GoogleConnection() {
               </ul>
             </div>
 
-            <Button onClick={handleConnect} disabled={isConnecting} className="w-full">
+            <Button
+              onClick={handleConnect}
+              disabled={isConnecting}
+              className="w-full"
+            >
               {isConnecting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -297,7 +328,11 @@ export function GoogleConnection() {
                 </>
               ) : (
                 <>
-                  <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" aria-hidden="true">
+                  <svg
+                    className="h-4 w-4 mr-2"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
                     <path
                       fill="currentColor"
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

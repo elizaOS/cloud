@@ -16,7 +16,9 @@ import { logger } from "@/lib/utils/logger";
 
 // Use ELIZA_API_URL (ngrok) for local dev webhooks, otherwise NEXT_PUBLIC_APP_URL
 const WEBHOOK_BASE_URL =
-  process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  process.env.ELIZA_API_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "https://www.elizacloud.ai";
 
 // Cache TTL for connection status (5 minutes)
 const STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -80,7 +82,10 @@ class BlooioAutomationService {
       }
 
       // For network errors, fail-secure: don't allow potentially invalid keys
-      return { valid: false, error: "Validation failed due to network error. Please try again." };
+      return {
+        valid: false,
+        error: "Validation failed due to network error. Please try again.",
+      };
     }
   }
 
@@ -119,7 +124,12 @@ class BlooioAutomationService {
           const existingSecrets = await secretsService.list(organizationId);
           const existingSecret = existingSecrets.find((s) => s.name === name);
           if (existingSecret) {
-            await secretsService.rotate(existingSecret.id, organizationId, value, audit);
+            await secretsService.rotate(
+              existingSecret.id,
+              organizationId,
+              value,
+              audit,
+            );
           } else {
             throw err; // Re-throw if we can't find it
           }
@@ -132,7 +142,10 @@ class BlooioAutomationService {
     await createOrUpdateSecret("BLOOIO_API_KEY", credentials.apiKey);
 
     if (credentials.webhookSecret) {
-      await createOrUpdateSecret("BLOOIO_WEBHOOK_SECRET", credentials.webhookSecret);
+      await createOrUpdateSecret(
+        "BLOOIO_WEBHOOK_SECRET",
+        credentials.webhookSecret,
+      );
     }
 
     if (credentials.fromNumber) {
@@ -152,14 +165,21 @@ class BlooioAutomationService {
   /**
    * Remove Blooio credentials (disconnect).
    */
-  async removeCredentials(organizationId: string, userId: string): Promise<void> {
+  async removeCredentials(
+    organizationId: string,
+    userId: string,
+  ): Promise<void> {
     const audit = {
       actorType: "user" as const,
       actorId: userId,
       source: "blooio-automation",
     };
 
-    const secretNames = ["BLOOIO_API_KEY", "BLOOIO_WEBHOOK_SECRET", "BLOOIO_FROM_NUMBER"];
+    const secretNames = [
+      "BLOOIO_API_KEY",
+      "BLOOIO_WEBHOOK_SECRET",
+      "BLOOIO_FROM_NUMBER",
+    ];
 
     // Get all secrets once (not inside the loop) for efficiency
     const existingSecrets = await secretsService.list(organizationId);
@@ -175,12 +195,19 @@ class BlooioAutomationService {
             organizationId,
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          if (message.includes("Secret not found") || message.includes("Failed to delete secret")) {
-            logger.debug("[BlooioAutomation] Secret already removed during disconnect", {
-              name,
-              organizationId,
-            });
+          const message =
+            error instanceof Error ? error.message : String(error);
+          if (
+            message.includes("Secret not found") ||
+            message.includes("Failed to delete secret")
+          ) {
+            logger.debug(
+              "[BlooioAutomation] Secret already removed during disconnect",
+              {
+                name,
+                organizationId,
+              },
+            );
             continue;
           }
           throw error;
@@ -199,7 +226,10 @@ class BlooioAutomationService {
    * Falls back to env var only in non-production environments.
    */
   async getApiKey(organizationId: string): Promise<string | null> {
-    const fromSecrets = await secretsService.get(organizationId, "BLOOIO_API_KEY");
+    const fromSecrets = await secretsService.get(
+      organizationId,
+      "BLOOIO_API_KEY",
+    );
     if (fromSecrets) return fromSecrets;
     // Only fall back to env var in non-production (prevents multi-tenancy violation)
     if (process.env.NODE_ENV !== "production") {
@@ -213,7 +243,10 @@ class BlooioAutomationService {
    * No env fallback in production to prevent multi-tenancy violation.
    */
   async getWebhookSecret(organizationId: string): Promise<string | null> {
-    const fromSecrets = await secretsService.get(organizationId, "BLOOIO_WEBHOOK_SECRET");
+    const fromSecrets = await secretsService.get(
+      organizationId,
+      "BLOOIO_WEBHOOK_SECRET",
+    );
     if (fromSecrets) return fromSecrets;
     // Only fall back to env var in non-production (prevents multi-tenancy violation)
     if (process.env.NODE_ENV !== "production") {
@@ -227,7 +260,10 @@ class BlooioAutomationService {
    * Falls back to env var only in non-production environments.
    */
   async getFromNumber(organizationId: string): Promise<string | null> {
-    const fromSecrets = await secretsService.get(organizationId, "BLOOIO_FROM_NUMBER");
+    const fromSecrets = await secretsService.get(
+      organizationId,
+      "BLOOIO_FROM_NUMBER",
+    );
     if (fromSecrets) return fromSecrets;
     // Only fall back to env var in non-production (prevents multi-tenancy violation)
     if (process.env.NODE_ENV !== "production") {
@@ -341,7 +377,8 @@ class BlooioAutomationService {
       if (request.text) payload.text = request.text;
       if (request.attachments) payload.attachments = request.attachments;
       if (request.metadata) payload.metadata = request.metadata;
-      if (request.use_typing_indicator) payload.use_typing_indicator = request.use_typing_indicator;
+      if (request.use_typing_indicator)
+        payload.use_typing_indicator = request.use_typing_indicator;
 
       const response = await blooioApiRequest<BlooioSendMessageResponse>(
         apiKey,
@@ -355,7 +392,8 @@ class BlooioAutomationService {
       );
 
       const messageId =
-        response.message_id || (response.message_ids ? response.message_ids[0] : undefined);
+        response.message_id ||
+        (response.message_ids ? response.message_ids[0] : undefined);
 
       logger.info("[BlooioAutomation] Message sent", {
         organizationId,

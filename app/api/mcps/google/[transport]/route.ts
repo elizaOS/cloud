@@ -75,7 +75,9 @@ async function getGoogleMcpHandler() {
         organizationId,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error("Google account not connected. Connect in Settings > Connections.");
+      throw new Error(
+        "Google account not connected. Connect in Settings > Connections.",
+      );
     }
   }
 
@@ -89,12 +91,16 @@ async function getGoogleMcpHandler() {
   }
 
   function jsonResult(data: object) {
-    return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+    };
   }
 
   function errorResult(msg: string) {
     return {
-      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      content: [
+        { type: "text" as const, text: JSON.stringify({ error: msg }) },
+      ],
       isError: true,
     };
   }
@@ -127,13 +133,15 @@ async function getGoogleMcpHandler() {
                   success: true,
                   connected: false,
                   status: "expired",
-                  message: "Google connection expired. Please reconnect in Settings > Connections.",
+                  message:
+                    "Google connection expired. Please reconnect in Settings > Connections.",
                 });
               }
               return jsonResult({
                 success: true,
                 connected: false,
-                message: "Google not connected. Connect in Settings > Connections.",
+                message:
+                  "Google not connected. Connect in Settings > Connections.",
               });
             }
 
@@ -159,12 +167,22 @@ async function getGoogleMcpHandler() {
         "gmail_send",
         "Send email via Gmail. Supports plain text and HTML, with CC/BCC.",
         {
-          to: z.string().min(1).describe("Recipient(s), comma-separated email addresses"),
+          to: z
+            .string()
+            .min(1)
+            .describe("Recipient(s), comma-separated email addresses"),
           subject: z.string().min(1).describe("Subject line"),
           body: z.string().min(1).describe("Email body content"),
-          isHtml: z.boolean().optional().default(false).describe("Send as HTML format"),
+          isHtml: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Send as HTML format"),
           cc: z.string().optional().describe("CC recipients, comma-separated"),
-          bcc: z.string().optional().describe("BCC recipients, comma-separated"),
+          bcc: z
+            .string()
+            .optional()
+            .describe("BCC recipients, comma-separated"),
         },
         async ({ to, subject, body, isHtml = false, cc, bcc }) => {
           try {
@@ -193,7 +211,11 @@ async function getGoogleMcpHandler() {
             );
             const result = await res.json();
             logger.info("[GoogleMCP] Email sent", { messageId: result.id, to });
-            return jsonResult({ success: true, messageId: result.id, threadId: result.threadId });
+            return jsonResult({
+              success: true,
+              messageId: result.id,
+              threadId: result.threadId,
+            });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to send email"));
           }
@@ -223,7 +245,9 @@ async function getGoogleMcpHandler() {
           labelIds: z
             .string()
             .optional()
-            .describe("Label IDs, comma-separated (e.g. 'INBOX', 'UNREAD', 'STARRED')"),
+            .describe(
+              "Label IDs, comma-separated (e.g. 'INBOX', 'UNREAD', 'STARRED')",
+            ),
           after: z
             .string()
             .optional()
@@ -239,9 +263,18 @@ async function getGoogleMcpHandler() {
           pageToken: z
             .string()
             .optional()
-            .describe("Token from a previous response's nextPageToken to fetch the next page"),
+            .describe(
+              "Token from a previous response's nextPageToken to fetch the next page",
+            ),
         },
-        async ({ query, maxResults = 10, labelIds, after, before, pageToken }) => {
+        async ({
+          query,
+          maxResults = 10,
+          labelIds,
+          after,
+          before,
+          pageToken,
+        }) => {
           try {
             const orgId = getOrgId();
             let effectiveQuery = query || "";
@@ -266,7 +299,9 @@ async function getGoogleMcpHandler() {
             }
             effectiveQuery = effectiveQuery.trim();
 
-            const params = new URLSearchParams({ maxResults: String(maxResults) });
+            const params = new URLSearchParams({
+              maxResults: String(maxResults),
+            });
             if (effectiveQuery) params.set("q", effectiveQuery);
             if (pageToken) params.set("pageToken", pageToken);
             if (labelIds) {
@@ -296,7 +331,9 @@ async function getGoogleMcpHandler() {
               });
             }
 
-            const messageIds = messages.slice(0, maxResults).map((m: { id: string }) => m.id);
+            const messageIds = messages
+              .slice(0, maxResults)
+              .map((m: { id: string }) => m.id);
             const results = await Promise.all(
               messageIds.map(async (id: string) => {
                 try {
@@ -347,7 +384,9 @@ async function getGoogleMcpHandler() {
             .enum(["full", "metadata", "minimal"])
             .optional()
             .default("full")
-            .describe("Response format: full (with body), metadata (headers only), or minimal"),
+            .describe(
+              "Response format: full (with body), metadata (headers only), or minimal",
+            ),
         },
         async ({ messageId, format = "full" }) => {
           try {
@@ -367,7 +406,9 @@ async function getGoogleMcpHandler() {
                 headers: {},
                 body: "",
                 internalDate: msg.internalDate
-                  ? new Date(Number.parseInt(msg.internalDate, 10)).toISOString()
+                  ? new Date(
+                      Number.parseInt(msg.internalDate, 10),
+                    ).toISOString()
                   : undefined,
               });
             }
@@ -378,10 +419,9 @@ async function getGoogleMcpHandler() {
               labelIds: msg.labelIds,
               snippet: msg.snippet,
               headers: Object.fromEntries(
-                msg.payload.headers?.map((h: { name: string; value: string }) => [
-                  h.name,
-                  h.value,
-                ]) || [],
+                msg.payload.headers?.map(
+                  (h: { name: string; value: string }) => [h.name, h.value],
+                ) || [],
               ),
               body: extractBody(msg.payload),
               internalDate: msg.internalDate
@@ -417,13 +457,18 @@ async function getGoogleMcpHandler() {
           timeMax: z
             .string()
             .optional()
-            .describe("Only events before this time (ISO 8601, e.g. 2026-02-20T23:59:59Z)"),
+            .describe(
+              "Only events before this time (ISO 8601, e.g. 2026-02-20T23:59:59Z)",
+            ),
           calendarId: z
             .string()
             .optional()
             .default("primary")
             .describe("Calendar ID (default: 'primary')"),
-          query: z.string().optional().describe("Free-text search across event fields"),
+          query: z
+            .string()
+            .optional()
+            .describe("Free-text search across event fields"),
           timeZone: z
             .string()
             .optional()
@@ -433,7 +478,9 @@ async function getGoogleMcpHandler() {
           pageToken: z
             .string()
             .optional()
-            .describe("Token from a previous response's nextPageToken to fetch the next page"),
+            .describe(
+              "Token from a previous response's nextPageToken to fetch the next page",
+            ),
         },
         async ({
           maxResults = 10,
@@ -520,9 +567,15 @@ async function getGoogleMcpHandler() {
             .describe(
               "IANA timezone for start/end times (e.g. 'Asia/Kolkata', 'America/New_York'). Get from google_status → calendarTimeZone. If omitted, fetched automatically from user's calendar.",
             ),
-          description: z.string().optional().describe("Event description/notes"),
+          description: z
+            .string()
+            .optional()
+            .describe("Event description/notes"),
           location: z.string().optional().describe("Event location"),
-          attendees: z.array(z.string().email()).optional().describe("Attendee email addresses"),
+          attendees: z
+            .array(z.string().email())
+            .optional()
+            .describe("Attendee email addresses"),
           calendarId: z
             .string()
             .optional()
@@ -550,7 +603,9 @@ async function getGoogleMcpHandler() {
             const hasUtcSuffix = start.endsWith("Z") || end.endsWith("Z");
             const tz =
               timeZone ||
-              (!hasUtcSuffix ? ((await fetchCalendarTimeZone(orgId)) ?? undefined) : undefined);
+              (!hasUtcSuffix
+                ? ((await fetchCalendarTimeZone(orgId)) ?? undefined)
+                : undefined);
 
             const event: Record<string, unknown> = {
               summary,
@@ -573,7 +628,11 @@ async function getGoogleMcpHandler() {
               },
             );
             const result = await res.json();
-            logger.info("[GoogleMCP] Event created", { eventId: result.id, summary, timeZone: tz });
+            logger.info("[GoogleMCP] Event created", {
+              eventId: result.id,
+              summary,
+              timeZone: tz,
+            });
             return jsonResult({
               success: true,
               eventId: result.id,
@@ -646,13 +705,17 @@ async function getGoogleMcpHandler() {
             const hasUtcSuffix = start?.endsWith("Z") || end?.endsWith("Z");
             const existingEventTimeZone =
               (!hasUtcSuffix &&
-                ((typeof existing?.start?.timeZone === "string" && existing.start.timeZone) ||
-                  (typeof existing?.end?.timeZone === "string" && existing.end.timeZone))) ||
+                ((typeof existing?.start?.timeZone === "string" &&
+                  existing.start.timeZone) ||
+                  (typeof existing?.end?.timeZone === "string" &&
+                    existing.end.timeZone))) ||
               undefined;
             const tz =
               timeZone ||
               existingEventTimeZone ||
-              (!hasUtcSuffix ? ((await fetchCalendarTimeZone(orgId)) ?? undefined) : undefined);
+              (!hasUtcSuffix
+                ? ((await fetchCalendarTimeZone(orgId)) ?? undefined)
+                : undefined);
 
             const updated = {
               ...existing,
@@ -675,13 +738,20 @@ async function getGoogleMcpHandler() {
               }),
             };
 
-            const res = await googleFetch(orgId, `${baseUrl}?sendUpdates=${sendUpdates}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(updated),
-            });
+            const res = await googleFetch(
+              orgId,
+              `${baseUrl}?sendUpdates=${sendUpdates}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updated),
+              },
+            );
             const result = await res.json();
-            logger.info("[GoogleMCP] Event updated", { eventId: result.id, timeZone: tz });
+            logger.info("[GoogleMCP] Event updated", {
+              eventId: result.id,
+              timeZone: tz,
+            });
             return jsonResult({
               success: true,
               eventId: result.id,
@@ -745,11 +815,15 @@ async function getGoogleMcpHandler() {
           query: z
             .string()
             .optional()
-            .describe("Search query to find contacts by name, email, phone, or organization"),
+            .describe(
+              "Search query to find contacts by name, email, phone, or organization",
+            ),
           pageToken: z
             .string()
             .optional()
-            .describe("Token from a previous response's nextPageToken to fetch the next page"),
+            .describe(
+              "Token from a previous response's nextPageToken to fetch the next page",
+            ),
         },
         async ({ pageSize = 20, query, pageToken }) => {
           try {
@@ -763,7 +837,10 @@ async function getGoogleMcpHandler() {
             if (query) {
               url = "https://people.googleapis.com/v1/people:searchContacts";
               params.set("query", query);
-              params.set("readMask", "names,emailAddresses,phoneNumbers,organizations");
+              params.set(
+                "readMask",
+                "names,emailAddresses,phoneNumbers,organizations",
+              );
             } else if (pageToken) {
               params.set("pageToken", pageToken);
             }
@@ -809,7 +886,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }
@@ -824,7 +903,9 @@ async function handleRequest(
     if (rateLimited) return rateLimited;
 
     const handler = await getGoogleMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
+    const mcpResponse = await authContextStorage.run(authResult, () =>
+      handler(req as Request),
+    );
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

@@ -57,7 +57,10 @@ async function handleDeployPOST(
   // Verify app ownership
   const app = await appsService.getById(appId);
   if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "App not found" },
+      { status: 404 },
+    );
   }
 
   // Check if deployment is configured
@@ -133,7 +136,10 @@ async function handleDeployPOST(
       })
       .where(eq(apps.id, appId));
 
-    return NextResponse.json({ success: false, error: result.error }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: result.error },
+      { status: 500 },
+    );
   }
 
   // If deployment was triggered successfully, update status to "deployed"
@@ -168,14 +174,20 @@ export const POST = withRateLimit(handleDeployPOST, RateLimitPresets.STANDARD);
  *
  * @returns Deployment information including production URL and recent deployments
  */
-export async function GET(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function GET(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   // Verify app ownership
   const app = await appsService.getById(appId);
   if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "App not found" },
+      { status: 404 },
+    );
   }
 
   // Get production URL
@@ -185,7 +197,8 @@ export async function GET(request: NextRequest, { params }: RouteParams): Promis
   const deployments = await vercelDeploymentsService.listDeployments(appId, 10);
 
   // Check if deployment is configured
-  const deploymentConfigured = vercelDeploymentsService.isDeploymentConfigured();
+  const deploymentConfigured =
+    vercelDeploymentsService.isDeploymentConfigured();
 
   return NextResponse.json({
     success: true,

@@ -36,8 +36,12 @@ export const twilioAdapter: ConnectionAdapter = {
 
   async listConnections(organizationId: string): Promise<OAuthConnection[]> {
     const platformSecrets = await fetchPlatformSecrets(organizationId, PREFIX);
-    const hasAccountSid = platformSecrets.some((s) => s.name === PATTERNS.accountSid);
-    const hasAuthToken = platformSecrets.some((s) => s.name === PATTERNS.authToken);
+    const hasAccountSid = platformSecrets.some(
+      (s) => s.name === PATTERNS.accountSid,
+    );
+    const hasAuthToken = platformSecrets.some(
+      (s) => s.name === PATTERNS.authToken,
+    );
 
     if (!hasAccountSid || !hasAuthToken) return [];
 
@@ -47,14 +51,24 @@ export const twilioAdapter: ConnectionAdapter = {
     ]);
 
     return [
-      createSecretsConnection(PLATFORM, organizationId, getEarliestSecretDate(platformSecrets), {
-        platformUserId: fullSid ? maskAccountSid(fullSid) : "unknown",
-        displayName: phoneNumber ? `Twilio (${phoneNumber})` : "Twilio Account",
-      }),
+      createSecretsConnection(
+        PLATFORM,
+        organizationId,
+        getEarliestSecretDate(platformSecrets),
+        {
+          platformUserId: fullSid ? maskAccountSid(fullSid) : "unknown",
+          displayName: phoneNumber
+            ? `Twilio (${phoneNumber})`
+            : "Twilio Account",
+        },
+      ),
     ];
   },
 
-  async getToken(organizationId: string, connectionId: string): Promise<TokenResult> {
+  async getToken(
+    organizationId: string,
+    connectionId: string,
+  ): Promise<TokenResult> {
     verifyConnectionId(PLATFORM, organizationId, connectionId);
 
     const [accountSid, authToken] = await Promise.all([
@@ -77,7 +91,11 @@ export const twilioAdapter: ConnectionAdapter = {
 
   async revoke(organizationId: string, connectionId: string): Promise<void> {
     verifyConnectionId(PLATFORM, organizationId, connectionId);
-    const count = await deletePlatformSecrets(organizationId, PREFIX, "oauth-service");
+    const count = await deletePlatformSecrets(
+      organizationId,
+      PREFIX,
+      "oauth-service",
+    );
     twilioAutomationService.invalidateStatusCache(organizationId);
     logger.info("[TwilioAdapter] Connection revoked", {
       connectionId,

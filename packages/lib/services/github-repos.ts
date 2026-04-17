@@ -12,7 +12,8 @@ import { logger } from "@/lib/utils/logger";
  */
 
 const GITHUB_ORG = process.env.GITHUB_ORG_NAME || "eliza-cloud-apps";
-const TEMPLATE_REPO = process.env.GITHUB_TEMPLATE_REPO || "eliza-cloud-apps/cloud-apps-template";
+const TEMPLATE_REPO =
+  process.env.GITHUB_TEMPLATE_REPO || "eliza-cloud-apps/cloud-apps-template";
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -37,7 +38,10 @@ function getOctokit(): Octokit {
 /**
  * Retry wrapper with exponential backoff for rate limits
  */
-async function withRetry<T>(operation: () => Promise<T>, context: string): Promise<T> {
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  context: string,
+): Promise<T> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -98,7 +102,9 @@ export interface CommitInfo {
 /**
  * Create a new repository from the template
  */
-export async function createAppRepo(options: CreateRepoOptions): Promise<RepoInfo> {
+export async function createAppRepo(
+  options: CreateRepoOptions,
+): Promise<RepoInfo> {
   const octokit = getOctokit();
   const { name, description, isPrivate = true } = options;
 

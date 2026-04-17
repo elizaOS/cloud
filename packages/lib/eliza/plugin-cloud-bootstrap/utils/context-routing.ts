@@ -144,7 +144,9 @@ function normalizeContext(value: unknown): AgentContext | undefined {
     return undefined;
   }
 
-  return AGENT_CONTEXTS.includes(trimmed as AgentContext) ? (trimmed as AgentContext) : undefined;
+  return AGENT_CONTEXTS.includes(trimmed as AgentContext)
+    ? (trimmed as AgentContext)
+    : undefined;
 }
 
 function dedupeStringValues(values: string[]): string[] {
@@ -177,7 +179,9 @@ function parseDelimitedList(value: unknown): string[] {
   if (Array.isArray(value)) {
     return dedupeStringValues(
       value.flatMap((entry) =>
-        typeof entry === "string" ? entry.split(LIST_SPLIT_RE) : [String(entry)],
+        typeof entry === "string"
+          ? entry.split(LIST_SPLIT_RE)
+          : [String(entry)],
       ),
     );
   }
@@ -195,7 +199,9 @@ export function parseContextList(value: unknown): AgentContext[] {
     .filter((entry): entry is AgentContext => Boolean(entry));
 }
 
-export function parseContextRoutingMetadata(raw: unknown): ContextRoutingDecision {
+export function parseContextRoutingMetadata(
+  raw: unknown,
+): ContextRoutingDecision {
   if (!raw || typeof raw !== "object") {
     return {};
   }
@@ -203,7 +209,9 @@ export function parseContextRoutingMetadata(raw: unknown): ContextRoutingDecisio
   const value = raw as Record<string, unknown>;
   const primaryContext = normalizeContext(value.primaryContext);
   const secondaryContexts = parseContextList(value.secondaryContexts);
-  const evidenceTurnIds = dedupeStringValues(parseDelimitedList(value.evidenceTurnIds));
+  const evidenceTurnIds = dedupeStringValues(
+    parseDelimitedList(value.evidenceTurnIds),
+  );
 
   return {
     primaryContext,
@@ -212,7 +220,9 @@ export function parseContextRoutingMetadata(raw: unknown): ContextRoutingDecisio
   };
 }
 
-export function getContextRoutingFromMessage(message: Memory): ContextRoutingDecision {
+export function getContextRoutingFromMessage(
+  message: Memory,
+): ContextRoutingDecision {
   const metadata = message.content?.metadata;
   if (!metadata || typeof metadata !== "object") {
     return {};
@@ -223,7 +233,9 @@ export function getContextRoutingFromMessage(message: Memory): ContextRoutingDec
   );
 }
 
-export function getActiveRoutingContexts(routing: ContextRoutingDecision): AgentContext[] {
+export function getActiveRoutingContexts(
+  routing: ContextRoutingDecision,
+): AgentContext[] {
   const contextSet = new Set<AgentContext>(["general"]);
 
   if (routing.primaryContext) {
@@ -237,7 +249,10 @@ export function getActiveRoutingContexts(routing: ContextRoutingDecision): Agent
   return [...contextSet];
 }
 
-export function setContextRoutingMetadata(message: Memory, routing: ContextRoutingDecision): void {
+export function setContextRoutingMetadata(
+  message: Memory,
+  routing: ContextRoutingDecision,
+): void {
   const existingMetadata =
     message.content && typeof message.content.metadata === "object"
       ? (message.content.metadata as Record<string, unknown>)
@@ -257,7 +272,9 @@ export function setContextRoutingMetadata(message: Memory, routing: ContextRouti
 }
 
 export function resolveActionContexts(action: Action): AgentContext[] {
-  const declared = parseContextList((action as { contexts?: unknown }).contexts);
+  const declared = parseContextList(
+    (action as { contexts?: unknown }).contexts,
+  );
   if (declared.length > 0) {
     return declared;
   }
@@ -266,7 +283,9 @@ export function resolveActionContexts(action: Action): AgentContext[] {
 }
 
 function resolveProviderContexts(provider: Provider): AgentContext[] {
-  const declared = parseContextList((provider as { contexts?: unknown }).contexts);
+  const declared = parseContextList(
+    (provider as { contexts?: unknown }).contexts,
+  );
   if (declared.length > 0) {
     return declared;
   }
@@ -274,7 +293,10 @@ function resolveProviderContexts(provider: Provider): AgentContext[] {
   return PROVIDER_CONTEXT_MAP[provider.name] ?? ["general"];
 }
 
-export function deriveAvailableContexts(actions: Action[], providers: Provider[]): AgentContext[] {
+export function deriveAvailableContexts(
+  actions: Action[],
+  providers: Provider[],
+): AgentContext[] {
   const contexts = new Set<AgentContext>(["general"]);
 
   for (const action of actions) {
@@ -296,7 +318,10 @@ export function attachAvailableContexts(
   state: State,
   runtime: { actions: Action[]; providers: Provider[] },
 ): State {
-  const availableContexts = deriveAvailableContexts(runtime.actions, runtime.providers);
+  const availableContexts = deriveAvailableContexts(
+    runtime.actions,
+    runtime.providers,
+  );
 
   return {
     ...state,
@@ -320,6 +345,8 @@ export function filterActionsByRouting(
   const activeContextSet = new Set(activeContexts);
 
   return actions.filter((action) =>
-    resolveActionContexts(action).some((context) => activeContextSet.has(context)),
+    resolveActionContexts(action).some((context) =>
+      activeContextSet.has(context),
+    ),
   );
 }

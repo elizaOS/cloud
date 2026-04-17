@@ -27,9 +27,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { sessionId } = await params;
 
     // Verify session ownership
-    const session = await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
+    const session = await aiAppBuilder.verifySessionOwnership(
+      sessionId,
+      user.id,
+    );
     if (!session) {
-      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
     }
 
     // Need app with GitHub repo to rollback
@@ -80,7 +86,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Perform the rollback using git reset --hard
-    const rollbackResult = await performRollback(session.sandbox_id, commitSha, app.github_repo);
+    const rollbackResult = await performRollback(
+      session.sandbox_id,
+      commitSha,
+      app.github_repo,
+    );
 
     if (!rollbackResult.success) {
       logger.error("Rollback failed", {
@@ -88,7 +98,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         commitSha,
         error: rollbackResult.error,
       });
-      return NextResponse.json({ success: false, error: rollbackResult.error }, { status: 500 });
+      return NextResponse.json(
+        { success: false, error: rollbackResult.error },
+        { status: 500 },
+      );
     }
 
     logger.info("Rollback successful", {
@@ -128,7 +141,9 @@ async function performRollback(
 ): Promise<RollbackResult> {
   try {
     // First ensure git is configured properly
-    const repoName = repoFullName.includes("/") ? repoFullName.split("/").pop()! : repoFullName;
+    const repoName = repoFullName.includes("/")
+      ? repoFullName.split("/").pop()!
+      : repoFullName;
 
     const configResult = await gitSyncService.configureGit({
       sandboxId,
@@ -222,6 +237,8 @@ async function performRollback(
  * Gets the active sandbox instance from global state.
  */
 function getSandboxInstance(sandboxId: string) {
-  const sandboxes = (global as any).__sandboxInstances as Map<string, any> | undefined;
+  const sandboxes = (global as any).__sandboxInstances as
+    | Map<string, any>
+    | undefined;
   return sandboxes?.get(sandboxId) || null;
 }

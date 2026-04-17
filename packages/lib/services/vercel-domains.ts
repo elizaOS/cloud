@@ -16,7 +16,10 @@
 
 import { and, eq, ne } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
-import { appDomains, type DomainVerificationRecord } from "@/db/schemas/app-domains";
+import {
+  appDomains,
+  type DomainVerificationRecord,
+} from "@/db/schemas/app-domains";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { logger } from "@/lib/utils/logger";
 import { vercelApiRequest } from "@/lib/utils/vercel-api";
@@ -150,7 +153,10 @@ interface AddDomainResult {
 /**
  * Make authenticated request to Vercel API
  */
-async function vercelFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function vercelFetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   if (!VERCEL_TOKEN) {
     throw new Error("VERCEL_TOKEN is not configured");
   }
@@ -190,7 +196,10 @@ export async function isDomainInUse(
 
   const existing = await dbRead.query.appDomains.findFirst({
     where: excludeAppId
-      ? and(eq(appDomains.custom_domain, normalizedDomain), ne(appDomains.app_id, excludeAppId))
+      ? and(
+          eq(appDomains.custom_domain, normalizedDomain),
+          ne(appDomains.app_id, excludeAppId),
+        )
       : eq(appDomains.custom_domain, normalizedDomain),
   });
 
@@ -203,7 +212,10 @@ export async function isDomainInUse(
 /**
  * Add a custom domain to the app's Vercel project
  */
-export async function addDomain(appId: string, domain: string): Promise<AddDomainResult> {
+export async function addDomain(
+  appId: string,
+  domain: string,
+): Promise<AddDomainResult> {
   // Get the app's Vercel project ID
   const projectId = await getAppProjectId(appId);
   if (!projectId) {
@@ -250,18 +262,21 @@ export async function addDomain(appId: string, domain: string): Promise<AddDomai
     projectId,
   });
 
-  const response = await vercelFetch<VercelDomainResponse>(`/v10/projects/${projectId}/domains`, {
-    method: "POST",
-    body: JSON.stringify({ name: normalizedDomain }),
-  });
-
-  const verificationRecords: DomainVerificationRecord[] = (response.verification || []).map(
-    (v) => ({
-      type: v.type as "TXT" | "CNAME" | "A",
-      name: v.domain,
-      value: v.value,
-    }),
+  const response = await vercelFetch<VercelDomainResponse>(
+    `/v10/projects/${projectId}/domains`,
+    {
+      method: "POST",
+      body: JSON.stringify({ name: normalizedDomain }),
+    },
   );
+
+  const verificationRecords: DomainVerificationRecord[] = (
+    response.verification || []
+  ).map((v) => ({
+    type: v.type as "TXT" | "CNAME" | "A",
+    name: v.domain,
+    value: v.value,
+  }));
 
   // Store in database
   const existingDomain = await dbRead.query.appDomains.findFirst({
@@ -282,9 +297,12 @@ export async function addDomain(appId: string, domain: string): Promise<AddDomai
       })
       .where(eq(appDomains.id, existingDomain.id));
   } else {
-    logger.warn("[Vercel Domains] No domain record found for app - app must be deployed first", {
-      appId,
-    });
+    logger.warn(
+      "[Vercel Domains] No domain record found for app - app must be deployed first",
+      {
+        appId,
+      },
+    );
     return {
       success: false,
       domain: normalizedDomain,
@@ -311,7 +329,10 @@ export async function addDomain(appId: string, domain: string): Promise<AddDomai
 /**
  * Get the current status of a domain including real SSL status
  */
-export async function getDomainStatus(appId: string, domain: string): Promise<DomainStatusResult> {
+export async function getDomainStatus(
+  appId: string,
+  domain: string,
+): Promise<DomainStatusResult> {
   // Get the app's Vercel project ID
   const projectId = await getAppProjectId(appId);
   if (!projectId) {
@@ -341,24 +362,24 @@ export async function getDomainStatus(appId: string, domain: string): Promise<Do
       });
       return null;
     }),
-    vercelFetch<VercelDomainConfigResponse>(`/v6/domains/${normalizedDomain}/config`).catch(
-      (error) => {
-        logger.debug("[VercelDomains] Failed to fetch domain config", {
-          domain: normalizedDomain,
-          error: extractErrorMessage(error),
-        });
-        return null;
-      },
-    ),
-    vercelFetch<VercelCertificateResponse[]>(`/v7/certs?domain=${normalizedDomain}`).catch(
-      (error) => {
-        logger.debug("[VercelDomains] Failed to fetch certificates", {
-          domain: normalizedDomain,
-          error: extractErrorMessage(error),
-        });
-        return [] as VercelCertificateResponse[];
-      },
-    ),
+    vercelFetch<VercelDomainConfigResponse>(
+      `/v6/domains/${normalizedDomain}/config`,
+    ).catch((error) => {
+      logger.debug("[VercelDomains] Failed to fetch domain config", {
+        domain: normalizedDomain,
+        error: extractErrorMessage(error),
+      });
+      return null;
+    }),
+    vercelFetch<VercelCertificateResponse[]>(
+      `/v7/certs?domain=${normalizedDomain}`,
+    ).catch((error) => {
+      logger.debug("[VercelDomains] Failed to fetch certificates", {
+        domain: normalizedDomain,
+        error: extractErrorMessage(error),
+      });
+      return [] as VercelCertificateResponse[];
+    }),
   ]);
 
   if (!domainInfo) {
@@ -375,7 +396,9 @@ export async function getDomainStatus(appId: string, domain: string): Promise<Do
     };
   }
 
-  const records: DomainVerificationRecord[] = (domainInfo.verification || []).map((v) => ({
+  const records: DomainVerificationRecord[] = (
+    domainInfo.verification || []
+  ).map((v) => ({
     type: v.type as "TXT" | "CNAME" | "A",
     name: v.domain,
     value: v.value,
@@ -566,7 +589,8 @@ export function validateSubdomain(subdomain: string): {
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(normalized)) {
     return {
       valid: false,
-      error: "Subdomain can only contain lowercase letters, numbers, and hyphens",
+      error:
+        "Subdomain can only contain lowercase letters, numbers, and hyphens",
     };
   }
 

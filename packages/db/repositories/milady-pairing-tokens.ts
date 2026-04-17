@@ -10,7 +10,10 @@ export type { MiladyPairingToken, NewMiladyPairingToken };
 
 export class MiladyPairingTokensRepository {
   async create(data: NewMiladyPairingToken): Promise<MiladyPairingToken> {
-    const [row] = await dbWrite.insert(miladyPairingTokens).values(data).returning();
+    const [row] = await dbWrite
+      .insert(miladyPairingTokens)
+      .values(data)
+      .returning();
 
     if (!row) {
       throw new Error("Failed to create pairing token");
@@ -45,13 +48,20 @@ export class MiladyPairingTokensRepository {
     const now = new Date();
     const deleted = await dbWrite
       .delete(miladyPairingTokens)
-      .where(and(lt(miladyPairingTokens.expires_at, now), isNull(miladyPairingTokens.used_at)))
+      .where(
+        and(
+          lt(miladyPairingTokens.expires_at, now),
+          isNull(miladyPairingTokens.used_at),
+        ),
+      )
       .returning({ id: miladyPairingTokens.id });
 
     return deleted.length;
   }
 
-  async findByTokenHash(tokenHash: string): Promise<MiladyPairingToken | undefined> {
+  async findByTokenHash(
+    tokenHash: string,
+  ): Promise<MiladyPairingToken | undefined> {
     const [row] = await dbRead
       .select()
       .from(miladyPairingTokens)
@@ -62,4 +72,5 @@ export class MiladyPairingTokensRepository {
   }
 }
 
-export const miladyPairingTokensRepository = new MiladyPairingTokensRepository();
+export const miladyPairingTokensRepository =
+  new MiladyPairingTokensRepository();

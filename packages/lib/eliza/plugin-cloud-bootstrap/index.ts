@@ -36,13 +36,16 @@ export * from "./utils";
  */
 class MessageServiceInstaller extends Service {
   static serviceType = "cloud-bootstrap-message-installer";
-  capabilityDescription = "Installs CloudBootstrapMessageService after runtime initialization";
+  capabilityDescription =
+    "Installs CloudBootstrapMessageService after runtime initialization";
 
   static async start(runtime: IAgentRuntime): Promise<Service> {
     const service = new MessageServiceInstaller(runtime);
 
     // Replace DefaultMessageService with our custom implementation
-    logger.info("[CloudBootstrap] Installing CloudBootstrapMessageService (post-initialization)");
+    logger.info(
+      "[CloudBootstrap] Installing CloudBootstrapMessageService (post-initialization)",
+    );
     runtime.messageService = new CloudBootstrapMessageService();
     logger.info("[CloudBootstrap] CloudBootstrapMessageService installed");
 
@@ -86,7 +89,9 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
   const loggedStatuses = loggedRunIds.get(runId);
   if (!loggedStatuses) return; // Shouldn't happen, but guard against it
   if (loggedStatuses.has(status)) {
-    logger.debug(`[CloudBootstrap] Skipping duplicate log: runId=${runId} status=${status}`);
+    logger.debug(
+      `[CloudBootstrap] Skipping duplicate log: runId=${runId} status=${status}`,
+    );
     return;
   }
   loggedStatuses.add(status);
@@ -107,7 +112,10 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
   if (payload.error !== undefined) {
     // Cap error message size
     const errorStr = String(payload.error);
-    body.error = errorStr.length > 1000 ? errorStr.substring(0, 1000) + "...(truncated)" : errorStr;
+    body.error =
+      errorStr.length > 1000
+        ? errorStr.substring(0, 1000) + "...(truncated)"
+        : errorStr;
   }
 
   // PERF: Cap total payload size to prevent oversized writes from blocking.
@@ -121,7 +129,10 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
     // Aggressively truncate error to 200 chars
     if (body.error) {
       const errStr = String(body.error);
-      body.error = errStr.length > 200 ? errStr.substring(0, 200) + "...(truncated)" : errStr;
+      body.error =
+        errStr.length > 200
+          ? errStr.substring(0, 200) + "...(truncated)"
+          : errStr;
     }
     body._truncated = true;
     body._originalSize = originalSize;

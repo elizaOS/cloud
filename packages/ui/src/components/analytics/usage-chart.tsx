@@ -70,7 +70,10 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
     [granularity],
   );
 
-  const detailedDate = useCallback((date: Date) => format(date, "MMM d, yyyy · HH:mm"), []);
+  const detailedDate = useCallback(
+    (date: Date) => format(date, "MMM d, yyyy · HH:mm"),
+    [],
+  );
 
   const chartData = useMemo(
     () =>
@@ -126,16 +129,23 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
     <div className="flex flex-col gap-7 lg:gap-8">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground/80">Focus metric</p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
+            Focus metric
+          </p>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold text-foreground">
               {formatMetricValue(latestPoint?.[activeMetric])}
             </span>
-            <Badge variant="outline" className="rounded-full bg-background/80 text-xs">
+            <Badge
+              variant="outline"
+              className="rounded-full bg-background/80 text-xs"
+            >
               Latest data point
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground">{metricDescriptions[activeMetric]}</p>
+          <p className="text-xs text-muted-foreground">
+            {metricDescriptions[activeMetric]}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {(Object.keys(chartConfig) as MetricKey[]).map((metric) => {
@@ -151,7 +161,11 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
                   "rounded-full text-xs font-medium",
                   !isActive && "border-border/60 bg-background/60",
                 )}
-                style={isActive ? { backgroundColor: color, borderColor: color } : undefined}
+                style={
+                  isActive
+                    ? { backgroundColor: color, borderColor: color }
+                    : undefined
+                }
                 onClick={() => setActiveMetric(metric)}
               >
                 {chartConfig[metric].label}
@@ -167,13 +181,24 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
       >
         <AreaChart data={chartData}>
           <defs>
-            <linearGradient id={`fill-${activeMetric}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient
+              id={`fill-${activeMetric}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
               <stop offset="5%" stopColor={activeColor} stopOpacity={0.3} />
               <stop offset="95%" stopColor={activeColor} stopOpacity={0.05} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
+          <XAxis
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            minTickGap={24}
+          />
           <YAxis tickLine={false} axisLine={false} width={70} {...yAxisProps} />
           <ChartTooltip
             cursor={{ strokeDasharray: "4 4" }}
@@ -197,7 +222,11 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
                 }}
                 labelFormatter={(_, payload) => {
                   const source = payload?.[0];
-                  if (source && typeof source === "object" && "payload" in source) {
+                  if (
+                    source &&
+                    typeof source === "object" &&
+                    "payload" in source
+                  ) {
                     interface TooltipPayload {
                       payload?: { fullLabel?: string };
                     }

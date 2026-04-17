@@ -36,7 +36,10 @@ const _CreateSessionSchema = z.object({
 
 export async function POST(request: NextRequest) {
   return new Response(
-    JSON.stringify({ success: false, error: "App creation is temporarily disabled" }),
+    JSON.stringify({
+      success: false,
+      error: "App creation is temporarily disabled",
+    }),
     { status: 403, headers: { "Content-Type": "application/json" } },
   );
 

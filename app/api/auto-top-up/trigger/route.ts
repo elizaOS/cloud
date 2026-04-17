@@ -22,7 +22,10 @@ async function handleTriggerAutoTopUp(req: NextRequest) {
     // Get organization details
     const org = await organizationsRepository.findById(organizationId);
     if (!org) {
-      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
     }
 
     // Check if auto top-up is enabled
@@ -77,9 +80,15 @@ async function handleTriggerAutoTopUp(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ error: "Failed to trigger auto top-up" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to trigger auto top-up" },
+      { status: 500 },
+    );
   }
 }
 
 // Export rate-limited handler
-export const POST = withRateLimit(handleTriggerAutoTopUp, RateLimitPresets.STRICT);
+export const POST = withRateLimit(
+  handleTriggerAutoTopUp,
+  RateLimitPresets.STRICT,
+);

@@ -18,7 +18,8 @@ export const dynamic = "force-dynamic";
 // Headscale API configuration
 // ---------------------------------------------------------------------------
 
-const HEADSCALE_API_URL = process.env.HEADSCALE_API_URL || "http://localhost:8081";
+const HEADSCALE_API_URL =
+  process.env.HEADSCALE_API_URL || "http://localhost:8081";
 const HEADSCALE_API_KEY = process.env.HEADSCALE_API_KEY || "";
 const HEADSCALE_USER = process.env.HEADSCALE_USER || "milady";
 
@@ -40,7 +41,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Headscale not configured: HEADSCALE_API_KEY environment variable is missing",
+          error:
+            "Headscale not configured: HEADSCALE_API_KEY environment variable is missing",
         },
         { status: 503 },
       );
@@ -160,7 +162,10 @@ export async function GET(request: NextRequest) {
       );
     }
     if (error instanceof ForbiddenError) {
-      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 },
+      );
     }
 
     // Distinguish network errors from other failures

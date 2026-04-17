@@ -38,7 +38,10 @@ export async function POST(
     const parsed = linkSchema.safeParse(body);
     if (!parsed.success) {
       return applyCorsHeaders(
-        NextResponse.json({ success: false, error: "connectionId is required" }, { status: 400 }),
+        NextResponse.json(
+          { success: false, error: "connectionId is required" },
+          { status: 400 },
+        ),
         CORS_METHODS,
       );
     }
@@ -53,7 +56,10 @@ export async function POST(
 
     if (!connection) {
       return applyCorsHeaders(
-        NextResponse.json({ success: false, error: "OAuth connection not found" }, { status: 404 }),
+        NextResponse.json(
+          { success: false, error: "OAuth connection not found" },
+          { status: 404 },
+        ),
         CORS_METHODS,
       );
     }
@@ -72,7 +78,10 @@ export async function POST(
       agentId,
       organizationId: user.organization_id,
       binding: {
-        mode: connection.connectionRole === "owner" ? "shared-owner" : "cloud-managed",
+        mode:
+          connection.connectionRole === "owner"
+            ? "shared-owner"
+            : "cloud-managed",
         connectionId,
         connectionRole: connection.connectionRole,
         source: connection.source,

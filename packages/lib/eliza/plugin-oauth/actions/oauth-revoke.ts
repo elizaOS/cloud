@@ -13,7 +13,10 @@ import {
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
-import { type ActionWithParams, defineActionParameters } from "../../plugin-cloud-bootstrap/types";
+import {
+  type ActionWithParams,
+  defineActionParameters,
+} from "../../plugin-cloud-bootstrap/types";
 import {
   capitalize,
   extractPlatform,
@@ -71,7 +74,10 @@ export const oauthRevokeAction: ActionWithParams = {
     },
   }),
 
-  validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    message: Memory,
+  ): Promise<boolean> => {
     return !!message.entityId;
   },
 
@@ -85,7 +91,9 @@ export const oauthRevokeAction: ActionWithParams = {
     const platform = extractPlatform(message, state);
     const actionName = "OAUTH_REVOKE";
 
-    logger.info(`[${actionName}] platform=${platform}, entityId=${message.entityId}`);
+    logger.info(
+      `[${actionName}] platform=${platform}, entityId=${message.entityId}`,
+    );
 
     if (!platform) {
       const supported = getSupportedPlatforms();
@@ -165,35 +173,50 @@ export const oauthRevokeAction: ActionWithParams = {
       { name: "{{name1}}", content: { text: "unlink my gmail" } },
       {
         name: "{{name2}}",
-        content: { text: "Google has been disconnected.", actions: ["OAUTH_REVOKE"] },
+        content: {
+          text: "Google has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
       },
     ],
     [
       { name: "{{name1}}", content: { text: "disconnect hubspot" } },
       {
         name: "{{name2}}",
-        content: { text: "HubSpot has been disconnected.", actions: ["OAUTH_REVOKE"] },
+        content: {
+          text: "HubSpot has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
       },
     ],
     [
       { name: "{{name1}}", content: { text: "disconnect my twitter" } },
       {
         name: "{{name2}}",
-        content: { text: "Twitter has been disconnected.", actions: ["OAUTH_REVOKE"] },
+        content: {
+          text: "Twitter has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
       },
     ],
     [
       { name: "{{name1}}", content: { text: "remove my x account" } },
       {
         name: "{{name2}}",
-        content: { text: "Twitter has been disconnected.", actions: ["OAUTH_REVOKE"] },
+        content: {
+          text: "Twitter has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
       },
     ],
     [
       { name: "{{name1}}", content: { text: "remove my slack connection" } },
       {
         name: "{{name2}}",
-        content: { text: "Slack has been disconnected.", actions: ["OAUTH_REVOKE"] },
+        content: {
+          text: "Slack has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
       },
     ],
   ] as ActionExample[][],

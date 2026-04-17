@@ -20,16 +20,27 @@ export class RemoteSessionsRepository {
     return row;
   }
 
-  async findByIdAndOrg(id: string, orgId: string): Promise<RemoteSession | undefined> {
+  async findByIdAndOrg(
+    id: string,
+    orgId: string,
+  ): Promise<RemoteSession | undefined> {
     const [row] = await dbRead
       .select()
       .from(remoteSessions)
-      .where(and(eq(remoteSessions.id, id), eq(remoteSessions.organization_id, orgId)))
+      .where(
+        and(
+          eq(remoteSessions.id, id),
+          eq(remoteSessions.organization_id, orgId),
+        ),
+      )
       .limit(1);
     return row;
   }
 
-  async listActiveByAgent(agentId: string, orgId: string): Promise<RemoteSession[]> {
+  async listActiveByAgent(
+    agentId: string,
+    orgId: string,
+  ): Promise<RemoteSession[]> {
     return dbRead
       .select()
       .from(remoteSessions)

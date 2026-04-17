@@ -16,11 +16,17 @@ export const dynamic = "force-dynamic";
  * POST /api/v1/mcps/[mcpId]/publish
  * Publish MCP (make it live and discoverable)
  */
-export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId: string }> }) {
+export async function POST(
+  request: NextRequest,
+  ctx: { params: Promise<{ mcpId: string }> },
+) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
 
-  const mcp = await userMcpsService.publish(mcpId, authResult.user.organization_id);
+  const mcp = await userMcpsService.publish(
+    mcpId,
+    authResult.user.organization_id,
+  );
 
   logger.info("[API] Published user MCP", {
     id: mcpId,
@@ -30,7 +36,8 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
 
   return NextResponse.json({
     mcp,
-    message: "MCP published successfully. It is now discoverable in the registry.",
+    message:
+      "MCP published successfully. It is now discoverable in the registry.",
   });
 }
 
@@ -38,11 +45,17 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
  * DELETE /api/v1/mcps/[mcpId]/publish
  * Unpublish MCP (back to draft)
  */
-export async function DELETE(request: NextRequest, ctx: { params: Promise<{ mcpId: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ mcpId: string }> },
+) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
 
-  const mcp = await userMcpsService.unpublish(mcpId, authResult.user.organization_id);
+  const mcp = await userMcpsService.unpublish(
+    mcpId,
+    authResult.user.organization_id,
+  );
 
   logger.info("[API] Unpublished user MCP", {
     id: mcpId,
@@ -64,7 +77,8 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

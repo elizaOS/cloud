@@ -18,7 +18,8 @@ import { refreshOAuth2Token } from "../providers";
 import type { OAuthConnection, TokenResult } from "../types";
 import type { ConnectionAdapter } from "./index";
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Buffer before token expiry to trigger refresh (5 minutes)
 const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
@@ -28,7 +29,8 @@ const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
  * This allows the adapter to be used for any platform that stores in platform_credentials.
  */
 export function createGenericAdapter(platform: string): ConnectionAdapter {
-  const platformEnum = platform as (typeof platformCredentials.platform.enumValues)[number];
+  const platformEnum =
+    platform as (typeof platformCredentials.platform.enumValues)[number];
 
   async function decryptTokenSecret(
     secretId: string,
@@ -45,14 +47,17 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
       return await secretsService.getDecryptedValue(secretId, organizationId);
     } catch (error) {
       if (error instanceof DecryptionError) {
-        logger.error(`[GenericAdapter] Token decryption failed for ${platform}`, {
-          connectionId,
-          organizationId,
-          secretId,
-          tokenType,
-          phase: error.phase,
-          error: error.message,
-        });
+        logger.error(
+          `[GenericAdapter] Token decryption failed for ${platform}`,
+          {
+            connectionId,
+            organizationId,
+            secretId,
+            tokenType,
+            phase: error.phase,
+            error: error.message,
+          },
+        );
 
         // Mark connection as needing re-authentication
         await dbWrite
@@ -112,7 +117,8 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
           connectionRole:
             cred.source_context &&
             typeof cred.source_context === "object" &&
-            (cred.source_context as Record<string, unknown>).miladyGoogleSide === "agent"
+            (cred.source_context as Record<string, unknown>)
+              .miladyGoogleSide === "agent"
               ? "agent"
               : "owner",
           platform,
@@ -140,7 +146,10 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
       }
     },
 
-    async getToken(organizationId: string, connectionId: string): Promise<TokenResult> {
+    async getToken(
+      organizationId: string,
+      connectionId: string,
+    ): Promise<TokenResult> {
       const cred = await findCredential(organizationId, connectionId);
       if (!cred) throw Errors.connectionNotFound(connectionId);
       if (cred.status === "revoked") throw Errors.connectionRevoked(platform);
@@ -153,7 +162,8 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
       // Check if token needs refresh
       const tokenExpired =
         cred.token_expires_at &&
-        new Date(cred.token_expires_at).getTime() - TOKEN_EXPIRY_BUFFER_MS < Date.now();
+        new Date(cred.token_expires_at).getTime() - TOKEN_EXPIRY_BUFFER_MS <
+          Date.now();
 
       let accessToken: string;
       let expiresAt: Date | undefined = cred.token_expires_at || undefined;
@@ -176,7 +186,10 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
           );
 
           // Refresh the token using the generic flow
-          const refreshResult = await refreshOAuth2Token(provider, refreshToken);
+          const refreshResult = await refreshOAuth2Token(
+            provider,
+            refreshToken,
+          );
 
           // Store the new access token
           const audit = {
@@ -205,14 +218,17 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
                 audit,
               );
             } catch (refreshTokenError) {
-              logger.error(`[GenericAdapter] Failed to store new refresh token for ${platform}`, {
-                connectionId,
-                organizationId,
-                error:
-                  refreshTokenError instanceof Error
-                    ? refreshTokenError.message
-                    : String(refreshTokenError),
-              });
+              logger.error(
+                `[GenericAdapter] Failed to store new refresh token for ${platform}`,
+                {
+                  connectionId,
+                  organizationId,
+                  error:
+                    refreshTokenError instanceof Error
+                      ? refreshTokenError.message
+                      : String(refreshTokenError),
+                },
+              );
 
               await dbWrite
                 .update(platformCredentials)
@@ -254,11 +270,14 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
             organizationId,
           });
         } catch (error) {
-          logger.error(`[GenericAdapter] Token refresh failed for ${platform}`, {
-            connectionId,
-            organizationId,
-            error: error instanceof Error ? error.message : String(error),
-          });
+          logger.error(
+            `[GenericAdapter] Token refresh failed for ${platform}`,
+            {
+              connectionId,
+              organizationId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
           throw Errors.tokenRefreshFailed(
             platform,
             error instanceof Error ? error.message : "Unknown error",
@@ -304,12 +323,15 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
         try {
           await secretsService.delete(id, organizationId, audit);
         } catch (error) {
-          logger.warn(`[GenericAdapter] Failed to delete ${tokenType} secret during revoke`, {
-            secretId: id,
-            platform,
-            organizationId,
-            error: error instanceof Error ? error.message : String(error),
-          });
+          logger.warn(
+            `[GenericAdapter] Failed to delete ${tokenType} secret during revoke`,
+            {
+              secretId: id,
+              platform,
+              organizationId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
         }
       };
 

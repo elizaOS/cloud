@@ -135,7 +135,12 @@ describe("verifyCronSecret", () => {
     });
 
     it("accepts valid secret with various log prefixes", () => {
-      const prefixes = ["[AgentBudgets Cron]", "[Health Check Cron]", "[Test]", ""];
+      const prefixes = [
+        "[AgentBudgets Cron]",
+        "[Health Check Cron]",
+        "[Test]",
+        "",
+      ];
 
       for (const prefix of prefixes) {
         const request = mockRequest(`Bearer ${TEST_SECRET}`);

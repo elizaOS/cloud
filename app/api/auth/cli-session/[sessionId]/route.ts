@@ -34,7 +34,10 @@ export async function GET(
 
     if (!session) {
       return applyCorsHeaders(
-        NextResponse.json({ error: "Session not found or expired" }, { status: 404 }),
+        NextResponse.json(
+          { error: "Session not found or expired" },
+          { status: 404 },
+        ),
         CORS_METHODS,
       );
     }
@@ -42,7 +45,8 @@ export async function GET(
     // Check if session is authenticated
     if (session.status === "authenticated") {
       // Retrieve and clear the plain API key (one-time retrieval for security)
-      const apiKeyData = await cliAuthSessionsService.getAndClearApiKey(sessionId);
+      const apiKeyData =
+        await cliAuthSessionsService.getAndClearApiKey(sessionId);
 
       if (!apiKeyData) {
         return applyCorsHeaders(
@@ -84,7 +88,10 @@ export async function GET(
   } catch (error) {
     logger.error("[CLI Auth] Error getting CLI auth session", { error });
     return applyCorsHeaders(
-      NextResponse.json({ error: "Failed to get session status" }, { status: 500 }),
+      NextResponse.json(
+        { error: "Failed to get session status" },
+        { status: 500 },
+      ),
       CORS_METHODS,
     );
   }

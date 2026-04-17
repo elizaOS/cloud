@@ -25,7 +25,9 @@ export const appConfigProvider: Provider = {
   description: "App-specific prompt configuration for behavior customization",
   get: async (runtime: IAgentRuntime, _message: Memory, _state: State) => {
     // Get config from runtime settings (passed from userContext)
-    const runtimeConfig = runtime.character.settings?.appPromptConfig as PromptConfig | undefined;
+    const runtimeConfig = runtime.character.settings?.appPromptConfig as
+      | PromptConfig
+      | undefined;
 
     // Get preset from environment
     const envPreset = getPresetFromEnv();

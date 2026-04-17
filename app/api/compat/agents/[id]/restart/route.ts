@@ -3,7 +3,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { envelope, errorEnvelope, toCompatOpResult } from "@/lib/api/compat-envelope";
+import {
+  envelope,
+  errorEnvelope,
+  toCompatOpResult,
+} from "@/lib/api/compat-envelope";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../../../_lib/auth";
@@ -25,7 +29,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const agent = await miladySandboxService.getAgent(
+      agentId,
+      user.organization_id,
+    );
     if (!agent) {
       return withCompatCors(
         NextResponse.json(errorEnvelope("Agent not found"), { status: 404 }),
@@ -44,15 +51,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    const result = await miladySandboxService.provision(agentId, user.organization_id);
-    const response = envelope(toCompatOpResult(agentId, "restart", result.success));
+    const result = await miladySandboxService.provision(
+      agentId,
+      user.organization_id,
+    );
+    const response = envelope(
+      toCompatOpResult(agentId, "restart", result.success),
+    );
 
     if (!result.success) {
       logger.warn("[compat] Restart failed", {
         agentId,
         error: result.error,
       });
-      return withCompatCors(NextResponse.json(response, { status: 502 }), CORS_METHODS);
+      return withCompatCors(
+        NextResponse.json(response, { status: 502 }),
+        CORS_METHODS,
+      );
     }
 
     return withCompatCors(NextResponse.json(response), CORS_METHODS);

@@ -102,7 +102,10 @@ export async function GET(request: NextRequest) {
     const status = getErrorStatusCode(error);
 
     if (status !== 500) {
-      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
+      return NextResponse.json(
+        { error: getSafeErrorMessage(error) },
+        { status },
+      );
     }
 
     return NextResponse.json(

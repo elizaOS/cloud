@@ -42,7 +42,9 @@ async function getTwitterClient(): Promise<TwitterApi> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("Twitter account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "Twitter account not connected. Connect in Settings > Connections.",
+    );
   }
 
   if (!result.accessTokenSecret) {
@@ -82,7 +84,10 @@ async function getAuthenticatedUserId(client: TwitterApi): Promise<string> {
     const oldestKey = userIdCache.keys().next().value;
     if (oldestKey) userIdCache.delete(oldestKey);
   }
-  userIdCache.set(orgId, { id: me.data.id, expiry: Date.now() + USER_ID_CACHE_TTL_MS });
+  userIdCache.set(orgId, {
+    id: me.data.id,
+    expiry: Date.now() + USER_ID_CACHE_TTL_MS,
+  });
   return me.data.id;
 }
 
@@ -104,7 +109,10 @@ function errMsg(error: unknown, fallback: string): string {
   return parts.join(" — ");
 }
 
-async function resolveUserIdFromUsername(client: TwitterApi, username: string): Promise<string> {
+async function resolveUserIdFromUsername(
+  client: TwitterApi,
+  username: string,
+): Promise<string> {
   const cleaned = username.replace(/^@/, "");
   const user = await client.v2.userByUsername(cleaned);
   if (!user.data) throw new Error(`User @${cleaned} not found`);
@@ -128,13 +136,25 @@ async function resolveTargetUserId(
 }
 
 function extractTweetIdFromUrl(url: string): string | null {
-  const match = url.match(/(?:(?:mobile\.)?twitter\.com|x\.com)\/\w+\/status\/(\d+)/);
+  const match = url.match(
+    /(?:(?:mobile\.)?twitter\.com|x\.com)\/\w+\/status\/(\d+)/,
+  );
   return match ? match[1] : null;
 }
 
 // ── Shared field selections ──────────────────────────────────────────────────
-const TIMELINE_TWEET_FIELDS = ["created_at", "public_metrics", "entities", "referenced_tweets"];
-const SEARCH_TWEET_FIELDS = ["created_at", "public_metrics", "author_id", "entities"];
+const TIMELINE_TWEET_FIELDS = [
+  "created_at",
+  "public_metrics",
+  "entities",
+  "referenced_tweets",
+];
+const SEARCH_TWEET_FIELDS = [
+  "created_at",
+  "public_metrics",
+  "author_id",
+  "entities",
+];
 const MENTION_TWEET_FIELDS = [...SEARCH_TWEET_FIELDS, "referenced_tweets"];
 const DETAIL_TWEET_FIELDS = [
   "created_at",
@@ -154,7 +174,12 @@ const USER_PROFILE_FIELDS = [
   "url",
   "verified",
 ];
-const USER_SUMMARY_FIELDS = ["description", "public_metrics", "profile_image_url", "verified"];
+const USER_SUMMARY_FIELDS = [
+  "description",
+  "public_metrics",
+  "profile_image_url",
+  "verified",
+];
 
 // ── Shared mappers ───────────────────────────────────────────────────────────
 type TweetSummaryRecord = {
@@ -269,7 +294,11 @@ async function fetchUserTimeline(
   if (paginationToken) opts.pagination_token = paginationToken;
 
   const timeline = await client.v2.userTimeline(userId, opts);
-  return paginatedTweetResponse(timeline.data?.data || [], timeline.data?.meta, { userId });
+  return paginatedTweetResponse(
+    timeline.data?.data || [],
+    timeline.data?.meta,
+    { userId },
+  );
 }
 
 async function fetchTweetDetails(client: TwitterApi, tweetId: string) {
@@ -311,7 +340,8 @@ export function registerTwitterTools(server: McpServer): void {
         if (!active) {
           return jsonResponse({
             connected: false,
-            message: "Twitter not connected. Connect in Settings > Connections.",
+            message:
+              "Twitter not connected. Connect in Settings > Connections.",
           });
         }
         return jsonResponse({
@@ -350,7 +380,9 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Get a Twitter/X user's profile by their username (handle)",
       inputSchema: {
-        username: z.string().describe("The Twitter username/handle (without @)"),
+        username: z
+          .string()
+          .describe("The Twitter username/handle (without @)"),
       },
     },
     async ({ username }) => {
@@ -371,9 +403,14 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_create_tweet",
     {
-      description: "Post a new tweet on Twitter/X. Supports text tweets and replies.",
+      description:
+        "Post a new tweet on Twitter/X. Supports text tweets and replies.",
       inputSchema: {
-        text: z.string().min(1).max(280).describe("The tweet text content (max 280 characters)"),
+        text: z
+          .string()
+          .min(1)
+          .max(280)
+          .describe("The tweet text content (max 280 characters)"),
         replyToTweetId: z
           .string()
           .regex(/^\d+$/)
@@ -417,9 +454,13 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_delete_tweet",
     {
-      description: "Delete a tweet by its ID. Only works for tweets by the authenticated user.",
+      description:
+        "Delete a tweet by its ID. Only works for tweets by the authenticated user.",
       inputSchema: {
-        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to delete"),
+        tweetId: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("The ID of the tweet to delete"),
       },
     },
     async ({ tweetId }) => {
@@ -427,7 +468,11 @@ export function registerTwitterTools(server: McpServer): void {
         const client = await getTwitterClient();
         const result = await client.v2.deleteTweet(tweetId);
         logger.warn("[TwitterMCP] Tweet deleted", { tweetId });
-        return jsonResponse({ success: true, deleted: result.data.deleted, tweetId });
+        return jsonResponse({
+          success: true,
+          deleted: result.data.deleted,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete tweet"));
       }
@@ -440,7 +485,10 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Get a specific tweet by its ID with full details",
       inputSchema: {
-        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to retrieve"),
+        tweetId: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("The ID of the tweet to retrieve"),
       },
     },
     async ({ tweetId }) => {
@@ -474,8 +522,13 @@ export function registerTwitterTools(server: McpServer): void {
         startTime: z
           .string()
           .optional()
-          .describe("Only tweets after this date (ISO 8601, must be within last 7 days)"),
-        endTime: z.string().optional().describe("Only tweets before this date (ISO 8601)"),
+          .describe(
+            "Only tweets after this date (ISO 8601, must be within last 7 days)",
+          ),
+        endTime: z
+          .string()
+          .optional()
+          .describe("Only tweets before this date (ISO 8601)"),
         sortOrder: z
           .enum(["recency", "relevancy"])
           .optional()
@@ -483,10 +536,19 @@ export function registerTwitterTools(server: McpServer): void {
         paginationToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextToken to fetch the next page",
+          ),
       },
     },
-    async ({ query, maxResults = 10, startTime, endTime, sortOrder, paginationToken }) => {
+    async ({
+      query,
+      maxResults = 10,
+      startTime,
+      endTime,
+      sortOrder,
+      paginationToken,
+    }) => {
       try {
         const client = await getTwitterClient();
         const opts: Record<string, unknown> = {
@@ -520,7 +582,10 @@ export function registerTwitterTools(server: McpServer): void {
       description:
         "Get tweets posted by a specific user. Supports date filtering, pagination, and excluding retweets/replies. For the authenticated user's own tweets, prefer twitter_get_my_tweets.",
       inputSchema: {
-        userId: z.string().regex(/^\d+$/).describe("The Twitter user ID (numeric)"),
+        userId: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("The Twitter user ID (numeric)"),
         maxResults: z
           .number()
           .min(5)
@@ -530,11 +595,15 @@ export function registerTwitterTools(server: McpServer): void {
         startTime: z
           .string()
           .optional()
-          .describe("Only tweets after this date (ISO 8601, e.g. 2026-02-01T00:00:00Z)"),
+          .describe(
+            "Only tweets after this date (ISO 8601, e.g. 2026-02-01T00:00:00Z)",
+          ),
         endTime: z
           .string()
           .optional()
-          .describe("Only tweets before this date (ISO 8601, e.g. 2026-02-28T23:59:59Z)"),
+          .describe(
+            "Only tweets before this date (ISO 8601, e.g. 2026-02-28T23:59:59Z)",
+          ),
         exclude: z
           .array(z.enum(["retweets", "replies"]))
           .optional()
@@ -542,10 +611,19 @@ export function registerTwitterTools(server: McpServer): void {
         paginationToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextToken to fetch the next page",
+          ),
       },
     },
-    async ({ userId, maxResults, startTime, endTime, exclude, paginationToken }) => {
+    async ({
+      userId,
+      maxResults,
+      startTime,
+      endTime,
+      exclude,
+      paginationToken,
+    }) => {
       try {
         const client = await getTwitterClient();
         return jsonResponse(
@@ -579,11 +657,15 @@ export function registerTwitterTools(server: McpServer): void {
         startTime: z
           .string()
           .optional()
-          .describe("Only tweets after this date (ISO 8601, e.g. 2026-02-01T00:00:00Z)"),
+          .describe(
+            "Only tweets after this date (ISO 8601, e.g. 2026-02-01T00:00:00Z)",
+          ),
         endTime: z
           .string()
           .optional()
-          .describe("Only tweets before this date (ISO 8601, e.g. 2026-02-28T23:59:59Z)"),
+          .describe(
+            "Only tweets before this date (ISO 8601, e.g. 2026-02-28T23:59:59Z)",
+          ),
         exclude: z
           .array(z.enum(["retweets", "replies"]))
           .optional()
@@ -591,7 +673,9 @@ export function registerTwitterTools(server: McpServer): void {
         paginationToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextToken to fetch the next page",
+          ),
       },
     },
     async ({ maxResults, startTime, endTime, exclude, paginationToken }) => {
@@ -619,7 +703,10 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Like a tweet on behalf of the authenticated user",
       inputSchema: {
-        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to like"),
+        tweetId: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("The ID of the tweet to like"),
       },
     },
     async ({ tweetId }) => {
@@ -628,7 +715,11 @@ export function registerTwitterTools(server: McpServer): void {
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.like(userId, tweetId);
         logger.info("[TwitterMCP] Tweet liked", { tweetId });
-        return jsonResponse({ success: true, liked: result.data.liked, tweetId });
+        return jsonResponse({
+          success: true,
+          liked: result.data.liked,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to like tweet"));
       }
@@ -641,7 +732,10 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Remove a like from a tweet",
       inputSchema: {
-        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to unlike"),
+        tweetId: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("The ID of the tweet to unlike"),
       },
     },
     async ({ tweetId }) => {
@@ -650,7 +744,11 @@ export function registerTwitterTools(server: McpServer): void {
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.unlike(userId, tweetId);
         logger.info("[TwitterMCP] Tweet unliked", { tweetId });
-        return jsonResponse({ success: true, liked: result.data.liked, tweetId });
+        return jsonResponse({
+          success: true,
+          liked: result.data.liked,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unlike tweet"));
       }
@@ -663,7 +761,10 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Retweet a tweet on behalf of the authenticated user",
       inputSchema: {
-        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to retweet"),
+        tweetId: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("The ID of the tweet to retweet"),
       },
     },
     async ({ tweetId }) => {
@@ -672,7 +773,11 @@ export function registerTwitterTools(server: McpServer): void {
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.retweet(userId, tweetId);
         logger.info("[TwitterMCP] Retweeted", { tweetId });
-        return jsonResponse({ success: true, retweeted: result.data.retweeted, tweetId });
+        return jsonResponse({
+          success: true,
+          retweeted: result.data.retweeted,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to retweet"));
       }
@@ -685,7 +790,10 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Remove a retweet from a tweet",
       inputSchema: {
-        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to unretweet"),
+        tweetId: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("The ID of the tweet to unretweet"),
       },
     },
     async ({ tweetId }) => {
@@ -694,7 +802,11 @@ export function registerTwitterTools(server: McpServer): void {
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.unretweet(userId, tweetId);
         logger.info("[TwitterMCP] Unretweeted", { tweetId });
-        return jsonResponse({ success: true, retweeted: result.data.retweeted, tweetId });
+        return jsonResponse({
+          success: true,
+          retweeted: result.data.retweeted,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unretweet"));
       }
@@ -708,7 +820,10 @@ export function registerTwitterTools(server: McpServer): void {
       description:
         "Get a list of users who follow the specified user. Supports pagination to fetch all followers.",
       inputSchema: {
-        userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get followers for"),
+        userId: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("The Twitter user ID to get followers for"),
         maxResults: z
           .number()
           .min(1)
@@ -718,7 +833,9 @@ export function registerTwitterTools(server: McpServer): void {
         paginationToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextToken to fetch the next page",
+          ),
       },
     },
     async ({ userId, maxResults = 20, paginationToken }) => {
@@ -751,7 +868,10 @@ export function registerTwitterTools(server: McpServer): void {
       description:
         "Get a list of users that the specified user is following. Supports pagination to fetch all.",
       inputSchema: {
-        userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get following list for"),
+        userId: z
+          .string()
+          .regex(/^\d+$/)
+          .describe("The Twitter user ID to get following list for"),
         maxResults: z
           .number()
           .min(1)
@@ -761,7 +881,9 @@ export function registerTwitterTools(server: McpServer): void {
         paginationToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextToken to fetch the next page",
+          ),
       },
     },
     async ({ userId, maxResults = 20, paginationToken }) => {
@@ -862,7 +984,9 @@ export function registerTwitterTools(server: McpServer): void {
           getAuthenticatedUserId(client),
         ]);
         const result = await client.v2.unfollow(userId, resolvedId);
-        logger.warn("[TwitterMCP] Unfollowed user", { targetUserId: resolvedId });
+        logger.warn("[TwitterMCP] Unfollowed user", {
+          targetUserId: resolvedId,
+        });
         return jsonResponse({
           success: true,
           following: result.data.following,
@@ -887,12 +1011,20 @@ export function registerTwitterTools(server: McpServer): void {
           .max(100)
           .optional()
           .describe("Number of mentions per page (5-100, default 10)"),
-        startTime: z.string().optional().describe("Only mentions after this date (ISO 8601)"),
-        endTime: z.string().optional().describe("Only mentions before this date (ISO 8601)"),
+        startTime: z
+          .string()
+          .optional()
+          .describe("Only mentions after this date (ISO 8601)"),
+        endTime: z
+          .string()
+          .optional()
+          .describe("Only mentions before this date (ISO 8601)"),
         paginationToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextToken to fetch the next page",
+          ),
       },
     },
     async ({ maxResults = 10, startTime, endTime, paginationToken }) => {
@@ -912,10 +1044,14 @@ export function registerTwitterTools(server: McpServer): void {
 
         const mentions = await client.v2.userMentionTimeline(userId, opts);
         return jsonResponse(
-          paginatedTweetResponse(mentions.data?.data || [], mentions.data?.meta, {
-            userId,
-            includes: mentions.data?.includes,
-          }),
+          paginatedTweetResponse(
+            mentions.data?.data || [],
+            mentions.data?.meta,
+            {
+              userId,
+              includes: mentions.data?.includes,
+            },
+          ),
         );
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get mentions"));
@@ -939,7 +1075,9 @@ export function registerTwitterTools(server: McpServer): void {
         paginationToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextToken to fetch the next page",
+          ),
       },
     },
     async ({ maxResults = 10, paginationToken }) => {
@@ -983,7 +1121,9 @@ export function registerTwitterTools(server: McpServer): void {
         paginationToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextToken to fetch the next page",
+          ),
       },
     },
     async ({ maxResults = 10, paginationToken }) => {
@@ -1000,13 +1140,20 @@ export function registerTwitterTools(server: McpServer): void {
 
         const bookmarks = await client.v2.bookmarks(opts);
         return jsonResponse(
-          paginatedTweetResponse(bookmarks.data?.data || [], bookmarks.data?.meta, {
-            includes: bookmarks.data?.includes,
-          }),
+          paginatedTweetResponse(
+            bookmarks.data?.data || [],
+            bookmarks.data?.meta,
+            {
+              includes: bookmarks.data?.includes,
+            },
+          ),
         );
       } catch (error) {
         return errorResponse(
-          errMsg(error, "Failed to get bookmarks — requires OAuth 2.0 user context"),
+          errMsg(
+            error,
+            "Failed to get bookmarks — requires OAuth 2.0 user context",
+          ),
         );
       }
     },
@@ -1023,7 +1170,9 @@ export function registerTwitterTools(server: McpServer): void {
           .array(z.string().min(1).max(280))
           .min(2)
           .max(25)
-          .describe("Array of tweet texts in thread order (2-25 tweets, each max 280 chars)"),
+          .describe(
+            "Array of tweet texts in thread order (2-25 tweets, each max 280 chars)",
+          ),
       },
     },
     async ({ tweets }) => {
@@ -1043,13 +1192,18 @@ export function registerTwitterTools(server: McpServer): void {
             posted.push({ id: tweet.data.id, text: tweet.data.text });
             lastTweetId = tweet.data.id;
           } catch (error) {
-            const threadUrl = posted[0] ? `https://x.com/i/status/${posted[0].id}` : null;
+            const threadUrl = posted[0]
+              ? `https://x.com/i/status/${posted[0].id}`
+              : null;
             logger.error("[TwitterMCP] Thread partially failed", {
               posted: posted.length,
               total: tweets.length,
             });
             return errorResponse(
-              errMsg(error, `Thread failed at tweet ${posted.length + 1} of ${tweets.length}`),
+              errMsg(
+                error,
+                `Thread failed at tweet ${posted.length + 1} of ${tweets.length}`,
+              ),
               {
                 partialThread: posted,
                 threadUrl,
@@ -1084,7 +1238,10 @@ export function registerTwitterTools(server: McpServer): void {
       description:
         "Get full tweet details from a Twitter/X URL (e.g. https://x.com/user/status/123). Use when user pastes a tweet link and wants to interact with it.",
       inputSchema: {
-        url: z.string().min(1).describe("The tweet URL from twitter.com or x.com"),
+        url: z
+          .string()
+          .min(1)
+          .describe("The tweet URL from twitter.com or x.com"),
       },
     },
     async ({ url }) => {
@@ -1113,8 +1270,12 @@ export function registerTwitterTools(server: McpServer): void {
       description:
         "Check the follow relationship between two Twitter users. Use when user asks 'does X follow me', 'do I follow X', or 'are we mutuals'. Provide usernames (handles).",
       inputSchema: {
-        sourceUsername: z.string().describe("First username/handle (without @)"),
-        targetUsername: z.string().describe("Second username/handle (without @)"),
+        sourceUsername: z
+          .string()
+          .describe("First username/handle (without @)"),
+        targetUsername: z
+          .string()
+          .describe("Second username/handle (without @)"),
       },
     },
     async ({ sourceUsername, targetUsername }) => {
@@ -1135,7 +1296,8 @@ export function registerTwitterTools(server: McpServer): void {
           targetUsername: cleanTarget,
           sourceFollowsTarget: relationship.source.following,
           targetFollowsSource: relationship.source.followed_by,
-          mutualFollow: relationship.source.following && relationship.source.followed_by,
+          mutualFollow:
+            relationship.source.following && relationship.source.followed_by,
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to check relationship"));

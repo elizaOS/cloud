@@ -54,7 +54,9 @@ function isProviderConfigured(providerId: string): boolean {
 
 function shouldSkipIfProviderConfigured(providerId: string): boolean {
   if (isProviderConfigured(providerId)) {
-    console.log(`Skipping: ${providerId} provider is configured on test server`);
+    console.log(
+      `Skipping: ${providerId} provider is configured on test server`,
+    );
     return true;
   }
 
@@ -63,7 +65,9 @@ function shouldSkipIfProviderConfigured(providerId: string): boolean {
 
 function shouldSkipUnlessProviderConfigured(providerId: string): boolean {
   if (!isProviderConfigured(providerId)) {
-    console.log(`Skipping: ${providerId} provider is not configured on test server`);
+    console.log(
+      `Skipping: ${providerId} provider is not configured on test server`,
+    );
     return true;
   }
 
@@ -87,15 +91,20 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
     client = new Client({ connectionString: TEST_DB_URL });
     await client.connect();
 
-    const providersResponse = await fetch(`${BASE_URL}/api/v1/oauth/providers`, {
-      signal: AbortSignal.timeout(TIMEOUT),
-    });
+    const providersResponse = await fetch(
+      `${BASE_URL}/api/v1/oauth/providers`,
+      {
+        signal: AbortSignal.timeout(TIMEOUT),
+      },
+    );
     const providersData = await providersResponse.json();
     providerConfigured = Object.fromEntries(
-      providersData.providers.map((provider: { id: string; configured: boolean }) => [
-        provider.id,
-        provider.configured,
-      ]),
+      providersData.providers.map(
+        (provider: { id: string; configured: boolean }) => [
+          provider.id,
+          provider.configured,
+        ],
+      ),
     );
   });
 
@@ -104,9 +113,10 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       return;
     }
 
-    await client.query(`DELETE FROM platform_credentials WHERE organization_id = $1`, [
-      testData.organization.id,
-    ]);
+    await client.query(
+      `DELETE FROM platform_credentials WHERE organization_id = $1`,
+      [testData.organization.id],
+    );
     await client.end();
     await cleanupTestData(TEST_DB_URL, testData.organization.id);
   });
@@ -375,7 +385,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
       // Should not fail - uses defaults
       const data = await response.json();
-      expect(response.status === 200 || data.error === "PLATFORM_NOT_CONFIGURED").toBe(true);
+      expect(
+        response.status === 200 || data.error === "PLATFORM_NOT_CONFIGURED",
+      ).toBe(true);
     });
 
     it("should handle malformed JSON body gracefully", async () => {
@@ -398,7 +410,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
       // Should handle gracefully - empty body is fine per the route
       const data = await response.json();
-      expect(response.status === 200 || data.error === "PLATFORM_NOT_CONFIGURED").toBe(true);
+      expect(
+        response.status === 200 || data.error === "PLATFORM_NOT_CONFIGURED",
+      ).toBe(true);
     });
 
     it("should handle very long platform names", async () => {
@@ -455,7 +469,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
       // 307 = redirect (expected), 401 = routes not compiled, 429 = rate limited
       if (response.status === 401) {
-        console.log("Skipping: [platform] routes not compiled - restart dev server");
+        console.log(
+          "Skipping: [platform] routes not compiled - restart dev server",
+        );
         return;
       }
       if (response.status === 429) {
@@ -478,7 +494,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       if (response.status === 401) {
-        console.log("Skipping: [platform] routes not compiled - restart dev server");
+        console.log(
+          "Skipping: [platform] routes not compiled - restart dev server",
+        );
         return;
       }
       if (response.status === 429) {
@@ -501,7 +519,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       if (response.status === 401) {
-        console.log("Skipping: [platform] routes not compiled - restart dev server");
+        console.log(
+          "Skipping: [platform] routes not compiled - restart dev server",
+        );
         return;
       }
 
@@ -529,7 +549,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       if (response.status === 401) {
-        console.log("Skipping: [platform] routes not compiled - restart dev server");
+        console.log(
+          "Skipping: [platform] routes not compiled - restart dev server",
+        );
         return;
       }
 
@@ -557,7 +579,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       if (response.status === 401) {
-        console.log("Skipping: [platform] routes not compiled - restart dev server");
+        console.log(
+          "Skipping: [platform] routes not compiled - restart dev server",
+        );
         return;
       }
 
@@ -580,7 +604,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       if (response.status === 401) {
-        console.log("Skipping: [platform] routes not compiled - restart dev server");
+        console.log(
+          "Skipping: [platform] routes not compiled - restart dev server",
+        );
         return;
       }
 
@@ -603,7 +629,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       if (response.status === 401) {
-        console.log("Skipping: [platform] routes not compiled - restart dev server");
+        console.log(
+          "Skipping: [platform] routes not compiled - restart dev server",
+        );
         return;
       }
 
@@ -627,7 +655,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       if (response.status === 401) {
-        console.log("Skipping: [platform] routes not compiled - restart dev server");
+        console.log(
+          "Skipping: [platform] routes not compiled - restart dev server",
+        );
         return;
       }
 
@@ -641,15 +671,18 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         Array(15)
           .fill(null)
           .map(() =>
-            fetch(`${BASE_URL}/api/v1/oauth/linear/callback?code=test&state=test`, {
-              ...withOAuthIp(
-                {
-                  redirect: "manual",
-                  signal: AbortSignal.timeout(TIMEOUT),
-                },
-                "203.0.113.250",
-              ),
-            }),
+            fetch(
+              `${BASE_URL}/api/v1/oauth/linear/callback?code=test&state=test`,
+              {
+                ...withOAuthIp(
+                  {
+                    redirect: "manual",
+                    signal: AbortSignal.timeout(TIMEOUT),
+                  },
+                  "203.0.113.250",
+                ),
+              },
+            ),
           ),
       );
 
@@ -657,12 +690,16 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
       // If routes not compiled (401), skip
       if (statuses.every((s) => s === 401)) {
-        console.log("Skipping: [platform] routes not compiled - restart dev server");
+        console.log(
+          "Skipping: [platform] routes not compiled - restart dev server",
+        );
         return;
       }
 
       // Either rate limited (429), redirected (307), or routes not found
-      const allValid = statuses.every((s) => s === 429 || s === 307 || s === 401);
+      const allValid = statuses.every(
+        (s) => s === 429 || s === 307 || s === 401,
+      );
       expect(allValid).toBe(true);
     });
   });
@@ -739,12 +776,15 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
   describe("Generic Adapter via Connections API", () => {
     it("should list connections for generic providers", async () => {
       // Test that the generic adapter correctly lists connections
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=linear`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections?platform=linear`,
+        {
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
         },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -765,12 +805,15 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
+        {
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
         },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -780,7 +823,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       expect(data.connection.scopes).toContain("read");
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
     });
 
     it("should revoke generic provider credentials", async () => {
@@ -792,26 +837,32 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
-        method: "DELETE",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
         },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data.success).toBe(true);
 
       // Verify status changed to revoked
-      const result = await client.query(`SELECT status FROM platform_credentials WHERE id = $1`, [
-        credId,
-      ]);
+      const result = await client.query(
+        `SELECT status FROM platform_credentials WHERE id = $1`,
+        [credId],
+      );
       expect(result.rows[0].status).toBe("revoked");
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
     });
 
     it("should return 404 when requesting token for connection without secret", async () => {
@@ -824,18 +875,23 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
+        {
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
         },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       expect(response.status).toBe(404);
       expect(await response.json()).toEqual({ error: "Not Found" });
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
     });
 
     it("should return 404 when requesting token for revoked connection", async () => {
@@ -847,18 +903,23 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id],
       );
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
+        {
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
         },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       expect(response.status).toBe(404);
       expect(await response.json()).toEqual({ error: "Not Found" });
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
     });
 
     it("should return 404 when requesting token for expired connection without refresh token", async () => {
@@ -874,18 +935,23 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
         [credId, testData.organization.id, fakeSecretId],
       );
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}/token`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections/${credId}/token`,
+        {
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
         },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       expect(response.status).toBe(404);
       expect(await response.json()).toEqual({ error: "Not Found" });
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
     });
   });
 
@@ -915,7 +981,9 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
 
       const genericProviders = ["linear", "notion", "github", "slack"];
       for (const id of genericProviders) {
-        const provider = data.providers.find((p: { id: string }) => p.id === id);
+        const provider = data.providers.find(
+          (p: { id: string }) => p.id === id,
+        );
         expect(provider).toBeDefined();
         expect(provider.type).toBe("oauth2");
       }
@@ -926,11 +994,15 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       const data = await response.json();
 
       // Check Linear - should match env var presence
-      const linearProvider = data.providers.find((p: { id: string }) => p.id === "linear");
+      const linearProvider = data.providers.find(
+        (p: { id: string }) => p.id === "linear",
+      );
       expect(linearProvider.configured).toBe(isProviderConfigured("linear"));
 
       // Check GitHub - should match env var presence
-      const githubProvider = data.providers.find((p: { id: string }) => p.id === "github");
+      const githubProvider = data.providers.find(
+        (p: { id: string }) => p.id === "github",
+      );
       expect(githubProvider.configured).toBe(isProviderConfigured("github"));
     });
   });
@@ -954,17 +1026,22 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       // Try to access with our API key
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
-        headers: {
-          "X-API-Key": testData.apiKey.key,
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
+        {
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
         },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       expect(response.status).toBe(404);
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
       await cleanupTestData(TEST_DB_URL, otherOrg.organization.id);
     });
 
@@ -983,24 +1060,30 @@ describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
       );
 
       // Try to revoke with our API key
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${credId}`, {
-        method: "DELETE",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections/${credId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "X-API-Key": testData.apiKey.key,
+          },
+          signal: AbortSignal.timeout(TIMEOUT),
         },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      );
 
       expect(response.status).toBe(404);
 
       // Verify connection was NOT revoked
-      const result = await client.query(`SELECT status FROM platform_credentials WHERE id = $1`, [
-        credId,
-      ]);
+      const result = await client.query(
+        `SELECT status FROM platform_credentials WHERE id = $1`,
+        [credId],
+      );
       expect(result.rows[0].status).toBe("active");
 
       // Cleanup
-      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [credId]);
+      await client.query(`DELETE FROM platform_credentials WHERE id = $1`, [
+        credId,
+      ]);
       await cleanupTestData(TEST_DB_URL, otherOrg.organization.id);
     });
   });

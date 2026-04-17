@@ -93,7 +93,9 @@ interface ConfigStatus {
   wallet: { configured: boolean; address?: string; balance?: string };
 }
 
-async function checkConfiguration(env: Record<string, string>): Promise<ConfigStatus> {
+async function checkConfiguration(
+  env: Record<string, string>,
+): Promise<ConfigStatus> {
   const status: ConfigStatus = {
     database: { configured: false },
     auth: { configured: false, provider: "privy" },
@@ -136,7 +138,10 @@ async function checkConfiguration(env: Record<string, string>): Promise<ConfigSt
     // Check balance
     const network = env.X402_NETWORK || "base-sepolia";
     const chain = network === "base" ? base : baseSepolia;
-    const rpcUrl = network === "base" ? "https://mainnet.base.org" : "https://sepolia.base.org";
+    const rpcUrl =
+      network === "base"
+        ? "https://mainnet.base.org"
+        : "https://sepolia.base.org";
 
     try {
       const client = createPublicClient({ chain, transport: http(rpcUrl) });
@@ -173,8 +178,12 @@ function displayStatus(status: ConfigStatus): void {
   // Payments
   const stripeIcon = status.payments.stripe ? "✅" : "⬜";
   const x402Icon = status.payments.x402 ? "✅" : "⬜";
-  console.log(`${stripeIcon} Stripe: ${status.payments.stripe ? "Configured" : "Optional"}`);
-  console.log(`${x402Icon} x402 Crypto: ${status.payments.x402 ? "Enabled" : "Disabled"}`);
+  console.log(
+    `${stripeIcon} Stripe: ${status.payments.stripe ? "Configured" : "Optional"}`,
+  );
+  console.log(
+    `${x402Icon} x402 Crypto: ${status.payments.x402 ? "Enabled" : "Disabled"}`,
+  );
 
   // Wallet
   if (status.wallet.configured) {
@@ -223,14 +232,18 @@ async function promptForMissing(env: Record<string, string>): Promise<void> {
     { key: "PRIVY_APP_SECRET", hint: "From Privy dashboard" },
   ];
 
-  const missing = required.filter((r) => !env[r.key] || isPlaceholderValue(env[r.key]));
+  const missing = required.filter(
+    (r) => !env[r.key] || isPlaceholderValue(env[r.key]),
+  );
 
   if (missing.length > 0) {
     console.log("\n⚠️  Required configuration missing:");
     for (const m of missing) {
       console.log(`   ${m.key} - ${m.hint}`);
     }
-    console.log("\n   Edit .env.local to add these values, then run setup again.");
+    console.log(
+      "\n   Edit .env.local to add these values, then run setup again.",
+    );
   }
 }
 
@@ -269,7 +282,8 @@ async function main() {
   console.log("\n🚀 Next Steps");
   console.log("==============");
 
-  const missingRequired = !status.database.configured || !status.auth.configured;
+  const missingRequired =
+    !status.database.configured || !status.auth.configured;
 
   if (missingRequired) {
     console.log("   1. Add required configuration to .env.local");

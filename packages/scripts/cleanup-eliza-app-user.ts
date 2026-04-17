@@ -47,7 +47,9 @@ async function clearRedisKeys(patterns: string[]) {
   const restToken = process.env.KV_REST_API_TOKEN;
 
   if (!restUrl || !restToken) {
-    console.log("  ⚠ No Redis configured (KV_REST_API_URL/TOKEN), skipping cache cleanup");
+    console.log(
+      "  ⚠ No Redis configured (KV_REST_API_URL/TOKEN), skipping cache cleanup",
+    );
     return;
   }
 
@@ -75,7 +77,8 @@ async function clearRedisKeys(patterns: string[]) {
         match: pattern,
         count: 100,
       });
-      cursor = typeof result[0] === "string" ? parseInt(result[0], 10) : result[0];
+      cursor =
+        typeof result[0] === "string" ? parseInt(result[0], 10) : result[0];
       const keys = result[1];
       if (keys.length > 0) {
         await redis.del(...keys);
@@ -109,7 +112,9 @@ async function cleanupByPhone(phoneNumber: string) {
 
     // Delete organization (cascades to user, api_keys, etc.)
     if (user.organization_id) {
-      await db.delete(organizations).where(eq(organizations.id, user.organization_id));
+      await db
+        .delete(organizations)
+        .where(eq(organizations.id, user.organization_id));
       console.log(`  ✓ Deleted organization and all related data`);
     } else {
       // No org, just delete user
@@ -140,10 +145,14 @@ async function cleanupByTelegram(telegramId: string) {
   }
 
   console.log(`  Found user: ${user.id} (${user.name || "unnamed"})`);
-  console.log(`  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`);
+  console.log(
+    `  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`,
+  );
 
   if (user.organization_id) {
-    await db.delete(organizations).where(eq(organizations.id, user.organization_id));
+    await db
+      .delete(organizations)
+      .where(eq(organizations.id, user.organization_id));
     console.log(`  ✓ Deleted organization and all related data`);
   } else {
     await db.delete(users).where(eq(users.id, user.id));
@@ -169,14 +178,20 @@ async function cleanupByDiscord(discordId: string) {
     return;
   }
 
-  console.log(`  Found user: ${user.id} (${user.name || user.discord_username || "unnamed"})`);
+  console.log(
+    `  Found user: ${user.id} (${user.name || user.discord_username || "unnamed"})`,
+  );
   console.log(
     `  Discord: ${user.discord_username || "N/A"} (${user.discord_global_name || "N/A"})`,
   );
-  console.log(`  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`);
+  console.log(
+    `  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`,
+  );
 
   if (user.organization_id) {
-    await db.delete(organizations).where(eq(organizations.id, user.organization_id));
+    await db
+      .delete(organizations)
+      .where(eq(organizations.id, user.organization_id));
     console.log(`  ✓ Deleted organization and all related data`);
   } else {
     await db.delete(users).where(eq(users.id, user.id));
@@ -201,11 +216,17 @@ async function cleanupByWhatsApp(whatsappId: string) {
     return;
   }
 
-  console.log(`  Found user: ${user.id} (${user.name || user.whatsapp_name || "unnamed"})`);
-  console.log(`  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`);
+  console.log(
+    `  Found user: ${user.id} (${user.name || user.whatsapp_name || "unnamed"})`,
+  );
+  console.log(
+    `  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`,
+  );
 
   if (user.organization_id) {
-    await db.delete(organizations).where(eq(organizations.id, user.organization_id));
+    await db
+      .delete(organizations)
+      .where(eq(organizations.id, user.organization_id));
     console.log(`  ✓ Deleted organization and all related data`);
   } else {
     await db.delete(users).where(eq(users.id, user.id));
@@ -242,10 +263,14 @@ async function cleanupById(userId: string) {
 
   console.log(`  Found user: ${user.id} (${user.name || "unnamed"})`);
   if (identifiers) console.log(`  Identifiers: ${identifiers}`);
-  console.log(`  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`);
+  console.log(
+    `  Organization: ${user.organization?.id} (${user.organization?.name || "unnamed"})`,
+  );
 
   if (user.organization_id) {
-    await db.delete(organizations).where(eq(organizations.id, user.organization_id));
+    await db
+      .delete(organizations)
+      .where(eq(organizations.id, user.organization_id));
     console.log(`  ✓ Deleted organization and all related data`);
   } else {
     await db.delete(users).where(eq(users.id, user.id));
@@ -293,7 +318,9 @@ async function cleanupAllTestUsers() {
     console.log(`  - ${user.id} (${user.name || "unnamed"}) [${identifiers}]`);
 
     if (user.organization_id) {
-      await db.delete(organizations).where(eq(organizations.id, user.organization_id));
+      await db
+        .delete(organizations)
+        .where(eq(organizations.id, user.organization_id));
     } else {
       await db.delete(users).where(eq(users.id, user.id));
     }
@@ -302,7 +329,9 @@ async function cleanupAllTestUsers() {
   // Clear all eliza-app sessions
   await clearRedisKeys([`${SESSION_KEY_PREFIX}*`]);
 
-  console.log(`\n✅ Deleted ${testUsers.length} user(s) and their organizations\n`);
+  console.log(
+    `\n✅ Deleted ${testUsers.length} user(s) and their organizations\n`,
+  );
 }
 
 async function main() {

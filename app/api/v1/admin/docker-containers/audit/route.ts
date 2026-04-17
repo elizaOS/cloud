@@ -60,7 +60,10 @@ export async function POST(request: NextRequest) {
           nodeId: node.node_id,
           hostname: node.hostname,
           ghostContainers: [] as string[],
-          orphanRecords: [] as Array<{ id: string; containerName: string | null }>,
+          orphanRecords: [] as Array<{
+            id: string;
+            containerName: string | null;
+          }>,
           error: undefined as string | undefined,
         };
 
@@ -73,7 +76,10 @@ export async function POST(request: NextRequest) {
           })
           .from(miladySandboxes)
           .where(
-            and(eq(miladySandboxes.node_id, node.node_id), ne(miladySandboxes.status, "stopped")),
+            and(
+              eq(miladySandboxes.node_id, node.node_id),
+              ne(miladySandboxes.status, "stopped"),
+            ),
           );
 
         // Get actual running containers on the node via SSH
@@ -104,7 +110,9 @@ export async function POST(request: NextRequest) {
 
         const actualSet = new Set(actualContainers);
         const dbNameSet = new Set(
-          dbContainers.map((c) => c.containerName).filter((n): n is string => n !== null),
+          dbContainers
+            .map((c) => c.containerName)
+            .filter((n): n is string => n !== null),
         );
 
         // Ghost containers: running on node but not in DB
@@ -150,7 +158,9 @@ export async function POST(request: NextRequest) {
       } else {
         const node = nodes[i];
         const errorMsg =
-          settled.reason instanceof Error ? settled.reason.message : "Failed to audit node";
+          settled.reason instanceof Error
+            ? settled.reason.message
+            : "Failed to audit node";
         logger.warn("[Admin Docker Audit] Node audit failed", {
           nodeId: node.node_id,
           error: errorMsg,
@@ -172,8 +182,15 @@ export async function POST(request: NextRequest) {
     });
 
     // Build flat arrays matching the UI AuditResult interface
-    const ghostContainers: Array<{ nodeId: string; hostname: string; names: string[] }> = [];
-    const allOrphanRecords: Array<{ id: string; containerName: string | null }> = [];
+    const ghostContainers: Array<{
+      nodeId: string;
+      hostname: string;
+      names: string[];
+    }> = [];
+    const allOrphanRecords: Array<{
+      id: string;
+      containerName: string | null;
+    }> = [];
 
     for (const result of auditResults) {
       if (result.ghostContainers.length > 0) {
@@ -202,6 +219,9 @@ export async function POST(request: NextRequest) {
     logger.error("[Admin Docker Audit] Audit failed", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json({ success: false, error: "Container audit failed" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Container audit failed" },
+      { status: 500 },
+    );
   }
 }

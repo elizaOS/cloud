@@ -20,7 +20,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { createCharacter, getCharacter, updateCharacter } from "@/app/actions/characters";
+import {
+  createCharacter,
+  getCharacter,
+  updateCharacter,
+} from "@/app/actions/characters";
 import { useChatStore } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
@@ -51,7 +55,9 @@ export function CharacterBuildMode({
   const builderRoomIdRef = useRef<string | null>(null);
 
   // Track pending navigation after character creation to avoid race conditions
-  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(
+    null,
+  );
 
   // Mobile view state: 'assistant' or 'editor'
   // Default to 'editor' when editing existing character, 'assistant' when creating new
@@ -75,7 +81,9 @@ export function CharacterBuildMode({
   // Use effectiveCharacterId to get correct character on first render
   const initialCharacter = useMemo(() => {
     if (effectiveCharacterId) {
-      const found = initialCharacters.find((c) => c.id === effectiveCharacterId);
+      const found = initialCharacters.find(
+        (c) => c.id === effectiveCharacterId,
+      );
       if (found) return found;
     }
     // In creator mode, use a stable reference for the default character
@@ -91,15 +99,22 @@ export function CharacterBuildMode({
   const isCreatorMode = !effectiveCharacterId;
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
-  const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>([]);
+  const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>(
+    [],
+  );
 
   // Track the character ID to detect actual character switches vs reference changes
-  const previousCharacterIdRef = useRef<string | undefined>(initialCharacter.id);
+  const previousCharacterIdRef = useRef<string | undefined>(
+    initialCharacter.id,
+  );
 
   // Use functional updates to avoid stale closure issues with concurrent operations
-  const handlePreUploadedFilesAdd = useCallback((newFiles: PreUploadedFile[]) => {
-    setPreUploadedFiles((prev) => [...prev, ...newFiles]);
-  }, []);
+  const handlePreUploadedFilesAdd = useCallback(
+    (newFiles: PreUploadedFile[]) => {
+      setPreUploadedFiles((prev) => [...prev, ...newFiles]);
+    },
+    [],
+  );
 
   const handlePreUploadedFileRemove = useCallback((fileId: string) => {
     setPreUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
@@ -107,7 +122,8 @@ export function CharacterBuildMode({
 
   // Track unsaved changes (memoized to avoid JSON.stringify on every render)
   const hasUnsavedChanges = useMemo(() => {
-    const hasCharacterChanges = JSON.stringify(character) !== JSON.stringify(initialCharacter);
+    const hasCharacterChanges =
+      JSON.stringify(character) !== JSON.stringify(initialCharacter);
     const hasFileChanges = preUploadedFiles.length > 0;
     return hasCharacterChanges || hasFileChanges;
   }, [character, initialCharacter, preUploadedFiles]);
@@ -120,7 +136,8 @@ export function CharacterBuildMode({
   // Update local state only when switching to a DIFFERENT character (by ID)
   // This prevents data loss when parent re-renders with new array reference but same content
   useEffect(() => {
-    const characterIdChanged = initialCharacter.id !== previousCharacterIdRef.current;
+    const characterIdChanged =
+      initialCharacter.id !== previousCharacterIdRef.current;
     if (characterIdChanged) {
       setCharacter(initialCharacter);
       setPreUploadedFiles([]);
@@ -137,9 +154,12 @@ export function CharacterBuildMode({
     }
   }, [pendingNavigation, router]);
 
-  const handleCharacterUpdate = useCallback((updates: Partial<ElizaCharacter>) => {
-    setCharacter((prev) => ({ ...prev, ...updates }));
-  }, []);
+  const handleCharacterUpdate = useCallback(
+    (updates: Partial<ElizaCharacter>) => {
+      setCharacter((prev) => ({ ...prev, ...updates }));
+    },
+    [],
+  );
 
   const handleExit = useCallback(() => {
     if (character.id) {
@@ -197,14 +217,20 @@ export function CharacterBuildMode({
             const failedCount = data.failedCount || 0;
             const successCount = data.successCount || 0;
 
-            if (failedCount > 0 && data.results && Array.isArray(data.results)) {
+            if (
+              failedCount > 0 &&
+              data.results &&
+              Array.isArray(data.results)
+            ) {
               // Partial failure - store failed files in sessionStorage for retry
               const failedBlobUrls = new Set(
                 data.results
                   .filter((r: { status: string }) => r.status === "error")
                   .map((r: { blobUrl: string }) => r.blobUrl),
               );
-              const failedFiles = filesToProcess.filter((f) => failedBlobUrls.has(f.blobUrl));
+              const failedFiles = filesToProcess.filter((f) =>
+                failedBlobUrls.has(f.blobUrl),
+              );
 
               // Store failed files in sessionStorage for PendingKnowledgeProcessor to pick up
               let sessionStorageSucceeded = false;
@@ -231,7 +257,9 @@ export function CharacterBuildMode({
               }
 
               // Clear only the processed files from state, preserving any files added during the API call
-              setPreUploadedFiles((prev) => prev.filter((f) => !processedFileIds.has(f.id)));
+              setPreUploadedFiles((prev) =>
+                prev.filter((f) => !processedFileIds.has(f.id)),
+              );
               if (sessionStorageSucceeded) {
                 toast.warning("Character updated with partial file failures", {
                   description: `${successCount} file(s) processed, ${failedCount} failed. Failed files will be retried automatically.`,
@@ -245,7 +273,9 @@ export function CharacterBuildMode({
               }
             } else {
               // All files succeeded - clear all processed files
-              setPreUploadedFiles((prev) => prev.filter((f) => !processedFileIds.has(f.id)));
+              setPreUploadedFiles((prev) =>
+                prev.filter((f) => !processedFileIds.has(f.id)),
+              );
               toast.success("Character updated! Redirecting to chat...", {
                 description: `Processed ${successCount} file(s) for RAG knowledge base`,
                 duration: 4000,
@@ -277,15 +307,19 @@ export function CharacterBuildMode({
             }
 
             // Clear only the processed files from state, preserving any files added during the API call
-            setPreUploadedFiles((prev) => prev.filter((f) => !processedFileIds.has(f.id)));
+            setPreUploadedFiles((prev) =>
+              prev.filter((f) => !processedFileIds.has(f.id)),
+            );
             if (sessionStorageSucceeded) {
               toast.warning("Character updated, but file processing failed", {
-                description: errorData.error || "Files will be retried automatically.",
+                description:
+                  errorData.error || "Files will be retried automatically.",
                 duration: 6000,
               });
             } else {
               toast.warning("Character updated, but file processing failed", {
-                description: "File retry unavailable. You can re-upload files from the Files tab.",
+                description:
+                  "File retry unavailable. You can re-upload files from the Files tab.",
                 duration: 6000,
               });
             }
@@ -390,7 +424,9 @@ export function CharacterBuildMode({
       }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to save character. Please try again.",
+        error instanceof Error
+          ? error.message
+          : "Failed to save character. Please try again.",
       );
     }
   }, [character, onUnsavedChanges, setRoomId, preUploadedFiles]);
@@ -444,7 +480,9 @@ export function CharacterBuildMode({
             { value: "editor", label: "Editor" },
           ]}
           value={mobileView}
-          onValueChange={(value) => setMobileView(value as "assistant" | "editor")}
+          onValueChange={(value) =>
+            setMobileView(value as "assistant" | "editor")
+          }
           variant="orange"
           fullWidth
         />

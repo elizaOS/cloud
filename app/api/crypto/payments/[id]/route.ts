@@ -14,16 +14,25 @@ async function handleGetPayment(req: NextRequest, context: RouteContext) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
     if (!context) {
-      return NextResponse.json({ error: "Missing route params" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing route params" },
+        { status: 400 },
+      );
     }
     const { id } = await context.params;
 
     if (!z.string().uuid().safeParse(id).success) {
-      return NextResponse.json({ error: "Invalid payment ID" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid payment ID" },
+        { status: 400 },
+      );
     }
 
     if (!user.organization_id) {
-      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
     }
 
     const payment = await cryptoPaymentsRepository.findById(id);
@@ -36,7 +45,8 @@ async function handleGetPayment(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { confirmed, payment: status } = await cryptoPaymentsService.checkAndConfirmPayment(id);
+    const { confirmed, payment: status } =
+      await cryptoPaymentsService.checkAndConfirmPayment(id);
 
     return NextResponse.json({
       ...status,
@@ -44,7 +54,10 @@ async function handleGetPayment(req: NextRequest, context: RouteContext) {
     });
   } catch (error) {
     logger.error("[Crypto Payments API] Get payment error:", error);
-    return NextResponse.json({ error: "Failed to get payment status" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to get payment status" },
+      { status: 500 },
+    );
   }
 }
 

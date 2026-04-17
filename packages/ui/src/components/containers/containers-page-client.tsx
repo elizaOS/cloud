@@ -17,7 +17,9 @@ export function ContainersPageClient() {
     <div className="flex flex-col gap-6">
       <div className="rounded-lg border bg-card p-6">
         <h2 className="text-xl font-semibold mb-4">Container Management</h2>
-        <p className="text-muted-foreground">Container deployment interface coming soon...</p>
+        <p className="text-muted-foreground">
+          Container deployment interface coming soon...
+        </p>
       </div>
     </div>
   );

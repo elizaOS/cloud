@@ -44,7 +44,12 @@ interface EditorState {
   isSaving: boolean;
 }
 
-export function JsonEditor({ character, onChange, onSave, hideActions = false }: JsonEditorProps) {
+export function JsonEditor({
+  character,
+  onChange,
+  onSave,
+  hideActions = false,
+}: JsonEditorProps) {
   const [editorState, setEditorState] = useState<EditorState>({
     jsonText: "",
     isValid: true,

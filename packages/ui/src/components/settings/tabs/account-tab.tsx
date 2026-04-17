@@ -108,8 +108,8 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
                 </h3>
               </div>
               <p className="text-xs md:text-sm font-mono text-[#858585] tracking-tight">
-                Stay on top of credits, observe generation activity, and jump into tools you use the
-                most. All from one streamlined dashboard.
+                Stay on top of credits, observe generation activity, and jump
+                into tools you use the most. All from one streamlined dashboard.
               </p>
             </div>
 
@@ -154,7 +154,9 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
                 Total Generations
               </p>
               <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
-                {isLoadingStats ? "..." : stats?.totalGenerations.toLocaleString() || 0}
+                {isLoadingStats
+                  ? "..."
+                  : stats?.totalGenerations.toLocaleString() || 0}
               </p>
               <p className="text-xs md:text-sm text-white/60">
                 {isLoadingStats
@@ -168,7 +170,9 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
                 API Calls (24h)
               </p>
               <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
-                {isLoadingStats ? "..." : stats?.apiCalls24h.toLocaleString() || 0}
+                {isLoadingStats
+                  ? "..."
+                  : stats?.apiCalls24h.toLocaleString() || 0}
               </p>
               <p className="text-xs md:text-sm text-white/60">
                 {isLoadingStats
@@ -182,15 +186,21 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
                 Image Generations
               </p>
               <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
-                {isLoadingStats ? "..." : stats?.imageGenerationsAllTime.toLocaleString() || 0}
+                {isLoadingStats
+                  ? "..."
+                  : stats?.imageGenerationsAllTime.toLocaleString() || 0}
               </p>
               <p className="text-xs md:text-sm text-white/60">All time</p>
             </div>
 
             <div className="backdrop-blur-sm border-t lg:border-t border-r border-b border-brand-surface p-3 md:p-4 space-y-1">
-              <p className="text-xs md:text-sm lg:text-base font-mono text-white">Video Renders</p>
+              <p className="text-xs md:text-sm lg:text-base font-mono text-white">
+                Video Renders
+              </p>
               <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
-                {isLoadingStats ? "..." : stats?.videoRendersAllTime.toLocaleString() || 0}
+                {isLoadingStats
+                  ? "..."
+                  : stats?.videoRendersAllTime.toLocaleString() || 0}
               </p>
               <p className="text-xs md:text-sm text-white/60">All time</p>
             </div>
@@ -206,12 +216,16 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
           {/* Section Header */}
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase">Account</h3>
+            <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase">
+              Account
+            </h3>
           </div>
 
           {/* Log out of all devices */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 w-full">
-            <p className="text-sm md:text-base font-mono text-white">Log out of all devices</p>
+            <p className="text-sm md:text-base font-mono text-white">
+              Log out of all devices
+            </p>
             <button
               type="button"
               onClick={handleLogout}
@@ -227,7 +241,9 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
 
           {/* Delete account */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 w-full">
-            <p className="text-sm md:text-base font-mono text-white">Delete account</p>
+            <p className="text-sm md:text-base font-mono text-white">
+              Delete account
+            </p>
             <button
               type="button"
               onClick={handleContactSupport}
@@ -239,7 +255,9 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
 
           {/* Organization ID */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 w-full">
-            <p className="text-sm md:text-base font-mono text-white">Organization ID</p>
+            <p className="text-sm md:text-base font-mono text-white">
+              Organization ID
+            </p>
             <div className="flex items-center gap-2">
               <div className="border border-[#303030] px-2 py-2 flex items-center gap-2">
                 <span className="text-xs md:text-sm text-white font-normal break-all">

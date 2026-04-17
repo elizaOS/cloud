@@ -43,7 +43,11 @@ export async function POST(
     if (!parsed.success) {
       return applyCorsHeaders(
         NextResponse.json(
-          { success: false, error: "Invalid JSON-RPC request", details: parsed.error.issues },
+          {
+            success: false,
+            error: "Invalid JSON-RPC request",
+            details: parsed.error.issues,
+          },
           { status: 400 },
         ),
         CORS_METHODS,
@@ -51,7 +55,11 @@ export async function POST(
     }
 
     const rpcRequest = parsed.data as BridgeRequest;
-    const response = await miladySandboxService.bridge(agentId, user.organization_id, rpcRequest);
+    const response = await miladySandboxService.bridge(
+      agentId,
+      user.organization_id,
+      rpcRequest,
+    );
 
     return applyCorsHeaders(NextResponse.json(response), CORS_METHODS);
   } catch (error) {

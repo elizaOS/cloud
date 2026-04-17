@@ -30,7 +30,10 @@ export function handleCorsOptions(methods: string): Response {
   });
 }
 
-export function applyCorsHeaders(response: Response, methods?: string): Response {
+export function applyCorsHeaders(
+  response: Response,
+  methods?: string,
+): Response {
   const headers = new Headers(response.headers);
 
   for (const [key, value] of Object.entries(getCorsHeaders(methods))) {

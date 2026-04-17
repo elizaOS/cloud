@@ -28,7 +28,8 @@ export const WithDescription: Story = {
   args: {
     label: "Settings",
     title: "API Keys",
-    description: "Manage your API keys and access tokens for programmatic access.",
+    description:
+      "Manage your API keys and access tokens for programmatic access.",
   },
 };
 

@@ -66,7 +66,9 @@ export function KeyMetricsGrid({ metrics, columns = 4 }: KeyMetricsGridProps) {
               </h4>
             </div>
             <div className="flex flex-col gap-4 p-6 pt-3">
-              <div className="text-3xl font-semibold leading-tight text-white">{metric.value}</div>
+              <div className="text-3xl font-semibold leading-tight text-white">
+                {metric.value}
+              </div>
               {metric.delta ? (
                 <span
                   className={cn(
@@ -78,7 +80,9 @@ export function KeyMetricsGrid({ metrics, columns = 4 }: KeyMetricsGridProps) {
                   {metric.delta.label ? ` · ${metric.delta.label}` : null}
                 </span>
               ) : null}
-              {metric.helper ? <p className="text-sm text-white/60">{metric.helper}</p> : null}
+              {metric.helper ? (
+                <p className="text-sm text-white/60">{metric.helper}</p>
+              ) : null}
             </div>
           </BrandCard>
         );
