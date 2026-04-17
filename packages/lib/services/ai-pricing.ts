@@ -739,9 +739,9 @@ async function fetchText(url: string): Promise<string> {
 
 function evictExpiredCacheEntries(): void {
   const now = Date.now();
-  for (const [key, value] of third-partyCatalogCache) {
+  for (const [key, value] of externalCatalogCache) {
     if (value.expiresAt <= now) {
-      third-partyCatalogCache.delete(key);
+      externalCatalogCache.delete(key);
     }
   }
 }
